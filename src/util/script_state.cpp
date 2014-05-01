@@ -455,8 +455,7 @@ public:
             m_thread.join();
     }
 
-    int wait(lua_State * src) {
-        m_thread.join();
+    int copy_result(lua_State * src) {
         if (m_exception)
             m_exception->rethrow();
         return m_state.apply([&](lua_State * S) {
@@ -467,6 +466,10 @@ public:
                 }
                 return sz_after - m_sz_before;
             });
+    }
+
+    void wait() {
+        m_thread.join();
     }
 
     void request_interrupt() {
@@ -554,7 +557,10 @@ static int thread_interrupt(lua_State * L) {
 }
 
 int thread_wait(lua_State * L) {
-    return to_thread(L, 1).wait(L);
+    auto & t = to_thread(L, 1);
+    script_state st = to_script_state(L);
+    st.exec_unprotected([&]() { t.wait(); });
+    return t.copy_result(L);
 }
 
 static const struct luaL_Reg thread_m[] = {
