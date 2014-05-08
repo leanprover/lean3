@@ -165,11 +165,11 @@ void parser_imp::parse_def_core(bool is_definition) {
     if (is_definition) {
         m_env->add_definition(full_id, type, val);
         if (m_verbose)
-            regular(m_io_state) << "  Defined: " << full_id << endl;
+          regular(m_io_state) << "  Defined: " << full_id << " : " << type << endl;
     } else {
         m_env->add_theorem(full_id, type, val);
         if (m_verbose)
-            regular(m_io_state) << "  Proved: " << full_id << endl;
+            regular(m_io_state) << "  Proved: " << full_id << " : " << type << endl;
     }
     register_implicit_arguments(full_id, parameters);
 }
@@ -224,7 +224,7 @@ void parser_imp::parse_variable_core(bool is_var) {
     else
         m_env->add_axiom(full_id, type);
     if (m_verbose)
-        regular(m_io_state) << "  Assumed: " << full_id << endl;
+        regular(m_io_state) << "  Assumed: " << full_id << " : " << type << endl;
     register_implicit_arguments(full_id, parameters);
 }
 
@@ -256,7 +256,7 @@ void parser_imp::parse_variables() {
         expr const & type = p.m_type;
         m_env->add_var(full_id, type);
         if (m_verbose)
-            regular(m_io_state) << "  Assumed: " << full_id << endl;
+            regular(m_io_state) << "  Assumed: " << full_id << " : " << type << endl;
     }
 }
 
