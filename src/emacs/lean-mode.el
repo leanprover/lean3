@@ -10,8 +10,14 @@
   (interactive)
   (compile (format "%s %s" lean-exe (buffer-file-name))))
 
+(defun lean-bare-execute ()
+  "Execute Lean (without loading the kernel) in the current buffer"
+  (interactive)
+  (compile (format "%s -n %s" lean-exe (buffer-file-name))))
+
 (defun lean-set-keys ()
   (local-set-key "\C-c\C-x" 'lean-execute)
+  (local-set-key "\C-c\C-n" 'lean-bare-execute)
   (local-set-key "\C-c\C-l" 'lean-execute))
 
 (define-abbrev-table 'lean-mode-abbrev-table '(
