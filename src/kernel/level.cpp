@@ -145,6 +145,7 @@ level max(level const & l1, level const & l2) {
 }
 
 level operator+(level const & l, unsigned k)  {
+    if (k == 0) return l;
     switch (kind(l)) {
     case level_kind::UVar: return level(l, k);
     case level_kind::Lift: return level(lift_of(l), safe_add(lift_offset(l), k));
