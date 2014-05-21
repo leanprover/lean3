@@ -342,6 +342,10 @@ void parser_imp::parse_print() {
             }
         } else if (opt_id == g_options_kwd) {
             regular(m_io_state) << pp(m_io_state.get_options()) << endl;
+        } else if (opt_id == g_definition_kwd) {
+            name def_name = check_identifier_next("invalid 'print definition' command, indentifier expected");
+            auto obj = m_env->get_object(def_name);
+            regular(m_io_state) << obj << endl;
         } else if (opt_id == g_rewrite_set_kwd) {
             name rsid;
             if (curr_is_identifier()) {
