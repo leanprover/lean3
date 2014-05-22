@@ -28,31 +28,23 @@ format app_type_mismatch_exception::pp(formatter const & fmt, options const & op
     unsigned indent     = get_pp_indent(opts);
     context const & ctx = get_context();
     expr const & app    = get_application();
-    format app_fmt      = fmt(ctx, app, false, opts);
-    std::vector<expr> const & arg_types = get_arg_types();
-    auto it = arg_types.begin();
-    format f_type_fmt   = fmt(ctx, *it, false, opts);
-    format arg_types_fmt;
-    ++it;
-    for (unsigned i = 1; it != arg_types.end(); ++it, ++i) {
-        expr const & a    = arg(app, i);
-        format arg_fmt    = fmt(ctx, a, false, opts);
-        if (is_pi(a) || is_lambda(a) || is_let(a))
-            arg_fmt = paren(arg_fmt);
-        format arg_type_fmt = fmt(ctx, *it, false, opts);
-        arg_types_fmt += nest(indent, compose(line(), group(format{arg_fmt, space(), colon(), nest(indent, format{line(), arg_type_fmt})})));
-    }
+    expr const & arg    = get_arg();
+    expr const & arg_ty = get_arg_type();
+    expr const & exp_ty = get_expected_type();
+
+    format app_fmt           = fmt(ctx, app, false, opts);
+    format arg_fmt           = fmt(ctx, arg, false, opts);
+    format arg_type_fmt      = fmt(ctx, arg_ty, false, opts);
+    format expected_type_fmt = fmt(ctx, exp_ty, false, opts);
     format r;
-    r += format{format("type mismatch in argument #"), format(m_arg_pos),  format(" at application")};
+    r += format("Type mismatch at application");
     r += nest(indent, compose(line(), app_fmt));
-    r += compose(line(), format("Function type:"));
-    r += nest(indent, compose(line(), f_type_fmt));
-    r += line();
-    if (arg_types.size() > 2)
-        r += format("Arguments types:");
-    else
-        r += format("Argument type:");
-    r += arg_types_fmt;
+    r += compose(line(), format("Argument"));
+    r += nest(indent, compose(line(), arg_fmt));
+    r += compose(line(), format("is of type"));
+    r += nest(indent, compose(line(), arg_type_fmt));
+    r += compose(line(), format("but is expected to be of type"));
+    r += nest(indent, compose(line(), expected_type_fmt));
     return r;
 }
 
