@@ -37,20 +37,20 @@ app_type_match_justification_cell::~app_type_match_justification_cell() {
 
 format app_type_match_justification_cell::pp_header(formatter const & fmt, options const & opts, optional<metavar_env> const & menv) const {
     unsigned indent = get_pp_indent(opts);
+    expr new_app      = instantiate_metavars(menv, m_app);
+    expr new_arg      = instantiate_metavars(menv, m_arg);
+    expr new_arg_ty   = instantiate_metavars(menv, m_arg_ty);
+    expr new_expected = instantiate_metavars(menv, m_expected);
+    context new_ctx      = instantiate_metavars(menv, m_ctx);
     format r;
-    r += format("Type of argument ");
-    r += format(m_i);
-    r += format(" must be convertible to the expected type in the application of");
-    expr new_app = instantiate_metavars(menv, m_app);
-    r += nest(indent, compose(line(), fmt(instantiate_metavars(menv, m_ctx), arg(new_app, 0), false, opts)));
-    unsigned num = num_args(m_app);
-    r += line();
-    if (num == 2)
-        r += format("with argument:");
-    else
-        r += format("with arguments:");
-    for (unsigned i = 1; i < num; i++)
-        r += nest(indent, compose(line(), fmt(m_ctx, arg(new_app, i), false, opts)));
+    r += format("In the application of");
+    r += nest(indent, compose(line(), fmt(new_ctx, arg(new_app, 0), false, opts)));
+    r += format("the type of");
+    r += nest(indent, compose(line(), fmt(new_ctx, new_arg, false, opts)));
+    r += format("is");
+    r += nest(indent, compose(line(), fmt(new_ctx, new_arg_ty, false, opts)));
+    r += format("but is expected to be");
+    r+= nest(indent, compose(line(), fmt(new_ctx, new_expected, false, opts)));
     return r;
 }
 

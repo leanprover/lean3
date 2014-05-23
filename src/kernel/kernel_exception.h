@@ -130,11 +130,11 @@ class app_type_mismatch_exception : public type_checker_exception {
     unsigned          m_arg_pos;
     expr              m_arg;
     expr              m_arg_type;
-    expr              m_expected_type;
+    expr              m_expected;
 public:
     app_type_mismatch_exception(ro_environment const & env, context const & ctx, expr const & app, unsigned arg_pos,
-                                expr const & arg, expr const & arg_type, expr const & expected_type):
-    type_checker_exception(env), m_context(ctx), m_app(app), m_arg_pos(arg_pos), m_arg(arg), m_arg_type(arg_type), m_expected_type(expected_type) {}
+                                expr const & arg, expr const & arg_type, expr const & expected):
+    type_checker_exception(env), m_context(ctx), m_app(app), m_arg_pos(arg_pos), m_arg(arg), m_arg_type(arg_type), m_expected(expected) {}
     virtual ~app_type_mismatch_exception() {}
     context const & get_context() const { return m_context; }
     expr const & get_application() const { return m_app; }
@@ -142,10 +142,10 @@ public:
     unsigned get_arg_pos() const { return m_arg_pos; }
     expr const & get_arg() const { return m_arg; }
     expr const & get_arg_type() const { return m_arg_type; }
-    expr const & get_expected_type() const { return m_expected_type; }
+    expr const & get_expected() const { return m_expected; }
     virtual char const * what() const noexcept { return "application argument type mismatch"; }
     virtual format pp(formatter const & fmt, options const & opts) const;
-    virtual exception * clone() const { return new app_type_mismatch_exception(m_env, m_context, m_app, m_arg_pos, m_arg, m_arg_type, m_expected_type); }
+    virtual exception * clone() const { return new app_type_mismatch_exception(m_env, m_context, m_app, m_arg_pos, m_arg, m_arg_type, m_expected); }
     virtual void rethrow() const { throw *this; }
 };
 

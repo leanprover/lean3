@@ -30,7 +30,7 @@ theorem two_ne_zero : 2 ≠ 0 := succ_nz 1
 --
 
 theorem lt_le_trans2 {a b c : Nat} (H1 : a < b) (H2 : b ≤ c) : a < c
-:= le_trans H1 H2
+:= le_trans H2 H1
 
 --
 -- also, contrapos and mt are the same theorem

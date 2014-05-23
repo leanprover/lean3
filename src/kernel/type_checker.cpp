@@ -249,10 +249,11 @@ class type_checker::imp {
                 while (true) {
                     expr const & c   = arg(e, i);
                     expr const & c_t = arg_types[i];
+                    expr const & dom_f = abst_domain(f_t);
                     // thunk for creating justification object if needed
-                    auto mk_justification = [&](){ return mk_app_type_match_justification(ctx, e, i); };
-                    if (!is_convertible(c_t, abst_domain(f_t), ctx, mk_justification))
-                      throw app_type_mismatch_exception(env(), ctx, e, i, c, c_t, abst_domain(f_t));
+                    auto mk_justification = [&](){ return mk_app_type_match_justification(ctx, e, i, c, c_t, dom_f); };
+                    if (!is_convertible(c_t, dom_f, ctx, mk_justification))
+                      throw app_type_mismatch_exception(env(), ctx, e, i, c, c_t, dom_f);
                     f_t = pi_body_at(f_t, c);
                     i++;
                     if (i == num) {

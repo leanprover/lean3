@@ -30,21 +30,21 @@ format app_type_mismatch_exception::pp(formatter const & fmt, options const & op
     expr const & app    = get_application();
     expr const & arg    = get_arg();
     expr const & arg_ty = get_arg_type();
-    expr const & exp_ty = get_expected_type();
+    expr const & exp_ty = get_expected();
 
-    format app_fmt           = fmt(ctx, app, false, opts);
-    format arg_fmt           = fmt(ctx, arg, false, opts);
-    format arg_type_fmt      = fmt(ctx, arg_ty, false, opts);
-    format expected_type_fmt = fmt(ctx, exp_ty, false, opts);
+    format app_fmt      = fmt(ctx, app, false, opts);
+    format arg_fmt      = fmt(ctx, arg, false, opts);
+    format arg_type_fmt = fmt(ctx, arg_ty, false, opts);
+    format expected_fmt = fmt(ctx, exp_ty, false, opts);
     format r;
-    r += format("Type mismatch at application");
+    r += format("In the application");
     r += nest(indent, compose(line(), app_fmt));
-    r += compose(line(), format("Argument"));
+    r += compose(line(), format("the type of"));
     r += nest(indent, compose(line(), arg_fmt));
-    r += compose(line(), format("is of type"));
+    r += compose(line(), format("is"));
     r += nest(indent, compose(line(), arg_type_fmt));
-    r += compose(line(), format("but is expected to be of type"));
-    r += nest(indent, compose(line(), expected_type_fmt));
+    r += compose(line(), format("but is expected to be"));
+    r += nest(indent, compose(line(), expected_fmt));
     return r;
 }
 

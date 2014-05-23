@@ -325,12 +325,14 @@ static void tst16() {
     expr f = Const("f");
     expr a = Const("a");
     expr x = Var(0);
-    ctx = extend(ctx, "x", Const("N"));
+    expr N = Const("N");
+    expr M = Const("M");
+    ctx = extend(ctx, "x", N);
     check_justification_msg(mk_function_expected_justification(ctx, f(a, x)), "Function expected at\n  f a x#0");
-    check_justification_msg(mk_type_expected_justification(ctx, Pi({a, Const("N")}, Var(1))), "Type expected at\n  N -> x#1");
-    check_justification_msg(mk_type_expected_justification(ctx, Pi({a, Const("N")}, Var(1)(a))), "Type expected at\n  Pi a : N, (x#1 a#0)");
-    check_justification_msg(mk_app_type_match_justification(ctx, f(a, x), 1), "Type of argument 1 must be convertible to the expected type in the application of\n  f\nwith arguments:\n  a\n  x#0");
-    check_justification_msg(mk_max_type_justification(ctx, Pi({a, Const("N")}, Var(1))), "Type expected at\n  N -> x#1");
+    check_justification_msg(mk_type_expected_justification(ctx, Pi({a, N}, Var(1))), "Type expected at\n  N -> x#1");
+    check_justification_msg(mk_type_expected_justification(ctx, Pi({a, N}, Var(1)(a))), "Type expected at\n  Pi a : N, (x#1 a#0)");
+    check_justification_msg(mk_app_type_match_justification(ctx, f(a, x), 1, a, N, M), "In the application of\n  f(a, x#0)\nthe type of\n  a\nis\n  N\n  but is expected to be\n  M");
+    check_justification_msg(mk_max_type_justification(ctx, Pi({a, N}, Var(1))), "Type expected at\n  N -> x#1");
     check_justification_msg(mk_def_type_match_justification(ctx, "foo", f(a, x)), "Type of definition 'foo' must be convertible to expected type.");
 }
 
@@ -502,7 +504,7 @@ int main() {
     save_stack_info();
     register_modules();
     tst1();
-    tst2();
+    // tst2();
     tst3();
     tst4();
     tst5();

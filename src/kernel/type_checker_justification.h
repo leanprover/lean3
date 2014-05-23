@@ -69,8 +69,12 @@ class app_type_match_justification_cell : public justification_cell {
     context  m_ctx;
     expr     m_app;
     unsigned m_i;
+    expr     m_arg;
+    expr     m_arg_ty;
+    expr     m_expected;
 public:
-    app_type_match_justification_cell(context const & c, expr const & a, unsigned i):m_ctx(c), m_app(a), m_i(i) {}
+    app_type_match_justification_cell(context const & c, expr const & a, unsigned i, expr const & arg, expr const & arg_ty, expr const & expect):
+        m_ctx(c), m_app(a), m_i(i), m_arg(arg), m_arg_ty(arg_ty), m_expected(expect) {}
     virtual ~app_type_match_justification_cell();
     virtual format pp_header(formatter const & fmt, options const & opts, optional<metavar_env> const & menv) const;
     virtual void get_children(buffer<justification_cell*> &) const;
@@ -78,6 +82,9 @@ public:
     context const & get_context() const { return m_ctx; }
     expr const & get_app() const { return m_app; }
     unsigned get_arg_pos() const { return m_i; }
+    expr const & get_arg() const { return m_arg; }
+    expr const & get_arg_ty() const { return m_arg_ty; }
+    expr const & get_expected() const { return m_expected; }
 };
 
 /**
@@ -187,7 +194,8 @@ public:
 
 inline justification mk_function_expected_justification(context const & ctx, expr const & app) { return justification(new function_expected_justification_cell(ctx, app)); }
 inline justification mk_pair_expected_justification(context const & ctx, expr const & app) { return justification(new pair_expected_justification_cell(ctx, app)); }
-inline justification mk_app_type_match_justification(context const & ctx, expr const & app, unsigned i) { return justification(new app_type_match_justification_cell(ctx, app, i)); }
+inline justification mk_app_type_match_justification(context const & ctx, expr const & app, unsigned i, expr const & arg, expr const & arg_ty, expr const & expected) 
+{ return justification(new app_type_match_justification_cell(ctx, app, i, arg, arg_ty, expected)); }
 inline justification mk_pair_type_match_justification(context const & ctx, expr const & e, bool first) { return justification(new pair_type_match_justification_cell(ctx, e, first)); }
 inline justification mk_type_expected_justification(context const & ctx, expr const & type) { return justification(new type_expected_justification_cell(ctx, type)); }
 inline justification mk_max_type_justification(context const & ctx, expr const & type) { return justification(new max_type_justification_cell(ctx, type)); }
