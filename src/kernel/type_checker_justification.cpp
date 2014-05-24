@@ -43,13 +43,13 @@ format app_type_match_justification_cell::pp_header(formatter const & fmt, optio
     expr new_expected = instantiate_metavars(menv, m_expected);
     context new_ctx      = instantiate_metavars(menv, m_ctx);
     format r;
-    r += format("In the application of");
-    r += nest(indent, compose(line(), fmt(new_ctx, arg(new_app, 0), false, opts)));
-    r += format("the type of");
+    r += format("In the application");
+    r += nest(indent, compose(line(), fmt(new_ctx, new_app, false, opts)));
+    r += compose(line(), format("the type of"));
     r += nest(indent, compose(line(), fmt(new_ctx, new_arg, false, opts)));
-    r += format("is");
+    r += compose(line(), format("is"));
     r += nest(indent, compose(line(), fmt(new_ctx, new_arg_ty, false, opts)));
-    r += format("but is expected to be");
+    r += compose(line(), format("but is expected to be"));
     r+= nest(indent, compose(line(), fmt(new_ctx, new_expected, false, opts)));
     return r;
 }
