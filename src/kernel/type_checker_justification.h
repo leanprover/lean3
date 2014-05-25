@@ -194,7 +194,7 @@ public:
 
 inline justification mk_function_expected_justification(context const & ctx, expr const & app) { return justification(new function_expected_justification_cell(ctx, app)); }
 inline justification mk_pair_expected_justification(context const & ctx, expr const & app) { return justification(new pair_expected_justification_cell(ctx, app)); }
-inline justification mk_app_type_match_justification(context const & ctx, expr const & app, unsigned i, expr const & arg, expr const & arg_ty, expr const & expected) 
+inline justification mk_app_type_match_justification(context const & ctx, expr const & app, unsigned i, expr const & arg, expr const & arg_ty, expr const & expected)
 { return justification(new app_type_match_justification_cell(ctx, app, i, arg, arg_ty, expected)); }
 inline justification mk_pair_type_match_justification(context const & ctx, expr const & e, bool first) { return justification(new pair_type_match_justification_cell(ctx, e, first)); }
 inline justification mk_type_expected_justification(context const & ctx, expr const & type) { return justification(new type_expected_justification_cell(ctx, type)); }
