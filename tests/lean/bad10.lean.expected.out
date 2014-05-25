@@ -2,7 +2,7 @@
   Set: pp::unicode
   Set: lean::pp::implicit
   Set: pp::colors
-  Assumed: N
-  Defined: T
+  Assumed: N : Type
+  Defined: T : ∀ (a : N) (f : N → N), @eq N (f a) a → @eq N (f (f a)) (f (f a))
 definition T (a : N) (f : N → N) (H : @eq N (f a) a) : @eq N (f (f a)) (f (f a)) :=
     @substp N (f a) a (λ x : N, @eq N (f (f a)) (f (f a))) (@refl N (f (f a))) H

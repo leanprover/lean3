@@ -1,8 +1,8 @@
   Set: pp::colors
   Set: pp::unicode
-  Assumed: x
+  Assumed: x : (Type U+3 ⊔ M+2 ⊔ 3)
 x : (Type U+3 ⊔ M+2 ⊔ 3)
-  Assumed: f
+  Assumed: f : (Type U+10) → Type
 f : (Type U+10) → Type
 f x : Type
 (Type 4) : (Type 5)

@@ -1,13 +1,13 @@
   Set: pp::colors
   Set: pp::unicode
   Imported 'tactic'
-  Assumed: a
-  Assumed: b
-  Assumed: c
-  Assumed: d
-  Assumed: e
-  Assumed: H1
-  Assumed: H2
-  Assumed: H3
-  Assumed: H4
-  Proved: T
+  Assumed: a : Bool
+  Assumed: b : Bool
+  Assumed: c : Bool
+  Assumed: d : Bool
+  Assumed: e : Bool
+  Assumed: H1 : a → b
+  Assumed: H2 : b = c
+  Assumed: H3 : c → d
+  Assumed: H4 : d = e
+  Proved: T : a → e

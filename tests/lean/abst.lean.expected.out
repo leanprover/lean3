@@ -1,8 +1,8 @@
   Set: pp::colors
   Set: pp::unicode
   Imported 'Int'
-  Assumed: PlusComm
-  Assumed: a
+  Assumed: PlusComm : ∀ a b : ℤ, a + b = b + a
+  Assumed: a : ℤ
 funext (λ x : ℤ, PlusComm a x) : (λ x : ℤ, a + x) = (λ x : ℤ, x + a)
   Set: lean::pp::implicit
 @funext ℤ (λ x : ℤ, ℤ) (λ x : ℤ, a + x) (λ x : ℤ, x + a) (λ x : ℤ, PlusComm a x) :

@@ -1,9 +1,9 @@
   Set: pp::colors
   Set: pp::unicode
-  Assumed: f
-  Assumed: g
-  Assumed: Ax1
+  Assumed: f : ℕ → ℕ
+  Assumed: g : ℕ → ℕ
+  Assumed: Ax1 : ∀ x : ℕ, f x = g (f x)
 
-  Assumed: Ax2
+  Assumed: Ax2 : ∀ (x : ℕ), f x > 0 → f x = x
 
 done

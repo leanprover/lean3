@@ -1,8 +1,8 @@
   Set: pp::colors
   Set: pp::unicode
   Imported 'Int'
-  Assumed: P
-  Proved: T1
-  Assumed: Ax
-  Proved: T2
-  Proved: T3
+  Assumed: P : ℤ → ℤ → Bool
+  Proved: T1 : ¬ (∃ x y : ℤ, P x y) → (∀ x y : ℤ, ¬ P x y)
+  Assumed: Ax : ∀ x : ℤ, ∃ y : ℤ, P x y
+  Proved: T2 : ∃ x y : ℤ, P x y
+  Proved: T3 : ∀ (A : (Type U)) (P : A → A → Bool), A → (∀ x : A, ∃ y : A, P x y) → (∃ x y : A, P x y)

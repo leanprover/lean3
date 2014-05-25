@@ -3,7 +3,7 @@
   Imported 'macros'
   Imported 'tactic'
   Using: Nat
-  Defined: dvd
-  Proved: dvd_trans
-  Defined: prime
-  Proved: not_prime_eq
+  Defined: dvd : ℕ → ℕ → Bool
+  Proved: dvd_trans : ∀ (a b c : ℕ), a | b → b | c → a | c
+  Defined: prime : ℕ → Bool
+  Proved: not_prime_eq : ∀ (n : ℕ), n ≥ 2 → ¬ prime n → (∃ m : ℕ, m | n ∧ m ≠ 1 ∧ m ≠ n)

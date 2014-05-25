@@ -1,12 +1,12 @@
   Set: pp::colors
   Set: pp::unicode
   Imported 'Int'
-  Defined: revapp
+  Defined: revapp : ∀ (A : (Type U)) (B : A → (Type U)) (a : A), (∀ x : A, B x) → B a
 10 |> (λ x : ℕ, x + 1) |> (λ x : ℕ, x + 2) |> (λ x : ℕ, 2 * x) |> (λ x : ℕ, 3 - x) |> (λ x : ℤ, x + 2) :
     (λ x : ℤ, ℤ) (10 |> (λ x : ℕ, x + 1) |> (λ x : ℕ, x + 2) |> (λ x : ℕ, 2 * x) |> (λ x : ℕ, 3 - x))
-  Defined: revcomp
+  Defined: revcomp : ∀ (A B C : (Type U)), (A → B) → (B → C) → A → C
 (λ x : ℕ, x + 1) #> (λ x : ℕ, 2 * x * x) #> (λ x : ℕ, 10 + x) : ℕ → ℕ
-  Defined: simple
+  Defined: simple : ℕ → ℕ
 simple : ℕ → ℕ
-  Defined: simple2
+  Defined: simple2 : ℤ → ℤ
 simple2 : ℤ → ℤ

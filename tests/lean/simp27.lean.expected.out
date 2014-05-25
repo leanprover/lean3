@@ -1,9 +1,9 @@
   Set: pp::colors
   Set: pp::unicode
-  Assumed: a
-  Assumed: b
-  Assumed: f
-  Assumed: g
+  Assumed: a : ℕ
+  Assumed: b : ℕ
+  Assumed: f : (ℕ → ℕ) → ℕ
+  Assumed: g : ℕ → ℕ
 λ x x2 : ℕ, (∀ y : ℕ, g y = x) → x > x2 + x
 funext (λ x : ℕ,
           funext (λ x2 : ℕ,

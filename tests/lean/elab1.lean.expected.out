@@ -1,58 +1,66 @@
   Set: pp::colors
   Set: pp::unicode
-  Assumed: f
+  Assumed: f : ∀ (A : Type), A → A → A
 Failed to solve
  ⊢ Bool ≺ ℕ
-    elab1.lean:2:6: Type of argument 3 must be convertible to the expected type in the application of
-        @f
-    with arguments:
-        ℕ
-        10
+    elab1.lean:2:6: In the application
+        f 10 ⊤
+    the type of
         ⊤
-  Assumed: g
+    is
+        Bool
+    but is expected to be
+        ℕ
+  Assumed: g : ∀ (A B : Type), A → A
 elab1.lean:5:0: error: invalid expression, it still contains metavariables after elaboration
     @g ℕ ?M::1 10
     elab1.lean:5:8: error: unsolved metavar M::1
-  Assumed: h
+  Assumed: h : ∀ (A : Type), A → A
 Failed to solve
 x : ?M::0, A : Type ⊢ ?M::0 ≺ A
-    elab1.lean:9:27: Type of argument 2 must be convertible to the expected type in the application of
-        h
-    with arguments:
-        A
+    elab1.lean:9:27: In the application
+        h A x
+    the type of
         x
-  Assumed: my_eq
+    is
+        ?M::0
+    but is expected to be
+        A
+  Assumed: my_eq : ∀ (A : Type), A → A → Bool
 Failed to solve
 A : Type, B : Type, a : ?M::0, b : ?M::1, C : Type ⊢ ?M::0[lift:0 3] ≺ C
-    elab1.lean:13:51: Type of argument 2 must be convertible to the expected type in the application of
-        my_eq
-    with arguments:
-        C
+    elab1.lean:13:51: In the application
+        my_eq C a b
+    the type of
         a
-        b
-  Assumed: a
-  Assumed: b
-  Assumed: H
+    is
+        ?M::0[lift:0 3]
+    but is expected to be
+        C
+  Assumed: a : Bool
+  Assumed: b : Bool
+  Assumed: H : a ∧ b
 Failed to solve
  ⊢ ∀ H1 : ?M::0, ?M::1 ∧ a ≈ b
     elab1.lean:18:18: Type of definition 't1' must be convertible to expected type.
 Failed to solve
  ⊢ @eq ?M::6 b b ≺ @eq ?M::1 a b
-    elab1.lean:20:22: Type of argument 6 must be convertible to the expected type in the application of
-        @trans
-    with arguments:
-        ?M::1
-        a
-        a
-        b
-        @refl ?M::1 a
+    elab1.lean:20:22: In the application
+        @trans ?M::1 a a b (@refl ?M::1 a) (@refl ?M::6 b)
+    the type of
         @refl ?M::6 b
+    is
+        @eq ?M::6 b b
+    but is expected to be
+        @eq ?M::1 a b
 Failed to solve
  ⊢ ?M::1 ≺ Type
-    elab1.lean:22:6: Type of argument 1 must be convertible to the expected type in the application of
-        @f
-    with arguments:
+    elab1.lean:22:6: In the application
+        @f ?M::0 Bool Bool
+    the type of
         ?M::0
-        Bool
-        Bool
+    is
+        ?M::1
+    but is expected to be
+        Type
 elab1.lean:25:18: error: unknown identifier 'EM'

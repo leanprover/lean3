@@ -1,9 +1,9 @@
   Set: pp::colors
   Set: pp::unicode
   Imported 'specialfn'
-  Defined: f
-  Defined: g
-  Defined: h
+  Defined: f : ℕ → ℕ → ℕ
+  Defined: g : ℝ → ℝ → ℝ
+  Defined: h : ℝ → ℝ → ℝ
 definition f (x y : ℕ) : ℕ := x + y
 definition g (x y : ℝ) : ℝ := sin x + y
 definition h (x y : ℝ) : ℝ := x * sin (x + y)

@@ -1,15 +1,15 @@
   Set: pp::colors
   Set: pp::unicode
-  Assumed: N
-  Assumed: a
-  Assumed: b
-  Assumed: c
-  Assumed: P
-  Assumed: H3
-  Proved: T1
-  Proved: T2
-  Proved: T3
-  Proved: T4
+  Assumed: N : Type
+  Assumed: a : N
+  Assumed: b : N
+  Assumed: c : N
+  Assumed: P : N → N → N → Bool
+  Assumed: H3 : P a b c
+  Proved: T1 : ∃ x y z : N, P x y z
+  Proved: T2 : ∃ x y z : N, P x y z
+  Proved: T3 : ∃ x y z : N, P x y z
+  Proved: T4 : P a a b → (∃ x y z : N, P x y z)
 theorem T1 : ∃ x y z : N, P x y z :=
     @exists_intro
         N

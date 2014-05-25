@@ -1,6 +1,6 @@
   Set: pp::colors
   Set: pp::unicode
   Imported 'Int'
-  Assumed: P
-  Assumed: Ax
+  Assumed: P : ℤ → Bool
+  Assumed: Ax : ∀ x : ℤ, P x
 Ax : ∀ x : ℤ, P x

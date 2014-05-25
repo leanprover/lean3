@@ -1,8 +1,8 @@
   Set: pp::colors
   Set: pp::unicode
-  Assumed: N
-  Assumed: h
-  Proved: congrH
+  Assumed: N : Type
+  Assumed: h : N → N → N
+  Proved: congrH : ∀ (a1 a2 b1 b2 : N), a1 = b1 → a2 = b2 → h a1 a2 = h b1 b2
   Set: lean::pp::implicit
 variable h : N → N → N
 theorem congrH {a1 a2 b1 b2 : N} (H1 : @eq N a1 b1) (H2 : @eq N a2 b2) : @eq N (h a1 a2) (h b1 b2) :=
@@ -10,7 +10,7 @@ theorem congrH {a1 a2 b1 b2 : N} (H1 : @eq N a1 b1) (H2 : @eq N a2 b2) : @eq N (
   Set: lean::pp::implicit
 variable h : N → N → N
 theorem congrH {a1 a2 b1 b2 : N} (H1 : a1 = b1) (H2 : a2 = b2) : h a1 a2 = h b1 b2 := congr (congr (refl h) H1) H2
-  Proved: Example1
+  Proved: Example1 : ∀ (a b c d : N), a = b ∧ b = c ∨ a = d ∧ d = c → h a b = h c b
   Set: lean::pp::implicit
 theorem Example1 (a b c d : N) (H : @eq N a b ∧ @eq N b c ∨ @eq N a d ∧ @eq N d c) : @eq N (h a b) (h c b) :=
     @or_elim (@eq N a b ∧ @eq N b c)
@@ -31,7 +31,7 @@ theorem Example1 (a b c d : N) (H : @eq N a b ∧ @eq N b c ∨ @eq N a d ∧ @e
                         b
                         (@trans N a d c (@and_eliml (@eq N a d) (@eq N d c) H1) (@and_elimr (@eq N a d) (@eq N d c) H1))
                         (@refl N b))
-  Proved: Example2
+  Proved: Example2 : ∀ (a b c d : N), @eq N a b ∧ @eq N b c ∨ @eq N a d ∧ @eq N d c → @eq N (h a b) (h c b)
   Set: lean::pp::implicit
 theorem Example2 (a b c d : N) (H : @eq N a b ∧ @eq N b c ∨ @eq N a d ∧ @eq N d c) : @eq N (h a b) (h c b) :=
     @or_elim (@eq N a b ∧ @eq N b c)
@@ -52,13 +52,13 @@ theorem Example2 (a b c d : N) (H : @eq N a b ∧ @eq N b c ∨ @eq N a d ∧ @e
                         b
                         (@trans N a d c (@and_eliml (@eq N a d) (@eq N d c) H1) (@and_elimr (@eq N a d) (@eq N d c) H1))
                         (@refl N b))
-  Proved: Example3
+  Proved: Example3 : ∀ (a b c d e : N), @eq N a b ∧ @eq N b e ∧ @eq N b c ∨ @eq N a d ∧ @eq N d c → @eq N (h a b) (h c b)
   Set: lean::pp::implicit
 theorem Example3 (a b c d e : N) (H : a = b ∧ b = e ∧ b = c ∨ a = d ∧ d = c) : h a b = h c b :=
     or_elim H
             (λ H1 : a = b ∧ b = e ∧ b = c, congrH (trans (and_eliml H1) (and_elimr (and_elimr H1))) (refl b))
             (λ H1 : a = d ∧ d = c, congrH (trans (and_eliml H1) (and_elimr H1)) (refl b))
-  Proved: Example4
+  Proved: Example4 : ∀ (a b c d e : N), a = b ∧ b = e ∧ b = c ∨ a = d ∧ d = c → h a c = h c a
   Set: lean::pp::implicit
 theorem Example4 (a b c d e : N) (H : a = b ∧ b = e ∧ b = c ∨ a = d ∧ d = c) : h a c = h c a :=
     or_elim H

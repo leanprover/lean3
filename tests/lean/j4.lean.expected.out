@@ -3,11 +3,11 @@
   Imported 'macros'
   Imported 'tactic'
   Using: Nat
-  Defined: dvd
-  Proved: dvd_elim
-  Proved: dvd_intro
-  Proved: dvd_trans
-  Defined: prime
+  Defined: dvd : ℕ → ℕ → Bool
+  Proved: dvd_elim : ∀ (a b : ℕ), a | b → (∃ c : ℕ, a * c = b)
+  Proved: dvd_intro : ∀ (a b c : ℕ), a * c = b → a | b
+  Proved: dvd_trans : ∀ (a b c : ℕ), a | b → b | c → a | c
+  Defined: prime : ℕ → Bool
 j4.lean:31:5: error: failed to create proof for the following proof state
 Proof state:
 n :

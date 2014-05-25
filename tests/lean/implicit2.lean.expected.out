@@ -1,11 +1,11 @@
   Set: pp::colors
   Set: pp::unicode
   Imported 'Real'
-  Assumed: f
+  Assumed: f : ∀ (A : Type), A → A → A
 f 10 20 : ℕ
 f 10 : ℕ → ℕ
 @f : ∀ (A : Type), A → A → A
-  Assumed: g
+  Assumed: g : ∀ (A : Type) (x1 x2 : A) (B : Type), B → B → B
 g 10 20 ⊤ : Bool → Bool
 let r : ℝ → ℝ → ℝ := g 10 20 in r : ℝ → ℝ → ℝ
 implicit2.lean:11:0: error: invalid expression, unexpected token

@@ -1,4 +1,4 @@
   Set: pp::colors
   Set: pp::unicode
-  Proved: T4
+  Proved: T4 : ∀ (a b : Bool), a → b → a ∧ b ∧ a
 theorem T4 (a b : Bool) (H : a) (H::1 : b) : a ∧ b ∧ a := and_intro H (and_intro H::1 H)

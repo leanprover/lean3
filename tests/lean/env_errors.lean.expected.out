@@ -1,6 +1,6 @@
   Set: pp::colors
   Set: pp::unicode
-  Assumed: x
+  Assumed: x : ℕ
 env_errors.lean:3:0: error: set_opaque failed, 'x' is not a definition
 before import
 env_errors.lean:8: error: executing script

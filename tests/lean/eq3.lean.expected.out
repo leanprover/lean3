@@ -1,10 +1,10 @@
   Set: pp::colors
   Set: pp::unicode
-  Assumed: Vector
-  Assumed: n
-  Assumed: v1
-  Assumed: v2
-  Assumed: v3
-  Assumed: H1
-  Assumed: H2
+  Assumed: Vector : ℕ → Type
+  Assumed: n : ℕ
+  Assumed: v1 : Vector n
+  Assumed: v2 : Vector (n + 0)
+  Assumed: v3 : Vector (0 + n)
+  Assumed: H1 : v1 == v2
+  Assumed: H2 : v2 == v3
 htrans H1 H2 : v1 == v3

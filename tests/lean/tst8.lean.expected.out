@@ -2,7 +2,7 @@
   Set: pp::unicode
   Imported 'Int'
 λ (A : Type) (a : A), let b := a in b : ∀ (A : Type), A → A
-  Assumed: g
-  Defined: f
+  Assumed: g : ∀ (A : Type), A → A
+  Defined: f : ∀ (A : Type), A → A
 f ℕ 10
 f ℤ (- 10)

@@ -1,7 +1,7 @@
   Set: pp::colors
   Set: pp::unicode
   Imported 'Int'
-  Assumed: g
-  Assumed: a
-  Assumed: b
-  Assumed: H1
+  Assumed: g : ∀ (A : Type), A → A
+  Assumed: a : ℤ
+  Assumed: b : ℤ
+  Assumed: H1 : g ℤ a > 0

@@ -1,6 +1,6 @@
   Set: pp::colors
   Set: pp::unicode
-  Proved: T
-  Assumed: p
-  Assumed: q
-  Proved: T2
+  Proved: T : ∀ (a b : Bool), (λ x : Bool, x ∧ b) a → (λ x : Bool, x) a
+  Assumed: p : Bool
+  Assumed: q : Bool
+  Proved: T2 : p ∧ q → q

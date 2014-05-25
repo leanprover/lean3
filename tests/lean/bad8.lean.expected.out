@@ -1,12 +1,12 @@
   Set: pp::colors
   Set: pp::unicode
   Imported 'Int'
-  Assumed: list
-  Assumed: nil
-  Assumed: cons
-  Assumed: a
-  Assumed: b
-  Assumed: n
-  Assumed: m
-  Defined: l1
-  Defined: l2
+  Assumed: list : Type → Type
+  Assumed: nil : ∀ A : Type, list A
+  Assumed: cons : ∀ (A : Type), A → list A → list A
+  Assumed: a : ℤ
+  Assumed: b : ℤ
+  Assumed: n : ℕ
+  Assumed: m : ℕ
+  Defined: l1 : list ℤ
+  Defined: l2 : list ℤ

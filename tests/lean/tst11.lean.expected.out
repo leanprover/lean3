@@ -1,12 +1,12 @@
   Set: pp::colors
   Set: pp::unicode
   Imported 'tactic'
-  Defined: xor
+  Defined: xor : Bool → Bool → Bool
 ⊤ ⊕ ⊥
-  Assumed: a
+  Assumed: a : Bool
 a ⊕ a ⊕ a
 @subst : ∀ (A : (Type U)) (a b : A) (P : A → Bool), P a → a = b → P b
-  Proved: EM2
+  Proved: EM2 : ∀ a : Bool, a ∨ ¬ a
 EM2 : ∀ a : Bool, a ∨ ¬ a
 EM2 a : a ∨ ¬ a
-  Proved: xor_neq
+  Proved: xor_neq : ∀ a b : Bool, a ⊕ b ↔ (¬ a) = b

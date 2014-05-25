@@ -1,29 +1,29 @@
   Set: pp::colors
   Set: pp::unicode
   Imported 'tactic'
-  Assumed: f
-  Assumed: Ax1
-  Proved: T1a
+  Assumed: f : (Type 1) → (Type 1)
+  Assumed: Ax1 : ∀ a : Type, f a = a
+  Proved: T1a : ∀ A : Type, f A = A
 bad_simp2.lean:14:3: error: failed to create proof for the following proof state
 Proof state:
 A : (Type 1) ⊢ f A = A
-  Assumed: g
-  Assumed: Ax2
-  Proved: T2a
+  Assumed: g : (Type → (Type 1)) → (Type 1)
+  Assumed: Ax2 : ∀ a : Type → Type, g a = a Bool
+  Proved: T2a : ∀ A : Type → Type, g A = A Bool
 bad_simp2.lean:24:3: error: failed to create proof for the following proof state
 Proof state:
 A : Type → (Type 1) ⊢ g A = A Bool
-  Assumed: h
-  Assumed: Ax3
-  Proved: T3a
-  Assumed: Ax4
-  Proved: T4a
+  Assumed: h : Type → (Type 1) → (Type 1)
+  Assumed: Ax3 : ∀ a : Type, h a a = a
+  Proved: T3a : ∀ A : Type, h A A = A
+  Assumed: Ax4 : ∀ a b : Type, h a b = b
+  Proved: T4a : ∀ A B : Type, h A B = B
 bad_simp2.lean:40:3: error: failed to create proof for the following proof state
 Proof state:
 A : Type, B : (Type 1) ⊢ h A B = B
-  Assumed: h2
-  Assumed: Ax5
-  Proved: T5a
+  Assumed: h2 : Type → (Type 1) → Type
+  Assumed: Ax5 : ∀ (a b : Type), f a = a → h2 a b = a
+  Proved: T5a : ∀ A B : Type, h2 A B = A
 bad_simp2.lean:51:3: error: failed to create proof for the following proof state
 Proof state:
 A : Type, B : (Type 1) ⊢ h2 A B = A

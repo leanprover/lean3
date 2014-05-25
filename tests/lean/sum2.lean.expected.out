@@ -5,17 +5,17 @@
   Imported 'optional'
   Using: subtype
   Using: optional
-  Defined: sum_pred
-  Defined: sum
-  Proved: sum::inl_pred
-  Proved: sum::inr_pred
-  Proved: sum::inhabl
-  Proved: sum::inhabr
-  Defined: sum::inl
-  Defined: sum::inr
-  Proved: sum::inl_inj
-  Proved: sum::inr_inj
-  Proved: sum::distinct
+  Defined: sum_pred : ∀ (A B : (Type U)), optional A ⨯ optional B → Bool
+  Defined: sum : (Type U) → (Type U) → (Type U)
+  Proved: sum::inl_pred : ∀ (A : (Type U)) (a : A) (B : (Type U)), sum_pred A B (pair (optional::some a) optional::none)
+  Proved: sum::inr_pred : ∀ (A B : (Type U)) (b : B), sum_pred A B (pair optional::none (optional::some b))
+  Proved: sum::inhabl : ∀ (A : (Type U)) (H : inhabited A) (B : (Type U)), inhabited (sum A B)
+  Proved: sum::inhabr : ∀ (A B : (Type U)), inhabited B → inhabited (sum A B)
+  Defined: sum::inl : ∀ (A : (Type U)) (a : A) (B : (Type U)), sum A B
+  Defined: sum::inr : ∀ (A B : (Type U)), B → sum A B
+  Proved: sum::inl_inj : ∀ (A B : (Type U)) (a1 a2 : A), sum::inl a1 B = sum::inl a2 B → a1 = a2
+  Proved: sum::inr_inj : ∀ (A B : (Type U)) (b1 b2 : B), sum::inr A b1 = sum::inr A b2 → b1 = b2
+  Proved: sum::distinct : ∀ (A B : (Type U)) (a : A) (b : B), sum::inl a B ≠ sum::inr A b
 sum2.lean:88:0: error: invalid tactic command, unexpected end of file
 Proof state:
 A :

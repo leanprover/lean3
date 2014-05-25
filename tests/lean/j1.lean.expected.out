@@ -2,6 +2,6 @@
   Set: pp::unicode
   Imported 'tactic'
   Imported 'macros'
-  Defined: bracket
-  Proved: bracket_eq
-  Proved: coerce
+  Defined: bracket : Type → Bool
+  Proved: bracket_eq : ∀ x : Bool, bracket x = x
+  Proved: coerce : ∀ (a b : Bool), @eq Type a b → @eq Bool a b

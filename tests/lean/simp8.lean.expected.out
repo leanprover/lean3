@@ -1,11 +1,11 @@
   Set: pp::colors
   Set: pp::unicode
-  Assumed: a
-  Assumed: b
-  Assumed: c
-  Assumed: d
-  Assumed: e
-  Assumed: f
+  Assumed: a : ℕ
+  Assumed: b : ℕ
+  Assumed: c : ℕ
+  Assumed: d : ℕ
+  Assumed: e : ℕ
+  Assumed: f : ℕ
 f + (c + f + d) + (e * (a + c) + (d + a))
 ====>
 a + (c + (d + (d + (f + (f + (e * a + e * c))))))

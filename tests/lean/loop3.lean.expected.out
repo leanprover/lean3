@@ -1,10 +1,11 @@
   Set: pp::colors
   Set: pp::unicode
-  Assumed: vec
-  Assumed: concat
-  Assumed: concat_assoc
-  Assumed: empty
-  Assumed: concat_empty
+  Assumed: vec : ℕ → Type
+  Assumed: concat : ∀ (n m : ℕ), vec n → vec m → vec (n + m)
+  Assumed: concat_assoc : ∀ (n1 n2 n3 : ℕ) (v1 : vec n1) (v2 : vec n2) (v3 : vec n3),
+  v1 ; v2 ; v3 = cast (to_heq (congr2 vec (symm (Nat::add_assoc n1 n2 n3)))) (v1 ; (v2 ; v3))
+  Assumed: empty : vec 0
+  Assumed: concat_empty : ∀ (n : ℕ) (v : vec n), v ; empty = cast (to_heq (congr2 vec (symm (Nat::add_zeror n)))) v
 ∀ (n : ℕ) (v : vec (n + 0)) (w : vec n), v = w ; empty
 loop3.lean:20: error: executing script
 error: bad argument #3 to 'simplify' (options expected)

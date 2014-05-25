@@ -2,8 +2,8 @@
   Set: pp::unicode
   Imported 'Int'
 10 = 20
-  Assumed: f
-  Assumed: g
+  Assumed: f : ℤ → ℤ → ℤ
+  Assumed: g : ℤ → ℤ → ℤ → ℤ
   Set: lean::pp::implicit
   Set: lean::pp::notation
 f 10 20

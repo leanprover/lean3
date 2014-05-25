@@ -1,6 +1,6 @@
   Set: pp::colors
   Set: pp::unicode
-  Assumed: p
+  Assumed: p : ℕ → ℕ → Bool
 λ (a b c : Bool)
   (p : ℕ → ℕ → Bool)
   (n m : ℕ)

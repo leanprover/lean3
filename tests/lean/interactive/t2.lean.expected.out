@@ -6,8 +6,8 @@ a : Bool, b : Bool, H : a, H::1 : b ⊢ a ∧ b
 ## [stdin]:6:5: error: failed to prove theorem, proof has been aborted
 Proof state:
 a : Bool, b : Bool, H : a, H::1 : b ⊢ a ∧ b
-#   Assumed: a
-  Assumed: b
+#   Assumed: a : Bool
+  Assumed: b : Bool
 # variable a : Bool
 variable b : Bool
 # 

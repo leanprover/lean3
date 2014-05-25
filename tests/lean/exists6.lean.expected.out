@@ -1,7 +1,7 @@
   Set: pp::colors
   Set: pp::unicode
   Imported 'Int'
-  Assumed: P
-  Assumed: Ax1
-  Assumed: Ax2
-  Proved: T
+  Assumed: P : ℤ → ℤ → ℤ → Bool
+  Assumed: Ax1 : ∃ x y z : ℤ, P x y z
+  Assumed: Ax2 : ∀ x y z : ℤ, ¬ P x y z
+  Proved: T : ⊥

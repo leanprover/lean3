@@ -1,4 +1,4 @@
   Set: pp::colors
   Set: pp::unicode
   Imported 'tactic'
-  Proved: Test
+  Proved: Test : ∀ a b : ℕ, 0 + a + 0 + b = b + a

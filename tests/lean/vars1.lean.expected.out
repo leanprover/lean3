@@ -1,11 +1,11 @@
   Set: pp::colors
   Set: pp::unicode
   Imported 'Int'
-  Assumed: a
-  Assumed: b
-  Assumed: c
+  Assumed: a : ℤ
+  Assumed: b : ℤ
+  Assumed: c : ℤ
 vars1.lean:3:0: error: invalid object declaration, environment already has an object named 'b'
-  Assumed: d
-  Assumed: e
-  Assumed: f
+  Assumed: d : ℤ
+  Assumed: e : ℤ
+  Assumed: f : ℤ
 2 + a + b + c + d + e + f

@@ -7,9 +7,9 @@
 10 - 20
 25 - 20
 15 + 10 - 20 : ℤ
-  Assumed: x
-  Assumed: n
-  Assumed: m
+  Assumed: x : ℤ
+  Assumed: n : ℕ
+  Assumed: m : ℕ
 n + m
 n + x + m
   Set: lean::pp::coercion

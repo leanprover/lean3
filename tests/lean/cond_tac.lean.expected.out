@@ -2,10 +2,10 @@
   Set: pp::unicode
   Imported 'tactic'
 Cond result: true
-  Proved: T1
+  Proved: T1 : ∀ (a b c : Bool), a → b → c → a ∧ b
 Cond result: false
-  Proved: T2
+  Proved: T2 : ∀ (a b : Bool), a → a ∨ b
 When result: true
-  Proved: T4
+  Proved: T4 : ∀ (a b c : Bool), a → b → c → a ∧ b
 When result: false
-  Proved: T5
+  Proved: T5 : ∀ (a b c : Bool), a → b → c → a ∨ b

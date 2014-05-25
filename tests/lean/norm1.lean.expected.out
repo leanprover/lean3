@@ -1,10 +1,10 @@
   Set: pp::colors
   Set: pp::unicode
-  Assumed: N
-  Assumed: P
-  Assumed: a
-  Assumed: g
-  Assumed: H
+  Assumed: N : Type
+  Assumed: P : N → N → N → Bool
+  Assumed: a : N
+  Assumed: g : N → N
+  Assumed: H : (N → N → N) → N
 λ (f : N → N) (y : N), g (f a)
 λ (a : N) (f : N → N) (g : (N → N) → N → N) (h : N → N → N) (z : N), h (g (λ x : N, f (f x)) (f a)) (f a)
 λ (a b : N) (g : Bool → N) (y : Bool), g (a = b)

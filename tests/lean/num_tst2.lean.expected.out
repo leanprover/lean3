@@ -3,6 +3,6 @@
   Imported 'num'
   Imported 'tactic'
   Using: num
-  Assumed: a
-  Assumed: b
-  Proved: T1
+  Assumed: a : num::num
+  Assumed: b : num::num
+  Proved: T1 : b * num::exp a (num::succ (num::succ (num::succ num::one))) = a * a * a * a * b

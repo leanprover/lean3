@@ -1,5 +1,5 @@
   Set: pp::colors
   Set: pp::unicode
   Imported 'Int'
-  Assumed: x
-  Assumed: y
+  Assumed: x : ℤ
+  Assumed: y : ℤ

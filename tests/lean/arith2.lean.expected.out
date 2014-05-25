@@ -5,9 +5,9 @@
 1 / 2
 2/3
 3 div 2
-  Assumed: x
-  Assumed: i
-  Assumed: n
+  Assumed: x : ℝ
+  Assumed: i : ℤ
+  Assumed: n : ℕ
 x + i + 1 + n
   Set: lean::pp::coercion
 x + int_to_real i + nat_to_real 1 + nat_to_real n

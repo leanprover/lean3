@@ -1,12 +1,12 @@
   Set: pp::colors
   Set: pp::unicode
-  Assumed: N
-  Assumed: f
-  Assumed: g
+  Assumed: N : Type
+  Assumed: f : Bool → Bool → Bool
+  Assumed: g : N → N → N
 ⊤ ++ ⊥ ++ ⊤
   Set: lean::pp::notation
 f (f ⊤ ⊥) ⊤
-  Assumed: a
-  Assumed: b
+  Assumed: a : N
+  Assumed: b : N
 g (g a b) a
 f (f ⊤ ⊥) ⊥

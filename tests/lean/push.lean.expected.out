@@ -1,11 +1,11 @@
   Set: pp::colors
   Set: pp::unicode
   Imported 'Int'
-  Assumed: first
-  Assumed: a
-  Assumed: b
-  Assumed: c
-  Assumed: f
+  Assumed: first : Bool
+  Assumed: a : ℤ
+  Assumed: b : ℤ
+  Assumed: c : ℤ
+  Assumed: f : ℤ → ℤ
 f a
 push.lean:11:5: error: unknown identifier 'f'
 variable first : Bool

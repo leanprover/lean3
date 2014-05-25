@@ -1,7 +1,7 @@
   Set: pp::colors
   Set: pp::unicode
-  Assumed: f
-  Assumed: g
+  Assumed: f : ∀ (A : Type) (a : A) (B : Type), A → B → A
+  Assumed: g : ∀ (A B : Type) (a : A) (C : Type), B → C → C
 10 ; ⊤ ; ⊥ : Bool
 10 ; 10 ; ⊤ : ℕ
   Set: lean::pp::notation

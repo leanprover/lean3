@@ -7,5 +7,5 @@ a : Bool, b : Bool, H : a, H::1 : b ⊢ a
 a : Bool, b : Bool, H : a, H::1 : b ⊢ b
 ## Proof state:
 no goals
-##   Proved: T1
+##   Proved: T1 : ∀ (a b : Bool), a → b → a ∧ b
 # 

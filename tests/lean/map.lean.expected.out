@@ -1,12 +1,12 @@
   Set: pp::colors
   Set: pp::unicode
   Imported 'tactic'
-  Assumed: list
-  Assumed: nil
-  Assumed: cons
-  Assumed: map
-  Assumed: map_cons
-  Assumed: map_nil
+  Assumed: list : Type → Type
+  Assumed: nil : ∀ A : Type, list A
+  Assumed: cons : ∀ (A : Type), A → list A → list A
+  Assumed: map : ∀ (A B : Type), (A → B) → list A → list B
+  Assumed: map_cons : ∀ (A B : Type) (f : A → B) (a : A) (l : list A), map f (cons a l) = cons (f a) (map f l)
+  Assumed: map_nil : ∀ (A B : Type) (f : A → B), map f nil = nil
 Visit, depth: 1
 Visit, depth: 2
 Step: 2
@@ -63,4 +63,4 @@ Rewrite using: eq_id
 Visit, depth: 2
 Step: 2
 Step: 1
-  Proved: T1
+  Proved: T1 : map (λ x : ℕ, x + 1) (cons 1 (cons 2 nil)) = cons 2 (cons 3 nil)

@@ -1,7 +1,7 @@
   Set: pp::colors
   Set: pp::unicode
-  Assumed: a
-  Assumed: b
+  Assumed: a : ℕ
+  Assumed: b : ℕ
 λ x : ℕ, x = a
 funext (λ x : ℕ, trans (imp_congr (eq_id a) (λ H : ⊤, refl (x = a))) (imp_truel (x = a)))
 λ x : ℕ, ⊤

@@ -1,8 +1,8 @@
   Set: pp::colors
   Set: pp::unicode
-  Assumed: a
-  Assumed: b
-  Assumed: f
+  Assumed: a : ℕ
+  Assumed: b : ℕ
+  Assumed: f : (ℕ → ℕ) → ℕ
 λ x : ℕ, a = 1 → x > f (λ y : ℕ, y + 1)
 funext (λ x : ℕ,
           imp_congr

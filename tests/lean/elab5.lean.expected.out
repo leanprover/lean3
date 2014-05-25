@@ -1,9 +1,10 @@
   Set: pp::colors
   Set: pp::unicode
-  Assumed: C
-  Assumed: D
-  Assumed: R
-  Proved: R2
+  Assumed: C : ∀ (A B : Type), A = B → A → B
+  Assumed: D : ∀ (A A' : Type) (B : A → Type) (B' : A' → Type), (∀ x : A, B x) = (∀ x : A', B' x) → A = A'
+  Assumed: R : ∀ (A A' : Type) (B : A → Type) (B' : A' → Type) (H : (∀ x : A, B x) = (∀ x : A', B' x)) (a : A),
+  B a = B' (C (D H) a)
+  Proved: R2 : ∀ (A1 A2 B1 B2 : Type), (A1 → B1) = (A2 → B2) → A1 → B1 = B2
   Set: lean::pp::implicit
 import "kernel"
 import "Nat"

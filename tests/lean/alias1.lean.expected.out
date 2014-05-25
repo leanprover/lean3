@@ -1,4 +1,4 @@
   Set: pp::colors
   Set: pp::unicode
-  Assumed: x
+  Assumed: x : BB
 variable x : BB

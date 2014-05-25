@@ -1,20 +1,20 @@
   Set: pp::colors
   Set: pp::unicode
   Imported 'Int'
-  Defined: id
-  Assumed: p
+  Defined: id : Type → (Type U)
+  Assumed: p : (ℤ → ℤ) → Bool
 λ x : id ℤ, x : id ℤ → id ℤ
-  Assumed: f
+  Assumed: f : id ℤ → id ℤ
 p f : Bool
-  Defined: c
-  Assumed: g
-  Assumed: a
+  Defined: c : (Type 3) → (Type 3)
+  Assumed: g : c (Type 2) → Bool
+  Assumed: a : c (Type 1)
 g a : Bool
-  Defined: c2
-  Assumed: b
+  Defined: c2 : ∀ (T : Type), (Type 3) → T → (Type 3)
+  Assumed: b : ℤ
 @c2 : ∀ (T : Type), (Type 3) → T → (Type 3)
-  Assumed: g2
+  Assumed: g2 : c2 (Type 2) b → Bool
 g2 : c2 (Type 2) b → Bool
-  Assumed: a2
+  Assumed: a2 : c2 (Type 1) b
 g2 a2 : Bool
 λ x : c2 (Type 1) b, g2 x : c2 (Type 1) b → Bool

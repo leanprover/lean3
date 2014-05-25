@@ -7,7 +7,7 @@
 3 | 7
 2 | 6
 1 | 6
-  Assumed: x
+  Assumed: x : Int
 x | 3
 3 | x
 6 | 3

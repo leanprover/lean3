@@ -1,16 +1,17 @@
   Set: pp::colors
   Set: pp::unicode
-  Proved: trans_refl_right
-  Proved: trans_refl_left
-  Proved: trans_assoc
-  Proved: symm_trans
-  Assumed: a1
-  Assumed: a2
-  Assumed: a3
-  Assumed: a4
-  Assumed: Ax1
-  Assumed: Ax2
-  Assumed: Ax3
-  Assumed: Ax4
+  Proved: trans_refl_right : ∀ (A : TypeU) (a b : A) (Hab : a = b) (Hbb : b = b), trans Hab Hbb = Hab
+  Proved: trans_refl_left : ∀ (A : TypeU) (a b : A) (Haa : a = a) (Hab : a = b), trans Haa Hab = Hab
+  Proved: trans_assoc : ∀ (A : TypeU) (a b c d : A) (Hab : a = b) (Hbc : b = c) (Hcd : c = d),
+  trans (trans Hab Hbc) Hcd = trans Hab (trans Hbc Hcd)
+  Proved: symm_trans : ∀ (A : TypeU) (a b c : A) (Hab : a = b) (Hbc : b = c), symm (trans Hab Hbc) = trans (symm Hbc) (symm Hab)
+  Assumed: a1 : ℕ
+  Assumed: a2 : ℕ
+  Assumed: a3 : ℕ
+  Assumed: a4 : ℕ
+  Assumed: Ax1 : a1 = a2
+  Assumed: Ax2 : a2 = a3
+  Assumed: Ax3 : a3 = a2
+  Assumed: Ax4 : a2 = a4
 symm (trans (trans (trans (refl a1) (trans (trans Ax1 (refl a2)) Ax2)) (refl a3)) (trans Ax3 Ax4))
 trans (symm Ax4) (symm Ax1)

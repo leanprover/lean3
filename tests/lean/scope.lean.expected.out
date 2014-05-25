@@ -1,16 +1,16 @@
   Set: pp::colors
   Set: pp::unicode
   Imported 'Int'
-  Assumed: A
-  Assumed: B
-  Assumed: f
-  Defined: g
-  Assumed: h
-  Assumed: hinv
-  Assumed: Inv
-  Assumed: H1
-  Proved: f_eq_g
-  Proved: Inj
+  Assumed: A : Type
+  Assumed: B : Type
+  Assumed: f : A → A → A
+  Defined: g : A → A → A
+  Assumed: h : A → B
+  Assumed: hinv : B → A
+  Assumed: Inv : ∀ x : A, hinv (h x) = x
+  Assumed: H1 : ∀ x y : A, f x y = f y x
+  Proved: f_eq_g : f = g
+  Proved: Inj : ∀ (x y : A), h x = h y → x = y
 definition g (A : Type) (f : A → A → A) (x y : A) : A := f y x
 theorem f_eq_g (A : Type) (f : A → A → A) (H1 : ∀ x y : A, f x y = f y x) : f = g A f :=
     funext (λ x : A,

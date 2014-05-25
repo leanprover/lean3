@@ -1,11 +1,11 @@
   Set: pp::colors
   Set: pp::unicode
   Set: lean::pp::implicit
-  Defined: TypeM
-  Assumed: g
-  Assumed: B
-  Assumed: B'
-  Assumed: H
+  Defined: TypeM : (Type M+1)
+  Assumed: g : TypeM → TypeM
+  Assumed: B : Type
+  Assumed: B' : Type
+  Assumed: H : @eq Type B B'
 g B
 ===>
 g B'

@@ -1,15 +1,15 @@
 #   Set: pp::colors
   Set: pp::unicode
   Imported 'Int'
-#   Assumed: q
-#   Assumed: p
-#   Assumed: Ax
-#   Assumed: a
+#   Assumed: q : ℤ → ℤ → Bool
+#   Assumed: p : ℤ → Bool
+#   Assumed: Ax : ∀ (a b : ℤ), q a b → p b
+#   Assumed: a : ℤ
 # Proof state:
 x : ℤ, H : q a x ⊢ p x
 ## Proof state:
 x : ℤ, H : q a x ⊢ q a x
 ## Proof state:
 no goals
-##   Proved: T
+##   Proved: T : ∀ (x : ℤ), q a x → p x
 # 

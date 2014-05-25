@@ -3,15 +3,139 @@
   Imported 'tactic'
   Set: simplifier::heq
   Set: lean::pp::implicit
-  Assumed: vec
-  Assumed: n
-  Assumed: m
-  Assumed: v1
-  Assumed: v2
-  Assumed: Ax1
-  Assumed: Ax2
-  Assumed: concat
-  Assumed: empty
-  Assumed: concat_assoc
-  Assumed: concat_empty
-  Proved: T1
+  Assumed: vec : ℕ → Type
+  Assumed: n : ℕ
+  Assumed: m : ℕ
+  Assumed: v1 : vec (n + m)
+  Assumed: v2 : vec (m + n)
+  Assumed: Ax1 : @eq (vec (n + m))
+    v1
+    (@cast (vec (m + n))
+           (vec (n + m))
+           (@eqt_elim
+                ((vec (m + n)) == (vec (n + m)))
+                (@trans Bool
+                        ((vec (m + n)) == (vec (n + m)))
+                        ((vec (m + n)) == (vec (m + n)))
+                        ⊤
+                        (@heq_congr
+                             Type
+                             Type
+                             (vec (m + n))
+                             (vec (m + n))
+                             (vec (n + m))
+                             (vec (m + n))
+                             (@refl Type (vec (m + n)))
+                             (@congr2 ℕ Type (n + m) (m + n) vec (Nat::add_comm n m)))
+                        (heq_id Type (vec (m + n)))))
+           v2)
+  Assumed: Ax2 : @eq (vec (m + n))
+    v2
+    (@cast (vec (n + m))
+           (vec (m + n))
+           (@eqt_elim
+                ((vec (n + m)) == (vec (m + n)))
+                (@trans Bool
+                        ((vec (n + m)) == (vec (m + n)))
+                        ((vec (m + n)) == (vec (m + n)))
+                        ⊤
+                        (@heq_congr
+                             Type
+                             Type
+                             (vec (n + m))
+                             (vec (m + n))
+                             (vec (m + n))
+                             (vec (m + n))
+                             (@congr2 ℕ Type (n + m) (m + n) vec (Nat::add_comm n m))
+                             (@refl Type (vec (m + n))))
+                        (heq_id Type (vec (m + n)))))
+           v1)
+  Assumed: concat : ∀ (n m : ℕ), vec n → vec m → vec (n + m)
+  Assumed: empty : vec 0
+  Assumed: concat_assoc : ∀ (n1 n2 n3 : ℕ) (v1 : vec n1) (v2 : vec n2) (v3 : vec n3),
+  @eq (vec (n1 + n2 + n3))
+      (@concat (n1 + n2) n3 (@concat n1 n2 v1 v2) v3)
+      (@cast (vec (n1 + (n2 + n3)))
+             (vec (n1 + n2 + n3))
+             (@eqt_elim
+                  ((vec (n1 + (n2 + n3))) == (vec (n1 + n2 + n3)))
+                  (@trans Bool
+                          ((vec (n1 + (n2 + n3))) == (vec (n1 + n2 + n3)))
+                          ((vec (n1 + (n2 + n3))) == (vec (n1 + (n2 + n3))))
+                          ⊤
+                          (@heq_congr
+                               Type
+                               Type
+                               (vec (n1 + (n2 + n3)))
+                               (vec (n1 + (n2 + n3)))
+                               (vec (n1 + n2 + n3))
+                               (vec (n1 + (n2 + n3)))
+                               (@refl Type (vec (n1 + (n2 + n3))))
+                               (@congr2 ℕ Type (n1 + n2 + n3) (n1 + (n2 + n3)) vec (Nat::add_assoc n1 n2 n3)))
+                          (heq_id Type (vec (n1 + (n2 + n3))))))
+             (@concat n1 (n2 + n3) v1 (@concat n2 n3 v2 v3)))
+  Assumed: concat_empty : ∀ (n : ℕ) (v : vec n),
+  @eq (vec (n + 0))
+      (@concat n 0 v empty)
+      (@cast (vec n)
+             (vec (n + 0))
+             (@eqt_elim
+                  ((vec n) == (vec (n + 0)))
+                  (@trans Bool
+                          ((vec n) == (vec (n + 0)))
+                          ((vec n) == (vec n))
+                          ⊤
+                          (@heq_congr
+                               Type
+                               Type
+                               (vec n)
+                               (vec n)
+                               (vec (n + 0))
+                               (vec n)
+                               (@refl Type (vec n))
+                               (@congr2 ℕ Type (n + 0) n vec (Nat::add_zeror n)))
+                          (heq_id Type (vec n))))
+             v)
+  Proved: T1 : ∀ (n m : ℕ) (v : vec (n + m)) (w : vec (m + n)),
+  @eq (vec (n + m))
+      v
+      (@cast (vec (m + n))
+             (vec (n + m))
+             (@eqt_elim
+                  ((vec (m + n)) == (vec (n + m)))
+                  (@trans Bool
+                          ((vec (m + n)) == (vec (n + m)))
+                          ((vec (m + n)) == (vec (m + n)))
+                          ⊤
+                          (@heq_congr
+                               Type
+                               Type
+                               (vec (m + n))
+                               (vec (m + n))
+                               (vec (n + m))
+                               (vec (m + n))
+                               (@refl Type (vec (m + n)))
+                               (@congr2 ℕ Type (n + m) (m + n) vec (Nat::add_comm n m)))
+                          (heq_id Type (vec (m + n)))))
+             w) →
+  @eq (vec (m + n))
+      w
+      (@cast (vec (n + m))
+             (vec (m + n))
+             (@eqt_elim
+                  ((vec (n + m)) == (vec (m + n)))
+                  (@trans Bool
+                          ((vec (n + m)) == (vec (m + n)))
+                          ((vec (m + n)) == (vec (m + n)))
+                          ⊤
+                          (@heq_congr
+                               Type
+                               Type
+                               (vec (n + m))
+                               (vec (m + n))
+                               (vec (m + n))
+                               (vec (m + n))
+                               (@congr2 ℕ Type (n + m) (m + n) vec (Nat::add_comm n m))
+                               (@refl Type (vec (m + n))))
+                          (heq_id Type (vec (m + n)))))
+             v)

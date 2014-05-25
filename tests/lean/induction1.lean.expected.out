@@ -2,9 +2,9 @@
   Set: pp::unicode
   Imported 'macros'
   Using: Nat
-  Assumed: Induction
-  Proved: Comm1
-  Proved: Comm2
+  Assumed: Induction : ∀ (P : ℕ → Bool) (a : P 0) (a : ∀ (n : ℕ), P n → P (n + 1)) (n : ℕ), P n
+  Proved: Comm1 : ∀ n m : ℕ, n + m = m + n
+  Proved: Comm2 : ∀ n m : ℕ, n + m = m + n
 theorem Comm2 : ∀ n m : ℕ, n + m = m + n :=
     λ n : ℕ,
       Induction

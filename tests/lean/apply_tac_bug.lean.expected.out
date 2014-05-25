@@ -2,4 +2,4 @@
   Set: pp::unicode
   Imported 'macros'
   Imported 'tactic'
-  Proved: my_proof_irrel
+  Proved: my_proof_irrel : ∀ (a b : Bool) (H1 : a) (H2 : b), H1 == H2

@@ -1,7 +1,7 @@
   Set: pp::colors
   Set: pp::unicode
   Imported 'Int'
-  Assumed: x
+  Assumed: x : Bool
 Type
 ℤ → ℤ → ℤ
 x1 + x2
@@ -10,4 +10,4 @@ x1 + x1 + x1 + x2 + x2
 ℤ
 definition sum1 : ℤ := x1 + x1 + x1 + x2 + x2
 x1 + x1 + x1 + x2 + x2
-  Assumed: y
+  Assumed: y : Bool

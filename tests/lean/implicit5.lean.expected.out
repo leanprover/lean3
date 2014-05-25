@@ -2,11 +2,11 @@
   Set: pp::unicode
   Imported 'Int'
   Imported 'Real'
-  Assumed: f
-  Assumed: g
-  Assumed: h
-  Assumed: p
-  Assumed: p2
+  Assumed: f : ∀ (A : Type), A → A → A
+  Assumed: g : ℤ → ℤ → ℤ
+  Assumed: h : ℤ → ℤ → ℝ → ℤ
+  Assumed: p : ∀ (A B : Type), A → A → B → A
+  Assumed: p2 : ∀ (A B : Type) (a1 a2 : A) (b : B) (C : Type), C → A
 The denotation(s) for the existing notation:
   infix ++
 have been replaced with the new denotation:

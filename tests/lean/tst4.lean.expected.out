@@ -1,23 +1,23 @@
   Set: pp::colors
   Set: pp::unicode
-  Assumed: f
-  Assumed: N
-  Assumed: n1
-  Assumed: n2
+  Assumed: f : ∀ (A : Type), A → A → A
+  Assumed: N : Type
+  Assumed: n1 : N
+  Assumed: n2 : N
   Set: lean::pp::implicit
 @f N n1 n2
 @f ((N → N) → N → N) (λ x : N → N, x) (λ y : N → N, y)
-  Assumed: EqNice
+  Assumed: EqNice : ∀ (A : Type), A → A → Bool
 @EqNice N n1 n2
 @f N n1 n2 : N
 @congr : ∀ (A B : (Type U)) (f g : A → B) (a b : A), @eq (A → B) f g → @eq A a b → @eq B (f a) (g b)
 @f N n1 n2
-  Assumed: a
-  Assumed: b
-  Assumed: c
-  Assumed: g
-  Assumed: H1
-  Proved: Pr
+  Assumed: a : N
+  Assumed: b : N
+  Assumed: c : N
+  Assumed: g : N → N
+  Assumed: H1 : @eq N a b ∧ @eq N b c
+  Proved: Pr : @eq N (g a) (g c)
 axiom H1 : @eq N a b ∧ @eq N b c
 theorem Pr : @eq N (g a) (g c) :=
     @congr N

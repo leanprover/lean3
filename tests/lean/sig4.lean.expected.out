@@ -7,9 +7,9 @@ pair 20 30
 10
 20
 40
-  Defined: NZ
-  Assumed: t
+  Defined: NZ : Type
+  Assumed: t : NZ
 proj1 t : ℕ
 proj2 t : 1 ≤ proj1 t
-  Assumed: t2
+  Assumed: t2 : ℕ ⨯ ℕ ⨯ ℕ
 proj2 t2 : ℕ ⨯ ℕ

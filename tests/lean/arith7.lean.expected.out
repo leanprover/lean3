@@ -3,10 +3,10 @@
   Imported 'Int'
 | -2 | : ℤ
 | 3 |
-  Defined: x
+  Defined: x : ℤ
 | x + 1 | : ℤ
 | x + 1 | > 0 : Bool
-  Assumed: y
+  Assumed: y : ℤ
 | x + y | : ℤ
 | x + y | > x
   Set: lean::pp::notation

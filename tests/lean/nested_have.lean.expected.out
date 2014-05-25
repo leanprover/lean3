@@ -1,4 +1,4 @@
   Set: pp::colors
   Set: pp::unicode
   Imported 'macros'
-  Proved: T
+  Proved: T : ∀ (a b c d e : Bool), (a → b) → (a → b → c) → d ∧ a → (d → c → e) → e

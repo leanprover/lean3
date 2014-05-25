@@ -1,13 +1,13 @@
   Set: pp::colors
   Set: pp::unicode
-  Assumed: T
-  Assumed: R
-  Assumed: t2r
+  Assumed: T : Type
+  Assumed: R : Type
+  Assumed: t2r : T → R
   Coercion t2r
-  Assumed: g
-  Assumed: a
+  Assumed: g : R → R → R
+  Assumed: a : T
 g a a
-  Assumed: b
+  Assumed: b : R
 g a b
 g b a
   Set: lean::pp::coercion
@@ -15,10 +15,10 @@ g (t2r a) (t2r a)
 g (t2r a) b
 g b (t2r a)
   Set: lean::pp::coercion
-  Assumed: S
-  Assumed: s
-  Assumed: r
-  Assumed: h
+  Assumed: S : Type
+  Assumed: s : S
+  Assumed: r : S
+  Assumed: h : S → S → S
   Set: lean::pp::notation
 g (g a b) a
 h (h r s) r

@@ -1,11 +1,11 @@
   Set: pp::colors
   Set: pp::unicode
   Set: pp::colors
-  Assumed: N
-  Assumed: a
-  Assumed: b
-  Assumed: c
-  Assumed: P
-  Proved: T1
+  Assumed: N : Type
+  Assumed: a : N
+  Assumed: b : N
+  Assumed: c : N
+  Assumed: P : N → N → N → Bool
+  Proved: T1 : ∀ (f : N → N), P (f a) b (f (f c)) → (∃ x y z : N, P x y z)
 theorem T1 (f : N → N) (H : P (f a) b (f (f c))) : ∃ x y z : N, P x y z :=
     exists_intro (f a) (exists_intro b (exists_intro (f (f c)) H))

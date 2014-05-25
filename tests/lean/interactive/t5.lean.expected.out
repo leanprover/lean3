@@ -1,10 +1,10 @@
 #   Set: pp::colors
   Set: pp::unicode
-  Assumed: magic
+  Assumed: magic : ∀ a : Bool, a
 # Proof state:
 a : Bool ⊢ a
 ## Proof state:
 no goals
-##   Proved: T
+##   Proved: T : ∀ a : Bool, a
 # theorem T (a : Bool) : a := magic a
 # 

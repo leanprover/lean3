@@ -1,7 +1,7 @@
   Set: pp::colors
   Set: pp::unicode
-  Assumed: Natural
-  Assumed: x
+  Assumed: Natural : Type
+  Assumed: x : ℕℕ
 variable x : ℕℕ
   Set: pp::unicode
 variable x : Natural

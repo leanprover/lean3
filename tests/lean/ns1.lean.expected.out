@@ -1,13 +1,13 @@
   Set: pp::colors
   Set: pp::unicode
   Imported 'Int'
-  Assumed: foo::a
-  Defined: foo::b
-  Proved: foo::T
-  Assumed: foo::H
-  Assumed: foo::bla::a
-  Assumed: foo::bla::c
-  Assumed: foo::bla::d
+  Assumed: foo::a : ℕ
+  Defined: foo::b : ℕ
+  Proved: foo::T : foo::a = foo::b
+  Assumed: foo::H : foo::b ≥ foo::a
+  Assumed: foo::bla::a : ℤ
+  Assumed: foo::bla::c : ℤ
+  Assumed: foo::bla::d : ℤ
 foo::bla::a + foo::b + foo::bla::c : ℤ
 foo::T : foo::a = foo::b
 foo::H : foo::b ≥ foo::a

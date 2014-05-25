@@ -5,12 +5,12 @@
   Set: lean::pp::implicit
   Set: lean::pp::coercion
   Set: lean::pp::notation
-  Assumed: vector
-  Assumed: read
-  Assumed: V1
-  Assumed: H
-  Defined: D
+  Assumed: vector : Type → ℕ → Type
+  Assumed: read : ∀ (A : Type) (sz : ℕ) (v : vector A sz) (i : ℕ), Nat::lt i sz → A
+  Assumed: V1 : vector ℤ 10
+  Assumed: H : Nat::lt 1 10
+  Defined: D : ℤ
 definition D : ℤ := @read ℤ 10 V1 1 (@eqt_elim (Nat::lt 1 10) (@refl Bool ⊤))
-  Assumed: b
-  Defined: a
-  Proved: T
+  Assumed: b : Bool
+  Defined: a : Bool
+  Proved: T : b → a

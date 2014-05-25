@@ -1,5 +1,5 @@
   Set: pp::colors
   Set: pp::unicode
-  Defined: f
-  Proved: T
+  Defined: f : Bool → Bool
+  Proved: T : ∀ (a b : Bool), a ∨ b → f b → a
 theorem T (a b : Bool) (H : a ∨ b) (H::1 : f b) : a := or_elim H (λ H : a, H) (λ H : b, absurd_elim a H H::1)

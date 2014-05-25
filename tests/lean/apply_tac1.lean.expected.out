@@ -2,13 +2,13 @@
   Set: pp::unicode
   Imported 'tactic'
   Imported 'Int'
-  Assumed: f
-  Assumed: P
-  Assumed: Ax1
-  Proved: T1
-  Assumed: b
-  Assumed: Ax2
-  Proved: T2
-  Proved: T3
+  Assumed: f : ℤ → ℤ → Bool
+  Assumed: P : ℤ → ℤ → Bool
+  Assumed: Ax1 : ∀ (x y : ℤ), P x y → f x y
+  Proved: T1 : ∀ (a : ℤ), P a a → f a a
+  Assumed: b : ℤ
+  Assumed: Ax2 : ∀ x : ℤ, f x b
+  Proved: T2 : ∀ (a : ℤ), P a a → f a a
+  Proved: T3 : ∀ (a : ℤ), P a a → f a a
 theorem T2 (a : ℤ) (H : P a a) : f a a := Ax1 a a H
 theorem T3 (a : ℤ) (H : P a a) : f a a := Ax1 a a H

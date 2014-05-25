@@ -12,5 +12,5 @@ no goals
 A : Bool, B : Bool, assumption : A ∧ B, lemma1 : A, lemma2 : B ⊢ B ∧ A
 ## Proof state:
 no goals
-##   Proved: T2
+##   Proved: T2 : ∀ (A B : Bool), A ∧ B → B ∧ A
 # 

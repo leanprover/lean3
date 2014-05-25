@@ -5,7 +5,7 @@ a : Bool, b : Bool, c : Bool, H : a, H::1::1 : b, H::1::2 : c ⊢ a ∧ b
 Proof state:
 a : Bool, b : Bool, c : Bool, H : a, H::1::1 : b, H::1::2 : c ⊢ a
 a : Bool, b : Bool, c : Bool, H : a, H::1::1 : b, H::1::2 : c ⊢ b
-  Proved: T
+  Proved: T : ∀ (a b c : Bool), a → b ∧ c → c ∧ a ∧ b
 Proof state:
 a : Bool, b : Bool, c : Bool, H : a, H::1::1 : b, H::1::2 : c ⊢ c
 a : Bool, b : Bool, c : Bool, H : a, H::1::1 : b, H::1::2 : c ⊢ a ∧ b
@@ -16,4 +16,4 @@ a : Bool, b : Bool, c : Bool, H : a, H::1::1 : b, H::1::2 : c ⊢ c
 a : Bool, b : Bool, c : Bool, H : a, H::1::1 : b, H::1::2 : c ⊢ b
 Proof state:
 a : Bool, b : Bool, c : Bool, H : a, H::1::1 : b, H::1::2 : c ⊢ b
-  Proved: T2
+  Proved: T2 : ∀ (a b c : Bool), a → b ∧ c → c ∧ a ∧ b

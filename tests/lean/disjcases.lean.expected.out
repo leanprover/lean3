@@ -1,7 +1,7 @@
   Set: pp::colors
   Set: pp::unicode
-  Assumed: a
-  Assumed: b
-  Assumed: c
-  Assumed: H
-  Proved: T
+  Assumed: a : Bool
+  Assumed: b : Bool
+  Assumed: c : Bool
+  Assumed: H : a ∨ b
+  Proved: T : ∀ (a b : Bool), a ∨ b → b ∨ a

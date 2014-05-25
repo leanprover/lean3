@@ -1,9 +1,9 @@
   Set: pp::colors
   Set: pp::unicode
   Imported 'tactic'
-  Assumed: f
-  Assumed: Ax1
-  Assumed: Ax2
-  Proved: T1
+  Assumed: f : ∀ (A : TypeU), A → A
+  Assumed: Ax1 : ∀ a : Bool, f a = (¬ a)
+  Assumed: Ax2 : ∀ a : ℕ, f a = 0
+  Proved: T1 : ∀ a : ℕ, f (f a > 0)
 theorem T1 (a : ℕ) : f (f a > 0) :=
     eqt_elim (trans (trans (congr2 f (congr1 (congr2 Nat::gt (Ax2 a)) 0)) (Ax1 ⊥)) not_false)

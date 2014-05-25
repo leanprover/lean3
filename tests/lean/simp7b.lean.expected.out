@@ -1,12 +1,12 @@
   Set: pp::colors
   Set: pp::unicode
-  Assumed: a
-  Assumed: b
-  Assumed: c
-  Assumed: d
-  Assumed: e
-  Assumed: f
-  Assumed: p
+  Assumed: a : Bool
+  Assumed: b : Bool
+  Assumed: c : Bool
+  Assumed: d : Bool
+  Assumed: e : Bool
+  Assumed: f : Bool
+  Assumed: p : Bool
 ((f ∨ p) ∧ (e ∨ p)) ∧ ((p ∨ d) ∧ c) ∧ b ∧ a
 ====>
 a ∧ b ∧ c ∧ (e ∨ p) ∧ (f ∨ p) ∧ (p ∨ d)

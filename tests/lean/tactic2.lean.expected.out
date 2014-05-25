@@ -1,12 +1,12 @@
   Set: pp::colors
   Set: pp::unicode
-  Assumed: p
-  Assumed: q
-  Assumed: r
-  Proved: T1
-  Proved: T2
+  Assumed: p : Bool
+  Assumed: q : Bool
+  Assumed: r : Bool
+  Proved: T1 : p → q → p ∧ q
+  Proved: T2 : p → q → p ∧ q ∧ p
 theorem T2 (H : p) (H::1 : q) : p ∧ q ∧ p := and_intro H (and_intro H::1 H)
-  Proved: T3
+  Proved: T3 : p → p ∧ q → r → q ∧ r ∧ p
 theorem T3 (H : p) (H::1 : p ∧ q) (H::2 : r) : q ∧ r ∧ p := and_intro (and_elimr H::1) (and_intro H::2 H)
-  Proved: T4
+  Proved: T4 : p → p ∧ q → r → q ∧ r ∧ p
 theorem T4 (H : p) (H::1 : p ∧ q) (H::2 : r) : q ∧ r ∧ p := and_intro (and_elimr H::1) (and_intro H::2 H)

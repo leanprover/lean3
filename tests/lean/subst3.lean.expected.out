@@ -1,7 +1,7 @@
   Set: pp::colors
   Set: pp::unicode
   Imported 'macros'
-  Proved: T
+  Proved: T : ∀ (A : Type) (p : A → Bool) (f : A → A → A) (x y z : A), p (f x x) → x = y → x = z → p (f y z)
 theorem T (A : Type)
     (p : A → Bool)
     (f : A → A → A)

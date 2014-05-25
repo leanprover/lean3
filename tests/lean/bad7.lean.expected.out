@@ -1,8 +1,8 @@
   Set: pp::colors
   Set: pp::unicode
   Imported 'Real'
-  Assumed: f
-  Assumed: a
-  Assumed: b
-  Defined: tst
+  Assumed: f : ∀ (A : Type), A → A → Bool
+  Assumed: a : ℤ
+  Assumed: b : ℝ
+  Defined: tst : Bool
 definition tst : Bool := (λ x y : ℝ, f x y) a b

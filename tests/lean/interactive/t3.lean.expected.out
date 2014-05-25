@@ -11,6 +11,6 @@ Proof state:
 a : Bool, b : Bool, H : b ⊢ b
 ## Proof state:
 no goals
-##   Proved: T2
+##   Proved: T2 : ∀ (a b : Bool), b → a ∨ b
 # theorem T2 (a b : Bool) (H : b) : a ∨ b := or_intror a H
 # 

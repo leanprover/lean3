@@ -1,23 +1,26 @@
   Set: pp::colors
   Set: pp::unicode
-  Defined: double
+  Defined: double : ℕ → ℕ
 ¬ 0 = 1
 ⊤
 9
 0 = 1
 3 ≤ 2 + 2 + (2 + 2) + 1
 3 ≤ 2 * 2 + (2 * 2 + (2 * 2 + (2 * 2 + 1)))
-  Assumed: a
-  Assumed: b
-  Assumed: c
-  Assumed: d
+  Assumed: a : ℕ
+  Assumed: b : ℕ
+  Assumed: c : ℕ
+  Assumed: d : ℕ
 a * c + (a * d + (b * c + b * d))
 trans (Nat::distributel a b (c + d))
       (trans (congr (congr2 Nat::add (Nat::distributer a c d)) (Nat::distributer b c d))
              (Nat::add_assoc (a * c) (a * d) (b * c + b * d)))
-  Proved: congr2_congr1
-  Proved: congr2_congr2
-  Proved: congr1_congr2
+  Proved: congr2_congr1 : ∀ (A B C : TypeU) (f g : A → B) (h : B → C) (Hfg : f = g) (a : A),
+  congr2 h (congr1 Hfg a) = congr2 (λ x : A → B, h (x a)) Hfg
+  Proved: congr2_congr2 : ∀ (A B C : TypeU) (a b : A) (f : A → B) (h : B → C) (Hab : a = b),
+  congr2 h (congr2 f Hab) = congr2 (λ x : A, h (f x)) Hab
+  Proved: congr1_congr2 : ∀ (A B C : TypeU) (a b : A) (f : A → B → C) (Hab : a = b) (c : B),
+  congr1 (congr2 f Hab) c = congr2 (λ x : A, f x c) Hab
 ⊤
 trans (congr (congr2 eq
                      (congr1 (congr2 Nat::add (trans (congr2 (ite (a > 0) b) (Nat::add_zeror b)) (if_a_a (a > 0) b)))

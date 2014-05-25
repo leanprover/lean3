@@ -2,7 +2,7 @@
   Set: pp::unicode
   Imported 'Int'
   Imported 'Real'
-  Assumed: f
-  Assumed: a
-  Assumed: b
-  Defined: tst
+  Assumed: f : ∀ (A : Type), A → A
+  Assumed: a : ℤ
+  Assumed: b : ℝ
+  Defined: tst : Bool

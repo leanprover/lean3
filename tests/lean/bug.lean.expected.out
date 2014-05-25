@@ -2,9 +2,11 @@
   Set: pp::unicode
 Failed to solve
 A : (Type U), A' : (Type U) ⊢ ?M::4 ≺ (Type U)
-    bug.lean:1:36: Type of argument 1 must be convertible to the expected type in the application of
-        @eq
-    with arguments:
+    bug.lean:1:36: In the application
+        @eq ?M::0 A A'
+    the type of
         ?M::0
-        A
-        A'
+    is
+        ?M::4
+    but is expected to be
+        (Type U)

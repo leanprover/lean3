@@ -1,5 +1,5 @@
   Set: pp::colors
   Set: pp::unicode
-  Defined: D1
-  Defined: D2
-  Defined: D3
+  Defined: D1 : (Type U) → (ℕ → (Type U)) → Bool
+  Defined: D2 : ∀ (A : (Type U)), (A → (Type U)) → Bool
+  Defined: D3 : ∀ (A : (Type U)), (A → (Type U)) → Bool

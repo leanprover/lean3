@@ -1,7 +1,7 @@
   Set: pp::colors
   Set: pp::unicode
   Imported 'Int'
-  Assumed: x
+  Assumed: x : ℤ
 variable x : ℤ
 variable y_1 : ℤ
 variable y_2 : ℤ

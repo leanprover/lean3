@@ -1,21 +1,21 @@
   Set: pp::colors
   Set: pp::unicode
   Imported 'Int'
-  Assumed: a
-  Assumed: P
-  Assumed: f
-  Assumed: g
-  Assumed: H1
-  Assumed: H2
-  Assumed: H3
-  Proved: T1
-  Proved: T2
-  Proved: T3
-  Proved: T4
-  Proved: T5
-  Proved: T6
-  Proved: T7
-  Proved: T8
+  Assumed: a : ℤ
+  Assumed: P : ℤ → ℤ → Bool
+  Assumed: f : ℤ → ℤ → ℤ
+  Assumed: g : ℤ → ℤ
+  Assumed: H1 : P (f a (g a)) (f a (g a))
+  Assumed: H2 : P (f (g a) (g a)) (f (g a) (g a))
+  Assumed: H3 : P (f (g a) (g a)) (g a)
+  Proved: T1 : ∃ x y : ℤ, P (f y x) (f y x)
+  Proved: T2 : ∃ x : ℤ, P (f x (g x)) (f x (g x))
+  Proved: T3 : ∃ x : ℤ, P (f x x) (f x x)
+  Proved: T4 : ∃ x : ℤ, P (f (g a) x) (f x x)
+  Proved: T5 : ∃ x : ℤ, P x x
+  Proved: T6 : ∃ x y : ℤ, P x y
+  Proved: T7 : ∃ x : ℤ, P (f x x) x
+  Proved: T8 : ∃ x y : ℤ, P (f x x) y
 theorem T1 : ∃ x y : ℤ, P (f y x) (f y x) := exists_intro (g a) (exists_intro a H1)
 theorem T2 : ∃ x : ℤ, P (f x (g x)) (f x (g x)) := exists_intro a H1
 theorem T3 : ∃ x : ℤ, P (f x x) (f x x) := exists_intro (g a) H2

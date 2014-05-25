@@ -1,16 +1,17 @@
   Set: pp::colors
   Set: pp::unicode
-  Assumed: vec
-  Assumed: concat
-  Assumed: concat_assoc
-  Assumed: empty
-  Assumed: concat_empty
+  Assumed: vec : ℕ → Type
+  Assumed: concat : ∀ (n m : ℕ), vec n → vec m → vec (n + m)
+  Assumed: concat_assoc : ∀ (n1 n2 n3 : ℕ) (v1 : vec n1) (v2 : vec n2) (v3 : vec n3),
+  v1 ; v2 ; v3 = cast (to_heq (congr2 vec (symm (Nat::add_assoc n1 n2 n3)))) (v1 ; (v2 ; v3))
+  Assumed: empty : vec 0
+  Assumed: concat_empty : ∀ (n : ℕ) (v : vec n), v ; empty = cast (to_heq (congr2 vec (symm (Nat::add_zeror n)))) v
 λ (n : ℕ) (v : vec n), v
-  Assumed: f
+  Assumed: f : ∀ (A : Type), A → A
 λ n : ℕ, f
 
-  Defined: TypeM
-  Assumed: lheq
+  Defined: TypeM : (Type M+1)
+  Assumed: lheq : ∀ (A B : TypeM), A → B → Bool
 λ val : ℕ, (λ (n : ℕ) (v : vec (n + 0)), f v ; empty) val === (λ (n : ℕ) (v : vec (n + 0)), v) val
 =====>
 λ val : ℕ, f === (λ v : vec val, v)

@@ -1,8 +1,9 @@
   Set: pp::colors
   Set: pp::unicode
-  Assumed: C
-  Assumed: D
-  Assumed: R
-  Proved: R2
+  Assumed: C : ∀ (A B : Type), A = B → A → B
+  Assumed: D : ∀ (A A' : Type) (B : A → Type) (B' : A' → Type), (∀ x : A, B x) = (∀ x : A', B' x) → A = A'
+  Assumed: R : ∀ (A A' : Type) (B : A → Type) (B' : A' → Type) (H : (∀ x : A, B x) = (∀ x : A', B' x)) (a : A),
+  B a = B' (C A A' (D A A' B B' H) a)
+  Proved: R2 : ∀ (A1 A2 B1 B2 : Type), (A1 → B1) = (A2 → B2) → A1 → B1 = B2
 theorem R2 (A1 A2 B1 B2 : Type) (H : (A1 → B1) = (A2 → B2)) (a : A1) : B1 = B2 :=
     R A1 A2 (λ x : A1, B1) (λ x : A2, B2) H a

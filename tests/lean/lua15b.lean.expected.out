@@ -1,9 +1,9 @@
   Set: pp::colors
   Set: pp::unicode
   Imported 'Int'
-  Assumed: i
-  Assumed: j
-  Assumed: p
+  Assumed: i : ℤ
+  Assumed: j : ℤ
+  Assumed: p : Bool
 hello
 i + j
 lua15b.lean:8: error: executing script
@@ -13,15 +13,21 @@ Failed to solve
         (Int::add | Nat::add) i p
     Failed to solve
      ⊢ ℤ ≺ ℕ
-        [string]:3:12: Type of argument 1 must be convertible to the expected type in the application of
-            Nat::add
-        with arguments:
+        [string]:3:12: In the application
+            i + p
+        the type of
             i
-            p
+        is
+            ℤ
+        but is expected to be
+            ℕ
     Failed to solve
      ⊢ Bool ≺ ℤ
-        [string]:3:12: Type of argument 2 must be convertible to the expected type in the application of
-            Int::add
-        with arguments:
-            i
+        [string]:3:12: In the application
+            i + p
+        the type of
             p
+        is
+            Bool
+        but is expected to be
+            ℤ

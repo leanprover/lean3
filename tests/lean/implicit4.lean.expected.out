@@ -1,10 +1,10 @@
   Set: pp::colors
   Set: pp::unicode
   Imported 'Int'
-  Assumed: f
-  Assumed: g
-  Assumed: p
-  Assumed: h
+  Assumed: f : ∀ (A : Type) (a1 a2 : A) (B : Type), B → B → A
+  Assumed: g : ∀ (A1 A2 : Type) (a1 : A1) (a2 : A2) (B : Type), B → A1
+  Assumed: p : ℤ → ℤ → (∀ (B : Type), B → B → B → B)
+  Assumed: h : ∀ (A1 A2 : Type), A1 → A2 → A2 → A1
 The denotation(s) for the existing notation:
   infix ++
 have been replaced with the new denotation:

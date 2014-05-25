@@ -3,7 +3,7 @@
   Imported 'num'
   Imported 'tactic'
   Using: num
-  Assumed: a
+  Assumed: a : num::num
 num::one + num::succ num::one
 ====>
 num::succ (num::succ (num::succ num::zero))
@@ -15,12 +15,12 @@ num::succ (num::succ (num::succ (num::succ (num::succ (num::succ num::zero)))))
 num::succ (num::succ num::one) * num::succ num::one =
 num::succ (num::succ (num::succ (num::succ (num::succ (num::succ num::zero)))))
 
-  Proved: T1
-  Proved: T2
-  Proved: T3
+  Proved: T1 : num::one * num::succ num::one = num::succ num::one
+  Proved: T2 : a * num::succ num::one = a + a
+  Proved: T3 : num::one = num::succ num::zero
   Set: simplifier::unfold
-  Defined: two
-  Defined: three
-  Defined: four
+  Defined: two : num::num
+  Defined: three : num::num
+  Defined: four : num::num
   Set: lean::pp::implicit
-  Proved: test
+  Proved: test : @eq num::num (num::fact four) (four * three * two)

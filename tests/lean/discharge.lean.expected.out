@@ -1,4 +1,4 @@
   Set: pp::colors
   Set: pp::unicode
   Imported 'tactic'
-  Proved: T
+  Proved: T : ∀ (a b : Bool), a → b → b → a

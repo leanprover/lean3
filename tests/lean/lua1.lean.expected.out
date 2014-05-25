@@ -1,6 +1,6 @@
   Set: pp::colors
   Set: pp::unicode
   Imported 'Int'
-  Assumed: x
+  Assumed: x : ℤ
 hello world from Lua
-  Assumed: y
+  Assumed: y : ℤ

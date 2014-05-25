@@ -19,7 +19,7 @@ A : Bool, B : Bool, H : A ∧ B, H1 : B, H2 : A ⊢ B
 A : Bool, B : Bool, H : A ∧ B, H1 : B, H2 : A ⊢ A
 ## Proof state:
 no goals
-##   Proved: T1
+##   Proved: T1 : ∀ (A B : Bool), A ∧ B → B ∧ A
 # Proof state:
 A : Bool, B : Bool, H : A ∧ B ⊢ A
 ## Proof state:
@@ -32,5 +32,5 @@ no goals
 A : Bool, B : Bool, H : A ∧ B, H1 : A, H2 : B ⊢ B ∧ A
 ## Proof state:
 no goals
-##   Proved: T2
+##   Proved: T2 : ∀ (A B : Bool), A ∧ B → B ∧ A
 # 

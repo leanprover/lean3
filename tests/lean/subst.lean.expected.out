@@ -1,11 +1,11 @@
   Set: pp::colors
   Set: pp::unicode
   Imported 'Int'
-  Assumed: a
-  Assumed: n
-  Assumed: H1
-  Assumed: H2
-  Proved: T
+  Assumed: a : ℤ
+  Assumed: n : ℕ
+  Assumed: H1 : a + a + a = 10
+  Assumed: H2 : a = n
+  Proved: T : a + n + a = 10
   Set: lean::pp::coercion
   Set: lean::pp::notation
   Set: lean::pp::implicit

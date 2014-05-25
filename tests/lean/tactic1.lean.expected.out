@@ -1,6 +1,6 @@
   Set: pp::colors
   Set: pp::unicode
-  Assumed: p
-  Assumed: q
-  Assumed: r
+  Assumed: p : Bool
+  Assumed: q : Bool
+  Assumed: r : Bool
 theorem T1 (H : p) (H::1 : q) : p ∧ q := and_intro H H::1

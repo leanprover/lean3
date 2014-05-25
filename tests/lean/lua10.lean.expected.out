@@ -1,8 +1,8 @@
   Set: pp::colors
   Set: pp::unicode
-  Assumed: x1
-  Assumed: x2
-  Assumed: x3
-  Defined: F
+  Assumed: x1 : Bool
+  Assumed: x2 : Bool
+  Assumed: x3 : Bool
+  Defined: F : Bool
 x1 ∧ (x2 ∨ x3)
 7

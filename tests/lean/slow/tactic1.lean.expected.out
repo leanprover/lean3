@@ -1,5 +1,5 @@
   Set: pp::colors
   Set: pp::unicode
   Imported 'Int'
-  Defined: double
-  Defined: big
+  Defined: double : ∀ (A : Type), (A → A) → A → A
+  Defined: big : ∀ (A : Type), (A → A) → A → A

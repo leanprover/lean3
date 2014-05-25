@@ -7,9 +7,9 @@ pair ⊤ 20 : Bool ⨯ ℕ
 pair ⊤ 20 : Bool ⨯ ℕ
 pair ⊤ ⊤ : Bool ⨯ Bool
 pair ⊤ ⊤ : Bool ⨯ Bool
-  Assumed: a
-  Assumed: Ha
-  Defined: NZ
+  Assumed: a : ℕ
+  Assumed: Ha : 1 ≤ a
+  Defined: NZ : Type
 NZ : Type
 pair a Ha : NZ : sig x : ℕ, 1 ≤ x
 sig2.lean:13:6: error: type mismatch in the 1st argument of the pair

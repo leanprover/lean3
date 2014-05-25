@@ -8,5 +8,5 @@ main::1: a : Bool, H : a ⊢ a
 main::2: a : Bool, H : a ⊢ a
 ## Proof state:
 no goals
-##   Proved: T
+##   Proved: T : ∀ (a : Bool), a → a ∧ a
 # 

@@ -1,9 +1,9 @@
   Set: pp::colors
   Set: pp::unicode
-  Assumed: vec
-  Defined: vec_with_len
-  Assumed: n
-  Assumed: v
+  Assumed: vec : ℕ → Type
+  Defined: vec_with_len : Type
+  Assumed: n : ℕ
+  Assumed: v : vec n
 pair n v : ℕ ⨯ vec n
 let H_show : vec_with_len := pair n v : (sig x : ℕ, vec x) in H_show : vec_with_len
 let v2 : vec_with_len := pair n v : (sig x : ℕ, vec x) in v2 : vec_with_len

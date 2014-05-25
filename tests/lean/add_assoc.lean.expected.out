@@ -2,7 +2,7 @@
   Set: pp::unicode
   Imported 'tactic'
   Using: Nat
-  Proved: add_assoc
+  Proved: add_assoc : ∀ a b c : ℕ, a + (b + c) = a + b + c
 Nat::add_zerol : ∀ a : ℕ, 0 + a = a
 Nat::add_succl : ∀ a b : ℕ, a + 1 + b = a + b + 1
 @eq_id : ∀ (A : (Type U)) (a : A), a = a ↔ ⊤

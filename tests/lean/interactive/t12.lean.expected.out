@@ -1,6 +1,6 @@
 #   Set: pp::colors
   Set: pp::unicode
-  Proved: T1
+  Proved: T1 : ∀ (A B : Bool), A ∧ B → B ∧ A
 theorem T1 (A B : Bool) (assumption : A ∧ B) : B ∧ A :=
     let lemma1 : A := and_eliml assumption, lemma2 : B := and_elimr assumption in and_intro lemma2 lemma1
 # Proof state:
@@ -15,7 +15,7 @@ no goals
 A : Bool, B : Bool, assumption : A ∧ B, lemma1 : A, lemma2 : B ⊢ B ∧ A
 ## Proof state:
 no goals
-##   Proved: T2
+##   Proved: T2 : ∀ (A B : Bool), A ∧ B → B ∧ A
 # Proof state:
 A : Bool, B : Bool, assumption : A ∧ B ⊢ A
 ## Proof state:
@@ -35,7 +35,7 @@ A : Bool, B : Bool, assumption : A ∧ B, lemma1 : A, lemma2 : B ⊢ B
 A : Bool, B : Bool, assumption : A ∧ B, lemma1 : A, lemma2 : B ⊢ A
 ## Proof state:
 no goals
-##   Proved: T3
+##   Proved: T3 : ∀ (A B : Bool), A ∧ B → B ∧ A
 # Proof state:
 A : Bool, B : Bool, assumption : A ∧ B ⊢ A
 ## Proof state:
@@ -48,5 +48,5 @@ A : Bool, B : Bool, assumption : A ∧ B, lemma1 : A ⊢ B
 A : Bool, B : Bool, assumption::1 : A, assumption::2 : B, lemma1 : A ⊢ B
 ## Proof state:
 no goals
-##   Proved: T4
+##   Proved: T4 : ∀ (A B : Bool), A ∧ B → B ∧ A
 # 

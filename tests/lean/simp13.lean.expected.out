@@ -1,8 +1,8 @@
   Set: pp::colors
   Set: pp::unicode
-  Assumed: a
-  Assumed: b
-  Assumed: c
+  Assumed: a : ℕ
+  Assumed: b : ℕ
+  Assumed: c : ℕ
 ⊥
 trans (and_congr
            (refl (a = 1))

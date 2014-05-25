@@ -1,17 +1,17 @@
   Set: pp::colors
   Set: pp::unicode
-  Assumed: N
-  Assumed: lt
-  Assumed: zero
-  Assumed: one
-  Assumed: two
-  Assumed: three
-  Assumed: two_lt_three
-  Defined: vector
-  Defined: const
-  Defined: update
-  Defined: select
-  Defined: map
+  Assumed: N : Type
+  Assumed: lt : N → N → Bool
+  Assumed: zero : N
+  Assumed: one : N
+  Assumed: two : N
+  Assumed: three : N
+  Assumed: two_lt_three : two < three
+  Defined: vector : Type → N → Type
+  Defined: const : ∀ (A : Type) (n : N), A → vector A n
+  Defined: update : ∀ (A : Type) (n : N), vector A n → N → A → vector A n
+  Defined: select : ∀ (A : Type) (n : N) (v : vector A n) (i : N), i < n → A
+  Defined: map : ∀ (A B C : Type) (n : N), (A → B → C) → vector A n → vector B n → vector C n
 variable one : N
 variable two : N
 variable three : N

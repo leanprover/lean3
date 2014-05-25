@@ -1,9 +1,9 @@
   Set: pp::colors
   Set: pp::unicode
-  Assumed: a
-  Assumed: b
-  Assumed: c
-  Assumed: d
-  Assumed: e
-  Assumed: f
+  Assumed: a : ℕ
+  Assumed: b : ℕ
+  Assumed: c : ℕ
+  Assumed: d : ℕ
+  Assumed: e : ℕ
+  Assumed: f : ℕ
 (a + b) * (c + d) * (e + f) * (a + b) * (c + d) * (e + f)
