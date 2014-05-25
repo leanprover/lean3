@@ -66,7 +66,7 @@ definition product (g1 g2 : group) : group
 infixr 50 ⋆ : product
 
 -- It would be nice to be able to write (p1 p2 : g1 ⋆ g2 ⋆ g3)
-check λ (g1 g2 g3 : group) (p1 p2 : carrier (g1 ⋆ g2 ⋆ g3)), p1 * p2 = p2 * p1
+-- check λ (g1 g2 g3 : group) (p1 p2 : carrier (g1 ⋆ g2 ⋆ g3)), p1 * p2 = p2 * p1
 
 theorem group_inhab (g : group) : inhabited (carrier g)
 := inhabited_intro (@one g)
@@ -107,5 +107,3 @@ theorem G_inv_inv {g : group} (x : carrier g) : inv (inv x) = x
                 ...  =  (inv (inv x) * inv x) * x  : symm (G_assoc (inv (inv x)) (inv x) x)
                 ...  =  one * x                    : { G_invr (inv x) }
                 ...  =  x                          : G_idr x
-
-

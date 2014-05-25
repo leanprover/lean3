@@ -45,8 +45,8 @@ definition product (s1 s2 : setoid) : setoid
 scope
    -- We need to extend the elaborator to be able to write
    --    p1 p2 : product s1 s2
-   set_option pp::implicit true
-   check λ (s1 s2 : setoid) (p1 p2 : carrier (product s1 s2)), p1 ≈ p2
+   -- set_option pp::implicit true
+   -- check λ (s1 s2 : setoid) (p1 p2 : carrier (product s1 s2)), p1 ≈ p2
 end
 
 definition morphism (s1 s2 : setoid) := sig f : carrier s1 → carrier s2, ∀ x y, x ≈ y → f x ≈ f y
@@ -67,4 +67,3 @@ definition compose {s1 s2 s3 : setoid} (m1 : morphism s1 s2) (m2 : morphism s2 s
            from is_compat m1 Hxy,
          show f m2 (f m1 x) ≈ f m2 (f m1 y),
            from is_compat m2 Hfxy)
-
