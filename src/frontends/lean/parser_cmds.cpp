@@ -279,7 +279,7 @@ void parser_imp::parse_eval() {
     regular(m_io_state) << r << endl;
 }
 
-/** \brief Return true iff \c obj is an object that should be ignored by the Show command */
+/** \brief Return true iff \c obj is an object that should be ignored by the print command */
 bool parser_imp::is_hidden_object(object const & obj) const {
     return (obj.is_definition() && is_explicit(m_env, obj.get_name())) || !supported_by_pp(obj);
 }
@@ -357,7 +357,7 @@ void parser_imp::parse_print() {
             rewrite_rule_set rs = get_rewrite_rule_set(m_env, rsid);
             regular(m_io_state) << rs << endl;
         } else {
-            throw parser_error("invalid Show command, expression, 'Options' or 'Environment' expected", m_last_cmd_pos);
+            throw parser_error("invalid print command, expression, 'options' or 'environment' expected", m_last_cmd_pos);
         }
     } else if (curr() == scanner::token::StringVal) {
         std::string msg = curr_string();
@@ -645,12 +645,12 @@ void parser_imp::parse_help() {
                             << "  help options             display available options" << endl
                             << "  help notation            describe commands for defining infix, mixfix, postfix operators" << endl
                             << "  import [string]          load the given file" << endl
-                            << "  pop::scope               discard the current scope" << endl
+                            << "  pop_scope                discard the current scope" << endl
                             << "  print [expr]             pretty print the given expression" << endl
-                            << "  print Options            print current the set of assigned options" << endl
+                            << "  print options            print current the set of assigned options" << endl
                             << "  print [string]           print the given string" << endl
-                            << "  print Environment        print objects in the environment, if [Num] provided, then show only the last [Num] objects" << endl
-                            << "  print Environment [num]  show the last num objects in the environment" << endl
+                            << "  print environment        print objects in the environment, if [Num] provided, then show only the last [Num] objects" << endl
+                            << "  print environment [num]  show the last num objects in the environment" << endl
                             << "  scope                    create a scope" << endl
                             << "  set::option [id] [value] set option [id] with value [value]" << endl
                             << "  set::opaque [id] [bool]  set the given definition as opaque/transparent" << endl
