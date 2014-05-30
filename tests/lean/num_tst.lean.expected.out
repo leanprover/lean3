@@ -3,7 +3,7 @@
   Imported 'num'
   Imported 'tactic'
   Using: num
-  Assumed: a : num::num
+  Assumed: a : num
 num::one + num::succ num::one
 ====>
 num::succ (num::succ (num::succ num::zero))
