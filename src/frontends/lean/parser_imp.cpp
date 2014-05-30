@@ -154,6 +154,7 @@ parser_imp::parser_imp(environment const & env, io_state const & st, std::istrea
     m_interactive(interactive),
     m_script_state(S),
     m_set_parser(m_script_state, this) {
+    m_unary_nat = false;
     m_namespace_prefixes.push_back(name());
     m_check_identifiers = true;
     updt_options();

@@ -90,6 +90,7 @@ class parser_imp {
     pos_info                           m_last_script_pos;
     tactic_hints                       m_tactic_hints;
     using_decls                        m_using_decls;
+    bool                               m_unary_nat;
     std::vector<name>                  m_namespace_prefixes;
     std::vector<scope_kind>            m_scope_kinds;
     std::unique_ptr<calc_proof_parser> m_calc_proof_parser;

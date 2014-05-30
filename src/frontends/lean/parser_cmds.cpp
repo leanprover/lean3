@@ -53,13 +53,14 @@ static name g_builtin_kwd("builtin");
 static name g_namespace_kwd("namespace");
 static name g_end_kwd("end");
 static name g_using_kwd("using");
+static name g_unary_nat_kwd("unary_nat");
 static name g_rewrite_set_kwd("rewrite_set");
 static name g_add_rewrite_kwd("add_rewrite");
 static name g_enable_rewrite_kwd("enable_rewrite");
 static name g_disable_rewrite_kwd("disable_rewrite");
 /** \brief Table/List with all builtin command keywords */
 static list<name> g_command_keywords = {g_definition_kwd, g_variable_kwd, g_variables_kwd, g_theorem_kwd,
-                                        g_axiom_kwd, g_universe_kwd, g_eval_kwd,
+                                        g_axiom_kwd, g_universe_kwd, g_eval_kwd, g_unary_nat_kwd,
                                         g_check_kwd, g_infix_kwd, g_infixl_kwd, g_infixr_kwd, g_notation_kwd,
                                         g_set_option_kwd, g_set_opaque_kwd, g_env_kwd, g_options_kwd,
                                         g_import_kwd, g_help_kwd, g_coercion_kwd,
@@ -971,6 +972,8 @@ bool parser_imp::parse_command() {
         parse_enable_rewrite(true);
     } else if (cmd_id == g_disable_rewrite_kwd) {
         parse_enable_rewrite(false);
+    } else if (cmd_id == g_unary_nat_kwd) {
+        next(); m_unary_nat = true;
     } else if (m_cmd_macros && m_cmd_macros->find(cmd_id) != m_cmd_macros->end()) {
         parse_cmd_macro(cmd_id, m_last_cmd_pos);
     } else {

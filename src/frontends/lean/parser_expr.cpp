@@ -820,14 +820,30 @@ expr parser_imp::parse_let() {
     }
 }
 
+static expr g_zero(Const(name(name("nat"), "zero")));
+static expr g_succ(Const(name(name("nat"), "succ")));
+
 /** \brief Parse a natural/integer number value. */
 expr parser_imp::parse_nat_int() {
     auto p = pos();
     mpz v  = m_scanner.get_num_val().get_numerator();
-    expr r = v >= 0 ? mk_nat_value(v) : mk_int_value(v);
-    r = save(r, p);
-    next();
-    return r;
+    if (m_unary_nat) {
+        if (v < 0)
+            throw parser_error("invalid numeral, positive value expected", p);
+        if (v > 100000)
+            throw parser_error("numeral is too big for unary representation", p);
+        expr r = g_zero;
+        for (unsigned i = 0; i < v.get_unsigned_int(); i++)
+            r = g_succ(r);
+        r = save(r, p);
+        next();
+        return r;
+    } else {
+        expr r = v >= 0 ? mk_nat_value(v) : mk_int_value(v);
+        r = save(r, p);
+        next();
+        return r;
+    }
 }
 
 expr parser_imp::parse_decimal() {
