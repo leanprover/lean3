@@ -34,4 +34,6 @@ bool parse_commands(environment const & env, io_state & st, std::istream & in, c
 bool parse_commands(environment const & env, io_state & st, char const * fname, script_state * S = nullptr, bool use_exceptions = true, bool interactive = false);
 expr parse_expr(environment const & env, io_state & st, std::istream & in, char const * strm_name, script_state * S = nullptr, bool use_exceptions = true);
 void open_macros(lua_State * L);
+// Print in out the dependencies of .lean file fname.
+void display_deps(std::ostream & out, char const * fname);
 }

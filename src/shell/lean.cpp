@@ -40,6 +40,7 @@ using lean::invoke_debugger;
 using lean::notify_assertion_violation;
 using lean::environment;
 using lean::io_state;
+using lean::display_deps;
 
 enum class input_kind { Unspecified, Lean, OLean, Lua };
 
@@ -70,6 +71,7 @@ static void display_help(std::ostream & out) {
     std::cout << "                    0 means 'do not check'.\n";
     std::cout << "  --trust -t        trust imported modules\n";
     std::cout << "  --quiet -q        do not print verbose messages\n";
+    std::cout << "  --deps            just print dependencies of a Lean input\n";
 #if defined(LEAN_USE_BOOST)
     std::cout << "  --tstack=num -s   thread stack size in Kb\n";
 #endif
@@ -102,6 +104,7 @@ static struct option g_long_options[] = {
     {"output",     required_argument, 0, 'o'},
     {"trust",      no_argument,       0, 't'},
     {"quiet",      no_argument,       0, 'q'},
+    {"deps",       no_argument,       0, 'D'},
 #if defined(LEAN_USE_BOOST)
     {"tstack",     required_argument, 0, 's'},
 #endif
@@ -115,10 +118,11 @@ int main(int argc, char ** argv) {
     bool export_objects = false;
     bool trust_imported = false;
     bool quiet          = false;
+    bool only_deps      = false;
     std::string output;
     input_kind default_k = input_kind::Lean; // default
     while (true) {
-        int c = getopt_long(argc, argv, "qtnlupgvhc:012s:012o:", g_long_options, NULL);
+        int c = getopt_long(argc, argv, "qtnDlupgvhc:012s:012o:", g_long_options, NULL);
         if (c == -1)
             break; // end of command line
         switch (c) {
@@ -162,6 +166,9 @@ int main(int argc, char ** argv) {
             break;
         case 'q':
             quiet = true;
+            break;
+        case 'D':
+            only_deps = true;
             break;
         default:
             std::cerr << "Unknown command line option\n";
@@ -214,8 +221,11 @@ int main(int argc, char ** argv) {
                     }
                 }
                 if (k == input_kind::Lean) {
-                    if (!parse_commands(env, ios, argv[i], &S, false, false))
+                    if (only_deps) {
+                        display_deps(std::cout, argv[i]);
+                    } else if (!parse_commands(env, ios, argv[i], &S, false, false)) {
                         ok = false;
+                    }
                 } else if (k == input_kind::OLean) {
                     try {
                         env->load(std::string(argv[i]), ios);

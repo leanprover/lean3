@@ -69,6 +69,10 @@ static list<name> g_command_keywords = {g_definition_kwd, g_variable_kwd, g_vari
                                         g_enable_rewrite_kwd, g_disable_rewrite_kwd};
 // ==========================================
 
+list<name> const & get_command_keywords() {
+    return g_command_keywords;
+}
+
 list<name> const & parser_imp::get_command_keywords() {
     return g_command_keywords;
 }
