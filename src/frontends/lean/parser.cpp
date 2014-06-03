@@ -69,7 +69,13 @@ void display_deps(std::ostream & out, char const * fname) {
         if (t == scanner::token::CommandId && s.get_name_val() == import_name) {
             t = s.scan();
             while (t == scanner::token::Id) {
-                std::string m_name = find_file(name_to_file(s.get_name_val()), {".olean", ".lua"});
+                std::string m_name = find_file(name_to_file(s.get_name_val()), {".lean", ".olean", ".lua"});
+                int last_idx = m_name.find_last_of(".");
+                std::string rawname = m_name.substr(0, last_idx);
+                std::string ext = m_name.substr(last_idx);
+                if (ext == ".lean") {
+                    m_name = rawname + ".olean";
+                }
                 out << m_name << "\n";
                 t = s.scan();
             }
