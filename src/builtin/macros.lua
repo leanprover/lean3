@@ -111,6 +111,9 @@ macro("obtain", { macro_arg.Parameters, macro_arg.Comma, macro_arg.Id, macro_arg
          -- exPr occurs after the bindings, so it is in the context of them.
          -- However, this is not the case for ExistsElim.
          -- So, we must lower the free variables there
+         if exPr:has_free_var(0, n) then
+            error("you hit a limitation of the current macro package, the term after 'from' is accidentally capturing a local variable declared by 'obtain'. Workaround: variables declared in 'obtain' should not occur in the 'from' term.")
+         end
          exPr = exPr:lower_free_vars(n, n)
          return mk_app(exElim, mk_placeholder(), mk_placeholder(), mk_placeholder(), exPr,
                        fun(a_name, a_type, fun(H_name, H_type, body)))
