@@ -12,6 +12,7 @@ option(BOOST              "BOOST"              OFF)
 option(STATIC             "STATIC"             OFF)
 option(SPLIT_STACK        "SPLIT_STACK"        OFF)
 option(READLINE           "READLINE"           OFF)
+option(PY_BINDINGS        "PY_BINDINGS"        OFF)
 
 # Added for CTest
 include(CTest)
@@ -54,6 +55,9 @@ set(CMAKE_CXX_FLAGS_DEBUG          "-g -DLEAN_DEBUG -DLEAN_TRACE")
 set(CMAKE_CXX_FLAGS_MINSIZEREL     "-Os -DNDEBUG")
 set(CMAKE_CXX_FLAGS_RELEASE        "-O3 -DNDEBUG")
 set(CMAKE_CXX_FLAGS_RELWITHDEBINFO "-O2 -g")
+if("${PY_BINDINGS}" MATCHES "ON")
+  set(CMAKE_CXX_FLAGS              "${CMAKE_CXX_FLAGS} -fPIC")
+endif()
 
 # SPLIT_STACK
 if ("${SPLIT_STACK}" MATCHES "ON")
@@ -260,3 +264,18 @@ file(GLOB_RECURSE LEAN_SOURCES
          ${LEAN_SOURCE_DIR}/[A-Za-z]*.h)
 add_style_check_target(style "${LEAN_SOURCES}")
 add_test(NAME style_check COMMAND ${LEAN_SOURCE_DIR}/cmake/Modules/cpplint.py ${LEAN_SOURCES})
+
+# Python Binding with SWIG
+if("${PY_BINDINGS}" MATCHES "ON")
+  add_subdirectory(frontends/python)
+  set(PY_IFACE_FILES "${LEAN_SOURCE_DIR}/frontends/python/frontend.i")
+  FIND_PACKAGE(SWIG REQUIRED)
+  INCLUDE(${SWIG_USE_FILE})
+  FIND_PACKAGE(PythonLibs 2.7)
+  INCLUDE_DIRECTORIES(${PYTHON_INCLUDE_PATH})
+  SET(CMAKE_SWIG_FLAGS "-Wall")
+  SET_SOURCE_FILES_PROPERTIES(${PY_IFACE_FILES} PROPERTIES CPLUSPLUS ON)
+  SET_SOURCE_FILES_PROPERTIES(${PY_IFACE_FILES} PROPERTIES SWIG_FLAGS "-includeall")
+  SWIG_ADD_MODULE(lean python ${PY_IFACE_FILES})
+  SWIG_LINK_LIBRARIES(lean ${PYTHON_LIBRARIES} ${LEAN_LIBS})
+endif()
