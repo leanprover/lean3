@@ -1,10 +1,21 @@
 %module expr
 %{
+#include <string.h>
 #include "kernel/expr.h"
 #include "util/name.h"
 using namespace lean;
 
+unsigned get_hash(expr const & e) { return e.hash(); }
+
+std::string get_string(expr const & e) {
+    std::ostringstream e_str;
+    e_str << e;
+    return e_str.str();
+}
+
 %}
+%include <std_string.i>
+
 //name
 // =====================================
 // Class definition
@@ -90,3 +101,8 @@ expr Type(level const & l);
 expr Type();
 expr mk_heq(expr const & lhs, expr const & rhs);
 expr mk_metavar(name const & n, local_context const & ctx = local_context());
+
+// =======================================
+// Auxiliary functions
+unsigned get_hash(expr const & e);
+std::string get_string(expr const & e);
