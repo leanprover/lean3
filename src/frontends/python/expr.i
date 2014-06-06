@@ -1,9 +1,46 @@
-%module lean
+%module expr
 %{
 #include "kernel/expr.h"
+#include "util/name.h"
 using namespace lean;
+
 %}
+//name
+// =====================================
+// Class definition
+class name {
+public:
+    name(char const * name);
+    ~name();
+};
+
+
 //expr
+// ======================================
+// Class definition
+class expr {
+public:
+    expr();
+    expr(expr && s);
+    ~expr();
+
+    friend void swap(expr & a, expr & b);
+
+    expr_kind kind() const;
+    bool has_metavar() const;
+
+    friend bool is_eqp(expr const & a, expr const & b);
+    // Overloaded operator() can be used to create applications
+    expr operator()(expr const & a1) const;
+    expr operator()(expr const & a1, expr const & a2) const;
+    expr operator()(expr const & a1, expr const & a2, expr const & a3) const;
+    expr operator()(expr const & a1, expr const & a2, expr const & a3, expr const & a4) const;
+    expr operator()(expr const & a1, expr const & a2, expr const & a3, expr const & a4, expr const & a5) const;
+    expr operator()(expr const & a1, expr const & a2, expr const & a3, expr const & a4, expr const & a5, expr const & a6) const;
+    expr operator()(expr const & a1, expr const & a2, expr const & a3, expr const & a4, expr const & a5, expr const & a6, expr const & a7) const;
+    expr operator()(expr const & a1, expr const & a2, expr const & a3, expr const & a4, expr const & a5, expr const & a6, expr const & a7, expr const & a8) const;
+};
+
 // =======================================
 // Testers
 bool is_var(expr const & e);
