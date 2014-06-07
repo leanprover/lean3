@@ -498,8 +498,14 @@ class elaborator::imp {
             if (!has_local_context(a)) {
                 // Case 2
                 if (has_metavar(b, a)) {
-                    m_conflict = mk_failure_justification(c);
-                    return Failed;
+                    if (is_metavar(b)) {
+                        // Skip ?M ≈ ?M[...] case.
+                        // We should wait for ?M to be assigned
+                        return Continue;
+                    } else {
+                        m_conflict = mk_failure_justification(c);
+                        return Failed;
+                    }
                 } else if (is_eq(c) || is_proposition(b, ctx)) {
                     // At this point, we only assign metavariables if the constraint is an equational constraint,
                     // or b is a proposition.
