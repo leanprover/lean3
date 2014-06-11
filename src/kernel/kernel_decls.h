@@ -44,10 +44,10 @@ expr mk_implies_fn();
 bool is_implies_fn(expr const & e);
 inline bool is_implies(expr const & e) { return is_app(e) && is_implies_fn(arg(e, 0)) && num_args(e) == 3; }
 inline expr mk_implies(expr const & e1, expr const & e2) { return mk_app({mk_implies_fn(), e1, e2}); }
-expr mk_neq_fn();
-bool is_neq_fn(expr const & e);
-inline bool is_neq(expr const & e) { return is_app(e) && is_neq_fn(arg(e, 0)) && num_args(e) == 4; }
-inline expr mk_neq(expr const & e1, expr const & e2, expr const & e3) { return mk_app({mk_neq_fn(), e1, e2, e3}); }
+expr mk_ne_fn();
+bool is_ne_fn(expr const & e);
+inline bool is_ne(expr const & e) { return is_app(e) && is_ne_fn(arg(e, 0)) && num_args(e) == 4; }
+inline expr mk_ne(expr const & e1, expr const & e2, expr const & e3) { return mk_app({mk_ne_fn(), e1, e2, e3}); }
 expr mk_a_neq_a_elim_fn();
 bool is_a_neq_a_elim_fn(expr const & e);
 inline expr mk_a_neq_a_elim_th(expr const & e1, expr const & e2, expr const & e3) { return mk_app({mk_a_neq_a_elim_fn(), e1, e2, e3}); }

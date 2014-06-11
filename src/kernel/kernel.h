@@ -13,6 +13,9 @@ namespace lean {
 extern expr const TypeU;
 extern expr const TypeU1; // Type (U+1)
 
+inline bool is_neq(expr const & e) { return is_ne(e); }
+inline expr mk_neq_fn() { return mk_ne_fn(); }
+
 /** \brief Return the Lean Boolean type. */
 expr mk_bool_type();
 extern expr const Bool;

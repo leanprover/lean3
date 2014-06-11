@@ -57,8 +57,8 @@ infixr 35 ∧  : and
 
 definition implies (a b : Bool) := a → b
 
-definition neq {A : (Type U)} (a b : A) := ¬ (a = b)
-infix 50 ≠ : neq
+definition ne {A : (Type U)} (a b : A) := ¬ (a = b)
+infix 50 ≠ : ne
 
 theorem a_neq_a_elim {A : (Type U)} {a : A} (H : a ≠ a) : false
 := H (refl a)

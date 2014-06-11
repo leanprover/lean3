@@ -54,9 +54,7 @@ class to_ceqs_fn {
             expr T   = arg(e, 1);
             expr lhs = arg(e, 2);
             expr rhs = arg(e, 3);
-            expr new_e = mk_iff(mk_eq(T, lhs, rhs), False);
-            expr new_H = mk_neq_elim_th(T, lhs, rhs, H);
-            return mk_singleton(new_e, new_H);
+            return apply(mk_not(mk_eq(T, lhs, rhs)), H);
         } else if (is_not(e)) {
             expr a     = arg(e, 1);
             if (is_not(a)) {

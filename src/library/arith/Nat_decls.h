@@ -104,9 +104,6 @@ inline expr mk_Nat_add_injr_th(expr const & e1, expr const & e2, expr const & e3
 expr mk_Nat_add_injl_fn();
 bool is_Nat_add_injl_fn(expr const & e);
 inline expr mk_Nat_add_injl_th(expr const & e1, expr const & e2, expr const & e3, expr const & e4) { return mk_app({mk_Nat_add_injl_fn(), e1, e2, e3, e4}); }
-expr mk_Nat_add_eqz_fn();
-bool is_Nat_add_eqz_fn(expr const & e);
-inline expr mk_Nat_add_eqz_th(expr const & e1, expr const & e2, expr const & e3) { return mk_app({mk_Nat_add_eqz_fn(), e1, e2, e3}); }
 expr mk_Nat_le_intro_fn();
 bool is_Nat_le_intro_fn(expr const & e);
 inline expr mk_Nat_le_intro_th(expr const & e1, expr const & e2, expr const & e3, expr const & e4) { return mk_app({mk_Nat_le_intro_fn(), e1, e2, e3, e4}); }
@@ -125,9 +122,6 @@ inline expr mk_Nat_le_trans_th(expr const & e1, expr const & e2, expr const & e3
 expr mk_Nat_le_add_fn();
 bool is_Nat_le_add_fn(expr const & e);
 inline expr mk_Nat_le_add_th(expr const & e1, expr const & e2, expr const & e3, expr const & e4) { return mk_app({mk_Nat_le_add_fn(), e1, e2, e3, e4}); }
-expr mk_Nat_le_antisym_fn();
-bool is_Nat_le_antisym_fn(expr const & e);
-inline expr mk_Nat_le_antisym_th(expr const & e1, expr const & e2, expr const & e3, expr const & e4) { return mk_app({mk_Nat_le_antisym_fn(), e1, e2, e3, e4}); }
 expr mk_Nat_not_lt_0_fn();
 bool is_Nat_not_lt_0_fn(expr const & e);
 inline expr mk_Nat_not_lt_0_th(expr const & e1) { return mk_app({mk_Nat_not_lt_0_fn(), e1}); }
