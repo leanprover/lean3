@@ -30,4 +30,6 @@ bool is_lua_file(std::string const & fname);
 
 /** \brief Return a string that replaces hierachical name separator '::' with a path separator. */
 std::string name_to_file(name const & fname);
+
+void display_path(std::ostream & out, std::string const & fname);
 }

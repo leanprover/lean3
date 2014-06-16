@@ -77,7 +77,8 @@ void display_deps(std::ostream & out, char const * fname) {
                 if (ext == ".lean") {
                     m_name = rawname + ".olean";
                 }
-                out << m_name << "\n";
+                display_path(out, m_name);
+                out << "\n";
                 t = s.scan();
             }
         } else {

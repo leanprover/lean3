@@ -100,7 +100,33 @@ static std::string fix_cygwin_path(std::string f) {
     }
     return f;
 }
+
+/**
+   \brief Convert back to a cygwin_path
+*/
+static std::string to_cygwin_path(std::string f) {
+    if (f.find('\\') != std::string::npos) {
+        if (f.size() > 2 && f[1] == ':') {
+            f = std::string("/cygdrive/") + f[0] + f.substr(2);
+        }
+        for (auto & c : f) {
+            if (c == g_sep)
+                c = g_bad_sep;
+            else if (c == ';')
+                c = ':';
+        }
+    }
+    return f;
+}
 #endif
+
+void display_path(std::ostream & out, std::string const & fname) {
+#if defined(LEAN_CYGWIN)
+    out << to_cygwin_path(fname);
+#else
+    out << fname;
+#endif
+}
 
 std::string normalize_path(std::string f) {
 #if defined(LEAN_CYGWIN)
