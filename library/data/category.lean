@@ -5,7 +5,7 @@ import data.unit data.sigma data.prod
 import struc.function
 
 inductive category (ob : Type) (mor : ob → ob → Type) : Type :=
-cat_mk : Π (comp : Π{A B C : ob}, mor B C → mor A B → mor A C)
+cat_mk : Π (comp : Π⦃A B C : ob⦄, mor B C → mor A B → mor A C)
            (id : Π {A : ob}, mor A A),
             (Π {A B C D : ob} {f : mor A B} {g : mor B C} {h : mor C D},
             comp h (comp g f) = comp (comp h g) f) →
@@ -26,7 +26,7 @@ precedence `∘`:60
 infixr  ∘ := compose
 
 abbreviation id := category_rec (λ comp id assoc idr idl, id) Cat
-abbreviation id2 (A : ob) := @id A
+abbreviation ID (A : ob) := @id A
 
 theorem assoc : Π {A B C D : ob} {f : mor A B} {g : mor B C} {h : mor C D},
             h ∘ (g ∘ f) = (h ∘ g) ∘ f :=
@@ -73,16 +73,18 @@ end
 
 using unit
 
-section
-
-parameters {obC obD : Type} {morC : obC → obC → Type} {morD : obD → obD → Type}
-           (C : category obC morC) (D : category obD morD)
-
-definition one : category unit (λa b, unit) :=
+definition one [instance] : category unit (λa b, unit) :=
 cat_mk (λ a b c f g, star) (λ a, star) (λ a b c d f g h, unit_eq _ _)
   (λ a b f, unit_eq _ _) (λ a b f, unit_eq _ _)
 
-instance one
+check compose star star
+
+section
+
+parameters {obC obD : Type} {morC : obC → obC → Type} {morD : obD → obD → Type}
+ (C : category obC morC)
+parameter ( D : category obD morD )
+
 instance C
 
 -- check @id
@@ -107,5 +109,6 @@ cat_mk (λ a b c f g, function.compose f g) (λ a, function.id) (λ a b c d f g 
   (λ a b f, sorry) (λ a b f, sorry)
 
 end
+
 
 end category
