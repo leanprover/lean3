@@ -70,36 +70,35 @@ definition epi  {A B : ob} (f : mor A B) : Prop := ∀⦃C⦄ {g h : mor B C}, g
 
 end
 
+
+using unit
+
 section
 
 parameters {obC obD : Type} {morC : obC → obC → Type} {morD : obD → obD → Type}
            (C : category obC morC) (D : category obD morD)
 
-instance C
-
-check @id
-check C
-check id2
-
-inductive functor :=
-functor_mk : Π (obF : obC → obD) (morF : Π{A B}, morC A B → morD (obF A) (obF B)),
-            (Π {A : obC}, morF (id2 A) = id2 (obF A)) →
---            (Π {A B C : obC} {f : morC A B} {g : morC B C}, morF (g ∘ f) = morF g ∘ morF f) →
-            functor
-
-end
-
-check @functor_mk
-check @functor_rec
-
-section
-using unit
-
 definition one : category unit (λa b, unit) :=
 cat_mk (λ a b c f g, star) (λ a, star) (λ a b c d f g h, unit_eq _ _)
   (λ a b f, unit_eq _ _) (λ a b f, unit_eq _ _)
 
+instance one
+instance C
+
+-- check @id
+-- check C
+-- check id2
+
+-- inductive functor :=
+-- functor_mk : Π (obF : obC → obD) (morF : Π{A B}, morC A B → morD (obF A) (obF B)),
+--             (Π {A : obC}, morF (id2 A) = id2 (obF A)) →
+-- --            (Π {A B C : obC} {f : morC A B} {g : morC B C}, morF (g ∘ f) = morF g ∘ morF f) →
+--             functor
+
 end
+
+-- check @functor_mk
+-- check @functor_rec
 
 section
 --need extensionality
