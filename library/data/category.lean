@@ -13,20 +13,24 @@ cat_mk : Π (comp : Π⦃A B C : ob⦄, mor B C → mor A B → mor A C)
            (Π {A B : ob} {f : mor A B}, comp id f = f) →
             category ob mor
 
+class category
+
 namespace category
+
+precedence `∘` : 60
 
 section
 
 parameters {ob : Type} {mor : ob → ob → Type} {Cat : category ob mor}
 
-
 abbreviation compose := category_rec (λ comp id assoc idr idl, comp) Cat
-
-precedence `∘`:60
-infixr  ∘ := compose
-
 abbreviation id := category_rec (λ comp id assoc idr idl, id) Cat
 abbreviation ID (A : ob) := @id A
+
+end
+infixr `∘` := compose
+section
+parameters {ob : Type} {mor : ob → ob → Type} {Cat : category ob mor}
 
 theorem assoc : Π {A B C D : ob} {f : mor A B} {g : mor B C} {h : mor C D},
             h ∘ (g ∘ f) = (h ∘ g) ∘ f :=
@@ -46,10 +50,15 @@ calc
   i = id ∘ i : symm id_left
   ... = id : H
 
-definition iso {A B : ob} (f : mor A B) : Type := Σ g, f ∘ g = id ∧ g ∘ f = id
+definition iso {A B : ob} (f : mor A B) : Type := including Cat, Σ g, f ∘ g = id ∧ g ∘ f = ID A
 definition inverse {A B : ob} (f : mor A B) (H : iso f) : mor B A := sigma.dpr1 H
 
 postfix `⁻¹` := inverse
+
+set_option pp.implicit true
+
+-- theorem foo {A B : ob} {f : mor A B} (H : iso f) : true :=
+-- including Cat, (λx (y : iso f),x) _ H
 
 theorem compose_inverse {A B : ob} {f : mor A B} (H : iso f) : f ∘ f⁻¹ H = id :=
 and_elim_left (sigma.dpr2 H)
@@ -58,49 +67,58 @@ theorem inverse_compose {A B : ob} {f : mor A B} (H : iso f) : f⁻¹ H ∘ f = 
 and_elim_right (sigma.dpr2 H)
 
 theorem inverse_unique {A B : ob} {f : mor A B} (H H' : iso f) : f⁻¹ H = f⁻¹ H' :=
-calc
-  f⁻¹ H = f⁻¹ H ∘ id : symm id_right
-    ... = f⁻¹ H ∘ f ∘ f⁻¹ H' : {symm (compose_inverse H')}
-    ... = (f⁻¹ H ∘ f) ∘ f⁻¹ H' : assoc
-    ... = id ∘ f⁻¹ H' : {inverse_compose H}
-    ... = f⁻¹ H' : id_left
+sorry
+ -- calc
+ --  inverse f H = f⁻¹ H ∘ id : symm id_right
+ --    ... = f⁻¹ H ∘ f ∘ f⁻¹ H' : {symm (compose_inverse H')}
+ --    ... = (f⁻¹ H ∘ f) ∘ f⁻¹ H' : assoc
+ --    ... = id ∘ f⁻¹ H' : {inverse_compose H}
+ --    ... = f⁻¹ H' : id_left
 
-definition mono {A B : ob} (f : mor A B) : Prop := ∀⦃C⦄ {g h : mor C A}, f ∘ g = f ∘ h → g = h
-definition epi  {A B : ob} (f : mor A B) : Prop := ∀⦃C⦄ {g h : mor B C}, g ∘ f = h ∘ f → g = h
+definition mono {A B : ob} (f : mor A B) : Prop :=
+including Cat, ∀⦃C⦄ {g h : mor C A}, f ∘ g = f ∘ h → g = h
+definition epi  {A B : ob} (f : mor A B) : Prop :=
+including Cat, ∀⦃C⦄ {g h : mor B C}, g ∘ f = h ∘ f → g = h
 
 end
 
-
-using unit
-
-definition one [instance] : category unit (λa b, unit) :=
-cat_mk (λ a b c f g, star) (λ a, star) (λ a b c d f g h, unit_eq _ _)
-  (λ a b f, unit_eq _ _) (λ a b f, unit_eq _ _)
-
-check compose star star
 
 section
 
 parameters {obC obD : Type} {morC : obC → obC → Type} {morD : obD → obD → Type}
  (C : category obC morC)
-parameter ( D : category obD morD )
+parameter D : category obD morD
 
-instance C
+definition tst (a b c : obC) (m1 : morC a b) (m2 : morC b c) :=
+(λx y, x) (compose m2 m1) (including C, false)
 
--- check @id
--- check C
--- check id2
+definition tst2 (C : category obC morC) (a b c : obC) (m1 : morC a b) (m2 : morC b c) :=
+compose m2 m1
 
--- inductive functor :=
--- functor_mk : Π (obF : obC → obD) (morF : Π{A B}, morC A B → morD (obF A) (obF B)),
---             (Π {A : obC}, morF (id2 A) = id2 (obF A)) →
--- --            (Π {A B C : obC} {f : morC A B} {g : morC B C}, morF (g ∘ f) = morF g ∘ morF f) →
+parameter a : obC
+parameter f : morC a a
+check including C, (f ∘ f)
+
+-- inductive foo : Type :=
+-- mk : including C, foo
+
+-- inductive functor : Type :=
+-- functor_mk : including C D,
+--             Π (obF : obC → obD) (morF : Π{A B}, morC A B → morD (obF A) (obF B)),
+--            (Π {A : obC}, morF (ID A) = ID (obF A)) →
+--            (Π {A B C : obC} {f : morC A B} {g : morC B C}, morF (g ∘ f) = morF g ∘ morF f) →
 --             functor
 
 end
 
--- check @functor_mk
--- check @functor_rec
+section
+using unit
+definition one [instance] : category unit (λa b, unit) :=
+cat_mk (λ a b c f g, star) (λ a, star) (λ a b c d f g h, unit_eq _ _)
+  (λ a b f, unit_eq _ _) (λ a b f, unit_eq _ _)
+using unit
+
+end
 
 section
 --need extensionality
