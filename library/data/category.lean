@@ -82,7 +82,6 @@ including Cat, ∀⦃C⦄ {g h : mor B C}, g ∘ f = h ∘ f → g = h
 
 end
 
-
 section
 
 parameters {obC obD : Type} {morC : obC → obC → Type} {morD : obD → obD → Type}

@@ -9,7 +9,7 @@ cons : T → ∀{n}, vec T n → vec T (succ n)
 
 infix `::` := cons --at what level?
 
-section
+section sc_vec
 
 variable {T : Type}
 
@@ -95,7 +95,7 @@ sorry
 theorem vec0_eq_nil (v : vec T 0) : v = nil :=
 case_zero v rfl
 
-definition length {n : ℕ} (v : vec T n) := n
+
 
 -- Concat
 -- ------
@@ -130,12 +130,12 @@ theorem cons_concat {n m : ℕ} (x : T) (v : vec T n) (w : vec T m)
 --         ... = concat (cons x l) (concat t u) : refl _)
 
 
--- -- Length
--- -- ------
+-- Length
+-- ------
 
--- definition length : list T → ℕ := list_rec 0 (fun x l m, succ m)
+definition length {n : ℕ} (v : vec T n) := n
 
--- theorem length_nil : length (@nil T) = 0 := rfl
+theorem length_nil : length (@nil T) = 0 := rfl
 
 -- theorem length_cons (x : T) (t : list T) : length (x :: t) = succ (length t) := rfl
 
