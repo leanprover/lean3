@@ -1,5 +1,6 @@
 import data.nat.basic data.empty
-using nat eq_ops num
+
+open nat eq_ops num
 
 namespace vec
 
@@ -342,6 +343,6 @@ theorem length_nil : length (@nil T) = 0 := rfl
 
 -- theorem nth_succ (x0 : T) (l : list T) (n : ℕ) : nth x0 l (succ n) = nth x0 (tail l) n := refl _
 
-end
+end sc_vec
 
 end vec

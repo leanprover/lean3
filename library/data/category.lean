@@ -50,8 +50,25 @@ calc
   i = id ∘ i : symm id_left
   ... = id : H
 
-definition iso {A B : ob} (f : mor A B) : Type := including Cat, Σ g, f ∘ g = id ∧ g ∘ f = ID A
+definition has_left_inverse {A B : ob} (f : mor A B) : Type :=
+including Cat, Σ g, g ∘ f = id
+definition left_inverse {A B : ob} (f : mor A B) (H : has_left_inverse f) : mor B A :=
+sigma.dpr1 H
+definition has_right_inverse {A B : ob} (f : mor A B) : Type :=
+including Cat, Σ g, f ∘ g = id
+definition right_inverse {A B : ob} (f : mor A B) (H : has_right_inverse f) : mor B A :=
+sigma.dpr1 H
+definition iso {A B : ob} (f : mor A B) : Type := including Cat, Σ g, f ∘ g = id ∧ g ∘ f = id
 definition inverse {A B : ob} (f : mor A B) (H : iso f) : mor B A := sigma.dpr1 H
+
+theorem iso_imp_left_inverse {A B : ob} (f : mor A B) (H : iso f) : has_left_inverse f :=
+sorry
+theorem iso_imp_right_inverse {A B : ob} (f : mor A B) (H : iso f) : has_left_inverse f :=
+sorry
+theorem left_right_inverse_imp_iso {A B : ob} (f : mor A B)
+    (Hl : has_left_inverse f) (Hr : has_right_inverse f) : iso f :=
+sorry
+
 
 postfix `⁻¹` := inverse
 
@@ -111,11 +128,11 @@ check including C, (f ∘ f)
 end
 
 section
-using unit
-definition one [instance] : category unit (λa b, unit) :=
-cat_mk (λ a b c f g, star) (λ a, star) (λ a b c d f g h, unit_eq _ _)
-  (λ a b f, unit_eq _ _) (λ a b f, unit_eq _ _)
-using unit
+-- using unit
+-- definition one [instance] : category unit (λa b, unit) :=
+-- cat_mk (λ a b c f g, star) (λ a, star) (λ a b c d f g h, unit_eq _ _)
+--   (λ a b f, unit_eq _ _) (λ a b f, unit_eq _ _)
+
 
 end
 
