@@ -32,7 +32,7 @@ namespace category
   definition ID [reducible] : Π (a : ob), hom a a := @id
 
   infixr `∘`:60 := compose
-  infixl `⟶`:25 := hom -- input ⟶ using \-->
+  infixl `⟶`:25 := hom -- input ⟶ using \--> (this is a different arrow than \-> (→))
 
   variables {h : hom c d} {g : hom b c} {f : hom a b} {i : hom a a}
 

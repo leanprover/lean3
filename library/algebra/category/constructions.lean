@@ -117,7 +117,7 @@ namespace ops
   infixr `×c`:30 := product.prod_category
   instance category_of_categories type_category category_one product.prod_category
 end ops
-
+  open ops
   namespace opposite
   section
   open ops functor
