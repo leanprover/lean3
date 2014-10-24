@@ -124,69 +124,7 @@ namespace IsEquiv
     eq3) in
   IsEquiv_mk (inv Hf) sect' retr' adj'
 
-  --TODO: Maybe wait until rewrite rules are available.
-  definition inv_closed (Hf : IsEquiv f) : (IsEquiv (inv Hf)) :=
-    IsEquiv_mk sorry sorry sorry sorry
-
-  definition cancel_R (Hf : IsEquiv f) (Hgf : IsEquiv (g ∘ f)) : (IsEquiv g) :=
-    homotopic (comp_closed (inv_closed Hf) Hgf) (λb, ap g (retr Hf b))
-
-  definition cancel_L (Hg : IsEquiv g) (Hgf : IsEquiv (g ∘ f)) : (IsEquiv f) :=
-    homotopic (comp_closed Hgf (inv_closed Hg)) (λa, sect Hg (f a))
-
-  definition transport (P : A → Type) {x y : A} (p : x ≈ y) : (IsEquiv (transport P p)) :=
-    IsEquiv_mk (transport P (p⁻¹)) (transport_pV P p) (transport_Vp P p) (transport_pVp P p)
-
-  --Rewrite rules
-  section
-  variables {Hf : IsEquiv f}
-
-  definition moveR_M {x : A} {y : B} (p : x ≈ (inv Hf) y) : (f x ≈ y) :=
-    (ap f p) ⬝ (retr Hf y)
-
-  definition moveL_M {x : A} {y : B} (p : (inv Hf) y ≈ x) : (y ≈ f x) :=
-    (moveR_M (p⁻¹))⁻¹
-
-  definition moveR_V {x : B} {y : A} (p : x ≈ f y) : (inv Hf) x ≈ y :=
-    ap (inv Hf) p ⬝ sect Hf y
-
-  definition moveL_V {x : B} {y : A} (p : f y ≈ x) : y ≈ (inv Hf) x :=
-    (moveR_V (p⁻¹))⁻¹
-
-  end
-
 end IsEquiv
-
-namespace Equiv
-
-  variables {A B C : Type} (eqf : A ≃ B)
-
-  theorem id : A ≃ A := Equiv_mk id IsEquiv.id_closed
-
-  theorem compose (eqg: B ≃ C) : A ≃ C :=
-    Equiv_mk ((equiv_fun eqg) ∘ (equiv_fun eqf))
-             (IsEquiv.comp_closed (equiv_isequiv eqf) (equiv_isequiv eqg))
-
-  check IsEquiv.path_closed
-
-  theorem path_closed (f' : A → B) (Heq : equiv_fun eqf ≈ f') : A ≃ B :=
-    Equiv_mk f' (IsEquiv.path_closed (equiv_isequiv eqf) Heq)
-
-  theorem inv_closed : B ≃ A :=
-    Equiv_mk (IsEquiv.inv (equiv_isequiv eqf)) (IsEquiv.inv_closed (equiv_isequiv eqf))
-
-  theorem cancel_L {f : A → B} {g : B → C}
-                   (Hf : IsEquiv f) (Hgf : IsEquiv (g ∘ f)) : B ≃ C :=
-    Equiv_mk g (IsEquiv.cancel_R _ _)
-
-  theorem cancel_R {f : A → B} {g : B → C}
-                   (Hg : IsEquiv g) (Hgf : IsEquiv (g ∘ f)) : A ≃ B :=
-    Equiv_mk f (!IsEquiv.cancel_L _ _)
-
-  theorem transport (P : A → Type) {x y : A} {p : x ≈ y} : (P x) ≃ (P y) :=
-    Equiv_mk (transport P p) (IsEquiv.transport P p)
-
-end Equiv
 
 namespace IsEquiv
 
@@ -225,5 +163,72 @@ definition adjointify : IsEquiv f :=
       from moveR_M1 _ _ eq3,
     eq4) in
   IsEquiv_mk g retr sect' adj'
+end IsEquiv
+
+namespace IsEquiv
+  variables {A B: Type} {f : A → B} (Hf : IsEquiv f)
+
+  definition inv_closed : (IsEquiv (inv Hf)) :=
+    adjointify (inv Hf) f (sect Hf) (retr Hf)
 
 end IsEquiv
+
+namespace IsEquiv
+  variables {A B C : Type} {f : A → B} {g : B → C} {f' : A → B}
+
+  definition cancel_R (Hf : IsEquiv f) (Hgf : IsEquiv (g ∘ f)) : (IsEquiv g) :=
+    homotopic (comp_closed (inv_closed Hf) Hgf) (λb, ap g (retr Hf b))
+
+  definition cancel_L (Hg : IsEquiv g) (Hgf : IsEquiv (g ∘ f)) : (IsEquiv f) :=
+    homotopic (comp_closed Hgf (inv_closed Hg)) (λa, sect Hg (f a))
+
+  definition transport (P : A → Type) {x y : A} (p : x ≈ y) : (IsEquiv (transport P p)) :=
+    IsEquiv_mk (transport P (p⁻¹)) (transport_pV P p) (transport_Vp P p) (transport_pVp P p)
+
+  --Rewrite rules
+  section
+  variables {Hf : IsEquiv f}
+
+  definition moveR_M {x : A} {y : B} (p : x ≈ (inv Hf) y) : (f x ≈ y) :=
+    (ap f p) ⬝ (retr Hf y)
+
+  definition moveL_M {x : A} {y : B} (p : (inv Hf) y ≈ x) : (y ≈ f x) :=
+    (moveR_M (p⁻¹))⁻¹
+
+  definition moveR_V {x : B} {y : A} (p : x ≈ f y) : (inv Hf) x ≈ y :=
+    ap (inv Hf) p ⬝ sect Hf y
+
+  definition moveL_V {x : B} {y : A} (p : f y ≈ x) : y ≈ (inv Hf) x :=
+    (moveR_V (p⁻¹))⁻¹
+
+  end
+
+end IsEquiv
+
+namespace Equiv
+  variables {A B C : Type} (eqf : A ≃ B)
+
+  theorem id : A ≃ A := Equiv_mk id IsEquiv.id_closed
+
+  theorem compose (eqg: B ≃ C) : A ≃ C :=
+    Equiv_mk ((equiv_fun eqg) ∘ (equiv_fun eqf))
+             (IsEquiv.comp_closed (equiv_isequiv eqf) (equiv_isequiv eqg))
+
+  theorem path_closed (f' : A → B) (Heq : equiv_fun eqf ≈ f') : A ≃ B :=
+    Equiv_mk f' (IsEquiv.path_closed (equiv_isequiv eqf) Heq)
+
+  theorem inv_closed : B ≃ A :=
+    Equiv_mk (IsEquiv.inv (equiv_isequiv eqf)) (IsEquiv.inv_closed (equiv_isequiv eqf))
+
+  theorem cancel_L {f : A → B} {g : B → C}
+                   (Hf : IsEquiv f) (Hgf : IsEquiv (g ∘ f)) : B ≃ C :=
+    Equiv_mk g (IsEquiv.cancel_R _ _)
+
+  theorem cancel_R {f : A → B} {g : B → C}
+                   (Hg : IsEquiv g) (Hgf : IsEquiv (g ∘ f)) : A ≃ B :=
+    Equiv_mk f (!IsEquiv.cancel_L _ _)
+
+  theorem transport (P : A → Type) {x y : A} {p : x ≈ y} : (P x) ≃ (P y) :=
+    Equiv_mk (transport P p) (IsEquiv.transport P p)
+
+end Equiv
