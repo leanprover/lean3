@@ -166,50 +166,6 @@ section
   Hf ▸ congr_arg5 f Ha Hb Hc Hd He
 end
 
--- section
---   variables {A : Type} {B : A → Type} {C : Πa, B a → Type} {D : Πa b, C a b → Type} {R : Type}
---   variables {a₁ a₂ : A}
---             {b₁ : B a₁} {b₂ : B a₂}
---             {c₁ : C a₁ b₁} {c₂ : C a₂ b₂}
---             {d₁ : D a₁ b₁ c₁} {d₂ : D a₂ b₂ c₂}
-
---   theorem dcongr_arg2 (f : Πa, B a → R) (H₁ : a₁ = a₂) (H₂ : drec_on H₁ b₁ = b₂)
---       : f a₁ b₁ = f a₂ b₂ :=
---   drec_on H₁
---     (λ (b₂ : B a₁) (H₁ : a₁ = a₁) (H₂ : drec_on H₁ b₁ = b₂),
---       calc
---         f a₁ b₁ = f a₁ (drec_on H₁ b₁) : {(eq.rec_on_id H₁ b₁)⁻¹}
---             ... = f a₁ b₂                : {H₂})
---     b₂ H₁ H₂
-
---   theorem dcongr_arg3 (f : Πa b, C a b → R) (H₁ : a₁ = a₂) (H₂ : drec_on H₁ b₁ = b₂)
---       (H₃ : drec_on (dcongr_arg2 C H₁ H₂) c₁ = c₂) : f a₁ b₁ c₁ = f a₂ b₂ c₂ :=
---   drec_on H₁
---     (λ (b₂ : B a₁) (H₂ : b₁ = b₂) (c₂ : C a₁ b₂)
---       (H₃ : (drec_on (dcongr_arg2 C (refl a₁) H₂) c₁) = c₂),
---       have H₃' : drec_on H₂ c₁ = c₂, from rec_on_irrel_arg H₂ _ c₁ ⬝ H₃,
---       dcongr_arg2 (f a₁) H₂ H₃')
---     b₂ H₂ c₂ H₃
-
---   theorem dcongr_arg4 (f : Πa b c, D a b c → R) (H₁ : a₁ = a₂) (H₂ : drec_on H₁ b₁ = b₂)
---       (H₃ : drec_on (dcongr_arg2 C H₁ H₂) c₁ = c₂) 
---       (H₄ : drec_on (dcongr_arg3 D H₁ H₂ H₃) d₁ = d₂) : f a₁ b₁ c₁ d₁ = f a₂ b₂ c₂ d₂ := sorry
---   -- eq.drec_on H₁ sorry
---   --   -- (λ b₂ H₂ c₂ H₃ d₂ (H₄ : _),
---   --   --   have H₃' [visible] : drec_on H₂ c₁ = c₂, from rec_on_irrel_arg H₂ _ c₁ ⬝ H₃,
---   --   --   have H₄' : drec_on (dcongr_arg2 (D a₁) H₂ H₃') d₁ = d₂, from rec_on_irrel_arg _ _ d₁ ⬝ H₄,
---   --   --   dcongr_arg3 (f a₁) H₂ H₃' H₄')
---   --   b₂ H₂ c₂ H₃ d₂ H₄
--- end
-
--- section
---   variables {A B : Type} {C : A → B → Type} {R : Type}
---   variables {a₁ a₂ : A} {b₁ b₂ : B} {c₁ : C a₁ b₁} {c₂ : C a₂ b₂}
---   theorem ndcongr_arg3 (f : Πa b, C a b → R) (H₁ : a₁ = a₂) (H₂ : b₁ = b₂) (H₃ : drec_on (congr_arg2 C H₁ H₂) c₁ = c₂) :
---                               f a₁ b₁ c₁ = f a₂ b₂ c₂ :=
---   dcongr_arg3 f H₁ (rec_on_constant H₁ b₁ ⬝ H₂) H₃
--- end
-
 theorem equal_f {A : Type} {B : A → Type} {f g : Π x, B x} (H : f = g) : ∀x, f x = g x :=
 take x, congr_fun H x
 
