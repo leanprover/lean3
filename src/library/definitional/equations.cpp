@@ -8,7 +8,9 @@ Author: Leonardo de Moura
 #include "kernel/expr.h"
 #include "kernel/type_checker.h"
 #include "kernel/abstract.h"
+#include "kernel/instantiate.h"
 #include "kernel/error_msgs.h"
+#include "kernel/for_each_fn.h"
 #include "library/generic_exception.h"
 #include "library/kernel_serializer.h"
 #include "library/io_state_stream.h"
@@ -228,8 +230,41 @@ class equation_compiler_fn {
         validate_exception(expr const & e):m_expr(e) {}
     };
 
-    [[ noreturn ]] void throw_error(char const * msg, expr const & src) { throw_generic_exception(msg, src); }
-    [[ noreturn ]] void throw_error(expr const & src, pp_fn const & fn) { throw_generic_exception(src, fn); }
+    bool is_constructor(expr const & e) const {
+        return is_constant(e) && inductive::is_intro_rule(env(), const_name(e));
+    }
+
+    name mk_fresh_name() { return m_tc.mk_fresh_name(); }
+
+    expr whnf(expr const & e) { return m_tc.whnf(e).first; }
+    bool is_def_eq(expr const & e1, expr const & e2) { return m_tc.is_def_eq(e1, e2).first; }
+
+    [[ noreturn ]] static void throw_error(char const * msg, expr const & src) { throw_generic_exception(msg, src); }
+    [[ noreturn ]] static void throw_error(expr const & src, pp_fn const & fn) { throw_generic_exception(src, fn); }
+
+    void check_limitations(expr const & eqns) const {
+        if (is_wf_equations(eqns) && equations_num_fns(eqns) != 1)
+            throw_error("mutually recursive equations do not support well-founded recursion yet", eqns);
+    }
+
+    // Return true iff the lhs of eq is of the form (fn ...)
+    static bool is_equation_of(expr const & eq, name const & fn) {
+        expr const * it = &eq;
+        while (is_lambda(*it))
+            it = &binding_body(*it);
+        lean_assert(is_equation(*it));
+        return mlocal_name(get_app_fn(equation_lhs(*it))) == fn;
+    }
+
+    expr to_telescope(expr const & e, buffer<expr> & tele) {
+        name_generator ngen = m_tc.mk_ngen();
+        return ::lean::to_telescope(ngen, e, tele, optional<binder_info>());
+    }
+
+    expr fun_to_telescope(expr const & e, buffer<expr> & tele) {
+        name_generator ngen = m_tc.mk_ngen();
+        return ::lean::fun_to_telescope(ngen, e, tele, optional<binder_info>());
+    }
 
     // --------------------------------
     // Pattern validation/normalization
@@ -240,12 +275,12 @@ class equation_compiler_fn {
             return arg;
         if (is_local(arg))
             return arg;
-        expr new_arg = m_tc.whnf(arg).first;
+        expr new_arg = whnf(arg);
         if (is_local(new_arg))
             return new_arg;
         buffer<expr> arg_args;
         expr const & fn = get_app_args(new_arg, arg_args);
-        if (!is_constant(fn) || !inductive::is_intro_rule(env(), const_name(fn)))
+        if (!is_constructor(fn))
             throw validate_exception(arg);
         for (expr & arg_arg : arg_args)
             arg_arg = validate_lhs_arg(arg_arg);
@@ -275,8 +310,7 @@ class equation_compiler_fn {
 
     expr validate_patterns_core(expr eq) {
         buffer<expr> args;
-        name_generator ngen = m_tc.mk_ngen();
-        eq = fun_to_telescope(ngen, eq, args, optional<binder_info>());
+        eq = fun_to_telescope(eq, args);
         lean_assert(is_equation(eq));
         expr new_lhs = validate_lhs(equation_lhs(eq));
         return Fun(args, mk_equation(new_lhs, equation_rhs(eq)));
@@ -293,17 +327,138 @@ class equation_compiler_fn {
         return update_equations(eqns, new_eqs);
     }
 
+    // --------------------------------
+    // Structural recursion
+    // --------------------------------
+
+    // Return true iff \c s is structurally smaller than \c t OR equal to \c t
+    bool is_le(expr const & s, expr const & t) {
+        return is_def_eq(s, t) || is_lt(s, t);
+    }
+
+    // Return true iff \c s is structurally smaller than \c t
+    bool is_lt(expr s, expr const & t) {
+        s = whnf(s);
+        if (is_app(s)) {
+            expr const & s_fn = get_app_fn(s);
+            if (!is_constructor(s_fn))
+                return is_lt(s_fn, t); // f < t ==> s := f a_1 ... a_n < t
+        }
+        buffer<expr> t_args;
+        expr const & t_fn = get_app_args(t, t_args);
+        if (!is_constructor(t_fn))
+            return false;
+        return std::any_of(t_args.begin(), t_args.end(), [&](expr const & t_arg) { return is_le(s, t_arg); });
+    }
+
+    // Return true if the arg_idx-th argument of this equation structurally decreases in every recursive call.
+    bool is_decreasing_eq(expr eq, unsigned arg_idx) {
+        buffer<expr> eq_ctx;
+        eq = fun_to_telescope(eq, eq_ctx);
+        expr const & lhs = equation_lhs(eq);
+        buffer<expr> lhs_args;
+        expr const & fn  = get_app_args(lhs, lhs_args);
+        if (arg_idx >= lhs_args.size())
+            return false;
+        name const & fn_name = mlocal_name(fn);
+        bool is_ok = true;
+        for_each(equation_rhs(eq),
+                 [&](expr const & e, unsigned) {
+                     if (!is_ok) return false;
+                     expr const & fn = get_app_fn(e);
+                     if (is_local(fn) && mlocal_name(fn) == fn_name) {
+                         buffer<expr> rhs_args;
+                         get_app_args(e, rhs_args);
+                         if (arg_idx >= rhs_args.size())
+                             return false;
+                         if (!is_lt(rhs_args[arg_idx], lhs_args[arg_idx]))
+                             is_ok = false;
+                     }
+                     return true;
+                 });
+        return is_ok;
+    }
+
+    bool is_valid_rec_arg(buffer<expr> const & args, unsigned idx, unsigned nm) {
+        expr const & arg = args[idx];
+        expr arg_type    = whnf(mlocal_type(arg));
+        expr arg_type_fn = get_app_fn(arg_type);
+        if (!is_constant(arg_type_fn))
+            return false;
+        if (auto it = inductive::is_inductive_decl(env(), const_name(arg_type_fn))) {
+            if (length(std::get<2>(*it)) != nm)
+                return false; // number of mutually recursive functions is different from number of mutually recursive types
+            if (!env().find(name(const_name(arg_type_fn), "brec_on")))
+                return false; // recursive datatype does not have a brec_on recursor
+            // must check dependencies
+            return true;
+        } else {
+            return false;
+        }
+    }
+
+    // Create a new proof_state by using brec_on to justify recursive calls
+    proof_state apply_brec_on(expr const & eqns, proof_state const & ps) {
+        unsigned num_fns = equations_num_fns(eqns);
+        buffer<expr> eqs;
+        to_equations(eqns, eqs);
+        buffer<expr> fns;
+        buffer<name> fn_names;
+        bool first = true;
+        for (expr & eq : eqs) {
+            if (first) {
+                for (unsigned i = 0; i < num_fns; i++) {
+                    expr fn = mk_local(mk_fresh_name(), binding_name(eq), binding_domain(eq), binder_info());
+                    fns.push_back(fn);
+                    fn_names.push_back(mlocal_name(fn));
+                    eq      = instantiate(binding_body(eq), fn);
+                }
+            } else {
+                for (expr const & fn : fns)
+                    eq = instantiate(binding_body(eq), fn);
+            }
+            first = false;
+        }
+
+        // Find an argument of the first equation that is structurally decreasing in all equations
+        expr fn1 = fns[0];
+        expr fn1_type = mlocal_type(fn1);
+        buffer<expr> args1;
+        to_telescope(fn1_type, args1);
+        for (unsigned i = 0; i < args1.size(); i++) {
+            if (!is_valid_rec_arg(args1, i, num_fns))
+                continue;
+            if (std::all_of(eqs.begin(), eqs.end(), [&](expr const & eq) {
+                        return !is_equation_of(eq, mlocal_name(fn1)) || is_decreasing_eq(eq, i);
+                    })) {
+                std::cout << "ARG: " << i << " decreases at " << local_pp_name(fn1) << "\n";
+            }
+        }
+
+        // TODO: check non-recursive case
+
+        return ps;
+    }
+
 public:
     equation_compiler_fn(type_checker & tc, io_state const & ios, expr const & meta, expr const & meta_type, bool relax):
         m_tc(tc), m_ios(ios), m_meta(meta), m_meta_type(meta_type), m_relax(relax) {
     }
 
     expr operator()(expr eqns) {
+        check_limitations(eqns);
         proof_state ps = to_proof_state(m_meta, m_meta_type, m_tc.mk_ngen(), m_relax);
         eqns = validate_patterns(eqns);
+        if (is_wf_equations(eqns)) {
+            // TODO(Leo)
+        } else {
+            ps = apply_brec_on(eqns, ps);
+        }
+
         regular(env(), m_ios) << "Equations:\n" << eqns << "\n";
         regular(env(), m_ios) << ps.pp(env(), m_ios) << "\n\n";
-        return eqns;
+        substitution s = ps.get_subst();
+        return s.instantiate_all(m_meta);
     }
 };
 
