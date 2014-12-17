@@ -557,6 +557,20 @@ class equation_compiler_fn {
     expr compile_constructor(program const & p, unsigned i) {
         // The next pattern of every equation is a constructor.
         // Thus, we case-split the variable on the top of variable stack.
+        expr x            = head(p.m_var_stack);
+        expr x_type       = whnf(mlocal_type(x));
+        buffer<expr> I_args;
+        expr I            = get_app_args(x_type, I_args);
+        name I_name       = const_name(I);
+        levels I_ls       = const_levels(I);
+        unsigned nindices = *inductive::get_num_indices(env(), I_name);
+        unsigned nparams  = *inductive::get_num_params(env(), I_name);
+        buffer<name> constructor_names;
+        get_intro_rule_names(env(), I_name, constructor_names);
+        for (name const & c_name : constructor_names) {
+
+        }
+
 
         // TODO(Leo)
         return expr();
