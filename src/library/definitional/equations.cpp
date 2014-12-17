@@ -6,6 +6,7 @@ Author: Leonardo de Moura
 */
 #include <string>
 #include "util/sstream.h"
+#include "util/list_fn.h"
 #include "kernel/expr.h"
 #include "kernel/type_checker.h"
 #include "kernel/abstract.h"
@@ -339,7 +340,7 @@ class equation_compiler_fn {
     // field of each program is not initialized by it.
     void initialize_var_stack(buffer<program> & prgs) {
         lean_assert(!m_fns.empty());
-        lean_assert(prg.empty());
+        lean_assert(prgs.empty());
         for (expr const & fn : m_fns) {
             buffer<expr> args;
             to_telescope(mlocal_type(fn), args);
@@ -522,7 +523,7 @@ class equation_compiler_fn {
         if (mlocal_name(head(local_ctx)) == mlocal_name(l))
             return tail(local_ctx);
         else
-            return cons(head(local_ctx), remove(local_ctx, l));
+            return cons(head(local_ctx), remove(tail(local_ctx), l));
     }
 
     // Replace local constant \c from with \c to in the expression \c e.
@@ -544,13 +545,13 @@ class equation_compiler_fn {
                 new_eqs.emplace_back(e.m_local_ctx, tail(e.m_patterns), e.m_rhs);
             } else {
                 lean_assert(is_local(p));
-                auto new_local_ctx = map(remove(e.m_local_ctx, p), [&](expr const & l) { return replace(l, p, x); });
+                auto new_local_ctx = cons(x, map(remove(e.m_local_ctx, p), [&](expr const & l) { return replace(l, p, x); }));
                 auto new_patterns  = map(tail(e.m_patterns), [&](expr const & p2) { return replace(p2, p, x); });
                 auto new_rhs       = replace(e.m_rhs, p, x);
                 new_eqs.emplace_back(new_local_ctx, new_patterns, new_rhs);
             }
         }
-        return compile(program(new_stack, to_list(new_eqs)), i);
+        return compile_core(program(new_stack, to_list(new_eqs)), i);
     }
 
     expr compile_constructor(program const & p, unsigned i) {
@@ -570,7 +571,7 @@ class equation_compiler_fn {
         return expr();
     }
 
-    expr compile(program const & p, unsigned i) {
+    expr compile_core(program const & p, unsigned i) {
         lean_assert(check_program(p));
         if (p.m_var_stack) {
             if (is_variable_transition(p)) {
@@ -592,6 +593,13 @@ class equation_compiler_fn {
         }
     }
 
+    expr compile(program const & p, unsigned i) {
+        buffer<expr> vars;
+        to_buffer(p.m_var_stack, vars);
+        expr r = compile_core(p, i);
+        return Fun(vars, r);
+    }
+
 public:
     equation_compiler_fn(type_checker & tc, io_state const & ios, expr const & meta, expr const & meta_type, bool relax):
         m_tc(tc), m_ios(ios), m_meta(meta), m_meta_type(meta_type), m_relax(relax) {
@@ -604,12 +612,18 @@ public:
         buffer<program> prgs;
         initialize(eqns, prgs);
         unsigned i = 0;
+        buffer<expr> rs;
         for (program const & p : prgs) {
             display(p);
-            out() << compile(p, i) << "\n";
+            expr r = compile(p, i);
+            out() << r << "\n";
+            rs.push_back(r);
             i++;
         }
-        return m_meta;
+        if (closed(rs[0]))
+            return rs[0];
+        else
+            return m_meta;
     }
 };
 
