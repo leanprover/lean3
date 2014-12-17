@@ -5,6 +5,7 @@ Released under Apache 2.0 license as described in the file LICENSE.
 Author: Leonardo de Moura
 */
 #include <string>
+#include "util/sstream.h"
 #include "kernel/expr.h"
 #include "kernel/type_checker.h"
 #include "kernel/abstract.h"
@@ -16,7 +17,6 @@ Author: Leonardo de Moura
 #include "library/io_state_stream.h"
 #include "library/annotation.h"
 #include "library/util.h"
-#include "library/tactic/inversion_tactic.h"
 
 namespace lean {
 static name * g_equations_name    = nullptr;
@@ -222,38 +222,20 @@ class equation_compiler_fn {
     expr             m_meta;
     expr             m_meta_type;
     bool             m_relax;
+    buffer<expr>     m_ctx; // global context
+    buffer<expr>     m_fns; // functions being defined
 
     environment const & env() const { return m_tc.env(); }
-
-    struct validate_exception {
-        expr m_expr;
-        validate_exception(expr const & e):m_expr(e) {}
-    };
-
-    bool is_constructor(expr const & e) const {
-        return is_constant(e) && inductive::is_intro_rule(env(), const_name(e));
-    }
-
+    io_state const & ios() const { return m_ios; }
+    io_state_stream out() const { return regular(env(), ios()); }
     name mk_fresh_name() { return m_tc.mk_fresh_name(); }
-
     expr whnf(expr const & e) { return m_tc.whnf(e).first; }
     bool is_def_eq(expr const & e1, expr const & e2) { return m_tc.is_def_eq(e1, e2).first; }
 
-    [[ noreturn ]] static void throw_error(char const * msg, expr const & src) { throw_generic_exception(msg, src); }
-    [[ noreturn ]] static void throw_error(expr const & src, pp_fn const & fn) { throw_generic_exception(src, fn); }
-
-    void check_limitations(expr const & eqns) const {
-        if (is_wf_equations(eqns) && equations_num_fns(eqns) != 1)
-            throw_error("mutually recursive equations do not support well-founded recursion yet", eqns);
-    }
-
-    // Return true iff the lhs of eq is of the form (fn ...)
-    static bool is_equation_of(expr const & eq, name const & fn) {
-        expr const * it = &eq;
-        while (is_lambda(*it))
-            it = &binding_body(*it);
-        lean_assert(is_equation(*it));
-        return mlocal_name(get_app_fn(equation_lhs(*it))) == fn;
+    optional<name> is_constructor(expr const & e) const {
+        if (!is_constant(e))
+            return optional<name>();
+        return inductive::is_intro_rule(env(), const_name(e));
     }
 
     expr to_telescope(expr const & e, buffer<expr> & tele) {
@@ -266,33 +248,147 @@ class equation_compiler_fn {
         return ::lean::fun_to_telescope(ngen, e, tele, optional<binder_info>());
     }
 
-    // --------------------------------
-    // Pattern validation/normalization
-    // --------------------------------
+    [[ noreturn ]] static void throw_error(char const * msg, expr const & src) { throw_generic_exception(msg, src); }
+    [[ noreturn ]] static void throw_error(expr const & src, pp_fn const & fn) { throw_generic_exception(src, fn); }
+    [[ noreturn ]] void throw_error(sstream const & ss) { throw_generic_exception(ss, m_meta); }
 
-    expr validate_lhs_arg(expr arg) {
-        if (is_inaccessible(arg))
-            return arg;
-        if (is_local(arg))
-            return arg;
-        expr new_arg = whnf(arg);
-        if (is_local(new_arg))
-            return new_arg;
-        buffer<expr> arg_args;
-        expr const & fn = get_app_args(new_arg, arg_args);
-        if (!is_constructor(fn))
-            throw validate_exception(arg);
-        for (expr & arg_arg : arg_args)
-            arg_arg = validate_lhs_arg(arg_arg);
-        return mk_app(fn, arg_args);
+    void check_limitations(expr const & eqns) const {
+        if (is_wf_equations(eqns) && equations_num_fns(eqns) != 1)
+            throw_error("mutually recursive equations do not support well-founded recursion yet", eqns);
     }
 
-    expr validate_lhs(expr const & lhs) {
-        buffer<expr> args;
-        expr fn = get_app_args(lhs, args);
-        for (expr & arg : args) {
+    struct eqn {
+        // The local context for an equation is a list of all
+        // local constants occurring in m_patterns and m_rhs
+        // which are not in the global context m_ctx or the
+        // functions being defined m_fns
+        list<expr> m_local_ctx;
+        list<expr> m_patterns; // patterns to be processed
+        expr       m_rhs;      // right-hand-side
+        eqn(list<expr> const & c, list<expr> const & p, expr const & r):
+            m_local_ctx(c), m_patterns(p), m_rhs(r) {}
+    };
+
+    // Data-structure used to store for compiling pattern matching.
+    // We create a program object for each function being defined
+    struct program {
+        list<expr> m_var_stack; // variables that must be matched with the patterns
+        list<eqn>  m_eqns;      // equations
+        // The goal of the compiler is to process all variables in m_var_stack
+        program(list<expr> const & s, list<eqn> const & e):m_var_stack(s), m_eqns(e) {}
+        program() {}
+    };
+
+    // For debugging purposes
+    template<typename T>
+    static bool contains_local(T const & locals, expr const & l) {
+        return std::any_of(locals.begin(), locals.end(),
+                           [&](expr const & l1) { return mlocal_name(l1) == mlocal_name(l); });
+    }
+
+    // For debugging purposes: checks whether all local constants occurring in \c e
+    // are in local_ctx or m_ctx
+    bool check_ctx(expr const & e, list<expr> const & local_ctx) const {
+        for_each(e, [&](expr const & e, unsigned) {
+                if (is_local(e) &&
+                    !(contains_local(local_ctx, e) ||
+                      contains_local(m_ctx, e) ||
+                      contains_local(m_fns, e))) {
+                    lean_unreachable();
+                    return false;
+                }
+                return true;
+            });
+        return true;
+    }
+
+    // For debugging purposes: check if the program is well-formed
+    bool check_program(program const & s) const {
+        unsigned sz = length(s.m_var_stack);
+        for (eqn const & e : s.m_eqns) {
+            // the number of patterns in each equation is equal to the variable stack size
+            if (length(e.m_patterns) != sz) {
+                lean_unreachable();
+                return false;
+            }
+            check_ctx(e.m_rhs, e.m_local_ctx);
+            for (expr const & p : e.m_patterns)
+                check_ctx(p, e.m_local_ctx);
+        }
+        return true;
+    }
+
+    // Initialize m_fns (the vector of functions to be compiled)
+    void initialize_fns(expr const & eqns) {
+        lean_assert(is_equations(eqns));
+        unsigned num_fns = equations_num_fns(eqns);
+        buffer<expr> eqs;
+        to_equations(eqns, eqs);
+        expr eq = eqs[0];
+        for (unsigned i = 0; i < num_fns; i++) {
+            expr fn = mk_local(mk_fresh_name(), binding_name(eq), binding_domain(eq), binder_info());
+            m_fns.push_back(fn);
+            eq      = instantiate(binding_body(eq), fn);
+        }
+    }
+
+    // Initialize the variable stack for each function that needs
+    // to be compiled.
+    // This method assumes m_fns has been already initialized.
+    // This method also initialized the buffer prg, but the eqns
+    // field of each program is not initialized by it.
+    void initialize_var_stack(buffer<program> & prgs) {
+        lean_assert(!m_fns.empty());
+        lean_assert(prg.empty());
+        for (expr const & fn : m_fns) {
+            buffer<expr> args;
+            to_telescope(mlocal_type(fn), args);
+            program p;
+            p.m_var_stack = to_list(args);
+            prgs.push_back(p);
+        }
+    }
+
+    struct validate_exception {
+        expr m_expr;
+        validate_exception(expr const & e):m_expr(e) {}
+    };
+
+    // Validate/normalize the given pattern.
+    // It stores in reachable_vars any variable that does not occur
+    // in inaccessible terms.
+    expr validate_pattern(expr pat, name_set & reachable_vars) {
+        if (is_inaccessible(pat))
+            return pat;
+        if (is_local(pat)) {
+            reachable_vars.insert(mlocal_name(pat));
+            return pat;
+        }
+        expr new_pat = whnf(pat);
+        if (is_local(new_pat)) {
+            reachable_vars.insert(mlocal_name(new_pat));
+            return new_pat;
+        }
+        buffer<expr> pat_args;
+        expr const & fn = get_app_args(new_pat, pat_args);
+        if (auto in = is_constructor(fn)) {
+            unsigned num_params = *inductive::get_num_params(env(), *in);
+            for (unsigned i = num_params; i < pat_args.size(); i++)
+                pat_args[i] = validate_pattern(pat_args[i], reachable_vars);
+            return mk_app(fn, pat_args);
+        } else {
+            throw validate_exception(pat);
+        }
+    }
+
+    // Validate/normalize the patterns associated with the given lhs.
+    // The lhs is only used to report errors.
+    // It stores in reachable_vars any variable that does not occur
+    // in inaccessible terms.
+    void validate_patterns(expr const & lhs, buffer<expr> & patterns, name_set & reachable_vars) {
+        for (expr & pat : patterns) {
             try {
-                arg = validate_lhs_arg(arg);
+                pat = validate_pattern(pat, reachable_vars);
             } catch (validate_exception & ex) {
                 expr problem_expr = ex.m_expr;
                 throw_error(lhs, [=](formatter const & fmt) {
@@ -305,160 +401,215 @@ class equation_compiler_fn {
                     });
             }
         }
-        return mk_app(fn, args);
     }
 
-    expr validate_patterns_core(expr eq) {
-        buffer<expr> args;
-        eq = fun_to_telescope(eq, args);
-        lean_assert(is_equation(eq));
-        expr new_lhs = validate_lhs(equation_lhs(eq));
-        return Fun(args, mk_equation(new_lhs, equation_rhs(eq)));
-    }
-
-    expr validate_patterns(expr const & eqns) {
+    // Create initial program state for each function being defined.
+    void initialize(expr const & eqns, buffer<program> & prg) {
         lean_assert(is_equations(eqns));
-        buffer<expr> eqs;
-        buffer<expr> new_eqs;
-        to_equations(eqns, eqs);
-        for (expr const & eq : eqs) {
-            new_eqs.push_back(validate_patterns_core(eq));
-        }
-        return update_equations(eqns, new_eqs);
-    }
-
-    // --------------------------------
-    // Structural recursion
-    // --------------------------------
-
-    // Return true iff \c s is structurally smaller than \c t OR equal to \c t
-    bool is_le(expr const & s, expr const & t) {
-        return is_def_eq(s, t) || is_lt(s, t);
-    }
-
-    // Return true iff \c s is structurally smaller than \c t
-    bool is_lt(expr s, expr const & t) {
-        s = whnf(s);
-        if (is_app(s)) {
-            expr const & s_fn = get_app_fn(s);
-            if (!is_constructor(s_fn))
-                return is_lt(s_fn, t); // f < t ==> s := f a_1 ... a_n < t
-        }
-        buffer<expr> t_args;
-        expr const & t_fn = get_app_args(t, t_args);
-        if (!is_constructor(t_fn))
-            return false;
-        return std::any_of(t_args.begin(), t_args.end(), [&](expr const & t_arg) { return is_le(s, t_arg); });
-    }
-
-    // Return true if the arg_idx-th argument of this equation structurally decreases in every recursive call.
-    bool is_decreasing_eq(expr eq, unsigned arg_idx) {
-        buffer<expr> eq_ctx;
-        eq = fun_to_telescope(eq, eq_ctx);
-        expr const & lhs = equation_lhs(eq);
-        buffer<expr> lhs_args;
-        expr const & fn  = get_app_args(lhs, lhs_args);
-        if (arg_idx >= lhs_args.size())
-            return false;
-        name const & fn_name = mlocal_name(fn);
-        bool is_ok = true;
-        for_each(equation_rhs(eq),
-                 [&](expr const & e, unsigned) {
-                     if (!is_ok) return false;
-                     expr const & fn = get_app_fn(e);
-                     if (is_local(fn) && mlocal_name(fn) == fn_name) {
-                         buffer<expr> rhs_args;
-                         get_app_args(e, rhs_args);
-                         if (arg_idx >= rhs_args.size())
-                             return false;
-                         if (!is_lt(rhs_args[arg_idx], lhs_args[arg_idx]))
-                             is_ok = false;
-                     }
-                     return true;
-                 });
-        return is_ok;
-    }
-
-    bool is_valid_rec_arg(buffer<expr> const & args, unsigned idx, unsigned nm) {
-        expr const & arg = args[idx];
-        expr arg_type    = whnf(mlocal_type(arg));
-        expr arg_type_fn = get_app_fn(arg_type);
-        if (!is_constant(arg_type_fn))
-            return false;
-        if (auto it = inductive::is_inductive_decl(env(), const_name(arg_type_fn))) {
-            if (length(std::get<2>(*it)) != nm)
-                return false; // number of mutually recursive functions is different from number of mutually recursive types
-            if (!env().find(name(const_name(arg_type_fn), "brec_on")))
-                return false; // recursive datatype does not have a brec_on recursor
-            // must check dependencies
-            return true;
-        } else {
-            return false;
-        }
-    }
-
-    // Create a new proof_state by using brec_on to justify recursive calls
-    proof_state apply_brec_on(expr const & eqns, proof_state const & ps) {
-        unsigned num_fns = equations_num_fns(eqns);
+        initialize_fns(eqns);
+        initialize_var_stack(prg);
         buffer<expr> eqs;
         to_equations(eqns, eqs);
-        buffer<expr> fns;
-        buffer<name> fn_names;
-        bool first = true;
-        for (expr & eq : eqs) {
-            if (first) {
-                for (unsigned i = 0; i < num_fns; i++) {
-                    expr fn = mk_local(mk_fresh_name(), binding_name(eq), binding_domain(eq), binder_info());
-                    fns.push_back(fn);
-                    fn_names.push_back(mlocal_name(fn));
-                    eq      = instantiate(binding_body(eq), fn);
+        buffer<buffer<eqn>> res_eqns;
+        res_eqns.resize(m_fns.size());
+        for (expr eq : eqs) {
+            for (expr const & fn : m_fns)
+                eq = instantiate(binding_body(eq), fn);
+            buffer<expr> local_ctx;
+            eq = fun_to_telescope(eq, local_ctx);
+            expr const & lhs = equation_lhs(eq);
+            expr const & rhs = equation_rhs(eq);
+            buffer<expr> patterns;
+            expr const & fn  = get_app_args(lhs, patterns);
+            name_set reachable_vars;
+            validate_patterns(lhs, patterns, reachable_vars);
+            for (expr const & v : local_ctx) {
+                // every variable in the local_ctx must be "reachable".
+                if (!reachable_vars.contains(mlocal_name(v))) {
+                    throw_error(lhs, [=](formatter const & fmt) {
+                            format r("invalid equation left-hand-side, variable '");
+                            r += format(local_pp_name(v));
+                            r += format("' only occurs in inaccessible terms in the following equation left-hand-side");
+                            r += pp_indent_expr(fmt, lhs);
+                            return r;
+                        });
                 }
-            } else {
-                for (expr const & fn : fns)
-                    eq = instantiate(binding_body(eq), fn);
             }
+            for (unsigned i = 0; i < m_fns.size(); i++) {
+                if (mlocal_name(fn) == mlocal_name(m_fns[i])) {
+                    if (patterns.size() != length(prg[i].m_var_stack))
+                        throw_error("ill-formed equation, number of provided arguments does not match function type", eq);
+                    res_eqns[i].push_back(eqn(to_list(local_ctx), to_list(patterns), rhs));
+                }
+            }
+        }
+        for (unsigned i = 0; i < m_fns.size(); i++) {
+            prg[i].m_eqns = to_list(res_eqns[i]);
+            lean_assert(check_program(prg[i]));
+        }
+    }
+
+    // For debugging purposes: display the context at m_ios
+    template<typename Ctx>
+    void display_ctx(Ctx const & ctx) const {
+        bool first = true;
+        for (expr const & e : ctx) {
+            out() << (first ? "" : ", ") << local_pp_name(e) << " : " << mlocal_type(e);
             first = false;
         }
+    }
 
-        // Find an argument of the first equation that is structurally decreasing in all equations
-        expr fn1 = fns[0];
-        expr fn1_type = mlocal_type(fn1);
-        buffer<expr> args1;
-        to_telescope(fn1_type, args1);
-        for (unsigned i = 0; i < args1.size(); i++) {
-            if (!is_valid_rec_arg(args1, i, num_fns))
-                continue;
-            if (std::all_of(eqs.begin(), eqs.end(), [&](expr const & eq) {
-                        return !is_equation_of(eq, mlocal_name(fn1)) || is_decreasing_eq(eq, i);
-                    })) {
-                std::cout << "ARG: " << i << " decreases at " << local_pp_name(fn1) << "\n";
+    // For debugging purposes: dump prg in m_ios
+    void display(program const & prg) const {
+        display_ctx(prg.m_var_stack);
+        out() << "\n";
+        for (eqn const & e : prg.m_eqns) {
+            out() << "> ";
+            display_ctx(e.m_local_ctx);
+            out() << " |-";
+            for (expr const & p : e.m_patterns) {
+                if (is_atomic(p))
+                    out() << " " << p;
+                else
+                    out() << " (" << p << ")";
+            }
+            out() << " := " << e.m_rhs << "\n";
+        }
+    }
+
+    // Return true iff the next pattern in all equations is a variable or an inaccessible term
+    bool is_variable_transition(program const & p) const {
+        for (eqn const & e : p.m_eqns) {
+            lean_assert(e.m_patterns);
+            if (!is_local(head(e.m_patterns)) && !is_inaccessible(head(e.m_patterns)))
+                return false;
+        }
+        return true;
+    }
+
+    // Return true iff the next pattern in all equations is a constructor
+    bool is_constructor_transition(program const & p) const {
+        for (eqn const & e : p.m_eqns) {
+            lean_assert(e.m_patterns);
+            if (!is_constructor(get_app_fn(head(e.m_patterns))))
+                return false;
+        }
+        return true;
+    }
+
+    // Return true iff the next pattern of every equation is a constructor or variable,
+    // and there are at least one equation where it is a variable and another where it is a
+    // constructor.
+    bool is_complete_transition(program const & p) const {
+        bool has_variable    = false;
+        bool has_constructor = false;
+        for (eqn const & e : p.m_eqns) {
+            lean_assert(e.m_patterns);
+            expr const & p = head(e.m_patterns);
+            if (is_local(p))
+                has_variable = true;
+            else if (is_constructor(get_app_fn(p)))
+                has_constructor = true;
+            else
+                return false;
+        }
+        return has_variable && has_constructor;
+    }
+
+    // Remove variable from local context
+    static list<expr> remove(list<expr> const & local_ctx, expr const & l) {
+        lean_assert(local_ctx);
+        if (mlocal_name(head(local_ctx)) == mlocal_name(l))
+            return tail(local_ctx);
+        else
+            return cons(head(local_ctx), remove(local_ctx, l));
+    }
+
+    // Replace local constant \c from with \c to in the expression \c e.
+    static expr replace(expr const & e, expr const & from, expr const & to) {
+        return instantiate(abstract_local(e, from), to);
+    }
+
+    expr compile_variable(program const & p, unsigned i) {
+        // The next pattern of every equation is a variable (or inaccessible term).
+        // Thus, we just rename them with the variable on
+        // the top of the variable stack.
+        // Remark: if the pattern is an inaccessible term, we just ignore it.
+        expr x = head(p.m_var_stack);
+        auto new_stack = tail(p.m_var_stack);
+        buffer<eqn> new_eqs;
+        for (eqn const & e : p.m_eqns) {
+            expr p = head(e.m_patterns);
+            if (is_inaccessible(p)) {
+                new_eqs.emplace_back(e.m_local_ctx, tail(e.m_patterns), e.m_rhs);
+            } else {
+                lean_assert(is_local(p));
+                auto new_local_ctx = map(remove(e.m_local_ctx, p), [&](expr const & l) { return replace(l, p, x); });
+                auto new_patterns  = map(tail(e.m_patterns), [&](expr const & p2) { return replace(p2, p, x); });
+                auto new_rhs       = replace(e.m_rhs, p, x);
+                new_eqs.emplace_back(new_local_ctx, new_patterns, new_rhs);
             }
         }
+        return compile(program(new_stack, to_list(new_eqs)), i);
+    }
 
-        // TODO: check non-recursive case
+    expr compile_constructor(program const & p, unsigned i) {
+        // The next pattern of every equation is a constructor.
+        // Thus, we case-split the variable on the top of variable stack.
 
-        return ps;
+        // TODO(Leo)
+        return expr();
+    }
+
+    expr compile_complete(program const & p, unsigned i) {
+        // The next pattern of every equation is a constructor or variable.
+        // We split the equations where the next pattern is a variable into cases.
+        // That is, we are reducing this case to the compile_constructor case.
+
+        // TODO(Leo)
+        return expr();
+    }
+
+    expr compile(program const & p, unsigned i) {
+        lean_assert(check_program(p));
+        if (p.m_var_stack) {
+            if (is_variable_transition(p)) {
+                return compile_variable(p, i);
+            } else if (is_constructor_transition(p)) {
+                return compile_constructor(p, i);
+            } else if (is_complete_transition(p)) {
+                return compile_complete(p, i);
+            } else {
+                // In some equations the next pattern is an inaccessible term,
+                // and in others it is a constructor.
+                throw_error(sstream() << "invalid recursive equations for '" << local_pp_name(m_fns[i])
+                            << "', inconsistent use of inaccessible term annotation, "
+                            << "in some equations a pattern is a constructor, and in another it is an inaccessible term");
+            }
+        } else {
+            // variable stack is empty
+            return head(p.m_eqns).m_rhs;
+        }
     }
 
 public:
     equation_compiler_fn(type_checker & tc, io_state const & ios, expr const & meta, expr const & meta_type, bool relax):
         m_tc(tc), m_ios(ios), m_meta(meta), m_meta_type(meta_type), m_relax(relax) {
+        get_app_args(m_meta, m_ctx);
     }
 
     expr operator()(expr eqns) {
         check_limitations(eqns);
-        proof_state ps = to_proof_state(m_meta, m_meta_type, m_tc.mk_ngen(), m_relax);
-        eqns = validate_patterns(eqns);
-        if (is_wf_equations(eqns)) {
-            // TODO(Leo)
-        } else {
-            ps = apply_brec_on(eqns, ps);
+        out() << "Equations:\n" << eqns << "\n";
+        buffer<program> prgs;
+        initialize(eqns, prgs);
+        unsigned i = 0;
+        for (program const & p : prgs) {
+            display(p);
+            out() << compile(p, i) << "\n";
+            i++;
         }
-
-        regular(env(), m_ios) << "Equations:\n" << eqns << "\n";
-        regular(env(), m_ios) << ps.pp(env(), m_ios) << "\n\n";
-        substitution s = ps.get_subst();
-        return s.instantiate_all(m_meta);
+        return m_meta;
     }
 };
 

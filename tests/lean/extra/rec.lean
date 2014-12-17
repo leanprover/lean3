@@ -44,4 +44,13 @@ fib (a+2) := fib a + fib (a+1)
 
 end tst
 
+definition simple : nat → nat → nat,
+simple x y := x + y
+
+definition simple2 : nat → nat → nat,
+simple2 (x+1) y := x + y,
+simple2 ⌞y+1⌟ y := y
+
+
+
 check vector.brec_on
