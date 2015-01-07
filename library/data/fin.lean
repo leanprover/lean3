@@ -43,7 +43,7 @@ namespace fin
                ...  < succ n     : succ_pos n)
     (λ n f ih, calc
       to_nat (fs f) = succ (to_nat f) : rfl
-               ...  < succ n          : succ_lt ih)
+               ...  < succ n          : succ_lt_succ ih)
 
   definition lift {n : nat} (f : fin n) : Π m, fin (m + n) :=
   fin.rec_on f
