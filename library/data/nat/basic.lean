@@ -53,17 +53,17 @@ assume H, no_confusion H
 
 -- add_rewrite succ_ne_zero
 
-theorem pred.zero : pred 0 = 0 :=
+theorem pred_zero : pred 0 = 0 :=
 rfl
 
-theorem pred.succ (n : ℕ) : pred (succ n) = n :=
+theorem pred_succ (n : ℕ) : pred (succ n) = n :=
 rfl
 
 theorem eq_zero_or_eq_succ_pred (n : ℕ) : n = 0 ∨ n = succ (pred n) :=
 induction_on n
   (or.inl rfl)
   (take m IH, or.inr
-    (show succ m = succ (pred (succ m)), from congr_arg succ !pred.succ⁻¹))
+    (show succ m = succ (pred (succ m)), from congr_arg succ !pred_succ⁻¹))
 
 theorem exists_eq_succ_of_ne_zero {n : ℕ} (H : n ≠ 0) : ∃k : ℕ, n = succ k :=
 exists.intro _ (or_resolve_right !eq_zero_or_eq_succ_pred H)
@@ -294,8 +294,8 @@ section
 
   protected definition comm_semiring [instance] : algebra.comm_semiring nat :=
   algebra.comm_semiring.mk add add.assoc zero zero_add add_zero add.comm
-  mul mul.assoc (succ zero) one_mul mul_one mul.left_distrib mul.right_distrib
-  zero_mul mul_zero (ne.symm (succ_ne_zero zero)) mul.comm
+    mul mul.assoc (succ zero) one_mul mul_one mul.left_distrib mul.right_distrib
+    zero_mul mul_zero (ne.symm (succ_ne_zero zero)) mul.comm
 end
 
 section port_algebra
