@@ -16,8 +16,6 @@ namespace groupoid
 
 attribute all_iso [instance]
 
---set_option pp.universes true
---set_option pp.implicit true
 universe variable l
 open precategory
 definition path_groupoid (A : Type.{l})
@@ -89,55 +87,6 @@ begin
     intro f, apply id_right,
     intro f, exact (morphism.inverse f),
     intro f, exact (morphism.inverse_compose f),
-end
-
--- TODO: This is probably wrong
-open equiv is_equiv
-definition group_equiv {A : Type.{l}} [fx : funext]
-  : group A ≃ Σ (G : groupoid.{l l} unit), @hom unit G ⋆ ⋆ = A :=
-sorry
-
--- TODO: Prove that a univalent groupoids are somehow equivalent to collections of groups
-set_option pp.universes true
-check @prod.rec_on
-protected definition of_group_set {A : Type.{l}} [Aset : is_hset A]
-  (f : A → Group.{l}) : groupoid.{l l} A :=
-begin
-  fapply groupoid.mk,
-    intros (a, b), exact ((a = b) × Group.carrier (f a)),
-    intros (a, b), apply trunc_prod, apply succ_is_trunc, apply trunc_succ, exact Aset,
-    apply (@group.carrier_hset (Group.carrier (f a)) (Group.struct (f a))),
-    intros (a, b, c, I), apply (@prod.rec_on _ _ _ I),
-      /-apply (J.1 ⬝ I.1),
-      assert (I' : Group.carrier (f a)), apply (J.1⁻¹ ▹ I.2),
-      apply (@group.mul _ _ I' J.2),
-    intro a, fapply prod.mk,
-      apply idp, apply (@group.one _ _),
-    intros (a, b, c, d, g, h, i), revert i, revert h,-/
-
-end
-
-exit
-definition bla {A : Type.{l}} [H : is_hset A]
-  : (Σ (G : groupoid.{l l} A) , (Π (a b : A) (f : hom a b), a = b)) ≃ (A → Group.{l}) :=
-begin
-  fapply equiv.mk,
-    intro S, apply (sigma.rec_on S), intros (G, univ),
-    intro a, fapply Group.mk, exact (hom a a), apply (@hom_group A G a),
-  fapply adjointify,
-    intro f, fapply sigma.mk,
-      fapply groupoid.mk,
-        intros (a, b), exact ((a = b) × Group.carrier (f a)),
-        intros (a, b), apply trunc_prod,
-          apply succ_is_trunc, apply trunc_succ, exact H,
-          apply (@group.carrier_hset (Group.carrier (f a)) (Group.struct (f a))),
-      intros (a, b, c, I, J), fapply prod.mk,
-        apply (J.1 ⬝ I.1),
-        assert (I' : Group.carrier (f a)), apply (J.1⁻¹ ▹ I.2),
-        apply (@group.mul _ _ I' J.2),
-      intro a, fapply prod.mk,
-        apply idp, apply (@group.one _ _),
-      intros, apply (eq.rec_on f_1.1),
 end
 
 end groupoid
