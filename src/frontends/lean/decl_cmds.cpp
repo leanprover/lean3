@@ -290,19 +290,22 @@ struct decl_attributes {
     bool               m_is_coercion;
     bool               m_is_reducible;
     bool               m_is_irreducible;
+    bool               m_is_semireducible;
     bool               m_is_class;
     bool               m_is_parsing_only;
     bool               m_has_multiple_instances;
     optional<unsigned> m_priority;
     optional<unsigned> m_unfold_c_hint;
 
-    decl_attributes(bool def_only = true, bool is_abbrev = false):m_priority() {
+    decl_attributes(bool def_only = true, bool is_abbrev = false):
+        m_priority() {
         m_def_only               = def_only;
         m_is_abbrev              = is_abbrev;
         m_is_instance            = false;
         m_is_coercion            = false;
         m_is_reducible           = is_abbrev;
         m_is_irreducible         = false;
+        m_is_semireducible       = false;
         m_is_class               = false;
         m_is_parsing_only        = false;
         m_has_multiple_instances = false;
@@ -348,7 +351,7 @@ struct decl_attributes {
         }
     }
 
-    void parse(parser & p) {
+    void parse(buffer<name> const & ns, parser & p) {
         while (true) {
             auto pos = p.pos();
             if (p.curr_is_token(get_instance_tk())) {
@@ -361,14 +364,19 @@ struct decl_attributes {
                     throw parser_error("invalid '[coercion]' attribute, coercions cannot be defined in contexts", pos);
                 m_is_coercion = true;
             } else if (p.curr_is_token(get_reducible_tk())) {
-                if (m_is_irreducible)
-                    throw parser_error("invalid '[reducible]' attribute, '[irreducible]' was already provided", pos);
+                if (m_is_irreducible || m_is_semireducible)
+                    throw parser_error("invalid '[reducible]' attribute, '[irreducible]' or '[semireducible]' was already provided", pos);
                 m_is_reducible = true;
                 p.next();
             } else if (p.curr_is_token(get_irreducible_tk())) {
-                if (m_is_reducible)
-                    throw parser_error("invalid '[irreducible]' attribute, '[reducible]' was already provided", pos);
+                if (m_is_reducible || m_is_semireducible)
+                    throw parser_error("invalid '[irreducible]' attribute, '[reducible]' or '[semireducible]' was already provided", pos);
                 m_is_irreducible = true;
+                p.next();
+            } else if (p.curr_is_token(get_semireducible_tk())) {
+                if (m_is_reducible || m_is_irreducible)
+                    throw parser_error("invalid '[irreducible]' attribute, '[reducible]' or '[irreducible]' was already provided", pos);
+                m_is_semireducible = true;
                 p.next();
             } else if (p.curr_is_token(get_class_tk())) {
                 if (m_def_only)
@@ -382,8 +390,18 @@ struct decl_attributes {
                 p.next();
             } else if (auto it = parse_instance_priority(p)) {
                 m_priority = *it;
-                if (!m_is_instance)
-                    throw parser_error("invalid '[priority]' attribute, declaration must be marked as an '[instance]'", pos);
+                if (!m_is_instance) {
+                    if (ns.empty()) {
+                        throw parser_error("invalid '[priority]' attribute, declaration must be marked as an '[instance]'", pos);
+                    } else {
+                        for (name const & n : ns) {
+                            if (!is_instance(p.env(), n))
+                                throw parser_error(sstream() << "invalid '[priority]' attribute, declaration '" << n
+                                                   << "' must be marked as an '[instance]'", pos);
+                        }
+                        m_is_instance = true;
+                    }
+                }
             } else if (p.curr_is_token(get_parsing_only_tk())) {
                 if (!m_is_abbrev)
                     throw parser_error("invalid '[parsing-only]' attribute, only abbreviations can be "
@@ -403,6 +421,17 @@ struct decl_attributes {
         }
     }
 
+    void parse(name const & n, parser & p) {
+        buffer<name> ns;
+        ns.push_back(n);
+        parse(ns, p);
+    }
+
+    void parse(parser & p) {
+        buffer<name> ns;
+        parse(ns, p);
+    }
+
     environment apply(environment env, io_state const & ios, name const & d, bool persistent) {
         if (m_is_instance) {
             if (m_priority) {
@@ -417,9 +446,11 @@ struct decl_attributes {
         if (m_is_coercion)
             env = add_coercion(env, d, ios, persistent);
         if (m_is_reducible)
-            env = set_reducible(env, d, reducible_status::On, persistent);
+            env = set_reducible(env, d, reducible_status::Reducible, persistent);
         if (m_is_irreducible)
-            env = set_reducible(env, d, reducible_status::Off, persistent);
+            env = set_reducible(env, d, reducible_status::Irreducible, persistent);
+        if (m_is_semireducible)
+            env = set_reducible(env, d, reducible_status::Semireducible, persistent);
         if (m_is_class)
             env = add_class(env, d, persistent);
         if (m_has_multiple_instances)
@@ -1104,7 +1135,7 @@ static environment attribute_cmd_core(parser & p, bool persistent) {
     }
     bool decl_only  = false;
     decl_attributes attributes(decl_only);
-    attributes.parse(p);
+    attributes.parse(ds, p);
     environment env = p.env();
     for (name const & d : ds)
         env = attributes.apply(env, p.ios(), d, persistent);
