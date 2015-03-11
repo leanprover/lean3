@@ -2,7 +2,7 @@
 Copyright (c) 2014 Floris van Doorn. All rights reserved.
 Released under Apache 2.0 license as described in the file LICENSE.
 
-Module: algebra.category.morphism
+Module: algebra.precategory.iso
 Author: Floris van Doorn, Jakob von Raumer
 -/
 
@@ -21,6 +21,8 @@ namespace iso
     {inverse : b ⟶ a}
     (left_inverse  : inverse ∘ f = id)
     (right_inverse : f ∘ inverse = id)
+
+  attribute is_iso.inverse [quasireducible]
 
   attribute is_iso [multiple-instances]
   open split_mono split_epi is_iso

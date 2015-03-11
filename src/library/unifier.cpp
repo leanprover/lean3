@@ -49,11 +49,16 @@ Author: Leonardo de Moura
 #define LEAN_DEFAULT_UNIFIER_CONSERVATIVE false
 #endif
 
+#ifndef LEAN_DEFAULT_UNIFIER_NONCHRONOLOGICAL
+#define LEAN_DEFAULT_UNIFIER_NONCHRONOLOGICAL true
+#endif
+
 namespace lean {
 static name * g_unifier_max_steps               = nullptr;
 static name * g_unifier_computation             = nullptr;
 static name * g_unifier_expensive_classes       = nullptr;
 static name * g_unifier_conservative            = nullptr;
+static name * g_unifier_nonchronological        = nullptr;
 
 unsigned get_unifier_max_steps(options const & opts) {
     return opts.get_unsigned(*g_unifier_max_steps, LEAN_DEFAULT_UNIFIER_MAX_STEPS);
@@ -71,14 +76,19 @@ bool get_unifier_conservative(options const & opts) {
     return opts.get_bool(*g_unifier_conservative, LEAN_DEFAULT_UNIFIER_CONSERVATIVE);
 }
 
+bool get_unifier_nonchronological(options const & opts) {
+    return opts.get_bool(*g_unifier_nonchronological, LEAN_DEFAULT_UNIFIER_NONCHRONOLOGICAL);
+}
+
 unifier_config::unifier_config(bool use_exceptions, bool discard):
     m_use_exceptions(use_exceptions),
     m_max_steps(LEAN_DEFAULT_UNIFIER_MAX_STEPS),
     m_computation(LEAN_DEFAULT_UNIFIER_COMPUTATION),
     m_expensive_classes(LEAN_DEFAULT_UNIFIER_EXPENSIVE_CLASSES),
     m_discard(discard),
-    m_conservative(LEAN_DEFAULT_UNIFIER_CONSERVATIVE) {
-    m_cheap = false;
+    m_nonchronological(LEAN_DEFAULT_UNIFIER_NONCHRONOLOGICAL) {
+    m_kind    = unifier_kind::Liberal;
+    m_pattern = false;
     m_ignore_context_check = false;
 }
 
@@ -88,8 +98,12 @@ unifier_config::unifier_config(options const & o, bool use_exceptions, bool disc
     m_computation(get_unifier_computation(o)),
     m_expensive_classes(get_unifier_expensive_classes(o)),
     m_discard(discard),
-    m_conservative(get_unifier_conservative(o)) {
-    m_cheap = false;
+    m_nonchronological(get_unifier_nonchronological(o)) {
+    if (get_unifier_conservative(o))
+        m_kind = unifier_kind::Conservative;
+    else
+        m_kind = unifier_kind::Liberal;
+    m_pattern = false;
     m_ignore_context_check = false;
 }
 
@@ -118,9 +132,10 @@ bool context_check(expr const & e, buffer<expr> const & locals) {
     for_each(e, [&](expr const & e, unsigned) {
             if (failed)
                 return false;
-            if (is_local(e) && !contains_local(e, locals)) {
-                failed = true;
-                return false;
+            if (is_local(e)) {
+                if (!contains_local(e, locals))
+                    failed = true;
+                return false; // do not visit type
             }
             if (is_metavar(e))
                 return false; // do not visit type
@@ -320,7 +335,6 @@ struct unifier_fn {
                                       // only the definitions from the main module are treated as transparent.
     unifier_config   m_config;
     unsigned         m_num_steps;
-    bool             m_pattern; //!< If true, then only higher-order (pattern) matching is used
     bool             m_first; //!< True if we still have to generate the first solution.
     unsigned         m_next_assumption_idx; //!< Next assumption index.
     unsigned         m_next_cidx; //!< Next constraint index.
@@ -365,13 +379,12 @@ struct unifier_fn {
         expr_map         m_type_map;
         name_to_cnstrs   m_mvar_occs;
         owned_map        m_owned_map;
-        bool             m_pattern;
 
         /** \brief Save unifier's state */
         case_split(unifier_fn & u, justification const & j):
             m_assumption_idx(u.m_next_assumption_idx), m_jst(j), m_subst(u.m_subst),
             m_postponed(u.m_postponed), m_cnstrs(u.m_cnstrs), m_type_map(u.m_type_map),
-            m_mvar_occs(u.m_mvar_occs), m_owned_map(u.m_owned_map), m_pattern(u.m_pattern) {
+            m_mvar_occs(u.m_mvar_occs), m_owned_map(u.m_owned_map) {
             u.m_next_assumption_idx++;
         }
 
@@ -383,7 +396,6 @@ struct unifier_fn {
             u.m_cnstrs    = m_cnstrs;
             u.m_mvar_occs = m_mvar_occs;
             u.m_owned_map = m_owned_map;
-            u.m_pattern   = m_pattern;
             u.m_type_map  = m_type_map;
             m_assumption_idx = u.m_next_assumption_idx;
             m_failed_justifications = mk_composite1(m_failed_justifications, *u.m_conflict);
@@ -424,22 +436,34 @@ struct unifier_fn {
                name_generator const & ngen, substitution const & s,
                unifier_config const & cfg):
         m_env(env), m_ngen(ngen), m_subst(s), m_plugin(get_unifier_plugin(env)),
-        m_config(cfg), m_num_steps(0), m_pattern(false) {
-        if (m_config.m_cheap) {
+        m_config(cfg), m_num_steps(0) {
+        switch (m_config.m_kind) {
+        case unifier_kind::Cheap:
             m_tc[0] = mk_opaque_type_checker(env, m_ngen.mk_child());
             m_tc[1] = m_tc[0];
             m_flex_rigid_tc = m_tc[0];
             m_config.m_computation = false;
-        } else if (m_config.m_conservative) {
-            m_tc[0] = mk_type_checker(env, m_ngen.mk_child(), false, OpaqueIfNotReducibleOn);
+            break;
+        case unifier_kind::VeryConservative:
+            m_tc[0] = mk_type_checker(env, m_ngen.mk_child(), false, UnfoldReducible);
             m_tc[1] = m_tc[0];
             m_flex_rigid_tc = m_tc[0];
             m_config.m_computation = false;
-        } else {
+            break;
+        case unifier_kind::Conservative:
+            m_tc[0] = mk_type_checker(env, m_ngen.mk_child(), false, UnfoldQuasireducible);
+            m_tc[1] = m_tc[0];
+            m_flex_rigid_tc = m_tc[0];
+            m_config.m_computation = false;
+            break;
+        case unifier_kind::Liberal:
             m_tc[0] = mk_type_checker(env, m_ngen.mk_child(), false);
             m_tc[1] = mk_type_checker(env, m_ngen.mk_child(), true);
             if (!cfg.m_computation)
-                m_flex_rigid_tc = mk_type_checker(env, m_ngen.mk_child(), false, OpaqueIfNotReducibleOn);
+                m_flex_rigid_tc = mk_type_checker(env, m_ngen.mk_child(), false, UnfoldQuasireducible);
+            break;
+        default:
+            lean_unreachable();
         }
         m_next_assumption_idx = 0;
         m_next_cidx = 0;
@@ -1147,7 +1171,7 @@ struct unifier_fn {
         while (!m_case_splits.empty()) {
             justification conflict = *m_conflict;
             std::unique_ptr<case_split> & d = m_case_splits.back();
-            if (depends_on(conflict, d->m_assumption_idx)) {
+            if (!m_config.m_nonchronological || depends_on(conflict, d->m_assumption_idx)) {
                 d->m_failed_justifications = mk_composite1(d->m_failed_justifications, conflict);
                 if (d->next(*this)) {
                     reset_conflict();
@@ -1346,8 +1370,8 @@ struct unifier_fn {
 
         justification a;
         bool relax = relax_main_opaque(c);
-        if (!m_config.m_cheap && !m_config.m_conservative &&
-            (m_config.m_computation || module::is_definition(m_env, d.get_name()) || is_reducible_on(m_env, d.get_name()))) {
+        if (m_config.m_kind == unifier_kind::Liberal &&
+            (m_config.m_computation || module::is_definition(m_env, d.get_name()) || is_at_least_quasireducible(m_env, d.get_name()))) {
             // add case_split for t =?= s
             a = mk_assumption_justification(m_next_assumption_idx);
             add_case_split(std::unique_ptr<case_split>(new delta_unfold_case_split(*this, j, c)));
@@ -1409,7 +1433,8 @@ struct unifier_fn {
 
         optional<bool>        _has_meta_args;
 
-        bool cheap() const { return u.m_config.m_cheap; }
+        bool cheap() const { return u.m_config.m_kind == unifier_kind::Cheap; }
+        bool pattern() const { return u.m_config.m_pattern; }
 
         type_checker & tc() {
             return *u.m_tc[relax];
@@ -1591,43 +1616,10 @@ struct unifier_fn {
             }
         }
 
-        /**
-           \see mk_flex_rigid_app_cnstrs
-           When using "imitation" for solving a constraint
-                ?m l_1 ... l_k =?= f a_1 ... a_n
-           We say argument a_i is "easy" if
-                 1) it is a local constant
-                 2) there is only one l_j equal to a_i.
-                 3) none of the l_j's is of the form (?m ...)
-           In our experiments, the vast majority (> 2/3 of all cases) of the arguments are easy.
-
-           margs contains l_1 ... l_k
-           arg is the argument we are testing
-
-           Result: none if it is not an easy argument, and variable #k-i-1 if it is easy.
-           The variable is the "solution".
-        */
-        optional<expr> is_easy_flex_rigid_arg(expr const & arg) {
-            if (!is_local(arg))
-                return none_expr();
-            optional<expr> v;
-            unsigned num_margs = margs.size();
-            for (unsigned j = 0; j < num_margs; j++) {
-                if (is_meta(margs[j]))
-                    return none_expr();
-                if (is_local(margs[j]) && mlocal_name(arg) == mlocal_name(margs[j])) {
-                    if (v)
-                        return none_expr(); // failed, there is more than one possibility
-                    v = mk_var(num_margs - j - 1);
-                }
-            }
-            return v;
-        }
-
         void mk_app_projections() {
             lean_assert(is_metavar(m));
             lean_assert(is_app(rhs));
-            if (!u.m_pattern && !cheap()) {
+            if (!pattern() && !cheap()) {
                 expr const & f = get_app_fn(rhs);
                 lean_assert(is_constant(f) || is_local(f));
                 if (is_local(f)) {
@@ -1824,12 +1816,12 @@ struct unifier_fn {
                 mk_simple_projections();
                 break;
             case expr_kind::Sort: case expr_kind::Constant:
-                if (!u.m_pattern && !cheap() && !imitation_only)
+                if (!pattern() && !cheap() && !imitation_only)
                     mk_simple_projections();
                 mk_simple_imitation();
                 break;
             case expr_kind::Pi: case expr_kind::Lambda:
-                if (!u.m_pattern && !cheap() && !imitation_only)
+                if (!pattern() && !cheap() && !imitation_only)
                     mk_simple_projections();
                 mk_bindings_imitation();
                 break;
@@ -1854,8 +1846,6 @@ struct unifier_fn {
 
         \remark We store auxiliary constraints created in the reductions in \c aux. We return the new
         "reduce" application.
-
-        \remark We need this step because of the optimization based on is_easy_flex_rigid_arg
     */
     expr expose_local_args(expr const & lhs, justification const & j, bool relax, buffer<constraint> & aux) {
         buffer<expr> margs;
@@ -1863,7 +1853,6 @@ struct unifier_fn {
         bool modified = false;
         for (expr & marg : margs) {
             // Make sure that if marg is reducible to a local constant, then it is replaced with it.
-            // We need that because of the optimization based on is_easy_flex_rigid_arg
             if (!is_local(marg)) {
                 expr new_marg = whnf(marg, j, relax, aux);
                 if (is_local(new_marg)) {
@@ -1897,7 +1886,7 @@ struct unifier_fn {
     */
     bool use_flex_rigid_whnf_split(expr const & lhs, expr const & rhs) {
         lean_assert(is_meta(lhs));
-        if (m_config.m_cheap || m_config.m_conservative)
+        if (m_config.m_kind != unifier_kind::Liberal)
             return false;
         if (m_config.m_computation)
             return true; // if unifier.computation is true, we always consider the additional whnf split
@@ -2237,9 +2226,6 @@ struct unifier_fn {
             postpone(c);
             return true;
         }
-        // The following condition is "dead-code"
-        if (!m_config.m_expensive_classes && cidx >= get_group_first_index(cnstr_group::ClassInstance))
-            m_pattern = true; // use only higher-order (pattern) matching after we start processing class-instance constraints
         // std::cout << "process_next: " << c << "\n";
         m_cnstrs.erase_min();
         if (is_choice_cnstr(c)) {
@@ -2541,6 +2527,7 @@ void initialize_unifier() {
     g_unifier_computation       = new name{"unifier", "computation"};
     g_unifier_expensive_classes = new name{"unifier", "expensive_classes"};
     g_unifier_conservative      = new name{"unifier", "conservative"};
+    g_unifier_nonchronological  = new name{"unifier", "nonchronological"};
 
     register_unsigned_option(*g_unifier_max_steps, LEAN_DEFAULT_UNIFIER_MAX_STEPS, "(unifier) maximum number of steps");
     register_bool_option(*g_unifier_computation, LEAN_DEFAULT_UNIFIER_COMPUTATION,
@@ -2549,6 +2536,8 @@ void initialize_unifier() {
                          "(unifier) use \"full\" higher-order unification when solving class instances");
     register_bool_option(*g_unifier_conservative, LEAN_DEFAULT_UNIFIER_CONSERVATIVE,
                          "(unifier) unfolds only constants marked as reducible, avoid expensive case-splits (it is faster but less complete)");
+    register_bool_option(*g_unifier_nonchronological, LEAN_DEFAULT_UNIFIER_NONCHRONOLOGICAL,
+                         "(unifier) enable/disable nonchronological backtracking in the unifier (this option is only available for debugging and benchmarking purposes, and running experiments)");
 
     g_dont_care_cnstr = new constraint(mk_eq_cnstr(expr(), expr(), justification(), false));
     g_tmp_prefix      = new name(name::mk_internal_unique_name());
@@ -2561,5 +2550,6 @@ void finalize_unifier() {
     delete g_unifier_computation;
     delete g_unifier_expensive_classes;
     delete g_unifier_conservative;
+    delete g_unifier_nonchronological;
 }
 }

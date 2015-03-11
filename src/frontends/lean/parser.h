@@ -165,7 +165,6 @@ class parser {
     tag get_tag(expr e);
     expr copy_with_new_pos(expr const & e, pos_info p);
 
-    cmd_table const & cmds() const { return get_cmd_table(env()); }
     parse_table const & nud() const { return get_nud_table(env()); }
     parse_table const & led() const { return get_led_table(env()); }
 
@@ -217,6 +216,12 @@ class parser {
     elaborator_context mk_elaborator_context(environment const & env, pos_info_provider const & pp);
     elaborator_context mk_elaborator_context(environment const & env, local_level_decls const & lls, pos_info_provider const & pp);
 
+    optional<expr> is_tactic_command(name & id);
+    expr parse_tactic_led(expr left);
+    expr parse_tactic_nud();
+    expr parse_tactic_expr_list();
+    expr parse_tactic_opt_expr_list();
+
 public:
     parser(environment const & env, io_state const & ios,
            std::istream & strm, char const * str_name,
@@ -224,6 +229,8 @@ public:
            snapshot const * s = nullptr, snapshot_vector * sv = nullptr,
            info_manager * im = nullptr, keep_theorem_mode tmode = keep_theorem_mode::All);
     ~parser();
+
+    cmd_table const & cmds() const { return get_cmd_table(env()); }
 
     void set_cache(definition_cache * c) { m_cache = c; }
     void cache_definition(name const & n, expr const & pre_type, expr const & pre_value,
@@ -379,6 +386,8 @@ public:
         return parse_scoped_expr(num_params, ps, local_environment(m_env), rbp);
     }
     expr parse_scoped_expr(buffer<expr> const & ps, unsigned rbp = 0) { return parse_scoped_expr(ps.size(), ps.data(), rbp); }
+
+    expr parse_tactic(unsigned rbp = 0);
 
     struct local_scope { parser & m_p; environment m_env;
         local_scope(parser & p, bool save_options = false);

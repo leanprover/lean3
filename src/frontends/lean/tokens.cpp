@@ -10,6 +10,7 @@ namespace lean {
 static name * g_period       = nullptr;
 static name * g_placeholder  = nullptr;
 static name * g_colon        = nullptr;
+static name * g_semicolon    = nullptr;
 static name * g_dcolon       = nullptr;
 static name * g_lparen       = nullptr;
 static name * g_rparen       = nullptr;
@@ -40,6 +41,7 @@ static name * g_slash        = nullptr;
 static name * g_star         = nullptr;
 static name * g_plus         = nullptr;
 static name * g_turnstile    = nullptr;
+static name * g_explicit     = nullptr;
 static name * g_max          = nullptr;
 static name * g_imax         = nullptr;
 static name * g_cup          = nullptr;
@@ -51,11 +53,13 @@ static name * g_assert       = nullptr;
 static name * g_assume       = nullptr;
 static name * g_take         = nullptr;
 static name * g_fun          = nullptr;
+static name * g_match        = nullptr;
 static name * g_ellipsis     = nullptr;
 static name * g_raw          = nullptr;
 static name * g_true         = nullptr;
 static name * g_false        = nullptr;
 static name * g_options      = nullptr;
+static name * g_commands     = nullptr;
 static name * g_instances    = nullptr;
 static name * g_classes      = nullptr;
 static name * g_coercions    = nullptr;
@@ -67,8 +71,6 @@ static name * g_exposing     = nullptr;
 static name * g_renaming     = nullptr;
 static name * g_extends      = nullptr;
 static name * g_as           = nullptr;
-static name * g_on           = nullptr;
-static name * g_off          = nullptr;
 static name * g_none         = nullptr;
 static name * g_whnf         = nullptr;
 static name * g_wf           = nullptr;
@@ -82,6 +84,7 @@ static name * g_using        = nullptr;
 static name * g_then         = nullptr;
 static name * g_else         = nullptr;
 static name * g_by           = nullptr;
+static name * g_rewrite      = nullptr;
 static name * g_proof        = nullptr;
 static name * g_qed          = nullptr;
 static name * g_begin        = nullptr;
@@ -100,6 +103,8 @@ static name * g_priority     = nullptr;
 static name * g_unfold_c     = nullptr;
 static name * g_coercion     = nullptr;
 static name * g_reducible    = nullptr;
+static name * g_quasireducible = nullptr;
+static name * g_semireducible = nullptr;
 static name * g_irreducible  = nullptr;
 static name * g_parsing_only = nullptr;
 static name * g_with         = nullptr;
@@ -129,6 +134,7 @@ void initialize_tokens() {
     g_period       = new name(".");
     g_placeholder  = new name("_");
     g_colon        = new name(":");
+    g_semicolon    = new name(";");
     g_dcolon       = new name("::");
     g_lparen       = new name("(");
     g_rparen       = new name(")");
@@ -159,6 +165,7 @@ void initialize_tokens() {
     g_plus         = new name("+");
     g_star         = new name("*");
     g_turnstile    = new name("⊢");
+    g_explicit     = new name("@");
     g_max          = new name("max");
     g_imax         = new name("imax");
     g_cup          = new name("\u2294");
@@ -170,11 +177,13 @@ void initialize_tokens() {
     g_assume       = new name("assume");
     g_take         = new name("take");
     g_fun          = new name("fun");
+    g_match        = new name("match");
     g_ellipsis     = new name("...");
     g_raw          = new name("raw");
     g_true         = new name("true");
     g_false        = new name("false");
     g_options      = new name("options");
+    g_commands     = new name("commands");
     g_instances    = new name("instances");
     g_classes      = new name("classes");
     g_coercions    = new name("coercions");
@@ -186,8 +195,6 @@ void initialize_tokens() {
     g_renaming     = new name("renaming");
     g_extends      = new name("extends");
     g_as           = new name("as");
-    g_on           = new name("[on]");
-    g_off          = new name("[off]");
     g_none         = new name("[none]");
     g_whnf         = new name("[whnf]");
     g_wf           = new name("[wf]");
@@ -201,6 +208,7 @@ void initialize_tokens() {
     g_then         = new name("then");
     g_else         = new name("else");
     g_by           = new name("by");
+    g_rewrite      = new name("rewrite");
     g_proof        = new name("proof");
     g_qed          = new name("qed");
     g_begin        = new name("begin");
@@ -219,6 +227,8 @@ void initialize_tokens() {
     g_unfold_c     = new name("[unfold-c");
     g_coercion     = new name("[coercion]");
     g_reducible    = new name("[reducible]");
+    g_quasireducible = new name("[quasireducible]");
+    g_semireducible = new name("[semireducible]");
     g_irreducible  = new name("[irreducible]");
     g_parsing_only = new name("[parsing-only]");
     g_attribute    = new name("attribute");
@@ -280,6 +290,8 @@ void finalize_tokens() {
     delete g_unfold_c;
     delete g_coercion;
     delete g_reducible;
+    delete g_quasireducible;
+    delete g_semireducible;
     delete g_irreducible;
     delete g_multiple_instances;
     delete g_attribute;
@@ -293,6 +305,7 @@ void finalize_tokens() {
     delete g_then;
     delete g_else;
     delete g_by;
+    delete g_rewrite;
     delete g_proof;
     delete g_qed;
     delete g_begin;
@@ -301,6 +314,7 @@ void finalize_tokens() {
     delete g_true;
     delete g_false;
     delete g_options;
+    delete g_commands;
     delete g_instances;
     delete g_classes;
     delete g_coercions;
@@ -312,13 +326,12 @@ void finalize_tokens() {
     delete g_renaming;
     delete g_extends;
     delete g_as;
-    delete g_on;
-    delete g_off;
     delete g_none;
     delete g_whnf;
     delete g_wf;
     delete g_all_transparent;
     delete g_ellipsis;
+    delete g_match;
     delete g_fun;
     delete g_take;
     delete g_assume;
@@ -340,6 +353,7 @@ void finalize_tokens() {
     delete g_plus;
     delete g_star;
     delete g_turnstile;
+    delete g_explicit;
     delete g_comma;
     delete g_bar;
     delete g_langle;
@@ -360,6 +374,7 @@ void finalize_tokens() {
     delete g_rparen;
     delete g_lparen;
     delete g_colon;
+    delete g_semicolon;
     delete g_dcolon;
     delete g_placeholder;
     delete g_period;
@@ -369,6 +384,7 @@ name const & get_metaclasses_tk() { return *g_metaclasses; }
 name const & get_period_tk() { return *g_period; }
 name const & get_placeholder_tk() { return *g_placeholder; }
 name const & get_colon_tk() { return *g_colon; }
+name const & get_semicolon_tk() { return *g_semicolon; }
 name const & get_dcolon_tk() { return *g_dcolon; }
 name const & get_langle_tk() { return *g_langle; }
 name const & get_rangle_tk() { return *g_rangle; }
@@ -399,6 +415,7 @@ name const & get_slash_tk() { return *g_slash; }
 name const & get_star_tk() { return *g_star; }
 name const & get_plus_tk() { return *g_plus; }
 name const & get_turnstile_tk() { return *g_turnstile; }
+name const & get_explicit_tk() { return *g_explicit; }
 name const & get_max_tk() { return *g_max; }
 name const & get_imax_tk() { return *g_imax; }
 name const & get_cup_tk() { return *g_cup; }
@@ -410,11 +427,13 @@ name const & get_assert_tk() { return *g_assert; }
 name const & get_assume_tk() { return *g_assume; }
 name const & get_take_tk() { return *g_take; }
 name const & get_fun_tk() { return *g_fun; }
+name const & get_match_tk() { return *g_match; }
 name const & get_ellipsis_tk() { return *g_ellipsis; }
 name const & get_raw_tk() { return *g_raw; }
 name const & get_true_tk() { return *g_true; }
 name const & get_false_tk() { return *g_false; }
 name const & get_options_tk() { return *g_options; }
+name const & get_commands_tk() { return *g_commands; }
 name const & get_instances_tk() { return *g_instances; }
 name const & get_classes_tk() { return *g_classes; }
 name const & get_coercions_tk() { return *g_coercions; }
@@ -426,8 +445,6 @@ name const & get_exposing_tk() { return *g_exposing; }
 name const & get_renaming_tk() { return *g_renaming; }
 name const & get_extends_tk() { return *g_extends; }
 name const & get_as_tk() { return *g_as; }
-name const & get_on_tk() { return *g_on; }
-name const & get_off_tk() { return *g_off; }
 name const & get_none_tk() { return *g_none; }
 name const & get_whnf_tk() { return *g_whnf; }
 name const & get_wf_tk() { return *g_wf; }
@@ -441,6 +458,7 @@ name const & get_using_tk() { return *g_using; }
 name const & get_then_tk() { return *g_then; }
 name const & get_else_tk() { return *g_else; }
 name const & get_by_tk() { return *g_by; }
+name const & get_rewrite_tk() { return *g_rewrite; }
 name const & get_proof_tk() { return *g_proof; }
 name const & get_qed_tk() { return *g_qed; }
 name const & get_begin_tk() { return *g_begin; }
@@ -459,6 +477,8 @@ name const & get_priority_tk() { return *g_priority; }
 name const & get_unfold_c_tk() { return *g_unfold_c; }
 name const & get_coercion_tk() { return *g_coercion; }
 name const & get_reducible_tk() { return *g_reducible; }
+name const & get_quasireducible_tk() { return *g_quasireducible; }
+name const & get_semireducible_tk() { return *g_semireducible; }
 name const & get_irreducible_tk() { return *g_irreducible; }
 name const & get_multiple_instances_tk() { return *g_multiple_instances; }
 name const & get_attribute_tk() { return *g_attribute; }

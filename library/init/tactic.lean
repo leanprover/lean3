@@ -11,7 +11,7 @@ produces a term.  tactic.builtin is just a "dummy" for creating the
 definitions that are actually implemented in C++
 -/
 prelude
-import init.datatypes init.reserved_notation
+import init.datatypes init.reserved_notation init.num
 
 inductive tactic :
 Type := builtin : tactic
@@ -61,38 +61,32 @@ opaque definition clear      (e : expr)   : tactic := builtin
 opaque definition revert     (e : expr)   : tactic := builtin
 opaque definition unfold     (e : expr)   : tactic := builtin
 opaque definition exact      (e : expr)   : tactic := builtin
+-- rexact is similar to exact, but the goal type is enforced during elaboration
+opaque definition sexact     (e : expr)   : tactic := builtin
 opaque definition trace      (s : string) : tactic := builtin
-opaque definition inversion  (id : expr)  : tactic := builtin
-
-notation a `↦` b:max := rename a b
 
 inductive expr_list : Type :=
 | nil  : expr_list
 | cons : expr → expr_list → expr_list
 
+-- auxiliary type used to mark optional list of arguments
+definition opt_expr_list := expr_list
+
 -- rewrite_tac is just a marker for the builtin 'rewrite' notation
 -- used to create instances of this tactic.
 opaque definition rewrite_tac (e : expr_list) : tactic := builtin
 
-opaque definition inversion_with  (id : expr) (ids : expr_list) : tactic := builtin
-notation `cases` a:max := inversion a
-notation `cases` a:max `with` `(` l:(foldr `,` (h t, expr_list.cons h t) expr_list.nil) `)` := inversion_with a l
+opaque definition cases (id : expr) (ids : opt_expr_list) : tactic := builtin
 
-opaque definition intro_lst (ids : expr_list) : tactic := builtin
-notation `intros`   := intro_lst expr_list.nil
-notation `intros` `(` l:(foldr `,` (h t, expr_list.cons h t) expr_list.nil) `)` := intro_lst l
+opaque definition intros (ids : opt_expr_list) : tactic := builtin
 
-opaque definition generalize_lst (es : expr_list) : tactic := builtin
-notation `generalizes` `(` l:(foldr `,` (h t, expr_list.cons h t) expr_list.nil) `)` := generalize_lst l
+opaque definition generalizes (es : expr_list) : tactic := builtin
 
-opaque definition clear_lst  (ids : expr_list) : tactic := builtin
-notation `clears` `(` l:(foldr `,` (h t, expr_list.cons h t) expr_list.nil) `)` := clear_lst l
+opaque definition clears  (ids : expr_list) : tactic := builtin
 
-opaque definition revert_lst (ids : expr_list) : tactic := builtin
-notation `reverts` `(` l:(foldr `,` (h t, expr_list.cons h t) expr_list.nil) `)` := revert_lst l
+opaque definition reverts (ids : expr_list) : tactic := builtin
 
-opaque definition change_goal (e : expr) : tactic := builtin
-notation `change` e := change_goal e
+opaque definition change (e : expr) : tactic := builtin
 
 opaque definition assert_hypothesis (id : expr) (e : expr) : tactic := builtin
 
@@ -103,5 +97,8 @@ definition try         (t : tactic) : tactic := [t | id]
 definition repeat1     (t : tactic) : tactic := t ; repeat t
 definition focus       (t : tactic) : tactic := focus_at t 0
 definition determ      (t : tactic) : tactic := at_most t 1
+definition trivial                  : tactic := [ apply eq.refl | apply true.intro | assumption ]
+definition do (n : num) (t : tactic) : tactic :=
+nat.rec id (λn t', (t;t')) (nat.of_num n)
 
 end tactic

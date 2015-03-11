@@ -46,7 +46,6 @@ Author: Leonardo de Moura
 #include "frontends/lean/info_manager.h"
 #include "frontends/lean/info_annotation.h"
 #include "frontends/lean/elaborator.h"
-#include "frontends/lean/proof_qed_elaborator.h"
 #include "frontends/lean/calc_proof_elaborator.h"
 #include "frontends/lean/info_tactic.h"
 #include "frontends/lean/begin_end_ext.h"
@@ -287,8 +286,6 @@ expr elaborator::visit_expecting_type_of(expr const & e, expr const & t, constra
         return visit_by(e, some_expr(t), cs);
     } else if (is_calc_annotation(e)) {
         return visit_calc_proof(e, some_expr(t), cs);
-    } else if (is_proof_qed_annotation(e)) {
-        return visit_proof_qed(e, some_expr(t), cs);
     } else {
         return visit(e, cs);
     }
@@ -332,20 +329,6 @@ expr elaborator::visit_calc_proof(expr const & e, optional<expr> const & t, cons
     constraint c                   = mk_calc_proof_cnstr(env(), ios().get_options(),
                                                          m_context, m, ecs.first, ecs.second, m_unifier_config,
                                                          im, m_relax_main_opaque, fn);
-    cs += c;
-    return m;
-}
-
-expr elaborator::visit_proof_qed(expr const & e, optional<expr> const & t, constraint_seq & cs) {
-    lean_assert(is_proof_qed_annotation(e));
-    info_manager * im = nullptr;
-    if (infom())
-        im = &m_pre_info_data;
-    pair<expr, constraint_seq> ecs = visit(get_annotation_arg(e));
-    expr m                         = m_full_context.mk_meta(m_ngen, t, e.get_tag());
-    register_meta(m);
-    constraint c                   = mk_proof_qed_cnstr(env(), m, ecs.first, ecs.second, m_unifier_config,
-                                                        im, m_relax_main_opaque);
     cs += c;
     return m;
 }
@@ -1003,44 +986,48 @@ static expr assign_equation_lhs_metas(type_checker & tc, expr const & eqns) {
         if (!has_metavar(eq)) {
             new_eqs.push_back(eq);
         } else {
-            name x("x");
             buffer<expr> locals;
             name_generator ngen = tc.mk_ngen();
             eq = fun_to_telescope(ngen, eq, locals, optional<binder_info>());
-            lean_assert(num_fns <= locals.size());
-            lean_assert(is_equation(eq));
-            unsigned idx = 1;
-            while (true) {
-                expr lhs = equation_lhs(eq);
-                auto r = find_lhs_meta(tc, lhs);
-                if (r.first == None) {
-                    break;
-                } else if (r.first == Accessible) {
-                    expr const & meta = r.second;
-                    expr meta_type    = tc.infer(meta).first;
-                    expr new_local    = mk_local(tc.mk_fresh_name(), x.append_after(idx), meta_type, binder_info());
-                    for (expr & local : locals)
-                        local = update_mlocal(local, replace_meta(mlocal_type(local), meta, new_local));
-                    eq  = replace_meta(eq, meta, new_local);
-                    unsigned i = num_fns;
-                    for (; i < locals.size(); i++) {
-                        if (depends_on(mlocal_type(locals[i]), new_local))
-                            break;
+            if (is_equation(eq)) {
+                name x("x");
+                lean_assert(num_fns <= locals.size());
+                lean_assert(is_equation(eq));
+                unsigned idx = 1;
+                while (true) {
+                    expr lhs = equation_lhs(eq);
+                    auto r = find_lhs_meta(tc, lhs);
+                    if (r.first == None) {
+                        break;
+                    } else if (r.first == Accessible) {
+                        expr const & meta = r.second;
+                        expr meta_type    = tc.infer(meta).first;
+                        expr new_local    = mk_local(tc.mk_fresh_name(), x.append_after(idx), meta_type, binder_info());
+                        for (expr & local : locals)
+                            local = update_mlocal(local, replace_meta(mlocal_type(local), meta, new_local));
+                        eq  = replace_meta(eq, meta, new_local);
+                        unsigned i = num_fns;
+                        for (; i < locals.size(); i++) {
+                            if (depends_on(mlocal_type(locals[i]), new_local))
+                                break;
+                        }
+                        locals.insert(i, new_local);
+                        idx++;
+                    } else {
+                        lean_assert(r.first == Inaccessible);
+                        throw_elaborator_exception(eqns, [=](formatter const & fmt) {
+                                options o = fmt.get_options().update_if_undef(get_pp_implicit_name(), true);
+                                o = o.update_if_undef(get_pp_notation_option_name(), false);
+                                formatter new_fmt = fmt.update_options(o);
+                                format r("invalid recursive equation, left-hand-side contains meta-variable");
+                                r += format(" (possible solution: provide implicit parameters occurring in left-hand-side explicitly)");
+                                r += pp_indent_expr(new_fmt, lhs);
+                                return r;
+                            });
                     }
-                    locals.insert(i, new_local);
-                    idx++;
-                } else {
-                    lean_assert(r.first == Inaccessible);
-                    throw_elaborator_exception(eqns, [=](formatter const & fmt) {
-                            options o = fmt.get_options().update_if_undef(get_pp_implicit_name(), true);
-                            o = o.update_if_undef(get_pp_notation_option_name(), false);
-                            formatter new_fmt = fmt.update_options(o);
-                            format r("invalid recursive equation, left-hand-side contains meta-variable");
-                            r += format(" (possible solution: provide implicit parameters occurring in left-hand-side explicitly)");
-                            r += pp_indent_expr(new_fmt, lhs);
-                            return r;
-                        });
                 }
+            } else {
+                lean_assert(is_no_equation(eq));
             }
             new_eqs.push_back(Fun(locals, eq));
         }
@@ -1329,8 +1316,6 @@ expr elaborator::visit_core(expr const & e, constraint_seq & cs) {
         return visit_by(e, none_expr(), cs);
     } else if (is_calc_annotation(e)) {
         return visit_calc_proof(e, none_expr(), cs);
-    } else if (is_proof_qed_annotation(e)) {
-        return visit_proof_qed(e, none_expr(), cs);
     } else if (is_no_info(e)) {
         flet<bool> let(m_no_info, true);
         return visit(get_annotation_arg(e), cs);
@@ -1479,12 +1464,14 @@ optional<expr> elaborator::get_pre_tactic_for(expr const & mvar) {
 optional<tactic> elaborator::pre_tactic_to_tactic(expr const & pre_tac) {
     try {
         bool relax = m_relax_main_opaque;
-        auto fn = [=](goal const & g, name_generator const & ngen, expr const & e, bool report_unassigned) {
+        auto fn = [=](goal const & g, name_generator const & ngen, expr const & e, optional<expr> const & expected_type,
+                      bool report_unassigned) {
             elaborator aux_elaborator(m_ctx, ngen);
             // Disable tactic hints when processing expressions nested in tactics.
             // We must do it otherwise, it is easy to make the system loop.
             bool use_tactic_hints = false;
-            return aux_elaborator.elaborate_nested(g.to_context(), e, relax, use_tactic_hints, report_unassigned);
+            return aux_elaborator.elaborate_nested(g.to_context(), expected_type, e,
+                                                   relax, use_tactic_hints, report_unassigned);
         };
         return optional<tactic>(expr_to_tactic(env(), fn, pre_tac, pip()));
     } catch (expr_to_tactic_exception & ex) {
@@ -1586,7 +1573,7 @@ bool elaborator::try_using_begin_end(substitution & subst, expr const & mvar, pr
                 return false;
             ps = proof_state(ps, tail(gs), subst, ngen);
         } else {
-            expr new_ptac = ptac;
+            expr new_ptac = subst.instantiate_all(ptac);
             if (auto tac = pre_tactic_to_tactic(new_ptac)) {
                 try {
                     proof_state_seq seq = (*tac)(env(), ios(), ps);
@@ -1648,7 +1635,7 @@ void elaborator::solve_unassigned_mvar(substitution & subst, expr mvar, name_set
             return;
         }
 
-        if (auto tac = pre_tactic_to_tactic(*pre_tac)) {
+        if (auto tac = pre_tactic_to_tactic(subst.instantiate_all(*pre_tac))) {
             bool show_failure = true;
             try_using(subst, mvar, ps, *pre_tac, *tac, show_failure);
             return;
@@ -1885,14 +1872,18 @@ static expr translate(environment const & env, list<expr> const & ctx, expr cons
 }
 
 /** \brief Elaborate expression \c e in context \c ctx. */
-pair<expr, constraints> elaborator::elaborate_nested(list<expr> const & ctx, expr const & n,
-                                                     bool relax, bool use_tactic_hints, bool report_unassigned) {
+pair<expr, constraints> elaborator::elaborate_nested(list<expr> const & ctx, optional<expr> const & expected_type,
+                                                     expr const & n, bool relax, bool use_tactic_hints,
+                                                     bool report_unassigned) {
     if (infom()) {
         if (auto ps = get_info_tactic_proof_state()) {
             save_proof_state_info(*ps, n);
         }
     }
     expr e = translate(env(), ctx, n);
+    if (expected_type)
+        e = copy_tag(e, mk_typed_expr(mk_as_is(*expected_type), e));
+    m_context.set_ctx(ctx);
     m_context.set_ctx(ctx);
     m_full_context.set_ctx(ctx);
     flet<bool> set_relax(m_relax_main_opaque, relax);

@@ -79,7 +79,7 @@ void init_token_table(token_table & t) {
          {"from", 0}, {"(", g_max_prec}, {")", 0}, {"{", g_max_prec}, {"}", 0}, {"_", g_max_prec},
          {"[", g_max_prec}, {"]", 0}, {"⦃", g_max_prec}, {"⦄", 0}, {".{", 0}, {"Type", g_max_prec},
          {"{|", g_max_prec}, {"|}", 0}, {"⊢", 0}, {"⟨", g_max_prec}, {"⟩", 0}, {"^", 0}, {"↑", 0}, {"▸", 0},
-         {"using", 0}, {"|", 0}, {"!", g_max_prec}, {"?", 0},  {"with", 0}, {"...", 0}, {",", 0},
+         {"using", 0}, {"|", 0}, {"!", g_max_prec}, {"?", 0},  {"with", 0}, {"...", 0}, {",", 0}, {";", 1},
          {".", 0}, {":", 0}, {"::", 0}, {"calc", 0}, {"rewrite", 0}, {"esimp", 0}, {":=", 0}, {"--", 0}, {"#", 0},
          {"(*", 0}, {"/-", 0}, {"begin", g_max_prec}, {"proof", g_max_prec}, {"qed", 0}, {"@", g_max_prec},
          {"sorry", g_max_prec}, {"+", g_plus_prec}, {g_cup, g_cup_prec}, {"->", g_arrow_prec},
@@ -87,10 +87,13 @@ void init_token_table(token_table & t) {
          {"<d", g_decreasing_prec}, {"renaming", 0}, {"extends", 0}, {nullptr, 0}};
 
     char const * commands[] =
-        {"theorem", "axiom", "variable", "protected", "private", "opaque", "definition", "example", "coercion", "abbreviation",
+        {"theorem", "axiom", "variable", "protected", "private", "opaque", "definition", "example", "coercion",
+         "abbreviation",
          "variables", "parameter", "parameters", "constant", "constants", "[persistent]", "[visible]", "[instance]",
-         "[off]", "[on]", "[none]", "[class]", "[coercion]", "[reducible]", "[irreducible]", "[parsing-only]", "[multiple-instances]",
-         "evaluate", "check", "eval", "[wf]", "[whnf]", "[all-transparent]", "[priority", "[unfold-c", "print", "end", "namespace", "section", "prelude",
+         "[none]", "[class]", "[coercion]", "[reducible]", "[irreducible]", "[semireducible]", "[quasireducible]",
+         "[parsing-only]", "[multiple-instances]",
+         "evaluate", "check", "eval", "[wf]", "[whnf]", "[all-transparent]", "[priority", "[unfold-c", "print",
+         "end", "namespace", "section", "prelude", "help",
          "import", "inductive", "record", "structure", "module", "universe", "universes", "local",
          "precedence", "reserve", "infixl", "infixr", "infix", "postfix", "prefix", "notation", "context",
          "exit", "set_option", "open", "export", "calc_subst", "calc_refl", "calc_trans", "calc_symm", "tactic_hint",

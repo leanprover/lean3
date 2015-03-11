@@ -277,22 +277,11 @@ namespace sigma
 
   --this proof is harder than in Coq because we don't have eta definitionally for sigma
   definition sigma_assoc_equiv (C : (Σa, B a) → Type) : (Σa b, C ⟨a, b⟩) ≃ (Σu, C u) :=
-  -- begin
-  --   apply equiv.mk,
-  --   apply (adjointify (λav, ⟨⟨av.1, av.2.1⟩, av.2.2⟩)
-  --                     (λuc, ⟨uc.1.1, uc.1.2, !eta⁻¹ ▹ uc.2⟩)),
-  --     intro uc, apply (destruct uc), intro u,
-  --               apply (destruct u), intros (a, b, c),
-  --               apply idp,
-  --     intro av, apply (destruct av), intros (a, v),
-  --               apply (destruct v), intros (b, c),
-  --               apply idp,
-  -- end
   equiv.mk _ (adjointify
     (λav, ⟨⟨av.1, av.2.1⟩, av.2.2⟩)
     (λuc, ⟨uc.1.1, uc.1.2, !eta⁻¹ ▹ uc.2⟩)
-    proof (λuc, destruct uc (λu, destruct u (λa b c, idp))) qed
-    proof (λav, destruct av (λa v, destruct v (λb c, idp))) qed)
+    begin intro uc; cases uc with (u, c); cases u; apply idp end
+    begin intro av; cases av with (a, v); cases v; apply idp end)
 
   open prod
   definition assoc_equiv_prod (C : (A × A') → Type) : (Σa a', C (a,a')) ≃ (Σu, C u) :=
@@ -344,8 +333,8 @@ namespace sigma
   /- *** The negative universal property. -/
 
   protected definition coind_uncurried (fg : Σ(f : Πa, B a), Πa, C a (f a)) (a : A)
-    : Σ(b : B a), C a b
-  := ⟨fg.1 a, fg.2 a⟩
+    : Σ(b : B a), C a b :=
+  ⟨fg.1 a, fg.2 a⟩
 
   protected definition coind (f : Π a, B a) (g : Π a, C a (f a)) (a : A) : Σ(b : B a), C a b :=
   coind_uncurried ⟨f, g⟩ a
@@ -358,7 +347,7 @@ namespace sigma
                (λ h, proof eq_of_homotopy (λu, !eta) qed)
                (λfg, destruct fg (λ(f : Π (a : A), B a) (g : Π (x : A), C x (f x)), proof idp qed))
 
-  definition equiv_coind : (Σ(f : Πa, B a), Πa, C a (f a)) ≃ (Πa, Σb, C a b) :=
+  definition sigma_pi_equiv_pi_sigma : (Σ(f : Πa, B a), Πa, C a (f a)) ≃ (Πa, Σb, C a b) :=
   equiv.mk coind_uncurried _
   end
 
@@ -368,12 +357,12 @@ namespace sigma
   definition subtype_eq [H : Πa, is_hprop (B a)] (u v : Σa, B a) : u.1 = v.1 → u = v :=
   (sigma_eq_uncurried ∘ (@inv _ _ pr1 (@is_equiv_pr1 _ _ (λp, !is_trunc.is_trunc_eq))))
 
-  definition is_equiv_subtype_eq [instance] [H : Πa, is_hprop (B a)] (u v : Σa, B a)
+  definition is_equiv_subtype_eq [H : Πa, is_hprop (B a)] (u v : Σa, B a)
       : is_equiv (subtype_eq u v) :=
   !is_equiv_compose
+  local attribute is_equiv_subtype_eq [instance]
 
-  definition equiv_subtype [H : Πa, is_hprop (B a)] (u v : Σa, B a) : (u.1 = v.1) ≃ (u = v)
-  :=
+  definition equiv_subtype [H : Πa, is_hprop (B a)] (u v : Σa, B a) : (u.1 = v.1) ≃ (u = v) :=
   equiv.mk !subtype_eq _
 
   /- truncatedness -/
