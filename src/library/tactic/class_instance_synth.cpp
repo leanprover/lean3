@@ -375,11 +375,18 @@ constraint mk_class_instance_root_cnstr(std::shared_ptr<class_instance_context> 
         };
 
         unify_result_seq seq1    = unify(env, 1, &c, ngen, substitution(), new_cfg);
+        unify_result_seq seq2    = filter(seq1, [=](pair<substitution, constraints> const & p) {
+                substitution new_s = p.first;
+                expr result = new_s.instantiate(new_meta);
+                // We only keep complete solutions (modulo universe metavariables)
+                return !has_expr_metavar_relaxed(result);
+            });
+
         if (get_class_unique_class_instances(C->m_ios.get_options())) {
             optional<expr> solution;
             substitution subst;
             constraints  cnstrs;
-            for_each(seq1, [&](pair<substitution, constraints> const & p) {
+            for_each(seq2, [&](pair<substitution, constraints> const & p) {
                     subst  = p.first;
                     cnstrs = p.second;
                     expr next_solution = subst.instantiate(new_meta);
@@ -403,12 +410,6 @@ constraint mk_class_instance_root_cnstr(std::shared_ptr<class_instance_context> 
                 return lazy_list<constraints>(to_cnstrs_fn(subst, cnstrs));
             }
         } else {
-            unify_result_seq seq2      = filter(seq1, [=](pair<substitution, constraints> const & p) {
-                    substitution new_s = p.first;
-                    expr result = new_s.instantiate(new_meta);
-                    // We only keep complete solutions (modulo universe metavariables)
-                    return !has_expr_metavar_relaxed(result);
-                });
             if (try_multiple_instances(env, *cls_name_it)) {
                 lazy_list<constraints> seq3 = map2<constraints>(seq2, [=](pair<substitution, constraints> const & p) {
                         return to_cnstrs_fn(p.first, p.second);
@@ -465,10 +466,16 @@ optional<expr> mk_class_instance(environment const & env, io_state const & ios, 
     new_cfg.m_pattern        = true;
     new_cfg.m_kind           = C->m_conservative ? unifier_kind::VeryConservative : unifier_kind::Liberal;
     try {
-        auto p  = unify(env, 1, &c, C->m_ngen.mk_child(), substitution(), new_cfg).pull();
-        lean_assert(p);
-        substitution s = p->first.first;
-        return some_expr(s.instantiate_all(meta));
+        auto seq = unify(env, 1, &c, C->m_ngen.mk_child(), substitution(), new_cfg);
+        while (true) {
+            auto p = seq.pull();
+            lean_assert(p);
+            substitution s = p->first.first;
+            expr r = s.instantiate_all(meta);
+            if (!has_expr_metavar_relaxed(r))
+                return some_expr(r);
+            seq = p->second;
+        }
     } catch (exception &) {
         return none_expr();
     }

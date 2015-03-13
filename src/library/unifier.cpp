@@ -211,8 +211,7 @@ unify_status unify_simple_core(substitution & s, expr const & lhs, expr const & 
         case occurs_check_status::Maybe:
             return unify_status::Unsupported;
         case occurs_check_status::Ok: {
-            expr v = Fun(args, rhs);
-            s.assign(mlocal_name(*m), v, j);
+            s.assign(*m, args, rhs, j);
             return unify_status::Solved;
         }}
     }
@@ -670,17 +669,17 @@ struct unifier_fn {
     }
 
     /**
-       \brief Assign \c v to metavariable \c m with justification \c j.
-       The type of v and m are inferred, and is_def_eq is invoked.
-       Any constraint that contains \c m is revisited.
+       \brief Given lhs of the form (m args), assign (m args) := rhs with justification j.
+       The type of lhs and rhs are inferred, and is_def_eq is invoked.
+
+       Any other constraint that contains \c m is revisited
 
        \remark If relax is true then opaque definitions from the main module are treated as transparent.
     */
-    bool assign(expr const & m, expr const & v, justification const & j, bool relax,
-                expr const & lhs, expr const & rhs) {
+    bool assign(expr const & lhs, expr const & m, buffer<expr> const & args, expr const & rhs, justification const & j, bool relax) {
         lean_assert(is_metavar(m));
         lean_assert(!in_conflict());
-        m_subst.assign(m, v, j);
+        m_subst.assign(m, args, rhs, j);
         constraint_seq cs;
         auto lhs_type = infer(lhs, relax, cs);
         auto rhs_type = infer(rhs, relax, cs);
@@ -790,7 +789,7 @@ struct unifier_fn {
             return Continue;
         case occurs_check_status::Ok:
             lean_assert(!m_subst.is_assigned(*m));
-            if (assign(*m, Fun(locals, rhs), j, relax, lhs, rhs)) {
+            if (assign(lhs, *m, locals, rhs, j, relax)) {
                 return Solved;
             } else {
                 return Failed;
@@ -867,17 +866,12 @@ struct unifier_fn {
 
     expr instantiate_meta(expr e, justification & j) {
         while (true) {
-            expr const & f = get_app_fn(e);
-            if (!is_metavar(f))
+            if (auto p = m_subst.expand_metavar_app(e)) {
+                e = p->first;
+                j = mk_composite1(j, p->second);
+            } else {
                 return e;
-            name const & f_name = mlocal_name(f);
-            auto f_value = m_subst.get_expr(f_name);
-            if (!f_value)
-                return e;
-            j = mk_composite1(j, m_subst.get_expr_jst(f_name));
-            buffer<expr> args;
-            get_app_rev_args(e, args);
-            e = apply_beta(*f_value, args.size(), args.data());
+            }
         }
     }
 
@@ -1635,7 +1629,7 @@ struct unifier_fn {
             }
         }
 
-        /** \brief Create the local context \c locals for the imitiation step.
+        /** \brief Create the local context \c locals for the imitation step.
          */
         void mk_local_context(buffer<expr> & locals, constraint_seq & cs) {
             expr mtype     = mlocal_type(m);
@@ -1659,7 +1653,7 @@ struct unifier_fn {
             }
         }
 
-        expr mk_imitiation_arg(expr const & arg, expr const & type, buffer<expr> const & locals,
+        expr mk_imitation_arg(expr const & arg, expr const & type, buffer<expr> const & locals,
                                constraint_seq & cs) {
             // The following optimization is broken. It does not really work when we have dependent
             // types. The problem is that the type of arg may depend on other arguments,
@@ -1711,7 +1705,7 @@ struct unifier_fn {
                 for (expr const & rarg : rargs) {
                     f_type      = tc().ensure_pi(f_type, cs);
                     expr d_type = binding_domain(f_type);
-                    expr sarg   = mk_imitiation_arg(rarg, d_type, locals, cs);
+                    expr sarg   = mk_imitation_arg(rarg, d_type, locals, cs);
                     sargs.push_back(sarg);
                     f_type      = instantiate(binding_body(f_type), sarg);
                 }
@@ -1736,7 +1730,7 @@ struct unifier_fn {
            If f is a local constant, then we consider each a_i that is equal to f.
 
            Remark: we try to minimize the number of constraints (?m_i a_1 ... a_k) =?= b_i by detecting "easy" cases
-           that can be solved immediately. See \c mk_imitiation_arg
+           that can be solved immediately. See \c mk_imitation_arg
         */
         void mk_app_imitation() {
             lean_assert(is_metavar(m));
@@ -1785,13 +1779,13 @@ struct unifier_fn {
                 // create a scope to make sure no constraints "leak" into the current state
                 expr rhs_A     = binding_domain(rhs);
                 expr A_type    = tc().infer(rhs_A, cs);
-                expr A         = mk_imitiation_arg(rhs_A, A_type, locals, cs);
+                expr A         = mk_imitation_arg(rhs_A, A_type, locals, cs);
                 expr local     = mk_local(u.m_ngen.next(), binding_name(rhs), A, binding_info(rhs));
                 locals.push_back(local);
                 margs.push_back(local);
                 expr rhs_B     = instantiate(binding_body(rhs), local);
                 expr B_type    = tc().infer(rhs_B, cs);
-                expr B         = mk_imitiation_arg(rhs_B, B_type, locals, cs);
+                expr B         = mk_imitation_arg(rhs_B, B_type, locals, cs);
                 expr binding   = is_pi(rhs) ? Pi(local, B) : Fun(local, B);
                 locals.pop_back();
                 expr v         = Fun(locals, binding);
@@ -2016,12 +2010,10 @@ struct unifier_fn {
             if (mlocal_name(lhs_args[i]) != mlocal_name(rhs_args[i]))
                 break;
         if (i == min_sz) {
-            if (lhs_args.size() == rhs_args.size()) {
-                return assign(ml, mr, c.get_justification(), relax_main_opaque(c), lhs, rhs);
-            } else if (lhs_args.size() < rhs_args.size()) {
-                return assign(mr, Fun(rhs_args, lhs), c.get_justification(), relax_main_opaque(c), rhs, lhs);
+            if (lhs_args.size() >= rhs_args.size()) {
+                return assign(lhs, ml, lhs_args, rhs, c.get_justification(), relax_main_opaque(c));
             } else {
-                return assign(ml, Fun(lhs_args, rhs), c.get_justification(), relax_main_opaque(c), lhs, rhs);
+                return assign(rhs, mr, rhs_args, lhs, c.get_justification(), relax_main_opaque(c));
             }
         } else {
             discard(c);
