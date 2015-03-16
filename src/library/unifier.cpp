@@ -49,11 +49,16 @@ Author: Leonardo de Moura
 #define LEAN_DEFAULT_UNIFIER_CONSERVATIVE false
 #endif
 
+#ifndef LEAN_DEFAULT_UNIFIER_NONCHRONOLOGICAL
+#define LEAN_DEFAULT_UNIFIER_NONCHRONOLOGICAL true
+#endif
+
 namespace lean {
 static name * g_unifier_max_steps               = nullptr;
 static name * g_unifier_computation             = nullptr;
 static name * g_unifier_expensive_classes       = nullptr;
 static name * g_unifier_conservative            = nullptr;
+static name * g_unifier_nonchronological        = nullptr;
 
 unsigned get_unifier_max_steps(options const & opts) {
     return opts.get_unsigned(*g_unifier_max_steps, LEAN_DEFAULT_UNIFIER_MAX_STEPS);
@@ -71,15 +76,19 @@ bool get_unifier_conservative(options const & opts) {
     return opts.get_bool(*g_unifier_conservative, LEAN_DEFAULT_UNIFIER_CONSERVATIVE);
 }
 
+bool get_unifier_nonchronological(options const & opts) {
+    return opts.get_bool(*g_unifier_nonchronological, LEAN_DEFAULT_UNIFIER_NONCHRONOLOGICAL);
+}
+
 unifier_config::unifier_config(bool use_exceptions, bool discard):
     m_use_exceptions(use_exceptions),
     m_max_steps(LEAN_DEFAULT_UNIFIER_MAX_STEPS),
     m_computation(LEAN_DEFAULT_UNIFIER_COMPUTATION),
     m_expensive_classes(LEAN_DEFAULT_UNIFIER_EXPENSIVE_CLASSES),
     m_discard(discard),
-    m_conservative(LEAN_DEFAULT_UNIFIER_CONSERVATIVE) {
+    m_nonchronological(LEAN_DEFAULT_UNIFIER_NONCHRONOLOGICAL) {
+    m_kind    = unifier_kind::Liberal;
     m_pattern = false;
-    m_cheap   = false;
     m_ignore_context_check = false;
 }
 
@@ -89,8 +98,11 @@ unifier_config::unifier_config(options const & o, bool use_exceptions, bool disc
     m_computation(get_unifier_computation(o)),
     m_expensive_classes(get_unifier_expensive_classes(o)),
     m_discard(discard),
-    m_conservative(get_unifier_conservative(o)) {
-    m_cheap   = false;
+    m_nonchronological(get_unifier_nonchronological(o)) {
+    if (get_unifier_conservative(o))
+        m_kind = unifier_kind::Conservative;
+    else
+        m_kind = unifier_kind::Liberal;
     m_pattern = false;
     m_ignore_context_check = false;
 }
@@ -199,8 +211,7 @@ unify_status unify_simple_core(substitution & s, expr const & lhs, expr const & 
         case occurs_check_status::Maybe:
             return unify_status::Unsupported;
         case occurs_check_status::Ok: {
-            expr v = Fun(args, rhs);
-            s.assign(mlocal_name(*m), v, j);
+            s.assign(*m, args, rhs, j);
             return unify_status::Solved;
         }}
     }
@@ -425,21 +436,33 @@ struct unifier_fn {
                unifier_config const & cfg):
         m_env(env), m_ngen(ngen), m_subst(s), m_plugin(get_unifier_plugin(env)),
         m_config(cfg), m_num_steps(0) {
-        if (m_config.m_cheap) {
+        switch (m_config.m_kind) {
+        case unifier_kind::Cheap:
             m_tc[0] = mk_opaque_type_checker(env, m_ngen.mk_child());
             m_tc[1] = m_tc[0];
             m_flex_rigid_tc = m_tc[0];
             m_config.m_computation = false;
-        } else if (m_config.m_conservative) {
-            m_tc[0] = mk_type_checker(env, m_ngen.mk_child(), false, OpaqueIfNotReducibleOn);
+            break;
+        case unifier_kind::VeryConservative:
+            m_tc[0] = mk_type_checker(env, m_ngen.mk_child(), false, UnfoldReducible);
             m_tc[1] = m_tc[0];
             m_flex_rigid_tc = m_tc[0];
             m_config.m_computation = false;
-        } else {
+            break;
+        case unifier_kind::Conservative:
+            m_tc[0] = mk_type_checker(env, m_ngen.mk_child(), false, UnfoldQuasireducible);
+            m_tc[1] = m_tc[0];
+            m_flex_rigid_tc = m_tc[0];
+            m_config.m_computation = false;
+            break;
+        case unifier_kind::Liberal:
             m_tc[0] = mk_type_checker(env, m_ngen.mk_child(), false);
             m_tc[1] = mk_type_checker(env, m_ngen.mk_child(), true);
             if (!cfg.m_computation)
-                m_flex_rigid_tc = mk_type_checker(env, m_ngen.mk_child(), false, OpaqueIfNotReducibleOn);
+                m_flex_rigid_tc = mk_type_checker(env, m_ngen.mk_child(), false, UnfoldQuasireducible);
+            break;
+        default:
+            lean_unreachable();
         }
         m_next_assumption_idx = 0;
         m_next_cidx = 0;
@@ -646,17 +669,17 @@ struct unifier_fn {
     }
 
     /**
-       \brief Assign \c v to metavariable \c m with justification \c j.
-       The type of v and m are inferred, and is_def_eq is invoked.
-       Any constraint that contains \c m is revisited.
+       \brief Given lhs of the form (m args), assign (m args) := rhs with justification j.
+       The type of lhs and rhs are inferred, and is_def_eq is invoked.
+
+       Any other constraint that contains \c m is revisited
 
        \remark If relax is true then opaque definitions from the main module are treated as transparent.
     */
-    bool assign(expr const & m, expr const & v, justification const & j, bool relax,
-                expr const & lhs, expr const & rhs) {
+    bool assign(expr const & lhs, expr const & m, buffer<expr> const & args, expr const & rhs, justification const & j, bool relax) {
         lean_assert(is_metavar(m));
         lean_assert(!in_conflict());
-        m_subst.assign(m, v, j);
+        m_subst.assign(m, args, rhs, j);
         constraint_seq cs;
         auto lhs_type = infer(lhs, relax, cs);
         auto rhs_type = infer(rhs, relax, cs);
@@ -766,7 +789,7 @@ struct unifier_fn {
             return Continue;
         case occurs_check_status::Ok:
             lean_assert(!m_subst.is_assigned(*m));
-            if (assign(*m, Fun(locals, rhs), j, relax, lhs, rhs)) {
+            if (assign(lhs, *m, locals, rhs, j, relax)) {
                 return Solved;
             } else {
                 return Failed;
@@ -843,17 +866,12 @@ struct unifier_fn {
 
     expr instantiate_meta(expr e, justification & j) {
         while (true) {
-            expr const & f = get_app_fn(e);
-            if (!is_metavar(f))
+            if (auto p = m_subst.expand_metavar_app(e)) {
+                e = p->first;
+                j = mk_composite1(j, p->second);
+            } else {
                 return e;
-            name const & f_name = mlocal_name(f);
-            auto f_value = m_subst.get_expr(f_name);
-            if (!f_value)
-                return e;
-            j = mk_composite1(j, m_subst.get_expr_jst(f_name));
-            buffer<expr> args;
-            get_app_rev_args(e, args);
-            e = apply_beta(*f_value, args.size(), args.data());
+            }
         }
     }
 
@@ -1147,7 +1165,7 @@ struct unifier_fn {
         while (!m_case_splits.empty()) {
             justification conflict = *m_conflict;
             std::unique_ptr<case_split> & d = m_case_splits.back();
-            if (depends_on(conflict, d->m_assumption_idx)) {
+            if (!m_config.m_nonchronological || depends_on(conflict, d->m_assumption_idx)) {
                 d->m_failed_justifications = mk_composite1(d->m_failed_justifications, conflict);
                 if (d->next(*this)) {
                     reset_conflict();
@@ -1346,8 +1364,8 @@ struct unifier_fn {
 
         justification a;
         bool relax = relax_main_opaque(c);
-        if (!m_config.m_cheap && !m_config.m_conservative &&
-            (m_config.m_computation || module::is_definition(m_env, d.get_name()) || is_reducible_on(m_env, d.get_name()))) {
+        if (m_config.m_kind == unifier_kind::Liberal &&
+            (m_config.m_computation || module::is_definition(m_env, d.get_name()) || is_at_least_quasireducible(m_env, d.get_name()))) {
             // add case_split for t =?= s
             a = mk_assumption_justification(m_next_assumption_idx);
             add_case_split(std::unique_ptr<case_split>(new delta_unfold_case_split(*this, j, c)));
@@ -1409,7 +1427,7 @@ struct unifier_fn {
 
         optional<bool>        _has_meta_args;
 
-        bool cheap() const { return u.m_config.m_cheap; }
+        bool cheap() const { return u.m_config.m_kind == unifier_kind::Cheap; }
         bool pattern() const { return u.m_config.m_pattern; }
 
         type_checker & tc() {
@@ -1592,39 +1610,6 @@ struct unifier_fn {
             }
         }
 
-        /**
-           \see mk_flex_rigid_app_cnstrs
-           When using "imitation" for solving a constraint
-                ?m l_1 ... l_k =?= f a_1 ... a_n
-           We say argument a_i is "easy" if
-                 1) it is a local constant
-                 2) there is only one l_j equal to a_i.
-                 3) none of the l_j's is of the form (?m ...)
-           In our experiments, the vast majority (> 2/3 of all cases) of the arguments are easy.
-
-           margs contains l_1 ... l_k
-           arg is the argument we are testing
-
-           Result: none if it is not an easy argument, and variable #k-i-1 if it is easy.
-           The variable is the "solution".
-        */
-        optional<expr> is_easy_flex_rigid_arg(expr const & arg) {
-            if (!is_local(arg))
-                return none_expr();
-            optional<expr> v;
-            unsigned num_margs = margs.size();
-            for (unsigned j = 0; j < num_margs; j++) {
-                if (is_meta(margs[j]))
-                    return none_expr();
-                if (is_local(margs[j]) && mlocal_name(arg) == mlocal_name(margs[j])) {
-                    if (v)
-                        return none_expr(); // failed, there is more than one possibility
-                    v = mk_var(num_margs - j - 1);
-                }
-            }
-            return v;
-        }
-
         void mk_app_projections() {
             lean_assert(is_metavar(m));
             lean_assert(is_app(rhs));
@@ -1644,7 +1629,7 @@ struct unifier_fn {
             }
         }
 
-        /** \brief Create the local context \c locals for the imitiation step.
+        /** \brief Create the local context \c locals for the imitation step.
          */
         void mk_local_context(buffer<expr> & locals, constraint_seq & cs) {
             expr mtype     = mlocal_type(m);
@@ -1668,7 +1653,7 @@ struct unifier_fn {
             }
         }
 
-        expr mk_imitiation_arg(expr const & arg, expr const & type, buffer<expr> const & locals,
+        expr mk_imitation_arg(expr const & arg, expr const & type, buffer<expr> const & locals,
                                constraint_seq & cs) {
             // The following optimization is broken. It does not really work when we have dependent
             // types. The problem is that the type of arg may depend on other arguments,
@@ -1720,7 +1705,7 @@ struct unifier_fn {
                 for (expr const & rarg : rargs) {
                     f_type      = tc().ensure_pi(f_type, cs);
                     expr d_type = binding_domain(f_type);
-                    expr sarg   = mk_imitiation_arg(rarg, d_type, locals, cs);
+                    expr sarg   = mk_imitation_arg(rarg, d_type, locals, cs);
                     sargs.push_back(sarg);
                     f_type      = instantiate(binding_body(f_type), sarg);
                 }
@@ -1745,7 +1730,7 @@ struct unifier_fn {
            If f is a local constant, then we consider each a_i that is equal to f.
 
            Remark: we try to minimize the number of constraints (?m_i a_1 ... a_k) =?= b_i by detecting "easy" cases
-           that can be solved immediately. See \c mk_imitiation_arg
+           that can be solved immediately. See \c mk_imitation_arg
         */
         void mk_app_imitation() {
             lean_assert(is_metavar(m));
@@ -1794,13 +1779,13 @@ struct unifier_fn {
                 // create a scope to make sure no constraints "leak" into the current state
                 expr rhs_A     = binding_domain(rhs);
                 expr A_type    = tc().infer(rhs_A, cs);
-                expr A         = mk_imitiation_arg(rhs_A, A_type, locals, cs);
+                expr A         = mk_imitation_arg(rhs_A, A_type, locals, cs);
                 expr local     = mk_local(u.m_ngen.next(), binding_name(rhs), A, binding_info(rhs));
                 locals.push_back(local);
                 margs.push_back(local);
                 expr rhs_B     = instantiate(binding_body(rhs), local);
                 expr B_type    = tc().infer(rhs_B, cs);
-                expr B         = mk_imitiation_arg(rhs_B, B_type, locals, cs);
+                expr B         = mk_imitation_arg(rhs_B, B_type, locals, cs);
                 expr binding   = is_pi(rhs) ? Pi(local, B) : Fun(local, B);
                 locals.pop_back();
                 expr v         = Fun(locals, binding);
@@ -1855,8 +1840,6 @@ struct unifier_fn {
 
         \remark We store auxiliary constraints created in the reductions in \c aux. We return the new
         "reduce" application.
-
-        \remark We need this step because of the optimization based on is_easy_flex_rigid_arg
     */
     expr expose_local_args(expr const & lhs, justification const & j, bool relax, buffer<constraint> & aux) {
         buffer<expr> margs;
@@ -1864,7 +1847,6 @@ struct unifier_fn {
         bool modified = false;
         for (expr & marg : margs) {
             // Make sure that if marg is reducible to a local constant, then it is replaced with it.
-            // We need that because of the optimization based on is_easy_flex_rigid_arg
             if (!is_local(marg)) {
                 expr new_marg = whnf(marg, j, relax, aux);
                 if (is_local(new_marg)) {
@@ -1898,7 +1880,7 @@ struct unifier_fn {
     */
     bool use_flex_rigid_whnf_split(expr const & lhs, expr const & rhs) {
         lean_assert(is_meta(lhs));
-        if (m_config.m_cheap || m_config.m_conservative)
+        if (m_config.m_kind != unifier_kind::Liberal)
             return false;
         if (m_config.m_computation)
             return true; // if unifier.computation is true, we always consider the additional whnf split
@@ -2028,12 +2010,10 @@ struct unifier_fn {
             if (mlocal_name(lhs_args[i]) != mlocal_name(rhs_args[i]))
                 break;
         if (i == min_sz) {
-            if (lhs_args.size() == rhs_args.size()) {
-                return assign(ml, mr, c.get_justification(), relax_main_opaque(c), lhs, rhs);
-            } else if (lhs_args.size() < rhs_args.size()) {
-                return assign(mr, Fun(rhs_args, lhs), c.get_justification(), relax_main_opaque(c), rhs, lhs);
+            if (lhs_args.size() >= rhs_args.size()) {
+                return assign(lhs, ml, lhs_args, rhs, c.get_justification(), relax_main_opaque(c));
             } else {
-                return assign(ml, Fun(lhs_args, rhs), c.get_justification(), relax_main_opaque(c), lhs, rhs);
+                return assign(rhs, mr, rhs_args, lhs, c.get_justification(), relax_main_opaque(c));
             }
         } else {
             discard(c);
@@ -2539,6 +2519,7 @@ void initialize_unifier() {
     g_unifier_computation       = new name{"unifier", "computation"};
     g_unifier_expensive_classes = new name{"unifier", "expensive_classes"};
     g_unifier_conservative      = new name{"unifier", "conservative"};
+    g_unifier_nonchronological  = new name{"unifier", "nonchronological"};
 
     register_unsigned_option(*g_unifier_max_steps, LEAN_DEFAULT_UNIFIER_MAX_STEPS, "(unifier) maximum number of steps");
     register_bool_option(*g_unifier_computation, LEAN_DEFAULT_UNIFIER_COMPUTATION,
@@ -2547,6 +2528,8 @@ void initialize_unifier() {
                          "(unifier) use \"full\" higher-order unification when solving class instances");
     register_bool_option(*g_unifier_conservative, LEAN_DEFAULT_UNIFIER_CONSERVATIVE,
                          "(unifier) unfolds only constants marked as reducible, avoid expensive case-splits (it is faster but less complete)");
+    register_bool_option(*g_unifier_nonchronological, LEAN_DEFAULT_UNIFIER_NONCHRONOLOGICAL,
+                         "(unifier) enable/disable nonchronological backtracking in the unifier (this option is only available for debugging and benchmarking purposes, and running experiments)");
 
     g_dont_care_cnstr = new constraint(mk_eq_cnstr(expr(), expr(), justification(), false));
     g_tmp_prefix      = new name(name::mk_internal_unique_name());
@@ -2559,5 +2542,6 @@ void finalize_unifier() {
     delete g_unifier_computation;
     delete g_unifier_expensive_classes;
     delete g_unifier_conservative;
+    delete g_unifier_nonchronological;
 }
 }

@@ -35,9 +35,8 @@ tactic revert_tactic(name const & n) {
             expr new_type = Pi(h, g.get_type());
             expr new_meta = mk_app(mk_metavar(ngen.next(), Pi(hyps, new_type)), hyps);
             goal new_g(new_meta, new_type);
-            expr val      = g.abstract(mk_app(new_meta, h));
             substitution new_subst = s.get_subst();
-            new_subst.assign(g.get_name(), val);
+            assign(new_subst, g, mk_app(new_meta, h));
             proof_state new_s(s, goals(new_g, tail_gs), new_subst, ngen);
             return some_proof_state(new_s);
         } else {
@@ -55,7 +54,7 @@ void initialize_revert_tactic() {
                      return revert_tactic(n);
                  });
 
-    register_tac(get_tactic_revert_lst_name(),
+    register_tac(get_tactic_reverts_name(),
                  [](type_checker &, elaborate_fn const &, expr const & e, pos_info_provider const *) {
                      buffer<name> ns;
                      get_tactic_id_list_elements(app_arg(e), ns, "invalid 'reverts' tactic, list of identifiers expected");

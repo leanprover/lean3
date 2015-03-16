@@ -18,7 +18,7 @@
     "infix" "infixl" "infixr" "notation" "eval" "check" "exit" "coercion" "end"
     "using" "namespace" "section" "fields" "find_decl"
     "attribute" "local" "set_option" "add_rewrite" "extends" "include" "omit" "classes"
-    "instances" "coercions" "metaclasses" "raw")
+    "instances" "coercions" "metaclasses" "raw" "migrate" "replacing")
   "lean keywords")
 
 (defconst lean-syntax-table
@@ -118,8 +118,8 @@
      (,(rx symbol-start "_" symbol-end) . 'font-lock-preprocessor-face)
      ;; modifiers
      (,(rx (or "\[persistent\]" "\[notation\]" "\[visible\]" "\[instance\]" "\[class\]" "\[parsing-only\]"
-               "\[coercion\]" "\[reducible\]" "\[irreducible\]" "\[semireducible\]" "\[wf\]"
-               "\[whnf\]" "\[multiple-instances\]"
+               "\[coercion\]" "\[reducible\]" "\[irreducible\]" "\[semireducible\]" "\[quasireducible\]" "\[wf\]"
+               "\[whnf\]" "\[multiple-instances\]" "\[none\]"
                "\[decls\]" "\[declarations\]" "\[all-transparent\]" "\[coercions\]" "\[classes\]"
                "\[notations\]" "\[abbreviations\]" "\[begin-end-hints\]" "\[tactic-hints\]" "\[reduce-hints\]"))
       . 'font-lock-doc-face)

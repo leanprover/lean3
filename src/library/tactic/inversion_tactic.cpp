@@ -9,6 +9,7 @@ Author: Leonardo de Moura
 #include "kernel/abstract.h"
 #include "kernel/instantiate.h"
 #include "kernel/inductive/inductive.h"
+#include "kernel/error_msgs.h"
 #include "library/io_state_stream.h"
 #include "library/locals.h"
 #include "library/util.h"
@@ -18,6 +19,7 @@ Author: Leonardo de Moura
 #include "library/tactic/expr_to_tactic.h"
 #include "library/tactic/class_instance_synth.h"
 #include "library/tactic/inversion_tactic.h"
+#include "library/tactic/clear_tactic.h"
 
 namespace lean {
 namespace inversion {
@@ -112,6 +114,8 @@ class inversion_tac {
     declaration                   m_I_decl;
     declaration                   m_cases_on_decl;
 
+    bool                          m_throw_tactic_exception; // if true, then throw tactic_exception in case of failure, instead of returning none
+
     expr whnf(expr const & e) { return m_tc.whnf(e).first; }
     expr infer_type(expr const & e) { return m_tc.infer(e).first; }
 
@@ -158,14 +162,15 @@ class inversion_tac {
         }
     }
 
-    void assign(name const & n, expr const & val) {
-        m_subst.assign(n, val);
+    void assign(goal const & g, expr const & val) {
+        ::lean::assign(m_subst, g, val);
     }
 
     /** \brief We say h has independent indices IF
         1- it is *not* an indexed inductive family, OR
         2- it is an indexed inductive family, but all indices are distinct local constants,
         and all hypotheses of g different from h and indices, do not depend on the indices.
+        3- if not m_dep_elim, then the conclusion does not depend on the indices.
     */
     bool has_indep_indices(goal const & g, expr const & h, expr const & h_type) {
         if (m_nindices == 0)
@@ -182,12 +187,18 @@ class inversion_tac {
                     return false; // the indices must be distinct local constants
             }
         }
+        if (!m_dep_elim) {
+            expr const & g_type = g.get_type();
+            if (std::any_of(args.end() - m_nindices, args.end(), [&](expr const & arg) { return depends_on(g_type, arg); }))
+                return false;
+        }
         buffer<expr> hyps;
         g.get_hyps(hyps);
         for (expr const & h1 : hyps) {
             if (mlocal_name(h1) == mlocal_name(h))
                 continue;
-            if (std::any_of(args.end() - m_nindices, args.end(), [&](expr const & arg) { return mlocal_name(arg) == mlocal_name(h1); }))
+            if (std::any_of(args.end() - m_nindices, args.end(),
+                            [&](expr const & arg) { return mlocal_name(arg) == mlocal_name(h1); }))
                 continue;
             // h1 is not h nor any of the indices
             // Thus, it must not depend on the indices
@@ -275,9 +286,9 @@ class inversion_tac {
             expr new_type = Pi(eqs, g.get_type());
             expr new_meta = mk_app(mk_metavar(m_ngen.next(), Pi(hyps, new_type)), hyps);
             goal new_g(new_meta, new_type);
-            expr val      = g.abstract(mk_app(mk_app(mk_app(Fun(ts, Fun(h_new, new_meta)), m_nindices, I_args.end() - m_nindices), h),
-                                              refls));
-            assign(g.get_name(), val);
+            expr val      = mk_app(mk_app(mk_app(Fun(ts, Fun(h_new, new_meta)), m_nindices, I_args.end() - m_nindices), h),
+                                   refls);
+            assign(g, val);
             return new_g;
         } else {
             // proof relevant version
@@ -305,9 +316,9 @@ class inversion_tac {
             expr new_type = Pi(eqs, g.get_type());
             expr new_meta = mk_app(mk_metavar(m_ngen.next(), Pi(hyps, new_type)), hyps);
             goal new_g(new_meta, new_type);
-            expr val      = g.abstract(mk_app(mk_app(mk_app(Fun(ts, Fun(h_new, new_meta)), m_nindices, I_args.end() - m_nindices), h),
-                                              refls));
-            assign(g.get_name(), val);
+            expr val      = mk_app(mk_app(mk_app(Fun(ts, Fun(h_new, new_meta)), m_nindices, I_args.end() - m_nindices), h),
+                                   refls);
+            assign(g, val);
             return new_g;
         }
     }
@@ -329,8 +340,8 @@ class inversion_tac {
         expr new_type = Pi(deps, g.get_type());
         expr new_meta = mk_app(mk_metavar(m_ngen.next(), Pi(new_hyps, new_type)), new_hyps);
         goal new_g(new_meta, new_type);
-        expr val      = g.abstract(mk_app(new_meta, deps));
-        assign(g.get_name(), val);
+        expr val      = mk_app(new_meta, deps);
+        assign(g, val);
         return new_g;
     }
 
@@ -409,8 +420,7 @@ class inversion_tac {
             name const & intro_name = intro_names[i];
             new_imps.push_back(filter(imps, [&](implementation_ptr const & imp) { return imp->get_constructor_name() == intro_name; }));
         }
-        expr val        = g.abstract(cases_on);
-        assign(g.get_name(), val);
+        assign(g, cases_on);
         return mk_pair(to_list(new_goals), to_list(new_imps));
     }
 
@@ -473,28 +483,49 @@ class inversion_tac {
             expr new_meta = mk_app(mk_metavar(m_ngen.next(), Pi(new_hyps, g_type)), new_hyps);
             goal new_g(new_meta, g_type);
             new_gs.push_back(new_g);
-            expr val      = g.abstract(Fun(nargs, new_hyps.end() - nargs, new_meta));
-            assign(g.get_name(), val);
+            expr val      = Fun(nargs, new_hyps.end() - nargs, new_meta);
+            assign(g, val);
             gs = tail(gs);
         }
         return mk_pair(to_list(new_gs), to_list(new_args));
     }
 
-    struct inversion_exception : public exception {
-        inversion_exception(char const * msg):exception(msg) {}
-        inversion_exception(sstream const & strm):exception(strm) {}
-    };
+    // auxiliary exception used to interrupt execution
+    struct inversion_exception {};
 
     [[ noreturn ]] void throw_ill_formed_goal() {
-        throw inversion_exception("ill-formed goal");
+        if (m_throw_tactic_exception)
+            throw tactic_exception("invalid 'cases' tactic, ill-formed goal");
+        else
+            throw inversion_exception();
     }
 
     [[ noreturn ]] void throw_ill_typed_goal() {
-        throw inversion_exception("ill-typed goal");
+        if (m_throw_tactic_exception)
+            throw tactic_exception("invalid 'cases' tactic, ill-typed goal");
+        else
+            throw inversion_exception();
     }
 
-    void throw_unification_eq_rec_failure() {
-        throw inversion_exception("unification failed to eliminate eq.rec in homogeneous equality");
+    void throw_lift_down_failure() {
+        if (m_throw_tactic_exception)
+            throw tactic_exception("invalid 'cases' tactic, lift.down failed");
+        else
+            throw inversion_exception();
+    }
+
+    void throw_unification_eq_rec_failure(goal const & g, expr const & eq) {
+        if (m_throw_tactic_exception) {
+            throw tactic_exception([=](formatter const & fmt) {
+                    format r("invalid 'cases' tactic, unification failed to eliminate eq.rec in the homogeneous equality");
+                    r += pp_indent_expr(fmt, eq);
+                    r += compose(line(), format("auxiliary goal at time of failure"));
+                    r += nest(get_pp_indent(fmt.get_options()), compose(line(), g.pp(fmt)));
+                    return r;
+                });
+        } else {
+            throw inversion_exception();
+        }
     }
 
     /** \brief Process goal of the form:  Pi (H : eq.rec A s C a s p = b), R
@@ -516,8 +547,9 @@ class inversion_tac {
         // lhs is of the form  (eq.rec A s C a s p)
         // aux_eq is a term of type ((eq.rec A s C a s p) = a)
         auto aux_eq = apply_eq_rec_eq(m_tc, m_ios, to_list(hyps), lhs);
-        if (!aux_eq)
-            throw_unification_eq_rec_failure();
+        if (!aux_eq || has_expr_metavar_relaxed(*aux_eq)) {
+            throw_unification_eq_rec_failure(g, eq);
+        }
         buffer<expr> lhs_args;
         get_app_args(lhs, lhs_args);
         expr const & reduced_lhs = lhs_args[3];
@@ -533,8 +565,8 @@ class inversion_tac {
         // aux_eq : a = eq.rec A s C a s p
         expr trans_eq    = mk_app({mk_constant(get_eq_trans_name(), {lvl}), A, reduced_lhs, lhs, rhs, *aux_eq, old_eq});
         // trans_eq : a = b
-        expr val         = g.abstract(Fun(old_eq, mk_app(new_meta, trans_eq)));
-        assign(g.get_name(), val);
+        expr val         = Fun(old_eq, mk_app(new_meta, trans_eq));
+        assign(g, val);
         return intro_next_eq(new_g);
     }
 
@@ -565,11 +597,15 @@ class inversion_tac {
             hyps.pop_back();
             expr H        = mk_local(m_ngen.next(), g.get_unused_name(binding_name(type)), binding_domain(type), binder_info());
             expr to_eq    = mk_app(mk_constant(get_heq_to_eq_name(), const_levels(heq_fn)), args[0], args[1], args[3], H);
-            expr val      = g.abstract(Fun(H, mk_app(mk_app(new_mvar, hyps), to_eq)));
-            assign(g.get_name(), val);
+            expr val      = Fun(H, mk_app(mk_app(new_mvar, hyps), to_eq));
+            assign(g, val);
             return new_g;
         } else {
-            throw inversion_exception("unification failed to reduce heterogeneous equality into homogeneous one");
+            if (m_throw_tactic_exception) {
+                throw tactic_exception("invalid 'cases' tactic, unification failed to reduce heterogeneous equality into homogeneous one");
+            } else {
+                throw inversion_exception();
+            }
         }
     }
 
@@ -589,8 +625,8 @@ class inversion_tac {
         hyps.push_back(new_hyp);
         expr new_meta = mk_app(mk_metavar(m_ngen.next(), Pi(hyps, new_type)), hyps);
         goal new_g(new_meta, new_type);
-        expr val      = g.abstract(Fun(new_hyp, new_meta));
-        assign(g.get_name(), val);
+        expr val      = Fun(new_hyp, new_meta);
+        assign(g, val);
         return new_g;
     }
 
@@ -630,11 +666,13 @@ class inversion_tac {
     expr lift_down(expr const & v) {
         if (!m_proof_irrel) {
             expr v_type       = whnf(infer_type(v));
-            if (!is_app(v_type))
-                throw_unification_eq_rec_failure();
+            if (!is_app(v_type)) {
+                throw_lift_down_failure();
+            }
             expr const & lift = app_fn(v_type);
-            if (!is_constant(lift) || const_name(lift) != get_lift_name())
-                throw_unification_eq_rec_failure();
+            if (!is_constant(lift) || const_name(lift) != get_lift_name()) {
+                throw_lift_down_failure();
+            }
             return mk_app(mk_constant(get_lift_down_name(), const_levels(lift)), app_arg(v_type), v);
         } else {
             return v;
@@ -683,8 +721,7 @@ class inversion_tac {
             expr new_type = g.get_type();
             expr new_meta = mk_app(mk_metavar(m_ngen.next(), Pi(hyps, new_type)), hyps);
             goal new_g(new_meta, new_type);
-            expr val      = g.abstract(new_meta);
-            assign(g.get_name(), val);
+            assign(g, new_meta);
             return unify_eqs(new_g, neqs-1);
         }
         buffer<expr> lhs_args, rhs_args;
@@ -701,26 +738,30 @@ class inversion_tac {
             if (!is_constant(A_fn) || !inductive::is_inductive_decl(m_env, const_name(A_fn)))
                 throw_ill_typed_goal();
             name no_confusion_name(const_name(A_fn), "no_confusion");
-            if (!m_env.find(no_confusion_name))
-                throw inversion_exception(sstream() << "construction '" << no_confusion_name << "' is not available in the environment");
+            if (!m_env.find(no_confusion_name)) {
+                if (m_throw_tactic_exception)
+                    throw tactic_exception(sstream() << "invalid 'cases' tactic, construction '" << no_confusion_name << "' is not available in the environment");
+                else
+                    throw inversion_exception();
+            }
             expr no_confusion = mk_app(mk_app(mk_constant(no_confusion_name, cons(g_lvl, const_levels(A_fn))), A_args), g_type, lhs, rhs, eq);
             if (const_name(lhs_fn) == const_name(rhs_fn)) {
                 // injectivity transition
                 expr new_type = binding_domain(whnf(infer_type(no_confusion)));
-                if (m_proof_irrel)
+                if (m_proof_irrel || !depends_on(g_type, hyps.back()))
                     hyps.pop_back(); // remove processed equality
                 expr new_mvar = mk_metavar(m_ngen.next(), Pi(hyps, new_type));
                 expr new_meta = mk_app(new_mvar, hyps);
                 goal new_g(new_meta, new_type);
-                expr val      = g.abstract(lift_down(mk_app(no_confusion, new_meta)));
-                assign(g.get_name(), val);
+                expr val      = lift_down(mk_app(no_confusion, new_meta));
+                assign(g, val);
                 unsigned A_nparams = *inductive::get_num_params(m_env, const_name(A_fn));
                 lean_assert(lhs_args.size() >= A_nparams);
                 return unify_eqs(new_g, neqs - 1 + lhs_args.size() - A_nparams);
             } else {
                 // conflict transition, eq is of the form c_1 ... = c_2 ..., where c_1 and c_2 are different constructors/intro rules.
-                expr val      = g.abstract(lift_down(no_confusion));
-                assign(g.get_name(), val);
+                expr val      = lift_down(no_confusion);
+                assign(g, val);
                 return optional<goal>(); // goal has been solved
             }
         }
@@ -755,8 +796,7 @@ class inversion_tac {
                 expr new_mvar           = mk_metavar(m_ngen.next(), Pi(new_hyps, new_type));
                 expr new_meta           = mk_app(new_mvar, new_hyps);
                 goal new_g(new_meta, new_type);
-                expr val                = g.abstract(new_meta);
-                assign(g.get_name(), val);
+                assign(g, new_meta);
                 return unify_eqs(new_g, neqs-1);
             } else {
                 expr deps_g_type    = Pi(deps, g_type);
@@ -794,13 +834,13 @@ class inversion_tac {
                 goal new_g(new_meta, new_type);
                 expr eq_rec_minor   = mk_app(new_mvar, non_deps);
                 eq_rec              = mk_app(eq_rec, eq_rec_minor, rhs, eq);
-                expr val            = g.abstract(mk_app(eq_rec, deps));
-                assign(g.get_name(), val);
+                expr val            = mk_app(eq_rec, deps);
+                assign(g, val);
                 return unify_eqs(new_g, neqs-1);
             }
         } else if (is_local(lhs)) {
             // flip equation and reduce to previous case
-            if (m_proof_irrel)
+            if (m_proof_irrel || !depends_on(g_type, hyps.back()))
                 hyps.pop_back(); // remove processed equality
             expr symm_eq   = mk_eq(rhs, lhs).first;
             expr new_type  = mk_arrow(symm_eq, g_type);
@@ -810,11 +850,20 @@ class inversion_tac {
             level eq_symm_lvl = sort_level(m_tc.ensure_type(A).first);
             expr symm_pr  = mk_constant(get_eq_symm_name(), {eq_symm_lvl});
             symm_pr       = mk_app(symm_pr, A, lhs, rhs, eq);
-            expr val      = g.abstract(mk_app(new_meta, symm_pr));
-            assign(g.get_name(), val);
+            expr val      = mk_app(new_meta, symm_pr);
+            assign(g, val);
             return unify_eqs(new_g, neqs);
         }
-        throw inversion_exception("unification failed");
+        if (m_throw_tactic_exception) {
+            throw tactic_exception([=](formatter const & fmt) {
+                    format r("invalid 'cases' tactic, unification failed");
+                    r += compose(line(), format("auxiliary goal at time of failure"));
+                    r += nest(get_pp_indent(fmt.get_options()), compose(line(), g.pp(fmt)));
+                    return r;
+                });
+        } else {
+            throw inversion_exception();
+        }
     }
 
     auto unify_eqs(list<goal> const & gs, list<list<expr>> args, list<implementation_list> imps) ->
@@ -860,8 +909,8 @@ class inversion_tac {
         expr new_meta  = mk_app(mk_metavar(m_ngen.next(), Pi(new_hyps, g_type)), new_hyps);
         goal new_g(new_meta, g_type);
         unsigned ndeps = deps.size();
-        expr val       = g.abstract(Fun(ndeps, new_hyps.end() - ndeps, new_meta));
-        assign(g.get_name(), val);
+        expr val       = Fun(ndeps, new_hyps.end() - ndeps, new_meta);
+        assign(g, val);
         return mk_pair(new_g, rs);
     }
 
@@ -876,16 +925,76 @@ class inversion_tac {
         return mk_pair(to_list(new_goals), to_list(new_rs));
     }
 
+    goal clear_hypothesis(goal const & g, name const & h) {
+        if (auto p = g.find_hyp_from_internal_name(h)) {
+            expr const & h = p->first;
+            unsigned i     = p->second;
+            buffer<expr> hyps;
+            g.get_hyps(hyps);
+            hyps.erase(hyps.size() - i - 1);
+            if (depends_on(g.get_type(), h) || depends_on(i, hyps.end() - i, h)) {
+                return g; // other hypotheses or result type depend on h
+            }
+            expr new_type = g.get_type();
+            expr new_meta = mk_app(mk_metavar(m_ngen.next(), Pi(hyps, new_type)), hyps);
+            goal new_g(new_meta, new_type);
+            assign(g, new_meta);
+            return new_g;
+        } else {
+            return g;
+        }
+    }
+
+    // Remove hypothesis of the form (H : a = a)
+    goal remove_eq_refl_hypotheses(goal g) {
+        buffer<name> to_remove;
+        buffer<expr> hyps;
+        g.get_hyps(hyps);
+        for (expr const & h : hyps) {
+            expr const & h_type = mlocal_type(h);
+            if (!is_eq(h_type))
+                continue;
+            expr const & lhs = app_arg(app_fn(h_type));
+            expr const & rhs = app_arg(h_type);
+            if (lhs == rhs)
+                to_remove.push_back(mlocal_name(h));
+        }
+        for (name const & h : to_remove) {
+            g = clear_hypothesis(g, h);
+        }
+        return g;
+    }
+
+    list<goal> clear_hypothesis(list<goal> const & gs, list<rename_map> rs, name const & h_name, expr const & h_type) {
+        buffer<goal> new_gs;
+        optional<name> lhs_name; // If h_type is of the form lhs = rhs, and lhs is also a hypothesis, then we also remove it.
+        if (is_eq(h_type) && is_local(app_arg(app_fn(h_type)))) {
+            lhs_name = mlocal_name(app_arg(app_fn(h_type)));
+        }
+        for (goal const & g : gs) {
+            rename_map const & m = head(rs);
+            goal new_g = clear_hypothesis(g, m.find(h_name));
+            if (lhs_name)
+                new_g = clear_hypothesis(new_g, *lhs_name);
+            if (!m_proof_irrel)
+                new_g = remove_eq_refl_hypotheses(new_g);
+            new_gs.push_back(new_g);
+            rs = tail(rs);
+        }
+        return to_list(new_gs);
+    }
+
 public:
     inversion_tac(environment const & env, io_state const & ios, name_generator const & ngen,
-                  type_checker & tc, substitution const & subst, list<name> const & ids):
+                  type_checker & tc, substitution const & subst, list<name> const & ids,
+                  bool throw_tactic_ex):
         m_env(env), m_ios(ios), m_tc(tc), m_ids(ids),
-        m_ngen(ngen), m_subst(subst) {
+        m_ngen(ngen), m_subst(subst), m_throw_tactic_exception(throw_tactic_ex) {
         m_proof_irrel = m_env.prop_proof_irrel();
     }
 
     inversion_tac(environment const & env, io_state const & ios, type_checker & tc):
-        inversion_tac(env, ios, tc.mk_ngen(), tc, substitution(), list<name>()) {}
+        inversion_tac(env, ios, tc.mk_ngen(), tc, substitution(), list<name>(), false) {}
 
     typedef inversion::result result;
 
@@ -918,6 +1027,7 @@ public:
                 list<goal> gs4;
                 list<rename_map> rs;
                 std::tie(gs4, args, new_imps, rs)   = unify_eqs(gs3, args, new_imps);
+                gs4 = clear_hypothesis(gs4, rs, mlocal_name(h), h_type);
                 return optional<result>(result(gs4, args, new_imps, rs, m_ngen, m_subst));
             }
         } catch (inversion_exception & ex) {
@@ -927,8 +1037,11 @@ public:
 
     optional<result> execute(goal const & g, name const & n, implementation_list const & imps) {
         auto p         = g.find_hyp(n);
-        if (!p)
+        if (!p) {
+            if (m_throw_tactic_exception)
+                throw tactic_exception(sstream() << "invalid 'cases' tactic, unknown hypothesis '" << n << "'");
             return optional<result>();
+        }
         expr const & h = p->first;
         return execute(g, h, imps);
     }
@@ -950,7 +1063,7 @@ tactic inversion_tactic(name const & n, list<name> const & ids) {
         goals tail_gs     = tail(gs);
         name_generator ngen              = ps.get_ngen();
         std::unique_ptr<type_checker> tc = mk_type_checker(env, ngen.mk_child(), ps.relax_main_opaque());
-        inversion_tac tac(env, ios, ngen, *tc, ps.get_subst(), ids);
+        inversion_tac tac(env, ios, ngen, *tc, ps.get_subst(), ids, ps.report_failure());
         if (auto res = tac.execute(g, n, implementation_list())) {
             proof_state new_s(ps, append(res->m_goals, tail_gs), res->m_subst, res->m_ngen);
             return some_proof_state(new_s);
@@ -962,16 +1075,11 @@ tactic inversion_tactic(name const & n, list<name> const & ids) {
 }
 
 void initialize_inversion_tactic() {
-    register_tac(get_tactic_inversion_name(),
+    register_tac(get_tactic_cases_name(),
                  [](type_checker &, elaborate_fn const &, expr const & e, pos_info_provider const *) {
-                     name n = tactic_expr_to_id(app_arg(e), "invalid 'inversion/cases' tactic, argument must be an identifier");
-                     return inversion_tactic(n, list<name>());
-                 });
-    register_tac(get_tactic_inversion_with_name(),
-                 [](type_checker &, elaborate_fn const &, expr const & e, pos_info_provider const *) {
-                     name n = tactic_expr_to_id(app_arg(app_fn(e)), "invalid 'cases-with' tactic, argument must be an identifier");
+                     name n = tactic_expr_to_id(app_arg(app_fn(e)), "invalid 'cases' tactic, argument must be an identifier");
                      buffer<name> ids;
-                     get_tactic_id_list_elements(app_arg(e), ids, "invalid 'cases-with' tactic, list of identifiers expected");
+                     get_tactic_id_list_elements(app_arg(e), ids, "invalid 'cases' tactic, list of identifiers expected");
                      return inversion_tactic(n, to_list(ids.begin(), ids.end()));
                  });
 }

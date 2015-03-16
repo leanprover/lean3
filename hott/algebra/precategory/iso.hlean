@@ -22,6 +22,8 @@ namespace iso
     (left_inverse  : inverse ∘ f = id)
     (right_inverse : f ∘ inverse = id)
 
+  attribute is_iso.inverse [quasireducible]
+
   attribute is_iso [multiple-instances]
   open split_mono split_epi is_iso
   definition retraction_of [reducible] := @split_mono.retraction_of
@@ -33,7 +35,7 @@ namespace iso
   definition right_inverse [reducible] := @is_iso.right_inverse
   postfix `⁻¹` := inverse
   --a second notation for the inverse, which is not overloaded
-  postfix [parsing-only] `⁻¹ʰ`:std.prec.max_plus := inverse
+  postfix [parsing-only] `⁻¹ʰ`:std.prec.max_plus := inverse -- input using \-1h
 
   variables {ob : Type} [C : precategory ob]
   variables {a b c : ob} {g : b ⟶ c} {f : a ⟶ b} {h : b ⟶ a}
@@ -80,7 +82,8 @@ namespace iso
   definition inverse_unique (H H' : is_iso f) : @inverse _ _ _ _ f H = @inverse _ _ _ _ f H' :=
   inverse_eq_left !left_inverse
 
-  definition inverse_involutive (f : a ⟶ b) [H : is_iso f] : (f⁻¹)⁻¹ = f :=
+  definition inverse_involutive (f : a ⟶ b) [H : is_iso f] [H : is_iso (f⁻¹)]
+    : (f⁻¹)⁻¹ = f :=
   inverse_eq_right !left_inverse
 
   definition retraction_id (a : ob) : retraction_of (ID a) = id :=
@@ -200,7 +203,7 @@ namespace iso
     (λ c g h H,
       calc
         g = id ∘ g                    : by rewrite id_left
-      ... = (retraction_of f ∘ f) ∘ g : by rewrite -retraction_comp
+      ... = (retraction_of f ∘ f) ∘ g : by rewrite retraction_comp
       ... = (retraction_of f ∘ f) ∘ h : by rewrite [-assoc, H, -assoc]
       ... = id ∘ h                    : by rewrite retraction_comp
       ... = h                         : by rewrite id_left)

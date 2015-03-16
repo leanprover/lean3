@@ -14,6 +14,9 @@ Author: Leonardo de Moura
 
 namespace lean {
 class parser;
+/** \brief Consume tokes until 'end' token is consumed */
+void consume_until_end(parser & p);
+
 /** \brief Parse optional '[persistent]' modifier.
     return true if it is was found, and paremeter \c persistent to true.
 */
@@ -98,7 +101,7 @@ inline justification mk_type_mismatch_jst(expr const & v, expr const & v_type, e
 }
 
 /** \brief Auxiliary function for check/eval/find_decl */
-std::tuple<expr, level_param_names> parse_local_expr(parser & p);
+std::tuple<expr, level_param_names> parse_local_expr(parser & p, bool relaxed = true);
 
 optional<name> is_uniquely_aliased(environment const & env, name const & n);
 

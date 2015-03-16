@@ -146,9 +146,7 @@ static proof_state_seq apply_tactic_core(environment const & env, io_state const
             name_generator new_ngen(ngen);
             substitution new_subst = subst;
             expr new_e = new_subst.instantiate_all(e);
-            expr new_p = g.abstract(new_e);
-            check_has_no_local(new_p, _e, "apply");
-            new_subst.assign(g.get_name(), new_p);
+            assign(new_subst, g, new_e);
             goals new_gs = tail_gs;
             if (subgoals_action != IgnoreSubgoals) {
                 buffer<expr> metas;
@@ -210,7 +208,7 @@ tactic apply_tactic_core(elaborate_fn const & elab, expr const & e, subgoals_act
             name_generator ngen = s.get_ngen();
             expr       new_e;
             buffer<constraint> cs;
-            auto ecs = elab(g, ngen.mk_child(), e, false);
+            auto ecs = elab(g, ngen.mk_child(), e, none_expr(), false);
             new_e    = ecs.first;
             to_buffer(ecs.second, cs);
             to_buffer(s.get_postponed(), cs);

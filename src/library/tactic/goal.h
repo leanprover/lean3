@@ -85,6 +85,9 @@ public:
     */
     optional<pair<expr, unsigned>> find_hyp(name const & uname) const;
 
+    /** \brief Similar to find_hyp but use internal name */
+    optional<pair<expr, unsigned>> find_hyp_from_internal_name(name const & hname) const;
+
     /** \brief Store hypotheses in the given buffer.
 
         \remark The hypotheses are stored from left to right.
@@ -99,6 +102,8 @@ public:
     format pp(formatter const & fmt, substitution const & s) const;
     format pp(formatter const & fmt) const;
 };
+
+void assign(substitution & s, goal const & g, expr const & v);
 
 name get_unused_name(name const & prefix, unsigned & idx, buffer<expr> const & locals);
 name get_unused_name(name const & prefix, buffer<expr> const & locals);

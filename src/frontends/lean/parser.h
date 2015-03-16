@@ -146,7 +146,7 @@ class parser {
     void display_error(throwable const & ex);
     void display_error(script_exception const & ex);
     void throw_parser_exception(char const * msg, pos_info p);
-    void throw_nested_exception(throwable & ex, pos_info p);
+    void throw_nested_exception(throwable const & ex, pos_info p);
 
     void sync_command();
     void protected_call(std::function<void()> && f, std::function<void()> && sync);
@@ -165,7 +165,6 @@ class parser {
     tag get_tag(expr e);
     expr copy_with_new_pos(expr const & e, pos_info p);
 
-    cmd_table const & cmds() const { return get_cmd_table(env()); }
     parse_table const & nud() const { return get_nud_table(env()); }
     parse_table const & led() const { return get_led_table(env()); }
 
@@ -217,6 +216,12 @@ class parser {
     elaborator_context mk_elaborator_context(environment const & env, pos_info_provider const & pp);
     elaborator_context mk_elaborator_context(environment const & env, local_level_decls const & lls, pos_info_provider const & pp);
 
+    optional<expr> is_tactic_command(name & id);
+    expr parse_tactic_led(expr left);
+    expr parse_tactic_nud();
+    expr parse_tactic_expr_list();
+    expr parse_tactic_opt_expr_list();
+
 public:
     parser(environment const & env, io_state const & ios,
            std::istream & strm, char const * str_name,
@@ -224,6 +229,8 @@ public:
            snapshot const * s = nullptr, snapshot_vector * sv = nullptr,
            info_manager * im = nullptr, keep_theorem_mode tmode = keep_theorem_mode::All);
     ~parser();
+
+    cmd_table const & cmds() const { return get_cmd_table(env()); }
 
     void set_cache(definition_cache * c) { m_cache = c; }
     void cache_definition(name const & n, expr const & pre_type, expr const & pre_value,
@@ -380,6 +387,8 @@ public:
     }
     expr parse_scoped_expr(buffer<expr> const & ps, unsigned rbp = 0) { return parse_scoped_expr(ps.size(), ps.data(), rbp); }
 
+    expr parse_tactic(unsigned rbp = 0);
+
     struct local_scope { parser & m_p; environment m_env;
         local_scope(parser & p, bool save_options = false);
         local_scope(parser & p, environment const & env);
@@ -429,6 +438,7 @@ public:
 
     /** \brief Elaborate \c e, and tolerate metavariables in the result. */
     std::tuple<expr, level_param_names> elaborate_relaxed(expr const & e, list<expr> const & ctx = list<expr>());
+    std::tuple<expr, level_param_names> elaborate(expr const & e, list<expr> const & ctx = list<expr>());
     /** \brief Elaborate \c e, and ensure it is a type. */
     std::tuple<expr, level_param_names> elaborate_type(expr const & e, list<expr> const & ctx = list<expr>(),
                                                        bool clear_pre_info = true);

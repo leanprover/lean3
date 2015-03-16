@@ -30,6 +30,7 @@ Author: Leonardo de Moura
 #include "frontends/lean/parser.h"
 #include "frontends/lean/util.h"
 #include "frontends/lean/tokens.h"
+#include "frontends/lean/update_environment_exception.h"
 
 namespace lean {
 static environment declare_universe(parser & p, environment env, name const & n, bool local) {
@@ -291,6 +292,7 @@ struct decl_attributes {
     bool               m_is_reducible;
     bool               m_is_irreducible;
     bool               m_is_semireducible;
+    bool               m_is_quasireducible;
     bool               m_is_class;
     bool               m_is_parsing_only;
     bool               m_has_multiple_instances;
@@ -306,6 +308,7 @@ struct decl_attributes {
         m_is_reducible           = is_abbrev;
         m_is_irreducible         = false;
         m_is_semireducible       = false;
+        m_is_quasireducible      = false;
         m_is_class               = false;
         m_is_parsing_only        = false;
         m_has_multiple_instances = false;
@@ -364,19 +367,24 @@ struct decl_attributes {
                     throw parser_error("invalid '[coercion]' attribute, coercions cannot be defined in contexts", pos);
                 m_is_coercion = true;
             } else if (p.curr_is_token(get_reducible_tk())) {
-                if (m_is_irreducible || m_is_semireducible)
-                    throw parser_error("invalid '[reducible]' attribute, '[irreducible]' or '[semireducible]' was already provided", pos);
+                if (m_is_irreducible || m_is_semireducible || m_is_quasireducible)
+                    throw parser_error("invalid '[reducible]' attribute, '[irreducible]', '[quasireducible]' or '[semireducible]' was already provided", pos);
                 m_is_reducible = true;
                 p.next();
             } else if (p.curr_is_token(get_irreducible_tk())) {
-                if (m_is_reducible || m_is_semireducible)
-                    throw parser_error("invalid '[irreducible]' attribute, '[reducible]' or '[semireducible]' was already provided", pos);
+                if (m_is_reducible || m_is_semireducible || m_is_quasireducible)
+                    throw parser_error("invalid '[irreducible]' attribute, '[reducible]', '[quasireducible]' or '[semireducible]' was already provided", pos);
                 m_is_irreducible = true;
                 p.next();
             } else if (p.curr_is_token(get_semireducible_tk())) {
-                if (m_is_reducible || m_is_irreducible)
-                    throw parser_error("invalid '[irreducible]' attribute, '[reducible]' or '[irreducible]' was already provided", pos);
+                if (m_is_reducible || m_is_irreducible || m_is_quasireducible)
+                    throw parser_error("invalid '[irreducible]' attribute, '[reducible]', '[quasireducible]' or '[irreducible]' was already provided", pos);
                 m_is_semireducible = true;
+                p.next();
+            } else if (p.curr_is_token(get_quasireducible_tk())) {
+                if (m_is_reducible || m_is_irreducible || m_is_semireducible)
+                    throw parser_error("invalid '[quasireducible]' attribute, '[reducible]', '[semireducible]' or '[irreducible]' was already provided", pos);
+                m_is_quasireducible = true;
                 p.next();
             } else if (p.curr_is_token(get_class_tk())) {
                 if (m_def_only)
@@ -445,18 +453,23 @@ struct decl_attributes {
         }
         if (m_is_coercion)
             env = add_coercion(env, d, ios, persistent);
-        if (m_is_reducible)
-            env = set_reducible(env, d, reducible_status::Reducible, persistent);
-        if (m_is_irreducible)
-            env = set_reducible(env, d, reducible_status::Irreducible, persistent);
-        if (m_is_semireducible)
-            env = set_reducible(env, d, reducible_status::Semireducible, persistent);
+        auto decl = env.find(d);
+        if (decl && decl->is_definition()) {
+            if (m_is_reducible)
+                env = set_reducible(env, d, reducible_status::Reducible, persistent);
+            if (m_is_irreducible)
+                env = set_reducible(env, d, reducible_status::Irreducible, persistent);
+            if (m_is_semireducible)
+                env = set_reducible(env, d, reducible_status::Semireducible, persistent);
+            if (m_is_quasireducible)
+                env = set_reducible(env, d, reducible_status::Quasireducible, persistent);
+            if (m_unfold_c_hint)
+                env = add_unfold_c_hint(env, d, m_unfold_c_hint, persistent);
+        }
         if (m_is_class)
             env = add_class(env, d, persistent);
         if (m_has_multiple_instances)
             env = mark_multiple_instances(env, d, persistent);
-        if (m_unfold_c_hint)
-            env = add_unfold_c_hint(env, d, m_unfold_c_hint, persistent);
         return env;
     }
 };
@@ -541,13 +554,13 @@ static expr merge_equation_lhs_vars(expr const & lhs, buffer<expr> & locals) {
         });
 }
 
-static void throw_invalid_equation_lhs(name const & n, pos_info const & p) {
+[[ noreturn ]] static void throw_invalid_equation_lhs(name const & n, pos_info const & p) {
     throw parser_error(sstream() << "invalid recursive equation, head symbol '"
                        << n << "' in the left-hand-side does not correspond to function(s) being defined", p);
 }
 
-static bool is_eqn_prefix(parser & p) {
-    return p.curr_is_token(get_bar_tk()) || p.curr_is_token(get_comma_tk());
+static bool is_eqn_prefix(parser & p, bool bar_only = false) {
+    return p.curr_is_token(get_bar_tk()) || (!bar_only && p.curr_is_token(get_comma_tk()));
 }
 
 static void check_eqn_prefix(parser & p) {
@@ -556,11 +569,82 @@ static void check_eqn_prefix(parser & p) {
     p.next();
 }
 
+static optional<expr> is_equation_fn(buffer<expr> const & fns, name const & fn_name) {
+    for (expr const & fn : fns) {
+        if (local_pp_name(fn) == fn_name)
+            return some_expr(fn);
+    }
+    return none_expr();
+}
+
+
+static expr get_equation_fn(buffer<expr> const & fns, name const & fn_name, pos_info const & lhs_pos) {
+    if (auto it = is_equation_fn(fns, fn_name))
+        return *it;
+    throw_invalid_equation_lhs(fn_name, lhs_pos);
+}
+
+static void parse_equations_core(parser & p, buffer<expr> const & fns, buffer<expr> & eqns, bool bar_only = false) {
+    for (expr const & fn : fns)
+        p.add_local(fn);
+    while (true) {
+        expr lhs;
+        unsigned prev_num_undef_ids = p.get_num_undef_ids();
+        buffer<expr> locals;
+        {
+            parser::undef_id_to_local_scope scope2(p);
+            buffer<expr> lhs_args;
+            auto lhs_pos = p.pos();
+            if (p.curr_is_token(get_explicit_tk())) {
+                p.next();
+                name fn_name = p.check_id_next("invalid recursive equation, identifier expected");
+                lhs_args.push_back(p.save_pos(mk_explicit(get_equation_fn(fns, fn_name, lhs_pos)), lhs_pos));
+            } else {
+                expr first = p.parse_expr(get_max_prec());
+                expr fn    = first;
+                if (is_explicit(fn))
+                    fn = get_explicit_arg(fn);
+                if (is_local(fn) && is_equation_fn(fns, local_pp_name(fn))) {
+                    lhs_args.push_back(first);
+                } else if (fns.size() == 1) {
+                    lhs_args.push_back(p.save_pos(mk_explicit(fns[0]), lhs_pos));
+                    lhs_args.push_back(first);
+                } else {
+                    throw parser_error("invalid recursive equation, head symbol in left-hand-side is not a constant",
+                                       lhs_pos);
+                }
+            }
+            while (!p.curr_is_token(get_assign_tk()))
+                lhs_args.push_back(p.parse_expr(get_max_prec()));
+            lhs = p.save_pos(mk_app(lhs_args.size(), lhs_args.data()), lhs_pos);
+
+            unsigned num_undef_ids = p.get_num_undef_ids();
+            for (unsigned i = prev_num_undef_ids; i < num_undef_ids; i++) {
+                locals.push_back(p.get_undef_id(i));
+            }
+        }
+        validate_equation_lhs(p, lhs, locals);
+        lhs = merge_equation_lhs_vars(lhs, locals);
+        auto assign_pos = p.pos();
+        p.check_token_next(get_assign_tk(), "invalid declaration, ':=' expected");
+        {
+            parser::local_scope scope2(p);
+            for (expr const & local : locals)
+                p.add_local(local);
+            expr rhs = p.parse_expr();
+            eqns.push_back(Fun(fns, Fun(locals, p.save_pos(mk_equation(lhs, rhs), assign_pos), p)));
+        }
+        if (!is_eqn_prefix(p, bar_only))
+            break;
+        p.next();
+    }
+}
+
 expr parse_equations(parser & p, name const & n, expr const & type, buffer<name> & auxs,
                      optional<local_environment> const & lenv, buffer<expr> const & ps,
                      pos_info const & def_pos) {
-    buffer<expr> eqns;
     buffer<expr> fns;
+    buffer<expr> eqns;
     {
         parser::local_scope scope1(p, lenv);
         for (expr const & param : ps)
@@ -580,44 +664,12 @@ expr parse_equations(parser & p, name const & n, expr const & type, buffer<name>
             }
         }
         check_eqn_prefix(p);
-        for (expr const & fn : fns)
-            p.add_local(fn);
-        while (true) {
-            expr lhs;
-            unsigned prev_num_undef_ids = p.get_num_undef_ids();
-            buffer<expr> locals;
-            {
-                parser::undef_id_to_local_scope scope2(p);
-                auto lhs_pos = p.pos();
-                lhs = p.parse_expr();
-                expr lhs_fn = get_app_fn(lhs);
-                if (is_explicit(lhs_fn))
-                    lhs_fn = get_explicit_arg(lhs_fn);
-                if (is_constant(lhs_fn))
-                    throw_invalid_equation_lhs(const_name(lhs_fn), lhs_pos);
-                if (is_local(lhs_fn) && std::all_of(fns.begin(), fns.end(), [&](expr const & fn) { return fn != lhs_fn; }))
-                    throw_invalid_equation_lhs(local_pp_name(lhs_fn), lhs_pos);
-                if (!is_local(lhs_fn))
-                    throw parser_error("invalid recursive equation, head symbol in left-hand-side is not a constant", lhs_pos);
-                unsigned num_undef_ids = p.get_num_undef_ids();
-                for (unsigned i = prev_num_undef_ids; i < num_undef_ids; i++) {
-                    locals.push_back(p.get_undef_id(i));
-                }
-            }
-            validate_equation_lhs(p, lhs, locals);
-            lhs = merge_equation_lhs_vars(lhs, locals);
-            auto assign_pos = p.pos();
-            p.check_token_next(get_assign_tk(), "invalid declaration, ':=' expected");
-            {
-                parser::local_scope scope2(p);
-                for (expr const & local : locals)
-                    p.add_local(local);
-                expr rhs = p.parse_expr();
-                eqns.push_back(Fun(fns, Fun(locals, p.save_pos(mk_equation(lhs, rhs), assign_pos), p)));
-            }
-            if (!is_eqn_prefix(p))
-                break;
+        if (p.curr_is_token(get_none_tk())) {
+            // no equations have been provided
             p.next();
+            eqns.push_back(Fun(fns, mk_no_equation(), p));
+        } else {
+            parse_equations_core(p, fns, eqns);
         }
     }
     if (p.curr_is_token(get_wf_tk())) {
@@ -631,49 +683,68 @@ expr parse_equations(parser & p, name const & n, expr const & type, buffer<name>
     }
 }
 
+/** \brief Parse a sequence of equations of the form <tt>| lhs := rhs</tt> */
+expr parse_local_equations(parser & p, expr const & fn) {
+    lean_assert(p.curr_is_token(get_bar_tk()));
+    auto pos = p.pos();
+    p.next();
+    buffer<expr> fns;
+    buffer<expr> eqns;
+    fns.push_back(fn);
+    bool bar_only = true;
+    parse_equations_core(p, fns, eqns, bar_only);
+    return p.save_pos(mk_equations(fns.size(), eqns.size(), eqns.data()), pos);
+}
+
 /** \brief Use equations compiler infrastructure to implement match-with */
 expr parse_match(parser & p, unsigned, expr const *, pos_info const & pos) {
-    expr t  = p.parse_expr();
     buffer<expr> eqns;
-    p.check_token_next(get_with_tk(), "invalid 'match' expression, 'with' expected");
-    expr fn = mk_local(p.mk_fresh_name(), "match", mk_expr_placeholder(), binder_info());
-    if (p.curr_is_token(get_end_tk())) {
-        p.next();
-        // empty match-with
-        eqns.push_back(Fun(fn, mk_no_equation()));
-        expr f = p.save_pos(mk_equations(1, eqns.size(), eqns.data()), pos);
-        return p.mk_app(f, t, pos);
-    }
-    if (is_eqn_prefix(p))
-        p.next(); // optional '|' in the first case
-    while (true) {
-        expr lhs;
-        unsigned prev_num_undef_ids = p.get_num_undef_ids();
-        buffer<expr> locals;
-        {
-            parser::undef_id_to_local_scope scope2(p);
-            auto lhs_pos = p.pos();
-            lhs = p.parse_expr();
-            lhs = p.mk_app(fn, lhs, lhs_pos);
-            unsigned num_undef_ids = p.get_num_undef_ids();
-            for (unsigned i = prev_num_undef_ids; i < num_undef_ids; i++) {
-                locals.push_back(p.get_undef_id(i));
+    expr t;
+    try {
+        t  = p.parse_expr();
+        p.check_token_next(get_with_tk(), "invalid 'match' expression, 'with' expected");
+        expr fn = mk_local(p.mk_fresh_name(), "match", mk_expr_placeholder(), binder_info());
+        if (p.curr_is_token(get_end_tk())) {
+            p.next();
+            // empty match-with
+            eqns.push_back(Fun(fn, mk_no_equation()));
+            expr f = p.save_pos(mk_equations(1, eqns.size(), eqns.data()), pos);
+            return p.mk_app(f, t, pos);
+        }
+        if (is_eqn_prefix(p))
+            p.next(); // optional '|' in the first case
+        while (true) {
+            expr lhs;
+            unsigned prev_num_undef_ids = p.get_num_undef_ids();
+            buffer<expr> locals;
+            {
+                parser::undef_id_to_local_scope scope2(p);
+                auto lhs_pos = p.pos();
+                lhs = p.parse_expr();
+                lhs = p.mk_app(fn, lhs, lhs_pos);
+                unsigned num_undef_ids = p.get_num_undef_ids();
+                for (unsigned i = prev_num_undef_ids; i < num_undef_ids; i++) {
+                    locals.push_back(p.get_undef_id(i));
+                }
             }
+            validate_equation_lhs(p, lhs, locals);
+            lhs = merge_equation_lhs_vars(lhs, locals);
+            auto assign_pos = p.pos();
+            p.check_token_next(get_assign_tk(), "invalid 'match' expression, ':=' expected");
+            {
+                parser::local_scope scope2(p);
+                for (expr const & local : locals)
+                    p.add_local(local);
+                expr rhs = p.parse_expr();
+                eqns.push_back(Fun(fn, Fun(locals, p.save_pos(mk_equation(lhs, rhs), assign_pos), p)));
+            }
+            if (!is_eqn_prefix(p))
+                break;
+            p.next();
         }
-        validate_equation_lhs(p, lhs, locals);
-        lhs = merge_equation_lhs_vars(lhs, locals);
-        auto assign_pos = p.pos();
-        p.check_token_next(get_assign_tk(), "invalid 'match' expression, ':=' expected");
-        {
-            parser::local_scope scope2(p);
-            for (expr const & local : locals)
-                p.add_local(local);
-            expr rhs = p.parse_expr();
-            eqns.push_back(Fun(fn, Fun(locals, p.save_pos(mk_equation(lhs, rhs), assign_pos), p)));
-        }
-        if (!is_eqn_prefix(p))
-            break;
-        p.next();
+    } catch (exception & ex) {
+        consume_until_end(p);
+        ex.rethrow();
     }
     p.check_token_next(get_end_tk(), "invalid 'match' expression, 'end' expected");
     expr f = p.save_pos(mk_equations(1, eqns.size(), eqns.data()), pos);
@@ -707,6 +778,18 @@ class definition_cmd_fn {
     expr              m_pre_type;
     expr              m_pre_value;
 
+    // Checkpoint for processing definition/theorem as axiom in case of
+    // failure
+    optional<expr>        m_type_checkpoint;
+    optional<environment> m_env_checkpoint;
+    buffer<name>          m_ls_buffer_checkpoint;
+
+    void save_checkpoint() {
+        m_type_checkpoint      = m_type;
+        m_env_checkpoint       = m_env;
+        m_ls_buffer_checkpoint = m_ls_buffer;
+    }
+
     bool is_definition() const { return m_kind == Definition || m_kind == Abbreviation || m_kind == LocalAbbreviation; }
     unsigned start_line() const { return m_pos.first; }
     unsigned end_line() const { return m_end_pos.first; }
@@ -735,6 +818,7 @@ class definition_cmd_fn {
             m_p.next();
             auto pos = m_p.pos();
             m_type = m_p.parse_expr();
+            save_checkpoint();
             if (is_curr_with_or_comma_or_bar(m_p)) {
                 m_value = parse_equations(m_p, m_name, m_type, m_aux_decls,
                                           optional<local_environment>(), buffer<expr>(), m_pos);
@@ -753,9 +837,11 @@ class definition_cmd_fn {
             auto pos = m_p.pos();
             if (m_p.curr_is_token(get_colon_tk())) {
                 m_p.next();
-                m_type = m_p.parse_scoped_expr(ps, *lenv);
+                expr type  = m_p.parse_scoped_expr(ps, *lenv);
+                m_type     = Pi(ps, type, m_p);
+                save_checkpoint();
                 if (is_curr_with_or_comma_or_bar(m_p)) {
-                    m_value = parse_equations(m_p, m_name, m_type, m_aux_decls, lenv, ps, m_pos);
+                    m_value = parse_equations(m_p, m_name, type, m_aux_decls, lenv, ps, m_pos);
                 } else if (!is_definition() && !m_p.curr_is_token(get_assign_tk())) {
                     check_end_of_theorem(m_p);
                     m_value = m_p.save_pos(mk_expr_placeholder(), pos);
@@ -770,11 +856,12 @@ class definition_cmd_fn {
                                        "(solution: put parentheses around parameters)",
                                        pos);
                 }
-                m_type = m_p.save_pos(mk_expr_placeholder(), m_p.pos());
+                m_type  = m_p.save_pos(mk_expr_placeholder(), m_p.pos());
+                m_type  = Pi(ps, m_type, m_p);
+                save_checkpoint();
                 m_p.check_token_next(get_assign_tk(), "invalid declaration, ':=' expected");
                 m_value = m_p.parse_scoped_expr(ps, *lenv);
             }
-            m_type  = Pi(ps, m_type, m_p);
             erase_local_binder_info(ps);
             m_value = Fun(ps, m_value, m_p);
         }
@@ -1013,6 +1100,30 @@ class definition_cmd_fn {
         }
     }
 
+    void process_as_axiom() {
+        lean_assert(m_type_checkpoint);
+        m_type      = *m_type_checkpoint;
+        m_env       = *m_env_checkpoint;
+        m_ls_buffer = m_ls_buffer_checkpoint;
+        m_aux_decls.clear();
+        m_real_aux_names.clear();
+
+        expr dummy  = mk_Prop();
+        m_value     = dummy;
+
+        process_locals();
+        mk_real_name();
+
+        bool clear_pre_info      = false;
+        level_param_names new_ls;
+        std::tie(m_type, new_ls) = m_p.elaborate_type(m_type, list<expr>(), clear_pre_info);
+        check_no_metavar(m_env, m_real_name, m_type, true);
+        m_ls = append(m_ls, new_ls);
+        m_type = expand_abbreviations(m_env, unfold_untrusted_macros(m_env, m_type));
+        m_env = module::add(m_env, check(m_env, mk_axiom(m_real_name, m_ls, m_type)));
+        register_decl(m_name, m_real_name, m_type);
+    }
+
 public:
     definition_cmd_fn(parser & p, def_cmd_kind kind, bool is_opaque, bool is_private, bool is_protected):
         m_p(p), m_env(m_p.env()), m_kind(kind), m_is_opaque(is_opaque),
@@ -1023,11 +1134,24 @@ public:
     }
 
     environment operator()() {
-        parse();
-        process_locals();
-        elaborate();
-        register_decl();
-        return m_env;
+        try {
+            parse();
+            process_locals();
+            elaborate();
+            register_decl();
+            return m_env;
+        } catch (exception & ex) {
+            if (m_type_checkpoint) {
+                try {
+                    process_as_axiom();
+                } catch (exception & ex2) {
+                    ex.rethrow();
+                }
+                throw update_environment_exception(m_env, std::shared_ptr<throwable>(ex.clone()));
+            }
+            ex.rethrow();
+            lean_unreachable();
+        }
     }
 };
 

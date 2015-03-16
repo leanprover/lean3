@@ -32,8 +32,7 @@ tactic change_goal_tactic(elaborate_fn const & elab, expr const & e) {
                 if (tc->is_def_eq(t, *new_e, justification(), cs) && !cs) {
                     expr M   = g.mk_meta(ngen.next(), *new_e);
                     goal new_g(M, *new_e);
-                    expr val = g.abstract(M);
-                    subst.assign(g.get_name(), val);
+                    assign(subst, g, M);
                     return some(proof_state(new_s, cons(new_g, tail(gs)), subst, ngen));
                 } else {
                     // generate error
@@ -45,7 +44,7 @@ tactic change_goal_tactic(elaborate_fn const & elab, expr const & e) {
 }
 
 void initialize_change_tactic() {
-    register_tac(get_tactic_change_goal_name(),
+    register_tac(get_tactic_change_name(),
                  [](type_checker &, elaborate_fn const & fn, expr const & e, pos_info_provider const *) {
                      check_tactic_expr(app_arg(e), "invalid 'change' tactic, invalid argument");
                      return change_goal_tactic(fn, get_tactic_expr_expr(app_arg(e)));

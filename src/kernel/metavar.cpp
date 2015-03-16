@@ -16,6 +16,7 @@ Author: Leonardo de Moura
 #include "kernel/level.h"
 #include "kernel/cache_stack.h"
 #include "kernel/expr_cache.h"
+#include "kernel/abstract.h"
 
 #ifndef LEAN_INSTANTIATE_METAVARS_CACHE_CAPACITY
 #define LEAN_INSTANTIATE_METAVARS_CACHE_CAPACITY 1024*8
@@ -56,6 +57,10 @@ optional<expr> substitution::get_expr(name const & m) const {
 optional<level> substitution::get_level(name const & m) const {
     auto it = m_level_subst.find(m);
     return it ? some_level(*it) : none_level();
+}
+
+void substitution::assign(expr const & mvar, buffer<expr> const & locals, expr const & v, justification const & j) {
+    assign(mlocal_name(mvar), Fun(locals, v), j);
 }
 
 void substitution::assign(name const & m, expr const & t, justification const & j) {
@@ -253,6 +258,20 @@ pair<expr, justification> substitution::instantiate_metavars_core(expr const & e
 
 expr substitution::instantiate_metavars_wo_jst(expr const & e, bool inst_local_types) {
     return instantiate_metavars_fn(*this, false, inst_local_types)(e);
+}
+
+auto substitution::expand_metavar_app(expr const & e) -> opt_expr_jst {
+    expr const & f = get_app_fn(e);
+    if (!is_metavar(f))
+        return opt_expr_jst();
+    name const & f_name = mlocal_name(f);
+    auto f_value = get_expr(f_name);
+    if (!f_value)
+        return opt_expr_jst();
+    buffer<expr> args;
+    get_app_rev_args(e, args);
+    expr new_e = apply_beta(*f_value, args.size(), args.data());
+    return opt_expr_jst(new_e, get_expr_jst(f_name));
 }
 
 static name_set merge(name_set s1, name_set const & s2) {

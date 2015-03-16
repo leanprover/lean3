@@ -33,6 +33,7 @@ Author: Leonardo de Moura
 #include "frontends/lean/notation_cmd.h"
 #include "frontends/lean/inductive_cmd.h"
 #include "frontends/lean/structure_cmd.h"
+#include "frontends/lean/migrate_cmd.h"
 #include "frontends/lean/find_cmd.h"
 #include "frontends/lean/begin_end_ext.h"
 #include "frontends/lean/decl_cmds.h"
@@ -643,6 +644,40 @@ environment local_cmd(parser & p) {
     }
 }
 
+static environment help_cmd(parser & p) {
+    flycheck_information info(p.regular_stream());
+    if (info.enabled()) {
+        p.display_information_pos(p.cmd_pos());
+        p.regular_stream() << "help result:\n";
+    }
+    if (p.curr_is_token_or_id(get_options_tk())) {
+        p.next();
+        for (auto odecl : get_option_declarations()) {
+            auto opt = odecl.second;
+            regular(p.env(), p.ios())
+                << "  " << opt.get_name() << " (" << opt.kind() << ") "
+                << opt.get_description() << " (default: " << opt.get_default_value() << ")" << endl;
+        }
+    } else if (p.curr_is_token_or_id(get_commands_tk())) {
+        p.next();
+        buffer<name> ns;
+        cmd_table const & cmds = p.cmds();
+        cmds.for_each([&](name const & n, cmd_info const &) {
+                ns.push_back(n);
+            });
+        std::sort(ns.begin(), ns.end());
+        for (name const & n : ns) {
+            regular(p.env(), p.ios())
+                << "  " << n << ": " << cmds.find(n)->get_descr() << endl;
+        };
+    } else {
+        p.regular_stream()
+            << "help options  : describe available options\n"
+            << "help commands : describe available commands\n";
+    }
+    return p.env();
+}
+
 void init_cmd_table(cmd_table & r) {
     add_cmd(r, cmd_info("open",          "create aliases for declarations, and use objects defined in other namespaces",
                         open_cmd));
@@ -659,6 +694,7 @@ void init_cmd_table(cmd_table & r) {
     add_cmd(r, cmd_info("eval",          "evaluate given expression", eval_cmd));
     add_cmd(r, cmd_info("find_decl",     "find definitions and/or theorems", find_cmd));
     add_cmd(r, cmd_info("local",         "define local attributes or notation", local_cmd));
+    add_cmd(r, cmd_info("help",          "brief description of available commands and options", help_cmd));
     add_cmd(r, cmd_info("#erase_cache",  "erase cached definition (for debugging purposes)", erase_cache_cmd));
     add_cmd(r, cmd_info("#projections",  "generate projections for inductive datatype (for debugging purposes)", projections_cmd));
     add_cmd(r, cmd_info("#telescope_eq", "(for debugging purposes)", telescope_eq_cmd));
@@ -666,6 +702,7 @@ void init_cmd_table(cmd_table & r) {
     register_decl_cmds(r);
     register_inductive_cmd(r);
     register_structure_cmd(r);
+    register_migrate_cmd(r);
     register_notation_cmds(r);
     register_calc_cmds(r);
     register_begin_end_cmds(r);

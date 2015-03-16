@@ -38,7 +38,6 @@ tactic generalize_tactic(elaborate_fn const & elab, expr const & e, name const &
                     n = x;
                 expr new_t = mk_pi(n, e_t, abstract(t, *new_e));
                 expr new_m = g.mk_meta(ngen.next(), new_t);
-                expr new_v = g.abstract(mk_app(new_m, *new_e));
                 try {
                     tc->check_ignore_levels(g.abstract(new_t));
                 } catch (kernel_exception const & ex) {
@@ -52,7 +51,7 @@ tactic generalize_tactic(elaborate_fn const & elab, expr const & e, name const &
                     return none_proof_state();
                 }
 
-                subst.assign(g.get_name(), new_v);
+                assign(subst, g, mk_app(new_m, *new_e));
                 goal new_g(new_m, new_t);
                 return some(proof_state(new_s, goals(new_g, tail(gs)), subst, ngen));
             }
@@ -68,7 +67,7 @@ void initialize_generalize_tactic() {
                      return generalize_tactic(fn, get_tactic_expr_expr(app_arg(e)), "x");
                  });
 
-    register_tac(get_tactic_generalize_lst_name(),
+    register_tac(get_tactic_generalizes_name(),
                  [](type_checker &, elaborate_fn const & fn, expr const & e, pos_info_provider const *) {
                      buffer<expr> args;
                      get_tactic_expr_list_elements(app_arg(e), args, "invalid 'generalizes' tactic, list of expressions expected");
