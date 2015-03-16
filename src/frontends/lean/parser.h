@@ -146,7 +146,7 @@ class parser {
     void display_error(throwable const & ex);
     void display_error(script_exception const & ex);
     void throw_parser_exception(char const * msg, pos_info p);
-    void throw_nested_exception(throwable & ex, pos_info p);
+    void throw_nested_exception(throwable const & ex, pos_info p);
 
     void sync_command();
     void protected_call(std::function<void()> && f, std::function<void()> && sync);
@@ -438,6 +438,7 @@ public:
 
     /** \brief Elaborate \c e, and tolerate metavariables in the result. */
     std::tuple<expr, level_param_names> elaborate_relaxed(expr const & e, list<expr> const & ctx = list<expr>());
+    std::tuple<expr, level_param_names> elaborate(expr const & e, list<expr> const & ctx = list<expr>());
     /** \brief Elaborate \c e, and ensure it is a type. */
     std::tuple<expr, level_param_names> elaborate_type(expr const & e, list<expr> const & ctx = list<expr>(),
                                                        bool clear_pre_info = true);
