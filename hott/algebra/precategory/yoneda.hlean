@@ -1,5 +1,5 @@
 /-
-Copyright (c) 2014 Floris van Doorn. All rights reserved.
+Copyright (c) 2015 Floris van Doorn. All rights reserved.
 Released under Apache 2.0 license as described in the file LICENSE.
 
 Module: algebra.precategory.yoneda
@@ -9,13 +9,12 @@ Authors: Floris van Doorn
 --note: modify definition in category.set
 import algebra.category.constructions .iso
 
-open category eq category.ops functor prod.ops is_trunc
+open category eq category.ops functor prod.ops is_trunc iso
 
 set_option pp.beta true
 namespace yoneda
   set_option class.conservative false
 
-  --TODO: why does this take so much steps? (giving more information than "assoc" hardly helps)
   definition representable_functor_assoc [C : Precategory] {a1 a2 a3 a4 a5 a6 : C}
     (f1 : hom a5 a6) (f2 : hom a4 a5) (f3 : hom a3 a4) (f4 : hom a2 a3) (f5 : hom a1 a2)
       : (f1 ∘ f2) ∘ f3 ∘ (f4 ∘ f5) = f1 ∘ (f2 ∘ f3 ∘ f4) ∘ f5 :=
@@ -25,7 +24,6 @@ namespace yoneda
       ... = f1 ∘ ((f2 ∘ f3) ∘ f4) ∘ f5 : by rewrite -(assoc (f2 ∘ f3) _ _)
       ... = _                          : by rewrite (assoc f2 f3 f4)
 
-  --disturbing behaviour: giving the type of f "(x ⟶ y)" explicitly makes the unifier loop
   definition hom_functor (C : Precategory) : Cᵒᵖ ×c C ⇒ set :=
   functor.mk (λ(x : Cᵒᵖ ×c C), homset x.1 x.2)
              (λ(x y : Cᵒᵖ ×c C) (f : _) (h : homset x.1 x.2), f.2 ∘⁅ C ⁆ (h ∘⁅ C ⁆ f.1))
@@ -67,7 +65,7 @@ namespace functor
 
   local abbreviation Fhom := @functor_curry_hom
 
-  definition functor_curry_hom_def ⦃c c' : C⦄ (f : c ⟶ c') (d : D) :
+  theorem functor_curry_hom_def ⦃c c' : C⦄ (f : c ⟶ c') (d : D) :
     (Fhom F f) d = to_fun_hom F (f, id) := idp
 
   theorem functor_curry_id (c : C) : Fhom F (ID c) = nat_trans.id :=
@@ -126,100 +124,85 @@ namespace functor
              (functor_uncurry_hom G)
              (functor_uncurry_id G)
              (functor_uncurry_comp G)
-  -- open pi
-  -- definition functor_eq_mk'1 {F₁ F₂ : C → D} {H₁ : Π(a b : C), hom a b → hom (F₁ a) (F₁ b)}
-  --   {H₂ : Π(a b : C), hom a b → hom (F₂ a) (F₂ b)} (id₁ id₂ comp₁ comp₂)
-  --   (pF : F₁ = F₂) (pH : Π(a b : C) (f : hom a b), pF ▹ (H₁ a b f) = H₂ a b f)
-  --     : functor.mk F₁ H₁ id₁ comp₁ = functor.mk F₂ H₂ id₂ comp₂ :=
-  -- functor_eq_mk'' id₁ id₂ comp₁ comp₂ pF
-  --   (eq_of_homotopy (λc, eq_of_homotopy (λc', eq_of_homotopy (λf,
-  --     begin
-  --      apply concat, rotate_left 1, exact (pH c c' f),
-  --      apply concat, rotate_left 1,
-  --      exact (pi_transport_constant pF (H₁ c c') f),
-  --      apply (apD10' f),
-  --      apply concat, rotate_left 1,
-  --      exact (pi_transport_constant pF (H₁ c) c'),
-  --      apply (apD10' c'),
-  --      apply concat, rotate_left 1,
-  --      exact (pi_transport_constant pF H₁ c),
-  --      apply idp
-  --     end))))
 
-  -- definition functor_eq_mk1 {F₁ F₂ : C ⇒ D} : Π(p : to_fun_ob F₁ = to_fun_ob F₂),
-  --   (Π(a b : C) (f : hom a b), transport (λF, hom (F a) (F b)) p (F₁ f) = F₂ f)
-  --     → F₁ = F₂ :=
-  -- functor.rec_on F₁ (λO₁ H₁ id₁ comp₁, functor.rec_on F₂ (λO₂ H₂ id₂ comp₂ p, !functor_eq_mk'1))
-
-  --set_option pp.notation false
-  definition functor_uncurry_functor_curry : functor_uncurry (functor_curry F) = F :=
-  functor_eq_mk (λp, ap (to_fun_ob F) !prod.eta)
+  theorem functor_uncurry_functor_curry : functor_uncurry (functor_curry F) = F :=
+  functor_eq (λp, ap (to_fun_ob F) !prod.eta)
   begin
     intros (cd, cd', fg),
     cases cd with (c,d), cases cd' with (c',d'), cases fg with (f,g),
-    have H : (functor_uncurry (functor_curry F)) (f, g) = F (f,g),
+    apply concat, apply id_leftright,
+    show (functor_uncurry (functor_curry F)) (f, g) = F (f,g),
       from calc
         (functor_uncurry (functor_curry F)) (f, g) = to_fun_hom F (id, g) ∘ to_fun_hom F (f, id) : by esimp
           ... = F (id ∘ f, g ∘ id) : respect_comp F (id,g) (f,id)
-          ... = F (f, g ∘ id)      : by rewrite id_left
-          ... = F (f,g)            : by rewrite id_right,
-    rewrite H,
-    apply sorry
-  end
-  --set_option pp.implicit true
-  definition functor_curry_functor_uncurry : functor_curry (functor_uncurry G) = G :=
-  begin
-    fapply functor_eq_mk,
-     {intro c,
-      fapply functor_eq_mk,
-       {intro d, apply idp},
-       {intros (d, d', g),
-        have H : to_fun_hom (functor_curry (functor_uncurry G) c) g = to_fun_hom (G c) g,
-        from calc
-          to_fun_hom (functor_curry (functor_uncurry G) c) g
-                = to_fun_hom (G c) g ∘ natural_map (to_fun_hom G (ID c)) d : by esimp
-            ... = to_fun_hom (G c) g ∘ natural_map (ID (G c)) d            : by rewrite respect_id
-            ... = to_fun_hom (G c) g : id_right,
-        rewrite H,
-        -- esimp {idp},
-        apply sorry
-       }
-     },
-    apply sorry
+          ... = F (f, g ∘ id) : by rewrite id_left
+          ... = F (f,g) : by rewrite id_right,
   end
 
-  definition equiv_functor_curry : (C ×c D ⇒ E) ≃ (C ⇒ E ^c D) :=
+  definition functor_curry_functor_uncurry_ob (c : C)
+    : functor_curry (functor_uncurry G) c = G c :=
+  begin
+  fapply functor_eq,
+   {intro d, apply idp},
+   {intros (d, d', g),
+     apply concat, apply id_leftright,
+      show to_fun_hom (functor_curry (functor_uncurry G) c) g = to_fun_hom (G c) g,
+      from calc
+        to_fun_hom (functor_curry (functor_uncurry G) c) g
+            = to_fun_hom (G c) g ∘ natural_map (to_fun_hom G (ID c)) d : by esimp
+        ... = to_fun_hom (G c) g ∘ natural_map (ID (G c)) d
+               : by rewrite respect_id
+        ... = to_fun_hom (G c) g : id_right}
+  end
+
+  theorem functor_curry_functor_uncurry : functor_curry (functor_uncurry G) = G :=
+  begin
+  fapply functor_eq, exact (functor_curry_functor_uncurry_ob G),
+  intros (c, c', f),
+  fapply nat_trans_eq_mk,
+  intro d,
+  apply concat,
+    {apply (ap (λx, x ∘ _)),
+      apply concat, apply natural_map_hom_of_eq, apply (ap hom_of_eq), apply ap010_functor_eq},
+   apply concat,
+     {apply (ap (λx, _ ∘ x)), apply (ap (λx, _ ∘ x)),
+       apply concat, apply natural_map_inv_of_eq,
+       apply (ap (λx, hom_of_eq x⁻¹)), apply ap010_functor_eq},
+  apply concat, apply id_leftright,
+  apply concat, apply (ap (λx, x ∘ _)), apply respect_id,
+  apply id_left
+  end
+
+  definition prod_functor_equiv_functor_functor (C D E : Precategory)
+    : (C ×c D ⇒ E) ≃ (C ⇒ E ^c D) :=
   equiv.MK functor_curry
            functor_uncurry
            functor_curry_functor_uncurry
            functor_uncurry_functor_curry
 
 
-  definition functor_prod_flip_ob : C ×c D ⇒ D ×c C :=
-  functor.mk sorry sorry sorry sorry
+  definition functor_prod_flip (C D : Precategory) : C ×c D ⇒ D ×c C :=
+  functor.mk (λp, (p.2, p.1))
+             (λp p' h, (h.2, h.1))
+             (λp, idp)
+             (λp p' p'' h' h, idp)
 
-
-  definition contravariant_yoneda_embedding : Cᵒᵖ ⇒ set ^c C :=
-  functor_curry !yoneda.hom_functor
-
+  definition functor_prod_flip_functor_prod_flip (C D : Precategory)
+    : functor_prod_flip D C ∘f (functor_prod_flip C D) = functor.id :=
+  begin
+  fapply functor_eq, {intro p, apply prod.eta},
+  intros (p, p', h), cases p with (c, d), cases p' with (c', d'),
+  apply id_leftright,
+  end
 end functor
+open functor
 
--- Coq uses unit/counit definitions as basic
+namespace yoneda
+  --should this be defined as "yoneda_embedding Cᵒᵖ"?
+  definition contravariant_yoneda_embedding (C : Precategory) : Cᵒᵖ ⇒ set ^c C :=
+  functor_curry !hom_functor
 
--- open yoneda precategory.product precategory.opposite functor morphism
---   --universe levels are given explicitly because Lean uses 6 variables otherwise
+  definition yoneda_embedding (C : Precategory) : C ⇒ set ^c Cᵒᵖ :=
+  functor_curry (!hom_functor ∘f !functor_prod_flip)
 
---   structure adjoint.{u v} [C D : Precategory.{u v}] (F : C ⇒ D) (G : D ⇒ C) : Type.{max u v} :=
---   (nat_iso : (hom_functor D) ∘f (prod_functor (opposite_functor F) (functor.ID D)) ⟹
---              (hom_functor C) ∘f (prod_functor (functor.ID (Cᵒᵖ)) G))
---   (is_iso_nat_iso : is_iso nat_iso)
-
---   infix `⊣`:55 := adjoint
-
--- namespace adjoint
---   universe variables l1 l2
---   variables [C D : Precategory.{l1 l2}] (F : C ⇒ D) (G : D ⇒ C)
-
-
-
--- end adjoint
+end yoneda
