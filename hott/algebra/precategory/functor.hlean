@@ -87,6 +87,29 @@ namespace functor
       : functor.mk F H₁ id₁ comp₁ = functor.mk F H₂ id₂ comp₂ :=
   functor_eq (λc, idp) (λa b f, !id_leftright ⬝ !pH)
 
+  protected definition preserve_iso (F : C ⇒ D) {a b : C} (f : hom a b) [H : is_iso f] :
+    is_iso (F f) :=
+  begin
+    fapply @is_iso.mk, apply (F (f⁻¹)),
+    repeat (apply concat ; apply inverse ;  apply (respect_comp F) ;
+      apply concat ; apply (ap (λ x, to_fun_hom F x)) ;
+      [apply left_inverse | apply right_inverse] ;
+      apply (respect_id F) ),
+  end
+
+  attribute preserve_iso [instance]
+
+  protected definition respect_inv (F : C ⇒ D) {a b : C} (f : hom a b)
+    [H : is_iso f] [H' : is_iso (F f)] :
+    F (f⁻¹) = (F f)⁻¹ :=
+  begin
+    fapply @left_inverse_eq_right_inverse, apply (F f),
+      apply concat, apply inverse, apply (respect_comp F),
+      apply concat, apply (ap (λ x, to_fun_hom F x)),
+      apply left_inverse, apply respect_id,
+    apply right_inverse,
+  end
+
   protected definition assoc (H : C ⇒ D) (G : B ⇒ C) (F : A ⇒ B) :
       H ∘f (G ∘f F) = (H ∘f G) ∘f F :=
   !functor_mk_eq_constant (λa b f, idp)
@@ -100,7 +123,6 @@ namespace functor
   protected definition comp_id_eq_id_comp (F : C ⇒ D) : F ∘f functor.id = functor.id ∘f F :=
   !functor.id_right ⬝ !functor.id_left⁻¹
 
-  set_option apply.class_instance false
   -- "functor C D" is equivalent to a certain sigma type
   protected definition sigma_char :
     (Σ (to_fun_ob : C → D)
@@ -126,6 +148,7 @@ namespace functor
         apply idp},
   end
 
+  set_option apply.class_instance false
   protected definition is_hset_functor
     [HD : is_hset D] : is_hset (functor C D) :=
   begin
@@ -227,27 +250,3 @@ namespace functor
   -- end
 
 end functor
-
-namespace category
-  open functor
-
-  --TODO: make this a structure
-  definition precat_strict_precat : precategory (Σ (C : Precategory), is_hset C) :=
-  precategory.mk (λ a b, functor a.1 b.1)
-     (λ a b, @functor.is_hset_functor a.1 b.1 b.2)
-     (λ a b c g f, functor.compose g f)
-     (λ a, functor.id)
-     (λ a b c d h g f, !functor.assoc)
-     (λ a b f, !functor.id_left)
-     (λ a b f, !functor.id_right)
-
-  definition Precat_of_strict_cats := precategory.Mk precat_strict_precat
-
-  namespace ops
-
-    abbreviation SPreCat := Precat_of_strict_cats
-    --attribute precat_strict_precat [instance]
-
-  end ops
-
-end category

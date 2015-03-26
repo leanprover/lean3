@@ -10,6 +10,7 @@ char
 char.mk
 dite
 eq
+eq.elim_inv_inv
 eq.intro
 eq.rec
 eq_rec_eq
@@ -53,6 +54,7 @@ string
 string.empty
 string.str
 tactic
+tactic.all_goals
 tactic.apply
 tactic.assert_hypothesis
 tactic.fapply

@@ -15,6 +15,7 @@ name const * g_char = nullptr;
 name const * g_char_mk = nullptr;
 name const * g_dite = nullptr;
 name const * g_eq = nullptr;
+name const * g_eq_elim_inv_inv = nullptr;
 name const * g_eq_intro = nullptr;
 name const * g_eq_rec = nullptr;
 name const * g_eq_rec_eq = nullptr;
@@ -58,6 +59,7 @@ name const * g_string = nullptr;
 name const * g_string_empty = nullptr;
 name const * g_string_str = nullptr;
 name const * g_tactic = nullptr;
+name const * g_tactic_all_goals = nullptr;
 name const * g_tactic_apply = nullptr;
 name const * g_tactic_assert_hypothesis = nullptr;
 name const * g_tactic_fapply = nullptr;
@@ -126,6 +128,7 @@ void initialize_constants() {
     g_char_mk = new name{"char", "mk"};
     g_dite = new name{"dite"};
     g_eq = new name{"eq"};
+    g_eq_elim_inv_inv = new name{"eq", "elim_inv_inv"};
     g_eq_intro = new name{"eq", "intro"};
     g_eq_rec = new name{"eq", "rec"};
     g_eq_rec_eq = new name{"eq_rec_eq"};
@@ -169,6 +172,7 @@ void initialize_constants() {
     g_string_empty = new name{"string", "empty"};
     g_string_str = new name{"string", "str"};
     g_tactic = new name{"tactic"};
+    g_tactic_all_goals = new name{"tactic", "all_goals"};
     g_tactic_apply = new name{"tactic", "apply"};
     g_tactic_assert_hypothesis = new name{"tactic", "assert_hypothesis"};
     g_tactic_fapply = new name{"tactic", "fapply"};
@@ -238,6 +242,7 @@ void finalize_constants() {
     delete g_char_mk;
     delete g_dite;
     delete g_eq;
+    delete g_eq_elim_inv_inv;
     delete g_eq_intro;
     delete g_eq_rec;
     delete g_eq_rec_eq;
@@ -281,6 +286,7 @@ void finalize_constants() {
     delete g_string_empty;
     delete g_string_str;
     delete g_tactic;
+    delete g_tactic_all_goals;
     delete g_tactic_apply;
     delete g_tactic_assert_hypothesis;
     delete g_tactic_fapply;
@@ -349,6 +355,7 @@ name const & get_char_name() { return *g_char; }
 name const & get_char_mk_name() { return *g_char_mk; }
 name const & get_dite_name() { return *g_dite; }
 name const & get_eq_name() { return *g_eq; }
+name const & get_eq_elim_inv_inv_name() { return *g_eq_elim_inv_inv; }
 name const & get_eq_intro_name() { return *g_eq_intro; }
 name const & get_eq_rec_name() { return *g_eq_rec; }
 name const & get_eq_rec_eq_name() { return *g_eq_rec_eq; }
@@ -392,6 +399,7 @@ name const & get_string_name() { return *g_string; }
 name const & get_string_empty_name() { return *g_string_empty; }
 name const & get_string_str_name() { return *g_string_str; }
 name const & get_tactic_name() { return *g_tactic; }
+name const & get_tactic_all_goals_name() { return *g_tactic_all_goals; }
 name const & get_tactic_apply_name() { return *g_tactic_apply; }
 name const & get_tactic_assert_hypothesis_name() { return *g_tactic_assert_hypothesis; }
 name const & get_tactic_fapply_name() { return *g_tactic_fapply; }
