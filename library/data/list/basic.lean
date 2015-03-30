@@ -163,7 +163,10 @@ notation e ∈ s := mem e s
 theorem mem_nil (x : T) : x ∈ [] ↔ false :=
 iff.rfl
 
-theorem mem_cons (x y : T) (l : list T) : x ∈ y::l ↔ (x = y ∨ x ∈ l) :=
+theorem mem_cons (x : T) (l : list T) : x ∈ x :: l :=
+or.inl rfl
+
+theorem mem_cons_iff (x y : T) (l : list T) : x ∈ y::l ↔ (x = y ∨ x ∈ l) :=
 iff.rfl
 
 theorem mem_or_mem_of_mem_append {x : T} {s t : list T} : x ∈ s ++ t → x ∈ s ∨ x ∈ t :=
@@ -231,8 +234,38 @@ list.rec_on l
                 (assume Heq, absurd Heq Hne)
                 (assume Hp,  absurd Hp Hn),
             have H2 : ¬x ∈ h::l, from
-              iff.elim_right (not_iff_not_of_iff !mem_cons) H1,
+              iff.elim_right (not_iff_not_of_iff !mem_cons_iff) H1,
             decidable.inr H2)))
+
+theorem mem_of_ne_of_mem {x y : T} {l : list T} (H₁ : x ≠ y) (H₂ : x ∈ y :: l) : x ∈ l :=
+or.elim H₂ (λe, absurd e H₁) (λr, r)
+
+definition sublist (l₁ l₂ : list T) := ∀ ⦃a : T⦄, a ∈ l₁ → a ∈ l₂
+
+infix `⊆`:50 := sublist
+
+lemma nil_sub (l : list T) : [] ⊆ l :=
+λ b i, false.elim (iff.mp (mem_nil b) i)
+
+lemma sub.refl (l : list T) : l ⊆ l :=
+λ b i, i
+
+lemma sub.trans {l₁ l₂ l₃ : list T} (H₁ : l₁ ⊆ l₂) (H₂ : l₂ ⊆ l₃) : l₁ ⊆ l₃ :=
+λ b i, H₂ (H₁ i)
+
+lemma sub_cons (a : T) (l : list T) : l ⊆ a::l :=
+λ b i, or.inr i
+
+lemma cons_sub_cons  {l₁ l₂ : list T} (a : T) (s : l₁ ⊆ l₂) : (a::l₁) ⊆ (a::l₂) :=
+λ b Hin, or.elim Hin
+  (λ e : b = a,  or.inl e)
+  (λ i : b ∈ l₁, or.inr (s i))
+
+lemma sub_append_left (l₁ l₂ : list T) : l₁ ⊆ l₁++l₂ :=
+λ b i, iff.mp' (mem_append_iff b l₁ l₂) (or.inl i)
+
+lemma sub_append_right (l₁ l₂ : list T) : l₂ ⊆ l₁++l₂ :=
+λ b i, iff.mp' (mem_append_iff b l₁ l₂) (or.inr i)
 
 /- find -/
 
@@ -254,7 +287,7 @@ list.rec_on l
    (take y l,
       assume iH : ¬x ∈ l → find x l = length l,
       assume P₁ : ¬x ∈ y::l,
-      have P₂ : ¬(x = y ∨ x ∈ l), from iff.elim_right (not_iff_not_of_iff !mem_cons) P₁,
+      have P₂ : ¬(x = y ∨ x ∈ l), from iff.elim_right (not_iff_not_of_iff !mem_cons_iff) P₁,
       have P₃ : ¬x = y ∧ ¬x ∈ l, from (iff.elim_left not_or_iff_not_and_not P₂),
       calc
         find x (y::l) = if x = y then 0 else succ (find x l) : !find_cons
@@ -407,7 +440,7 @@ theorem zip_unzip : ∀ (l : list (A × B)), zip (pr₁ (unzip l)) (pr₂ (unzip
     have r : zip (pr₁ (unzip l)) (pr₂ (unzip l)) = l, from zip_unzip l,
     revert r,
     apply (prod.cases_on (unzip l)),
-    intros (la, lb, r),
+    intros [la, lb, r],
     rewrite -r
   end
 

@@ -22,13 +22,6 @@ namespace bool
   theorem cond_tt {A : Type} (t e : A) : cond tt t e = t :=
   rfl
 
-  theorem ff_ne_tt : ¬ ff = tt :=
-  assume H : ff = tt, absurd
-    (calc true  = cond tt true false : cond_tt
-            ... = cond ff true false : H
-            ... = false              : cond_ff)
-    true_ne_false
-
   theorem eq_tt_of_ne_ff : ∀ {a : bool}, a ≠ ff → a = tt
   | @eq_tt_of_ne_ff tt H := rfl
   | @eq_tt_of_ne_ff ff H := absurd rfl H
@@ -75,6 +68,12 @@ namespace bool
       or.inr Hb)
     (assume H, or.inl rfl)
 
+  theorem bor_inl {a b : bool} (H : a = tt) : a || b = tt :=
+  by rewrite H
+
+  theorem bor_inr {a b : bool} (H : b = tt) : a || b = tt :=
+  bool.rec_on a (by rewrite H) (by rewrite H)
+
   theorem ff_band (a : bool) : ff && a = ff :=
   rfl
 
@@ -111,6 +110,9 @@ namespace bool
         ff_ne_tt)
     (assume H1 : a = tt, H1)
 
+  theorem band_intro {a b : bool} (H₁ : a = tt) (H₂ : b = tt) : a && b = tt :=
+  by rewrite [H₁, H₂]
+
   theorem band_elim_right {a b : bool} (H : a && b = tt) : b = tt :=
   band_elim_left (!band.comm ⬝ H)
 
@@ -124,14 +126,3 @@ namespace bool
   rfl
 
 end bool
-
-open bool
-
-protected definition bool.is_inhabited [instance] : inhabited bool :=
-inhabited.mk ff
-
-protected definition bool.has_decidable_eq [instance] : decidable_eq bool :=
-take a b : bool,
-  bool.rec_on a
-    (bool.rec_on b (inl rfl) (inr ff_ne_tt))
-    (bool.rec_on b (inr (ne.symm ff_ne_tt)) (inl rfl))
