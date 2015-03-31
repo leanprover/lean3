@@ -904,6 +904,8 @@ struct structure_cmd_fn {
             return;
         if (!m_env.impredicative() && !has_lift_decls(m_env))
             return;
+        if (m_env.prop_proof_irrel())
+            return; // TODO: we are skipping no_confusion if impredicative HoTT
         m_env = mk_no_confusion(m_env, m_name);
         name no_confusion_name(m_name, "no_confusion");
         save_def_info(no_confusion_name);

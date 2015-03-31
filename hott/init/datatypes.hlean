@@ -30,13 +30,13 @@ inductive empty.{l} : Type.{l}
 inductive eq.{l} {A : Type.{l}} (a : A) : A → Type.{l} :=
 refl : eq a a
 
-structure lift.{l₁ l₂} (A : Type.{l₁}) : Type.{max l₁ l₂} :=
+structure lift.{l₁ l₂} (A : Type.{l₁}) : Type.{max 1 l₁ l₂} :=
 up :: (down : A)
 
 structure prod (A B : Type) :=
 mk :: (pr1 : A) (pr2 : B)
 
-inductive sum (A B : Type) : Type :=
+inductive sum (A B : Type) :=
 | inl {} : A → sum A B
 | inr {} : B → sum A B
 

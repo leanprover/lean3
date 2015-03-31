@@ -743,12 +743,14 @@ struct inductive_cmd_fn {
             if (has_unit) {
                 env = mk_cases_on(env, n);
                 save_def_info(name(n, "cases_on"), pos);
-                if (has_eq && ((env.prop_proof_irrel() && has_heq) || (!env.prop_proof_irrel() && has_lift))) {
+                if (has_eq && env.prop_proof_irrel() && has_heq) {
+                    // TODO: we are skipping no_confusion if impredicative HoTT
                     env = mk_no_confusion(env, n);
                     save_if_defined(name{n, "no_confusion_type"}, pos);
                     save_if_defined(name(n, "no_confusion"), pos);
                 }
-                if (has_prod) {
+                if (has_prod && env.prop_proof_irrel()) {
+                    // TODO: we are skipping below if impredicative HoTT
                     env = mk_below(env, n);
                     save_if_defined(name{n, "below"}, pos);
                     if (env.impredicative()) {
@@ -761,12 +763,12 @@ struct inductive_cmd_fn {
         for (inductive_decl const & d : decls) {
             name const & n = inductive_decl_name(d);
             pos_info pos   = *m_decl_pos_map.find(n);
-            if (has_unit && has_prod) {
+            if (has_unit && has_prod && env.prop_proof_irrel()) {
                 env = mk_brec_on(env, n);
                 save_if_defined(name{n, "brec_on"}, pos);
                 if (env.impredicative()) {
-                    env = mk_binduction_on(env, n);
-                    save_if_defined(name(n, "binduction_on"), pos);
+                   env = mk_binduction_on(env, n);
+                   save_if_defined(name(n, "binduction_on"), pos);
                 }
             }
         }

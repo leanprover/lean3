@@ -9,7 +9,7 @@ Author: Leonardo de Moura
 prelude
 import init.relation init.tactic
 
-inductive acc.{l₁ l₂} {A : Type.{l₁}} (R : A → A → Type.{l₂}) : A → Type.{max l₁ l₂} :=
+inductive acc.{l₁ l₂} {A : Type.{l₁}} (R : A → A → Type.{l₂}) : A → Type.{max 1 l₁ l₂} :=
 intro : ∀x, (∀ y, R y x → acc R y) → acc R x
 
 namespace acc

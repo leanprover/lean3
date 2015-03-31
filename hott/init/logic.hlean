@@ -199,7 +199,7 @@ end inhabited
 
 /- decidable -/
 
-inductive decidable.{l} [class] (p : Type.{l}) : Type.{l} :=
+inductive decidable.{l} [class] (p : Type.{l}) : Type.{max 1 l} :=
 | inl :  p → decidable p
 | inr : ¬p → decidable p
 

@@ -15,7 +15,7 @@ namespace nat
   open lift
   notation `ℕ` := nat
 
-  inductive lt (a : nat) : nat → Type :=
+  inductive lt (a : nat) : nat → Type₀ :=
   | base : lt a (succ a)
   | step : Π {b}, lt a b → lt a (succ b)
 
@@ -32,6 +32,8 @@ namespace nat
   inhabited.mk zero
 
   protected definition has_decidable_eq [instance] : decidable_eq nat :=
+  sorry
+  /-
   λn m : nat,
   have general : ∀n, decidable (n = m), from
     nat.rec_on m
@@ -48,9 +50,12 @@ namespace nat
                 assume Heq, down (nat.no_confusion Heq (λ e : n' = m', Hne e)),
               inr H1))),
   general n
+  -/
 
   -- less-than is well-founded
   definition lt.wf [instance] : well_founded lt :=
+  sorry
+  /-
   well_founded.intro (λn, nat.rec_on n
     (acc.intro zero (λ (y : nat) (hlt : y < zero),
       have aux : ∀ {n₁}, y < n₁ → zero = n₁ → acc lt y, from
@@ -69,6 +74,7 @@ namespace nat
               down (nat.no_confusion heq (λ (e : n = b),
                 acc.inv (eq.rec_on e ih) hlt))),
         aux hlt rfl)))
+  -/
 
   definition measure {A : Type} (f : A → nat) : A → A → Type₀ :=
   inv_image lt f
@@ -77,11 +83,14 @@ namespace nat
   inv_image.wf f lt.wf
 
   definition not_lt_zero (a : nat) : ¬ a < zero :=
+  sorry
+  /-
   have aux : ∀ {b}, a < b → b = zero → empty, from
     λ b H, lt.cases_on H
       (λ heq, down (nat.no_confusion heq))
       (λ b h₁ heq, down (nat.no_confusion heq)),
-  λ H, aux H rfl
+   λ H, aux H rfl
+  -/
 
   definition zero_lt_succ (a : nat) : zero < succ a :=
   nat.rec_on a
@@ -136,11 +145,14 @@ namespace nat
   lt.step H
 
   definition eq_or_lt_of_le {a b : nat} (H : a ≤ b) : sum (a = b) (a < b) :=
+  sorry
+  /-
   have aux : Π (a₁ b₁ : nat) (hlt : a₁ < b₁), a₁ = a → b₁ = (succ b) → sum (a = b) (a < b), from
     λ a₁ b₁ hlt, lt.rec_on hlt
       (λ h₁, eq.rec_on h₁ (λ h₂, down (nat.no_confusion h₂ (λ h₃, eq.rec_on h₃ (sum.inl rfl)))))
       (λ b₁ hlt ih h₁, eq.rec_on h₁ (λ h₂, down (nat.no_confusion h₂ (λ h₃, eq.rec_on h₃ (sum.inr hlt))))),
   aux a (succ b) H rfl rfl
+  -/
 
   definition le.of_eq_or_lt {a b : nat} (H : sum (a = b) (a < b)) : a ≤ b :=
   sum.rec_on H
@@ -151,11 +163,7 @@ namespace nat
   λ a b, decidable_iff_equiv _ (iff.intro le.of_eq_or_lt eq_or_lt_of_le)
 
   definition le.rec_on {a : nat} {P : nat → Type} {b : nat} (H : a ≤ b) (H₁ : P a) (H₂ : ∀ b, a < b → P b) : P b :=
-  begin
-    cases H with [b', hlt],
-      apply H₁,
-      apply (H₂ b hlt)
-  end
+  sorry
 
   definition lt.irrefl (a : nat) : ¬ a < a :=
   nat.rec_on a
@@ -200,25 +208,13 @@ namespace nat
   lt.succ_of_lt h
 
   definition le.trans {a b c : nat} (h₁ : a ≤ b) (h₂ : b ≤ c) : a ≤ c :=
-  begin
-    cases h₁ with [b', hlt],
-      apply h₂,
-      apply (lt.trans hlt h₂)
-  end
+  sorry
 
   definition lt.of_le_of_lt {a b c : nat} (h₁ : a ≤ b) (h₂ : b < c) : a < c :=
-  begin
-    cases h₁ with [b', hlt],
-      apply h₂,
-      apply (lt.trans hlt h₂)
-  end
+  sorry
 
   definition lt.of_lt_of_le {a b c : nat} (h₁ : a < b) (h₂ : b ≤ c) : a < c :=
-  begin
-    cases h₁ with [b', hlt],
-      apply (lt.of_succ_lt_succ h₂),
-      apply (lt.trans hlt (lt.of_succ_lt_succ h₂))
-  end
+  sorry
 
   definition lt.of_lt_of_eq {a b c : nat} (h₁ : a < b) (h₂ : b = c) : a < c :=
   eq.rec_on h₂ h₁

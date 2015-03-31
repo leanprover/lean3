@@ -86,6 +86,8 @@ context
   set_option class.conservative false
   theorem nondep_funext_from_ua {A : Type} {B : Type}
       : Π {f g : A → B}, f ∼ g → f = g :=
+  sorry
+  /-
     (λ (f g : A → B) (p : f ∼ g),
         let d := λ (x : A), sigma.mk (f x , f x) idp in
         let e := λ (x : A), sigma.mk (f x , g x) (p x) in
@@ -105,7 +107,7 @@ context
           from ap _ eq0,
         eq1
     )
-
+   -/
 end
 
 -- Now we use this to prove weak funext, which as we know
