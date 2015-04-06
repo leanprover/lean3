@@ -31,6 +31,7 @@ Author: Leonardo de Moura
 #include "library/flycheck.h"
 #include "library/deep_copy.h"
 #include "library/typed_expr.h"
+#include "library/metavar_closure.h"
 #include "library/local_context.h"
 #include "library/constants.h"
 #include "library/util.h"
@@ -1053,7 +1054,8 @@ constraint elaborator::mk_equations_cnstr(expr const & m, expr const & eqns) {
         substitution new_s  = s;
         expr new_eqns       = new_s.instantiate_all(eqns);
         new_eqns            = solve_unassigned_mvars(new_s, new_eqns);
-        display_unassigned_mvars(new_eqns, new_s);
+        if (display_unassigned_mvars(new_eqns, new_s))
+            return lazy_list<constraints>();
         type_checker_ptr tc = mk_type_checker(_env, ngen, relax);
         new_eqns            = assign_equation_lhs_metas(*tc, new_eqns);
         expr val            = compile_equations(*tc, _ios, new_eqns, meta, meta_type, relax);
@@ -1746,7 +1748,8 @@ expr elaborator::solve_unassigned_mvars(substitution & subst, expr const & e) {
     return solve_unassigned_mvars(subst, e, visited);
 }
 
-void elaborator::display_unassigned_mvars(expr const & e, substitution const & s) {
+bool elaborator::display_unassigned_mvars(expr const & e, substitution const & s) {
+    bool r = false;
     if (check_unassigned() && has_metavar(e)) {
         substitution tmp_s(s);
         visit_unassigned_mvars(e, [&](expr const & mvar) {
@@ -1757,9 +1760,11 @@ void elaborator::display_unassigned_mvars(expr const & e, substitution const & s
                     bool relax     = true;
                     proof_state ps(goals(g), s, m_ngen, constraints(), relax);
                     display_unsolved_proof_state(mvar, ps, "don't know how to synthesize placeholder");
+                    r = true;
                 }
             });
     }
+    return r;
 }
 
 /** \brief Check whether the solution found by the elaborator is producing too specific
@@ -1901,8 +1906,11 @@ pair<expr, constraints> elaborator::elaborate_nested(list<expr> const & ctx, opt
         }
     }
     expr e = translate(env(), ctx, n);
-    if (expected_type)
+    metavar_closure cls;
+    if (expected_type) {
         e = copy_tag(e, mk_typed_expr(mk_as_is(*expected_type), e));
+        cls.add(*expected_type);
+    }
     m_context.set_ctx(ctx);
     m_context.set_ctx(ctx);
     m_full_context.set_ctx(ctx);
@@ -1917,9 +1925,14 @@ pair<expr, constraints> elaborator::elaborate_nested(list<expr> const & ctx, opt
     constraints rcs = p->first.second;
     r = s.instantiate_all(r);
     r = solve_unassigned_mvars(s, r);
+    rcs = map(rcs, [&](constraint const & c) { return instantiate_metavars(c, s); });
     copy_info_to_manager(s);
     if (report_unassigned)
         display_unassigned_mvars(r, s);
+    if (expected_type) {
+        justification j;
+        rcs = append(rcs, cls.mk_constraints(s, j, relax));
+    }
     return mk_pair(r, rcs);
 }
 
