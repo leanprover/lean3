@@ -1,5 +1,5 @@
-import data.nat data.int data.subtype algebra.ordered_field init.quot --logic.axioms.funext
-open nat algebra eq eq.ops 
+import data.nat data.int data.subtype algebra.ordered_field init.quot data.list  --logic.axioms.funext
+open nat algebra eq eq.ops list
 
 /-context
 
@@ -154,6 +154,51 @@ theorem sum_converges_of_converges (s t : rat_sequence) (a b : ℚ) (Hs : conver
         exact H''
     end
 
+definition bounded [reducible] (s : rat_sequence) : Prop := ∃ M : ℚ, ∀ n : ℕ, s n ≤ M
+
+-- create list of nats from 0 to N - 1
+definition nat_list : ℕ → list ℕ
+  | 0 := [0]
+  | (succ n) := concat n (nat_list n) 
+           
+definition rat_list_max : list ℚ → ℚ  -- default if l is empty, else max l
+  | [] := 0
+  | (h :: []) := h
+  | (h :: t) := algebra.max h (rat_list_max t)
+
+-- return max of first n values of rat seq
+definition max_init_seq (s : rat_sequence) (N : ℕ) : ℚ :=
+  rat_list_max (map s (nat_list N))
+
+theorem lt_seq_max (s : rat_sequence) (N : ℕ) (a : ℕ) (Ha : a < N) : s a ≤ max_init_seq s N := sorry
+  
+theorem bounded_of_cauchy {s : rat_sequence} (H : cauchy s) : bounded s :=
+  begin
+  rewrite [↑bounded, ↑cauchy at H],
+  apply exists.elim,
+  exact (H 1 algebra.zero_lt_one),
+  intros [N, HN],
+  fapply exists.intro,
+  exact (algebra.max (max_init_seq s N) ((s N) + 1)),
+  intro n,
+  have em : n < N ∨ ¬(n < N), from !decidable.em,
+  apply (or.elim em),
+  intro Hn,
+  apply algebra.le.trans,
+  exact (lt_seq_max s N n Hn),
+  apply algebra.max.left,
+  intro Hn,
+  apply algebra.le.trans,
+  rotate_left 1,
+  apply algebra.max.right,
+  have HNn : n ≥ N, from algebra.le_of_not_lt Hn,
+  have Ha : abs (s n - s N) < 1, from HN n N HNn (le.refl N),
+  have Ha' : s n - s N ≤ abs (s n - s N), from !le_abs_self,
+  have Ha'' : s n - s N ≤ 1, from le_of_lt (algebra.lt_of_le_of_lt Ha' Ha),
+  apply (iff.mp' !le_add_iff_sub_left_le),
+  exact Ha''
+  end
+
 theorem sub_dist (a b c d : ℚ) : (a + b) - (c + d) = a + b - c - d :=
   !sub_add_eq_sub_sub
 
@@ -289,11 +334,11 @@ definition cauchy.to_setoid [instance] : setoid cauchy_sequence :=
 
 definition real := quot cauchy.to_setoid
 
-theorem add.well_defined (q r s t : cauchy_sequence) (H1 : cauchy.equiv q r) (H2 : cauchy.equiv s t) :
-    q + s = r + t := sorry
+/-theorem add.well_defined (q r s t : cauchy_sequence) (H1 : cauchy.equiv q r) (H2 : cauchy.equiv s t) :
+    q + s = r + t := sorry-/
 
-example (x : real) : x = x :=
+/-example (x : real) : x = x :=
   begin
-  end
+  end-/
 
 end rat

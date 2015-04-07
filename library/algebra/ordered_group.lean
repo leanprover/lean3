@@ -9,7 +9,7 @@ Partially ordered additive groups, modeled on Isabelle's library. We could refin
 but we would have to declare more inheritance paths.
 -/
 
-import logic.eq data.unit data.sigma data.prod
+import logic.eq data.unit data.sigma data.prod init.logic
 import algebra.function algebra.binary
 import algebra.group algebra.order
 open eq eq.ops   -- note: ⁻¹ will be overloaded
@@ -546,6 +546,48 @@ section
         ... = abs (a - b + b)       : by rewrite sub_add_cancel
         ... ≤ abs (a - b) + abs b   : abs_add_le_abs_add_abs,
   algebra.le_of_add_le_add_right H1
+
+definition max (a b : A) : A :=
+  if a < b then b else a
+
+  definition min (a b : A) : A :=
+  if a < b then a else b
+
+  definition max_a_a (a : A) : a = max a a :=
+  eq.rec_on !if_t_t rfl
+
+  definition max.eq_right {a b : A} (H : a < b) : max a b = b :=
+  if_pos H
+
+  definition max.eq_left {a b : A} (H : ¬ a < b) : max a b = a :=
+  if_neg H
+
+  definition max.right_eq {a b : A} (H : a < b) : b = max a b :=
+  eq.rec_on (max.eq_right H) rfl
+
+  definition max.left_eq {a b : A} (H : ¬ a < b) : a = max a b :=
+  eq.rec_on (max.eq_left H) rfl
+
+  definition max.left (a b : A) : a ≤ max a b :=
+  decidable.by_cases
+    (λ h : a < b,   le_of_lt (eq.rec_on (max.right_eq h) h))
+    (λ h : ¬ a < b, eq.rec_on (max.eq_left h) !le.refl)
+
+theorem eq_or_lt_of_not_lt (H : ¬ a < b) : a = b ∨ b < a :=
+  have H' : b = a ∨ b < a, from or.swap (lt_or_eq_of_le (le_of_not_lt H)),
+  or.elim H'
+    (take H'' : b = a, or.inl (symm H''))
+    (take H'' : b < a, or.inr H'')
+    
+  definition max.right (a b : A) : b ≤ max a b :=
+  decidable.by_cases
+    (λ h : a < b,   eq.rec_on (max.eq_right h) !le.refl)
+    (λ h : ¬ a < b, or.rec_on (eq_or_lt_of_not_lt h)
+      (λ heq, eq.rec_on heq (eq.rec_on (max_a_a a) !le.refl))
+      (λ h : b < a,
+        have aux : a = max a b, from max.left_eq (lt.asymm h),
+        eq.rec_on aux (le_of_lt h)))
+
 end
 
 end algebra
