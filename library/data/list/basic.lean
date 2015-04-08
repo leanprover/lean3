@@ -66,6 +66,10 @@ theorem length_append : ∀ (s t : list T), length (s ++ t) = length s + length 
                     ...  = (length s + 1) + length t  : add.succ_left
                     ...  = length (a :: s) + length t : rfl
 
+theorem eq_nil_of_length_eq_zero : ∀ {l : list T}, length l = 0 → l = []
+| []     H := rfl
+| (a::s) H := nat.no_confusion H
+
 -- add_rewrite length_nil length_cons
 
 /- concat -/
@@ -418,15 +422,23 @@ definition foldl (f : A → B → A) : A → list B → A
 | a []       := a
 | a (b :: l) := foldl (f a b) l
 
+theorem foldl_nil (f : A → B → A) (a : A) : foldl f a [] = a
+
+theorem foldl_cons (f : A → B → A) (a : A) (b : B) (l : list B) : foldl f a (b::l) = foldl f (f a b) l
+
 definition foldr (f : A → B → B) : B → list A → B
 | b []       := b
 | b (a :: l) := f a (foldr b l)
+
+theorem foldr_nil (f : A → B → B) (b : B) : foldr f b [] = b
+
+theorem foldr_cons (f : A → B → B) (b : B) (a : A) (l : list A) : foldr f b (a::l) = f a (foldr f b l)
 
 section foldl_eq_foldr
   -- foldl and foldr coincide when f is commutative and associative
   parameters {α : Type} {f : α → α → α}
   hypothesis (Hcomm  : ∀ a b, f a b = f b a)
-  hypothesis (Hassoc : ∀ a b c, f a (f b c) = f (f a b) c)
+  hypothesis (Hassoc : ∀ a b c, f (f a b) c = f a (f b c))
   include Hcomm Hassoc
 
   theorem foldl_eq_of_comm_of_assoc : ∀ a b l, foldl f a (b::l) = f b (foldl f a l)
@@ -436,7 +448,7 @@ section foldl_eq_foldr
       change (foldl f (f (f a b) c) l = f b (foldl f (f a c) l)),
       rewrite -foldl_eq_of_comm_of_assoc,
       change (foldl f (f (f a b) c) l = foldl f (f (f a c) b) l),
-      have H₁ : f (f a b) c = f (f a c) b, by rewrite [-Hassoc, -Hassoc, Hcomm b c],
+      have H₁ : f (f a b) c = f (f a c) b, by rewrite [Hassoc, Hassoc, Hcomm b c],
       rewrite H₁
     end
 
@@ -794,6 +806,54 @@ lemma nodup_map {f : A → B} (inj : injective f) : ∀ {l : list A}, nodup l �
         end,
       absurd xinxs nxinxs,
   nodup_cons nfxinm ndmfxs
+
+definition erase_dup [H : decidable_eq A] : list A → list A
+| []        :=  []
+| (x :: xs) :=  if x ∈ xs then erase_dup xs else x :: erase_dup xs
+
+theorem erase_dup_nil [H : decidable_eq A] : erase_dup [] = []
+
+theorem erase_dup_cons_of_mem [H : decidable_eq A] {a : A} {l : list A} : a ∈ l → erase_dup (a::l) = erase_dup l :=
+assume ainl, calc
+  erase_dup (a::l) = if a ∈ l then erase_dup l else a :: erase_dup l : rfl
+              ...  = erase_dup l                                     : if_pos ainl
+
+theorem erase_dup_cons_of_not_mem [H : decidable_eq A] {a : A} {l : list A} : a ∉ l → erase_dup (a::l) = a :: erase_dup l :=
+assume nainl, calc
+  erase_dup (a::l) = if a ∈ l then erase_dup l else a :: erase_dup l : rfl
+              ...  = a :: erase_dup l                                : if_neg nainl
+
+theorem mem_erase_dup [H : decidable_eq A] {a : A} : ∀ {l}, a ∈ l → a ∈ erase_dup l
+| []     h  := absurd h !not_mem_nil
+| (b::l) h  := by_cases
+  (λ binl  : b ∈ l, or.elim h
+    (λ aeqb : a = b, by rewrite [erase_dup_cons_of_mem binl, -aeqb at binl]; exact (mem_erase_dup binl))
+    (λ ainl : a ∈ l, by rewrite [erase_dup_cons_of_mem binl]; exact (mem_erase_dup ainl)))
+  (λ nbinl : b ∉ l, or.elim h
+    (λ aeqb : a = b, by rewrite [erase_dup_cons_of_not_mem nbinl, aeqb]; exact !mem_cons)
+    (λ ainl : a ∈ l, by rewrite [erase_dup_cons_of_not_mem nbinl]; exact (or.inr (mem_erase_dup ainl))))
+
+theorem mem_of_mem_erase_dup [H : decidable_eq A] {a : A} : ∀ {l}, a ∈ erase_dup l → a ∈ l
+| []     h := by rewrite [erase_dup_nil at h]; exact h
+| (b::l) h := by_cases
+  (λ binl  : b ∈ l,
+    have h₁ : a ∈ erase_dup l, by rewrite [erase_dup_cons_of_mem binl at h]; exact h,
+    or.inr (mem_of_mem_erase_dup h₁))
+  (λ nbinl : b ∉ l,
+    have h₁ : a ∈ b :: erase_dup l, by rewrite [erase_dup_cons_of_not_mem nbinl at h]; exact h,
+    or.elim h₁
+      (λ aeqb  : a = b, by rewrite aeqb; exact !mem_cons)
+      (λ ainel : a ∈ erase_dup l, or.inr (mem_of_mem_erase_dup ainel)))
+
+theorem nodup_erase_dup [H : decidable_eq A] : ∀ l : list A, nodup (erase_dup l)
+| []        := by rewrite erase_dup_nil; exact nodup_nil
+| (a::l)    := by_cases
+  (λ ainl  : a ∈ l, by rewrite [erase_dup_cons_of_mem ainl]; exact (nodup_erase_dup l))
+  (λ nainl : a ∉ l,
+    assert r   : nodup (erase_dup l), from nodup_erase_dup l,
+    assert nin : a ∉ erase_dup l, from
+      assume ab : a ∈ erase_dup l, absurd (mem_of_mem_erase_dup ab) nainl,
+    by rewrite [erase_dup_cons_of_not_mem nainl]; exact (nodup_cons nin r))
 end nodup
 end list
 

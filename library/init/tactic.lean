@@ -61,9 +61,10 @@ opaque definition generalize (e : expr)   : tactic := builtin
 opaque definition clear      (e : expr)   : tactic := builtin
 opaque definition revert     (e : expr)   : tactic := builtin
 opaque definition unfold     (e : expr)   : tactic := builtin
+opaque definition refine     (e : expr)   : tactic := builtin
 opaque definition exact      (e : expr)   : tactic := builtin
--- rexact is similar to exact, but the goal type is enforced during elaboration
-opaque definition sexact     (e : expr)   : tactic := builtin
+-- Relaxed version of exact that does not enforce goal type
+opaque definition rexact     (e : expr)   : tactic := builtin
 opaque definition trace      (s : string) : tactic := builtin
 
 inductive expr_list : Type :=
@@ -92,13 +93,13 @@ opaque definition change (e : expr) : tactic := builtin
 opaque definition assert_hypothesis (id : expr) (e : expr) : tactic := builtin
 
 infixl `;`:15 := and_then
-notation `[` h `|` r:(foldl `|` (e r, or_else r e) h) `]` := r
+notation `(` h `|` r:(foldl `|` (e r, or_else r e) h) `)` := r
 
-definition try         (t : tactic) : tactic := [t | id]
+definition try         (t : tactic) : tactic := (t | id)
 definition repeat1     (t : tactic) : tactic := t ; repeat t
 definition focus       (t : tactic) : tactic := focus_at t 0
 definition determ      (t : tactic) : tactic := at_most t 1
-definition trivial                  : tactic := [ apply eq.refl | apply true.intro | assumption ]
+definition trivial                  : tactic := (apply eq.refl | apply true.intro | assumption)
 definition do (n : num) (t : tactic) : tactic :=
 nat.rec id (λn t', (t;t')) (nat.of_num n)
 

@@ -93,7 +93,7 @@ namespace functor
     fapply @is_iso.mk, apply (F (f⁻¹)),
     repeat (apply concat ; apply inverse ;  apply (respect_comp F) ;
       apply concat ; apply (ap (λ x, to_fun_hom F x)) ;
-      [apply left_inverse | apply right_inverse] ;
+      (apply left_inverse | apply right_inverse);
       apply (respect_id F) ),
   end
 
@@ -134,7 +134,8 @@ namespace functor
     fapply equiv.MK,
       {intro S, fapply functor.mk,
         exact (S.1), exact (S.2.1),
-        exact (pr₁ S.2.2), exact (pr₂ S.2.2)},
+        -- TODO(Leo): investigate why we need to use relaxed-exact (rexact) tactic here
+        exact (pr₁ S.2.2), rexact (pr₂ S.2.2)},
       {intro F,
         cases F with [d1, d2, d3, d4],
         exact ⟨d1, d2, (d3, @d4)⟩},
