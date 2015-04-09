@@ -25,8 +25,7 @@ definition rat.is_lin_ord [instance] : discrete_linear_ordered_field ℚ := rat_
 -- These belong elsewhere
 
 -- this disappeared from order at the last commit??
-theorem lt_of_lt_of_eq {A : Type} [s : has_lt A] {a b c : A} (H1 : a < b) (H2 : b = c) : a < c := sorry
-
+theorem lt_of_lt_of_eq {A : Type} [s : has_lt A] {a b c : A} (H1 : a < b) (H2 : b = c) : a < c := H2 ▸ H1
 
 --why doesn't this exist?
 theorem le_of_eq {a b : ℚ} (H1 : a = b) : a ≤ b := 
@@ -37,6 +36,13 @@ theorem eq_nil_of_length_eq_zero : ∀ {l : list ℚ}, length l = 0 → l = []
 | []     H := rfl
 | (a::s) H := nat.no_confusion H
 
+theorem abs_add_le_add_abs (x y : ℚ) : abs (x + y) ≤ abs x + abs y :=
+  have H [visible] :  abs (x + y) - abs (x) ≤ abs (x + y - x), from !abs_sub_abs_le_abs_sub,
+  begin
+    rewrite [{x + y}algebra.add.comm at H, add_neg_cancel_right at H, {y + x}algebra.add.comm at H], 
+    apply (iff.mp' (!le_add_iff_sub_left_le)),
+    exact H
+  end
 --------------------
 
 -- the following are needed for dealing with numerals and coercions to ℚ.
@@ -96,6 +102,10 @@ theorem seq_sub_self (s : rat_sequence) : s - s = λ n, 0 :=
   funext (take x,
     show s x - s x = 0, from !algebra.sub_self)
 
+definition mul [reducible] (s t : rat_sequence) : rat_sequence :=
+  λ n : ℕ, (s n) * (t n)
+infix `*` := mul
+
 definition vanishes (s : rat_sequence) : Prop :=
   ∀ ε : ℚ, ε > 0 → ∃ N : ℕ, ∀ n : ℕ, n ≥ N → abs (s n) < ε
 
@@ -111,18 +121,12 @@ definition converge_to_same (s t : rat_sequence) : Prop :=
 definition cauchy (s : rat_sequence) : Prop :=
   ∀ ε : ℚ, ε > 0 → ∃ N : ℕ, ∀ m n : ℕ, m ≥ N → n ≥ N → abs (s m - s n) < ε
 
-theorem abs_add_le_add_abs (x y : ℚ) : abs (x + y) ≤ abs x + abs y :=
-  have H [visible] :  abs (x + y) - abs (x) ≤ abs (x + y - x), from !abs_sub_abs_le_abs_sub,
-  begin
-    rewrite [{x + y}algebra.add.comm at H, add_neg_cancel_right at H, {y + x}algebra.add.comm at H], 
-    apply (iff.mp' (!le_add_iff_sub_left_le)),
-    exact H
-  end
+definition bounded [reducible] (s : rat_sequence) : Prop := ∃ M : ℚ, ∀ n : ℕ, s n ≤ M
 
 theorem sum_vanishes_of_vanishes (s t : rat_sequence) (Hs : vanishes s) (Ht : vanishes t) :
     vanishes (s + t) :=
   begin
-    rewrite [↑vanishes, ↑vanishes at Hs, ↑vanishes at Ht],
+    rewrite ↑vanishes at *,
     intro ε, intro H,
     have Hs' : ∃ N : ℕ, ∀ n : ℕ, n ≥ N → abs (s n) < ε / 2, from Hs (ε / 2) (rat_div_nat_pos H (zero_lt_succ 1)),
     have Ht' : ∃ N : ℕ, ∀ n : ℕ, n ≥ N → abs (t n) < ε / 2, from Ht (ε / 2) (rat_div_nat_pos H (zero_lt_succ 1)),
@@ -154,7 +158,7 @@ theorem sum_converges_of_converges (s t : rat_sequence) (a b : ℚ) (Hs : conver
   begin
     rewrite [↑converges_to, ↑converges_to at Hs, ↑converges_to at Ht],
     have H : vanishes (add (λ n, s n - a) (λ n, t n - b)), from (sum_vanishes_of_vanishes _ _ Hs Ht),
-    rewrite [↑vanishes, ↑vanishes at H],
+    rewrite ↑vanishes at *,
     intro ε, intro H1,
     apply exists.elim,
       exact (H ε H1),
@@ -169,7 +173,10 @@ theorem sum_converges_of_converges (s t : rat_sequence) (a b : ℚ) (Hs : conver
         exact H''
     end
 
-definition bounded [reducible] (s : rat_sequence) : Prop := ∃ M : ℚ, ∀ n : ℕ, s n ≤ M
+
+----
+-- Prove all cauchy seqs are bounded
+----
            
 -- create list of nats from 0 to N - 1
 definition nat_list : ℕ → list ℕ
@@ -288,7 +295,8 @@ theorem cauchy_of_converges (s : rat_sequence) (H : converges s) : cauchy s :=
       exact H,
       intro a, intro Ha,
       rewrite ↑vanishes at Ha,
-      have Hb : ∃ N : ℕ, ∀ n : ℕ, n ≥ N → abs (s n - a) < ε / 2, from Ha (ε / 2) (rat_div_nat_pos He (zero_lt_succ 1)),
+      have Hb : ∃ N : ℕ, ∀ n : ℕ, n ≥ N → abs (s n - a) < ε / 2,
+        from Ha (ε / 2) (rat_div_nat_pos He (zero_lt_succ 1)),
       apply exists.elim,
         exact Hb,
         intro N, intro HN,
@@ -310,11 +318,11 @@ theorem cauchy_of_converges (s : rat_sequence) (H : converges s) : cauchy s :=
 
 definition seq.equiv (s t : rat_sequence) : Prop :=
   vanishes (s - t)-- ∀ ε : ℚ, ε > 0 → ∃ N : ℕ, ∀ n : ℕ, n ≥ N → abs (s n - t n) < ε
-notation p `≡` q := seq.equiv p q
+--notation p `≡` q := seq.equiv p q
 
 -- show seq.equiv is an equivalence relation
 
-theorem seq.equiv.refl (s : rat_sequence) : s ≡ s :=
+theorem seq.equiv.refl (s : rat_sequence) : seq.equiv s s :=
   begin
     rewrite [↑seq.equiv, ↑vanishes, ↑sub],
     intros [ε, Hε],
@@ -326,7 +334,7 @@ theorem seq.equiv.refl (s : rat_sequence) : s ≡ s :=
       exact Hε
   end
 
-theorem seq.equiv.symm {s t : rat_sequence} (H : s ≡ t) : t ≡ s :=
+theorem seq.equiv.symm {s t : rat_sequence} (H : seq.equiv s t) : seq.equiv t s :=
   begin
     rewrite [↑seq.equiv at *, ↑vanishes at *],
     intros [ε, Hε],
@@ -341,7 +349,7 @@ theorem seq.equiv.symm {s t : rat_sequence} (H : s ≡ t) : t ≡ s :=
     exact H''
   end
 
-theorem seq.equiv.trans {r s t : rat_sequence} (H1 : r ≡ s) (H2 : s ≡ t) : r ≡ t :=
+theorem seq.equiv.trans {r s t : rat_sequence} (H1 : seq.equiv r s) (H2 : seq.equiv s t) : seq.equiv r t :=
   begin
     rewrite [↑seq.equiv at *, ↑vanishes at *],
     intros [ε, Hε],
@@ -380,21 +388,37 @@ definition cauchy.to_rat [reducible] [coercion] (s : cauchy_sequence) : ℕ → 
   cauchy_sequence.seq s
            --subtype.rec_on s (λ t H, t)
 
+----
+-- cauchy is preserved under add, sub, mul
+----
+
+theorem add_cauchy_of_cauchy {s t : cauchy_sequence} : cauchy (s + t) :=
+  sorry
+
+theorem neg_cauchy_of_cauchy {s : cauchy_sequence} : cauchy (- s) :=
+  sorry
+
+theorem sub_cauchy_of_cauchy {s t : cauchy_sequence} : cauchy (s - t) :=
+  sorry
+
+theorem mul_cauchy_of_cauchy {s t : cauchy_sequence} : cauchy (s * t) :=
+  sorry
+
 -- show setoid cauchy_sequence
 
 definition cauchy.equiv [reducible] (s t : cauchy_sequence) : Prop :=
-  seq.equiv (cauchy.to_rat s) (cauchy.to_rat t)
+  seq.equiv s t
+notation p `≡` q := cauchy.equiv p q
 
-check fun s t : cauchy_sequence, seq.equiv s t
+--check fun s t : cauchy_sequence, seq.equiv s t
 
-theorem cauchy.equiv.refl (s : cauchy_sequence) : cauchy.equiv s s :=
+theorem cauchy.equiv.refl (s : cauchy_sequence) : s ≡ s :=
   seq.equiv.refl s
 
-theorem cauchy.equiv.symm (s t : cauchy_sequence) (H : cauchy.equiv s t) : cauchy.equiv t s :=
+theorem cauchy.equiv.symm (s t : cauchy_sequence) (H : s ≡ t) : t ≡ s :=
   seq.equiv.symm H
 
-theorem cauchy.equiv.trans (r s t : cauchy_sequence) (H1 : cauchy.equiv r s)
-         (H2 : cauchy.equiv s t) : cauchy.equiv r t :=
+theorem cauchy.equiv.trans (r s t : cauchy_sequence) (H1 : r ≡ s) (H2 : s ≡ t) : r ≡ t :=
   seq.equiv.trans H1 H2
 
 theorem cauchy.equiv.is_equiv : equivalence cauchy.equiv := 
@@ -405,11 +429,14 @@ definition cauchy.to_setoid [instance] : setoid cauchy_sequence :=
 
 definition real := quot cauchy.to_setoid
 
-theorem add.well_defined (q r s t : cauchy_sequence) (H1 : cauchy.equiv q r) (H2 : cauchy.equiv s t) :
-   q + s = r + t := sorry
+constants q r s : cauchy_sequence
+check (q + s)
 
-/-example (x : real) : x = x :=
-  begin
-  end-/
+/-theorem add.well_defined (q r s t : cauchy_sequence) (H1 : q ≡ r) (H2 : s ≡ t) : 
+   q + s ≡ r + t := sorry
+
+theorem mul.well_defined (q r s t : cauchy_sequence) (H1 : q ≡ r) (H2 : s ≡ t) :
+   q * r ≡ s * t := sorry-/
+
 
 end rat
