@@ -7,7 +7,7 @@ Author: Leonardo de Moura
 
 List permutations
 -/
-import data.list.basic
+import data.list.basic data.list.set
 open list setoid nat binary
 
 variables {A B : Type}
@@ -67,15 +67,18 @@ calc_trans perm.trans
 theorem mem_perm {a : A} {l₁ l₂ : list A} : l₁ ~ l₂ → a ∈ l₁ → a ∈ l₂ :=
 assume p, perm.induction_on p
   (λ h, h)
-  (λ x l₁ l₂ p₁ r₁ i, or.elim i
+  (λ x l₁ l₂ p₁ r₁ i, or.elim (eq_or_mem_of_mem_cons i)
     (assume aeqx : a = x,   by rewrite aeqx; apply !mem_cons)
     (assume ainl₁ : a ∈ l₁, or.inr (r₁ ainl₁)))
-  (λ x y l ainyxl, or.elim ainyxl
+  (λ x y l ainyxl, or.elim (eq_or_mem_of_mem_cons ainyxl)
     (assume aeqy  : a = y, by rewrite aeqy; exact (or.inr !mem_cons))
-    (assume ainxl : a ∈ x::l, or.elim ainxl
+    (assume ainxl : a ∈ x::l, or.elim (eq_or_mem_of_mem_cons ainxl)
       (assume aeqx : a = x, or.inl aeqx)
       (assume ainl : a ∈ l, or.inr (or.inr ainl))))
   (λ l₁ l₂ l₃ p₁ p₂ r₁ r₂ ainl₁, r₂ (r₁ ainl₁))
+
+theorem not_mem_perm {a : A} {l₁ l₂ : list A} : l₁ ~ l₂ → a ∉ l₁ → a ∉ l₂ :=
+assume p nainl₁ ainl₂, absurd (mem_perm (symm p) ainl₂) nainl₁
 
 theorem perm_app_left {l₁ l₂ : list A} (t₁ : list A) : l₁ ~ l₂ → (l₁++t₁) ~ (l₂++t₁) :=
 assume p, perm.induction_on p
@@ -234,7 +237,7 @@ definition decidable_perm_aux : ∀ (n : nat) (l₁ l₂ : list A), length l₁ 
     (assume xinl₂ : x ∈ l₂,
       let t₂ : list A := erase x l₂ in
       have len_t₁       : length t₁ = n,                from nat.no_confusion H₁ (λ e, e),
-      assert len_t₂_aux : length t₂ = pred (length l₂), from length_erase_of_mem x l₂ xinl₂,
+      assert len_t₂_aux : length t₂ = pred (length l₂), from length_erase_of_mem xinl₂,
       assert len_t₂     : length t₂ = n,                by rewrite [len_t₂_aux, H₂],
       match decidable_perm_aux n t₁ t₂ len_t₁ len_t₂ with
       | inl p  := inl (calc
@@ -462,31 +465,45 @@ assume p : l₁++(a::l₂) ~ l₃++(a::l₄),
           ...   ~ a::(l₃++l₄) : symm (!perm_middle),
   perm_cons_inv p'
 
-section fold_thms
-  variables {f : A → A → A} {l₁ l₂ : list A} (fcomm : commutative f) (fassoc : associative f)
-  include fcomm
-  include fassoc
+section foldl
+  variables {f : B → A → B} {l₁ l₂ : list A}
+  variable rcomm : right_commutative f
+  include  rcomm
 
-  theorem foldl_eq_of_perm : l₁ ~ l₂ → ∀ a, foldl f a l₁ = foldl f a l₂ :=
+  theorem foldl_eq_of_perm : l₁ ~ l₂ → ∀ b, foldl f b l₁ = foldl f b l₂ :=
   assume p, perm_induction_on p
-    (λ a, by rewrite *foldl_nil)
-    (λ x t₁ t₂ p r a, calc
-       foldl f a (x::t₁) = foldl f (f a x) t₁ : foldl_cons
-               ...       = foldl f (f a x) t₂ : r (f a x)
-               ...       = foldl f a (x::t₂)  : foldl_cons)
-    (λ x y t₁ t₂ p r a, calc
-       foldl f a (y :: x :: t₁) = foldl f (f (f a y) x) t₁ : by rewrite foldl_cons
-                     ...        = foldl f (f (f a x) y) t₁ : by rewrite [right_comm fcomm fassoc]
-                     ...        = foldl f (f (f a x) y) t₂ : r (f (f a x) y)
-                     ...        = foldl f a (x :: y :: t₂) : by rewrite foldl_cons)
-    (λ t₁ t₂ t₃ p₁ p₂ r₁ r₂ a, eq.trans (r₁ a) (r₂ a))
+    (λ b, by rewrite *foldl_nil)
+    (λ x t₁ t₂ p r b, calc
+       foldl f b (x::t₁) = foldl f (f b x) t₁ : foldl_cons
+               ...       = foldl f (f b x) t₂ : r (f b x)
+               ...       = foldl f b (x::t₂)  : foldl_cons)
+    (λ x y t₁ t₂ p r b, calc
+       foldl f b (y :: x :: t₁) = foldl f (f (f b y) x) t₁ : by rewrite foldl_cons
+                     ...        = foldl f (f (f b x) y) t₁ : by rewrite rcomm
+                     ...        = foldl f (f (f b x) y) t₂ : r (f (f b x) y)
+                     ...        = foldl f b (x :: y :: t₂) : by rewrite foldl_cons)
+    (λ t₁ t₂ t₃ p₁ p₂ r₁ r₂ b, eq.trans (r₁ b) (r₂ b))
+end foldl
 
-  theorem foldr_eq_of_perm : l₁ ~ l₂ → ∀ a, foldr f a l₁ = foldr f a l₂ :=
-  assume p, take a, calc
-    foldr f a l₁ = foldl f a l₁ : by rewrite [foldl_eq_foldr fcomm fassoc]
-         ...     = foldl f a l₂ : foldl_eq_of_perm fcomm fassoc p
-         ...     = foldr f a l₂ : by rewrite [foldl_eq_foldr fcomm fassoc]
-end fold_thms
+section foldr
+  variables {f : A → B → B} {l₁ l₂ : list A}
+  variable lcomm : left_commutative f
+  include  lcomm
+
+  theorem foldr_eq_of_perm : l₁ ~ l₂ → ∀ b, foldr f b l₁ = foldr f b l₂ :=
+  assume p, perm_induction_on p
+    (λ b, by rewrite *foldl_nil)
+    (λ x t₁ t₂ p r b, calc
+       foldr f b (x::t₁) = f x (foldr f b t₁) : foldr_cons
+               ...       = f x (foldr f b t₂) : by rewrite [r b]
+               ...       = foldr f b (x::t₂)  : foldr_cons)
+    (λ x y t₁ t₂ p r b, calc
+       foldr f b (y :: x :: t₁) = f y (f x (foldr f b t₁)) : by rewrite foldr_cons
+                  ...           = f x (f y (foldr f b t₁)) : by rewrite lcomm
+                  ...           = f x (f y (foldr f b t₂)) : by rewrite [r b]
+                  ...           = foldr f b (x :: y :: t₂) : by rewrite foldr_cons)
+    (λ t₁ t₂ t₃ p₁ p₂ r₁ r₂ a, eq.trans (r₁ a) (r₂ a))
+end foldr
 
 theorem perm_erase_dup_of_perm [H : decidable_eq A] {l₁ l₂ : list A} : l₁ ~ l₂ → erase_dup l₁ ~ erase_dup l₂ :=
 assume p, perm_induction_on p
@@ -504,7 +521,7 @@ assume p, perm_induction_on p
       (λ yint₁  : y ∈ t₁,
         assert yint₂  : y ∈ t₂,    from mem_of_mem_erase_dup (mem_perm r (mem_erase_dup yint₁)),
         assert yinxt₂ : y ∈ x::t₂, from or.inr (yint₂),
-        or.elim xinyt₁
+        or.elim (eq_or_mem_of_mem_cons xinyt₁)
           (λ xeqy  : x = y,
             assert xint₂ : x ∈ t₂, by rewrite [-xeqy at yint₂]; exact yint₂,
             begin
@@ -535,7 +552,9 @@ assume p, perm_induction_on p
             have xint₁     : x ∈ t₁, from or_resolve_right xinyt₁ xney,
             assert xint₂   : x ∈ t₂, from mem_of_mem_erase_dup (mem_perm r (mem_erase_dup xint₁)),
             assert nyinxt₂ : y ∉ x::t₂, from
-              assume yinxt₂ : y ∈ x::t₂, or.elim yinxt₂ (λ h, absurd h (ne.symm xney)) (λ h, absurd h nyint₂),
+              assume yinxt₂ : y ∈ x::t₂, or.elim (eq_or_mem_of_mem_cons yinxt₂)
+                (λ h, absurd h (ne.symm xney))
+                (λ h, absurd h nyint₂),
             begin
               rewrite [erase_dup_cons_of_mem xinyt₁, erase_dup_cons_of_not_mem nyinxt₂,
                        erase_dup_cons_of_not_mem nyint₁, erase_dup_cons_of_mem xint₂],
@@ -556,7 +575,7 @@ assume p, perm_induction_on p
           end)
         (λ nyint₁ : y ∉ t₁,
           assert nyinxt₂ : y ∉ x::t₂, from
-            assume yinxt₂ : y ∈ x::t₂, or.elim yinxt₂
+            assume yinxt₂ : y ∈ x::t₂, or.elim (eq_or_mem_of_mem_cons yinxt₂)
               (λ h, absurd h (ne.symm xney))
               (λ h, absurd (mem_of_mem_erase_dup (mem_perm (symm r) (mem_erase_dup h))) nyint₁),
           begin
@@ -565,4 +584,103 @@ assume p, perm_induction_on p
             exact (xswap x y r)
           end)))
   (λ t₁ t₂ t₃ p₁ p₂ r₁ r₂, trans r₁ r₂)
+
+section perm_union
+variable [H : decidable_eq A]
+include H
+
+theorem perm_union_left {l₁ l₂ : list A} (t₁ : list A) : l₁ ~ l₂ → (union l₁ t₁) ~ (union l₂ t₁) :=
+assume p, perm.induction_on p
+  (by rewrite [union_nil]; exact !refl)
+  (λ x l₁ l₂ p₁ r₁, by_cases
+     (λ xint₁  : x ∈ t₁, by rewrite [*union_cons_of_mem _ xint₁]; exact r₁)
+     (λ nxint₁ : x ∉ t₁, by rewrite [*union_cons_of_not_mem _ nxint₁]; exact (skip _ r₁)))
+  (λ x y l, by_cases
+    (λ yint  : y ∈ t₁, by_cases
+      (λ xint  : x ∈ t₁,
+        by rewrite [*union_cons_of_mem _ xint, *union_cons_of_mem _ yint, *union_cons_of_mem _ xint]; exact !refl)
+      (λ nxint : x ∉ t₁,
+        by rewrite [*union_cons_of_mem _ yint, *union_cons_of_not_mem _ nxint, union_cons_of_mem _ yint]; exact !refl))
+    (λ nyint : y ∉ t₁, by_cases
+      (λ xint  : x ∈ t₁,
+        by rewrite [*union_cons_of_mem _ xint, *union_cons_of_not_mem _ nyint, union_cons_of_mem _ xint]; exact !refl)
+      (λ nxint : x ∉ t₁,
+        by rewrite [*union_cons_of_not_mem _ nxint, *union_cons_of_not_mem _ nyint, union_cons_of_not_mem _ nxint]; exact !swap)))
+  (λ l₁ l₂ l₃ p₁ p₂ r₁ r₂, trans r₁ r₂)
+
+theorem perm_union_right (l : list A) {t₁ t₂ : list A} : t₁ ~ t₂ → (union l t₁) ~ (union l t₂) :=
+list.induction_on l
+  (λ p, by rewrite [*union_nil]; exact p)
+  (λ x xs r p, by_cases
+    (λ xint₁  : x ∈ t₁,
+      assert xint₂ : x ∈ t₂, from mem_perm p xint₁,
+      by rewrite [union_cons_of_mem _ xint₁, union_cons_of_mem _ xint₂]; exact (r p))
+    (λ nxint₁ : x ∉ t₁,
+      assert nxint₂ : x ∉ t₂, from not_mem_perm p nxint₁,
+      by rewrite [union_cons_of_not_mem _ nxint₁, union_cons_of_not_mem _ nxint₂]; exact (skip _ (r p))))
+
+theorem perm_union {l₁ l₂ t₁ t₂ : list A} : l₁ ~ l₂ → t₁ ~ t₂ → (union l₁ t₁) ~ (union l₂ t₂) :=
+assume p₁ p₂, trans (perm_union_left t₁ p₁) (perm_union_right l₂ p₂)
+end perm_union
+
+section perm_insert
+variable [H : decidable_eq A]
+include H
+
+theorem perm_insert (a : A) {l₁ l₂ : list A} : l₁ ~ l₂ → (insert a l₁) ~ (insert a l₂) :=
+assume p, by_cases
+ (λ ainl₁  : a ∈ l₁,
+   assert ainl₂ : a ∈ l₂, from mem_perm p ainl₁,
+   by rewrite [insert_eq_of_mem ainl₁, insert_eq_of_mem ainl₂]; exact p)
+ (λ nainl₁ : a ∉ l₁,
+   assert nainl₂ : a ∉ l₂, from not_mem_perm p nainl₁,
+   by rewrite [insert_eq_of_not_mem nainl₁, insert_eq_of_not_mem nainl₂]; exact (skip _ p))
+end perm_insert
+
+/- extensionality -/
+section ext
+open eq.ops
+
+theorem perm_ext : ∀ {l₁ l₂ : list A}, nodup l₁ → nodup l₂ → (∀a, a ∈ l₁ ↔ a ∈ l₂) → l₁ ~ l₂
+| []       []       d₁ d₂ e := !perm.nil
+| []       (a₂::t₂) d₁ d₂ e := absurd (iff.mp' (e a₂) !mem_cons) (not_mem_nil a₂)
+| (a₁::t₁) []       d₁ d₂ e := absurd (iff.mp (e a₁) !mem_cons) (not_mem_nil a₁)
+| (a₁::t₁) (a₂::t₂) d₁ d₂ e :=
+  have a₁inl₂   : a₁ ∈ a₂::t₂, from iff.mp (e a₁) !mem_cons,
+  have dt₁      : nodup t₁, from nodup_of_nodup_cons d₁,
+  have na₁int₁  : a₁ ∉ t₁, from not_mem_of_nodup_cons d₁,
+  have ex : ∃s₁ s₂, a₂::t₂ = s₁++(a₁::s₂), from mem_split a₁inl₂,
+  obtain (s₁ s₂ : list A) (t₂_eq : a₂::t₂ = s₁++(a₁::s₂)), from ex,
+  have dt₂'     : nodup (a₁::(s₁++s₂)), from nodup_head (by rewrite [t₂_eq at d₂]; exact d₂),
+  have na₁s₁s₂  : a₁ ∉ s₁++s₂, from not_mem_of_nodup_cons dt₂',
+  have na₁s₁    : a₁ ∉ s₁,     from not_mem_of_not_mem_append_left na₁s₁s₂,
+  have na₁s₂    : a₁ ∉ s₂,     from not_mem_of_not_mem_append_right na₁s₁s₂,
+  have ds₁s₂    : nodup (s₁++s₂), from nodup_of_nodup_cons dt₂',
+  have eqv     : ∀a, a ∈ t₁ ↔ a ∈ s₁++s₂, from
+    take a, iff.intro
+      (λ aint₁   : a ∈ t₁,
+         assert aina₂t₂ : a ∈ a₂::t₂,       from iff.mp (e a) (mem_cons_of_mem _ aint₁),
+         have ains₁a₁s₂ : a ∈ s₁++(a₁::s₂), by rewrite [t₂_eq at aina₂t₂]; exact aina₂t₂,
+         or.elim (mem_or_mem_of_mem_append ains₁a₁s₂)
+           (λ ains₁ : a ∈ s₁, mem_append_left s₂ ains₁)
+           (λ aina₁s₂ : a ∈ a₁::s₂, or.elim (eq_or_mem_of_mem_cons aina₁s₂)
+             (λ aeqa₁ : a = a₁, absurd (aeqa₁ ▸ aint₁) na₁int₁)
+             (λ ains₂ : a ∈ s₂, mem_append_right s₁ ains₂)))
+      (λ ains₁s₂ : a ∈ s₁ ++ s₂, or.elim (mem_or_mem_of_mem_append ains₁s₂)
+        (λ ains₁ : a ∈ s₁,
+           have aina₂t₂ : a ∈ a₂::t₂, from by rewrite [t₂_eq]; exact (mem_append_left _ ains₁),
+           have aina₁t₁ : a ∈ a₁::t₁, from iff.mp' (e a) aina₂t₂,
+           or.elim (eq_or_mem_of_mem_cons aina₁t₁)
+             (λ aeqa₁ : a = a₁, absurd (aeqa₁ ▸ ains₁) na₁s₁)
+             (λ aint₁ : a ∈ t₁, aint₁))
+        (λ ains₂ : a ∈ s₂,
+           have aina₂t₂ : a ∈ a₂::t₂, from by rewrite [t₂_eq]; exact (mem_append_right _ (mem_cons_of_mem _ ains₂)),
+           have aina₁t₁ : a ∈ a₁::t₁, from iff.mp' (e a) aina₂t₂,
+           or.elim (eq_or_mem_of_mem_cons aina₁t₁)
+             (λ aeqa₁ : a = a₁, absurd (aeqa₁ ▸ ains₂) na₁s₂)
+             (λ aint₁ : a ∈ t₁, aint₁))),
+  calc a₁::t₁ ~ a₁::(s₁++s₂) : skip a₁ (perm_ext dt₁ ds₁s₂ eqv)
+         ...  ~ s₁++(a₁::s₂) : !perm_middle
+         ...  = a₂::t₂       : by rewrite t₂_eq
+end ext
 end perm

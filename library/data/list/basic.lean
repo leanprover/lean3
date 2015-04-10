@@ -174,16 +174,24 @@ iff.mp !mem_nil
 theorem mem_cons (x : T) (l : list T) : x ∈ x :: l :=
 or.inl rfl
 
-theorem mem_singleton {x a : T} : x ∈ [a] → x = a :=
-assume h : x ∈ [a], or.elim h
-  (λ xeqa : x = a, xeqa)
-  (λ xinn : x ∈ [], absurd xinn !not_mem_nil)
-
-theorem mem_cons_of_mem (x : T) {y : T} {l : list T} : x ∈ l → x ∈ y :: l :=
+theorem mem_cons_of_mem (y : T) {x : T} {l : list T} : x ∈ l → x ∈ y :: l :=
 assume H, or.inr H
 
 theorem mem_cons_iff (x y : T) (l : list T) : x ∈ y::l ↔ (x = y ∨ x ∈ l) :=
 iff.rfl
+
+theorem eq_or_mem_of_mem_cons {x y : T} {l : list T} : x ∈ y::l → x = y ∨ x ∈ l :=
+assume h, h
+
+theorem mem_singleton {x a : T} : x ∈ [a] → x = a :=
+assume h : x ∈ [a], or.elim (eq_or_mem_of_mem_cons h)
+  (λ xeqa : x = a, xeqa)
+  (λ xinn : x ∈ [], absurd xinn !not_mem_nil)
+
+theorem mem_of_mem_cons_of_mem {a b : T} {l : list T} : a ∈ b::l → b ∈ l → a ∈ l :=
+assume ainbl binl, or.elim (eq_or_mem_of_mem_cons ainbl)
+  (λ aeqb : a = b, by rewrite [aeqb]; exact binl)
+  (λ ainl : a ∈ l, ainl)
 
 theorem mem_or_mem_of_mem_append {x : T} {s t : list T} : x ∈ s ++ t → x ∈ s ∨ x ∈ t :=
 list.induction_on s or.inr
@@ -202,7 +210,7 @@ list.induction_on s
     assume H : x ∈ y::s ∨ x ∈ t,
       or.elim H
         (assume H1,
-          or.elim H1
+          or.elim (eq_or_mem_of_mem_cons H1)
             (take H2 : x = y, or.inl H2)
             (take H2 : x ∈ s, or.inr (IH (or.inl H2))))
         (assume H1 : x ∈ t, or.inr (IH (or.inr H1))))
@@ -216,6 +224,11 @@ theorem not_mem_of_not_mem_append_left {x : T} {s t : list T} : x ∉ s++t → x
 theorem not_mem_of_not_mem_append_right {x : T} {s t : list T} : x ∉ s++t → x ∉ t :=
 λ nxinst xint, absurd (mem_append_of_mem_or_mem (or.inr xint)) nxinst
 
+theorem not_mem_append {x : T} {s t : list T} : x ∉ s → x ∉ t → x ∉ s++t :=
+λ nxins nxint xinst, or.elim (mem_or_mem_of_mem_append xinst)
+  (λ xins, absurd xins nxins)
+  (λ xint, absurd xint nxint)
+
 local attribute mem [reducible]
 local attribute append [reducible]
 theorem mem_split {x : T} {l : list T} : x ∈ l → ∃s t : list T, l = s ++ (x::t) :=
@@ -224,7 +237,7 @@ list.induction_on l
   (take y l,
     assume IH : x ∈ l → ∃s t : list T, l = s ++ (x::t),
     assume H : x ∈ y::l,
-    or.elim H
+    or.elim (eq_or_mem_of_mem_cons H)
       (assume H1 : x = y,
         exists.intro [] (!exists.intro (H1 ▸ rfl)))
       (assume H1 : x ∈ l,
@@ -266,7 +279,7 @@ list.rec_on l
             decidable.inr H2)))
 
 theorem mem_of_ne_of_mem {x y : T} {l : list T} (H₁ : x ≠ y) (H₂ : x ∈ y :: l) : x ∈ l :=
-or.elim H₂ (λe, absurd e H₁) (λr, r)
+or.elim (eq_or_mem_of_mem_cons H₂) (λe, absurd e H₁) (λr, r)
 
 theorem not_eq_of_not_mem {a b : T} {l : list T} : a ∉ b::l → a ≠ b :=
 assume nin aeqb, absurd (or.inl aeqb) nin
@@ -291,7 +304,7 @@ lemma sub_cons (a : T) (l : list T) : l ⊆ a::l :=
 λ b i, or.inr i
 
 lemma cons_sub_cons  {l₁ l₂ : list T} (a : T) (s : l₁ ⊆ l₂) : (a::l₁) ⊆ (a::l₂) :=
-λ b Hin, or.elim Hin
+λ b Hin, or.elim (eq_or_mem_of_mem_cons Hin)
   (λ e : b = a,  or.inl e)
   (λ i : b ∈ l₁, or.inr (s i))
 
@@ -315,7 +328,7 @@ lemma sub_app_of_sub_right (l l₁ l₂ : list T) : l ⊆ l₂ → l ⊆ l₁++l
   mem_append_of_mem_or_mem (or.inr xinl₁)
 
 lemma cons_sub_of_sub_of_mem {a : T} {l m : list T} : a ∈ m → l ⊆ m → a::l ⊆ m :=
-λ (ainm : a ∈ m) (lsubm : l ⊆ m) (x : T) (xinal : x ∈ a::l), or.elim xinal
+λ (ainm : a ∈ m) (lsubm : l ⊆ m) (x : T) (xinal : x ∈ a::l), or.elim (eq_or_mem_of_mem_cons xinal)
   (assume xeqa : x = a, eq.rec_on (eq.symm xeqa) ainm)
   (assume xinl : x ∈ l, lsubm xinl)
 
@@ -380,157 +393,6 @@ definition has_decidable_eq {A : Type} [H : decidable_eq A] : ∀ l₁ l₂ : li
   | inr Hnab := inr (λ H, list.no_confusion H (λ Hab Ht, absurd Hab Hnab))
   end
 
-section combinators
-variables {A B C : Type}
-
-definition map (f : A → B) : list A → list B
-| []       := []
-| (a :: l) := f a :: map l
-
-theorem map_nil (f : A → B) : map f [] = []
-
-theorem map_cons (f : A → B) (a : A) (l : list A) : map f (a :: l) = f a :: map f l
-
-theorem map_id : ∀ l : list A, map id l = l
-| []      := rfl
-| (x::xs) := begin rewrite [map_cons, map_id] end
-
-theorem map_map (g : B → C) (f : A → B) : ∀ l, map g (map f l) = map (g ∘ f) l
-| []       := rfl
-| (a :: l) :=
-  show (g ∘ f) a :: map g (map f l) = map (g ∘ f) (a :: l),
-  by rewrite (map_map l)
-
-theorem len_map (f : A → B) : ∀ l : list A, length (map f l) = length l
-| []       := rfl
-| (a :: l) :=
-  show length (map f l) + 1 = length l + 1,
-  by rewrite (len_map l)
-
-theorem mem_map {A B : Type} (f : A → B) : ∀ {a l}, a ∈ l → f a ∈ map f l
-| a []      i := absurd i !not_mem_nil
-| a (x::xs) i := or.elim i
-   (λ aeqx  : a = x, by rewrite [aeqx, map_cons]; apply mem_cons)
-   (λ ainxs : a ∈ xs, or.inr (mem_map ainxs))
-
-definition map₂ (f : A → B → C) : list A → list B → list C
-| []      _       := []
-| _       []      := []
-| (x::xs) (y::ys) := f x y :: map₂ xs ys
-
-definition foldl (f : A → B → A) : A → list B → A
-| a []       := a
-| a (b :: l) := foldl (f a b) l
-
-theorem foldl_nil (f : A → B → A) (a : A) : foldl f a [] = a
-
-theorem foldl_cons (f : A → B → A) (a : A) (b : B) (l : list B) : foldl f a (b::l) = foldl f (f a b) l
-
-definition foldr (f : A → B → B) : B → list A → B
-| b []       := b
-| b (a :: l) := f a (foldr b l)
-
-theorem foldr_nil (f : A → B → B) (b : B) : foldr f b [] = b
-
-theorem foldr_cons (f : A → B → B) (b : B) (a : A) (l : list A) : foldr f b (a::l) = f a (foldr f b l)
-
-section foldl_eq_foldr
-  -- foldl and foldr coincide when f is commutative and associative
-  parameters {α : Type} {f : α → α → α}
-  hypothesis (Hcomm  : ∀ a b, f a b = f b a)
-  hypothesis (Hassoc : ∀ a b c, f (f a b) c = f a (f b c))
-  include Hcomm Hassoc
-
-  theorem foldl_eq_of_comm_of_assoc : ∀ a b l, foldl f a (b::l) = f b (foldl f a l)
-  | a b  nil    := Hcomm a b
-  | a b  (c::l) :=
-    begin
-      change (foldl f (f (f a b) c) l = f b (foldl f (f a c) l)),
-      rewrite -foldl_eq_of_comm_of_assoc,
-      change (foldl f (f (f a b) c) l = foldl f (f (f a c) b) l),
-      have H₁ : f (f a b) c = f (f a c) b, by rewrite [Hassoc, Hassoc, Hcomm b c],
-      rewrite H₁
-    end
-
-  theorem foldl_eq_foldr : ∀ a l, foldl f a l = foldr f a l
-  | a nil      := rfl
-  | a (b :: l) :=
-    begin
-      rewrite foldl_eq_of_comm_of_assoc,
-      esimp,
-      change (f b (foldl f a l) = f b (foldr f a l)),
-      rewrite foldl_eq_foldr
-    end
-end foldl_eq_foldr
-
-definition all (p : A → Prop) (l : list A) : Prop :=
-foldr (λ a r, p a ∧ r) true l
-
-definition any (p : A → Prop) (l : list A) : Prop :=
-foldr (λ a r, p a ∨ r) false l
-
-definition decidable_all (p : A → Prop) [H : decidable_pred p] : ∀ l, decidable (all p l)
-| []       := decidable_true
-| (a :: l) :=
-  match H a with
-  | inl Hp₁ :=
-    match decidable_all l with
-    | inl Hp₂ := inl (and.intro Hp₁ Hp₂)
-    | inr Hn₂ := inr (not_and_of_not_right (p a) Hn₂)
-    end
-  | inr Hn := inr (not_and_of_not_left (all p l) Hn)
-  end
-
-definition decidable_any (p : A → Prop) [H : decidable_pred p] : ∀ l, decidable (any p l)
-| []       := decidable_false
-| (a :: l) :=
-  match H a with
-  | inl Hp := inl (or.inl Hp)
-  | inr Hn₁ :=
-    match decidable_any l with
-    | inl Hp₂ := inl (or.inr Hp₂)
-    | inr Hn₂ := inr (not_or Hn₁ Hn₂)
-    end
-  end
-
-definition zip (l₁ : list A) (l₂ : list B) : list (A × B) :=
-map₂ (λ a b, (a, b)) l₁ l₂
-
-definition unzip : list (A × B) → list A × list B
-| []            := ([], [])
-| ((a, b) :: l) :=
-  match unzip l with
-  | (la, lb) := (a :: la, b :: lb)
-  end
-
-theorem unzip_nil : unzip (@nil (A × B)) = ([], [])
-
-theorem unzip_cons (a : A) (b : B) (l : list (A × B)) :
-   unzip ((a, b) :: l) = match unzip l with (la, lb) := (a :: la, b :: lb) end :=
-rfl
-
-theorem zip_unzip : ∀ (l : list (A × B)), zip (pr₁ (unzip l)) (pr₂ (unzip l)) = l
-| []            := rfl
-| ((a, b) :: l) :=
-  begin
-    rewrite unzip_cons,
-    have r : zip (pr₁ (unzip l)) (pr₂ (unzip l)) = l, from zip_unzip l,
-    revert r,
-    apply (prod.cases_on (unzip l)),
-    intros [la, lb, r],
-    rewrite -r
-  end
-
-end combinators
-
-/- flat -/
-section
-variable {A : Type}
-
-definition flat (l : list (list A)) : list A :=
-foldl append nil l
-end
-
 /- quasiequal a l l' means that l' is exactly l, with a added
    once somewhere -/
 section qeq
@@ -555,16 +417,16 @@ take q, qeq.induction_on q
 lemma mem_tail_of_qeq {a : A} {l₁ l₂ : list A} : l₁≈a|l₂ → ∀ x, x ∈ l₂ → x ∈ l₁ :=
 take q, qeq.induction_on q
   (λ l x i, or.inr i)
-  (λ b l l' q r x xinbl, or.elim xinbl
+  (λ b l l' q r x xinbl, or.elim (eq_or_mem_of_mem_cons xinbl)
      (λ xeqb : x = b, xeqb ▸ mem_cons x l')
      (λ xinl : x ∈ l, or.inr (r x xinl)))
 
 lemma mem_cons_of_qeq {a : A} {l₁ l₂ : list A} : l₁≈a|l₂ → ∀ x, x ∈ l₁ → x ∈ a::l₂ :=
 take q, qeq.induction_on q
   (λ l x i, i)
-  (λ b l l' q r x xinbl', or.elim xinbl'
+  (λ b l l' q r x xinbl', or.elim (eq_or_mem_of_mem_cons xinbl')
     (λ xeqb  : x = b, xeqb ▸ or.inr (mem_cons x l))
-    (λ xinl' : x ∈ l', or.elim (r x xinl')
+    (λ xinl' : x ∈ l', or.elim (eq_or_mem_of_mem_cons (r x xinl'))
       (λ xeqa : x = a, xeqa ▸ mem_cons x (b::l))
       (λ xinl : x ∈ l, or.inr (or.inr xinl))))
 
@@ -576,7 +438,7 @@ take q, qeq.induction_on q
 lemma qeq_of_mem {a : A} {l : list A} : a ∈ l → (∃l', l≈a|l') :=
 list.induction_on l
   (λ h : a ∈ nil, absurd h (not_mem_nil a))
-  (λ x xs r ainxxs, or.elim ainxxs
+  (λ x xs r ainxxs, or.elim (eq_or_mem_of_mem_cons ainxxs)
     (λ aeqx  : a = x,
        assert aux : ∃ l, x::xs≈x|l, from
          exists.intro xs (qhead x xs),
@@ -605,259 +467,11 @@ lemma sub_of_mem_of_sub_of_qeq {a : A} {l : list A} {u v : list A} : a ∉ l →
 λ (nainl : a ∉ l) (s : a::l ⊆ v) (q : v≈a|u) (x : A) (xinl : x ∈ l),
   have xinv : x ∈ v, from s (or.inr xinl),
   have xinau : x ∈ a::u, from mem_cons_of_qeq q x xinv,
-  or.elim xinau
+  or.elim (eq_or_mem_of_mem_cons xinau)
     (λ xeqa : x = a, absurd (xeqa ▸ xinl) nainl)
     (λ xinu : x ∈ u, xinu)
 end qeq
-
-section erase
-variable {A : Type}
-variable [H : decidable_eq A]
-include H
-
-
-definition erase (a : A) : list A → list A
-| []     := []
-| (b::l) :=
-  match H a b with
-  | inl e := l
-  | inr n := b :: erase l
-  end
-
-lemma erase_nil (a : A) : erase a [] = [] :=
-rfl
-
-lemma erase_cons_head (a : A) (l : list A) : erase a (a :: l) = l :=
-show match H a a with | inl e := l | inr n := a :: erase a l end = l,
-by rewrite decidable_eq_inl_refl
-
-lemma erase_cons_tail {a b : A} (l : list A) : a ≠ b → erase a (b::l) = b :: erase a l :=
-assume h : a ≠ b,
-show match H a b with | inl e := l | inr n₁ := b :: erase a l end = b :: erase a l,
-by rewrite (decidable_eq_inr_neg h)
-
-lemma length_erase_of_mem (a : A) : ∀ l, a ∈ l → length (erase a l) = pred (length l)
-| []         h := rfl
-| [x]        h := by rewrite [mem_singleton h, erase_cons_head]
-| (x::y::xs) h :=
-  by_cases
-   (λ aeqx : a = x, by rewrite [aeqx, erase_cons_head])
-   (λ anex : a ≠ x,
-    assert ainyxs : a ∈ y::xs, from or_resolve_right h anex,
-    by rewrite [erase_cons_tail _ anex, *length_cons, length_erase_of_mem (y::xs) ainyxs])
-
-lemma length_erase_of_not_mem (a : A) : ∀ l, a ∉ l → length (erase a l) = length l
-| []      h   := rfl
-| (x::xs) h   :=
-  assert anex   : a ≠ x,  from λ aeqx  : a = x,  absurd (or.inl aeqx) h,
-  assert aninxs : a ∉ xs, from λ ainxs : a ∈ xs, absurd (or.inr ainxs) h,
-  by rewrite [erase_cons_tail _ anex, length_cons, length_erase_of_not_mem xs aninxs]
-
-lemma erase_append_left {a : A} : ∀ {l₁} (l₂), a ∈ l₁ → erase a (l₁++l₂) = erase a l₁ ++ l₂
-| []      l₂  h := absurd h !not_mem_nil
-| (x::xs) l₂  h :=
-  by_cases
-   (λ aeqx : a = x, by rewrite [aeqx, append_cons, *erase_cons_head])
-   (λ anex : a ≠ x,
-    assert ainxs : a ∈ xs, from mem_of_ne_of_mem anex h,
-    by rewrite [append_cons, *erase_cons_tail _ anex, erase_append_left l₂ ainxs])
-
-lemma erase_append_right {a : A} : ∀ {l₁} (l₂), a ∉ l₁ → erase a (l₁++l₂) = l₁ ++ erase a l₂
-| []      l₂ h := _
-| (x::xs) l₂ h :=
-  by_cases
-   (λ aeqx : a = x, by rewrite aeqx at h; exact (absurd !mem_cons h))
-   (λ anex : a ≠ x,
-    assert nainxs : a ∉ xs, from not_mem_of_not_mem h,
-    by rewrite [append_cons, *erase_cons_tail _ anex, erase_append_right l₂ nainxs])
-
-lemma erase_sub (a : A) : ∀ l, erase a l ⊆ l
-| []      := λ x xine, xine
-| (x::xs) := λ y xine,
-  by_cases
-    (λ aeqx : a = x, by rewrite [aeqx at xine, erase_cons_head at xine]; exact (or.inr xine))
-    (λ anex : a ≠ x,
-      assert yinxe : y ∈ x :: erase a xs, by rewrite [erase_cons_tail _ anex at xine]; exact xine,
-      assert subxs : erase a xs ⊆ xs, from erase_sub xs,
-      by_cases
-        (λ yeqx : y = x, by rewrite yeqx; apply mem_cons)
-        (λ ynex : y ≠ x,
-          assert yine  : y ∈ erase a xs, from mem_of_ne_of_mem ynex yinxe,
-          assert yinxs : y ∈ xs, from subxs yine,
-          or.inr yinxs))
-
-end erase
-
-/- disjoint -/
-section disjoint
-variable {A : Type}
-
-definition disjoint (l₁ l₂ : list A) : Prop := ∀ a, (a ∈ l₁ → a ∉ l₂) ∧ (a ∈ l₂ → a ∉ l₁)
-
-lemma disjoint_left {l₁ l₂ : list A} : disjoint l₁ l₂ → ∀ {a}, a ∈ l₁ → a ∉ l₂ :=
-λ d a, and.elim_left (d a)
-
-lemma disjoint_right {l₁ l₂ : list A} : disjoint l₁ l₂ → ∀ {a}, a ∈ l₂ → a ∉ l₁ :=
-λ d a, and.elim_right (d a)
-
-lemma disjoint.comm {l₁ l₂ : list A} : disjoint l₁ l₂ → disjoint l₂ l₁ :=
-λ d a, and.intro
-  (λ ainl₂ : a ∈ l₂, disjoint_right d ainl₂)
-  (λ ainl₁ : a ∈ l₁, disjoint_left d ainl₁)
-
-lemma disjoint_of_disjoint_cons_left {a : A} {l₁ l₂} : disjoint (a::l₁) l₂ → disjoint l₁ l₂ :=
-λ d x, and.intro
-  (λ xinl₁ : x ∈ l₁, disjoint_left d (or.inr xinl₁))
-  (λ xinl₂ : x ∈ l₂,
-    have nxinal₁ : x ∉ a::l₁, from disjoint_right d xinl₂,
-    not_mem_of_not_mem nxinal₁)
-
-lemma disjoint_of_disjoint_cons_right {a : A} {l₁ l₂} : disjoint l₁ (a::l₂) → disjoint l₁ l₂ :=
-λ d, disjoint.comm (disjoint_of_disjoint_cons_left (disjoint.comm d))
-
-lemma disjoint_nil_left (l : list A) : disjoint [] l :=
-λ a, and.intro
-  (λ ab   : a ∈ nil, absurd ab !not_mem_nil)
-  (λ ainl : a ∈ l, !not_mem_nil)
-
-lemma disjoint_nil_right (l : list A) : disjoint l [] :=
-disjoint.comm (disjoint_nil_left l)
-
-lemma disjoint_cons_of_not_mem_of_disjoint {a : A} {l₁ l₂} : a ∉ l₂ → disjoint l₁ l₂ → disjoint (a::l₁) l₂ :=
-λ nainl₂ d x, and.intro
-  (λ xinal₁ : x ∈ a::l₁, or.elim xinal₁
-    (λ xeqa  : x = a, xeqa⁻¹ ▸ nainl₂)
-    (λ xinl₁ : x ∈ l₁, disjoint_left d xinl₁))
-  (λ (xinl₂ : x ∈ l₂) (xinal₁ : x ∈ a::l₁), or.elim xinal₁
-    (λ xeqa  : x = a, absurd (xeqa ▸ xinl₂) nainl₂)
-    (λ xinl₁ : x ∈ l₁, absurd xinl₁ (disjoint_right d xinl₂)))
-
-lemma disjoint_of_disjoint_append_left_left : ∀ {l₁ l₂ l : list A}, disjoint (l₁++l₂) l → disjoint l₁ l
-| []      l₂ l d := disjoint_nil_left l
-| (x::xs) l₂ l d :=
-  have nxinl : x ∉ l, from disjoint_left d !mem_cons,
-  have d₁    : disjoint (xs++l₂) l, from disjoint_of_disjoint_cons_left d,
-  have d₂    : disjoint xs l, from disjoint_of_disjoint_append_left_left d₁,
-  disjoint_cons_of_not_mem_of_disjoint nxinl d₂
-
-lemma disjoint_of_disjoint_append_left_right : ∀ {l₁ l₂ l : list A}, disjoint (l₁++l₂) l → disjoint l₂ l
-| []      l₂ l d := d
-| (x::xs) l₂ l d :=
-  have d₁  : disjoint (xs++l₂) l, from disjoint_of_disjoint_cons_left d,
-  disjoint_of_disjoint_append_left_right d₁
-
-lemma disjoint_of_disjoint_append_right_left : ∀ {l₁ l₂ l : list A}, disjoint l (l₁++l₂) → disjoint l l₁ :=
-λ l₁ l₂ l d, disjoint.comm (disjoint_of_disjoint_append_left_left (disjoint.comm d))
-
-lemma disjoint_of_disjoint_append_right_right : ∀ {l₁ l₂ l : list A}, disjoint l (l₁++l₂) → disjoint l l₂ :=
-λ l₁ l₂ l d, disjoint.comm (disjoint_of_disjoint_append_left_right (disjoint.comm d))
-
-end disjoint
-
-/- no duplicates predicate -/
-
-inductive nodup {A : Type} : list A → Prop :=
-| ndnil  : nodup []
-| ndcons : ∀ {a l}, a ∉ l → nodup l → nodup (a::l)
-
-section nodup
-open nodup
-variables {A B : Type}
-
-lemma nodup_nil : @nodup A [] :=
-ndnil
-
-lemma nodup_cons {a : A} {l : list A} : a ∉ l → nodup l → nodup (a::l)  :=
-λ i n, ndcons i n
-
-lemma nodup_of_nodup_cons : ∀ {a : A} {l : list A}, nodup (a::l) → nodup l
-| a xs (ndcons i n) := n
-
-lemma not_mem_of_nodup_cons : ∀ {a : A} {l : list A}, nodup (a::l) → a ∉ l
-| a xs (ndcons i n) := i
-
-lemma nodup_of_nodup_append_left : ∀ {l₁ l₂ : list A}, nodup (l₁++l₂) → nodup l₁
-| []      l₂ n := nodup_nil
-| (x::xs) l₂ n :=
-  have ndxs     : nodup xs,   from nodup_of_nodup_append_left (nodup_of_nodup_cons n),
-  have nxinxsl₂ : x ∉ xs++l₂, from not_mem_of_nodup_cons n,
-  have nxinxs   : x ∉ xs,     from not_mem_of_not_mem_append_left nxinxsl₂,
-  nodup_cons nxinxs ndxs
-
-lemma nodup_of_nodup_append_right : ∀ {l₁ l₂ : list A}, nodup (l₁++l₂) → nodup l₂
-| []      l₂ n := n
-| (x::xs) l₂ n := nodup_of_nodup_append_right (nodup_of_nodup_cons n)
-
-lemma nodup_map {f : A → B} (inj : injective f) : ∀ {l : list A}, nodup l → nodup (map f l)
-| []      n := begin rewrite [map_nil], apply nodup_nil end
-| (x::xs) n :=
-  assert nxinxs : x ∉ xs,           from not_mem_of_nodup_cons n,
-  assert ndxs   : nodup xs,         from nodup_of_nodup_cons n,
-  assert ndmfxs : nodup (map f xs), from nodup_map ndxs,
-  assert nfxinm : f x ∉ map f xs,   from
-    λ ab : f x ∈ map f xs,
-      obtain (finv : B → A) (isinv : finv ∘ f = id), from inj,
-      assert finvfxin : finv (f x) ∈ map finv (map f xs), from mem_map finv ab,
-      assert xinxs : x ∈ xs,
-        begin
-          rewrite [map_map at finvfxin, isinv at finvfxin, left_inv_eq isinv at finvfxin],
-          rewrite [map_id at finvfxin],
-          exact finvfxin
-        end,
-      absurd xinxs nxinxs,
-  nodup_cons nfxinm ndmfxs
-
-definition erase_dup [H : decidable_eq A] : list A → list A
-| []        :=  []
-| (x :: xs) :=  if x ∈ xs then erase_dup xs else x :: erase_dup xs
-
-theorem erase_dup_nil [H : decidable_eq A] : erase_dup [] = []
-
-theorem erase_dup_cons_of_mem [H : decidable_eq A] {a : A} {l : list A} : a ∈ l → erase_dup (a::l) = erase_dup l :=
-assume ainl, calc
-  erase_dup (a::l) = if a ∈ l then erase_dup l else a :: erase_dup l : rfl
-              ...  = erase_dup l                                     : if_pos ainl
-
-theorem erase_dup_cons_of_not_mem [H : decidable_eq A] {a : A} {l : list A} : a ∉ l → erase_dup (a::l) = a :: erase_dup l :=
-assume nainl, calc
-  erase_dup (a::l) = if a ∈ l then erase_dup l else a :: erase_dup l : rfl
-              ...  = a :: erase_dup l                                : if_neg nainl
-
-theorem mem_erase_dup [H : decidable_eq A] {a : A} : ∀ {l}, a ∈ l → a ∈ erase_dup l
-| []     h  := absurd h !not_mem_nil
-| (b::l) h  := by_cases
-  (λ binl  : b ∈ l, or.elim h
-    (λ aeqb : a = b, by rewrite [erase_dup_cons_of_mem binl, -aeqb at binl]; exact (mem_erase_dup binl))
-    (λ ainl : a ∈ l, by rewrite [erase_dup_cons_of_mem binl]; exact (mem_erase_dup ainl)))
-  (λ nbinl : b ∉ l, or.elim h
-    (λ aeqb : a = b, by rewrite [erase_dup_cons_of_not_mem nbinl, aeqb]; exact !mem_cons)
-    (λ ainl : a ∈ l, by rewrite [erase_dup_cons_of_not_mem nbinl]; exact (or.inr (mem_erase_dup ainl))))
-
-theorem mem_of_mem_erase_dup [H : decidable_eq A] {a : A} : ∀ {l}, a ∈ erase_dup l → a ∈ l
-| []     h := by rewrite [erase_dup_nil at h]; exact h
-| (b::l) h := by_cases
-  (λ binl  : b ∈ l,
-    have h₁ : a ∈ erase_dup l, by rewrite [erase_dup_cons_of_mem binl at h]; exact h,
-    or.inr (mem_of_mem_erase_dup h₁))
-  (λ nbinl : b ∉ l,
-    have h₁ : a ∈ b :: erase_dup l, by rewrite [erase_dup_cons_of_not_mem nbinl at h]; exact h,
-    or.elim h₁
-      (λ aeqb  : a = b, by rewrite aeqb; exact !mem_cons)
-      (λ ainel : a ∈ erase_dup l, or.inr (mem_of_mem_erase_dup ainel)))
-
-theorem nodup_erase_dup [H : decidable_eq A] : ∀ l : list A, nodup (erase_dup l)
-| []        := by rewrite erase_dup_nil; exact nodup_nil
-| (a::l)    := by_cases
-  (λ ainl  : a ∈ l, by rewrite [erase_dup_cons_of_mem ainl]; exact (nodup_erase_dup l))
-  (λ nainl : a ∉ l,
-    assert r   : nodup (erase_dup l), from nodup_erase_dup l,
-    assert nin : a ∉ erase_dup l, from
-      assume ab : a ∈ erase_dup l, absurd (mem_of_mem_erase_dup ab) nainl,
-    by rewrite [erase_dup_cons_of_not_mem nainl]; exact (nodup_cons nin r))
-end nodup
 end list
 
 attribute list.has_decidable_eq  [instance]
 attribute list.decidable_mem [instance]
-attribute list.decidable_any [instance]
-attribute list.decidable_all [instance]
