@@ -24,17 +24,14 @@ definition rat.is_lin_ord [instance] : discrete_linear_ordered_field ℚ := rat_
 ---------------------------
 -- These belong elsewhere
 
--- this disappeared from order at the last commit??
-theorem lt_of_lt_of_eq {A : Type} [s : has_lt A] {a b c : A} (H1 : a < b) (H2 : b = c) : a < c := H2 ▸ H1
-
 --why doesn't this exist?
 theorem le_of_eq {a b : ℚ} (H1 : a = b) : a ≤ b := 
   algebra.le_of_not_lt (take H : b < a, absurd !rfl (H1 ▸ (algebra.ne_of_lt H)))
 
 -- THIS IS THERE IN LIST???
-theorem eq_nil_of_length_eq_zero : ∀ {l : list ℚ}, length l = 0 → l = []
-| []     H := rfl
-| (a::s) H := nat.no_confusion H
+/-theorem eq_nil_of_length_eq_zero : ∀ {l : list ℚ}, length l = 0 → l = []
+  | []     H := rfl
+  | (a::s) H := nat.no_confusion H-/ 
 
 theorem abs_add_le_add_abs (x y : ℚ) : abs (x + y) ≤ abs x + abs y :=
   have H [visible] :  abs (x + y) - abs (x) ≤ abs (x + y - x), from !abs_sub_abs_le_abs_sub,
@@ -146,17 +143,16 @@ theorem sum_vanishes_of_vanishes (s t : rat_sequence) (Hs : vanishes s) (Ht : va
         apply algebra.add_lt_add_right,
         have Han : n ≥ a, from algebra.le.trans (!max.left) Hn,
         exact (Ha n Han),
-      apply lt_of_lt_of_eq,
-      apply algebra.add_lt_add_left,
-      have Hbn : n ≥ b, from algebra.le.trans (!max.right) Hn,
-      exact (Hb n Hbn),
-    exact (add_halves_helper ε)
+        rewrite -(add_halves_helper ε) at {2},
+        apply algebra.add_lt_add_left,
+        have Hbn : n ≥ b, from algebra.le.trans (!max.right) Hn,
+        exact (Hb n Hbn)
   end
 
 theorem sum_converges_of_converges (s t : rat_sequence) (a b : ℚ) (Hs : converges_to s a) 
     (Ht : converges_to t b) : converges_to (s + t) (a + b) :=
   begin
-    rewrite [↑converges_to, ↑converges_to at Hs, ↑converges_to at Ht],
+    rewrite ↑converges_to at *,
     have H : vanishes (add (λ n, s n - a) (λ n, t n - b)), from (sum_vanishes_of_vanishes _ _ Hs Ht),
     rewrite ↑vanishes at *,
     intro ε, intro H1,
@@ -183,79 +179,50 @@ definition nat_list : ℕ → list ℕ
   | 0 := [0]
   | (succ n) := cons n (nat_list n)
 
-theorem in_nat_list {N : ℕ} : ∀ n, n < N → n ∈ nat_list N :=
-  nat.rec_on N
-    (begin
-      intros [m, H],
-      apply (absurd H !not_lt_zero)
-    end) -- N = 0 
-    (begin
-      intros [a, Ha, M, HM],
-      have Hor : M < a ∨ M = a, from nat.lt_or_eq_of_le (le_of_lt_succ HM),
-      apply (or.elim Hor),
+theorem in_nat_list : ∀{N : ℕ}, ∀ {n}, n < N → n ∈ nat_list N 
+  | 0 n Hn := absurd Hn !not_lt_zero
+  | (succ a) n Hn := begin 
+      apply (or.elim (nat.lt_or_eq_of_le (le_of_lt_succ Hn))),
         intro Ho,
-        have HM' : M ∈ nat_list a, from Ha M Ho,
         apply mem_cons_of_mem,
-        apply HM',
+        apply (in_nat_list Ho),
         intro Ho,
-        apply (Ho ▸ !mem_cons)
-    end) -- N = succ a
-           
-definition rat_list_max : list ℚ → ℚ  -- default if l is empty, else max l
-  | [] := 0
-  | (h :: t) := ite (length t = 0) h (algebra.max h (rat_list_max t))
+        rewrite Ho,
+        apply mem_cons
+    end
 
-theorem lt_rat_list_max_of_in_rat_list : ∀ l : list ℚ, ∀ q : ℚ, q ∈ l → q ≤ rat_list_max l :=
-  take l,
-  list.rec_on l
-    (take q Hq, absurd Hq !not_mem_nil) --show ∀ q : ℚ, q ∈ nil → q ≤ rat_list_max nil
-    (begin
-      intros [h, t, Hind, q, Hq],
-      have Hor : q = h ∨ q ∈ t, from (iff.mp (mem_cons_iff q h t)) Hq,
-      apply (or.elim Hor),
-        intro Ho,
-        have Hh : q ≤ algebra.max h (rat_list_max t), from Ho ▸ !algebra.max.left,
-        have Hc : q ≤ ite (length t = 0) h (algebra.max h (rat_list_max t)), begin
-          have Hem : length t = 0 ∨ length t ≠ 0, from !decidable.em,
-          apply (or.elim Hem),
-          intro Ht,
-          have Hite : ite (length t = 0) h (max h (rat_list_max t)) = h, from if_pos Ht,
-          rewrite Hite,
-          exact (le_of_eq Ho),
-          intro Ht,
-          have Hite : ite (length t = 0) h (max h (rat_list_max t)) = (max h (rat_list_max t)), from if_neg Ht,
-          rewrite Hite,
-          exact Hh
-        end,
-        exact Hc,
-        intro Ho,
-        have Hh : q ≤ rat_list_max t, from Hind q Ho,
-        cases t,
-        apply (absurd Ho !not_mem_nil),
-        have Hqa : q ≤ algebra.max h (rat_list_max (a :: a_1)), from algebra.le.trans Hh !algebra.max.right,
-        have Hem : length (a :: a_1) = 0 ∨ length (a :: a_1) ≠ 0, from !decidable.em,
-        apply (or.elim Hem),
-        intro Haa1,
-        have Hnil : (a :: a_1) = [], from eq_nil_of_length_eq_zero Haa1, 
-        have Hnilq : q ∈ [], from Hnil ▸ Ho,
-        apply (absurd Hnilq !not_mem_nil),
-        intro Haal,
-        have Hite : ite (length (a :: a_1) = 0) h (max h (rat_list_max (a :: a_1))) = max h (rat_list_max (a :: a_1)), 
-          from if_neg Haal,
-        exact (Hite ▸ Hqa)
-    end)
+definition rat_list_max : list ℚ → ℚ  -- default if l is empty, else max l
+  | []        := 0
+  | [h]       := h  
+  | (h :: t)  := algebra.max h (rat_list_max t)
+
+theorem rat_list_max_of_singleton (h : ℚ) : rat_list_max [h] = h := rfl
+
+theorem lt_rat_list_max_of_in_rat_list : ∀{l : list ℚ}, ∀{q : ℚ}, q ∈ l → q ≤ rat_list_max l
+  | []               q Hq  :=  absurd Hq !not_mem_nil
+  | [h]              q Hq  := 
+    have H1 : q = h, from mem_singleton Hq,
+    H1⁻¹ ▸ le_of_eq (rat_list_max_of_singleton h)
+  | (h :: (h' :: t)) q Hq  := 
+    or.elim (iff.mp !mem_cons_iff Hq)
+      (assume H1 : q = h,
+        calc
+          rat_list_max (h :: (h' :: t)) = algebra.max h (rat_list_max (h' :: t)) : rfl
+                                    ... ≥ h : algebra.max.left
+                                    ... = q : H1)
+      (assume H1 : q ∈ (h' :: t),
+        calc
+          rat_list_max (h :: (h' :: t)) = algebra.max h (rat_list_max (h' :: t)) : rfl
+                                    ... ≥ rat_list_max (h' :: t) : algebra.max.right
+                                    ... ≥ q : lt_rat_list_max_of_in_rat_list H1)
 
 -- return max of first n values of rat seq
 definition max_init_seq (s : rat_sequence) (N : ℕ) : ℚ :=
   rat_list_max (map s (nat_list N))
 
 theorem lt_seq_max (s : rat_sequence) (N : ℕ) (a : ℕ) (Ha : a < N) : s a ≤ max_init_seq s N :=
-  have H : mem (s a) (map s (nat_list N)), from
-  begin
-    apply mem_map,
-    apply (in_nat_list a Ha)
-  end,
-  lt_rat_list_max_of_in_rat_list (map s (nat_list N)) _ H
+  have H : mem (s a) (map s (nat_list N)), by apply mem_map; apply (in_nat_list Ha),
+  lt_rat_list_max_of_in_rat_list H
   
 theorem bounded_of_cauchy {s : rat_sequence} (H : cauchy s) : bounded s :=
   begin
@@ -307,13 +274,12 @@ theorem cauchy_of_converges (s : rat_sequence) (H : converges s) : cauchy s :=
           have HNn : abs (a - s n) < ε / 2, from !abs_sub ▸ (HN n Hn),
           rewrite [ -(add_sub_add_left_eq_sub _ _ a), sub_dist, {a+_}algebra.add.comm, 2 algebra.add.assoc, 
             -(algebra.add.assoc a), {a+_}algebra.add.comm, algebra.add.assoc, -algebra.add.assoc (s m)],
-          apply lt_of_lt_of_eq, -- algebra.
-          rotate_left 1,
-          apply (add_halves_helper ε),
+          rewrite -(add_halves_helper ε),
           apply algebra.lt_of_le_of_lt,
-          rotate_left 1,
-          apply (algebra.add_lt_add HNm HNn),
-          apply abs_add_le_add_abs
+          apply abs_add_le_add_abs,
+          apply algebra.add_lt_add,
+          exact HNm,
+          exact HNn
   end
 
 definition seq.equiv (s t : rat_sequence) : Prop :=
@@ -364,12 +330,9 @@ theorem seq.equiv.trans {r s t : rat_sequence} (H1 : seq.equiv r s) (H2 : seq.eq
         fapply exists.intro,
           exact (max a b),
           intros [n, Hn],
-          apply lt_of_lt_of_eq, --algebra.
-          rotate_left 1,
-          exact (add_halves_helper ε),
-          rewrite [↑sub at *, ↑add at *],
+          rewrite -(add_halves_helper ε),
           apply algebra.lt_of_le_of_lt,
-          rewrite [-(algebra.add_zero (r n)), -(algebra.sub_self (s n)), add.comm (s n), 
+          rewrite [↑sub at *, ↑add at *, -(algebra.add_zero (r n)), -(algebra.sub_self (s n)), add.comm (s n), 
             -algebra.add.assoc, algebra.add.assoc],
           apply abs_add_le_add_abs,
           apply algebra.add_lt_add,
