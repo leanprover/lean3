@@ -591,7 +591,7 @@ include H
 
 theorem perm_union_left {l₁ l₂ : list A} (t₁ : list A) : l₁ ~ l₂ → (union l₁ t₁) ~ (union l₂ t₁) :=
 assume p, perm.induction_on p
-  (by rewrite [union_nil]; exact !refl)
+  (by rewrite [nil_union]; exact !refl)
   (λ x l₁ l₂ p₁ r₁, by_cases
      (λ xint₁  : x ∈ t₁, by rewrite [*union_cons_of_mem _ xint₁]; exact r₁)
      (λ nxint₁ : x ∉ t₁, by rewrite [*union_cons_of_not_mem _ nxint₁]; exact (skip _ r₁)))
@@ -636,6 +636,49 @@ assume p, by_cases
    assert nainl₂ : a ∉ l₂, from not_mem_perm p nainl₁,
    by rewrite [insert_eq_of_not_mem nainl₁, insert_eq_of_not_mem nainl₂]; exact (skip _ p))
 end perm_insert
+
+section perm_intersection
+variable [H : decidable_eq A]
+include H
+
+theorem perm_intersection_left {l₁ l₂ : list A} (t₁ : list A) : l₁ ~ l₂ → (intersection l₁ t₁) ~ (intersection l₂ t₁) :=
+assume p, perm.induction_on p
+  !refl
+  (λ x l₁ l₂ p₁ r₁, by_cases
+    (λ xint₁  : x ∈ t₁, by rewrite [*intersection_cons_of_mem _ xint₁]; exact (skip x r₁))
+    (λ nxint₁ : x ∉ t₁, by rewrite [*intersection_cons_of_not_mem _ nxint₁]; exact r₁))
+  (λ x y l, by_cases
+    (λ yint  : y ∈ t₁, by_cases
+      (λ xint  : x ∈ t₁,
+        by rewrite [*intersection_cons_of_mem _ xint, *intersection_cons_of_mem _ yint, *intersection_cons_of_mem _ xint];
+           exact !swap)
+      (λ nxint : x ∉ t₁,
+        by rewrite [*intersection_cons_of_mem _ yint, *intersection_cons_of_not_mem _ nxint, intersection_cons_of_mem _ yint];
+           exact !refl))
+    (λ nyint : y ∉ t₁, by_cases
+      (λ xint  : x ∈ t₁,
+        by rewrite [*intersection_cons_of_mem _ xint, *intersection_cons_of_not_mem _ nyint, intersection_cons_of_mem _ xint];
+           exact !refl)
+      (λ nxint : x ∉ t₁,
+        by rewrite [*intersection_cons_of_not_mem _ nxint, *intersection_cons_of_not_mem _ nyint,
+                     intersection_cons_of_not_mem _ nxint];
+           exact !refl)))
+  (λ l₁ l₂ l₃ p₁ p₂ r₁ r₂, trans r₁ r₂)
+
+theorem perm_intersection_right (l : list A) {t₁ t₂ : list A} : t₁ ~ t₂ → (intersection l t₁) ~ (intersection l t₂) :=
+list.induction_on l
+  (λ p, by rewrite [*intersection_nil]; exact !refl)
+  (λ x xs r p, by_cases
+    (λ xint₁  : x ∈ t₁,
+      assert xint₂ : x ∈ t₂, from mem_perm p xint₁,
+      by rewrite [intersection_cons_of_mem _ xint₁, intersection_cons_of_mem _ xint₂]; exact (skip _ (r p)))
+    (λ nxint₁ : x ∉ t₁,
+      assert nxint₂ : x ∉ t₂, from not_mem_perm p nxint₁,
+      by rewrite [intersection_cons_of_not_mem _ nxint₁, intersection_cons_of_not_mem _ nxint₂]; exact (r p)))
+
+theorem perm_intersection {l₁ l₂ t₁ t₂ : list A} : l₁ ~ l₂ → t₁ ~ t₂ → (intersection l₁ t₁) ~ (intersection l₂ t₂) :=
+assume p₁ p₂, trans (perm_intersection_left t₁ p₁) (perm_intersection_right l₂ p₂)
+end perm_intersection
 
 /- extensionality -/
 section ext
@@ -683,4 +726,29 @@ theorem perm_ext : ∀ {l₁ l₂ : list A}, nodup l₁ → nodup l₂ → (∀a
          ...  ~ s₁++(a₁::s₂) : !perm_middle
          ...  = a₂::t₂       : by rewrite t₂_eq
 end ext
+
+/- cross_product -/
+section cross_product
+theorem perm_cross_product_left {l₁ l₂ : list A} (t₁ : list B) : l₁ ~ l₂ → (cross_product l₁ t₁) ~ (cross_product l₂ t₁) :=
+assume p : l₁ ~ l₂, perm.induction_on p
+  !perm.refl
+  (λ x l₁ l₂ p r, perm_app !perm.refl r)
+  (λ x y l,
+    let m₁ := map (λ b, (x, b)) t₁ in
+    let m₂ := map (λ b, (y, b)) t₁ in
+    let c  := cross_product l t₁ in
+    calc m₂ ++ (m₁ ++ c) = (m₂ ++ m₁) ++ c  : by rewrite append.assoc
+                     ... ~ (m₁ ++ m₂) ++ c  : perm_app !perm_app_comm !perm.refl
+                     ... =  m₁ ++ (m₂ ++ c) : by rewrite append.assoc)
+  (λ l₁ l₂ l₃ p₁ p₂ r₁ r₂, trans r₁ r₂)
+
+theorem perm_cross_product_right (l : list A) {t₁ t₂ : list B} : t₁ ~ t₂ → (cross_product l t₁) ~ (cross_product l t₂) :=
+list.induction_on l
+  (λ p, by rewrite [*nil_cross_product]; exact !perm.refl)
+  (λ a t r p,
+    perm_app (perm_map _ p) (r p))
+
+theorem perm_cross_product {l₁ l₂ : list A} {t₁ t₂ : list B} : l₁ ~ l₂ → t₁ ~ t₂ → (cross_product l₁ t₁) ~ (cross_product l₂ t₂) :=
+assume p₁ p₂, trans (perm_cross_product_left t₁ p₁) (perm_cross_product_right l₂ p₂)
+end cross_product
 end perm

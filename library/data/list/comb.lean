@@ -12,7 +12,7 @@ open nat prod decidable function helper_tactics
 
 namespace list
 variables {A B C : Type}
-
+/- map -/
 definition map (f : A → B) : list A → list B
 | []       := []
 | (a :: l) := f a :: map l
@@ -43,11 +43,71 @@ theorem mem_map {A B : Type} (f : A → B) : ∀ {a l}, a ∈ l → f a ∈ map 
    (λ aeqx  : a = x, by rewrite [aeqx, map_cons]; apply mem_cons)
    (λ ainxs : a ∈ xs, or.inr (mem_map ainxs))
 
+theorem eq_of_map_const {A B : Type} {b₁ b₂ : B} : ∀ {l : list A}, b₁ ∈ map (const A b₂) l → b₁ = b₂
+| []     h := absurd h !not_mem_nil
+| (a::l) h :=
+  or.elim (eq_or_mem_of_mem_cons h)
+    (λ b₁eqb₂ : b₁ = b₂, b₁eqb₂)
+    (λ b₁inl  : b₁ ∈ map (const A b₂) l, eq_of_map_const b₁inl)
+
 definition map₂ (f : A → B → C) : list A → list B → list C
 | []      _       := []
 | _       []      := []
 | (x::xs) (y::ys) := f x y :: map₂ xs ys
 
+/- filter -/
+definition filter (p : A → Prop) [h : decidable_pred p] : list A → list A
+| []     := []
+| (a::l) := if p a then a :: filter l else filter l
+
+theorem filter_nil (p : A → Prop) [h : decidable_pred p] : filter p [] = []
+
+theorem filter_cons_of_pos {p : A → Prop} [h : decidable_pred p] {a : A} : ∀ l, p a → filter p (a::l) = a :: filter p l :=
+λ l pa, if_pos pa
+
+theorem filter_cons_of_neg {p : A → Prop} [h : decidable_pred p] {a : A} : ∀ l, ¬ p a → filter p (a::l) = filter p l :=
+λ l pa, if_neg pa
+
+theorem of_mem_filter {p : A → Prop} [h : decidable_pred p] {a : A} : ∀ {l}, a ∈ filter p l → p a
+| []     ain := absurd ain !not_mem_nil
+| (b::l) ain := by_cases
+  (λ pb  : p b,
+    have aux : a ∈ b :: filter p l, by rewrite [filter_cons_of_pos _ pb at ain]; exact ain,
+    or.elim (eq_or_mem_of_mem_cons aux)
+      (λ aeqb : a = b, by rewrite [-aeqb at pb]; exact pb)
+      (λ ainl, of_mem_filter ainl))
+  (λ npb : ¬ p b, by rewrite [filter_cons_of_neg _ npb at ain]; exact (of_mem_filter ain))
+
+theorem mem_of_mem_filter {p : A → Prop} [h : decidable_pred p] {a : A} : ∀ {l}, a ∈ filter p l → a ∈ l
+| []     ain := absurd ain !not_mem_nil
+| (b::l) ain := by_cases
+  (λ pb  : p b,
+    have aux : a ∈ b :: filter p l, by rewrite [filter_cons_of_pos _ pb at ain]; exact ain,
+    or.elim (eq_or_mem_of_mem_cons aux)
+      (λ aeqb : a = b, by rewrite [aeqb]; exact !mem_cons)
+      (λ ainl, mem_cons_of_mem _ (mem_of_mem_filter ainl)))
+  (λ npb : ¬ p b, by rewrite [filter_cons_of_neg _ npb at ain]; exact (mem_cons_of_mem _ (mem_of_mem_filter ain)))
+
+theorem mem_filter_of_mem {p : A → Prop} [h : decidable_pred p] {a : A} : ∀ {l}, a ∈ l → p a → a ∈ filter p l
+| []     ain pa := absurd ain !not_mem_nil
+| (b::l) ain pa := by_cases
+  (λ pb  : p b, or.elim (eq_or_mem_of_mem_cons ain)
+    (λ aeqb : a = b, by rewrite [filter_cons_of_pos _ pb, aeqb]; exact !mem_cons)
+    (λ ainl : a ∈ l, by rewrite [filter_cons_of_pos _ pb]; exact (mem_cons_of_mem _ (mem_filter_of_mem ainl pa))))
+  (λ npb : ¬ p b, or.elim (eq_or_mem_of_mem_cons ain)
+    (λ aeqb : a = b, absurd (eq.rec_on aeqb pa) npb)
+    (λ ainl : a ∈ l, by rewrite [filter_cons_of_neg _ npb]; exact (mem_filter_of_mem ainl pa)))
+
+theorem filter_subset {p : A → Prop} [h : decidable_pred p] (l : list A) : filter p l ⊆ l :=
+λ a ain, mem_of_mem_filter ain
+
+theorem filter_append {p : A → Prop} [h : decidable_pred p] : ∀ (l₁ l₂ : list A), filter p (l₁++l₂) = filter p l₁ ++ filter p l₂
+| []      l₂ := rfl
+| (a::l₁) l₂ := by_cases
+  (λ pa  : p a, by rewrite [append_cons, *filter_cons_of_pos _ pa, filter_append])
+  (λ npa : ¬ p a, by rewrite [append_cons, *filter_cons_of_neg _ npa, filter_append])
+
+/- foldl & foldr -/
 definition foldl (f : A → B → A) : A → list B → A
 | a []       := a
 | a (b :: l) := foldl (f a b) l
@@ -101,13 +161,57 @@ theorem foldr_append (f : A → B → B) : ∀ (b : B) (l₁ l₂ : list A), fol
 | b []      l₂ := rfl
 | b (a::l₁) l₂ := by rewrite [append_cons, *foldr_cons, foldr_append]
 
-definition all (p : A → Prop) (l : list A) : Prop :=
+/- all & any -/
+definition all (l : list A) (p : A → Prop) : Prop :=
 foldr (λ a r, p a ∧ r) true l
 
-definition any (p : A → Prop) (l : list A) : Prop :=
+definition any (l : list A) (p : A → Prop) : Prop :=
 foldr (λ a r, p a ∨ r) false l
 
-definition decidable_all (p : A → Prop) [H : decidable_pred p] : ∀ l, decidable (all p l)
+theorem all_nil (p : A → Prop) : all [] p = true
+
+theorem all_cons (p : A → Prop) (a : A) (l : list A) : all (a::l) p = (p a ∧ all l p)
+
+theorem all_of_all_cons {p : A → Prop} {a : A} {l : list A} : all (a::l) p → all l p :=
+assume h, by rewrite [all_cons at h]; exact (and.elim_right h)
+
+theorem of_all_cons {p : A → Prop} {a : A} {l : list A} : all (a::l) p → p a :=
+assume h, by rewrite [all_cons at h]; exact (and.elim_left h)
+
+theorem all_cons_of_all {p : A → Prop} {a : A} {l : list A} : p a → all l p → all (a::l) p :=
+assume pa alllp, and.intro pa alllp
+
+theorem all_implies {p q : A → Prop} : ∀ {l}, all l p → (∀ x, p x → q x) → all l q
+| []     h₁ h₂ := trivial
+| (a::l) h₁ h₂ :=
+  have allq : all l q, from all_implies (all_of_all_cons h₁) h₂,
+  have qa : q a, from h₂ a (of_all_cons h₁),
+  all_cons_of_all qa allq
+
+theorem of_mem_of_all {p : A → Prop} {a : A} : ∀ {l}, a ∈ l → all l p → p a
+| []     h₁ h₂ := absurd h₁ !not_mem_nil
+| (b::l) h₁ h₂ :=
+  or.elim (eq_or_mem_of_mem_cons h₁)
+    (λ aeqb : a = b,
+      by rewrite [all_cons at h₂, -aeqb at h₂]; exact (and.elim_left h₂))
+    (λ ainl : a ∈ l,
+      have allp : all l p, by rewrite [all_cons at h₂]; exact (and.elim_right h₂),
+      of_mem_of_all ainl allp)
+
+theorem any_nil (p : A → Prop) : any [] p = false
+
+theorem any_cons (p : A → Prop) (a : A) (l : list A) : any (a::l) p = (p a ∨ any l p)
+
+theorem any_of_mem (p : A → Prop) {a : A} : ∀ {l}, a ∈ l → p a → any l p
+| []     i h := absurd i !not_mem_nil
+| (b::l) i h :=
+  or.elim (eq_or_mem_of_mem_cons i)
+    (λ aeqb : a = b, by rewrite [-aeqb]; exact (or.inl h))
+    (λ ainl : a ∈ l,
+      have anyl : any l p, from any_of_mem ainl h,
+      or.inr anyl)
+
+definition decidable_all (p : A → Prop) [H : decidable_pred p] : ∀ l, decidable (all l p)
 | []       := decidable_true
 | (a :: l) :=
   match H a with
@@ -116,10 +220,10 @@ definition decidable_all (p : A → Prop) [H : decidable_pred p] : ∀ l, decida
     | inl Hp₂ := inl (and.intro Hp₁ Hp₂)
     | inr Hn₂ := inr (not_and_of_not_right (p a) Hn₂)
     end
-  | inr Hn := inr (not_and_of_not_left (all p l) Hn)
+  | inr Hn := inr (not_and_of_not_left (all l p) Hn)
   end
 
-definition decidable_any (p : A → Prop) [H : decidable_pred p] : ∀ l, decidable (any p l)
+definition decidable_any (p : A → Prop) [H : decidable_pred p] : ∀ l, decidable (any l p)
 | []       := decidable_false
 | (a :: l) :=
   match H a with
@@ -131,6 +235,7 @@ definition decidable_any (p : A → Prop) [H : decidable_pred p] : ∀ l, decida
     end
   end
 
+/- zip & unzip -/
 definition zip (l₁ : list A) (l₂ : list B) : list (A × B) :=
 map₂ (λ a b, (a, b)) l₁ l₂
 
@@ -162,6 +267,66 @@ theorem zip_unzip : ∀ (l : list (A × B)), zip (pr₁ (unzip l)) (pr₂ (unzip
 /- flat -/
 definition flat (l : list (list A)) : list A :=
 foldl append nil l
+
+/- cross product -/
+section cross_product
+
+definition cross_product : list A → list B → list (A × B)
+| []      l₂ := []
+| (a::l₁) l₂ := map (λ b, (a, b)) l₂ ++ cross_product l₁ l₂
+
+theorem nil_cross_product (l : list B) : cross_product (@nil A) l = []
+
+theorem cross_product_cons (a : A) (l₁ : list A) (l₂ : list B)
+        : cross_product (a::l₁) l₂ = map (λ b, (a, b)) l₂ ++ cross_product l₁ l₂
+
+theorem cross_product_nil : ∀ (l : list A), cross_product l (@nil B) = []
+| []     := rfl
+| (a::l) := by rewrite [cross_product_cons, map_nil, cross_product_nil]
+
+theorem eq_of_mem_map_pair₁  {a₁ a : A} {b₁ : B} {l : list B} : (a₁, b₁) ∈ map (λ b, (a, b)) l → a₁ = a :=
+assume ain,
+assert h₁ : pr1 (a₁, b₁) ∈ map pr1 (map (λ b, (a, b)) l), from mem_map pr1 ain,
+assert h₂ : a₁ ∈ map (λb, a) l, by rewrite [map_map at h₁, ↑pr1 at h₁]; exact h₁,
+eq_of_map_const h₂
+
+theorem mem_of_mem_map_pair₁ {a₁ a : A} {b₁ : B} {l : list B} : (a₁, b₁) ∈ map (λ b, (a, b)) l → b₁ ∈ l :=
+assume ain,
+assert h₁ : pr2 (a₁, b₁) ∈ map pr2 (map (λ b, (a, b)) l), from mem_map pr2 ain,
+assert h₂ : b₁ ∈ map (λx, x) l, by rewrite [map_map at h₁, ↑pr2 at h₁]; exact h₁,
+by rewrite [map_id at h₂]; exact h₂
+
+theorem mem_cross_product {a : A} {b : B} : ∀ {l₁ l₂}, a ∈ l₁ → b ∈ l₂ → (a, b) ∈ cross_product l₁ l₂
+| []      l₂ h₁ h₂ := absurd h₁ !not_mem_nil
+| (x::l₁) l₂ h₁ h₂ :=
+  or.elim (eq_or_mem_of_mem_cons h₁)
+    (λ aeqx  : a = x,
+      assert aux : (a, b) ∈ map (λ b, (a, b)) l₂, from mem_map _ h₂,
+      by rewrite [-aeqx]; exact (mem_append_left _ aux))
+    (λ ainl₁ : a ∈ l₁,
+      have inl₁l₂ : (a, b) ∈ cross_product l₁ l₂, from mem_cross_product ainl₁ h₂,
+      mem_append_right _ inl₁l₂)
+
+theorem mem_of_mem_cross_product_left {a : A} {b : B} : ∀ {l₁ l₂}, (a, b) ∈ cross_product l₁ l₂ → a ∈ l₁
+| []      l₂ h := absurd h !not_mem_nil
+| (x::l₁) l₂ h :=
+  or.elim (mem_or_mem_of_mem_append h)
+    (λ ain : (a, b) ∈ map (λ b, (x, b)) l₂,
+       assert aeqx : a = x, from eq_of_mem_map_pair₁ ain,
+       by rewrite [aeqx]; exact !mem_cons)
+    (λ ain : (a, b) ∈ cross_product l₁ l₂,
+      have ainl₁ : a ∈ l₁, from mem_of_mem_cross_product_left ain,
+      mem_cons_of_mem _ ainl₁)
+
+theorem mem_of_mem_cross_product_right {a : A} {b : B} : ∀ {l₁ l₂}, (a, b) ∈ cross_product l₁ l₂ → b ∈ l₂
+| []      l₂ h := absurd h !not_mem_nil
+| (x::l₁) l₂ h :=
+  or.elim (mem_or_mem_of_mem_append h)
+    (λ abin : (a, b) ∈ map (λ b, (x, b)) l₂,
+      mem_of_mem_map_pair₁ abin)
+    (λ abin : (a, b) ∈ cross_product l₁ l₂,
+      mem_of_mem_cross_product_right abin)
+end cross_product
 end list
 
 attribute list.decidable_any [instance]

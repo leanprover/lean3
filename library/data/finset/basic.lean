@@ -7,7 +7,7 @@ Author: Leonardo de Moura
 
 Finite sets
 -/
-import data.nat data.list.perm data.subtype algebra.binary
+import data.fintype data.nat data.list.perm data.subtype algebra.binary
 open nat quot list subtype binary function
 open [declarations] perm
 
@@ -57,6 +57,9 @@ definition has_decidable_eq [instance] [h : decidable_eq A] : decidable_eq (fins
      | decidable.inr n := decidable.inr (λ e : ⟦l₁⟧ = ⟦l₂⟧, absurd (quot.exact e) n)
      end)
 
+definition singleton (a : A) : finset A :=
+to_finset_of_nodup [a] !nodup_singleton
+
 definition mem (a : A) (s : finset A) : Prop :=
 quot.lift_on s (λ l, a ∈ elt_of l)
  (λ l₁ l₂ (e : l₁ ~ l₂), propext (iff.intro
@@ -66,11 +69,14 @@ quot.lift_on s (λ l, a ∈ elt_of l)
 infix `∈` := mem
 notation a ∉ b := ¬ mem a b
 
-definition mem_of_mem_list {a : A} {l : nodup_list A} : a ∈ elt_of l → a ∈ ⟦l⟧ :=
+theorem mem_of_mem_list {a : A} {l : nodup_list A} : a ∈ elt_of l → a ∈ ⟦l⟧ :=
 λ ainl, ainl
 
-definition mem_list_of_mem {a : A} {l : nodup_list A} : a ∈ ⟦l⟧ → a ∈ elt_of l :=
+theorem mem_list_of_mem {a : A} {l : nodup_list A} : a ∈ ⟦l⟧ → a ∈ elt_of l :=
 λ ainl, ainl
+
+theorem mem_singleton (a : A) : a ∈ singleton a :=
+mem_of_mem_list !mem_cons
 
 definition decidable_mem [instance] [h : decidable_eq A] : ∀ (a : A) (s : finset A), decidable (a ∈ s) :=
 λ a s, quot.rec_on_subsingleton s
@@ -98,6 +104,13 @@ notation `∅` := !empty
 theorem not_mem_empty (a : A) : a ∉ ∅ :=
 λ aine : a ∈ ∅, aine
 
+/- universe -/
+definition univ [h : fintype A] : finset A :=
+to_finset_of_nodup (@fintype.elems A h) (@fintype.unique A h)
+
+theorem mem_univ [h : fintype A] (x : A) : x ∈ univ :=
+fintype.complete x
+
 /- card -/
 definition card (s : finset A) : nat :=
 quot.lift_on s
@@ -105,6 +118,9 @@ quot.lift_on s
   (λ l₁ l₂ p, length_eq_length_of_perm p)
 
 theorem card_empty : card (@empty A) = 0 :=
+rfl
+
+theorem card_singleton (a : A) : card (singleton a) = 1 :=
 rfl
 
 /- insert -/
@@ -159,24 +175,14 @@ end erase
 definition disjoint (s₁ s₂ : finset A) : Prop :=
 quot.lift_on₂ s₁ s₂ (λ l₁ l₂, disjoint (elt_of l₁) (elt_of l₂))
   (λ v₁ v₂ w₁ w₂ p₁ p₂, propext (iff.intro
-    (λ d₁ a, and.intro
-      (λ ainw₁ : a ∈ elt_of w₁,
-        have ainv₁  : a ∈ elt_of v₁, from mem_perm (perm.symm p₁) ainw₁,
-        have nainv₂ : a ∉ elt_of v₂, from disjoint_left d₁ ainv₁,
-        not_mem_perm p₂ nainv₂)
-      (λ ainw₂ : a ∈ elt_of w₂,
-        have ainv₂ : a ∈ elt_of v₂,  from mem_perm (perm.symm p₂) ainw₂,
-        have nainv₁ : a ∉ elt_of v₁, from disjoint_right d₁ ainv₂,
-        not_mem_perm p₁ nainv₁))
-    (λ d₂ a, and.intro
-      (λ ainv₁ : a ∈ elt_of v₁,
-        have ainw₁  : a ∈ elt_of w₁, from mem_perm p₁ ainv₁,
-        have nainw₂ : a ∉ elt_of w₂, from disjoint_left d₂ ainw₁,
-        not_mem_perm (perm.symm p₂) nainw₂)
-      (λ ainv₂ : a ∈ elt_of v₂,
-        have ainw₂  : a ∈ elt_of w₂, from mem_perm p₂ ainv₂,
-        have nainw₁ : a ∉ elt_of w₁, from disjoint_right d₂ ainw₂,
-        not_mem_perm (perm.symm p₁) nainw₁))))
+    (λ d₁ a (ainw₁ : a ∈ elt_of w₁),
+      have ainv₁  : a ∈ elt_of v₁, from mem_perm (perm.symm p₁) ainw₁,
+      have nainv₂ : a ∉ elt_of v₂, from disjoint_left d₁ ainv₁,
+      not_mem_perm p₂ nainv₂)
+    (λ d₂ a (ainv₁ : a ∈ elt_of v₁),
+      have ainw₁  : a ∈ elt_of w₁, from mem_perm p₁ ainv₁,
+      have nainw₂ : a ∉ elt_of w₂, from disjoint_left d₂ ainw₁,
+      not_mem_perm (perm.symm p₂) nainw₂)))
 
 theorem disjoint.comm {s₁ s₂ : finset A} : disjoint s₁ s₂ → disjoint s₂ s₁ :=
 quot.induction_on₂ s₁ s₂ (λ l₁ l₂ d, list.disjoint.comm d)
@@ -231,4 +237,96 @@ theorem empty_union (s : finset A) : ∅ ∪ s = s :=
 calc ∅ ∪ s = s ∪ ∅ : union.comm
        ... = s     : union_empty
 end union
+
+/- intersection -/
+section intersection
+variable [h : decidable_eq A]
+include h
+
+definition intersection (s₁ s₂ : finset A) : finset A :=
+quot.lift_on₂ s₁ s₂
+  (λ l₁ l₂,
+    to_finset_of_nodup (list.intersection (elt_of l₁) (elt_of l₂))
+                       (nodup_intersection_of_nodup _ (has_property l₁)))
+  (λ v₁ v₂ w₁ w₂ p₁ p₂, quot.sound (perm_intersection p₁ p₂))
+
+notation s₁ ∩ s₂ := intersection s₁ s₂
+
+theorem mem_of_mem_intersection_left {a : A} {s₁ s₂ : finset A} : a ∈ s₁ ∩ s₂ → a ∈ s₁ :=
+quot.induction_on₂ s₁ s₂ (λ l₁ l₂ ainl₁l₂, list.mem_of_mem_intersection_left ainl₁l₂)
+
+theorem mem_of_mem_intersection_right {a : A} {s₁ s₂ : finset A} : a ∈ s₁ ∩ s₂ → a ∈ s₂ :=
+quot.induction_on₂ s₁ s₂ (λ l₁ l₂ ainl₁l₂, list.mem_of_mem_intersection_right ainl₁l₂)
+
+theorem mem_intersection_of_mem_of_mem {a : A} {s₁ s₂ : finset A} : a ∈ s₁ → a ∈ s₂ → a ∈ s₁ ∩ s₂ :=
+quot.induction_on₂ s₁ s₂ (λ l₁ l₂ ainl₁ ainl₂, list.mem_intersection_of_mem_of_mem ainl₁ ainl₂)
+
+theorem mem_intersection_eq (a : A) (s₁ s₂ : finset A) : (a ∈ s₁ ∩ s₂) = (a ∈ s₁ ∧ a ∈ s₂) :=
+propext (iff.intro
+ (λ h, and.intro (mem_of_mem_intersection_left h) (mem_of_mem_intersection_right h))
+ (λ h, mem_intersection_of_mem_of_mem (and.elim_left h) (and.elim_right h)))
+
+theorem intersection.comm (s₁ s₂ : finset A) : s₁ ∩ s₂ = s₂ ∩ s₁ :=
+ext (λ a, by rewrite [*mem_intersection_eq]; exact and.comm)
+
+theorem intersection.assoc (s₁ s₂ s₃ : finset A) : (s₁ ∩ s₂) ∩ s₃ = s₁ ∩ (s₂ ∩ s₃) :=
+ext (λ a, by rewrite [*mem_intersection_eq]; exact and.assoc)
+
+theorem intersection_self (s : finset A) : s ∩ s = s :=
+ext (λ a, iff.intro
+  (λ h, mem_of_mem_intersection_right h)
+  (λ h, mem_intersection_of_mem_of_mem h h))
+
+theorem intersection_empty (s : finset A) : s ∩ ∅ = ∅ :=
+ext (λ a, iff.intro
+  (λ h : a ∈ s ∩ ∅, absurd (mem_of_mem_intersection_right h) !not_mem_empty)
+  (λ h : a ∈ ∅,     absurd h !not_mem_empty))
+
+theorem empty_intersection (s : finset A) : ∅ ∩ s = ∅ :=
+calc ∅ ∩ s = s ∩ ∅ : intersection.comm
+       ... = ∅     : intersection_empty
+end intersection
+
+/- subset -/
+definition subset (s₁ s₂ : finset A) : Prop :=
+quot.lift_on₂ s₁ s₂
+  (λ l₁ l₂, sublist (elt_of l₁) (elt_of l₂))
+  (λ v₁ v₂ w₁ w₂ p₁ p₂, propext (iff.intro
+    (λ s₁ a i, mem_perm p₂ (s₁ a (mem_perm (perm.symm p₁) i)))
+    (λ s₂ a i, mem_perm (perm.symm p₂) (s₂ a (mem_perm p₁ i)))))
+
+infix `⊆`:50 := subset
+
+theorem nil_sub (s : finset A) : ∅ ⊆ s :=
+quot.induction_on s (λ l, list.nil_sub (elt_of l))
+
+theorem sub_univ [h : fintype A] (s : finset A) : s ⊆ univ :=
+quot.induction_on s (λ l a i, fintype.complete a)
+
+theorem sub.refl (s : finset A) : s ⊆ s :=
+quot.induction_on s (λ l, list.sub.refl (elt_of l))
+
+theorem sub.trans {s₁ s₂ s₃ : finset A} : s₁ ⊆ s₂ → s₂ ⊆ s₃ → s₁ ⊆ s₃ :=
+quot.induction_on₃ s₁ s₂ s₃ (λ l₁ l₂ l₃ h₁ h₂, list.sub.trans h₁ h₂)
+
+theorem mem_of_sub_of_mem {s₁ s₂ : finset A} {a : A} : s₁ ⊆ s₂ → a ∈ s₁ → a ∈ s₂ :=
+quot.induction_on₂ s₁ s₂ (λ l₁ l₂ h₁ h₂, h₁ a h₂)
+
+/- upto -/
+section upto
+definition upto (n : nat) : finset nat :=
+to_finset_of_nodup (list.upto n) (nodup_upto n)
+
+theorem card_upto : ∀ n, card (upto n) = n :=
+list.length_upto
+
+theorem lt_of_mem_upto {n a : nat} : a ∈ upto n → a < n :=
+list.lt_of_mem_upto
+
+theorem mem_upto_succ_of_mem_upto {n a : nat} : a ∈ upto n → a ∈ upto (succ n) :=
+list.mem_upto_succ_of_mem_upto
+
+theorem mem_upto_of_lt {n a : nat} : a < n → a ∈ upto n :=
+list.mem_upto_of_lt
+end upto
 end finset
