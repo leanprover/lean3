@@ -131,11 +131,11 @@ theorem sum_vanishes_of_vanishes (s t : rat_sequence) (Hs : vanishes s) (Ht : va
           exact !abs_add_le_abs_add_abs,
         apply algebra.lt.trans,
         apply algebra.add_lt_add_right,
-        have Han : n ≥ a, from algebra.le.trans (!max.left) Hn,
+        have Han : a ≤ n, from le.trans (!le_max_left) Hn,
         exact (Ha n Han),
         rewrite -(add_halves_helper ε) at {2},
         apply algebra.add_lt_add_left,
-        have Hbn : n ≥ b, from algebra.le.trans (!max.right) Hn,
+        have Hbn : n ≥ b, from le.trans (!le_max_right) Hn,
         exact (Hb n Hbn)
   end
 
@@ -329,9 +329,9 @@ theorem seq.equiv.trans {r s t : rat_sequence} (H1 : seq.equiv r s) (H2 : seq.eq
             -algebra.add.assoc, algebra.add.assoc],
           apply abs_add_le_abs_add_abs,
           apply algebra.add_lt_add,
-          have Han : n ≥ a, from algebra.le.trans !max.left Hn,
+          have Han : n ≥ a, from le.trans !le_max_left Hn,
           exact (Ha n Han),
-          have Hbn : n ≥ b, from algebra.le.trans !max.right Hn,
+          have Hbn : n ≥ b, from le.trans !le_max_right Hn,
           exact (Hb n Hbn)
   end
 end rat
@@ -374,8 +374,8 @@ theorem add_cauchy_of_cauchy (s t : cauchy_sequence) : cauchy (s + t) :=
         rewrite -(add_halves_helper ε),
         apply algebra.add_lt_add,
         rewrite algebra.add.comm,
-        exact (Ha _ _ (nat.le.trans !nat.max.left Hm) (nat.le.trans !nat.max.left Hn)),
-        exact (Hb _ _ (nat.le.trans !nat.max.right Hm) (nat.le.trans !nat.max.right Hn))
+        exact (Ha _ _ (nat.le.trans !le_max_left Hm) (nat.le.trans !le_max_left Hn)),
+        exact (Hb _ _ (nat.le.trans !le_max_right Hm) (nat.le.trans !le_max_right Hn))
   end
 
 theorem neg_cauchy_of_cauchy (s : cauchy_sequence) : cauchy (- s) :=
@@ -445,8 +445,8 @@ theorem mul_cauchy_of_cauchy (s t : cauchy_sequence) : cauchy (s * t) :=
     rewrite [-algebra.add_zero (s m * t m), -algebra.sub_self (s m * t n), algebra.add.comm (s m * t n),
       -algebra.add.assoc, algebra.add.assoc, -algebra.mul_sub_left_distrib, 
       -algebra.mul_sub_right_distrib],
-    have HTε' : abs (t m - t n) < ε / (2 * Ns), from HTε _ _ (le.trans !max.right Hm) (le.trans !max.right Hn),
-    have HSε' : abs (s m - s n) < ε / (2 * Nt), from HSε _ _ (le.trans !max.left Hm) (le.trans !max.left Hn),
+    have HTε' : abs (t m - t n) < ε / (2 * Ns), from HTε _ _ (le.trans !le_max_right Hm) (le.trans !le_max_right Hn),
+    have HSε' : abs (s m - s n) < ε / (2 * Nt), from HSε _ _ (le.trans !le_max_left Hm) (le.trans !le_max_left Hn),
     have Habs1 : abs (s m) * abs (t m - t n) < ε / 2, from calc
       abs (s m) * abs (t m - t n) ≤ Ns * abs (t m - t n) : algebra.mul_le_mul_of_nonneg_right !HNs !abs_nonneg
       ... < Ns * (ε / ((2 : ℚ) * Ns)) : algebra.mul_lt_mul_of_pos_left HTε' Nsge0 
@@ -523,3 +523,4 @@ theorem mul.well_defined (q r s t : cauchy_sequence) (H1 : q ≡ s) (H2 : r ≡ 
    q * r ≡ s * t := sorry
 
 end sequence
+ 

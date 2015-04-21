@@ -30,5 +30,3 @@ section real
   -- prove ℝ is an ordered, dedekind-complete field
 
 end real
-
-   
