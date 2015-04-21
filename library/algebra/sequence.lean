@@ -109,7 +109,6 @@ definition cauchy (s : rat_sequence) : Prop :=
 
 definition bounded [reducible] (s : rat_sequence) : Prop := ∃ M : ℚ, ∀ n : ℕ, abs (s n) ≤ M
 
--- .35 sec
 theorem sum_vanishes_of_vanishes (s t : rat_sequence) (Hs : vanishes s) (Ht : vanishes t) :
     vanishes (s + t) :=
   begin
@@ -215,7 +214,7 @@ theorem lt_seq_max (s : rat_sequence) (N : ℕ) (a : ℕ) (Ha : a < N) : abs (s 
   lt_rat_list_max_of_in_rat_list H
 
 
---.23 sec
+--.13 sec
 theorem bounded_of_cauchy {s : rat_sequence} (H : cauchy s) : bounded s :=
   begin
   rewrite [↑bounded, ↑cauchy at H],
@@ -307,7 +306,6 @@ theorem seq.equiv.symm {s t : rat_sequence} (H : seq.equiv s t) : seq.equiv t s 
     exact H''
   end
 
---.4 sec
 theorem seq.equiv.trans {r s t : rat_sequence} (H1 : seq.equiv r s) (H2 : seq.equiv s t) : seq.equiv r t :=
   begin
     rewrite [↑seq.equiv at *, ↑vanishes at *],
