@@ -148,6 +148,13 @@ calc
           ... = n * m - k * n : {!mul.comm}
           ... = n * m - n * k : {!mul.comm}
 
+theorem mul_self_sub_mul_self_eq (a b : nat) : a * a - b * b = (a + b) * (a - b) :=
+by rewrite [mul_sub_left_distrib, *mul.right_distrib, mul.comm b a, add.comm (a*a) (a*b), add_sub_add_left]
+
+theorem succ_mul_succ_eq (a : nat) : succ a * succ a = a*a + a + a + 1 :=
+calc succ a * succ a = (a+1)*(a+1)     : by rewrite [add_one]
+                ...  = a*a + a + a + 1 : by rewrite [mul.right_distrib, mul.left_distrib, one_mul, mul_one]
+
 /- interaction with inequalities -/
 
 theorem succ_sub {m n : ℕ} : m ≥ n → succ m - n  = succ (m - n) :=
@@ -180,7 +187,7 @@ sub_induction n m
     take H : succ k ≤ succ l,
     calc
       succ k + (succ l - succ k) = succ k + (l - k)   : succ_sub_succ
-                             ... = succ (k + (l - k)) : add.succ_left
+                             ... = succ (k + (l - k)) : succ_add
                              ... = succ l             : IH (le_of_succ_le_succ H))
 
 theorem add_sub_of_ge {n m : ℕ} (H : n ≥ m) : n + (m - n) = n :=

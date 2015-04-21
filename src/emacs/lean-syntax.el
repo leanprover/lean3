@@ -12,10 +12,10 @@
     "hiding" "exposing" "parameter" "parameters" "begin" "proof" "qed" "conjecture" "constant" "constants"
     "hypothesis" "lemma" "corollary" "variable" "variables" "premise" "premises"
     "print" "theorem" "example" "abbreviation"
-    "context" "open" "as" "export" "axiom" "inductive" "with" "structure" "record" "universe" "universes"
+    "context" "open" "as" "export" "axiom" "axioms" "inductive" "with" "structure" "record" "universe" "universes"
     "alias" "help" "environment" "options" "precedence" "reserve" "postfix" "prefix"
     "calc_trans" "calc_subst" "calc_refl" "calc_symm" "match"
-    "infix" "infixl" "infixr" "notation" "eval" "check" "exit" "coercion" "end"
+    "infix" "infixl" "infixr" "notation" "eval" "check" "coercion" "end"
     "using" "namespace" "section" "fields" "find_decl"
     "attribute" "local" "set_option" "add_rewrite" "extends" "include" "omit" "classes"
     "instances" "coercions" "metaclasses" "raw" "migrate" "replacing")
@@ -133,7 +133,7 @@
                 "apply" "fapply" "rename" "intro" "intros" "all_goals" "fold"
                 "generalize" "generalizes" "clear" "clears" "revert" "reverts" "back" "beta" "done" "exact" "rexact"
                 "refine" "repeat" "whnf" "rotate" "rotate_left" "rotate_right" "inversion" "cases" "rewrite" "esimp"
-                "unfold" "change"))
+                "unfold" "change" "check_expr"))
            word-end)
       (1 'font-lock-constant-face))
      ;; Types
@@ -141,6 +141,7 @@
      (,(rx word-start (group "Type") ".") (1 'font-lock-type-face))
      ;; sorry
      (,(rx word-start "sorry" word-end) . 'font-lock-warning-face)
+     (,(rx word-start "exit" word-end) . 'font-lock-warning-face)
      ;; extra-keywords
      (,(rx (or "∎")) . 'font-lock-keyword-face)
      ;; lean-keywords
