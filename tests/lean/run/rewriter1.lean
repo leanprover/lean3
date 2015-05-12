@@ -6,4 +6,5 @@ begin
   rewrite [add.assoc, {b + _}add.comm, -add.assoc]
 end
 
+reveal test
 print definition test

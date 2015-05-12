@@ -32,7 +32,7 @@ namespace function
   mk_equivalence (@equiv A B) (@equiv.refl A B) (@equiv.symm A B) (@equiv.trans A B)
 end function
 
-context
+section
   open quot
   variables {A : Type} {B : A → Type}
 
@@ -55,7 +55,7 @@ context
   assume H, calc
      f₁ = extfun_app ⟦f₁⟧ : rfl
     ... = extfun_app ⟦f₂⟧ : {sound H}
-    ... = f₂             : rfl
+    ... = f₂              : rfl
 end
 
 open function.equiv_notation

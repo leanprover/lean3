@@ -3,7 +3,7 @@ Copyright (c) 2014 Jeremy Avigad. All rights reserved.
 Released under Apache 2.0 license as described in the file LICENSE.
 
 Module: data.set.function
-Author: Jeremy Avigad, Andrew Zipperer
+Author: Jeremy Avigad, Andrew Zipperer, Haitao Zhang
 
 Functions between subsets of finite types.
 -/
@@ -36,6 +36,22 @@ setext (take y, iff.intro
     have H4 : x ∈ a, from and.left H3,
     have H5 : f1 x = y, from (H1 H4) ⬝ and.right H3,
     exists.intro x (and.intro H4 H5)))
+
+theorem in_image {f : X → Y} {a : set X} {x : X} {y : Y}
+  (H1 : x ∈ a) (H2 : f x = y) : y ∈ f '[a] :=
+exists.intro x (and.intro H1 H2)
+
+lemma image_compose (f : Y → Z) (g : X → Y) (a : set X) : (f ∘ g) '[a] = f '[g '[a]] :=
+setext (take z,
+  iff.intro
+    (assume Hz : z ∈ (f ∘ g) '[a],
+      obtain x (Hx₁ : x ∈ a) (Hx₂ : f (g x) = z), from Hz,
+      have Hgx : g x ∈ g '[a], from in_image Hx₁ rfl,
+      show z ∈ f '[g '[a]], from in_image Hgx Hx₂)
+    (assume Hz : z ∈ f '[g '[a]],
+      obtain y (Hy₁ : y ∈ g '[a]) (Hy₂ : f y = z), from Hz,
+      obtain x (Hz₁ : x ∈ a) (Hz₂ : g x = y),      from Hy₁,
+      show z ∈ (f ∘ g) '[a], from in_image Hz₁ (Hz₂⁻¹ ▸ Hy₂)))
 
 /- maps to -/
 
@@ -79,6 +95,12 @@ have  fx2b : f x2 ∈ b, from fab x2a,
 assume  H1 : g (f x1) = g (f x2),
 have    H2 : f x1 = f x2, from Hg fx1b fx2b H1,
 show x1 = x2, from Hf x1a x2a H2
+
+theorem inj_on_of_inj_on_of_subset {f : X → Y} {a b : set X} (H1 : inj_on f b) (H2 : a ⊆ b) :
+  inj_on f a :=
+take x1 x2 : X, assume (x1a : x1 ∈ a) (x2a : x2 ∈ a),
+assume H : f x1 = f x2,
+show x1 = x2, from H1 (H2 x1a) (H2 x2a) H
 
 /- surjectivity -/
 

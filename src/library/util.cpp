@@ -6,6 +6,7 @@ Author: Leonardo de Moura
 */
 #include "kernel/find_fn.h"
 #include "kernel/instantiate.h"
+#include "kernel/error_msgs.h"
 #include "kernel/abstract.h"
 #include "kernel/type_checker.h"
 #include "kernel/metavar.h"
@@ -13,16 +14,11 @@ Author: Leonardo de Moura
 #include "library/locals.h"
 #include "library/util.h"
 #include "library/constants.h"
+#include "library/unfold_macros.h"
 
 namespace lean {
-bool is_def_app(environment const & env, expr const & e) {
-    if (!is_app(e))
-        return false;
-    expr const & f = get_app_fn(e);
-    if (!is_constant(f))
-        return false;
-    auto decl = env.find(const_name(f));
-    return decl && decl->is_definition() && !decl->is_opaque();
+bool is_standard(environment const & env) {
+    return env.prop_proof_irrel() && env.impredicative();
 }
 
 optional<expr> unfold_app(environment const & env, expr const & e) {
@@ -32,7 +28,7 @@ optional<expr> unfold_app(environment const & env, expr const & e) {
     if (!is_constant(f))
         return none_expr();
     auto decl = env.find(const_name(f));
-    if (!decl || !decl->is_definition() || decl->is_opaque())
+    if (!decl || !decl->is_definition())
         return none_expr();
     expr d = instantiate_value_univ_params(*decl, const_levels(f));
     buffer<expr> args;
@@ -151,8 +147,8 @@ level get_datatype_level(expr ind_type) {
 }
 
 bool is_inductive_predicate(environment const & env, name const & n) {
-    if (!env.impredicative())
-        return false; // environment does not have Prop
+    if (!is_standard(env))
+        return false;
     if (!inductive::is_inductive_decl(env, n))
         return false; // n is not inductive datatype
     return is_zero(get_datatype_level(env.get(n).get_type()));
@@ -185,7 +181,7 @@ optional<name> is_constructor_app_ext(environment const & env, expr const & e) {
     if (!is_constant(f))
         return optional<name>();
     auto decl = env.find(const_name(f));
-    if (!decl || !decl->is_definition() || decl->is_opaque())
+    if (!decl || !decl->is_definition())
         return optional<name>();
     expr const * it = &decl->get_value();
     while (is_lambda(*it))
@@ -222,15 +218,17 @@ expr fun_to_telescope(name_generator & ngen, expr const & e, buffer<expr> & tele
 
 expr to_telescope(type_checker & tc, expr type, buffer<expr> & telescope, optional<binder_info> const & binfo,
                   constraint_seq & cs) {
-    type = tc.whnf(type, cs);
-    while (is_pi(type)) {
+    expr new_type = tc.whnf(type, cs);
+    while (is_pi(new_type)) {
+        type = new_type;
         expr local;
         if (binfo)
             local = mk_local(tc.mk_fresh_name(), binding_name(type), binding_domain(type), *binfo);
         else
             local = mk_local(tc.mk_fresh_name(), binding_name(type), binding_domain(type), binding_info(type));
         telescope.push_back(local);
-        type = tc.whnf(instantiate(binding_body(type), local), cs);
+        type     = instantiate(binding_body(type), local);
+        new_type = tc.whnf(type, cs);
     }
     return type;
 }
@@ -238,6 +236,54 @@ expr to_telescope(type_checker & tc, expr type, buffer<expr> & telescope, option
 expr to_telescope(type_checker & tc, expr type, buffer<expr> & telescope, optional<binder_info> const & binfo) {
     constraint_seq cs;
     return to_telescope(tc, type, telescope, binfo, cs);
+}
+
+expr mk_false() {
+    return mk_constant(get_false_name());
+}
+
+expr mk_empty() {
+    return mk_constant(get_empty_name());
+}
+
+expr mk_false(environment const & env) {
+    return is_standard(env) ? mk_false() : mk_empty();
+}
+
+bool is_false(expr const & e) {
+    return is_constant(e) && const_name(e) == get_false_name();
+}
+
+bool is_empty(expr const & e) {
+    return is_constant(e) && const_name(e) == get_empty_name();
+}
+
+bool is_false(environment const & env, expr const & e) {
+    return is_standard(env) ? is_false(e) : is_empty(e);
+}
+
+expr mk_false_rec(type_checker & tc, expr const & f, expr const & t) {
+    level t_lvl = sort_level(tc.ensure_type(t).first);
+    if (is_standard(tc.env())) {
+        return mk_app(mk_constant(get_false_rec_name(), {t_lvl}), t, f);
+    } else {
+        expr f_type = tc.infer(f).first;
+        return mk_app(mk_constant(get_empty_rec_name(), {t_lvl}), mk_lambda("e", f_type, t), f);
+    }
+}
+
+optional<expr> lift_down_if_hott(type_checker & tc, expr const & v) {
+    if (is_standard(tc.env())) {
+        return some_expr(v);
+    } else {
+        expr v_type = tc.whnf(tc.infer(v).first).first;
+        if (!is_app(v_type))
+            return none_expr();
+        expr const & lift = app_fn(v_type);
+        if (!is_constant(lift) || const_name(lift) != get_lift_name())
+            return none_expr();
+        return some_expr(mk_app(mk_constant(get_lift_down_name(), const_levels(lift)), app_arg(v_type), v));
+    }
 }
 
 static expr * g_true = nullptr;
@@ -387,6 +433,14 @@ bool is_eq(expr const & e) {
     return is_constant(fn) && const_name(fn) == get_eq_name();
 }
 
+bool is_eq(expr const & e, expr & lhs, expr & rhs) {
+    if (!is_eq(e) || !is_app(app_fn(e)))
+        return false;
+    lhs = app_arg(app_fn(e));
+    rhs = app_arg(e);
+    return true;
+}
+
 bool is_eq_a_a(expr const & e) {
     if (!is_eq(e))
         return false;
@@ -404,6 +458,24 @@ bool is_eq_a_a(type_checker & tc, expr const & e) {
         return false;
     pair<bool, constraint_seq> d = tc.is_def_eq(args[1], args[2]);
     return d.first && !d.second;
+}
+
+bool is_heq(expr const & e) {
+    expr const & fn = get_app_fn(e);
+    return is_constant(fn) && const_name(fn) == get_heq_name();
+}
+
+bool is_heq(expr const & e, expr & A, expr & lhs, expr & B, expr & rhs) {
+    if (is_heq(e)) {
+        buffer<expr> args;
+        get_app_args(e, args);
+        if (args.size() != 4)
+            return false;
+        A = args[0]; lhs = args[1]; B = args[2]; rhs = args[3];
+        return true;
+    } else {
+        return false;
+    }
 }
 
 void mk_telescopic_eq(type_checker & tc, buffer<expr> const & t, buffer<expr> const & s, buffer<expr> & eqs) {
@@ -547,8 +619,7 @@ constraint instantiate_metavars(constraint const & c, substitution & s) {
     case constraint_kind::Eq:
         return mk_eq_cnstr(s.instantiate_all(cnstr_lhs_expr(c)),
                            s.instantiate_all(cnstr_rhs_expr(c)),
-                           c.get_justification(),
-                           relax_main_opaque(c));
+                           c.get_justification());
     case constraint_kind::LevelEq:
         return mk_level_eq_cnstr(s.instantiate(cnstr_lhs_level(c)), s.instantiate(cnstr_rhs_level(c)), c.get_justification());
     case constraint_kind::Choice: {
@@ -562,8 +633,37 @@ constraint instantiate_metavars(constraint const & c, substitution & s) {
         return mk_choice_cnstr(mk_app(mvar, args),
                                cnstr_choice_fn(c),
                                cnstr_delay_factor_core(c),
-                               cnstr_is_owner(c), c.get_justification(), relax_main_opaque(c));
+                               cnstr_is_owner(c), c.get_justification());
     }}
     lean_unreachable(); // LCOV_EXCL_LINE
+}
+
+void check_term(type_checker & tc, expr const & e) {
+    expr tmp = unfold_untrusted_macros(tc.env(), e);
+    tc.check_ignore_undefined_universes(tmp);
+}
+
+void check_term(environment const & env, expr const & e) {
+    expr tmp = unfold_untrusted_macros(env, e);
+    type_checker(env).check_ignore_undefined_universes(tmp);
+}
+
+format pp_type_mismatch(formatter const & fmt, expr const & v, expr const & v_type, expr const & t) {
+    format expected_fmt, given_fmt;
+    std::tie(expected_fmt, given_fmt) = pp_until_different(fmt, t, v_type);
+    format r("type mismatch at term");
+    r += pp_indent_expr(fmt, v);
+    r += compose(line(), format("has type"));
+    r += given_fmt;
+    r += compose(line(), format("but is expected to have type"));
+    r += expected_fmt;
+    return r;
+}
+
+justification mk_type_mismatch_jst(expr const & v, expr const & v_type, expr const & t, expr const & src) {
+    return mk_justification(src, [=](formatter const & fmt, substitution const & subst) {
+            substitution s(subst);
+            return pp_type_mismatch(fmt, s.instantiate(v), s.instantiate(v_type), s.instantiate(t));
+        });
 }
 }

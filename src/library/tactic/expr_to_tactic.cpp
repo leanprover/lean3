@@ -10,6 +10,7 @@ Author: Leonardo de Moura
 #include "util/optional.h"
 #include "kernel/instantiate.h"
 #include "kernel/type_checker.h"
+#include "kernel/default_converter.h"
 #include "library/annotation.h"
 #include "library/string.h"
 #include "library/explicit.h"
@@ -62,10 +63,12 @@ bool has_tactic_decls(environment const & env) {
 static expr * g_tactic_expr_type = nullptr;
 static expr * g_tactic_expr_builtin = nullptr;
 static expr * g_tactic_expr_list_type = nullptr;
+static expr * g_tactic_identifier_type = nullptr;
 
 expr const & get_tactic_expr_type() { return *g_tactic_expr_type; }
 expr const & get_tactic_expr_builtin() { return *g_tactic_expr_builtin; }
 expr const & get_tactic_expr_list_type() { return *g_tactic_expr_list_type; }
+expr const & get_tactic_identifier_type() { return *g_tactic_identifier_type; }
 
 static std::string * g_tactic_expr_opcode = nullptr;
 static std::string * g_tactic_opcode = nullptr;
@@ -77,7 +80,7 @@ class tactic_expr_macro_definition_cell : public macro_definition_cell {
 public:
     tactic_expr_macro_definition_cell() {}
     virtual name get_name() const { return get_tactic_expr_name(); }
-    virtual pair<expr, constraint_seq> get_type(expr const &, extension_context &) const {
+    virtual pair<expr, constraint_seq> check_type(expr const &, extension_context &, bool) const {
         return mk_pair(get_tactic_expr_type(), constraint_seq());
     }
     virtual optional<expr> expand(expr const &, extension_context &) const {
@@ -226,9 +229,57 @@ static name_generator next_name_generator() {
     return name_generator(name(*g_tmp_prefix, r));
 }
 
+unsigned get_unsigned(type_checker & tc, expr const & e, expr const & ref) {
+    optional<mpz> k = to_num(e);
+    if (!k)
+        k = to_num(tc.whnf(e).first);
+    if (!k)
+        throw expr_to_tactic_exception(ref, "invalid tactic, second argument must be a numeral");
+    if (!k->is_unsigned_int())
+        throw expr_to_tactic_exception(ref,
+                                       "invalid tactic, second argument does not fit in "
+                                       "a machine unsigned integer");
+    return k->get_unsigned_int();
+}
+
+unsigned get_unsigned_arg(type_checker & tc, expr const & e, unsigned i) {
+    buffer<expr> args;
+    get_app_args(e, args);
+    if (i >= args.size())
+        throw expr_to_tactic_exception(e, "invalid tactic, insufficient number of arguments");
+    return get_unsigned(tc, args[i], e);
+}
+
+optional<unsigned> get_optional_unsigned(type_checker & tc, expr const & e) {
+    if (is_app(e) && is_constant(get_app_fn(e))) {
+        if (const_name(get_app_fn(e)) == get_option_some_name()) {
+            return optional<unsigned>(get_unsigned(tc, app_arg(e), e));
+        } else if (const_name(get_app_fn(e)) == get_option_none_name()) {
+            return optional<unsigned>();
+        }
+    }
+    throw expr_to_tactic_exception(e, "invalid tactic, argument is not an option num");
+}
+
+class tac_builtin_opaque_converter : public default_converter {
+public:
+    tac_builtin_opaque_converter(environment const & env):default_converter(env) {}
+    virtual bool is_opaque(declaration const & d) const {
+        name n = d.get_name();
+        if (!is_prefix_of(get_tactic_name(), n))
+            return default_converter::is_opaque(d);
+        expr v = d.get_value();
+        while (is_lambda(v))
+            v = binding_body(v);
+        if (is_constant(v) && const_name(v) == get_tactic_builtin_name())
+            return true;
+        return default_converter::is_opaque(d);
+    }
+};
+
 tactic expr_to_tactic(environment const & env, elaborate_fn const & fn, expr const & e, pos_info_provider const * p) {
     bool memoize             = false;
-    type_checker tc(env, next_name_generator(), memoize);
+    type_checker tc(env, next_name_generator(), std::unique_ptr<converter>(new tac_builtin_opaque_converter(env)), memoize);
     return expr_to_tactic(tc, fn, e, p);
 }
 
@@ -275,16 +326,7 @@ void register_unary_num_tac(name const & n, std::function<tactic(tactic const &,
             if (args.size() != 2)
                 throw expr_to_tactic_exception(e, "invalid tactic, it must have two arguments");
             tactic t = expr_to_tactic(tc, fn, args[0], p);
-            optional<mpz> k = to_num(args[1]);
-            if (!k)
-                k = to_num(tc.whnf(args[1]).first);
-            if (!k)
-                throw expr_to_tactic_exception(e, "invalid tactic, second argument must be a numeral");
-            if (!k->is_unsigned_int())
-                throw expr_to_tactic_exception(e,
-                                               "invalid tactic, second argument does not fit in "
-                                               "a machine unsigned integer");
-            return f(t, k->get_unsigned_int());
+            return f(t, get_unsigned_arg(tc, e, 1));
         });
 }
 
@@ -294,24 +336,20 @@ void register_num_tac(name const & n, std::function<tactic(unsigned k)> f) {
             get_app_args(e, args);
             if (args.size() != 1)
                 throw expr_to_tactic_exception(e, "invalid tactic, it must have one argument");
-            optional<mpz> k = to_num(args[0]);
-            if (!k)
-                k = to_num(tc.whnf(args[0]).first);
-            if (!k)
-                throw expr_to_tactic_exception(e, "invalid tactic, argument must be a numeral");
-            if (!k->is_unsigned_int())
-                throw expr_to_tactic_exception(e,
-                                               "invalid tactic, argument does not fit in "
-                                               "a machine unsigned integer");
-            return f(k->get_unsigned_int());
+            return f(get_unsigned_arg(tc, e, 0));
         });
 }
 
 static name * g_by_name = nullptr;
+static name * g_by_plus_name = nullptr;
 
 expr mk_by(expr const & e) { return mk_annotation(*g_by_name, e); }
 bool is_by(expr const & e) { return is_annotation(e, *g_by_name); }
 expr const & get_by_arg(expr const & e) { lean_assert(is_by(e)); return get_annotation_arg(e); }
+
+expr mk_by_plus(expr const & e) { return mk_annotation(*g_by_plus_name, e); }
+bool is_by_plus(expr const & e) { return is_annotation(e, *g_by_plus_name); }
+expr const & get_by_plus_arg(expr const & e) { lean_assert(is_by_plus(e)); return get_annotation_arg(e); }
 
 void initialize_expr_to_tactic() {
     g_tmp_prefix        = new name(name::mk_internal_unique_name());
@@ -319,13 +357,17 @@ void initialize_expr_to_tactic() {
     g_by_name           = new name("by");
     register_annotation(*g_by_name);
 
+    g_by_plus_name      = new name("by+");
+    register_annotation(*g_by_plus_name);
+
     g_map               = new expr_to_tactic_map();
 
-    g_tactic_expr_type      = new expr(mk_constant(get_tactic_expr_name()));
-    g_tactic_expr_builtin   = new expr(mk_constant(get_tactic_expr_builtin_name()));
-    g_tactic_expr_list_type = new expr(mk_constant(get_tactic_expr_list_name()));
-    g_tactic_expr_opcode    = new std::string("TACE");
-    g_tactic_expr_macro     = new macro_definition(new tactic_expr_macro_definition_cell());
+    g_tactic_expr_type       = new expr(mk_constant(get_tactic_expr_name()));
+    g_tactic_expr_builtin    = new expr(mk_constant(get_tactic_expr_builtin_name()));
+    g_tactic_expr_list_type  = new expr(mk_constant(get_tactic_expr_list_name()));
+    g_tactic_identifier_type = new expr(mk_constant(get_tactic_identifier_name()));
+    g_tactic_expr_opcode     = new std::string("TACE");
+    g_tactic_expr_macro      = new macro_definition(new tactic_expr_macro_definition_cell());
 
     register_macro_deserializer(*g_tactic_expr_opcode,
                                 [](deserializer &, unsigned num, expr const * args) {
@@ -350,8 +392,6 @@ void initialize_expr_to_tactic() {
                         []() { return id_tactic(); });
     register_simple_tac(get_tactic_now_name(),
                         []() { return now_tactic(); });
-    register_simple_tac(get_tactic_assumption_name(),
-                        []() { return assumption_tactic(); });
     register_simple_tac(get_tactic_fail_name(),
                         []() { return fail_tactic(); });
     register_simple_tac(get_tactic_beta_name(),
@@ -396,6 +436,7 @@ void finalize_expr_to_tactic() {
     delete g_tactic_expr_type;
     delete g_tactic_expr_builtin;
     delete g_tactic_expr_list_type;
+    delete g_tactic_identifier_type;
     delete g_tactic_expr_opcode;
     delete g_tactic_expr_macro;
     delete g_fixpoint_tac;
@@ -409,6 +450,7 @@ void finalize_expr_to_tactic() {
     delete g_map;
     delete g_tactic_opcode;
     delete g_by_name;
+    delete g_by_plus_name;
     delete g_tmp_prefix;
 }
 }

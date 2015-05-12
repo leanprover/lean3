@@ -32,7 +32,7 @@ Author: Leonardo de Moura
 #include "frontends/lean/info_tactic.h"
 #include "frontends/lean/info_annotation.h"
 #include "frontends/lean/structure_cmd.h"
-#include "frontends/lean/parse_rewrite_tactic.h"
+#include "frontends/lean/obtain_expr.h"
 
 namespace lean {
 namespace notation {
@@ -125,16 +125,20 @@ static expr parse_placeholder(parser & p, unsigned, expr const *, pos_info const
 }
 
 static expr parse_by(parser & p, unsigned, expr const *, pos_info const & pos) {
-    parser::undef_id_to_local_scope scope(p);
     p.next();
     expr t = p.parse_tactic();
     return p.mk_by(t, pos);
 }
 
-static expr parse_begin_end_core(parser & p, pos_info const & pos, name const & end_token, bool nested = false) {
+static expr parse_by_plus(parser & p, unsigned, expr const *, pos_info const & pos) {
+    p.next();
+    expr t = p.parse_tactic();
+    return p.mk_by_plus(t, pos);
+}
+
+static expr parse_begin_end_core(parser & p, pos_info const & pos, name const & end_token, bool plus, bool nested = false) {
     if (!p.has_tactic_decls())
         throw parser_error("invalid 'begin-end' expression, tactic module has not been imported", pos);
-    parser::undef_id_to_local_scope scope1(p);
     p.next();
     optional<expr> pre_tac = get_begin_end_pre_tactic(p.env());
     buffer<expr> tacs;
@@ -161,10 +165,10 @@ static expr parse_begin_end_core(parser & p, pos_info const & pos, name const & 
             }
             if (p.curr_is_token(get_begin_tk())) {
                 auto pos = p.pos();
-                tacs.push_back(parse_begin_end_core(p, pos, get_end_tk(), true));
+                tacs.push_back(parse_begin_end_core(p, pos, get_end_tk(), plus, true));
             } else if (p.curr_is_token(get_lcurly_tk())) {
                 auto pos = p.pos();
-                tacs.push_back(parse_begin_end_core(p, pos, get_rcurly_tk(), true));
+                tacs.push_back(parse_begin_end_core(p, pos, get_rcurly_tk(), plus, true));
             } else if (p.curr_is_token(end_token)) {
                 break;
             } else if (p.curr_is_token(get_assert_tk())) {
@@ -172,7 +176,7 @@ static expr parse_begin_end_core(parser & p, pos_info const & pos, name const & 
                 p.next();
                 name id  = p.check_id_next("invalid 'assert' tactic, identifier expected");
                 p.check_token_next(get_colon_tk(), "invalid 'assert' tactic, ':' expected");
-                expr A   = p.parse_expr();
+                expr A   = p.parse_tactic_expr_arg();
                 expr assert_tac = p.save_pos(mk_assert_tactic_expr(id, A), pos);
                 tacs.push_back(mk_begin_end_element_annotation(assert_tac));
             } else if (p.curr_is_token(get_have_tk())) {
@@ -181,7 +185,7 @@ static expr parse_begin_end_core(parser & p, pos_info const & pos, name const & 
                 auto id_pos = p.pos();
                 name id  = p.check_id_next("invalid 'have' tactic, identifier expected");
                 p.check_token_next(get_colon_tk(), "invalid 'have' tactic, ':' expected");
-                expr A   = p.parse_expr();
+                expr A   = p.parse_tactic_expr_arg();
                 expr assert_tac = p.save_pos(mk_assert_tactic_expr(id, A), pos);
                 tacs.push_back(mk_begin_end_element_annotation(assert_tac));
                 if (p.curr_is_token(get_bar_tk())) {
@@ -197,7 +201,7 @@ static expr parse_begin_end_core(parser & p, pos_info const & pos, name const & 
                         // parse: 'from' expr
                         p.next();
                         auto pos = p.pos();
-                        expr t = p.parse_expr();
+                        expr t = p.parse_tactic_expr_arg();
                         t      = p.mk_app(get_rexact_tac_fn(), t, pos);
                         t      = p.save_pos(mk_begin_end_element_annotation(t), pos);
                         t      = p.save_pos(mk_begin_end_annotation(t), pos);
@@ -205,7 +209,7 @@ static expr parse_begin_end_core(parser & p, pos_info const & pos, name const & 
                     } else if (p.curr_is_token(get_proof_tk())) {
                         auto pos = p.pos();
                         p.next();
-                        expr t = p.parse_expr();
+                        expr t = p.parse_tactic_expr_arg();
                         p.check_token_next(get_qed_tk(), "invalid proof-qed, 'qed' expected");
                         t      = p.mk_app(get_rexact_tac_fn(), t, pos);
                         t      = p.save_pos(mk_begin_end_element_annotation(t), pos);
@@ -213,7 +217,7 @@ static expr parse_begin_end_core(parser & p, pos_info const & pos, name const & 
                         add_tac(t, pos);
                     } else if (p.curr_is_token(get_begin_tk())) {
                         auto pos = p.pos();
-                        tacs.push_back(parse_begin_end_core(p, pos, get_end_tk(), true));
+                        tacs.push_back(parse_begin_end_core(p, pos, get_end_tk(), plus, true));
                     } else if (p.curr_is_token(get_by_tk())) {
                         // parse: 'by' tactic
                         auto pos = p.pos();
@@ -226,13 +230,13 @@ static expr parse_begin_end_core(parser & p, pos_info const & pos, name const & 
                 }
             } else if (p.curr_is_token(get_show_tk())) {
                 auto pos = p.pos();
-                expr t = p.parse_expr();
+                expr t = p.parse_tactic_expr_arg();
                 t      = p.mk_app(get_rexact_tac_fn(), t, pos);
                 add_tac(t, pos);
             } else if (p.curr_is_token(get_match_tk()) || p.curr_is_token(get_assume_tk()) ||
                        p.curr_is_token(get_take_tk())  || p.curr_is_token(get_fun_tk())) {
                 auto pos = p.pos();
-                expr t = p.parse_expr();
+                expr t = p.parse_tactic_expr_arg();
                 t      = p.mk_app(get_exact_tac_fn(), t, pos);
                 add_tac(t, pos);
             } else {
@@ -267,18 +271,24 @@ static expr parse_begin_end_core(parser & p, pos_info const & pos, name const & 
     r = p.save_pos(mk_begin_end_annotation(r), end_pos);
     if (nested)
         return r;
+    else if (plus)
+        return p.mk_by_plus(r, end_pos);
     else
         return p.mk_by(r, end_pos);
 }
 
 static expr parse_begin_end(parser & p, unsigned, expr const *, pos_info const & pos) {
-    return parse_begin_end_core(p, pos, get_end_tk());
+    return parse_begin_end_core(p, pos, get_end_tk(), false);
+}
+
+static expr parse_begin_end_plus(parser & p, unsigned, expr const *, pos_info const & pos) {
+    return parse_begin_end_core(p, pos, get_end_tk(), true);
 }
 
 static expr parse_proof_qed_core(parser & p, pos_info const & pos) {
     expr r = p.parse_expr();
     p.check_token_next(get_qed_tk(), "invalid proof-qed, 'qed' expected");
-    r      = p.mk_by(p.mk_app(get_exact_tac_fn(), r, pos), pos);
+    r      = p.mk_by_plus(p.mk_app(get_exact_tac_fn(), r, pos), pos);
     return r;
 }
 
@@ -330,7 +340,10 @@ static expr parse_proof(parser & p, expr const & prop) {
         return parse_proof_qed_core(p, pos);
     } else if (p.curr_is_token(get_begin_tk())) {
         auto pos = p.pos();
-        return parse_begin_end_core(p, pos, get_end_tk());
+        return parse_begin_end_core(p, pos, get_end_tk(), false);
+    } else if (p.curr_is_token(get_begin_plus_tk())) {
+        auto pos = p.pos();
+        return parse_begin_end_core(p, pos, get_end_tk(), true);
     } else if (p.curr_is_token(get_by_tk())) {
         // parse: 'by' tactic
         auto pos = p.pos();
@@ -442,37 +455,61 @@ static expr parse_show(parser & p, unsigned, expr const *, pos_info const & pos)
     }
 }
 
+static obtain_struct parse_obtain_decls (parser & p, buffer<expr> & ps) {
+    buffer<obtain_struct> children;
+    parser::local_scope scope(p);
+    while (!p.curr_is_token(get_comma_tk()) && !p.curr_is_token(get_rbracket_tk())) {
+        if (p.curr_is_token(get_lbracket_tk())) {
+            p.next();
+            auto s = parse_obtain_decls(p, ps);
+            children.push_back(s);
+            p.check_token_next(get_rbracket_tk(), "invalid 'obtain' expression, ']' expected");
+        } else {
+            unsigned rbp = 0;
+            buffer<expr> new_ps;
+            p.parse_simple_binders(new_ps, rbp);
+            for (expr const & l : new_ps) {
+                ps.push_back(l);
+                p.add_local(l);
+                children.push_back(obtain_struct());
+            }
+        }
+    }
+    if (children.empty())
+        throw parser_error("invalid 'obtain' expression, empty declaration block", p.pos());
+    return obtain_struct(to_list(children));
+}
+
+static name * H_obtain_from = nullptr;
+
 static expr parse_obtain(parser & p, unsigned, expr const *, pos_info const & pos) {
-    if (!p.env().find(get_exists_elim_name()))
-        throw parser_error("invalid use of 'obtain' expression, environment does not contain 'exists.elim' theorem", pos);
-    // exists_elim {A : Type} {P : A → Prop} {B : Prop} (H1 : ∃ x : A, P x) (H2 : ∀ (a : A) (H : P a), B)
     buffer<expr> ps;
-    auto b_pos = p.pos();
-    unsigned rbp = 0;
-    environment env = p.parse_binders(ps, rbp);
-    unsigned num_ps = ps.size();
-    if (num_ps < 2)
-        throw parser_error("invalid 'obtain' expression, at least 2 binders expected", b_pos);
+    obtain_struct s = parse_obtain_decls(p, ps);
     p.check_token_next(get_comma_tk(), "invalid 'obtain' expression, ',' expected");
     p.check_token_next(get_from_tk(), "invalid 'obtain' expression, 'from' expected");
-    expr H1 = p.parse_expr();
+    expr from_term = p.parse_expr();
     p.check_token_next(get_comma_tk(), "invalid 'obtain' expression, ',' expected");
-    expr b  = p.parse_scoped_expr(ps, env);
-    expr H  = ps[num_ps-1];
-    name H_name = local_pp_name(H);
-    unsigned i = num_ps-1;
-    while (i > 1) {
-        --i;
-        expr a      = ps[i];
-        expr H_aux  = mk_local(p.mk_fresh_name(), H_name.append_after(i), mk_expr_placeholder(), mk_contextual_info(false));
-        expr  H2    = Fun({a, H}, b);
-        b = mk_app(mk_constant(get_exists_elim_name()), H_aux, H2);
-        H = H_aux;
+    expr goal_term = p.parse_scoped_expr(ps);
+
+    // When from_term is not just a constant or local constant, we compile obtain as:
+    //
+    //   have H : _, from from_term,
+    //   (by+ exact (obtain ps, from H, goal_term)) H
+    //
+    // Motivation, we want "from_term" (and its type) to be elaborated before processing the
+    // obtain-expression
+    //
+    if (is_constant(from_term) || is_local(from_term)) {
+        expr r    = p.rec_save_pos(mk_obtain_expr(s, ps, from_term, goal_term), pos);
+        return p.mk_by_plus(p.mk_app(get_exact_tac_fn(), r, pos), pos);
+    } else {
+        expr H_type = p.save_pos(mk_expr_placeholder(), pos);
+        expr body   = p.rec_save_pos(mk_obtain_expr(s, ps, mk_var(0), goal_term), pos);
+        body        = p.mk_by_plus(p.mk_app(get_exact_tac_fn(), body, pos), pos);
+        expr fn     = p.rec_save_pos(mk_lambda(*H_obtain_from, H_type, body), pos);
+        expr r      = p.mk_app(fn, from_term, pos);
+        return p.save_pos(mk_have_annotation(r), pos);
     }
-    expr a  = ps[0];
-    expr H2 = Fun({a, H}, b);
-    expr r  = mk_app(mk_constant(get_exists_elim_name()), H1, H2);
-    return p.rec_save_pos(r, pos);
 }
 
 static expr * g_not  = nullptr;
@@ -521,22 +558,10 @@ static expr parse_calc_expr(parser & p, unsigned, expr const *, pos_info const &
     return parse_calc(p);
 }
 
-static expr parse_rewrite_tactic_expr(parser & p, unsigned, expr const *, pos_info const & pos) {
-    return p.save_pos(parse_rewrite_tactic(p), pos);
-}
-
-static expr parse_esimp_tactic_expr(parser & p, unsigned, expr const *, pos_info const & pos) {
-    return p.save_pos(parse_esimp_tactic(p), pos);
-}
-
-static expr parse_fold_tactic_expr(parser & p, unsigned, expr const *, pos_info const & pos) {
-    return p.save_pos(parse_fold_tactic(p), pos);
-}
-
 static expr parse_overwrite_notation(parser & p, unsigned, expr const *, pos_info const &) {
     name n = p.check_id_next("invalid '#' local notation, identifier expected");
     environment env = overwrite_notation(p.env(), n);
-    return p.parse_scoped_expr(0, nullptr, env);
+    return p.parse_expr_with_env(env);
 }
 
 static expr parse_explicit_expr(parser & p, unsigned, expr const *, pos_info const & pos) {
@@ -590,6 +615,7 @@ parse_table init_nud_table() {
     parse_table r;
     r = r.add({transition("_", mk_ext_action(parse_placeholder))}, x0);
     r = r.add({transition("by", mk_ext_action_core(parse_by))}, x0);
+    r = r.add({transition("by+", mk_ext_action_core(parse_by_plus))}, x0);
     r = r.add({transition("have", mk_ext_action(parse_have))}, x0);
     r = r.add({transition("assert", mk_ext_action(parse_assert))}, x0);
     r = r.add({transition("show", mk_ext_action(parse_show))}, x0);
@@ -603,13 +629,11 @@ parse_table init_nud_table() {
     r = r.add({transition("Type", mk_ext_action(parse_Type))}, x0);
     r = r.add({transition("let", mk_ext_action(parse_let_expr))}, x0);
     r = r.add({transition("calc", mk_ext_action(parse_calc_expr))}, x0);
-    r = r.add({transition("rewrite", mk_ext_action(parse_rewrite_tactic_expr))}, x0);
-    r = r.add({transition("esimp", mk_ext_action(parse_esimp_tactic_expr))}, x0);
-    r = r.add({transition("fold", mk_ext_action(parse_fold_tactic_expr))}, x0);
     r = r.add({transition("#", mk_ext_action(parse_overwrite_notation))}, x0);
     r = r.add({transition("@", mk_ext_action(parse_explicit_expr))}, x0);
     r = r.add({transition("!", mk_ext_action(parse_consume_args_expr))}, x0);
     r = r.add({transition("begin", mk_ext_action_core(parse_begin_end))}, x0);
+    r = r.add({transition("begin+", mk_ext_action_core(parse_begin_end_plus))}, x0);
     r = r.add({transition("proof", mk_ext_action(parse_proof_qed))}, x0);
     r = r.add({transition("using", mk_ext_action(parse_using))}, x0);
     r = r.add({transition("sorry", mk_ext_action(parse_sorry))}, x0);
@@ -640,6 +664,7 @@ parse_table get_builtin_led_table() {
 
 void initialize_builtin_exprs() {
     notation::H_show        = new name("H_show");
+    notation::H_obtain_from = new name("H_obtain_from");
     notation::g_not         = new expr(mk_constant(get_not_name()));
     g_nud_table             = new parse_table();
     *g_nud_table            = notation::init_nud_table();
@@ -651,6 +676,7 @@ void finalize_builtin_exprs() {
     delete g_led_table;
     delete g_nud_table;
     delete notation::H_show;
+    delete notation::H_obtain_from;
     delete notation::g_not;
 }
 }

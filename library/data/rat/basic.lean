@@ -24,14 +24,11 @@ namespace prerat
 
 definition equiv (a b : prerat) : Prop := num a * denom b = num b * denom a
 
-local infix `≡` := equiv
+infix `≡` := equiv
 
-theorem equiv.refl (a : prerat) : a ≡ a := rfl
+theorem equiv.refl [refl] (a : prerat) : a ≡ a := rfl
 
-theorem equiv.symm {a b : prerat} (H : a ≡ b) : b ≡ a := !eq.symm H
-
-calc_refl equiv.refl
-calc_symm equiv.symm
+theorem equiv.symm [symm] {a b : prerat} (H : a ≡ b) : b ≡ a := !eq.symm H
 
 theorem num_eq_zero_of_equiv {a b : prerat} (H : a ≡ b) (na_zero : num a = 0) : num b = 0 :=
 have H1 : num a * denom b = 0, from !zero_mul ▸ na_zero ▸ rfl,
@@ -52,7 +49,7 @@ neg_of_neg_pos H3
 theorem equiv_of_num_eq_zero {a b : prerat} (H1 : num a = 0) (H2 : num b = 0) : a ≡ b :=
 by rewrite [↑equiv, H1, H2, *zero_mul]
 
-theorem equiv.trans {a b c : prerat} (H1 : a ≡ b) (H2 : b ≡ c) : a ≡ c :=
+theorem equiv.trans [trans] {a b c : prerat} (H1 : a ≡ b) (H2 : b ≡ c) : a ≡ c :=
 decidable.by_cases
   (assume b0 : num b = 0,
     have a0 : num a = 0, from num_eq_zero_of_equiv (equiv.symm H1) b0,
@@ -70,10 +67,6 @@ decidable.by_cases
                     by rewrite [*mul.assoc, *mul.left_comm (denom a),
                                    *mul.left_comm (denom b), mul.comm (denom a)],
     mul.cancel_left H3 H4)
-
-calc_refl  equiv.refl
-calc_symm  equiv.symm
-calc_trans equiv.trans
 
 theorem equiv.is_equivalence : equivalence equiv :=
   mk_equivalence equiv equiv.refl @equiv.symm @equiv.trans
@@ -116,7 +109,7 @@ theorem num_eq_zero_of_equiv_zero {a : prerat} : a ≡ zero → num a = 0 :=
 by rewrite [↑equiv, ↑zero, ↑of_int, mul_one, zero_mul]; intro H; exact H
 
 theorem inv_zero {d : int} (dp : d > 0) : inv (mk nat.zero d dp) = zero :=
-begin rewrite [↑inv, ↑int.cases_on, ↑cases_on, ▸*] end
+begin rewrite [↑inv, ▸*] end
 
 theorem inv_zero' : inv zero = zero := inv_zero (of_nat_succ_pos nat.zero)
 
@@ -309,9 +302,13 @@ infix `*`    := rat.mul
 prefix `-`   := rat.neg
 postfix `⁻¹` := rat.inv
 
+definition sub (a b : rat) : rat := a + (-b)
+
+infix `-`    := rat.sub
+
 -- TODO: this is a workaround, since the coercions from numerals do not work
-local notation 0 := zero
-local notation 1 := one
+notation 0 := zero
+notation 1 := one
 
 /- properties -/
 
@@ -368,10 +365,10 @@ take a b, quot.rec_on_subsingleton₂ a b
 theorem inv_zero : inv 0 = 0 :=
 quot.sound (prerat.inv_zero' ▸ !prerat.equiv.refl)
 
-section
+section migrate_algebra
   open [classes] algebra
 
-  protected definition discrete_field [instance] [reducible] : algebra.discrete_field rat :=
+  protected definition discrete_field [reducible] : algebra.discrete_field rat :=
   ⦃algebra.discrete_field,
     add              := add,
     add_assoc        := add.assoc,
@@ -395,7 +392,12 @@ section
     inv_zero         := inv_zero,
     has_decidable_eq := has_decidable_eq⦄
 
-  migrate from algebra with rat
-end
+  local attribute rat.discrete_field [instance]
+  definition divide (a b : rat) := algebra.divide a b
+  definition dvd (a b : rat) := algebra.dvd a b
 
+  migrate from algebra with rat
+    replacing sub → rat.sub, divide → divide, dvd → dvd
+
+end migrate_algebra
 end rat

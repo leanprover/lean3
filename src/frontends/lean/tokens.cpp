@@ -75,7 +75,6 @@ static name * g_as           = nullptr;
 static name * g_none         = nullptr;
 static name * g_whnf         = nullptr;
 static name * g_wf           = nullptr;
-static name * g_all_transparent = nullptr;
 static name * g_in           = nullptr;
 static name * g_at           = nullptr;
 static name * g_assign       = nullptr;
@@ -89,6 +88,7 @@ static name * g_rewrite      = nullptr;
 static name * g_proof        = nullptr;
 static name * g_qed          = nullptr;
 static name * g_begin        = nullptr;
+static name * g_beginp       = nullptr;
 static name * g_end          = nullptr;
 static name * g_private      = nullptr;
 static name * g_definition   = nullptr;
@@ -100,11 +100,11 @@ static name * g_constant     = nullptr;
 static name * g_constants    = nullptr;
 static name * g_variable     = nullptr;
 static name * g_variables    = nullptr;
-static name * g_opaque       = nullptr;
 static name * g_instance     = nullptr;
 static name * g_priority     = nullptr;
 static name * g_unfold_c     = nullptr;
 static name * g_unfold_f     = nullptr;
+static name * g_constructor  = nullptr;
 static name * g_coercion     = nullptr;
 static name * g_reducible    = nullptr;
 static name * g_quasireducible = nullptr;
@@ -133,6 +133,12 @@ static name * g_root         = nullptr;
 static name * g_fields       = nullptr;
 static name * g_trust        = nullptr;
 static name * g_metaclasses  = nullptr;
+static name * g_inductive    = nullptr;
+static name * g_symm         = nullptr;
+static name * g_trans        = nullptr;
+static name * g_refl         = nullptr;
+static name * g_subst        = nullptr;
+static name * g_recursor     = nullptr;
 
 void initialize_tokens() {
     g_period       = new name(".");
@@ -203,7 +209,6 @@ void initialize_tokens() {
     g_none         = new name("[none]");
     g_whnf         = new name("[whnf]");
     g_wf           = new name("[wf]");
-    g_all_transparent = new name("[all-transparent]");
     g_in           = new name("in");
     g_at           = new name("at");
     g_assign       = new name(":=");
@@ -217,12 +222,12 @@ void initialize_tokens() {
     g_proof        = new name("proof");
     g_qed          = new name("qed");
     g_begin        = new name("begin");
+    g_beginp       = new name("beginp");
     g_end          = new name("end");
     g_private      = new name("private");
     g_definition   = new name("definition");
     g_theorem      = new name("theorem");
     g_abbreviation = new name("abbreviation");
-    g_opaque       = new name("opaque");
     g_axiom        = new name("axiom");
     g_axioms       = new name("axioms");
     g_constant     = new name("constant");
@@ -233,12 +238,18 @@ void initialize_tokens() {
     g_priority     = new name("[priority");
     g_unfold_c     = new name("[unfold-c");
     g_unfold_f     = new name("[unfold-f]");
+    g_constructor  = new name("[constructor]");
     g_coercion     = new name("[coercion]");
     g_reducible    = new name("[reducible]");
     g_quasireducible = new name("[quasireducible]");
     g_semireducible = new name("[semireducible]");
     g_irreducible  = new name("[irreducible]");
     g_parsing_only = new name("[parsing-only]");
+    g_symm         = new name("[symm]");
+    g_trans        = new name("[trans]");
+    g_refl         = new name("[refl]");
+    g_subst        = new name("[subst]");
+    g_recursor     = new name("[recursor]");
     g_attribute    = new name("attribute");
     g_with         = new name("with");
     g_class        = new name("[class]");
@@ -261,9 +272,11 @@ void initialize_tokens() {
     g_fields       = new name("fields");
     g_trust        = new name("trust");
     g_metaclasses  = new name("metaclasses");
+    g_inductive    = new name("inductive");
 }
 
 void finalize_tokens() {
+    delete g_inductive;
     delete g_metaclasses;
     delete g_persistent;
     delete g_root;
@@ -288,7 +301,6 @@ void finalize_tokens() {
     delete g_definition;
     delete g_theorem;
     delete g_abbreviation;
-    delete g_opaque;
     delete g_axiom;
     delete g_axioms;
     delete g_constant;
@@ -299,7 +311,13 @@ void finalize_tokens() {
     delete g_priority;
     delete g_unfold_c;
     delete g_unfold_f;
+    delete g_constructor;
     delete g_coercion;
+    delete g_symm;
+    delete g_refl;
+    delete g_trans;
+    delete g_subst;
+    delete g_recursor;
     delete g_reducible;
     delete g_quasireducible;
     delete g_semireducible;
@@ -320,6 +338,7 @@ void finalize_tokens() {
     delete g_proof;
     delete g_qed;
     delete g_begin;
+    delete g_beginp;
     delete g_end;
     delete g_raw;
     delete g_true;
@@ -341,7 +360,6 @@ void finalize_tokens() {
     delete g_none;
     delete g_whnf;
     delete g_wf;
-    delete g_all_transparent;
     delete g_ellipsis;
     delete g_match;
     delete g_fun;
@@ -392,6 +410,7 @@ void finalize_tokens() {
     delete g_period;
 }
 
+name const & get_inductive_tk() { return *g_inductive; }
 name const & get_metaclasses_tk() { return *g_metaclasses; }
 name const & get_period_tk() { return *g_period; }
 name const & get_placeholder_tk() { return *g_placeholder; }
@@ -461,7 +480,6 @@ name const & get_as_tk() { return *g_as; }
 name const & get_none_tk() { return *g_none; }
 name const & get_whnf_tk() { return *g_whnf; }
 name const & get_wf_tk() { return *g_wf; }
-name const & get_all_transparent_tk() { return *g_all_transparent; }
 name const & get_in_tk() { return *g_in; }
 name const & get_at_tk() { return *g_at; }
 name const & get_assign_tk() { return *g_assign; }
@@ -475,6 +493,7 @@ name const & get_rewrite_tk() { return *g_rewrite; }
 name const & get_proof_tk() { return *g_proof; }
 name const & get_qed_tk() { return *g_qed; }
 name const & get_begin_tk() { return *g_begin; }
+name const & get_begin_plus_tk() { return *g_beginp; }
 name const & get_end_tk() { return *g_end; }
 name const & get_private_tk() { return *g_private; }
 name const & get_definition_tk() { return *g_definition; }
@@ -486,12 +505,17 @@ name const & get_constant_tk() { return *g_constant; }
 name const & get_constants_tk() { return *g_constants; }
 name const & get_variable_tk() { return *g_variable; }
 name const & get_variables_tk() { return *g_variables; }
-name const & get_opaque_tk() { return *g_opaque; }
 name const & get_instance_tk() { return *g_instance; }
 name const & get_priority_tk() { return *g_priority; }
 name const & get_unfold_c_tk() { return *g_unfold_c; }
 name const & get_unfold_f_tk() { return *g_unfold_f; }
+name const & get_constructor_tk() { return *g_constructor; }
 name const & get_coercion_tk() { return *g_coercion; }
+name const & get_symm_tk() { return *g_symm; }
+name const & get_trans_tk() { return *g_trans; }
+name const & get_refl_tk() { return *g_refl; }
+name const & get_subst_tk() { return *g_subst; }
+name const & get_recursor_tk() { return *g_recursor; }
 name const & get_reducible_tk() { return *g_reducible; }
 name const & get_quasireducible_tk() { return *g_quasireducible; }
 name const & get_semireducible_tk() { return *g_semireducible; }

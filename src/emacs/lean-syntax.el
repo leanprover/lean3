@@ -8,14 +8,15 @@
 (require 'rx)
 
 (defconst lean-keywords
-  '("import" "prelude" "tactic_hint" "protected" "private" "opaque" "definition" "renaming"
-    "hiding" "exposing" "parameter" "parameters" "begin" "proof" "qed" "conjecture" "constant" "constants"
+  '("import" "prelude" "tactic_hint" "protected" "private" "definition" "renaming"
+    "hiding" "exposing" "parameter" "parameters" "begin" "begin+" "proof" "qed" "conjecture" "constant" "constants"
     "hypothesis" "lemma" "corollary" "variable" "variables" "premise" "premises"
     "print" "theorem" "example" "abbreviation"
-    "context" "open" "as" "export" "axiom" "axioms" "inductive" "with" "structure" "record" "universe" "universes"
-    "alias" "help" "environment" "options" "precedence" "reserve" "postfix" "prefix"
-    "calc_trans" "calc_subst" "calc_refl" "calc_symm" "match"
-    "infix" "infixl" "infixr" "notation" "eval" "check" "coercion" "end"
+    "open" "as" "export" "axiom" "axioms" "inductive" "with" "structure" "record" "universe" "universes"
+    "alias" "help" "environment" "options" "precedence" "reserve"
+    "match" "infix" "infixl" "infixr" "notation" "postfix" "prefix"
+    "tactic_infix" "tactic_infixl" "tactic_infixr" "tactic_notation" "tactic_postfix" "tactic_prefix"
+    "eval" "check" "coercion" "end" "reveal"
     "using" "namespace" "section" "fields" "find_decl"
     "attribute" "local" "set_option" "add_rewrite" "extends" "include" "omit" "classes"
     "instances" "coercions" "metaclasses" "raw" "migrate" "replacing")
@@ -97,7 +98,7 @@
 
 (defconst lean-font-lock-defaults
   `((;; Keywords
-     (,(rx word-start (or "calc" "have" "obtains" "show" "by" "in" "at" "let" "forall" "fun"
+     (,(rx word-start (or "calc" "have" "obtains" "show" "by" "by+" "in" "at" "let" "forall" "fun"
                             "exists" "if" "dif" "then" "else" "assume" "assert" "take" "obtain" "from") word-end)
       . font-lock-keyword-face)
      ;; String
@@ -118,10 +119,13 @@
      (,(rx symbol-start "_" symbol-end) . 'font-lock-preprocessor-face)
      ;; modifiers
      (,(rx (or "\[persistent\]" "\[notation\]" "\[visible\]" "\[instance\]" "\[class\]" "\[parsing-only\]"
-               "\[coercion\]" "\[unfold-f\]" "\[reducible\]" "\[irreducible\]" "\[semireducible\]" "\[quasireducible\]" "\[wf\]"
+               "\[coercion\]" "\[unfold-f\]" "\[constructor\]" "\[reducible\]"
+               "\[irreducible\]" "\[semireducible\]" "\[quasireducible\]" "\[wf\]"
                "\[whnf\]" "\[multiple-instances\]" "\[none\]"
-               "\[decls\]" "\[declarations\]" "\[all-transparent\]" "\[coercions\]" "\[classes\]"
-               "\[notations\]" "\[abbreviations\]" "\[begin-end-hints\]" "\[tactic-hints\]" "\[reduce-hints\]"))
+               "\[decls\]" "\[declarations\]" "\[coercions\]" "\[classes\]"
+               "\[symm\]" "\[subst\]" "\[refl\]" "\[trans\]" "\[recursor\]"
+               "\[notations\]" "\[abbreviations\]" "\[begin-end-hints\]" "\[tactic-hints\]"
+               "\[reduce-hints\]" "\[unfold-hints\]" "\[aliases\]" "\[eqv\]" "\[localrefinfo\]"))
       . 'font-lock-doc-face)
      (,(rx "\[priority" (zero-or-more (not (any "\]"))) "\]") . font-lock-doc-face)
      (,(rx "\[unfold-c" (zero-or-more (not (any "\]"))) "\]") . font-lock-doc-face)
@@ -130,10 +134,11 @@
      (,(rx (not (any "\.")) word-start
            (group
             (or "\\b.*_tac" "Cond" "or_else" "then" "try" "when" "assumption" "eassumption" "rapply"
-                "apply" "fapply" "rename" "intro" "intros" "all_goals" "fold"
+                "apply" "fapply" "eapply" "rename" "intro" "intros" "all_goals" "fold"
                 "generalize" "generalizes" "clear" "clears" "revert" "reverts" "back" "beta" "done" "exact" "rexact"
                 "refine" "repeat" "whnf" "rotate" "rotate_left" "rotate_right" "inversion" "cases" "rewrite" "esimp"
-                "unfold" "change" "check_expr"))
+                "unfold" "change" "check_expr" "contradiction" "exfalso" "split" "existsi" "constructor" "left" "right"
+                "injection" "congruence" "reflexivity" "symmetry" "transitivity" "state"))
            word-end)
       (1 'font-lock-constant-face))
      ;; Types

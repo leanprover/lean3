@@ -1,8 +1,6 @@
 /-
 Copyright (c) 2014 Floris van Doorn. All rights reserved.
 Released under Apache 2.0 license as described in the file LICENSE.
-
-Module: data.nat.order
 Authors: Floris van Doorn, Leonardo de Moura, Jeremy Avigad
 
 The order relation on the natural numbers.
@@ -143,10 +141,11 @@ le.intro !zero_add
 
 /- nat is an instance of a linearly ordered semiring -/
 
-section
+section migrate_algebra
   open [classes] algebra
+  local attribute nat.comm_semiring [instance]
 
-  protected definition linear_ordered_semiring [instance] [reducible] :
+  protected definition linear_ordered_semiring [reducible] :
     algebra.linear_ordered_semiring nat :=
   ⦃ algebra.linear_ordered_semiring, nat.comm_semiring,
     add_left_cancel            := @add.cancel_left,
@@ -158,7 +157,7 @@ section
     le_antisymm                := @le.antisymm,
     le_total                   := @le.total,
     le_iff_lt_or_eq            := @le_iff_lt_or_eq,
-    lt_iff_le_ne               := lt_iff_le_and_ne,
+    lt_iff_le_and_ne           := lt_iff_le_and_ne,
     add_le_add_left            := @add_le_add_left,
     le_of_add_le_add_left      := @le_of_add_le_add_left,
     zero_ne_one                := ne.symm (succ_ne_zero zero),
@@ -167,12 +166,15 @@ section
     mul_lt_mul_of_pos_left     := @mul_lt_mul_of_pos_left,
     mul_lt_mul_of_pos_right    := @mul_lt_mul_of_pos_right ⦄
 
+  local attribute nat.linear_ordered_semiring [instance]
+
   migrate from algebra with nat
     replacing has_le.ge → ge, has_lt.gt → gt
-    hiding pos_of_mul_pos_left, pos_of_mul_pos_right, lt_of_mul_lt_mul_left, lt_of_mul_lt_mul_right
-end
+    hiding add_pos_of_pos_of_nonneg,  add_pos_of_nonneg_of_pos,
+      add_eq_zero_iff_eq_zero_and_eq_zero_of_nonneg_of_nonneg, le_add_of_nonneg_of_le,
+      le_add_of_le_of_nonneg, lt_add_of_nonneg_of_lt, lt_add_of_lt_of_nonneg,
+      lt_of_mul_lt_mul_left, lt_of_mul_lt_mul_right, pos_of_mul_pos_left, pos_of_mul_pos_right
 
-section port_algebra
   theorem add_pos_left : ∀{a : ℕ}, 0 < a → ∀b : ℕ, 0 < a + b :=
     take a H b, @algebra.add_pos_of_pos_of_nonneg _ _ a b H !zero_le
   theorem add_pos_right : ∀{a : ℕ}, 0 < a → ∀b : ℕ, 0 < b + a :=
@@ -197,7 +199,7 @@ section port_algebra
     take a b H, @algebra.pos_of_mul_pos_left _ _ a b H !zero_le
   theorem pos_of_mul_pos_right : ∀{a b : ℕ}, 0 < a * b → 0 < a :=
     take a b H, @algebra.pos_of_mul_pos_right _ _ a b H !zero_le
-end port_algebra
+end migrate_algebra
 
 theorem zero_le_one : 0 ≤ 1 := dec_trivial
 theorem zero_lt_one : 0 < 1 := dec_trivial

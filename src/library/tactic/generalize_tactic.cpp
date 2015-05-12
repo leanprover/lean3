@@ -8,10 +8,16 @@ Author: Leonardo de Moura
 #include "kernel/abstract.h"
 #include "kernel/kernel_exception.h"
 #include "library/reducible.h"
+#include "library/util.h"
 #include "library/tactic/elaborate.h"
 #include "library/tactic/expr_to_tactic.h"
 
 namespace lean {
+expr mk_generalize_tactic_expr(expr const & e, name const & id) {
+    return mk_app(mk_constant(get_tactic_generalize_tac_name()),
+                  e, mk_constant(id));
+}
+
 tactic generalize_tactic(elaborate_fn const & elab, expr const & e, name const & x) {
     return tactic01([=](environment const & env, io_state const & ios, proof_state const & s) {
             proof_state new_s = s;
@@ -39,7 +45,7 @@ tactic generalize_tactic(elaborate_fn const & elab, expr const & e, name const &
                 expr new_t = mk_pi(n, e_t, abstract(t, *new_e));
                 expr new_m = g.mk_meta(ngen.next(), new_t);
                 try {
-                    tc->check_ignore_levels(g.abstract(new_t));
+                    check_term(*tc, g.abstract(new_t));
                 } catch (kernel_exception const & ex) {
                     std::shared_ptr<kernel_exception> ex_ptr(static_cast<kernel_exception*>(ex.clone()));
                     throw_tactic_exception_if_enabled(s, [=](formatter const & fmt) {
@@ -60,11 +66,11 @@ tactic generalize_tactic(elaborate_fn const & elab, expr const & e, name const &
 }
 
 void initialize_generalize_tactic() {
-    register_tac(get_tactic_generalize_name(),
+    register_tac(get_tactic_generalize_tac_name(),
                  [](type_checker &, elaborate_fn const & fn, expr const & e, pos_info_provider const *) {
-                     check_tactic_expr(app_arg(e), "invalid 'generalize' tactic, invalid argument");
-                     // TODO(Leo): allow user to provide name to abstract variable
-                     return generalize_tactic(fn, get_tactic_expr_expr(app_arg(e)), "x");
+                     check_tactic_expr(app_arg(app_fn(e)), "invalid 'generalize' tactic, invalid argument");
+                     name id = tactic_expr_to_id(app_arg(e), "invalid 'generalize' tactic, argument must be an identifier");
+                     return generalize_tactic(fn, get_tactic_expr_expr(app_arg(app_fn(e))), id);
                  });
 
     register_tac(get_tactic_generalizes_name(),

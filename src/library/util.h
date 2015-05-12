@@ -10,11 +10,6 @@ Author: Leonardo de Moura
 
 namespace lean {
 typedef std::unique_ptr<type_checker> type_checker_ptr;
-
-/** \brief Return true iff \c e is of the form <tt>(f ...)</tt> where
-    \c f is a non-opaque constant definition */
-bool is_def_app(environment const & env, expr const & e);
-
 /** \brief If \c e is of the form <tt>(f a_1 ... a_n)</tt>, where \c f is
     a non-opaque definition, then unfold \c f, and beta reduce.
     Otherwise, return none.
@@ -25,6 +20,9 @@ optional<expr> unfold_app(environment const & env, expr const & e);
     \pre is_not_zero(l)
 */
 optional<level> dec_level(level const & l);
+
+/** \brief Return true iff \c env has been configured with an impredicative and proof irrelevant Prop. */
+bool is_standard(environment const & env);
 
 bool has_unit_decls(environment const & env);
 bool has_eq_decls(environment const & env);
@@ -123,19 +121,41 @@ expr mk_pair(type_checker & tc, expr const & a, expr const & b, bool prop);
 expr mk_pr1(type_checker & tc, expr const & p, bool prop);
 expr mk_pr2(type_checker & tc, expr const & p, bool prop);
 
+expr mk_false();
+expr mk_empty();
+/** \brief Return false (in standard mode) and empty (in HoTT) mode */
+expr mk_false(environment const & env);
+
+bool is_false(expr const & e);
+bool is_empty(expr const & e);
+/** \brief Return true iff \c e is false (in standard mode) or empty (in HoTT) mode */
+bool is_false(environment const & env, expr const & e);
+/** \brief Return an element of type t given an element \c f : false (in standard mode) and empty (in HoTT) mode */
+expr mk_false_rec(type_checker & tc, expr const & f, expr const & t);
+
 expr mk_eq(type_checker & tc, expr const & lhs, expr const & rhs);
 expr mk_refl(type_checker & tc, expr const & a);
 expr mk_symm(type_checker & tc, expr const & H);
 bool is_eq_rec(expr const & e);
 bool is_eq(expr const & e);
+bool is_eq(expr const & e, expr & lhs, expr & rhs);
 /** \brief Return true iff \c e is of the form (eq A a a) */
 bool is_eq_a_a(expr const & e);
 /** \brief Return true iff \c e is of the form (eq A a a') where \c a and \c a' are definitionally equal */
 bool is_eq_a_a(type_checker & tc, expr const & e);
 
+bool is_heq(expr const & e);
+bool is_heq(expr const & e, expr & A, expr & lhs, expr & B, expr & rhs);
+
 bool is_iff(expr const & e);
 expr mk_iff(expr const & lhs, expr const & rhs);
 expr mk_iff_refl(expr const & a);
+
+/** \brief If in HoTT mode, apply lift.down.
+    The no_confusion constructions uses lifts in the proof relevant version (aka HoTT mode).
+    We must apply lift.down to eliminate the auxiliary lift.
+*/
+optional<expr> lift_down_if_hott(type_checker & tc, expr const & v);
 
 /** \brief Create a telescope equality for HoTT library.
     This procedure assumes eq supports dependent elimination.
@@ -165,6 +185,25 @@ bool has_expr_metavar_relaxed(expr const & e);
     We assume this is not a problem since we only used this procedure when connecting the
     elaborator with the tactic framework. */
 constraint instantiate_metavars(constraint const & c, substitution & s);
+
+
+/** \brief Check whether the given term is type correct or not, undefined universe levels are ignored,
+    and untrusted macros are unfolded before performing the test.
+
+    These procedures are useful for checking whether intermediate results produced by
+    tactics and automation are type correct.
+*/
+void check_term(type_checker & tc, expr const & e);
+void check_term(environment const & env, expr const & e);
+
+/** \brief Return a justification for \c v_type being definitionally equal to \c t,
+    <tt> v : v_type</tt>, the expressiong \c src is used to extract position information.
+*/
+format pp_type_mismatch(formatter const & fmt, expr const & v, expr const & v_type, expr const & t);
+justification mk_type_mismatch_jst(expr const & v, expr const & v_type, expr const & t, expr const & src);
+inline justification mk_type_mismatch_jst(expr const & v, expr const & v_type, expr const & t) {
+    return mk_type_mismatch_jst(v, v_type, t, v);
+}
 
 void initialize_library_util();
 void finalize_library_util();

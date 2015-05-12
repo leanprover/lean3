@@ -32,6 +32,7 @@ Author: Leonardo de Moura
 #include "library/io_state_stream.h"
 #include "library/definition_cache.h"
 #include "library/declaration_index.h"
+#include "library/export.h"
 #include "library/error_handling/error_handling.h"
 #include "frontends/lean/parser.h"
 #include "frontends/lean/pp.h"
@@ -95,7 +96,6 @@ static void display_help(std::ostream & out) {
     std::cout << "  --githash         display the git commit hash number used to build this binary\n";
     std::cout << "  --path            display the path used for finding Lean libraries and extensions\n";
     std::cout << "  --output=file -o  save the final environment in binary format in the given file\n";
-    std::cout << "  --cpp=file -C     save the final environment as a C++ array\n";
     std::cout << "  --luahook=num -k  how often the Lua interpreter checks the interrupted flag,\n";
     std::cout << "                    it is useful for interrupting non-terminating user scripts,\n";
     std::cout << "                    0 means 'do not check'.\n";
@@ -126,6 +126,7 @@ static void display_help(std::ostream & out) {
     std::cout << "  --line=value      line number for query\n";
     std::cout << "  --col=value       column number for query\n";
     std::cout << "  --goal            display goal at close to given position\n";
+    std::cout << "  --export=file -E  export final environment as textual low-level file\n";
 }
 
 static char const * get_file_extension(char const * fname) {
@@ -153,7 +154,7 @@ static struct option g_long_options[] = {
     {"luahook",      required_argument, 0, 'k'},
     {"githash",      no_argument,       0, 'g'},
     {"output",       required_argument, 0, 'o'},
-    {"cpp",          required_argument, 0, 'C'},
+    {"export",       required_argument, 0, 'E'},
     {"memory",       required_argument, 0, 'M'},
     {"trust",        required_argument, 0, 't'},
     {"discard",      no_argument,       0, 'r'},
@@ -177,7 +178,7 @@ static struct option g_long_options[] = {
     {0, 0, 0, 0}
 };
 
-#define OPT_STR "PHRXFC:dD:qrlupgvhk:012t:012o:c:i:L:012O:012G"
+#define OPT_STR "PHRXFdD:qrlupgvhk:012t:012o:E:c:i:L:012O:012G"
 
 #if defined(LEAN_TRACK_MEMORY)
 #define OPT_STR2 OPT_STR "M:012"
@@ -234,23 +235,6 @@ options set_config_option(options const & opts, char const * in) {
     } else {
         throw lean::exception(lean::sstream() << "invalid -D parameter, unknown configuration option '" << opt << "'");
     }
-}
-
-static void export_as_cpp_file(std::string const & fname, char const * varname, environment const & env) {
-    std::ostringstream buffer(std::ofstream::binary);
-    export_module(buffer, env);
-    std::string r = buffer.str();
-    std::ofstream out(fname);
-    out << "// automatically generated file do not edit\n";
-    out << "namespace lean {\n";
-    out << "    char " << varname << "[" << r.size() + 1 << "] = {";
-    for (unsigned i = 0; i < r.size(); i++) {
-        if (i > 0)
-            out << ", ";
-        out << static_cast<unsigned>(static_cast<unsigned char>(r[i]));
-    }
-    out << "    }\n";
-    out << "}\n";
 }
 
 environment import_module(environment const & env, io_state const & ios, module_name const & mod, bool keep_proofs = true) {
@@ -348,15 +332,14 @@ int main(int argc, char ** argv) {
     unsigned num_threads    = 1;
     bool use_cache          = false;
     bool gen_index          = false;
-    bool export_cpp         = false;
     keep_theorem_mode tmode = keep_theorem_mode::All;
     options opts;
     std::string output;
-    std::string cpp_output;
     std::string cache_name;
     std::string index_name;
     optional<unsigned> line;
     optional<unsigned> column;
+    optional<std::string> export_txt;
     bool show_goal = false;
     input_kind default_k = input_kind::Unspecified;
     while (true) {
@@ -406,10 +389,6 @@ int main(int argc, char ** argv) {
             output         = optarg;
             export_objects = true;
             break;
-        case 'C':
-            cpp_output = optarg;
-            export_cpp = true;
-            break;
         case 'c':
             cache_name = optarg;
             use_cache  = true;
@@ -417,6 +396,7 @@ int main(int argc, char ** argv) {
         case 'i':
             index_name = optarg;
             gen_index  = true;
+            break;
         case 'M':
             lean::set_max_memory_megabyte(atoi(optarg));
             opts = opts.update(lean::get_max_memory_opt_name(), atoi(optarg));
@@ -458,6 +438,9 @@ int main(int argc, char ** argv) {
             break;
         case 'G':
             show_goal = true;
+            break;
+        case 'E':
+            export_txt = std::string(optarg);
             break;
         default:
             std::cerr << "Unknown command line option\n";
@@ -598,8 +581,9 @@ int main(int argc, char ** argv) {
             std::ofstream out(output, std::ofstream::binary);
             export_module(out, env);
         }
-        if (export_cpp && ok) {
-            export_as_cpp_file(cpp_output, "olean_lib", env);
+        if (export_txt) {
+            std::ofstream out(*export_txt);
+            export_module_as_lowtext(out, env);
         }
         return ok ? 0 : 1;
     } catch (lean::throwable & ex) {

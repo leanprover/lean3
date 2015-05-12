@@ -10,4 +10,5 @@ begin
   end
 end
 
+reveal tst
 print definition tst

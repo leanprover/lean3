@@ -10,10 +10,11 @@ Theorems about functions with multiple arguments
 
 variables {A U V W X Y Z : Type} {B : A → Type} {C : Πa, B a → Type} {D : Πa b, C a b → Type}
           {E : Πa b c, D a b c → Type}
-variables {a a' : A} {u u' : U} {v v' : V} {w w' : W} {x x' x'' : X} {y y' : Y}
+variables {a a' : A} {u u' : U} {v v' : V} {w w' : W} {x x' x'' : X} {y y' : Y} {z z' : Z}
           {b : B a} {b' : B a'}
           {c : C a b} {c' : C a' b'}
           {d : D a b c} {d' : D a' b' c'}
+          {e : E a b c d} {e' : E a' b' c' d'}
 
 namespace eq
   /-
@@ -29,10 +30,10 @@ namespace eq
          transports in the theorem statement).
       For the fully-dependent versions (except that the conclusion doesn't contain a transport)
       we write
-        apDi₀i₁...iₙ.
+        apdi₀i₁...iₙ.
 
       For versions where only some arguments depend on some other arguments,
-      or for versions with transport in the conclusion (like apD), we don't have a
+      or for versions with transport in the conclusion (like apd), we don't have a
       consistent naming scheme (yet).
 
       We don't prove each theorem systematically, but prove only the ones which we actually need.
@@ -49,44 +50,60 @@ namespace eq
   notation f `∼3`:50 g := homotopy3 f g
 
   definition ap011 (f : U → V → W) (Hu : u = u') (Hv : v = v') : f u v = f u' v' :=
-  eq.rec_on Hu (ap (f u) Hv)
+  by cases Hu; congruence; repeat assumption
 
   definition ap0111 (f : U → V → W → X) (Hu : u = u') (Hv : v = v') (Hw : w = w')
       : f u v w = f u' v' w' :=
-  eq.rec_on Hu (ap011 (f u) Hv Hw)
+  by cases Hu; congruence; repeat assumption
 
   definition ap01111 (f : U → V → W → X → Y) (Hu : u = u') (Hv : v = v') (Hw : w = w') (Hx : x = x')
       : f u v w x = f u' v' w' x' :=
-  eq.rec_on Hu (ap0111 (f u) Hv Hw Hx)
+  by cases Hu; congruence; repeat assumption
+
+  definition ap011111 (f : U → V → W → X → Y → Z)
+    (Hu : u = u') (Hv : v = v') (Hw : w = w') (Hx : x = x') (Hy : y = y')
+      : f u v w x y = f u' v' w' x' y' :=
+  by cases Hu; congruence; repeat assumption
+
+  definition ap0111111 (f : U → V → W → X → Y → Z → A)
+    (Hu : u = u') (Hv : v = v') (Hw : w = w') (Hx : x = x') (Hy : y = y') (Hz : z = z')
+      : f u v w x y z = f u' v' w' x' y' z' :=
+  by cases Hu; congruence; repeat assumption
 
   definition ap010 (f : X → Πa, B a) (Hx : x = x') : f x ∼ f x' :=
-  λa, eq.rec_on Hx idp
+  by intros; cases Hx; reflexivity
 
   definition ap0100 (f : X → Πa b, C a b) (Hx : x = x') : f x ∼2 f x' :=
-  λa b, eq.rec_on Hx idp
+  by intros; cases Hx; reflexivity
 
   definition ap01000 (f : X → Πa b c, D a b c) (Hx : x = x') : f x ∼3 f x' :=
-  λa b c, eq.rec_on Hx idp
+  by intros; cases Hx; reflexivity
 
-  definition apD011 (f : Πa, B a → Z) (Ha : a = a') (Hb : (Ha ▹ b) = b')
+  definition apd011 (f : Πa, B a → Z) (Ha : a = a') (Hb : (Ha ▸ b) = b')
       : f a b = f a' b' :=
-  eq.rec_on Hb (eq.rec_on Ha idp)
+  by cases Ha; cases Hb; reflexivity
 
-  definition apD0111 (f : Πa b, C a b → Z) (Ha : a = a') (Hb : (Ha ▹ b) = b')
-    (Hc : apD011 C Ha Hb ▹ c = c')
+  definition apd0111 (f : Πa b, C a b → Z) (Ha : a = a') (Hb : (Ha ▸ b) = b')
+    (Hc : apd011 C Ha Hb ▸ c = c')
       : f a b c = f a' b' c' :=
-  eq.rec_on Hc (eq.rec_on Hb (eq.rec_on Ha idp))
+  by cases Ha; cases Hb; cases Hc; reflexivity
 
-  definition apD01111 (f : Πa b c, D a b c → Z) (Ha : a = a') (Hb : (Ha ▹ b) = b')
-    (Hc : apD011 C Ha Hb ▹ c = c') (Hd : apD0111 D Ha Hb Hc ▹ d = d')
+  definition apd01111 (f : Πa b c, D a b c → Z) (Ha : a = a') (Hb : (Ha ▸ b) = b')
+    (Hc : apd011 C Ha Hb ▸ c = c') (Hd : apd0111 D Ha Hb Hc ▸ d = d')
       : f a b c d = f a' b' c' d' :=
-  eq.rec_on Hd (eq.rec_on Hc (eq.rec_on Hb (eq.rec_on Ha idp)))
+  by cases Ha; cases Hb; cases Hc; cases Hd; reflexivity
 
-  definition apD100 {f g : Πa b, C a b} (p : f = g) : f ∼2 g :=
-  λa b, apD10 (apD10 p a) b
+  definition apd011111 (f : Πa b c d, E a b c d → Z) (Ha : a = a') (Hb : (Ha ▸ b) = b')
+    (Hc : apd011 C Ha Hb ▸ c = c') (Hd : apd0111 D Ha Hb Hc ▸ d = d')
+    (He : apd01111 E Ha Hb Hc Hd ▸ e = e')
+    : f a b c d e = f a' b' c' d' e' :=
+  by cases Ha; cases Hb; cases Hc; cases Hd; cases He; reflexivity
 
-  definition apD1000 {f g : Πa b c, D a b c} (p : f = g) : f ∼3 g :=
-  λa b c, apD100 (apD10 p a) b c
+  definition apd100 {f g : Πa b, C a b} (p : f = g) : f ∼2 g :=
+  λa b, apd10 (apd10 p a) b
+
+  definition apd1000 {f g : Πa b c, D a b c} (p : f = g) : f ∼3 g :=
+  λa b c, apd100 (apd10 p a) b c
 
   /- some properties of these variants of ap -/
 
@@ -111,48 +128,47 @@ namespace eq
   definition eq_of_homotopy2_id (f : Πa b, C a b)
     : eq_of_homotopy2 (λa b, idpath (f a b)) = idpath f :=
   begin
-    apply concat,
-      {apply (ap (λx, eq_of_homotopy x)), apply eq_of_homotopy, intro a, apply eq_of_homotopy_id},
-    apply eq_of_homotopy_id
+    transitivity eq_of_homotopy (λ a, idpath (f a)),
+      {apply (ap eq_of_homotopy), apply eq_of_homotopy, intros, apply eq_of_homotopy_idp},
+      apply eq_of_homotopy_idp
   end
 
   definition eq_of_homotopy3_id (f : Πa b c, D a b c)
     : eq_of_homotopy3 (λa b c, idpath (f a b c)) = idpath f :=
   begin
-    apply concat,
-      {apply (ap (λx, eq_of_homotopy x)), apply eq_of_homotopy, intro a, apply eq_of_homotopy2_id},
-    apply eq_of_homotopy_id
+    transitivity _,
+      {apply (ap eq_of_homotopy), apply eq_of_homotopy, intros, apply eq_of_homotopy2_id},
+      apply eq_of_homotopy_idp
   end
 
 end eq
 
 open eq is_equiv
 namespace funext
-  definition is_equiv_apD100 [instance] (f g : Πa b, C a b) : is_equiv (@apD100 A B C f g) :=
+  definition is_equiv_apd100 [instance] (f g : Πa b, C a b) : is_equiv (@apd100 A B C f g) :=
   adjointify _
              eq_of_homotopy2
              begin
-               intro H, esimp [apD100, eq_of_homotopy2, function.compose],
+               intro H, esimp [apd100, eq_of_homotopy2, function.compose],
                apply eq_of_homotopy, intro a,
-               apply concat, apply (ap (λx, @apD10 _ (λb : B a, _) _ _ (x a))), apply (retr apD10),
---TODO: remove implicit argument after #469 is closed
-               apply (retr apD10)
+               apply concat, apply (ap (λx, apd10 (x a))), apply (right_inv apd10),
+               apply (right_inv apd10)
              end
              begin
                intro p, cases p, apply eq_of_homotopy2_id
              end
 
-  definition is_equiv_apD1000 [instance] (f g : Πa b c, D a b c)
-    : is_equiv (@apD1000 A B C D f g) :=
+  definition is_equiv_apd1000 [instance] (f g : Πa b c, D a b c)
+    : is_equiv (@apd1000 A B C D f g) :=
   adjointify _
              eq_of_homotopy3
              begin
                intro H, apply eq_of_homotopy, intro a,
                apply concat,
-                 {apply (ap (λx, @apD100 _ _ (λ(b : B a)(c : C a b), _) _ _ (x a))),
-                   apply (retr apD10)},
+                 {apply (ap (λx, @apd100 _ _ (λ(b : B a)(c : C a b), _) _ _ (x a))),
+                   apply (right_inv apd10)},
 --TODO: remove implicit argument after #469 is closed
-               apply (@retr _ _ apD100 !is_equiv_apD100) --is explicit argument needed here?
+               apply (@right_inv _ _ apd100 !is_equiv_apd100) --is explicit argument needed here?
              end
              begin
                intro p, cases p, apply eq_of_homotopy3_id
@@ -161,22 +177,22 @@ end funext
 
 namespace eq
   open funext
-  local attribute funext.is_equiv_apD100 [instance]
+  local attribute funext.is_equiv_apd100 [instance]
   protected definition homotopy2.rec_on {f g : Πa b, C a b} {P : (f ∼2 g) → Type}
-    (p : f ∼2 g) (H : Π(q : f = g), P (apD100 q)) : P p :=
-  retr apD100 p ▹ H (eq_of_homotopy2 p)
+    (p : f ∼2 g) (H : Π(q : f = g), P (apd100 q)) : P p :=
+  right_inv apd100 p ▸ H (eq_of_homotopy2 p)
 
   protected definition homotopy3.rec_on {f g : Πa b c, D a b c} {P : (f ∼3 g) → Type}
-    (p : f ∼3 g) (H : Π(q : f = g), P (apD1000 q)) : P p :=
-  retr apD1000 p ▹ H (eq_of_homotopy3 p)
+    (p : f ∼3 g) (H : Π(q : f = g), P (apd1000 q)) : P p :=
+  right_inv apd1000 p ▸ H (eq_of_homotopy3 p)
 
-  definition apD10_ap (f : X → Πa, B a) (p : x = x')
-    : apD10 (ap f p) = ap010 f p :=
+  definition apd10_ap (f : X → Πa, B a) (p : x = x')
+    : apd10 (ap f p) = ap010 f p :=
   eq.rec_on p idp
 
   definition eq_of_homotopy_ap010 (f : X → Πa, B a) (p : x = x')
     : eq_of_homotopy (ap010 f p) = ap f p :=
-  inv_eq_of_eq !apD10_ap⁻¹
+  inv_eq_of_eq !apd10_ap⁻¹
 
   definition ap_eq_ap_of_homotopy {f : X → Πa, B a} {p q : x = x'} (H : ap010 f p ∼ ap010 f q)
     : ap f p = ap f q :=

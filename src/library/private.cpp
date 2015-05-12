@@ -37,7 +37,7 @@ static std::string * g_prv_key = nullptr;
 // Make sure the mapping "hidden-name r ==> user-name n" is preserved when we close sections and
 // export .olean files.
 static environment preserve_private_data(environment const & env, name const & r, name const & n) {
-    return module::add(env, *g_prv_key, [=](serializer & s) { s << n << r; });
+    return module::add(env, *g_prv_key, [=](environment const &, serializer & s) { s << n << r; });
 }
 
 pair<environment, name> add_private_name(environment const & env, name const & n, optional<unsigned> const & extra_hash) {
@@ -53,7 +53,7 @@ pair<environment, name> add_private_name(environment const & env, name const & n
     return mk_pair(new_env, r);
 }
 
-static void private_reader(deserializer & d, module_idx, shared_environment & senv,
+static void private_reader(deserializer & d, shared_environment & senv,
                            std::function<void(asynch_update_fn const &)> &,
                            std::function<void(delayed_update_fn const &)> &) {
     name n, h;

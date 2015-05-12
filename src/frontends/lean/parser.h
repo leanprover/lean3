@@ -54,10 +54,13 @@ struct parser_scope_stack_elem {
     name_set           m_include_vars;
     unsigned           m_num_undef_ids;
     bool               m_has_params;
+    local_level_decls  m_local_level_decls;
+    local_expr_decls   m_local_decls;
     parser_scope_stack_elem(optional<options> const & o, name_set const & lvs, name_set const & vs, name_set const & ivs,
-                            unsigned num_undef_ids, bool has_params):
+                            unsigned num_undef_ids, bool has_params,
+                            local_level_decls const & lld, local_expr_decls const & led):
         m_options(o), m_level_variables(lvs), m_variables(vs), m_include_vars(ivs),
-        m_num_undef_ids(num_undef_ids), m_has_params(has_params) {}
+        m_num_undef_ids(num_undef_ids), m_has_params(has_params), m_local_level_decls(lld), m_local_decls(led) {}
 };
 typedef list<parser_scope_stack_elem> parser_scope_stack;
 
@@ -169,6 +172,8 @@ class parser {
 
     parse_table const & nud() const { return get_nud_table(env()); }
     parse_table const & led() const { return get_led_table(env()); }
+    parse_table const & tactic_nud() const { return get_tactic_nud_table(env()); }
+    parse_table const & tactic_led() const { return get_tactic_led_table(env()); }
 
     unsigned curr_level_lbp() const;
     level parse_max_imax(bool is_max);
@@ -180,19 +185,26 @@ class parser {
     void parse_command();
     void parse_script(bool as_expr = false);
     bool parse_commands();
-    unsigned curr_lbp() const;
-    expr parse_notation(parse_table t, expr * left);
+    unsigned curr_lbp_core(bool as_tactic) const;
+    unsigned curr_expr_lbp() const { return curr_lbp_core(false); }
+    unsigned curr_tactic_lbp() const { return curr_lbp_core(true); }
+    expr parse_notation_core(parse_table t, expr * left, bool as_tactic);
+    expr parse_expr_or_tactic(unsigned rbp, bool as_tactic) {
+        return as_tactic ? parse_tactic(rbp) : parse_expr(rbp);
+    }
+    expr parse_notation(parse_table t, expr * left) { return parse_notation_core(t, left, false); }
+    expr parse_tactic_notation(parse_table t, expr * left) { return parse_notation_core(t, left, true); }
     expr parse_nud_notation();
     expr parse_led_notation(expr left);
     expr parse_nud();
-    expr parse_numeral_expr();
+    expr parse_numeral_expr(bool user_notation = true);
     expr parse_decimal_expr();
     expr parse_string_expr();
     expr parse_binder_core(binder_info const & bi, unsigned rbp);
     void parse_binder_block(buffer<expr> & r, binder_info const & bi, unsigned rbp);
-    void parse_binders_core(buffer<expr> & r, buffer<notation_entry> * nentries, bool & last_block_delimited, unsigned rbp);
+    void parse_binders_core(buffer<expr> & r, buffer<notation_entry> * nentries, bool & last_block_delimited, unsigned rbp, bool simple_only);
     local_environment parse_binders(buffer<expr> & r, buffer<notation_entry> * nentries, bool & last_block_delimited,
-                                    bool allow_empty, unsigned rbp);
+                                    bool allow_empty, unsigned rbp, bool simple_only);
     bool parse_local_notation_decl(buffer<notation_entry> * entries);
 
     pair<optional<name>, expr> parse_id_tk_expr(name const & tk, unsigned rbp);
@@ -219,10 +231,14 @@ class parser {
     elaborator_context mk_elaborator_context(environment const & env, local_level_decls const & lls, pos_info_provider const & pp);
 
     optional<expr> is_tactic_command(name & id);
+    expr parse_tactic_option_num();
     expr parse_tactic_led(expr left);
     expr parse_tactic_nud();
+    expr mk_tactic_expr_list(buffer<expr> const & args, pos_info const & p);
     expr parse_tactic_expr_list();
     expr parse_tactic_opt_expr_list();
+    expr parse_tactic_id_list();
+    expr parse_tactic_opt_id_list();
 
 public:
     parser(environment const & env, io_state const & ios,
@@ -258,6 +274,7 @@ public:
 
     bool has_tactic_decls();
     expr mk_by(expr const & t, pos_info const & pos);
+    expr mk_by_plus(expr const & t, pos_info const & pos);
 
     bool keep_new_thms() const { return m_keep_theorem_mode != keep_theorem_mode::DiscardAll; }
 
@@ -283,6 +300,8 @@ public:
 
     unsigned num_threads() const { return m_num_threads; }
     void add_delayed_theorem(environment const & env, name const & n, level_param_names const & ls, expr const & t, expr const & v);
+    void add_delayed_theorem(certified_declaration const & cd);
+    environment reveal_theorems(buffer<name> const & ds);
 
     /** \brief Read the next token. */
     void scan() { m_curr = m_scanner.scan(m_env); }
@@ -321,6 +340,7 @@ public:
     /** \brief Check if the current token is an atomic identifier, if it is, return it and move to next token,
         otherwise throw an exception. */
     name check_atomic_id_next(char const * msg);
+    name to_constant(name const & id, char const * msg, pos_info const & p);
     /** \brief Check if the current token is a constant, if it is, return it and move to next token, otherwise throw an exception. */
     name check_constant_next(char const * msg);
 
@@ -343,23 +363,27 @@ public:
 
     expr parse_binder(unsigned rbp);
     local_environment parse_binders(buffer<expr> & r, bool & last_block_delimited) {
-        unsigned rbp = 0; bool allow_empty = false;
-        return parse_binders(r, nullptr, last_block_delimited, allow_empty, rbp);
+        unsigned rbp = 0; bool allow_empty = false; bool simple_only = false;
+        return parse_binders(r, nullptr, last_block_delimited, allow_empty, rbp, simple_only);
     }
     local_environment parse_binders(buffer<expr> & r, unsigned rbp) {
-        bool tmp; bool allow_empty = false;
-        return parse_binders(r, nullptr, tmp, allow_empty, rbp);
+        bool tmp; bool allow_empty = false; bool simple_only = false;
+        return parse_binders(r, nullptr, tmp, allow_empty, rbp, simple_only);
+    }
+    void parse_simple_binders(buffer<expr> & r, unsigned rbp) {
+        bool tmp; bool allow_empty = false; bool simple_only = true;
+        parse_binders(r, nullptr, tmp, allow_empty, rbp, simple_only);
     }
     local_environment parse_optional_binders(buffer<expr> & r) {
-        bool tmp; bool allow_empty = true; unsigned rbp = 0;
-        return parse_binders(r, nullptr, tmp, allow_empty, rbp);
+        bool tmp; bool allow_empty = true; unsigned rbp = 0; bool simple_only = false;
+        return parse_binders(r, nullptr, tmp, allow_empty, rbp, simple_only);
     }
     local_environment parse_binders(buffer<expr> & r, buffer<notation_entry> & nentries) {
-        bool tmp; bool allow_empty = false; unsigned rbp = 0;
-        return parse_binders(r, &nentries, tmp, allow_empty, rbp);
+        bool tmp; bool allow_empty = false; unsigned rbp = 0; bool simple_only = false;
+        return parse_binders(r, &nentries, tmp, allow_empty, rbp, simple_only);
     }
-    optional<binder_info> parse_optional_binder_info();
-    binder_info parse_binder_info();
+    optional<binder_info> parse_optional_binder_info(bool simple_only = false);
+    binder_info parse_binder_info(bool simple_only = false);
     void parse_close_binder_info(optional<binder_info> const & bi);
     void parse_close_binder_info(binder_info const & bi) { return parse_close_binder_info(optional<binder_info>(bi)); }
 
@@ -388,8 +412,11 @@ public:
         return parse_scoped_expr(num_params, ps, local_environment(m_env), rbp);
     }
     expr parse_scoped_expr(buffer<expr> const & ps, unsigned rbp = 0) { return parse_scoped_expr(ps.size(), ps.data(), rbp); }
+    expr parse_expr_with_env(local_environment const & lenv, unsigned rbp = 0);
 
     expr parse_tactic(unsigned rbp = 0);
+    expr parse_tactic_expr_arg(unsigned rbp = 0);
+    expr parse_tactic_id_arg();
 
     struct local_scope { parser & m_p; environment m_env;
         local_scope(parser & p, bool save_options = false);
@@ -400,6 +427,7 @@ public:
     bool has_locals() const { return !m_local_decls.empty() || !m_local_level_decls.empty(); }
     void add_local_level(name const & n, level const & l, bool is_variable = false);
     void add_local_expr(name const & n, expr const & p, bool is_variable = false);
+    environment add_local_ref(environment const & env, name const & n, expr const & ref);
     void add_parameter(name const & n, expr const & p);
     void add_local(expr const & p) { return add_local_expr(local_pp_name(p), p); }
     bool has_params() const { return m_has_params; }
@@ -407,6 +435,8 @@ public:
     bool is_local_level_variable(name const & n) const { return m_level_variables.contains(n); }
     bool is_local_variable(name const & n) const { return m_variables.contains(n); }
     bool is_local_variable(expr const & e) const { return is_local_variable(local_pp_name(e)); }
+    /** \brief Update binder information for the section parameter n, return true if success, and false if n is not a section parameter. */
+    bool update_local_binder_info(name const & n, binder_info const & bi);
     void include_variable(name const & n) { m_include_vars.insert(n); }
     void omit_variable(name const & n) { m_include_vars.erase(n); }
     bool is_include_variable(name const & n) const { return m_include_vars.contains(n); }
@@ -449,10 +479,10 @@ public:
     /** \brief Elaborate \c e (making sure the result does not have metavariables). */
     std::tuple<expr, level_param_names> elaborate(expr const & e) { return elaborate_at(m_env, e); }
     /** \brief Elaborate the definition n : t := v */
-    std::tuple<expr, expr, level_param_names> elaborate_definition(name const & n, expr const & t, expr const & v, bool is_opaque);
+    std::tuple<expr, expr, level_param_names> elaborate_definition(name const & n, expr const & t, expr const & v);
     /** \brief Elaborate the definition n : t := v in the given environment*/
     std::tuple<expr, expr, level_param_names> elaborate_definition_at(environment const & env, local_level_decls const & lls,
-                                                                      name const & n, expr const & t, expr const & v, bool is_opaque);
+                                                                      name const & n, expr const & t, expr const & v);
 
     expr mk_sorry(pos_info const & p);
     bool used_sorry() const { return m_used_sorry; }

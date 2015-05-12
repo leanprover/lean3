@@ -31,6 +31,13 @@ public:
     optional<unsigned> const & get_k() const { return m_relative; }
 };
 
+/** \brief Return the list of declarations performed in the current module */
+list<name> const & get_curr_module_decl_names(environment const & env);
+/** \brief Return the list of universes declared in the current module */
+list<name> const & get_curr_module_univ_names(environment const & env);
+/** \brief Return the list of modules directly imported by the current module */
+list<module_name> const & get_curr_module_imports(environment const & env);
+
 /** \brief Return an environment based on \c env, where all modules in \c modules are imported.
     Modules included directly or indirectly by them are also imported.
     The environment \c env is usually an empty environment.
@@ -69,7 +76,7 @@ typedef std::function<environment(environment const & env, io_state const & ios)
      2- Asynchronous update using add_asynch_update.
      3- Delayed update using add_delayed_update.
 */
-typedef void (*module_object_reader)(deserializer & d, module_idx midx, shared_environment & senv,
+typedef void (*module_object_reader)(deserializer & d, shared_environment & senv,
                                      std::function<void(asynch_update_fn const &)> & add_asynch_update,
                                      std::function<void(delayed_update_fn const &)> & add_delayed_update);
 
@@ -85,7 +92,7 @@ namespace module {
 
     \see module_object_reader
 */
-environment add(environment const & env, std::string const & k, std::function<void(serializer &)> const & writer);
+environment add(environment const & env, std::string const & k, std::function<void(environment const &, serializer &)> const & writer);
 
 /** \brief Add the global universe declaration to the environment, and mark it to be exported. */
 environment add_universe(environment const & env, name const & l);
@@ -108,6 +115,9 @@ environment add_inductive(environment                  env,
 
 /** \brief The following function must be invoked to register the quotient type computation rules in the kernel. */
 environment declare_quotient(environment const & env);
+
+/** \brief The following function must be invoked to register the builtin HITs in the kernel. */
+environment declare_hits(environment const & env);
 
 /**
    \brief Declare a single inductive datatype. This is just a helper function implemented on top of

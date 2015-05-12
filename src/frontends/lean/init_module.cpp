@@ -15,6 +15,7 @@ Author: Leonardo de Moura
 #include "frontends/lean/begin_end_ext.h"
 #include "frontends/lean/builtin_cmds.h"
 #include "frontends/lean/builtin_exprs.h"
+#include "frontends/lean/builtin_tactics.h"
 #include "frontends/lean/inductive_cmd.h"
 #include "frontends/lean/structure_cmd.h"
 #include "frontends/lean/migrate_cmd.h"
@@ -27,6 +28,8 @@ Author: Leonardo de Moura
 #include "frontends/lean/scanner.h"
 #include "frontends/lean/pp.h"
 #include "frontends/lean/server.h"
+#include "frontends/lean/local_ref_info.h"
+#include "frontends/lean/obtain_expr.h"
 
 namespace lean {
 void initialize_frontend_lean_module() {
@@ -36,6 +39,7 @@ void initialize_frontend_lean_module() {
     initialize_parse_table();
     initialize_builtin_cmds();
     initialize_builtin_exprs();
+    initialize_builtin_tactics();
     initialize_elaborator_context();
     initialize_elaborator();
     initialize_scanner();
@@ -53,8 +57,12 @@ void initialize_frontend_lean_module() {
     initialize_calc_proof_elaborator();
     initialize_server();
     initialize_find_cmd();
+    initialize_local_ref_info();
+    initialize_obtain_expr();
 }
 void finalize_frontend_lean_module() {
+    finalize_obtain_expr();
+    finalize_local_ref_info();
     finalize_find_cmd();
     finalize_server();
     finalize_calc_proof_elaborator();
@@ -72,6 +80,7 @@ void finalize_frontend_lean_module() {
     finalize_scanner();
     finalize_elaborator();
     finalize_elaborator_context();
+    finalize_builtin_tactics();
     finalize_builtin_exprs();
     finalize_builtin_cmds();
     finalize_parse_table();

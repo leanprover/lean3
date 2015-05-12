@@ -1,5 +1,5 @@
 /*
-Copyright (c) 2014 Microsoft Corporation. All rights reserved.
+Copyright (c) 2014-2015 Microsoft Corporation. All rights reserved.
 Released under Apache 2.0 license as described in the file LICENSE.
 
 Author: Leonardo de Moura
@@ -21,6 +21,7 @@ Author: Leonardo de Moura
 #include "util/name_map.h"
 #include "kernel/type_checker.h"
 #include "kernel/quotient/quotient.h"
+#include "kernel/hits/hits.h"
 #include "library/module.h"
 #include "library/sorry.h"
 #include "library/kernel_serializer.h"
@@ -36,11 +37,13 @@ corrupted_file_exception::corrupted_file_exception(std::string const & fname):
     exception(sstream() << "failed to import '" << fname << "', file is corrupted, please regenerate the file from sources") {
 }
 
-typedef pair<std::string, std::function<void(serializer &)>> writer;
+typedef pair<std::string, std::function<void(environment const &, serializer &)>> writer;
 
 struct module_ext : public environment_extension {
     list<module_name> m_direct_imports;
     list<writer>      m_writers;
+    list<name>        m_module_univs;
+    list<name>        m_module_decls;
     name_set          m_module_defs;
     // auxiliary information for detecting whether
     // directly imported files have changed
@@ -64,6 +67,18 @@ static environment update(environment const & env, module_ext const & ext) {
 }
 
 list<module_name> get_direct_imports(environment const & env) {
+    return get_extension(env).m_direct_imports;
+}
+
+list<name> const & get_curr_module_decl_names(environment const & env) {
+    return get_extension(env).m_module_decls;
+}
+
+list<name> const & get_curr_module_univ_names(environment const & env) {
+    return get_extension(env).m_module_univs;
+}
+
+list<module_name> const & get_curr_module_imports(environment const & env) {
     return get_extension(env).m_direct_imports;
 }
 
@@ -131,7 +146,7 @@ void export_module(std::ostream & out, environment const & env) {
     // store objects
     for (auto p : writers) {
         s1 << p->first;
-        p->second(s1);
+        p->second(env, s1);
     }
     s1 << g_olean_end_file;
 
@@ -164,9 +179,10 @@ static std::string * g_glvl_key  = nullptr;
 static std::string * g_decl_key  = nullptr;
 static std::string * g_inductive = nullptr;
 static std::string * g_quotient  = nullptr;
+static std::string * g_hits      = nullptr;
 
 namespace module {
-environment add(environment const & env, std::string const & k, std::function<void(serializer &)> const & wr) {
+environment add(environment const & env, std::string const & k, std::function<void(environment const &, serializer &)> const & wr) {
     module_ext ext = get_extension(env);
     ext.m_writers  = cons(writer(k, wr), ext.m_writers);
     return update(env, ext);
@@ -174,30 +190,41 @@ environment add(environment const & env, std::string const & k, std::function<vo
 
 environment add_universe(environment const & env, name const & l) {
     environment new_env = env.add_universe(l);
-    return add(new_env, *g_glvl_key, [=](serializer & s) { s << l; });
+    module_ext ext = get_extension(env);
+    ext.m_module_univs = cons(l, ext.m_module_univs);
+    new_env = update(new_env, ext);
+    return add(new_env, *g_glvl_key, [=](environment const &, serializer & s) { s << l; });
 }
 
 environment update_module_defs(environment const & env, declaration const & d) {
     if (d.is_definition() && !d.is_theorem()) {
         module_ext ext = get_extension(env);
+        ext.m_module_decls = cons(d.get_name(), ext.m_module_decls);
         ext.m_module_defs.insert(d.get_name());
         return update(env, ext);
     } else {
-        return env;
+        module_ext ext = get_extension(env);
+        ext.m_module_decls = cons(d.get_name(), ext.m_module_decls);
+        return update(env, ext);
     }
+}
+
+static environment export_decl(environment const & env, declaration const & d) {
+    name n = d.get_name();
+    return add(env, *g_decl_key, [=](environment const & env, serializer & s) {
+            s << env.get(n);
+        });
 }
 
 environment add(environment const & env, certified_declaration const & d) {
     environment new_env = env.add(d);
     declaration _d = d.get_declaration();
-    new_env = update_module_defs(new_env, _d);
-    return add(new_env, *g_decl_key, [=](serializer & s) { s << _d; });
+    return export_decl(update_module_defs(new_env, _d), _d);
 }
 
 environment add(environment const & env, declaration const & d) {
     environment new_env = env.add(d);
-    new_env = update_module_defs(new_env, d);
-    return add(new_env, *g_decl_key, [=](serializer & s) { s << d; });
+    return export_decl(update_module_defs(new_env, d), d);
 }
 
 bool is_definition(environment const & env, name const & n) {
@@ -207,14 +234,27 @@ bool is_definition(environment const & env, name const & n) {
 
 environment declare_quotient(environment const & env) {
     environment new_env = ::lean::declare_quotient(env);
-    return add(new_env, *g_quotient, [=](serializer &) {});
+    return add(new_env, *g_quotient, [=](environment const &, serializer &) {});
 }
 
-static void quotient_reader(deserializer &, module_idx, shared_environment & senv,
+static void quotient_reader(deserializer &, shared_environment & senv,
                             std::function<void(asynch_update_fn const &)>  &,
                             std::function<void(delayed_update_fn const &)> &) {
     senv.update([&](environment const & env) {
             return ::lean::declare_quotient(env);
+        });
+}
+
+environment declare_hits(environment const & env) {
+    environment new_env = ::lean::declare_hits(env);
+    return add(new_env, *g_hits, [=](environment const &, serializer &) {});
+}
+
+static void hits_reader(deserializer &, shared_environment & senv,
+                        std::function<void(asynch_update_fn const &)>  &,
+                        std::function<void(delayed_update_fn const &)> &) {
+    senv.update([&](environment const & env) {
+            return ::lean::declare_hits(env);
         });
 }
 
@@ -223,12 +263,15 @@ environment add_inductive(environment                  env,
                           unsigned                     num_params,
                           list<inductive::inductive_decl> const & decls) {
     environment new_env = inductive::add_inductive(env, level_params, num_params, decls);
-    return add(new_env, *g_inductive, [=](serializer & s) {
+    module_ext ext = get_extension(env);
+    ext.m_module_decls = cons(inductive::inductive_decl_name(head(decls)), ext.m_module_decls);
+    new_env = update(new_env, ext);
+    return add(new_env, *g_inductive, [=](environment const &, serializer & s) {
             s << inductive_decls(level_params, num_params, decls);
         });
 }
 
-static void inductive_reader(deserializer & d, module_idx, shared_environment & senv,
+static void inductive_reader(deserializer & d, shared_environment & senv,
                              std::function<void(asynch_update_fn const &)>  &,
                              std::function<void(delayed_update_fn const &)> &) {
     inductive_decls ds = read_inductive_decls(d);
@@ -244,7 +287,7 @@ environment add_inductive(environment const & env, name const & ind_name, level_
 } // end of namespace module
 
 struct import_modules_fn {
-    typedef std::tuple<module_idx, unsigned, delayed_update_fn> delayed_update;
+    typedef std::tuple<unsigned, unsigned, delayed_update_fn> delayed_update;
     shared_environment             m_senv;
     unsigned                       m_num_threads;
     bool                           m_keep_proofs;
@@ -329,7 +372,7 @@ struct import_modules_fn {
             module_info_ptr r = std::make_shared<module_info>();
             r->m_fname        = fname;
             r->m_counter      = 0;
-            r->m_module_idx   = g_null_module_idx;
+            r->m_module_idx   = 0;
             m_import_counter++;
             std::string new_base = dirname(fname.c_str());
             std::swap(r->m_obj_code, code);
@@ -369,9 +412,8 @@ struct import_modules_fn {
         return mk_axiom(decl.get_name(), decl.get_univ_params(), decl.get_type());
     }
 
-    void import_decl(deserializer & d, module_idx midx) {
-        declaration decl = read_declaration(d, midx);
-        lean_assert(!decl.is_definition() || decl.get_module_idx() == midx);
+    void import_decl(deserializer & d) {
+        declaration decl = read_declaration(d);
         environment env  = m_senv.env();
         decl = unfold_untrusted_macros(env, decl);
         if (decl.get_name() == get_sorry_name() && has_sorry(env))
@@ -427,7 +469,7 @@ struct import_modules_fn {
             if (k == g_olean_end_file) {
                 break;
             } else if (k == *g_decl_key) {
-                import_decl(d, r->m_module_idx);
+                import_decl(d);
             } else if (k == *g_glvl_key) {
                 import_universe(d);
             } else {
@@ -435,7 +477,7 @@ struct import_modules_fn {
                 auto it = readers.find(k);
                 if (it == readers.end())
                     throw exception(sstream() << "file '" << r->m_fname << "' has been corrupted, unknown object");
-                it->second(d, r->m_module_idx, m_senv, add_asynch_update, add_delayed_update);
+                it->second(d, m_senv, add_asynch_update, add_delayed_update);
             }
             obj_counter++;
         }
@@ -576,13 +618,16 @@ void initialize_module() {
     g_decl_key       = new std::string("decl");
     g_inductive      = new std::string("ind");
     g_quotient       = new std::string("quot");
+    g_hits           = new std::string("hits");
     register_module_object_reader(*g_inductive, module::inductive_reader);
     register_module_object_reader(*g_quotient, module::quotient_reader);
+    register_module_object_reader(*g_hits, module::hits_reader);
 }
 
 void finalize_module() {
     delete g_inductive;
     delete g_quotient;
+    delete g_hits;
     delete g_decl_key;
     delete g_glvl_key;
     delete g_object_readers;

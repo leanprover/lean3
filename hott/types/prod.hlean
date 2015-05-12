@@ -9,7 +9,7 @@ Ported from Coq HoTT
 Theorems about products
 -/
 
-open eq equiv is_equiv is_trunc prod
+open eq equiv is_equiv is_trunc prod prod.ops
 
 variables {A A' B B' C D : Type}
           {a a' a'' : A} {b b₁ b₂ b' b'' : B} {u v w : A × B}
@@ -25,11 +25,11 @@ namespace prod
 
   definition prod_eq (H₁ : pr₁ u = pr₁ v) (H₂ : pr₂ u = pr₂ v) : u = v :=
   begin
-    cases u with [a₁, b₁],
-    cases v with [a₂, b₂],
-    apply (transport _ (eta (a₁, b₁))),
-    apply (transport _ (eta (a₂, b₂))),
-    apply (pair_eq H₁ H₂),
+    cases u with a₁ b₁,
+    cases v with a₂ b₂,
+    apply transport _ (eta (a₁, b₁)),
+    apply transport _ (eta (a₂, b₂)),
+    apply pair_eq H₁ H₂,
   end
 
   /- Symmetry -/

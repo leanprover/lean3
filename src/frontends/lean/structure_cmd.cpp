@@ -18,6 +18,7 @@ Author: Leonardo de Moura
 #include "kernel/error_msgs.h"
 #include "kernel/inductive/inductive.h"
 #include "library/scoped_ext.h"
+#include "library/normalize.h"
 #include "library/placeholder.h"
 #include "library/locals.h"
 #include "library/reducible.h"
@@ -112,7 +113,7 @@ struct structure_cmd_fn {
     bool                        m_gen_proj_mk;
 
     structure_cmd_fn(parser & p):m_p(p), m_env(p.env()), m_ngen(p.mk_ngen()), m_namespace(get_namespace(m_env)) {
-        m_tc = mk_type_checker(m_env, m_p.mk_ngen(), false);
+        m_tc = mk_type_checker(m_env, m_p.mk_ngen());
         m_infer_result_universe = false;
         m_gen_eta     = get_structure_eta_thm(p.get_options());
         m_gen_proj_mk = get_structure_proj_mk_thm(p.get_options());
@@ -717,14 +718,14 @@ struct structure_cmd_fn {
     }
 
     void add_rec_on_alias(name const & n) {
-        bool opaque = false;
         name rec_on_name(m_name, "rec_on");
         declaration rec_on_decl = m_env.get(rec_on_name);
         declaration new_decl = mk_definition(m_env, n, rec_on_decl.get_univ_params(),
-                                             rec_on_decl.get_type(), rec_on_decl.get_value(),
-                                             opaque);
+                                             rec_on_decl.get_type(), rec_on_decl.get_value());
         m_env = module::add(m_env, check(m_env, new_decl));
         m_env = set_reducible(m_env, n, reducible_status::Reducible);
+        if (optional<unsigned> idx = has_unfold_c_hint(m_env, rec_on_name))
+            m_env = add_unfold_c_hint(m_env, n, *idx);
         save_def_info(n);
         add_alias(n);
     }
@@ -814,10 +815,7 @@ struct structure_cmd_fn {
             }
             coercion_value                 = Fun(m_params, Fun(st, coercion_value));
             name coercion_name             = coercion_names[i];
-
-            bool opaque                    = false;
-            declaration coercion_decl      = mk_definition(m_env, coercion_name, lnames, coercion_type, coercion_value,
-                                                           opaque);
+            declaration coercion_decl      = mk_definition(m_env, coercion_name, lnames, coercion_type, coercion_value);
             m_env = module::add(m_env, check(m_env, coercion_decl));
             m_env = set_reducible(m_env, coercion_name, reducible_status::Reducible);
             save_def_info(coercion_name);
@@ -859,7 +857,7 @@ struct structure_cmd_fn {
         expr eta_value           = Fun(m_params, Fun(st, rec));
         name eta_name(m_name, "eta");
 
-        declaration eta_decl     = mk_theorem(eta_name, lnames, eta_type, eta_value);
+        declaration eta_decl     = mk_theorem(m_env, eta_name, lnames, eta_type, eta_value);
         m_env = module::add(m_env, check(m_env, eta_decl));
         save_thm_info(eta_name);
         add_alias(eta_name);
@@ -890,7 +888,7 @@ struct structure_cmd_fn {
             expr proj_over_type     = infer_implicit(Pi(m_params, Pi(m_fields, eq)), m_params.size(), true);
             expr proj_over_value    = Fun(m_params, Fun(m_fields, refl));
 
-            declaration proj_over_decl = mk_theorem(proj_over_name, lnames, proj_over_type, proj_over_value);
+            declaration proj_over_decl = mk_theorem(m_env, proj_over_name, lnames, proj_over_type, proj_over_value);
             m_env = module::add(m_env, check(m_env, proj_over_decl));
             save_thm_info(proj_over_name);
             add_alias(proj_over_name);
@@ -990,7 +988,7 @@ class structure_instance_macro_cell : public macro_definition_cell {
 public:
     structure_instance_macro_cell(list<name> const & fs):m_fields(fs) {}
     virtual name get_name() const { return *g_structure_instance_name; }
-    virtual pair<expr, constraint_seq> get_type(expr const &, extension_context &) const { throw_se_ex(); }
+    virtual pair<expr, constraint_seq> check_type(expr const &, extension_context &, bool) const { throw_se_ex(); }
     virtual optional<expr> expand(expr const &, extension_context &) const { throw_se_ex(); }
     virtual void write(serializer & s) const {
         s << *g_structure_instance_opcode;

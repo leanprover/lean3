@@ -17,10 +17,11 @@ open eq function
 -- This is our definition of equivalence. In the HoTT-book it's called
 -- ihae (half-adjoint equivalence).
 structure is_equiv [class] {A B : Type} (f : A → B) :=
+mk' ::
   (inv : B → A)
-  (retr : (f ∘ inv) ∼ id)
-  (sect : (inv ∘ f) ∼ id)
-  (adj : Πx, retr (f x) = ap f (sect x))
+  (right_inv : (f ∘ inv) ∼ id)
+  (left_inv : (inv ∘ f) ∼ id)
+  (adj : Πx, right_inv (f x) = ap f (left_inv x))
 
 attribute is_equiv.inv [quasireducible]
 
@@ -33,24 +34,27 @@ structure equiv (A B : Type) :=
 namespace is_equiv
   /- Some instances and closure properties of equivalences -/
   postfix `⁻¹` := inv
-  --a second notation for the inverse, which is not overloaded
+  /- a second notation for the inverse, which is not overloaded -/
   postfix [parsing-only] `⁻¹ᵉ`:std.prec.max_plus := inv
 
   section
   variables {A B C : Type} (f : A → B) (g : B → C) {f' : A → B}
 
+  -- The variant of mk' where f is explicit.
+  protected abbreviation mk := @is_equiv.mk' A B f
+
   -- The identity function is an equivalence.
-  -- TODO: make A explicit
-  definition is_equiv_id : (@is_equiv A A id) := is_equiv.mk id (λa, idp) (λa, idp) (λa, idp)
+  definition is_equiv_id (A : Type) : (@is_equiv A A id) :=
+  is_equiv.mk id id (λa, idp) (λa, idp) (λa, idp)
 
   -- The composition of two equivalences is, again, an equivalence.
   definition is_equiv_compose [Hf : is_equiv f] [Hg : is_equiv g] : is_equiv (g ∘ f) :=
-    is_equiv.mk ((inv f) ∘ (inv g))
-               (λc, ap g (retr f (g⁻¹ c)) ⬝ retr g c)
-               (λa, ap (inv f) (sect g (f a)) ⬝ sect f a)
+    is_equiv.mk (g ∘ f) (f⁻¹ ∘ g⁻¹)
+               (λc, ap g (right_inv f (g⁻¹ c)) ⬝ right_inv g c)
+               (λa, ap (inv f) (left_inv g (f a)) ⬝ left_inv f a)
                (λa, (whisker_left _ (adj g (f a))) ⬝
                     (ap_con g _ _)⁻¹ ⬝
-                    ap02 g ((ap_con_eq_con (retr f) (sect g (f a)))⁻¹ ⬝
+                    ap02 g ((ap_con_eq_con (right_inv f) (left_inv g (f a)))⁻¹ ⬝
                             (ap_compose (inv f) f _ ◾  adj f a) ⬝
                             (ap_con f _ _)⁻¹
                            ) ⬝
@@ -58,19 +62,20 @@ namespace is_equiv
                )
 
   -- Any function equal to an equivalence is an equivlance as well.
+  variable {f}
   definition is_equiv_eq_closed [Hf : is_equiv f] (Heq : f = f') : (is_equiv f') :=
      eq.rec_on Heq Hf
 
   -- Any function pointwise equal to an equivalence is an equivalence as well.
   definition homotopy_closed [Hf : is_equiv f] (Hty : f ∼ f') : (is_equiv f') :=
-    let sect' := (λ b, (Hty (inv f b))⁻¹ ⬝ retr f b) in
-    let retr' := (λ a, (ap (inv f) (Hty a))⁻¹ ⬝ sect f a) in
+    let sect' := (λ b, (Hty (inv f b))⁻¹ ⬝ right_inv f b) in
+    let retr' := (λ a, (ap (inv f) (Hty a))⁻¹ ⬝ left_inv f a) in
     let adj' := (λ (a : A),
       let ff'a := Hty a in
       let invf := inv f in
-      let secta := sect f a in
-      let retrfa := retr f (f a) in
-      let retrf'a := retr f (f' a) in
+      let secta := left_inv f a in
+      let retrfa := right_inv f (f a) in
+      let retrf'a := right_inv f (f' a) in
       have eq1 : _ = _,
         from calc ap f secta ⬝ ff'a
               = retrfa ⬝ ff'a                 : by rewrite adj
@@ -78,7 +83,7 @@ namespace is_equiv
           ... = ap f (ap invf ff'a) ⬝ retrf'a : by rewrite ap_compose,
       have eq2 : _ = _,
         from calc retrf'a
-              = (ap f (ap invf ff'a))⁻¹ ⬝ (ap f secta ⬝ ff'a)   : eq_inv_con_of_con_eq _ _ _ eq1⁻¹
+              = (ap f (ap invf ff'a))⁻¹ ⬝ (ap f secta ⬝ ff'a)   : eq_inv_con_of_con_eq eq1⁻¹
           ... = (ap f (ap invf ff'a))⁻¹ ⬝ (ap f secta ⬝ Hty a) : ap_inv invf ff'a
           ... = (ap f (ap invf ff'a))⁻¹ ⬝ (Hty (invf (f a)) ⬝ ap f' secta) : by rewrite ap_con_eq_con_ap
           ... = ((ap f (ap invf ff'a))⁻¹ ⬝ Hty (invf (f a))) ⬝ ap f' secta : by rewrite con.assoc
@@ -88,14 +93,14 @@ namespace is_equiv
           ... = Hty (invf (f' a)) ⬝ ((ap f' (ap invf ff'a))⁻¹ ⬝ ap f' secta) : by rewrite con.assoc,
       have eq3 : _ = _,
         from calc (Hty (invf (f' a)))⁻¹ ⬝ retrf'a
-              = (ap f' (ap invf ff'a))⁻¹ ⬝ ap f' secta : inv_con_eq_of_eq_con _ _ _ eq2
+              = (ap f' (ap invf ff'a))⁻¹ ⬝ ap f' secta : inv_con_eq_of_eq_con eq2
           ... = (ap f' (ap invf ff'a)⁻¹) ⬝ ap f' secta : by rewrite ap_inv
           ... = ap f' ((ap invf ff'a)⁻¹ ⬝ secta)       : by rewrite ap_con,
     eq3) in
-  is_equiv.mk (inv f) sect' retr' adj'
+  is_equiv.mk f' (inv f) sect' retr' adj'
   end
 
-  context
+  section
   parameters {A B : Type} (f : A → B) (g : B → A)
             (ret : f ∘ g ∼ id) (sec : g ∘ f ∼ id)
 
@@ -119,7 +124,7 @@ namespace is_equiv
         from !con_idp ⬝ eq1,
       have eq3 : idp = _,
         from calc idp
-              = (ap f (sec a))⁻¹ ⬝ ((ret fgfa)⁻¹ ⬝ (fgretrfa ⬝ ap f (sec a))) : eq_inv_con_of_con_eq _ _ _ eq2
+              = (ap f (sec a))⁻¹ ⬝ ((ret fgfa)⁻¹ ⬝ (fgretrfa ⬝ ap f (sec a))) : eq_inv_con_of_con_eq eq2
           ... = ((ap f (sec a))⁻¹ ⬝ (ret fgfa)⁻¹) ⬝ (fgretrfa ⬝ ap f (sec a)) : by rewrite con.assoc'
           ... = (ap f (sec a)⁻¹ ⬝ (ret fgfa)⁻¹) ⬝ (fgretrfa ⬝ ap f (sec a))   : by rewrite ap_inv
           ... = ((ap f (sec a)⁻¹ ⬝ (ret fgfa)⁻¹) ⬝ fgretrfa) ⬝ ap f (sec a)   : by rewrite con.assoc'
@@ -130,11 +135,10 @@ namespace is_equiv
           ... = retrfa⁻¹ ⬝ (ap f (ap g (ap f (sec a)⁻¹) ⬝ ap g (ret (f a))) ⬝ ap f (sec a)) : by rewrite con.assoc'
           ... = retrfa⁻¹ ⬝ ap f ((ap g (ap f (sec a)⁻¹) ⬝ ap g (ret (f a))) ⬝ sec a)        : by rewrite -ap_con,
       have eq4 : ret (f a) = ap f ((ap g (ap f (sec a)⁻¹) ⬝ ap g (ret (f a))) ⬝ sec a),
-        from eq_of_idp_eq_inv_con _ _ eq3,
+        from eq_of_idp_eq_inv_con eq3,
       eq4)
 
-  definition adjointify : is_equiv f :=
-    is_equiv.mk g ret adjointify_sect' adjointify_adj'
+  definition adjointify : is_equiv f := is_equiv.mk f g ret adjointify_sect' adjointify_adj'
 
   end
 
@@ -143,30 +147,30 @@ namespace is_equiv
   include Hf
 
   --The inverse of an equivalence is, again, an equivalence.
-  definition is_equiv_inv [instance] : (is_equiv f⁻¹) :=
-  adjointify f⁻¹ f (sect f) (retr f)
+  definition is_equiv_inv [instance] : is_equiv f⁻¹ :=
+  adjointify f⁻¹ f (left_inv f) (right_inv f)
 
   definition cancel_right (g : B → C) [Hgf : is_equiv (g ∘ f)] : (is_equiv g) :=
   have Hfinv [visible] : is_equiv f⁻¹, from is_equiv_inv f,
-  @homotopy_closed _ _ _ _ (is_equiv_compose f⁻¹ (g ∘ f)) (λb, ap g (@retr _ _ f _ b))
+  @homotopy_closed _ _ _ _ (is_equiv_compose f⁻¹ (g ∘ f)) (λb, ap g (@right_inv _ _ f _ b))
 
   definition cancel_left (g : C → A) [Hgf : is_equiv (f ∘ g)] : (is_equiv g) :=
   have Hfinv [visible] : is_equiv f⁻¹, from is_equiv_inv f,
-  @homotopy_closed _ _ _ _ (is_equiv_compose (f ∘ g) f⁻¹) (λa, sect f (g a))
+  @homotopy_closed _ _ _ _ (is_equiv_compose (f ∘ g) f⁻¹) (λa, left_inv f (g a))
 
   definition is_equiv_ap [instance] (x y : A) : is_equiv (ap f) :=
     adjointify (ap f)
-      (λq, (inverse (sect f x)) ⬝ ap f⁻¹ q ⬝ sect f y)
+      (λq, (inverse (left_inv f x)) ⬝ ap f⁻¹ q ⬝ left_inv f y)
       (λq, !ap_con
         ⬝ whisker_right !ap_con _
         ⬝ ((!ap_inv ⬝ inverse2 (adj f _)⁻¹)
           ◾ (inverse (ap_compose f⁻¹ f _))
           ◾ (adj f _)⁻¹)
-        ⬝ con_ap_con_eq_con_con (retr f) _ _
+        ⬝ con_ap_con_eq_con_con (right_inv f) _ _
         ⬝ whisker_right !con.left_inv _
         ⬝ !idp_con)
       (λp, whisker_right (whisker_left _ (ap_compose f f⁻¹ _)⁻¹) _
-        ⬝ con_ap_con_eq_con_con (sect f) _ _
+        ⬝ con_ap_con_eq_con_con (left_inv f) _ _
         ⬝ whisker_right !con.left_inv _
         ⬝ !idp_con)
 
@@ -180,15 +184,15 @@ namespace is_equiv
 
   definition equiv_rect (P : B → Type) :
       (Πx, P (f x)) → (Πy, P y) :=
-    (λg y, eq.transport _ (retr f y) (g (f⁻¹ y)))
+    (λg y, eq.transport _ (right_inv f y) (g (f⁻¹ y)))
 
   definition equiv_rect_comp (P : B → Type)
       (df : Π (x : A), P (f x)) (x : A) : equiv_rect f P df (f x) = df x :=
     calc equiv_rect f P df (f x)
-          = transport P (retr f (f x)) (df (f⁻¹ (f x)))       : by esimp
-      ... = transport P (eq.ap f (sect f x)) (df (f⁻¹ (f x))) : by rewrite adj
-      ... = transport (P ∘ f) (sect f x) (df (f⁻¹ (f x)))     : by rewrite -transport_compose
-      ... = df x                                              : by rewrite (apD df (sect f x))
+          = transport P (right_inv f (f x)) (df (f⁻¹ (f x)))       : by esimp
+      ... = transport P (eq.ap f (left_inv f x)) (df (f⁻¹ (f x))) : by rewrite adj
+      ... = transport (P ∘ f) (left_inv f x) (df (f⁻¹ (f x)))     : by rewrite -transport_compose
+      ... = df x                                              : by rewrite (apd df (left_inv f x))
 
   end
 
@@ -198,27 +202,35 @@ namespace is_equiv
 
   --Rewrite rules
   definition eq_of_eq_inv (p : a = f⁻¹ b) : f a = b :=
-  ap f p ⬝ retr f b
+  ap f p ⬝ right_inv f b
 
   definition eq_of_inv_eq (p : f⁻¹ b = a) : b = f a :=
   (eq_of_eq_inv p⁻¹)⁻¹
 
   definition inv_eq_of_eq (p : b = f a) : f⁻¹ b = a :=
-  ap f⁻¹ p ⬝ sect f a
+  ap f⁻¹ p ⬝ left_inv f a
 
   definition eq_inv_of_eq (p : f a = b) : a = f⁻¹ b :=
   (inv_eq_of_eq p⁻¹)⁻¹
-
   end
 
   --Transporting is an equivalence
   definition is_equiv_tr [instance] {A : Type} (P : A → Type) {x y : A} (p : x = y) : (is_equiv (transport P p)) :=
-    is_equiv.mk (transport P p⁻¹) (tr_inv_tr P p) (inv_tr_tr P p) (tr_inv_tr_lemma P p)
-
+    is_equiv.mk _ (transport P p⁻¹) (tr_inv_tr p) (inv_tr_tr p) (tr_inv_tr_lemma p)
 
 end is_equiv
-
 open is_equiv
+
+namespace eq
+  definition tr_inv_fn {A : Type} {B : A → Type} {a a' : A} (p : a = a') :
+    transport B p⁻¹ = (transport B p)⁻¹ := idp
+  definition tr_inv {A : Type} {B : A → Type} {a a' : A} (p : a = a') (b : B a') :
+    p⁻¹ ▸ b = (transport B p)⁻¹ b := idp
+
+  definition cast_inv_fn {A B : Type} (p : A = B) : cast p⁻¹ = (cast p)⁻¹ := idp
+  definition cast_inv {A B : Type} (p : A = B) (b : B) : cast p⁻¹ b = (cast p)⁻¹ b :=  idp
+end eq
+
 namespace equiv
   namespace ops
     attribute to_fun [coercion]
@@ -231,11 +243,12 @@ namespace equiv
   variables {A B C : Type}
 
   protected definition MK [reducible] (f : A → B) (g : B → A)
-    (retr : f ∘ g ∼ id) (sect : g ∘ f ∼ id) : A ≃ B :=
-  equiv.mk f (adjointify f g retr sect)
+    (right_inv : f ∘ g ∼ id) (left_inv : g ∘ f ∼ id) : A ≃ B :=
+  equiv.mk f (adjointify f g right_inv left_inv)
 
-  definition to_inv [reducible] (f : A ≃ B) : B → A :=
-  f⁻¹
+  definition to_inv [reducible] (f : A ≃ B) : B → A := f⁻¹
+  definition to_right_inv [reducible] (f : A ≃ B) : f ∘ f⁻¹ ∼ id := right_inv f
+  definition to_left_inv [reducible] (f : A ≃ B) : f⁻¹ ∘ f ∼ id := left_inv f
 
   protected definition refl : A ≃ A :=
   equiv.mk id !is_equiv_id
@@ -246,8 +259,8 @@ namespace equiv
   protected definition trans (f : A ≃ B) (g: B ≃ C) : A ≃ C :=
   equiv.mk (g ∘ f) !is_equiv_compose
 
-  definition equiv_of_eq_fn_of_equiv (f : A ≃ B) (f' : A → B) (Heq : f = f') : A ≃ B :=
-  equiv.mk f' (is_equiv_eq_closed f Heq)
+  definition equiv_of_eq_fn_of_equiv (f : A ≃ B) {f' : A → B} (Heq : f = f') : A ≃ B :=
+  equiv.mk f' (is_equiv_eq_closed Heq)
 
   definition eq_equiv_fn_eq (f : A → B) [H : is_equiv f] (a b : A) : (a = b) ≃ (f a = f b) :=
   equiv.mk (ap f) !is_equiv_ap
@@ -264,13 +277,16 @@ namespace equiv
 
   -- calc enviroment
   -- Note: Calculating with substitutions needs univalence
-  definition equiv_of_equiv_of_eq {A B C : Type} (p : A = B) (q : B ≃ C) : A ≃ C := p⁻¹ ▹ q
-  definition equiv_of_eq_of_equiv {A B C : Type} (p : A ≃ B) (q : B = C) : A ≃ C := q   ▹ p
+  definition equiv_of_equiv_of_eq {A B C : Type} (p : A = B) (q : B ≃ C) : A ≃ C := p⁻¹ ▸ q
+  definition equiv_of_eq_of_equiv {A B C : Type} (p : A ≃ B) (q : B = C) : A ≃ C := q   ▸ p
 
-  calc_trans equiv.trans
-  calc_refl equiv.refl
-  calc_symm equiv.symm
-  calc_trans equiv_of_equiv_of_eq
-  calc_trans equiv_of_eq_of_equiv
+  attribute equiv.trans [trans]
+  attribute equiv.refl [refl]
+  attribute equiv.symm [symm]
 
+  namespace ops
+    infixl `⬝e`:75 := equiv.trans
+    postfix `⁻¹e`:(max + 1) := equiv.symm
+    abbreviation erfl := @equiv.refl
+  end ops
 end equiv

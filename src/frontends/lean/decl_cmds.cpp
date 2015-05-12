@@ -27,6 +27,8 @@ Author: Leonardo de Moura
 #include "library/replace_visitor.h"
 #include "library/class.h"
 #include "library/abbreviation.h"
+#include "library/equivalence_manager.h"
+#include "library/user_recursors.h"
 #include "library/unfold_macros.h"
 #include "library/definitional/equations.h"
 #include "library/error_handling/error_handling.h"
@@ -37,7 +39,7 @@ Author: Leonardo de Moura
 
 namespace lean {
 static environment declare_universe(parser & p, environment env, name const & n, bool local) {
-    if (in_context(env) || local) {
+    if (local) {
         p.add_local_level(n, mk_param_univ(n), local);
     } else {
         name const & ns = get_namespace(env);
@@ -125,7 +127,7 @@ static environment declare_var(parser & p, environment env,
     if (_bi) bi = *_bi;
     if (k == variable_kind::Parameter || k == variable_kind::Variable) {
         if (k == variable_kind::Parameter) {
-            check_in_context_or_section(p);
+            check_in_section(p);
             check_parameter_type(p, n, type, pos);
         }
         if (p.get_local(n))
@@ -172,14 +174,37 @@ optional<binder_info> parse_binder_info(parser & p, variable_kind k) {
 }
 
 static void check_variable_kind(parser & p, variable_kind k) {
-    if (in_context(p.env())) {
+    if (in_section(p.env())) {
         if (k == variable_kind::Axiom || k == variable_kind::Constant)
-            throw parser_error("invalid declaration, 'constant/axiom' cannot be used in contexts",
+            throw parser_error("invalid declaration, 'constant/axiom' cannot be used in sections",
                                p.pos());
-    } else if (!in_section(p.env()) && !in_context(p.env()) && k == variable_kind::Parameter) {
+    } else if (!in_section(p.env()) && k == variable_kind::Parameter) {
         throw parser_error("invalid declaration, 'parameter/hypothesis/conjecture' "
-                           "can only be used in contexts and sections", p.pos());
+                           "can only be used in sections", p.pos());
     }
+}
+
+static void update_local_binder_info(parser & p, variable_kind k, name const & n,
+                                     optional<binder_info> const & bi, pos_info const & pos) {
+    binder_info new_bi;
+    if (bi) new_bi = *bi;
+    if (k == variable_kind::Parameter) {
+        if (p.is_local_variable(n))
+            throw parser_error(sstream() << "invalid parameter binder type update, '"
+                               << n << "' is a variable", pos);
+        if (!p.update_local_binder_info(n, new_bi))
+            throw parser_error(sstream() << "invalid parameter binder type update, '"
+                               << n << "' is not a parameter", pos);
+    } else {
+        if (!p.update_local_binder_info(n, new_bi) || !p.is_local_variable(n))
+            throw parser_error(sstream() << "invalid variable binder type update, '"
+                               << n << "' is not a variable", pos);
+    }
+}
+
+static bool curr_is_binder_annotation(parser & p) {
+    return p.curr_is_token(get_lparen_tk()) || p.curr_is_token(get_lcurly_tk()) ||
+           p.curr_is_token(get_ldcurly_tk()) || p.curr_is_token(get_lbracket_tk());
 }
 
 static environment variable_cmd_core(parser & p, variable_kind k, bool is_protected = false) {
@@ -196,12 +221,18 @@ static environment variable_cmd_core(parser & p, variable_kind k, bool is_protec
     parse_univ_params(p, ls_buffer);
     expr type;
     if (!p.curr_is_token(get_colon_tk())) {
-        buffer<expr> ps;
-        unsigned rbp = 0;
-        auto lenv = p.parse_binders(ps, rbp);
-        p.check_token_next(get_colon_tk(), "invalid declaration, ':' expected");
-        type = p.parse_scoped_expr(ps, lenv);
-        type = Pi(ps, type, p);
+        if (!curr_is_binder_annotation(p) && (k == variable_kind::Parameter || k == variable_kind::Variable)) {
+            p.parse_close_binder_info(bi);
+            update_local_binder_info(p, k, n, bi, pos);
+            return p.env();
+        } else {
+            buffer<expr> ps;
+            unsigned rbp = 0;
+            auto lenv = p.parse_binders(ps, rbp);
+            p.check_token_next(get_colon_tk(), "invalid declaration, ':' expected");
+            type = p.parse_scoped_expr(ps, lenv);
+            type = Pi(ps, type, p);
+        }
     } else {
         p.next();
         type = p.parse_expr();
@@ -242,11 +273,29 @@ static environment variables_cmd_core(parser & p, variable_kind k, bool is_prote
 
     optional<binder_info> bi = parse_binder_info(p, k);
     buffer<name> ids;
-    while (!p.curr_is_token(get_colon_tk())) {
-        name id = p.check_id_next("invalid parameters declaration, identifier expected");
+    while (p.curr_is_identifier()) {
+        name id = p.get_name_val();
+        p.next();
         ids.push_back(id);
     }
-    p.next();
+
+    if (p.curr_is_token(get_colon_tk())) {
+        p.next();
+    } else {
+        if (k == variable_kind::Parameter || k == variable_kind::Variable) {
+            p.parse_close_binder_info(bi);
+            for (name const & id : ids) {
+                update_local_binder_info(p, k, id, bi, pos);
+            }
+            if (curr_is_binder_annotation(p))
+                return variables_cmd_core(p, k);
+            else
+                return env;
+        } else {
+            throw parser_error("invalid variables/constants/axioms declaration, ':' expected", pos);
+        }
+    }
+
     optional<parser::local_scope> scope1;
     if (k == variable_kind::Constant || k == variable_kind::Axiom)
         scope1.emplace(p);
@@ -266,8 +315,7 @@ static environment variables_cmd_core(parser & p, variable_kind k, bool is_prote
         new_ls = append(ls, new_ls);
         env = declare_var(p, env, id, new_ls, new_type, k, bi, pos, is_protected);
     }
-    if (p.curr_is_token(get_lparen_tk()) || p.curr_is_token(get_lcurly_tk()) ||
-        p.curr_is_token(get_ldcurly_tk()) || p.curr_is_token(get_lbracket_tk())) {
+    if (curr_is_binder_annotation(p)) {
         if (k == variable_kind::Constant || k == variable_kind::Axiom) {
             // Hack: temporarily update the parser environment.
             // We must do that to be able to process
@@ -307,6 +355,12 @@ struct decl_attributes {
     bool               m_is_parsing_only;
     bool               m_has_multiple_instances;
     bool               m_unfold_f_hint;
+    bool               m_constructor_hint;
+    bool               m_symm;
+    bool               m_trans;
+    bool               m_refl;
+    bool               m_subst;
+    bool               m_recursor;
     optional<unsigned> m_priority;
     optional<unsigned> m_unfold_c_hint;
 
@@ -325,6 +379,12 @@ struct decl_attributes {
         m_is_parsing_only        = false;
         m_has_multiple_instances = false;
         m_unfold_f_hint          = false;
+        m_constructor_hint       = false;
+        m_symm                   = false;
+        m_trans                  = false;
+        m_refl                   = false;
+        m_subst                  = false;
+        m_recursor               = false;
     }
 
     struct elim_choice_fn : public replace_visitor {
@@ -374,10 +434,7 @@ struct decl_attributes {
                 m_is_instance = true;
                 p.next();
             } else if (p.curr_is_token(get_coercion_tk())) {
-                auto pos = p.pos();
                 p.next();
-                if (in_context(p.env()) && m_persistent)
-                    throw parser_error("invalid '[coercion]' attribute, (non local) coercions cannot be defined in contexts", pos);
                 m_is_coercion = true;
             } else if (p.curr_is_token(get_reducible_tk())) {
                 if (m_is_irreducible || m_is_semireducible || m_is_quasireducible)
@@ -432,6 +489,9 @@ struct decl_attributes {
             } else if (p.curr_is_token(get_unfold_f_tk())) {
                 p.next();
                 m_unfold_f_hint = true;
+            } else if (p.curr_is_token(get_constructor_tk())) {
+                p.next();
+                m_constructor_hint = true;
             } else if (p.curr_is_token(get_unfold_c_tk())) {
                 p.next();
                 unsigned r = p.parse_small_nat();
@@ -439,6 +499,21 @@ struct decl_attributes {
                     throw parser_error("invalid '[unfold-c]' attribute, value must be greater than 0", pos);
                 m_unfold_c_hint = r - 1;
                 p.check_token_next(get_rbracket_tk(), "invalid 'unfold-c', ']' expected");
+            } else if (p.curr_is_token(get_symm_tk())) {
+                p.next();
+                m_symm = true;
+            } else if (p.curr_is_token(get_refl_tk())) {
+                p.next();
+                m_refl = true;
+            } else if (p.curr_is_token(get_trans_tk())) {
+                p.next();
+                m_trans = true;
+            } else if (p.curr_is_token(get_subst_tk())) {
+                p.next();
+                m_subst = true;
+            } else if (p.curr_is_token(get_recursor_tk())) {
+                p.next();
+                m_recursor = true;
             } else {
                 break;
             }
@@ -484,6 +559,18 @@ struct decl_attributes {
             if (m_unfold_f_hint)
                 env = add_unfold_f_hint(env, d, m_persistent);
         }
+        if (m_constructor_hint)
+            env = add_constructor_hint(env, d, m_persistent);
+        if (m_symm)
+            env = add_symm(env, d, m_persistent);
+        if (m_refl)
+            env = add_refl(env, d, m_persistent);
+        if (m_trans)
+            env = add_trans(env, d, m_persistent);
+        if (m_subst)
+            env = add_subst(env, d, m_persistent);
+        if (m_recursor)
+            env = add_user_recursor(env, d, m_persistent);
         if (m_is_class)
             env = add_class(env, d, m_persistent);
         if (m_has_multiple_instances)
@@ -779,7 +866,6 @@ class definition_cmd_fn {
     parser &          m_p;
     environment       m_env;
     def_cmd_kind      m_kind;
-    bool              m_is_opaque;
     bool              m_is_private;
     bool              m_is_protected;
     pos_info          m_pos;
@@ -952,10 +1038,10 @@ class definition_cmd_fn {
             local_ls = remove_local_vars(m_p, local_ls);
             if (!locals.empty()) {
                 expr ref = mk_local_ref(m_real_name, local_ls, locals);
-                m_p.add_local_expr(m_name, ref);
+                m_env = m_p.add_local_ref(m_env, m_name, ref);
             } else if (local_ls) {
                 expr ref = mk_constant(m_real_name, local_ls);
-                m_p.add_local_expr(m_name, ref);
+                m_env = m_p.add_local_ref(m_env, m_name, ref);
             }
         } else {
             update_univ_parameters(m_ls_buffer, collect_univ_params(m_value, collect_univ_params(m_type)), m_p);
@@ -979,17 +1065,20 @@ class definition_cmd_fn {
                     c_type  = expand_abbreviations(m_env, unfold_untrusted_macros(m_env, c_type));
                     c_value = expand_abbreviations(m_env, unfold_untrusted_macros(m_env, c_value));
                     if (m_kind == Theorem) {
-                        cd = check(mk_theorem(m_real_name, c_ls, c_type, c_value));
-                        if (!m_p.keep_new_thms()) {
-                            // discard theorem
-                            cd = check(mk_axiom(m_real_name, c_ls, c_type));
+                        cd = check(mk_theorem(m_env, m_real_name, c_ls, c_type, c_value));
+                        if (m_p.keep_new_thms()) {
+                            if (!m_is_private)
+                                m_p.add_decl_index(m_real_name, m_pos, m_p.get_cmd_token(), c_type);
+                            m_p.add_delayed_theorem(*cd);
                         }
+                        cd = check(mk_axiom(m_real_name, c_ls, c_type));
+                        m_env = module::add(m_env, *cd);
                     } else {
-                        cd = check(mk_definition(m_env, m_real_name, c_ls, c_type, c_value, m_is_opaque));
+                        cd = check(mk_definition(m_env, m_real_name, c_ls, c_type, c_value));
+                        if (!m_is_private)
+                            m_p.add_decl_index(m_real_name, m_pos, m_p.get_cmd_token(), c_type);
+                        m_env = module::add(m_env, *cd);
                     }
-                    if (!m_is_private)
-                        m_p.add_decl_index(m_real_name, m_pos, m_p.get_cmd_token(), c_type);
-                    m_env = module::add(m_env, *cd);
                     return true;
                 } catch (exception&) {}
             }
@@ -1064,15 +1153,15 @@ class definition_cmd_fn {
         }
     }
 
-    std::tuple<expr, expr, level_param_names> elaborate_definition(expr const & type, expr const & value, bool is_opaque) {
+    std::tuple<expr, expr, level_param_names> elaborate_definition(expr const & type, expr const & value) {
         if (m_p.profiling()) {
             std::ostringstream msg;
             display_pos(msg);
             msg << " elaboration time for " << m_name;
             timeit timer(m_p.diagnostic_stream().get_stream(), msg.str().c_str());
-            return m_p.elaborate_definition(m_name, type, value, is_opaque);
+            return m_p.elaborate_definition(m_name, type, value);
         } else {
-            return m_p.elaborate_definition(m_name, type, value, is_opaque);
+            return m_p.elaborate_definition(m_name, type, value);
         }
     }
 
@@ -1082,7 +1171,7 @@ class definition_cmd_fn {
     void elaborate_multi() {
         lean_assert(!m_aux_decls.empty());
         level_param_names new_ls;
-        std::tie(m_type, m_value, new_ls) = elaborate_definition(m_type, m_value, m_is_opaque);
+        std::tie(m_type, m_value, new_ls) = elaborate_definition(m_type, m_value);
         new_ls = append(m_ls, new_ls);
         lean_assert(m_aux_types.empty());
         buffer<expr> aux_values;
@@ -1097,15 +1186,14 @@ class definition_cmd_fn {
             aux_values[i]  = expand_abbreviations(m_env, unfold_untrusted_macros(m_env, aux_values[i]));
         }
         if (is_definition()) {
-            m_env = module::add(m_env, check(mk_definition(m_env, m_real_name, new_ls,
-                                                           m_type, m_value, m_is_opaque)));
+            m_env = module::add(m_env, check(mk_definition(m_env, m_real_name, new_ls, m_type, m_value)));
             for (unsigned i = 0; i < aux_values.size(); i++)
                 m_env = module::add(m_env, check(mk_definition(m_env, m_real_aux_names[i], new_ls,
-                                                               m_aux_types[i], aux_values[i], m_is_opaque)));
+                                                               m_aux_types[i], aux_values[i])));
         } else {
-            m_env = module::add(m_env, check(mk_theorem(m_real_name, new_ls, m_type, m_value)));
+            m_env = module::add(m_env, check(mk_theorem(m_env, m_real_name, new_ls, m_type, m_value)));
             for (unsigned i = 0; i < aux_values.size(); i++)
-                m_env = module::add(m_env, check(mk_theorem(m_real_aux_names[i], new_ls,
+                m_env = module::add(m_env, check(mk_theorem(m_env, m_real_aux_names[i], new_ls,
                                                             m_aux_types[i], aux_values[i])));
         }
     }
@@ -1133,28 +1221,27 @@ class definition_cmd_fn {
                     m_p.add_delayed_theorem(m_env, m_real_name, m_ls, type_as_is, m_value);
                     m_env = module::add(m_env, check(mk_axiom(m_real_name, m_ls, m_type)));
                 } else {
-                    std::tie(m_type, m_value, new_ls) = elaborate_definition(type_as_is, m_value, m_is_opaque);
+                    std::tie(m_type, m_value, new_ls) = elaborate_definition(type_as_is, m_value);
                     m_type  = expand_abbreviations(m_env, unfold_untrusted_macros(m_env, m_type));
                     m_value = expand_abbreviations(m_env, unfold_untrusted_macros(m_env, m_value));
                     new_ls = append(m_ls, new_ls);
-                    auto cd = check(mk_theorem(m_real_name, new_ls, m_type, m_value));
+                    auto cd = check(mk_theorem(m_env, m_real_name, new_ls, m_type, m_value));
                     if (m_kind == Theorem) {
                         // Remark: we don't keep examples
-                        if (!m_p.keep_new_thms()) {
-                            // discard theorem
-                            cd = check(mk_axiom(m_real_name, new_ls, m_type));
+                        if (m_p.keep_new_thms()) {
+                            m_p.add_delayed_theorem(cd);
                         }
+                        cd = check(mk_axiom(m_real_name, new_ls, m_type));
                         m_env = module::add(m_env, cd);
                         m_p.cache_definition(m_real_name, pre_type, pre_value, new_ls, m_type, m_value);
                     }
                 }
             } else {
-                std::tie(m_type, m_value, new_ls) = elaborate_definition(m_type, m_value, m_is_opaque);
+                std::tie(m_type, m_value, new_ls) = elaborate_definition(m_type, m_value);
                 new_ls = append(m_ls, new_ls);
                 m_type  = expand_abbreviations(m_env, unfold_untrusted_macros(m_env, m_type));
                 m_value = expand_abbreviations(m_env, unfold_untrusted_macros(m_env, m_value));
-                m_env = module::add(m_env, check(mk_definition(m_env, m_real_name, new_ls,
-                                                               m_type, m_value, m_is_opaque)));
+                m_env = module::add(m_env, check(mk_definition(m_env, m_real_name, new_ls, m_type, m_value)));
                 m_p.cache_definition(m_real_name, pre_type, pre_value, new_ls, m_type, m_value);
             }
         }
@@ -1184,11 +1271,10 @@ class definition_cmd_fn {
     }
 
 public:
-    definition_cmd_fn(parser & p, def_cmd_kind kind, bool is_opaque, bool is_private, bool is_protected):
-        m_p(p), m_env(m_p.env()), m_kind(kind), m_is_opaque(is_opaque),
+    definition_cmd_fn(parser & p, def_cmd_kind kind, bool is_private, bool is_protected):
+        m_p(p), m_env(m_p.env()), m_kind(kind),
         m_is_private(is_private), m_is_protected(is_protected),
         m_pos(p.pos()), m_attributes(true, kind == Abbreviation || kind == LocalAbbreviation) {
-        lean_assert(!(!is_definition() && !m_is_opaque));
         lean_assert(!(m_is_private && m_is_protected));
     }
 
@@ -1214,36 +1300,27 @@ public:
     }
 };
 
-static environment definition_cmd_core(parser & p, def_cmd_kind kind, bool is_opaque, bool is_private, bool is_protected) {
-    return definition_cmd_fn(p, kind, is_opaque, is_private, is_protected)();
+static environment definition_cmd_core(parser & p, def_cmd_kind kind, bool is_private, bool is_protected) {
+    return definition_cmd_fn(p, kind, is_private, is_protected)();
 }
 static environment definition_cmd(parser & p) {
-    return definition_cmd_core(p, Definition, false, false, false);
+    return definition_cmd_core(p, Definition, false, false);
 }
 static environment abbreviation_cmd(parser & p) {
-    return definition_cmd_core(p, Abbreviation, false, false, false);
+    return definition_cmd_core(p, Abbreviation, false, false);
 }
 environment local_abbreviation_cmd(parser & p) {
-    return definition_cmd_core(p, LocalAbbreviation, false, true, false);
-}
-static environment opaque_definition_cmd(parser & p) {
-    p.check_token_next(get_definition_tk(), "invalid 'opaque' definition, 'definition' expected");
-    return definition_cmd_core(p, Definition, true, false, false);
+    return definition_cmd_core(p, LocalAbbreviation, true, false);
 }
 static environment theorem_cmd(parser & p) {
-    return definition_cmd_core(p, Theorem, true, false, false);
+    return definition_cmd_core(p, Theorem, false, false);
 }
 static environment example_cmd(parser & p) {
-    return definition_cmd_core(p, Example, true, false, false);
+    return definition_cmd_core(p, Example, false, false);
 }
 static environment private_definition_cmd(parser & p) {
     def_cmd_kind kind = Definition;
-    bool is_opaque  = false;
-    if (p.curr_is_token_or_id(get_opaque_tk())) {
-        is_opaque = true;
-        p.next();
-        p.check_token_next(get_definition_tk(), "invalid 'private' definition, 'definition' expected");
-    } else if (p.curr_is_token_or_id(get_definition_tk())) {
+    if (p.curr_is_token_or_id(get_definition_tk())) {
         p.next();
     } else if (p.curr_is_token_or_id(get_abbreviation_tk())) {
         kind = Abbreviation;
@@ -1251,11 +1328,10 @@ static environment private_definition_cmd(parser & p) {
     } else if (p.curr_is_token_or_id(get_theorem_tk())) {
         p.next();
         kind = Theorem;
-        is_opaque  = true;
     } else {
         throw parser_error("invalid 'private' definition/theorem, 'definition' or 'theorem' expected", p.pos());
     }
-    return definition_cmd_core(p, kind, is_opaque, true, false);
+    return definition_cmd_core(p, kind, true, false);
 }
 static environment protected_definition_cmd(parser & p) {
     if (p.curr_is_token_or_id(get_axiom_tk())) {
@@ -1272,12 +1348,7 @@ static environment protected_definition_cmd(parser & p) {
         return variables_cmd_core(p, variable_kind::Constant, true);
     } else {
         def_cmd_kind kind = Definition;
-        bool is_opaque  = false;
-        if (p.curr_is_token_or_id(get_opaque_tk())) {
-            is_opaque = true;
-            p.next();
-            p.check_token_next(get_definition_tk(), "invalid 'protected' definition, 'definition' expected");
-        } else if (p.curr_is_token_or_id(get_definition_tk())) {
+        if (p.curr_is_token_or_id(get_definition_tk())) {
             p.next();
         } else if (p.curr_is_token_or_id(get_abbreviation_tk())) {
             p.next();
@@ -1285,11 +1356,10 @@ static environment protected_definition_cmd(parser & p) {
         } else if (p.curr_is_token_or_id(get_theorem_tk())) {
             p.next();
             kind       = Theorem;
-            is_opaque  = true;
         } else {
             throw parser_error("invalid 'protected' definition/theorem, 'definition' or 'theorem' expected", p.pos());
         }
-        return definition_cmd_core(p, kind, is_opaque, false, true);
+        return definition_cmd_core(p, kind, false, true);
     }
 }
 
@@ -1348,6 +1418,16 @@ environment local_attribute_cmd(parser & p) {
     return attribute_cmd_core(p, false);
 }
 
+static environment reveal_cmd(parser & p) {
+    buffer<name> ds;
+    name d          = p.check_constant_next("invalid 'reveal' command, constant expected");
+    ds.push_back(d);
+    while (p.curr_is_identifier()) {
+        ds.push_back(p.check_constant_next("invalid 'reveal' command, constant expected"));
+    }
+    return p.reveal_theorems(ds);
+}
+
 void register_decl_cmds(cmd_table & r) {
     add_cmd(r, cmd_info("universe",     "declare a universe level", universe_cmd));
     add_cmd(r, cmd_info("universes",    "declare universe levels", universes_cmd));
@@ -1361,10 +1441,10 @@ void register_decl_cmds(cmd_table & r) {
     add_cmd(r, cmd_info("axioms",       "declare new axioms", axioms_cmd));
     add_cmd(r, cmd_info("definition",   "add new definition", definition_cmd));
     add_cmd(r, cmd_info("example",      "add new example", example_cmd));
-    add_cmd(r, cmd_info("opaque",       "add new opaque definition", opaque_definition_cmd));
     add_cmd(r, cmd_info("private",      "add new private definition/theorem", private_definition_cmd));
     add_cmd(r, cmd_info("protected",    "add new protected definition/theorem", protected_definition_cmd));
     add_cmd(r, cmd_info("theorem",      "add new theorem", theorem_cmd));
+    add_cmd(r, cmd_info("reveal",       "reveal given theorems", reveal_cmd));
     add_cmd(r, cmd_info("include",      "force section parameter/variable to be included", include_cmd));
     add_cmd(r, cmd_info("attribute",    "set declaration attributes", attribute_cmd));
     add_cmd(r, cmd_info("abbreviation", "declare a new abbreviation", abbreviation_cmd));

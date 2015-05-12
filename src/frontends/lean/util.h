@@ -27,11 +27,7 @@ void check_command_period_or_eof(parser const & p);
 /** \brief Throw and error if the current token is not a command, nor an open binder, nor a '.', nor an end-of-file. */
 void check_command_period_open_binder_or_eof(parser const & p);
 void check_atomic(name const & n);
-void check_in_context(parser const & p);
-void check_in_context_or_section(parser const & p);
-void check_not_in_parametric_section(parser const & p);
-bool in_parametric_section(parser const & p);
-bool in_context_or_parametric_section(parser const & p);
+void check_in_section(parser const & p);
 bool is_root_namespace(name const & n);
 name remove_root_prefix(name const & n);
 /** \brief Return the local levels in \c ls that are not tagged as variables.
@@ -92,14 +88,6 @@ bool occurs(level const & u, level const & l);
 expr univ_metavars_to_params(environment const & env, local_decls<level> const & lls, substitution & s,
                              name_set & ps, buffer<name> & new_ps, expr const & e);
 
-/** \brief Return a justification for \c v_type being definitionally equal to \c t,
-    <tt> v : v_type</tt>, the expressiong \c src is used to extract position information.
-*/
-justification mk_type_mismatch_jst(expr const & v, expr const & v_type, expr const & t, expr const & src);
-inline justification mk_type_mismatch_jst(expr const & v, expr const & v_type, expr const & t) {
-    return mk_type_mismatch_jst(v, v_type, t, v);
-}
-
 /** \brief Auxiliary function for check/eval/find_decl */
 std::tuple<expr, level_param_names> parse_local_expr(parser & p, bool relaxed = true);
 
@@ -115,4 +103,7 @@ environment open_prec_aliases(environment const & env);
 /** \brief Open 'std.priority' aliases */
 environment open_priority_aliases(environment const & env);
 name get_priority_namespace();
+
+char const * open_binder_string(binder_info const & bi, bool unicode);
+char const * close_binder_string(binder_info const & bi, bool unicode);
 }

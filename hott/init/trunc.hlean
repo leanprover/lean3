@@ -5,20 +5,22 @@ Released under Apache 2.0 license as described in the file LICENSE.
 Module: init.trunc
 Authors: Jeremy Avigad, Floris van Doorn
 
-Ported from Coq HoTT.
+Definition of is_trunc (n-truncatedness)
 
-TODO: can we replace some definitions with a hprop as codomain by theorems?
+Ported from Coq HoTT.
 -/
 
+--TODO: can we replace some definitions with a hprop as codomain by theorems?
+
 prelude
-import .logic .equiv .types.empty .types.sigma
+import .logic .equiv .types
 open eq nat sigma unit
 
 namespace is_trunc
 
  /- Truncation levels -/
 
-  inductive trunc_index : Type₁ :=
+  inductive trunc_index : Type₀ :=
   | minus_two : trunc_index
   | succ : trunc_index → trunc_index
 
@@ -36,7 +38,7 @@ namespace is_trunc
   definition add (n m : trunc_index) : trunc_index :=
   trunc_index.rec_on m n (λ k l, l .+1)
 
-  definition leq (n m : trunc_index) : Type₁ :=
+  definition leq (n m : trunc_index) : Type₀ :=
   trunc_index.rec_on n (λm, unit) (λ n p m, trunc_index.rec_on m (λ p, empty) (λ m q p, p m) p) m
   end trunc_index
 
@@ -62,7 +64,8 @@ namespace is_trunc
   -/
 
   structure contr_internal (A : Type) :=
-    (center : A) (contr : Π(a : A), center = a)
+    (center : A)
+    (center_eq : Π(a : A), center = a)
 
   definition is_trunc_internal (n : trunc_index) : Type → Type :=
     trunc_index.rec_on n
@@ -87,49 +90,49 @@ namespace is_trunc
     : is_trunc n.+1 A :=
   is_trunc.mk (λ x y, !is_trunc.to_internal)
 
-  definition is_trunc_eq (n : trunc_index) [H : is_trunc (n.+1) A] (x y : A) : is_trunc n (x = y) :=
+  definition is_trunc_eq [instance] [priority 1200]
+    (n : trunc_index) [H : is_trunc (n.+1) A] (x y : A) : is_trunc n (x = y) :=
   is_trunc.mk (!is_trunc.to_internal x y)
 
   /- contractibility -/
 
-  definition is_contr.mk (center : A) (contr : Π(a : A), center = a) : is_contr A :=
-  is_trunc.mk (contr_internal.mk center contr)
+  definition is_contr.mk (center : A) (center_eq : Π(a : A), center = a) : is_contr A :=
+  is_trunc.mk (contr_internal.mk center center_eq)
 
   definition center (A : Type) [H : is_contr A] : A :=
   @contr_internal.center A !is_trunc.to_internal
 
-  definition contr [H : is_contr A] (a : A) : !center = a :=
-  @contr_internal.contr A !is_trunc.to_internal a
+  definition center_eq [H : is_contr A] (a : A) : !center = a :=
+  @contr_internal.center_eq A !is_trunc.to_internal a
 
-  --TODO: rename
-  definition center_eq [H : is_contr A] (x y : A) : x = y :=
-  (contr x)⁻¹ ⬝ (contr y)
+  definition eq_of_is_contr [H : is_contr A] (x y : A) : x = y :=
+  (center_eq x)⁻¹ ⬝ (center_eq y)
 
   definition hprop_eq_of_is_contr {A : Type} [H : is_contr A] {x y : A} (p q : x = y) : p = q :=
-  have K : ∀ (r : x = y), center_eq x y = r, from (λ r, eq.rec_on r !con.left_inv),
+  have K : ∀ (r : x = y), eq_of_is_contr x y = r, from (λ r, eq.rec_on r !con.left_inv),
   (K p)⁻¹ ⬝ K q
 
   definition is_contr_eq {A : Type} [H : is_contr A] (x y : A) : is_contr (x = y) :=
-  is_contr.mk !center_eq (λ p, !hprop_eq_of_is_contr)
+  is_contr.mk !eq_of_is_contr (λ p, !hprop_eq_of_is_contr)
   local attribute is_contr_eq [instance]
 
   /- truncation is upward close -/
 
   -- n-types are also (n+1)-types
-  definition is_trunc_succ [instance] [priority 100] (A : Type) (n : trunc_index)
+  definition is_trunc_succ [instance] [priority 900] (A : Type) (n : trunc_index)
     [H : is_trunc n A] : is_trunc (n.+1) A :=
   trunc_index.rec_on n
     (λ A (H : is_contr A), !is_trunc_succ_intro)
-    (λ n IH A (H : is_trunc (n.+1) A), @is_trunc_succ_intro _ _ (λ x y, IH _ !is_trunc_eq))
+    (λ n IH A (H : is_trunc (n.+1) A), @is_trunc_succ_intro _ _ (λ x y, IH _ _))
     A H
   --in the proof the type of H is given explicitly to make it available for class inference
 
-  definition is_trunc_of_leq (A : Type) (n m : trunc_index) (Hnm : n ≤ m)
+  definition is_trunc_of_leq.{l} (A : Type.{l}) {n m : trunc_index} (Hnm : n ≤ m)
     [Hn : is_trunc n A] : is_trunc m A :=
   have base : ∀k A, k ≤ -2 → is_trunc k A → (is_trunc -2 A), from
     λ k A, trunc_index.cases_on k
            (λh1 h2, h2)
-           (λk h1 h2, empty.elim (is_trunc -2 A) (trunc_index.empty_of_succ_le_minus_two h1)),
+           (λk h1 h2, empty.elim (trunc_index.empty_of_succ_le_minus_two h1)),
   have step : Π (m : trunc_index)
                 (IHm : Π (n : trunc_index) (A : Type), n ≤ m → is_trunc n A → is_trunc m A)
                 (n : trunc_index) (A : Type)
@@ -137,7 +140,7 @@ namespace is_trunc
     λm IHm n, trunc_index.rec_on n
            (λA Hnm Hn, @is_trunc_succ A m (IHm -2 A star Hn))
            (λn IHn A Hnm (Hn : is_trunc n.+1 A),
-           @is_trunc_succ_intro A m (λx y, IHm n (x = y) (trunc_index.le_of_succ_le_succ Hnm) !is_trunc_eq)),
+           @is_trunc_succ_intro A m (λx y, IHm n (x = y) (trunc_index.le_of_succ_le_succ Hnm) _)),
   trunc_index.rec_on m base step n A Hnm Hn
 
   -- the following cannot be instances in their current form, because they are looping
@@ -146,16 +149,16 @@ namespace is_trunc
 
   definition is_trunc_succ_of_is_hprop (A : Type) (n : trunc_index) [H : is_hprop A]
       : is_trunc (n.+1) A :=
-  is_trunc_of_leq A -1 (n.+1) star
+  is_trunc_of_leq A star
 
   definition is_trunc_succ_succ_of_is_hset (A : Type) (n : trunc_index) [H : is_hset A]
       : is_trunc (n.+2) A :=
-  is_trunc_of_leq A nat.zero (n.+2) star
+  is_trunc_of_leq A star
 
   /- hprops -/
 
   definition is_hprop.elim [H : is_hprop A] (x y : A) : x = y :=
-  @center _ !is_trunc_eq
+  !center
 
   definition is_contr_of_inhabited_hprop {A : Type} [H : is_hprop A] (x : A) : is_contr A :=
   is_contr.mk x (λy, !is_hprop.elim)
@@ -176,11 +179,12 @@ namespace is_trunc
   @is_trunc_succ_intro _ _ (λ x y, is_hprop.mk (H x y))
 
   definition is_hset.elim [H : is_hset A] ⦃x y : A⦄ (p q : x = y) : p = q :=
-  @is_hprop.elim _ !is_trunc_eq p q
+  !is_hprop.elim
 
   /- instances -/
 
-  definition is_contr_sigma_eq [instance] {A : Type} (a : A) : is_contr (Σ(x : A), a = x) :=
+  definition is_contr_sigma_eq [instance] [priority 800] {A : Type} (a : A)
+    : is_contr (Σ(x : A), a = x) :=
   is_contr.mk (sigma.mk a idp) (λp, sigma.rec_on p (λ b q, eq.rec_on q idp))
 
   definition is_contr_unit [instance] : is_contr unit :=
@@ -200,8 +204,12 @@ namespace is_trunc
   abbreviation hprop := -1-Type
   abbreviation hset := 0-Type
 
-  protected definition hprop.mk := @trunctype.mk -1
-  protected definition hset.mk := @trunctype.mk (-1.+1)
+  protected abbreviation hprop.mk := @trunctype.mk -1
+  protected abbreviation hset.mk := @trunctype.mk (-1.+1)
+
+  protected abbreviation trunctype.mk' [parsing-only] (n : trunc_index) (A : Type)
+    [H : is_trunc n A] : n-Type :=
+  trunctype.mk A H
 
   /- interaction with equivalences -/
 
@@ -212,7 +220,7 @@ namespace is_trunc
   --"is_trunc_is_equiv_closed"
   definition is_contr_is_equiv_closed (f : A → B) [Hf : is_equiv f] [HA: is_contr A]
     : (is_contr B) :=
-  is_contr.mk (f (center A)) (λp, eq_of_eq_inv !contr)
+  is_contr.mk (f (center A)) (λp, eq_of_eq_inv !center_eq)
 
   theorem is_contr_equiv_closed (H : A ≃ B) [HA: is_contr A] : is_contr B :=
   @is_contr_is_equiv_closed _ _ (to_fun H) (to_is_equiv H) _
@@ -220,23 +228,31 @@ namespace is_trunc
   definition equiv_of_is_contr_of_is_contr [HA : is_contr A] [HB : is_contr B] : A ≃ B :=
   equiv.mk
     (λa, center B)
-    (is_equiv.adjointify (λa, center B) (λb, center A) contr contr)
+    (is_equiv.adjointify (λa, center B) (λb, center A) center_eq center_eq)
 
   definition is_trunc_is_equiv_closed (n : trunc_index) (f : A → B) [H : is_equiv f]
     [HA : is_trunc n A] : is_trunc n B :=
   trunc_index.rec_on n
     (λA (HA : is_contr A) B f (H : is_equiv f), !is_contr_is_equiv_closed)
     (λn IH A (HA : is_trunc n.+1 A) B f (H : is_equiv f), @is_trunc_succ_intro _ _ (λ x y : B,
-      IH (f⁻¹ x = f⁻¹ y) !is_trunc_eq (x = y) (ap f⁻¹)⁻¹ !is_equiv_inv))
+      IH (f⁻¹ x = f⁻¹ y) _ (x = y) (ap f⁻¹)⁻¹ !is_equiv_inv))
     A HA B f H
+
+  definition is_trunc_is_equiv_closed_rev (n : trunc_index) (f : A → B) [H : is_equiv f]
+    [HA : is_trunc n B] : is_trunc n A :=
+  is_trunc_is_equiv_closed n f⁻¹
 
   definition is_trunc_equiv_closed (n : trunc_index) (f : A ≃ B) [HA : is_trunc n A]
     : is_trunc n B :=
   is_trunc_is_equiv_closed n (to_fun f)
 
+  definition is_trunc_equiv_closed_rev (n : trunc_index) (f : A ≃ B) [HA : is_trunc n B]
+    : is_trunc n A :=
+  is_trunc_is_equiv_closed n (to_inv f)
+
   definition is_equiv_of_is_hprop [HA : is_hprop A] [HB : is_hprop B] (f : A → B) (g : B → A)
     : is_equiv f :=
-  is_equiv.mk g (λb, !is_hprop.elim) (λa, !is_hprop.elim) (λa, !is_hset.elim)
+  is_equiv.mk f g (λb, !is_hprop.elim) (λa, !is_hprop.elim) (λa, !is_hset.elim)
 
   definition equiv_of_is_hprop [HA : is_hprop A] [HB : is_hprop B] (f : A → B) (g : B → A)
     : A ≃ B :=
@@ -249,13 +265,13 @@ namespace is_trunc
 
   /- interaction with the Unit type -/
 
+  open equiv
   -- A contractible type is equivalent to [Unit]. *)
   definition equiv_unit_of_is_contr [H : is_contr A] : A ≃ unit :=
-    equiv.mk (λ (x : A), ⋆)
-      (is_equiv.mk (λ (u : unit), center A)
-        (λ (u : unit), unit.rec_on u idp)
-        (λ (x : A), contr x)
-        (λ (x : A), !ap_constant⁻¹))
+  equiv.MK (λ (x : A), ⋆)
+           (λ (u : unit), center A)
+           (λ (u : unit), unit.rec_on u idp)
+           (λ (x : A), center_eq x)
 
   -- TODO: port "Truncated morphisms"
 

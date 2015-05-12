@@ -11,7 +11,7 @@ Author: Leonardo de Moura
 #include "library/tactic/expr_to_tactic.h"
 
 namespace lean {
-tactic intros_tactic(list<name> _ns, bool relax_main_opaque) {
+tactic intros_tactic(list<name> _ns) {
     auto fn = [=](environment const & env, io_state const &, proof_state const & s) {
         list<name> ns    = _ns;
         goals const & gs = s.get_goals();
@@ -21,7 +21,7 @@ tactic intros_tactic(list<name> _ns, bool relax_main_opaque) {
         }
         goal const & g      = head(gs);
         name_generator ngen = s.get_ngen();
-        auto tc             = mk_type_checker(env, ngen.mk_child(), relax_main_opaque);
+        auto tc             = mk_type_checker(env, ngen.mk_child());
         expr t              = g.get_type();
         expr m              = g.get_meta();
         bool gen_names      = empty(ns);
@@ -60,17 +60,13 @@ tactic intros_tactic(list<name> _ns, bool relax_main_opaque) {
 }
 
 void initialize_intros_tactic() {
-    register_tac(get_tactic_intro_name(),
-                 [](type_checker &, elaborate_fn const &, expr const & e, pos_info_provider const *) {
-                     name const & id = tactic_expr_to_id(app_arg(e), "invalid 'intro' tactic, argument must be an identifier");
-                     return intros_tactic(to_list(id));
-                 });
-    register_tac(get_tactic_intros_name(),
-                 [](type_checker &, elaborate_fn const &, expr const & e, pos_info_provider const *) {
-                     buffer<name> ns;
-                     get_tactic_id_list_elements(app_arg(e), ns, "invalid 'intros' tactic, arguments must be identifiers");
-                     return intros_tactic(to_list(ns.begin(), ns.end()));
-                 });
+    auto fn = [](type_checker &, elaborate_fn const &, expr const & e, pos_info_provider const *) {
+        buffer<name> ns;
+        get_tactic_id_list_elements(app_arg(e), ns, "invalid 'intro' tactic, arguments must be identifiers");
+        return intros_tactic(to_list(ns.begin(), ns.end()));
+    };
+    register_tac(get_tactic_intro_name(), fn);
+    register_tac(get_tactic_intros_name(), fn);
 }
 
 void finalize_intros_tactic() {

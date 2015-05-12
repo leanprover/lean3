@@ -1,10 +1,9 @@
 /-
 Copyright (c) 2015 Leonardo de Moura. All rights reserved.
 Released under Apache 2.0 license as described in the file LICENSE.
-
 Authors: Leonardo de Moura
 
-Finite type (type class)
+Finite type (type class).
 -/
 import data.list data.bool
 open list bool unit decidable option function
@@ -26,11 +25,11 @@ fintype.mk [ff, tt]
 definition fintype_product [instance] {A B : Type} : Π [h₁ : fintype A] [h₂ : fintype B], fintype (A × B)
 | (fintype.mk e₁ u₁ c₁) (fintype.mk e₂ u₂ c₂) :=
   fintype.mk
-    (cross_product e₁ e₂)
-    (nodup_cross_product u₁ u₂)
+    (product e₁ e₂)
+    (nodup_product u₁ u₂)
     (λ p,
       match p with
-      (a, b) := mem_cross_product (c₁ a) (c₂ b)
+      (a, b) := mem_product (c₁ a) (c₂ b)
       end)
 
 /- auxiliary function for finding 'a' s.t. f a ≠ g a -/
@@ -52,7 +51,7 @@ theorem find_discr_cons_of_eq {f g : A → B} {a : A} (l : list A) : f a = g a �
 assume eq, if_pos eq
 
 theorem ne_of_find_discr_eq_some {f g : A → B} {a : A} : ∀ {l}, find_discr f g l = some a → f a ≠ g a
-| []     e := option.no_confusion e
+| []     e := by contradiction
 | (x::l) e := by_cases
   (λ h : f x = g x,
      have aux : find_discr f g l = some a, by rewrite [find_discr_cons_of_eq l h at e]; exact e,
@@ -70,8 +69,7 @@ theorem all_eq_of_find_discr_eq_none {f g : A → B} : ∀ {l}, find_discr f g l
       (λ aeqx : a = x, by rewrite [-aeqx at fx_eq_gx]; exact fx_eq_gx)
       (λ ainl : a ∈ l, all_eq_of_find_discr_eq_none aux a ainl))
   (λ fx_ne_gx : f x ≠ g x,
-    have aux : some x = none, by rewrite [find_discr_cons_of_ne l fx_ne_gx at e]; exact e,
-    option.no_confusion aux)
+    by rewrite [find_discr_cons_of_ne l fx_ne_gx at e]; contradiction)
 end find_discr
 
 definition decidable_eq_fun [instance] {A B : Type} [h₁ : fintype A] [h₂ : decidable_eq B] : decidable_eq (A → B) :=
@@ -79,7 +77,7 @@ definition decidable_eq_fun [instance] {A B : Type} [h₁ : fintype A] [h₂ : d
   match h₁ with
   | fintype.mk e u c :=
     match find_discr f g e with
-    | some a := λ h : find_discr f g e = some a, inr (λ f_eq_g : f = g, absurd (by rewrite f_eq_g) (ne_of_find_discr_eq_some h))
+    | some a := λ h : find_discr f g e = some a, inr (λ f_eq_g : f = g, absurd (by rewrite f_eq_g; reflexivity) (ne_of_find_discr_eq_some h))
     | none   := λ h : find_discr f g e = none, inl (show f = g, from funext (λ a : A, all_eq_of_find_discr_eq_none h a (c a)))
     end rfl
   end
@@ -117,7 +115,7 @@ theorem ex_of_check_pred_eq_ff {p : A → Prop} [h : decidable_pred p] : ∀ {l 
   (λ npa : ¬ p a, exists.intro a npa)
 end check_pred
 
-definition decidable_finite_pred [instance] {A : Type} {p : A → Prop} [h₁ : fintype A] [h₂ : decidable_pred p]
+definition decidable_forall_finite [instance] {A : Type} {p : A → Prop} [h₁ : fintype A] [h₂ : decidable_pred p]
            : decidable (∀ x : A, p x) :=
 match h₁ with
 | fintype.mk e u c :=
@@ -127,6 +125,20 @@ match h₁ with
     inr (λ n : (∀ x, p x),
          obtain (a : A) (w : ¬ p a), from ex_of_check_pred_eq_ff h,
          absurd (n a) w)
+  end rfl
+end
+
+definition decidable_exists_finite [instance] {A : Type} {p : A → Prop} [h₁ : fintype A] [h₂ : decidable_pred p]
+           : decidable (∃ x : A, p x) :=
+match h₁ with
+| fintype.mk e u c :=
+  match check_pred (λ a, ¬ p a) e with
+  | tt := λ h : check_pred (λ a, ¬ p a) e = tt, inr (λ ex : (∃ x, p x),
+          obtain x px, from ex,
+          absurd px (all_of_check_pred_eq_tt h (c x)))
+  | ff := λ h : check_pred (λ a, ¬ p a) e = ff, inl (
+          assert aux₁ : ∃ x, ¬¬p x, from ex_of_check_pred_eq_ff h,
+          obtain x nnpx, from aux₁, exists.intro x (not_not_elim nnpx))
   end rfl
 end
 
@@ -165,16 +177,15 @@ private theorem mem_ltype_elems {A : Type} {s : list A} {a : ⟪s⟫}
 | (b::l) h vainbl := or.elim (eq_or_mem_of_mem_cons vainbl)
   (λ vaeqb : value a = b,
    begin
-      reverts [vaeqb, h],
-      -- TODO(Leo): check why 'cases a with [va, ma]' produces an incorrect proof
-      apply (as_type.cases_on a),
-      intros [va, ma, vaeqb],
+      revert vaeqb h,
+      -- TODO(Leo): check why 'cases a with va, ma' produces an incorrect proof
+      eapply as_type.cases_on a,
+      intro va ma vaeqb,
       rewrite -vaeqb, intro h,
       apply mem_cons
    end)
   (λ vainl : value a ∈ l,
-     have s₁  : l ⊆ s,                               from sub_of_cons_sub h,
-     have aux : a ∈ ltype_elems (sub_of_cons_sub h), from mem_ltype_elems s₁ vainl,
+     have aux : a ∈ ltype_elems (sub_of_cons_sub h), from mem_ltype_elems (sub_of_cons_sub h) vainl,
      mem_cons_of_mem _ aux)
 
 definition fintype_list_as_type [instance] {A : Type} [h : decidable_eq A] {s : list A} : fintype ⟪s⟫ :=

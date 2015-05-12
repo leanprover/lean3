@@ -1,6 +1,8 @@
 import logic
 open tactic
 
+notation `(` h `|` r:(foldl `|` (e r, tactic.or_else r e) h) `)` := r
+
 definition basic_tac : tactic
 := repeat (apply @and.intro | assumption)
 
@@ -10,5 +12,6 @@ theorem tst (a b : Prop) (H : ¬ a ∨ ¬ b) (Hb : b) : ¬ a ∧ b :=
 begin
   assume Ha, or.elim H
     (assume Hna, @absurd _ false Ha Hna)
-    (assume Hnb, @absurd _ false Hb Hnb)
+    (assume Hnb, @absurd _ false Hb Hnb),
+  now
 end

@@ -13,7 +13,7 @@ begin
   intros  [Hp, Heq],
   reverts [Heq, Hp],
   intro Heq,
-  apply (eq.rec_on Heq),
+  eapply (eq.rec_on Heq),
   intro Pa,
   apply Pa
 end
@@ -24,5 +24,6 @@ begin
   apply (eq.rec_on Heq Hp)
 end
 
+reveal foo1 foo2
 print definition foo1
 print definition foo2

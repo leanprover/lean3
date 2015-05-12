@@ -13,7 +13,7 @@ namespace lean {
 static optional<expr> parse_pattern(parser & p) {
     if (p.curr_is_token(get_lcurly_tk())) {
         p.next();
-        expr r = p.parse_expr();
+        expr r = p.parse_tactic_expr_arg();
         p.check_token_next(get_rcurly_tk(), "invalid rewrite pattern, '}' expected");
         return some_expr(r);
     } else {
@@ -25,14 +25,14 @@ static expr parse_rule(parser & p, bool use_paren) {
     if (use_paren) {
         if (p.curr_is_token(get_lparen_tk())) {
             p.next();
-            expr r = p.parse_expr();
+            expr r = p.parse_tactic_expr_arg();
             p.check_token_next(get_rparen_tk(), "invalid rewrite pattern, ')' expected");
             return r;
         } else {
-            return p.parse_id();
+            return p.parse_tactic_id_arg();
         }
     } else {
-        return p.parse_expr();
+        return p.parse_tactic_expr_arg();
     }
 }
 
@@ -66,7 +66,7 @@ static expr parse_rewrite_element(parser & p, bool use_paren) {
         return parse_rewrite_unfold(p);
     if (p.curr_is_token(get_down_tk())) {
         p.next();
-        expr e = p.parse_expr();
+        expr e = p.parse_tactic_expr_arg();
         location loc = parse_tactic_location(p);
         return mk_rewrite_fold(e, loc);
     }
@@ -108,7 +108,7 @@ static expr parse_rewrite_element(parser & p, bool use_paren) {
             location loc = parse_tactic_location(p);
             return mk_rewrite_reduce(loc);
         } else {
-            expr e = p.parse_expr();
+            expr e = p.parse_tactic_expr_arg();
             location loc = parse_tactic_location(p);
             return mk_rewrite_reduce_to(e, loc);
         }
@@ -153,6 +153,21 @@ expr parse_esimp_tactic(parser & p) {
     return mk_rewrite_tactic_expr(elems);
 }
 
+expr parse_unfold_tactic(parser & p) {
+    buffer<expr> elems;
+    auto pos = p.pos();
+    if (p.curr_is_identifier()) {
+        name c       = p.check_constant_next("invalid unfold tactic, identifier expected");
+        location loc = parse_tactic_location(p);
+        elems.push_back(p.save_pos(mk_rewrite_unfold(to_list(c), loc), pos));
+    } else if (p.curr_is_token(get_lbracket_tk())) {
+        elems.push_back(p.save_pos(parse_rewrite_unfold_core(p), pos));
+    } else {
+        throw parser_error("invalid unfold tactic, identifier or `[` expected", pos);
+    }
+    return mk_rewrite_tactic_expr(elems);
+}
+
 expr parse_fold_tactic(parser & p) {
     buffer<expr> elems;
     auto pos = p.pos();
@@ -160,7 +175,7 @@ expr parse_fold_tactic(parser & p) {
         p.next();
         while (true) {
             auto pos = p.pos();
-            expr e = p.parse_expr();
+            expr e = p.parse_tactic_expr_arg();
             location loc = parse_tactic_location(p);
             elems.push_back(p.save_pos(mk_rewrite_fold(e, loc), pos));
             if (!p.curr_is_token(get_comma_tk()))
@@ -169,7 +184,7 @@ expr parse_fold_tactic(parser & p) {
         }
         p.check_token_next(get_rbracket_tk(), "invalid 'fold' tactic, ',' or ']' expected");
     } else {
-        expr e = p.parse_expr();
+        expr e = p.parse_tactic_expr_arg();
         location loc = parse_tactic_location(p);
         elems.push_back(p.save_pos(mk_rewrite_fold(e, loc), pos));;
     }

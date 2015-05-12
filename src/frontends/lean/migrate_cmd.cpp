@@ -20,6 +20,7 @@ Author: Leonardo de Moura
 #include "library/util.h"
 #include "library/occurs.h"
 #include "library/module.h"
+#include "library/flycheck.h"
 #include "library/constants.h"
 #include "library/replace_visitor.h"
 #include "library/error_handling/error_handling.h"
@@ -44,7 +45,7 @@ class migrate_converter : public unfold_semireducible_converter {
     list<name> m_namespaces;
 public:
     migrate_converter(environment const & env, list<name> const & ns):
-        unfold_semireducible_converter(env, true, true),
+        unfold_semireducible_converter(env, true),
         m_namespaces(ns) {
     }
 
@@ -76,12 +77,15 @@ struct migrate_cmd_fn {
     buffer<pair<name, name>> m_renames;
     buffer<name>             m_hiding;
 
+    bool                     m_throwable; // true if a throwable exception (which is not a lean::exception) was thrown
+
     list<expr>               m_ctx;
     buffer<expr>             m_S_params;
 
     migrate_cmd_fn(parser & p):
         m_p(p), m_env(p.env()), m_ngen(p.mk_ngen()) {
-        m_trace = get_migrate_trace(p.get_options());
+        m_throwable = false;
+        m_trace     = get_migrate_trace(p.get_options());
     }
 
     io_state_stream out() const { return regular(m_env, m_p.ios()); }
@@ -156,6 +160,22 @@ struct migrate_cmd_fn {
             m_main(m), m_num_params(m_main.m_S_params.size()) {}
     };
 
+    void report_fail_to_migrate(declaration const & d, throwable & ex) {
+        if (m_trace) {
+            out() << "failed to migrate '" << d.get_name() << "', kernel rejected new declaration\n";
+            ::lean::display_error(out(), nullptr, ex);
+            out() << "\n";
+        }
+    }
+
+    void report_skip(declaration const & d, throwable & ex) {
+        if (m_trace) {
+            out() << "skipped '" << d.get_name() << "': failed to be elaborated\n";
+            ::lean::display_error(out(), nullptr, ex);
+            out() << "\n";
+        }
+    }
+
     void migrate_decl(declaration const & d) {
         if (!check_sufficient_args(d.get_type())) {
             if (m_trace)
@@ -205,35 +225,33 @@ struct migrate_cmd_fn {
             expr new_value = Fun(m_params, v);
             try {
                 if (d.is_axiom())
-                    m_env = module::add(m_env, check(m_env, mk_theorem(full_name, ls, new_type, new_value)));
+                    m_env = module::add(m_env, check(m_env, mk_theorem(m_env, full_name, ls, new_type, new_value)));
                 else if (d.is_theorem())
-                    m_env = module::add(m_env, check(m_env, mk_theorem(full_name, ls, new_type, new_value)));
+                    m_env = module::add(m_env, check(m_env, mk_theorem(m_env, full_name, ls, new_type, new_value)));
                 else
-                    m_env = module::add(m_env, check(m_env, mk_definition(m_env, full_name, ls,
-                                                                          new_type, new_value, d.is_opaque())));
+                    m_env = module::add(m_env, check(m_env, mk_definition(m_env, full_name, ls, new_type, new_value)));
                 m_p.add_decl_index(full_name, m_pos, d.is_theorem() ? name("theorem") : name("definition"), new_type);
                 if (short_name != full_name)
                     m_env = add_expr_alias_rec(m_env, short_name, full_name);
                 if (m_trace)
                     out() << "migrated: " << full_name << " : " << new_type << "\n";
             } catch (exception & ex) {
-                if (m_trace) {
-                    out() << "failed to migrate '" << d.get_name() << "', kernel rejected new declaration\n";
-                    ::lean::display_error(out(), nullptr, ex);
-                    out() << "\n";
-                }
+                report_fail_to_migrate(d, ex);
+                return;
+            } catch (throwable & ex) {
+                m_throwable = true;
+                report_fail_to_migrate(d, ex);
                 return;
             }
         } catch (exception & ex) {
-            if (m_trace) {
-                out() << "skipped '" << d.get_name() << "': failed to be elaborated\n";
-                ::lean::display_error(out(), nullptr, ex);
-                out() << "\n";
-            }
+            report_skip(d, ex);
+            return;
+        } catch (throwable & ex) {
+            m_throwable = true;
+            report_skip(d, ex);
             return;
         }
     }
-
 
     void parse_params() {
         if (!m_p.curr_is_token(get_from_tk())) {
@@ -401,7 +419,7 @@ struct migrate_cmd_fn {
         m_migrate_tc = std::unique_ptr<type_checker>(new type_checker(m_env, m_ngen.mk_child(),
                        std::unique_ptr<converter>(new migrate_converter(m_env, get_namespaces(m_env)))));
         m_tc = std::unique_ptr<type_checker>(new type_checker(m_env, m_ngen.mk_child(),
-               std::unique_ptr<converter>(new unfold_semireducible_converter(m_env, true, true))));
+               std::unique_ptr<converter>(new unfold_semireducible_converter(m_env, true))));
 
         parse_params();
         parse_from_namespace();
@@ -423,6 +441,11 @@ struct migrate_cmd_fn {
                 if (is_prefix_of(m_from, d.get_name()))
                     migrate_decl(d);
             });
+        if (m_throwable && !m_trace) {
+            flycheck_warning wrn(m_p.regular_stream());
+            m_p.display_warning_pos(m_pos);
+            m_p.regular_stream() << " some declarations were not migrated due to resource constraints (use 'set_option migrate.trace true' for additional details)" << endl;
+        }
         return m_env;
     }
 };

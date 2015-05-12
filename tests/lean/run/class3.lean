@@ -11,6 +11,7 @@ section
 
 end
 
+reveal tst
 (*
 print(get_env():find("tst"):value())
 *)

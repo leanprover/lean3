@@ -202,15 +202,17 @@ order for the change to take effect."
 
   ("eq"  . ,(lean-input-to-string-list "=∼∽≈≋∻∾∿≀≃⋍≂≅ ≌≊≡≣≐≑≒≓≔≕≖≗≘≙≚≛≜≝≞≟≍≎≏≬⋕"))
   ("eqn" . ,(lean-input-to-string-list "≠≁ ≉     ≄  ≇≆  ≢                 ≭    "))
+  ("equiv" . ,(lean-input-to-string-list "≃⋍"))
+  ("iso" . ,(lean-input-to-string-list "≅≌"))
 
                     ("=n"  . ("≠"))
   ("~"    . ("∼"))  ("~n"  . ("≁")) ("homotopy"    . ("∼"))
   ("~~"   . ("≈"))  ("~~n" . ("≉"))
   ("~~~"  . ("≋"))
   (":~"   . ("∻"))
-  ("~-"   . ("≃"))  ("~-n" . ("≄")) ("equiv"   . ("≃"))
+  ("~-"   . ("≃"))  ("~-n" . ("≄"))
   ("-~"   . ("≂"))
-  ("~="   . ("≅"))  ("~=n" . ("≇")) ("iso"   . ("≅"))
+  ("~="   . ("≅"))  ("~=n" . ("≇"))
   ("~~-"  . ("≊"))
   ("=="   . ("≡"))  ("==n" . ("≢"))
   ("==="  . ("≣"))
@@ -238,10 +240,10 @@ order for the change to take effect."
 
   ;; Inequality and similar symbols.
 
-  ("leq"  . ,(lean-input-to-string-list "<≪⋘≤≦≲ ≶≺≼≾⊂⊆ ⋐⊏⊑ ⊰⊲⊴⋖⋚⋜⋞"))
-  ("leqn" . ,(lean-input-to-string-list "≮  ≰≨≴⋦≸⊀ ⋨⊄⊈⊊  ⋢⋤ ⋪⋬   ⋠"))
-  ("geq"  . ,(lean-input-to-string-list ">≫⋙≥≧≳ ≷≻≽≿⊃⊇ ⋑⊐⊒ ⊱⊳⊵⋗⋛⋝⋟"))
-  ("geqn" . ,(lean-input-to-string-list "≯  ≱≩≵⋧≹⊁ ⋩⊅⊉⊋  ⋣⋥ ⋫⋭   ⋡"))
+  ("leq"  . ,(lean-input-to-string-list "≤≦≲<≪⋘ ≶≺≼≾⊂⊆ ⋐⊏⊑ ⊰⊲⊴⋖⋚⋜⋞"))
+  ("leqn" . ,(lean-input-to-string-list "≰≨≮≴⋦   ≸⊀ ⋨⊄⊈⊊  ⋢⋤ ⋪⋬   ⋠"))
+  ("geq"  . ,(lean-input-to-string-list "≥≧≳>≫⋙ ≷≻≽≿⊃⊇ ⋑⊐⊒ ⊱⊳⊵⋗⋛⋝⋟"))
+  ("geqn" . ,(lean-input-to-string-list "≱≩≯≵⋧ ≹  ⊁ ⋩⊅⊉⊋  ⋣⋥ ⋫⋭   ⋡"))
 
   ("<="   . ("≤"))  (">="   . ("≥"))
   ("<=n"  . ("≰"))  (">=n"  . ("≱"))
@@ -255,6 +257,8 @@ order for the change to take effect."
   ("subn"  . ("⊄"))  ("supn"  . ("⊅"))
   ("sub="  . ("⊆"))  ("sup="  . ("⊇"))
   ("sub=n" . ("⊈"))  ("sup=n" . ("⊉"))
+  ("subeq"  . ("⊆")) ("supeq"  . ("⊇"))
+  ("subeqn" . ("⊈")) ("supeqn" . ("⊉"))
 
   ("squb"   . ("⊏"))  ("squp"   . ("⊐"))
   ("squb="  . ("⊑"))  ("squp="  . ("⊒"))
@@ -263,6 +267,7 @@ order for the change to take effect."
   ;; Set membership etc.
 
   ("member" . ,(lean-input-to-string-list "∈∉∊∋∌∍⋲⋳⋴⋵⋶⋷⋸⋹⋺⋻⋼⋽⋾⋿"))
+  ("mem" . ("∈"))
 
   ("inn" . ("∉"))
   ("nin" . ("∌"))
@@ -307,6 +312,7 @@ order for the change to take effect."
   ("ex"  . ("∃"))
   ("exn" . ("∄"))
   ("0"   . ("∅"))
+  ("empty"   . ("∅"))
   ("C"   . ("∁"))
 
   ;; Corners, ceilings and floors.
@@ -322,6 +328,8 @@ order for the change to take effect."
 
   ;; Various operators/symbols.
   ("tr"        . ,(lean-input-to-string-list "⬝▹"))
+  ("trans"     . ,(lean-input-to-string-list "▹⬝"))
+  ("transport" . ("▹"))
   ("con"       . ("⬝"))
   ("cdot"      . ("⬝"))
   ("sy"        . ("⁻¹"))
@@ -331,6 +339,7 @@ order for the change to take effect."
   ("-1e"       . ("⁻¹ᵉ"))
   ("-1h"       . ("⁻¹ʰ"))
   ("-1g"       . ("⁻¹ᵍ"))
+  ("-1o"       . ("⁻¹ᵒ"))
   ("qed"       . ("∎"))
   ("x"         . ("×"))
   ("o"         . ("∘"))
@@ -450,9 +459,8 @@ order for the change to take effect."
 
   ;; Big/small, black/white.
 
-  ("t" . ,(lean-input-to-string-list "▸▹►▻◂◃◄◅▴▵▾▿◢◿◣◺◤◸◥◹"))
-  ("Tr" . ,(lean-input-to-string-list "◀◁▶▷▲△▼▽◬◭◮"))
-  ("transport" . ("▹"))
+  ("t"     . ,(lean-input-to-string-list "▸▹►▻◂◃◄◅▴▵▾▿◢◿◣◺◤◸◥◹"))
+  ("Tr"    . ,(lean-input-to-string-list "◀◁▶▷▲△▼▽◬◭◮"))
 
   ("tb" . ,(lean-input-to-string-list "◂▸▴▾◄►◢◣◤◥"))
   ("tw" . ,(lean-input-to-string-list "◃▹▵▿◅▻◿◺◸◹"))
@@ -660,7 +668,7 @@ order for the change to take effect."
   ;; \omicron \Omicron
   ;; \pi \Pi
   ("Gr"  . ("ρ"))  ("GR"  . ("Ρ"))
-  ("Gs"  . ("σ"))  ("GS"  . ("Σ"))
+  ("Gs"  . ("σ"))  ("GS"  . ("Σ")) ("S"  . ("Σ"))
   ("Gt"  . ("τ"))  ("GT"  . ("Τ"))
   ("Gu"  . ("υ"))  ("GU"  . ("Υ"))
   ("Gf"  . ("φ"))  ("GF"  . ("Φ"))

@@ -21,7 +21,7 @@ assume e : encodable A,
 have inj_encode : injective encode, from
   λ (a₁ a₂ : A) (h : encode a₁ = encode a₂),
     assert aux : decode A (encode a₁) = decode A (encode a₂), by rewrite h,
-    by rewrite [*encodek at aux]; exact (option.no_confusion aux (λ e, e)),
+    by rewrite [*encodek at aux]; injection aux; assumption,
 exists.intro encode inj_encode
 
 definition encodable_fintype [instance] {A : Type} [h₁ : fintype A] [h₂ : decidable_eq A] : encodable A :=
@@ -42,7 +42,7 @@ encodable.mk
   (λ n, if n = 0 then some none else some (decode A (pred n)))
   (λ o,
     begin
-    cases o with [a],
+    cases o with a,
       begin esimp end,
       begin esimp, rewrite [if_neg !succ_ne_zero, pred_succ, encodable.encodek] end
     end)
@@ -283,7 +283,7 @@ end
 
 open subtype
 
-private lemma of_nat (n : nat) : pn n → { a : A | p a } :=
+private definition of_nat (n : nat) : pn n → { a : A | p a } :=
 match decode A n with
 | some a := λ (e : decode A n = some a),
   begin

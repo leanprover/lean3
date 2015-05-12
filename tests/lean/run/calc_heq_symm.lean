@@ -7,4 +7,5 @@ calc d  == c  : H₃
     ... == a₂ : H₁
     ... =  a₁ : H₀
 
+reveal tst
 print definition tst

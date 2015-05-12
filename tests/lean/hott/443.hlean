@@ -1,8 +1,8 @@
-import algebra.group algebra.precategory.basic
+import algebra.group algebra.category
 
-open eq sigma unit category path_algebra
+open eq sigma unit category algebra
 
-context
+section
   parameters {P₀ : Type} [P : precategory P₀]
 
   structure my_structure := (a : P₀) (b : P₀) (f : @hom P₀ P a b)

@@ -14,17 +14,14 @@ Author: Leonardo de Moura
 namespace lean {
 static expr * g_dont_care = nullptr;
 
-default_converter::default_converter(environment const & env, optional<module_idx> mod_idx, bool memoize):
-    m_env(env), m_module_idx(mod_idx), m_memoize(memoize) {
+default_converter::default_converter(environment const & env, bool memoize):
+    m_env(env), m_memoize(memoize) {
     m_tc  = nullptr;
     m_jst = nullptr;
 }
 
-default_converter::default_converter(environment const & env, bool relax_main_opaque, bool memoize):
-    default_converter(env, relax_main_opaque ? optional<module_idx>(0) : optional<module_idx>(), memoize) {}
-
 constraint default_converter::mk_eq_cnstr(expr const & lhs, expr const & rhs, justification const & j) {
-    return ::lean::mk_eq_cnstr(lhs, rhs, j, static_cast<bool>(m_module_idx));
+    return ::lean::mk_eq_cnstr(lhs, rhs, j);
 }
 
 optional<expr> default_converter::expand_macro(expr const & m) {
@@ -47,12 +44,12 @@ optional<expr> default_converter::d_norm_ext(expr const & e, constraint_seq & cs
 }
 
 /** \brief Return true if \c e may be reduced later after metavariables are instantiated. */
-bool default_converter::may_reduce_later(expr const & e) {
-    return static_cast<bool>(m_env.norm_ext().may_reduce_later(e, get_extension(*m_tc)));
+bool default_converter::is_stuck(expr const & e) {
+    return static_cast<bool>(m_env.norm_ext().is_stuck(e, get_extension(*m_tc)));
 }
 
-bool default_converter::may_reduce_later(expr const & e, type_checker & c) {
-    return static_cast<bool>(m_env.norm_ext().may_reduce_later(e, get_extension(c)));
+bool default_converter::is_stuck(expr const & e, type_checker & c) {
+    return static_cast<bool>(m_env.norm_ext().is_stuck(e, get_extension(c)));
 }
 
 /** \brief Weak head normal form core procedure. It does not perform delta reduction nor normalization extensions. */
@@ -111,12 +108,8 @@ expr default_converter::whnf_core(expr const & e) {
     return r;
 }
 
-bool default_converter::is_opaque(declaration const & d) const {
-    lean_assert(d.is_definition());
-    if (d.is_theorem()) return true;                               // theorems are always opaque
-    if (!d.is_opaque()) return false;                              // d is a transparent definition
-    if (m_module_idx && d.get_module_idx() == *m_module_idx) return false; // the opaque definitions in mod_idx are considered transparent
-    return true;                                                   // d is opaque
+bool default_converter::is_opaque(declaration const &) const {
+    return false;
 }
 
 /** \brief Expand \c e if it is non-opaque constant with weight >= w */
@@ -486,9 +479,13 @@ pair<bool, constraint_seq> default_converter::is_def_eq_core(expr const & t, exp
                         // If they are, then t_n and s_n must be definitionally equal, and we can
                         // skip the delta-reduction step.
                         // If the flag use_conv_opt() is not true, then we skip this optimization
+                        constraint_seq tmp_cs;
                         if (!is_opaque(*d_t) && d_t->use_conv_opt() &&
-                            is_def_eq_args(t_n, s_n, cs))
+                            is_def_eq(const_levels(get_app_fn(t_n)), const_levels(get_app_fn(s_n)), tmp_cs) &&
+                            is_def_eq_args(t_n, s_n, tmp_cs)) {
+                            cs += tmp_cs;
                             return to_bcs(true, cs);
+                        }
                     }
                 }
                 t_n = whnf_core(unfold_names(t_n, d_t->get_weight() - 1));
@@ -524,7 +521,7 @@ pair<bool, constraint_seq> default_converter::is_def_eq_core(expr const & t, exp
         d_s = is_delta(s_n);
         if (d_t && d_s && is_eqp(*d_t, *d_s))
             delay_check = true;
-        else if (may_reduce_later(t_n) && may_reduce_later(s_n))
+        else if (is_stuck(t_n) && is_stuck(s_n))
             delay_check = true;
     }
 
@@ -539,7 +536,7 @@ pair<bool, constraint_seq> default_converter::is_def_eq_core(expr const & t, exp
     if (is_def_eq_proof_irrel(t, s, pi_cs))
         return to_bcs(true, pi_cs);
 
-    if (may_reduce_later(t_n) || may_reduce_later(s_n) || delay_check) {
+    if (is_stuck(t_n) || is_stuck(s_n) || delay_check) {
         cs += constraint_seq(mk_eq_cnstr(t_n, s_n, m_jst->get()));
         return to_bcs(true, cs);
     }

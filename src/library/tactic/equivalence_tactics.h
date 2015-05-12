@@ -1,0 +1,12 @@
+/*
+Copyright (c) 2015 Microsoft Corporation. All rights reserved.
+Released under Apache 2.0 license as described in the file LICENSE.
+
+Author: Leonardo de Moura
+*/
+#pragma once
+namespace lean {
+tactic refl_tactic(elaborate_fn const & elab, bool no_meta = false);
+void initialize_equivalence_tactics();
+void finalize_equivalence_tactics();
+}

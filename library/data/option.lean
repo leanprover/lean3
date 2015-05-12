@@ -10,8 +10,9 @@ import logic.eq
 open eq.ops decidable
 
 namespace option
-  definition is_none {A : Type} (o : option A) : Prop :=
-  option.rec true (λ a, false) o
+  definition is_none {A : Type} : option A →  Prop
+  | none     := true
+  | (some v) := false
 
   theorem is_none_none {A : Type} : is_none (@none A) :=
   trivial
@@ -20,21 +21,21 @@ namespace option
   not_false
 
   theorem none_ne_some {A : Type} (a : A) : none ≠ some a :=
-  assume H, option.no_confusion H
+  by contradiction
 
   theorem some.inj {A : Type} {a₁ a₂ : A} (H : some a₁ = some a₂) : a₁ = a₂ :=
-  option.no_confusion H (λe, e)
+  by injection H; assumption
 
   protected definition is_inhabited [instance] (A : Type) : inhabited (option A) :=
   inhabited.mk none
 
-  protected definition has_decidable_eq [instance] {A : Type} [H : decidable_eq A] : decidable_eq (option A) :=
-  take o₁ o₂ : option A,
-    option.rec_on o₁
-      (option.rec_on o₂ (inl rfl) (take a₂, (inr (none_ne_some a₂))))
-      (take a₁ : A, option.rec_on o₂
-        (inr (ne.symm (none_ne_some a₁)))
-        (take a₂ : A, decidable.rec_on (H a₁ a₂)
-          (assume Heq : a₁ = a₂, inl (Heq ▸ rfl))
-          (assume Hne : a₁ ≠ a₂, inr (assume Hn : some a₁ = some a₂, absurd (some.inj Hn) Hne))))
+  protected definition has_decidable_eq [instance] {A : Type} [H : decidable_eq A] : ∀ o₁ o₂ : option A, decidable (o₁ = o₂)
+  | none      none      := by left;  reflexivity
+  | none      (some v₂) := by right; contradiction
+  | (some v₁) none      := by right; contradiction
+  | (some v₁) (some v₂) :=
+    match H v₁ v₂ with
+    | inl e := by left; congruence; assumption
+    | inr n := by right; intro h; injection h; refine absurd _ n; assumption
+    end
 end option

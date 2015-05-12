@@ -67,11 +67,12 @@ static void remove_redundant_metas(buffer<expr> & metas) {
 
 enum subgoals_action_kind { IgnoreSubgoals, AddRevSubgoals, AddSubgoals, AddAllSubgoals };
 
-
+enum add_meta_kind { DoNotAdd, AddDiff, AddAll };
 
 static proof_state_seq apply_tactic_core(environment const & env, io_state const & ios, proof_state const & s,
                                          expr const & _e, buffer<constraint> & cs,
-                                         bool add_meta, subgoals_action_kind subgoals_action) {
+                                         add_meta_kind add_meta, subgoals_action_kind subgoals_action,
+                                         optional<unifier_kind> const & uk = optional<unifier_kind>()) {
     goals const & gs = s.get_goals();
     if (empty(gs)) {
         throw_no_goal_if_enabled(s);
@@ -79,8 +80,7 @@ static proof_state_seq apply_tactic_core(environment const & env, io_state const
     }
     bool class_inst   = get_apply_class_instance(ios.get_options());
     name_generator ngen = s.get_ngen();
-    bool relax_opaque = s.relax_main_opaque();
-    std::shared_ptr<type_checker> tc(mk_type_checker(env, ngen.mk_child(), relax_opaque));
+    std::shared_ptr<type_checker> tc(mk_type_checker(env, ngen.mk_child()));
     goal  g           = head(gs);
     goals tail_gs     = tail(gs);
     expr  t           = g.get_type();
@@ -92,12 +92,19 @@ static proof_state_seq apply_tactic_core(environment const & env, io_state const
     local_context ctx;
     bool initialized_ctx = false;
     unifier_config cfg(ios.get_options());
-    if (add_meta) {
-        // unsigned num_t   = get_expect_num_args(*tc, t);
+    if (uk)
+        cfg.m_kind = *uk;
+    if (add_meta != DoNotAdd) {
         unsigned num_e_t = get_expect_num_args(*tc, e_t);
-        // Remark: we used to add (num_e_t - num_t) arguments.
-        // This would allow us to handle (A -> B) without using intros,
-        // but it was preventing us from solving other problems
+        if (add_meta == AddDiff) {
+            unsigned num_t   = get_expect_num_args(*tc, t);
+            if (num_t <= num_e_t)
+                num_e_t -= num_t;
+            else
+                num_e_t = 0;
+        } else {
+            lean_assert(add_meta == AddAll);
+        }
         for (unsigned i = 0; i < num_e_t; i++) {
             auto e_t_cs = tc->whnf(e_t);
             e_t_cs.second.linearize(cs);
@@ -112,7 +119,7 @@ static proof_state_seq apply_tactic_core(environment const & env, io_state const
                 bool is_strict       = false;
                 auto mc = mk_class_instance_elaborator(
                     env, ios, ctx, ngen.next(), optional<name>(),
-                    relax_opaque, use_local_insts, is_strict,
+                    use_local_insts, is_strict,
                     some_expr(binding_domain(e_t)), e.get_tag(), cfg, nullptr);
                 meta    = mc.first;
                 cs.push_back(mc.second);
@@ -125,7 +132,7 @@ static proof_state_seq apply_tactic_core(environment const & env, io_state const
         }
     }
     metavar_closure cls(t);
-    cls.mk_constraints(s.get_subst(), justification(), relax_opaque);
+    cls.mk_constraints(s.get_subst(), justification());
     pair<bool, constraint_seq> dcs = tc->is_def_eq(t, e_t);
     if (!dcs.first) {
         throw_tactic_exception_if_enabled(s, [=](formatter const & fmt) {
@@ -173,12 +180,24 @@ static proof_state_seq apply_tactic_core(environment const & env, io_state const
 }
 
 static proof_state_seq apply_tactic_core(environment const & env, io_state const & ios, proof_state const & s, expr const & e,
-                                         bool add_meta, subgoals_action_kind subgoals_action) {
+                                         add_meta_kind add_meta, subgoals_action_kind subgoals_action, optional<unifier_kind> const & uk = optional<unifier_kind>()) {
     buffer<constraint> cs;
-    return apply_tactic_core(env, ios, s, e, cs, add_meta, subgoals_action);
+    return apply_tactic_core(env, ios, s, e, cs, add_meta, subgoals_action, uk);
 }
 
-tactic eassumption_tactic() {
+proof_state_seq apply_tactic_core(environment const & env, io_state const & ios, proof_state const & s, expr const & e, constraint_seq const & cs) {
+    buffer<constraint> tmp_cs;
+    cs.linearize(tmp_cs);
+    return apply_tactic_core(env, ios, s, e, tmp_cs, AddDiff, AddSubgoals);
+}
+
+tactic apply_tactic_core(expr const & e, constraint_seq const & cs) {
+    return tactic([=](environment const & env, io_state const & ios, proof_state const & s) {
+            return apply_tactic_core(env, ios, s, e, cs);
+        });
+}
+
+static tactic assumption_tactic_core(optional<unifier_kind> uk) {
     return tactic([=](environment const & env, io_state const & ios, proof_state const & s) {
             goals const & gs = s.get_goals();
             if (empty(gs)) {
@@ -189,15 +208,23 @@ tactic eassumption_tactic() {
             proof_state_seq r;
             goal g = head(gs);
             buffer<expr> hs;
-            get_app_args(g.get_meta(), hs);
+            g.get_hyps(hs);
             for (expr const & h : hs) {
-                r = append(r, apply_tactic_core(env, ios, new_s, h, false, IgnoreSubgoals));
+                r = append(r, apply_tactic_core(env, ios, new_s, h, DoNotAdd, IgnoreSubgoals, uk));
             }
             return r;
         });
 }
 
-tactic apply_tactic_core(elaborate_fn const & elab, expr const & e, subgoals_action_kind k) {
+tactic eassumption_tactic() {
+    return assumption_tactic_core(optional<unifier_kind>());
+}
+
+tactic assumption_tactic() {
+    return assumption_tactic_core(optional<unifier_kind>(unifier_kind::Conservative));
+}
+
+tactic apply_tactic_core(elaborate_fn const & elab, expr const & e, add_meta_kind add_meta, subgoals_action_kind k) {
     return tactic([=](environment const & env, io_state const & ios, proof_state const & s) {
             goals const & gs = s.get_goals();
             if (empty(gs)) {
@@ -206,27 +233,27 @@ tactic apply_tactic_core(elaborate_fn const & elab, expr const & e, subgoals_act
             }
             goal const & g      = head(gs);
             name_generator ngen = s.get_ngen();
-            expr       new_e;
+            expr       new_e; substitution new_subst; constraints cs_;
+            auto ecs = elab(g, ngen.mk_child(), e, none_expr(), s.get_subst(), false);
+            std::tie(new_e, new_subst, cs_) = ecs;
             buffer<constraint> cs;
-            auto ecs = elab(g, ngen.mk_child(), e, none_expr(), false);
-            new_e    = ecs.first;
-            to_buffer(ecs.second, cs);
+            to_buffer(cs_, cs);
             to_buffer(s.get_postponed(), cs);
-            proof_state new_s(s, ngen, constraints());
-            return apply_tactic_core(env, ios, new_s, new_e, cs, true, k);
+            proof_state new_s(s, new_subst, ngen, constraints());
+            return apply_tactic_core(env, ios, new_s, new_e, cs, add_meta, k);
         });
 }
 
 tactic apply_tactic(elaborate_fn const & elab, expr const & e) {
-    return apply_tactic_core(elab, e, AddSubgoals);
+    return apply_tactic_core(elab, e, AddDiff, AddSubgoals);
 }
 
 tactic fapply_tactic(elaborate_fn const & elab, expr const & e) {
-    return apply_tactic_core(elab, e, AddAllSubgoals);
+    return apply_tactic_core(elab, e, AddDiff, AddAllSubgoals);
 }
 
-tactic rapply_tactic(elaborate_fn const & elab, expr const & e) {
-    return apply_tactic_core(elab, e, AddRevSubgoals);
+tactic eapply_tactic(elaborate_fn const & elab, expr const & e) {
+    return apply_tactic_core(elab, e, AddAll, AddSubgoals);
 }
 
 int mk_eassumption_tactic(lua_State * L) { return push_tactic(L, eassumption_tactic()); }
@@ -246,10 +273,10 @@ void initialize_apply_tactic() {
                      return apply_tactic(fn, get_tactic_expr_expr(app_arg(e)));
                  });
 
-    register_tac(get_tactic_rapply_name(),
+    register_tac(get_tactic_eapply_name(),
                  [](type_checker &, elaborate_fn const & fn, expr const & e, pos_info_provider const *) {
-                     check_tactic_expr(app_arg(e), "invalid 'rapply' tactic, invalid argument");
-                     return rapply_tactic(fn, get_tactic_expr_expr(app_arg(e)));
+                     check_tactic_expr(app_arg(e), "invalid 'eapply' tactic, invalid argument");
+                     return eapply_tactic(fn, get_tactic_expr_expr(app_arg(e)));
                  });
 
     register_tac(get_tactic_fapply_name(),
@@ -260,6 +287,9 @@ void initialize_apply_tactic() {
 
     register_simple_tac(get_tactic_eassumption_name(),
                         []() { return eassumption_tactic(); });
+
+    register_simple_tac(get_tactic_assumption_name(),
+                        []() { return assumption_tactic(); });
 }
 
 void finalize_apply_tactic() {

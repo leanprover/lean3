@@ -23,6 +23,7 @@ Author: Leonardo de Moura
 #include "library/aliases.h"
 #include "library/constants.h"
 #include "library/private.h"
+#include "library/locals.h"
 #include "library/protected.h"
 #include "library/choice.h"
 #include "library/placeholder.h"
@@ -47,6 +48,7 @@ Author: Leonardo de Moura
 #include "frontends/lean/info_annotation.h"
 #include "frontends/lean/parse_rewrite_tactic.h"
 #include "frontends/lean/update_environment_exception.h"
+#include "frontends/lean/local_ref_info.h"
 
 #ifndef LEAN_DEFAULT_PARSER_SHOW_ERRORS
 #define LEAN_DEFAULT_PARSER_SHOW_ERRORS true
@@ -109,7 +111,7 @@ parser::parser(environment const & env, io_state const & ios,
     m_theorem_queue(*this, num_threads > 1 ? num_threads - 1 : 0),
     m_snapshot_vector(sv), m_info_manager(im), m_cache(nullptr), m_index(nullptr) {
     m_profile    = ios.get_options().get_bool("profile", false);
-    if (num_threads > 1)
+    if (num_threads > 1 && m_profile)
         throw exception("option --profile cannot be used when theorems are compiled in parallel");
     m_has_params = false;
     m_keep_theorem_mode = tmode;
@@ -214,6 +216,12 @@ expr parser::mk_by(expr const & t, pos_info const & pos) {
     if (!has_tactic_decls())
         throw parser_error("invalid 'by' expression, tactic module has not been imported", pos);
     return save_pos(::lean::mk_by(t), pos);
+}
+
+expr parser::mk_by_plus(expr const & t, pos_info const & pos) {
+    if (!has_tactic_decls())
+        throw parser_error("invalid 'by+' expression, tactic module has not been imported", pos);
+    return save_pos(::lean::mk_by_plus(t), pos);
 }
 
 void parser::updt_options() {
@@ -444,28 +452,26 @@ expr parser::mk_app(std::initializer_list<expr> const & args, pos_info const & p
 }
 
 void parser::push_local_scope(bool save_options) {
-    m_local_level_decls.push();
-    m_local_decls.push();
     optional<options> opts;
     if (save_options)
         opts = m_ios.get_options();
     m_parser_scope_stack = cons(parser_scope_stack_elem(opts, m_level_variables, m_variables, m_include_vars,
-                                                        m_undef_ids.size(), m_has_params),
+                                                        m_undef_ids.size(), m_has_params, m_local_level_decls,
+                                                        m_local_decls),
                                 m_parser_scope_stack);
 }
 
 void parser::pop_local_scope() {
-    if (!m_local_level_decls.has_scopes()) {
-        throw parser_error("invalid 'end', there is no open namespace/section/context", pos());
+    if (!m_parser_scope_stack) {
+        throw parser_error("invalid 'end', there is no open namespace/section", pos());
     }
-    m_local_level_decls.pop();
-    m_local_decls.pop();
-    lean_assert(!is_nil(m_parser_scope_stack));
     auto s = head(m_parser_scope_stack);
     if (s.m_options) {
         m_ios.set_options(*s.m_options);
         updt_options();
     }
+    m_local_level_decls  = s.m_local_level_decls;
+    m_local_decls        = s.m_local_decls;
     m_level_variables    = s.m_level_variables;
     m_variables          = s.m_variables;
     m_include_vars       = s.m_include_vars;
@@ -494,10 +500,62 @@ void parser::add_local_expr(name const & n, expr const & p, bool is_variable) {
     }
 }
 
+environment parser::add_local_ref(environment const & env, name const & n, expr const & ref) {
+    add_local_expr(n, ref, false);
+    if (is_as_atomic(ref)) {
+        buffer<expr> args;
+        expr f = get_app_args(get_as_atomic_arg(ref), args);
+        if (is_explicit(f))
+            f = get_explicit_arg(f);
+        if (is_constant(f)) {
+            return save_local_ref_info(env, const_name(f), length(const_levels(f)), args.size());
+        }
+    }
+    return env;
+}
+
 void parser::add_parameter(name const & n, expr const & p) {
     lean_assert(is_local(p));
     add_local_expr(n, p, false);
     m_has_params = true;
+}
+
+bool parser::update_local_binder_info(name const & n, binder_info const & bi) {
+    auto it = get_local(n);
+    if (!it || !is_local(*it)) return false;
+
+    buffer<pair<name, expr>> entries;
+    to_buffer(m_local_decls.get_entries(), entries);
+    std::reverse(entries.begin(), entries.end());
+    unsigned idx = m_local_decls.find_idx(n);
+    lean_assert(idx > 0);
+    lean_assert_eq(entries[idx-1].second, *it);
+
+    buffer<expr> old_locals;
+    buffer<expr> new_locals;
+    old_locals.push_back(*it);
+    expr new_l = update_local(*it, bi);
+    m_local_decls.update(n, new_l);
+    new_locals.push_back(new_l);
+
+    for (unsigned i = idx; i < entries.size(); i++) {
+        name const & curr_n = entries[i].first;
+        expr const & curr_e = entries[i].second;
+        expr r = is_local(curr_e) ? mlocal_type(curr_e) : curr_e;
+        if (std::any_of(old_locals.begin(), old_locals.end(), [&](expr const & l) { return depends_on(r, l); })) {
+            r  = instantiate_rev(abstract_locals(r, old_locals.size(), old_locals.data()),
+                                 new_locals.size(), new_locals.data());
+            if (is_local(curr_e)) {
+                expr new_e = update_mlocal(curr_e, r);
+                old_locals.push_back(curr_e);
+                new_locals.push_back(new_e);
+                m_local_decls.update(curr_n, new_e);
+            } else {
+                m_local_decls.update(curr_n, r);
+            }
+        }
+    }
+    return true;
 }
 
 unsigned parser::get_local_level_index(name const & n) const {
@@ -662,65 +720,60 @@ elaborator_context parser::mk_elaborator_context(environment const & env, local_
 }
 
 std::tuple<expr, level_param_names> parser::elaborate_relaxed(expr const & e, list<expr> const & ctx) {
-    bool relax            = true;
     bool check_unassigned = false;
     bool ensure_type      = false;
     bool nice_mvar_names  = true;
     parser_pos_provider pp = get_pos_provider();
     elaborator_context env = mk_elaborator_context(pp, check_unassigned);
-    auto r = ::lean::elaborate(env, ctx, e, relax, ensure_type, nice_mvar_names);
+    auto r = ::lean::elaborate(env, ctx, e, ensure_type, nice_mvar_names);
     m_pre_info_manager.clear();
     return r;
 }
 
 std::tuple<expr, level_param_names> parser::elaborate(expr const & e, list<expr> const & ctx) {
-    bool relax            = false;
     bool check_unassigned = true;
     bool ensure_type      = false;
     parser_pos_provider pp = get_pos_provider();
     elaborator_context env = mk_elaborator_context(pp, check_unassigned);
-    auto r = ::lean::elaborate(env, ctx, e, relax, ensure_type);
+    auto r = ::lean::elaborate(env, ctx, e, ensure_type);
     m_pre_info_manager.clear();
     return r;
 }
 
 std::tuple<expr, level_param_names> parser::elaborate_type(expr const & e, list<expr> const & ctx, bool clear_pre_info) {
-    bool relax            = false;
     bool check_unassigned = true;
     bool ensure_type      = true;
     parser_pos_provider pp = get_pos_provider();
     elaborator_context env = mk_elaborator_context(pp, check_unassigned);
-    auto r = ::lean::elaborate(env, ctx, e, relax, ensure_type);
+    auto r = ::lean::elaborate(env, ctx, e, ensure_type);
     if (clear_pre_info)
         m_pre_info_manager.clear();
     return r;
 }
 
 std::tuple<expr, level_param_names> parser::elaborate_at(environment const & env, expr const & e) {
-    bool relax            = false;
     parser_pos_provider pp = get_pos_provider();
     elaborator_context eenv = mk_elaborator_context(env, pp);
-    auto r = ::lean::elaborate(eenv, list<expr>(), e, relax);
+    auto r = ::lean::elaborate(eenv, list<expr>(), e);
     m_pre_info_manager.clear();
     return r;
 }
 
-auto parser::elaborate_definition(name const & n, expr const & t, expr const & v,
-                                  bool is_opaque)
--> std::tuple<expr, expr, level_param_names> {
+auto parser::elaborate_definition(name const & n, expr const & t, expr const & v)
+    -> std::tuple<expr, expr, level_param_names> {
     parser_pos_provider pp = get_pos_provider();
     elaborator_context eenv = mk_elaborator_context(pp);
-    auto r = ::lean::elaborate(eenv, n, t, v, is_opaque);
+    auto r = ::lean::elaborate(eenv, n, t, v);
     m_pre_info_manager.clear();
     return r;
 }
 
 auto parser::elaborate_definition_at(environment const & env, local_level_decls const & lls,
-                                     name const & n, expr const & t, expr const & v, bool is_opaque)
+                                     name const & n, expr const & t, expr const & v)
 -> std::tuple<expr, expr, level_param_names> {
     parser_pos_provider pp = get_pos_provider();
     elaborator_context eenv = mk_elaborator_context(env, lls, pp);
-    auto r = ::lean::elaborate(eenv, n, t, v, is_opaque);
+    auto r = ::lean::elaborate(eenv, n, t, v);
     m_pre_info_manager.clear();
     return r;
 }
@@ -735,11 +788,15 @@ auto parser::elaborate_definition_at(environment const & env, local_level_decls 
       - '{'          : implicit
       - '{{' or '⦃'  : strict implicit
       - '['          : cast
+
+   If simple_only, then only `(` is considered
 */
-optional<binder_info> parser::parse_optional_binder_info() {
+optional<binder_info> parser::parse_optional_binder_info(bool simple_only) {
     if (curr_is_token(get_lparen_tk())) {
         next();
         return some(binder_info());
+    } else if (simple_only) {
+        return optional<binder_info>();
     } else if (curr_is_token(get_lcurly_tk())) {
         next();
         if (curr_is_token(get_lcurly_tk())) {
@@ -765,9 +822,9 @@ optional<binder_info> parser::parse_optional_binder_info() {
 
    \see parse_optional_binder_info
 */
-binder_info parser::parse_binder_info() {
+binder_info parser::parse_binder_info(bool simple_only) {
     auto p = pos();
-    if (auto bi = parse_optional_binder_info()) {
+    if (auto bi = parse_optional_binder_info(simple_only)) {
         return *bi;
     } else {
         throw_invalid_open_binder(p);
@@ -820,7 +877,8 @@ expr parser::parse_binder(unsigned rbp) {
     if (curr_is_identifier()) {
         return parse_binder_core(binder_info(), rbp);
     } else {
-        binder_info bi = parse_binder_info();
+        bool simple_only = false;
+        binder_info bi = parse_binder_info(simple_only);
         rbp = 0;
         auto r = parse_binder_core(bi, rbp);
         parse_close_binder_info(bi);
@@ -855,17 +913,17 @@ void parser::parse_binder_block(buffer<expr> & r, binder_info const & bi, unsign
 }
 
 void parser::parse_binders_core(buffer<expr> & r, buffer<notation_entry> * nentries,
-                                bool & last_block_delimited, unsigned rbp) {
+                                bool & last_block_delimited, unsigned rbp, bool simple_only) {
     while (true) {
         if (curr_is_identifier()) {
             parse_binder_block(r, binder_info(), rbp);
             last_block_delimited = false;
         } else {
-            optional<binder_info> bi = parse_optional_binder_info();
+            optional<binder_info> bi = parse_optional_binder_info(simple_only);
             if (bi) {
                 rbp = 0;
                 last_block_delimited = true;
-                if (!parse_local_notation_decl(nentries))
+                if (simple_only || !parse_local_notation_decl(nentries))
                     parse_binder_block(r, *bi, rbp);
                 parse_close_binder_info(bi);
             } else {
@@ -876,11 +934,12 @@ void parser::parse_binders_core(buffer<expr> & r, buffer<notation_entry> * nentr
 }
 
 local_environment parser::parse_binders(buffer<expr> & r, buffer<notation_entry> * nentries,
-                                        bool & last_block_delimited, bool allow_empty, unsigned rbp) {
-    flet<environment> save(m_env, m_env); // save environment
-    local_expr_decls::mk_scope scope(m_local_decls);
+                                        bool & last_block_delimited, bool allow_empty, unsigned rbp,
+                                        bool simple_only) {
+    flet<environment>      save1(m_env, m_env); // save environment
+    flet<local_expr_decls> save2(m_local_decls, m_local_decls);
     unsigned old_sz = r.size();
-    parse_binders_core(r, nentries, last_block_delimited, rbp);
+    parse_binders_core(r, nentries, last_block_delimited, rbp, simple_only);
     if (!allow_empty && old_sz == r.size())
         throw_invalid_open_binder(pos());
     return local_environment(m_env);
@@ -902,7 +961,7 @@ bool parser::parse_local_notation_decl(buffer<notation_entry> * nentries) {
     }
 }
 
-expr parser::parse_notation(parse_table t, expr * left) {
+expr parser::parse_notation_core(parse_table t, expr * left, bool as_tactic) {
     lean_assert(curr() == scanner::token_kind::Keyword);
     auto p = pos();
     if (m_info_manager)
@@ -926,17 +985,17 @@ expr parser::parse_notation(parse_table t, expr * left) {
             break;
         case notation::action_kind::Expr:
             next();
-            args.push_back(parse_expr(a.rbp()));
+            args.push_back(parse_expr_or_tactic(a.rbp(), as_tactic));
             break;
         case notation::action_kind::Exprs: {
             next();
             buffer<expr> r_args;
             auto terminator = a.get_terminator();
             if (!terminator || !curr_is_token(*terminator)) {
-                r_args.push_back(parse_expr(a.rbp()));
+                r_args.push_back(parse_expr_or_tactic(a.rbp(), as_tactic));
                 while (curr_is_token(a.get_sep())) {
                     next();
-                    r_args.push_back(parse_expr(a.rbp()));
+                    r_args.push_back(parse_expr_or_tactic(a.rbp(), as_tactic));
                 }
             }
             if (terminator) {
@@ -1101,7 +1160,7 @@ expr parser::id_to_expr(name const & id, pos_info const & p) {
     if (auto it1 = m_local_decls.find(id)) {
         if (ls && m_undef_id_behavior != undef_id_behavior::AssumeConstant)
             throw parser_error("invalid use of explicit universe parameter, identifier is a variable, "
-                               "parameter or a constant bound to parameters in a section/context", p);
+                               "parameter or a constant bound to parameters in a section", p);
         auto r = copy_with_new_pos(*it1, p);
         save_type_info(r);
         save_identifier_info(p, id);
@@ -1169,12 +1228,9 @@ expr parser::id_to_expr(name const & id, pos_info const & p) {
     return *r;
 }
 
-name parser::check_constant_next(char const * msg) {
-    auto p  = pos();
-    name id = check_id_next(msg);
+name parser::to_constant(name const & id, char const * msg, pos_info const & p) {
     expr e  = id_to_expr(id, p);
-
-    if (in_context(m_env) && is_as_atomic(e)) {
+    if (in_section(m_env) && is_as_atomic(e)) {
         e = get_app_fn(get_as_atomic_arg(e));
         if (is_explicit(e))
             e = get_explicit_arg(e);
@@ -1190,6 +1246,12 @@ name parser::check_constant_next(char const * msg) {
     }
 }
 
+name parser::check_constant_next(char const * msg) {
+    auto p  = pos();
+    name id = check_id_next(msg);
+    return to_constant(id, msg, p);
+}
+
 expr parser::parse_id() {
     auto p  = pos();
     name id = get_name_val();
@@ -1197,13 +1259,15 @@ expr parser::parse_id() {
     return id_to_expr(id, p);
 }
 
-expr parser::parse_numeral_expr() {
+expr parser::parse_numeral_expr(bool user_notation) {
     auto p = pos();
     mpz n = get_num_val().get_numerator();
     next();
     if (!m_has_num)
         m_has_num = has_num_decls(m_env);
-    list<expr> vals = get_mpz_notation(m_env, n);
+    list<expr> vals;
+    if (user_notation)
+        vals = get_mpz_notation(m_env, n);
     if (!*m_has_num && !vals) {
         throw parser_error("numeral cannot be encoded as expression, environment does not contain the type 'num' "
                            "nor notation was defined for the given numeral "
@@ -1259,10 +1323,13 @@ expr parser::parse_led(expr left) {
     }
 }
 
-unsigned parser::curr_lbp() const {
+unsigned parser::curr_lbp_core(bool as_tactic) const {
     switch (curr()) {
     case scanner::token_kind::Keyword:
-        return get_token_info().precedence();
+        if (as_tactic)
+            return get_token_info().tactic_precedence();
+        else
+            return get_token_info().expr_precedence();
     case scanner::token_kind::CommandKeyword: case scanner::token_kind::Eof:
     case scanner::token_kind::ScriptBlock:    case scanner::token_kind::QuotedSymbol:
         return 0;
@@ -1275,7 +1342,7 @@ unsigned parser::curr_lbp() const {
 
 expr parser::parse_expr(unsigned rbp) {
     expr left = parse_nud();
-    while (rbp < curr_lbp()) {
+    while (rbp < curr_expr_lbp()) {
         left = parse_led(left);
     }
     return left;
@@ -1291,7 +1358,7 @@ pair<optional<name>, expr> parser::parse_id_tk_expr(name const & tk, unsigned rb
             return mk_pair(optional<name>(id), parse_expr(rbp));
         } else {
             expr left = id_to_expr(id, id_pos);
-            while (rbp < curr_lbp()) {
+            while (rbp < curr_expr_lbp()) {
                 left = parse_led(left);
             }
             return mk_pair(optional<name>(), left);
@@ -1317,6 +1384,11 @@ expr parser::parse_scoped_expr(unsigned num_ps, expr const * ps, local_environme
     return parse_expr(rbp);
 }
 
+expr parser::parse_expr_with_env(local_environment const & lenv, unsigned rbp) {
+    flet<environment> set_env(m_env, lenv);
+    return parse_expr(rbp);
+}
+
 static bool is_tactic_type(expr const & e) {
     return is_constant(e) && const_name(e) == get_tactic_name();
 }
@@ -1329,10 +1401,37 @@ static bool is_tactic_opt_expr_list_type(expr const & e) {
     return is_constant(e) && const_name(e) == get_tactic_opt_expr_list_name();
 }
 
+static bool is_tactic_identifier_type(expr const & e) {
+    return is_constant(e) && const_name(e) == get_tactic_identifier_name();
+}
+
+static bool is_tactic_identifier_list_type(expr const & e) {
+    return is_constant(e) && const_name(e) == get_tactic_identifier_list_name();
+}
+
+static bool is_tactic_opt_identifier_list_type(expr const & e) {
+    return is_constant(e) && const_name(e) == get_tactic_opt_identifier_list_name();
+}
+
+static bool is_option_num(expr const & e) {
+    return is_app(e) && is_constant(app_fn(e)) && const_name(app_fn(e)) == get_option_name() &&
+        is_constant(app_arg(e)) && const_name(app_arg(e)) == get_num_name();
+}
+
 static bool is_tactic_command_type(expr e) {
     while (is_pi(e))
         e = binding_body(e);
     return is_tactic_type(e);
+}
+
+expr parser::parse_tactic_expr_arg(unsigned rbp) {
+    parser::undef_id_to_local_scope scope1(*this);
+    return parse_expr(rbp);
+}
+
+expr parser::parse_tactic_id_arg() {
+    parser::undef_id_to_local_scope scope1(*this);
+    return parse_id();
 }
 
 optional<expr> parser::is_tactic_command(name & id) {
@@ -1347,17 +1446,7 @@ optional<expr> parser::is_tactic_command(name & id) {
     return some_expr(type);
 }
 
-expr parser::parse_tactic_expr_list() {
-    auto p = pos();
-    check_token_next(get_lbracket_tk(), "invalid tactic, '[' expected");
-    buffer<expr> args;
-    while (true) {
-        args.push_back(parse_expr());
-        if (!curr_is_token(get_comma_tk()))
-            break;
-        next();
-    }
-    check_token_next(get_rbracket_tk(), "invalid tactic, ',' or ']' expected");
+expr parser::mk_tactic_expr_list(buffer<expr> const & args, pos_info const & p) {
     unsigned i = args.size();
     expr r = save_pos(mk_constant(get_tactic_expr_list_nil_name()), p);
     while (i > 0) {
@@ -1365,6 +1454,42 @@ expr parser::parse_tactic_expr_list() {
         r = mk_app({save_pos(mk_constant(get_tactic_expr_list_cons_name()), p), args[i], r}, p);
     }
     return r;
+}
+
+expr parser::parse_tactic_expr_list() {
+    auto p = pos();
+    check_token_next(get_lbracket_tk(), "invalid tactic, '[' expected");
+    buffer<expr> args;
+    while (true) {
+        args.push_back(parse_tactic_expr_arg());
+        if (!curr_is_token(get_comma_tk()))
+            break;
+        next();
+    }
+    check_token_next(get_rbracket_tk(), "invalid tactic, ',' or ']' expected");
+    return mk_tactic_expr_list(args, p);
+}
+
+expr parser::parse_tactic_id_list() {
+    auto p = pos();
+    buffer<expr> args;
+    if (curr_is_identifier()) {
+        while (curr_is_identifier()) {
+            name id = get_name_val();
+            args.push_back(mk_local(id, mk_expr_placeholder()));
+            next();
+        }
+    } else {
+        check_token_next(get_lbracket_tk(), "invalid tactic, '[' or identifier expected");
+        while (true) {
+            args.push_back(mk_local(check_id_next("invalid tactic, identifier expected"), mk_expr_placeholder()));
+            if (!curr_is_token(get_comma_tk()))
+                break;
+            next();
+        }
+        check_token_next(get_rbracket_tk(), "invalid tactic, ',' or ']' expected");
+    }
+    return mk_tactic_expr_list(args, p);
 }
 
 expr parser::parse_tactic_opt_expr_list() {
@@ -1378,65 +1503,89 @@ expr parser::parse_tactic_opt_expr_list() {
     }
 }
 
+expr parser::parse_tactic_opt_id_list() {
+    if (curr_is_token(get_lbracket_tk()) || curr_is_identifier()) {
+        return parse_tactic_id_list();
+    } else if (curr_is_token(get_with_tk())) {
+        next();
+        return parse_tactic_id_list();
+    } else {
+        return save_pos(mk_constant(get_tactic_expr_list_nil_name()), pos());
+    }
+}
+
+expr parser::parse_tactic_option_num() {
+    auto p = pos();
+    if (curr_is_numeral()) {
+        expr n = parse_numeral_expr(false);
+        return mk_app(save_pos(mk_constant(get_option_some_name()), p), n, p);
+    } else {
+        return save_pos(mk_constant(get_option_none_name()), p);
+    }
+}
+
 expr parser::parse_tactic_nud() {
     if (curr_is_identifier()) {
         auto id_pos = pos();
         name id = get_name_val();
         if (optional<expr> tac_type = is_tactic_command(id)) {
             next();
-            expr type = *tac_type;
-            expr r = save_pos(mk_constant(id), id_pos);
+            expr r         = save_pos(mk_constant(id), id_pos);
+            expr type      = *tac_type;
+            buffer<expr> ds;
             while (is_pi(type)) {
-                expr d = binding_domain(type);
+                ds.push_back(binding_domain(type));
+                type = binding_body(type);
+            }
+            unsigned arity = ds.size();
+            for (unsigned i = 0; i < arity; i++) {
+                expr const & d = ds[i];
                 if (is_tactic_type(d)) {
                     r = mk_app(r, parse_tactic(get_max_prec()), id_pos);
                 } else if (is_tactic_expr_list_type(d)) {
                     r = mk_app(r, parse_tactic_expr_list(), id_pos);
                 } else if (is_tactic_opt_expr_list_type(d)) {
                     r = mk_app(r, parse_tactic_opt_expr_list(), id_pos);
+                } else if (is_tactic_identifier_type(d)) {
+                    r = mk_app(r, mk_local(check_id_next("invalid tactic, identifier expected"),
+                                           mk_expr_placeholder()), id_pos);
+                } else if (is_tactic_identifier_list_type(d)) {
+                    r = mk_app(r, parse_tactic_id_list(), id_pos);
+                } else if (is_tactic_opt_identifier_list_type(d)) {
+                    r = mk_app(r, parse_tactic_opt_id_list(), id_pos);
+                } else if (arity == 1 && is_option_num(d)) {
+                    r = mk_app(r, parse_tactic_option_num(), id_pos);
                 } else {
-                    r = mk_app(r, parse_expr(get_max_prec()), id_pos);
+                    unsigned rbp;
+                    if (arity == 1 || (arity == 2 && i == 0 && is_tactic_opt_identifier_list_type(ds[1])))
+                        rbp = 0;
+                    else
+                        rbp = get_max_prec();
+                    r = mk_app(r, parse_tactic_expr_arg(rbp), id_pos);
                 }
-                type = binding_body(type);
             }
             return r;
         } else {
             return parse_expr();
         }
-    } else if (curr_is_token_or_id(get_rewrite_tk())) {
-        auto p = pos();
-        next();
-        return save_pos(parse_rewrite_tactic(*this), p);
-    } else if (curr_is_token(get_lparen_tk())) {
-        next();
-        expr r = parse_tactic();
-        while (curr_is_token(get_bar_tk())) {
-            auto bar_pos = pos();
-            next();
-            expr n = parse_tactic();
-            r = mk_app({save_pos(mk_constant(get_tactic_or_else_name()), bar_pos), r, n}, bar_pos);
-        }
-        check_token_next(get_rparen_tk(), "invalid tactic, ')' expected");
-        return r;
+    } else if (curr_is_keyword()) {
+        return parse_tactic_notation(tactic_nud(), nullptr);
     } else {
-        return parse_expr();
+        throw parser_error("invalid tactic expression", pos());
     }
 }
 
 expr parser::parse_tactic_led(expr left) {
-    auto p = pos();
-    if (curr_is_token(get_semicolon_tk())) {
-        next();
-        expr right = parse_tactic();
-        return mk_app({save_pos(mk_constant(get_tactic_and_then_name()), p), left, right}, p);
+    if (tactic_led().find(get_token_info().value())) {
+        return parse_tactic_notation(tactic_led(), &left);
     } else {
-        return parse_led(left);
+        throw parser_error("invalid tactic expression", pos());
     }
 }
 
 expr parser::parse_tactic(unsigned rbp) {
     expr left = parse_tactic_nud();
-    while (rbp < curr_lbp()) {
+    while (rbp < curr_tactic_lbp()) {
         left = parse_tactic_led(left);
     }
     return left;
@@ -1485,7 +1634,7 @@ static optional<std::string> try_file(std::string const & base, optional<unsigne
 }
 
 static std::string * g_lua_module_key = nullptr;
-static void lua_module_reader(deserializer & d, module_idx, shared_environment &,
+static void lua_module_reader(deserializer & d, shared_environment &,
                               std::function<void(asynch_update_fn const &)> &,
                               std::function<void(delayed_update_fn const &)> & add_delayed_update) {
     name fname;
@@ -1560,7 +1709,7 @@ void parser::parse_imports() {
     for (auto const & f : lua_files) {
         std::string rname = find_file(f, {".lua"});
         system_import(rname.c_str());
-        m_env = module::add(m_env, *g_lua_module_key, [=](serializer & s) {
+        m_env = module::add(m_env, *g_lua_module_key, [=](environment const &, serializer & s) {
                 s << f;
             });
     }
@@ -1634,13 +1783,17 @@ bool parser::parse_commands() {
     } catch (interrupt_parser) {
         commit_info();
         while (has_open_scopes(m_env))
-            m_env = pop_scope_core(m_env);
+            m_env = pop_scope_core(m_env, m_ios);
     }
     commit_info(m_scanner.get_line()+1, 0);
-    for (certified_declaration const & thm : m_theorem_queue.join()) {
-        if (keep_new_thms())
-            m_env.replace(thm);
-    }
+
+    m_theorem_queue.for_each([&](certified_declaration const & thm) {
+            if (keep_new_thms()) {
+                name const & thm_name = thm.get_declaration().get_name();
+                if (m_env.get(thm_name).is_axiom())
+                    m_env = m_env.replace(thm);
+            }
+        });
     return !m_found_errors;
 }
 
@@ -1662,6 +1815,23 @@ bool parser::curr_is_command_like() const {
 void parser::add_delayed_theorem(environment const & env, name const & n, level_param_names const & ls,
                                  expr const & t, expr const & v) {
     m_theorem_queue.add(env, n, ls, get_local_level_decls(), t, v);
+}
+
+void parser::add_delayed_theorem(certified_declaration const & cd) {
+    m_theorem_queue.add(cd);
+}
+
+environment parser::reveal_theorems(buffer<name> const & ds) {
+    m_theorem_queue.for_each([&](certified_declaration const & thm) {
+            if (keep_new_thms()) {
+                name const & thm_name = thm.get_declaration().get_name();
+                if (m_env.get(thm_name).is_axiom() &&
+                    std::any_of(ds.begin(), ds.end(), [&](name const & n) { return n == thm_name; })) {
+                    m_env = m_env.replace(thm);
+                }
+            }
+        });
+    return m_env;
 }
 
 void parser::save_snapshot() {

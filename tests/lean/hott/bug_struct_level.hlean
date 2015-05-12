@@ -1,8 +1,8 @@
-import algebra.precategory.basic
+import algebra.category
 
 open category
 
-context
+section
   parameter {D₀ : Type}
   parameter (C  : precategory D₀)
   parameter (D₂ : Π ⦃a b c d : D₀⦄ (f : hom a b) (g : hom c d) (h : hom a c) (i : hom b d), Type)
@@ -22,7 +22,7 @@ context
   (ID₁       : ID₁_type)
 end
 
-context
+section
   parameter {D₀ : Type}
   parameter [C : precategory D₀]
   parameter {D₂ : Π ⦃a b c d : D₀⦄ (f : hom a b) (g : hom c d) (h : hom a c) (i : hom b d), Type}

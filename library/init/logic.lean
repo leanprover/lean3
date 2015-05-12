@@ -10,12 +10,17 @@ import init.datatypes init.reserved_notation
 
 /- implication -/
 
+definition implies (a b : Prop) := a → b
+
+lemma implies.trans [trans] {p q r : Prop} (h₁ : implies p q) (h₂ : implies q r) : implies p r :=
+assume hp, h₂ (h₁ hp)
+
 definition trivial := true.intro
 
 definition not (a : Prop) := a → false
 prefix `¬` := not
 
-definition absurd {a : Prop} {b : Type} (H1 : a) (H2 : ¬a) : b :=
+theorem absurd {a : Prop} {b : Type} (H1 : a) (H2 : ¬a) : b :=
 false.rec b (H2 H1)
 
 /- not -/
@@ -31,7 +36,7 @@ assume Hna : ¬a, absurd Ha Hna
 /- eq -/
 
 notation a = b := eq a b
-definition rfl {A : Type} {a : A} := eq.refl a
+theorem rfl {A : Type} {a : A} : a = a := eq.refl a
 
 -- proof irrelevance is built in
 theorem proof_irrel {a : Prop} (H₁ H₂ : a) : H₁ = H₂ :=
@@ -47,7 +52,7 @@ namespace eq
   theorem trans (H₁ : a = b) (H₂ : b = c) : a = c :=
   subst H₂ H₁
 
-  definition symm (H : a = b) : b = a :=
+  theorem symm (H : a = b) : b = a :=
   eq.rec (refl a) H
 
   namespace ops
@@ -55,16 +60,22 @@ namespace eq
     notation H1 ⬝ H2 := trans H1 H2
     notation H1 ▸ H2 := subst H1 H2
   end ops
+
+  protected theorem drec_on {B : Πa' : A, a = a' → Type} (H₁ : a = a') (H₂ : B a (refl a)) : B a' H₁ :=
+  eq.rec (λH₁ : a = a, show B a H₁, from H₂) H₁ H₁
 end eq
+
+theorem congr {A B : Type} {f₁ f₂ : A → B} {a₁ a₂ : A} (H₁ : f₁ = f₂) (H₂ : a₁ = a₂) : f₁ a₁ = f₂ a₂ :=
+eq.subst H₁ (eq.subst H₂ rfl)
 
 section
   variables {A : Type} {a b c: A}
   open eq.ops
 
-  definition trans_rel_left (R : A → A → Prop) (H₁ : R a b) (H₂ : b = c) : R a c :=
+  theorem trans_rel_left (R : A → A → Prop) (H₁ : R a b) (H₂ : b = c) : R a c :=
   H₂ ▸ H₁
 
-  definition trans_rel_right (R : A → A → Prop) (H₁ : a = b) (H₂ : R b c) : R a c :=
+  theorem trans_rel_right (R : A → A → Prop) (H₁ : a = b) (H₂ : R b c) : R a c :=
   H₁⁻¹ ▸ H₂
 end
 
@@ -79,10 +90,10 @@ section
   assume Hp, H ▸ Hp
 end
 
-calc_subst eq.subst
-calc_refl  eq.refl
-calc_trans eq.trans
-calc_symm  eq.symm
+attribute eq.subst [subst]
+attribute eq.refl [refl]
+attribute eq.trans [trans]
+attribute eq.symm [symm]
 
 /- ne -/
 
@@ -121,12 +132,12 @@ namespace heq
   universe variable u
   variables {A B C : Type.{u}} {a a' : A} {b b' : B} {c : C}
 
-  definition to_eq (H : a == a') : a = a' :=
+  theorem to_eq (H : a == a') : a = a' :=
   have H₁ : ∀ (Ht : A = A), eq.rec_on Ht a = a, from
     λ Ht, eq.refl (eq.rec_on Ht a),
   heq.rec_on H H₁ (eq.refl A)
 
-  definition elim {A : Type} {a : A} {P : A → Type} {b : A} (H₁ : a == b) (H₂ : P a) : P b :=
+  theorem elim {A : Type} {a : A} {P : A → Type} {b : A} (H₁ : a == b) (H₂ : P a) : P b :=
   eq.rec_on (to_eq H₁) H₂
 
   theorem subst {P : ∀T : Type, T → Prop} (H₁ : a == b) (H₂ : P A a) : P B b :=
@@ -146,15 +157,19 @@ namespace heq
 
   theorem of_eq_of_heq (H₁ : a = a') (H₂ : a' == b) : a == b :=
   trans (of_eq H₁) H₂
+
 end heq
+
+theorem eq_rec_heq {A : Type} {P : A → Type} {a a' : A} (H : a = a') (p : P a) : eq.rec_on H p == p :=
+eq.drec_on H !heq.refl
 
 theorem of_heq_true {a : Prop} (H : a == true) : a :=
 of_eq_true (heq.to_eq H)
 
-calc_trans heq.trans
-calc_trans heq.of_heq_of_eq
-calc_trans heq.of_eq_of_heq
-calc_symm  heq.symm
+attribute heq.trans [trans]
+attribute heq.of_heq_of_eq [trans]
+attribute heq.of_eq_of_heq [trans]
+attribute heq.symm [symm]
 
 /- and -/
 
@@ -190,26 +205,26 @@ notation a <-> b := iff a b
 notation a ↔ b := iff a b
 
 namespace iff
-  definition intro (H₁ : a → b) (H₂ : b → a) : a ↔ b :=
+  theorem intro (H₁ : a → b) (H₂ : b → a) : a ↔ b :=
   and.intro H₁ H₂
 
-  definition elim (H₁ : (a → b) → (b → a) → c) (H₂ : a ↔ b) : c :=
+  theorem elim (H₁ : (a → b) → (b → a) → c) (H₂ : a ↔ b) : c :=
   and.rec H₁ H₂
 
-  definition elim_left (H : a ↔ b) : a → b :=
+  theorem elim_left (H : a ↔ b) : a → b :=
   elim (assume H₁ H₂, H₁) H
 
   definition mp := @elim_left
 
-  definition elim_right (H : a ↔ b) : b → a :=
+  theorem elim_right (H : a ↔ b) : b → a :=
   elim (assume H₁ H₂, H₂) H
 
   definition mp' := @elim_right
 
-  definition refl (a : Prop) : a ↔ a :=
+  theorem refl (a : Prop) : a ↔ a :=
   intro (assume H, H) (assume H, H)
 
-  definition rfl {a : Prop} : a ↔ a :=
+  theorem rfl {a : Prop} : a ↔ a :=
   refl a
 
   theorem trans (H₁ : a ↔ b) (H₂ : b ↔ c) : a ↔ c :=
@@ -227,7 +242,7 @@ namespace iff
   iff.intro (λ Ha, H ▸ Ha) (λ Hb, H⁻¹ ▸ Hb)
 end iff
 
-definition not_iff_not_of_iff (H₁ : a ↔ b) : ¬a ↔ ¬b :=
+theorem not_iff_not_of_iff (H₁ : a ↔ b) : ¬a ↔ ¬b :=
 iff.intro
  (assume (Hna : ¬ a) (Hb : b), absurd (iff.elim_right H₁ Hb) Hna)
  (assume (Hnb : ¬ b) (Ha : a), absurd (iff.elim_left H₁ Ha) Hnb)
@@ -255,8 +270,9 @@ iff.intro
   (assume Hr : ¬a,
     assume Hnna : ¬¬a, absurd Hr Hnna)
 
-calc_refl iff.refl
-calc_trans iff.trans
+attribute iff.refl [refl]
+attribute iff.symm [symm]
+attribute iff.trans [trans]
 
 inductive Exists {A : Type} (P : A → Prop) : Prop :=
 intro : ∀ (a : A), P a → Exists P
@@ -358,7 +374,7 @@ definition decidable_ne [instance] {A : Type} [H : decidable_eq A] : Π (a b : A
 show Π x y : A, decidable (x = y → false), from _
 
 namespace bool
-  definition ff_ne_tt : ff = tt → false
+  theorem ff_ne_tt : ff = tt → false
   | [none]
 end bool
 
@@ -384,6 +400,7 @@ match H a a with
 | inr n := absurd rfl n
 end
 
+open eq.ops
 theorem decidable_eq_inr_neg {A : Type} [H : decidable_eq A] {a b : A} : Π n : a ≠ b, H a b = inr n :=
 assume n,
 match H a b with
@@ -405,7 +422,7 @@ inhabited.rec H2 H1
 definition default (A : Type) [H : inhabited A] : A :=
 inhabited.rec (λa, a) H
 
-opaque definition arbitrary (A : Type) [H : inhabited A] : A :=
+definition arbitrary [irreducible] (A : Type) [H : inhabited A] : A :=
 inhabited.rec (λa, a) H
 
 definition Prop.is_inhabited [instance] : inhabited Prop :=
@@ -467,19 +484,19 @@ decidable.rec_on H (λh, H3 h) (λh, H4 h) --this can be proven using dependent 
 definition ite (c : Prop) [H : decidable c] {A : Type} (t e : A) : A :=
 decidable.rec_on H (λ Hc, t) (λ Hnc, e)
 
-definition if_pos {c : Prop} [H : decidable c] (Hc : c) {A : Type} {t e : A} : (if c then t else e) = t :=
+theorem if_pos {c : Prop} [H : decidable c] (Hc : c) {A : Type} {t e : A} : (if c then t else e) = t :=
 decidable.rec
   (λ Hc : c,    eq.refl (@ite c (decidable.inl Hc) A t e))
   (λ Hnc : ¬c,  absurd Hc Hnc)
   H
 
-definition if_neg {c : Prop} [H : decidable c] (Hnc : ¬c) {A : Type} {t e : A} : (if c then t else e) = e :=
+theorem if_neg {c : Prop} [H : decidable c] (Hnc : ¬c) {A : Type} {t e : A} : (if c then t else e) = e :=
 decidable.rec
   (λ Hc : c,    absurd Hc Hnc)
   (λ Hnc : ¬c,  eq.refl (@ite c (decidable.inr Hnc) A t e))
   H
 
-definition if_t_t (c : Prop) [H : decidable c] {A : Type} (t : A) : (if c then t else t) = t :=
+theorem if_t_t (c : Prop) [H : decidable c] {A : Type} (t : A) : (if c then t else t) = t :=
 decidable.rec
   (λ Hc  : c,  eq.refl (@ite c (decidable.inl Hc)  A t t))
   (λ Hnc : ¬c, eq.refl (@ite c (decidable.inr Hnc) A t t))
@@ -490,13 +507,13 @@ decidable.rec
 definition dite (c : Prop) [H : decidable c] {A : Type} (t : c → A) (e : ¬ c → A) : A :=
 decidable.rec_on H (λ Hc, t Hc) (λ Hnc, e Hnc)
 
-definition dif_pos {c : Prop} [H : decidable c] (Hc : c) {A : Type} {t : c → A} {e : ¬ c → A} : (if H : c then t H else e H) = t Hc :=
+theorem dif_pos {c : Prop} [H : decidable c] (Hc : c) {A : Type} {t : c → A} {e : ¬ c → A} : (if H : c then t H else e H) = t Hc :=
 decidable.rec
   (λ Hc : c,    eq.refl (@dite c (decidable.inl Hc) A t e))
   (λ Hnc : ¬c,  absurd Hc Hnc)
   H
 
-definition dif_neg {c : Prop} [H : decidable c] (Hnc : ¬c) {A : Type} {t : c → A} {e : ¬ c → A} : (if H : c then t H else e H) = e Hnc :=
+theorem dif_neg {c : Prop} [H : decidable c] (Hnc : ¬c) {A : Type} {t : c → A} {e : ¬ c → A} : (if H : c then t H else e H) = e Hnc :=
 decidable.rec
   (λ Hc : c,    absurd Hc Hnc)
   (λ Hnc : ¬c,  eq.refl (@dite c (decidable.inr Hnc) A t e))

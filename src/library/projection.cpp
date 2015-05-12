@@ -48,7 +48,9 @@ static environment save_projection_info_core(environment const & env, name const
 
 environment save_projection_info(environment const & env, name const & p, name const & mk, unsigned nparams, unsigned i, bool inst_implicit) {
     environment new_env = save_projection_info_core(env, p, mk, nparams, i, inst_implicit);
-    return module::add(new_env, *g_proj_key, [=](serializer & s) { s << p << mk << nparams << i << inst_implicit; });
+    return module::add(new_env, *g_proj_key, [=](environment const &, serializer & s) {
+            s << p << mk << nparams << i << inst_implicit;
+        });
 }
 
 projection_info const * get_projection_info(environment const & env, name const & p) {
@@ -56,7 +58,7 @@ projection_info const * get_projection_info(environment const & env, name const 
     return ext.m_info.find(p);
 }
 
-static void projection_info_reader(deserializer & d, module_idx, shared_environment & senv,
+static void projection_info_reader(deserializer & d, shared_environment & senv,
                                    std::function<void(asynch_update_fn const &)> &,
                                    std::function<void(delayed_update_fn const &)> &) {
     name p, mk; unsigned nparams, i; bool inst_implicit;
@@ -84,12 +86,12 @@ public:
     virtual format pp(formatter const &) const { return format(m_proj_name); }
     virtual void display(std::ostream & out) const { out << m_proj_name; }
 
-    virtual pair<expr, constraint_seq> get_type(expr const & m, extension_context & ctx) const {
+    virtual pair<expr, constraint_seq> check_type(expr const & m, extension_context & ctx, bool infer_only) const {
         check_macro(m);
         environment const & env = ctx.env();
         constraint_seq cs;
         expr s   = macro_arg(m, 0);
-        expr s_t = ctx.whnf(ctx.infer_type(s, cs), cs);
+        expr s_t = ctx.whnf(ctx.check_type(s, cs, infer_only), cs);
         buffer<expr> I_args;
         expr const & I = get_app_args(s_t, I_args);
         if (is_constant(I)) {

@@ -17,7 +17,6 @@ namespace lean {
 class default_converter : public converter {
 protected:
     environment                                 m_env;
-    optional<module_idx>                        m_module_idx;
     bool                                        m_memoize;
     expr_struct_map<expr>                       m_whnf_core_cache;
     expr_struct_map<pair<expr, constraint_seq>> m_whnf_cache;
@@ -28,7 +27,7 @@ protected:
     type_checker *                              m_tc;
     delayed_justification *                     m_jst;
 
-    virtual bool may_reduce_later(expr const & e);
+    virtual bool is_stuck(expr const & e);
     virtual optional<pair<expr, constraint_seq>> norm_ext(expr const & e);
 
     pair<expr, constraint_seq> infer_type(expr const & e) { return converter::infer_type(*m_tc, e); }
@@ -73,14 +72,12 @@ protected:
     pair<bool, constraint_seq> is_def_eq(expr const & t, expr const & s);
 
 public:
-    default_converter(environment const & env, optional<module_idx> mod_idx, bool memoize = true);
-    default_converter(environment const & env, bool relax_main_opaque, bool memoize = true);
+    default_converter(environment const & env, bool memoize = true);
 
     virtual optional<declaration> is_delta(expr const & e) const;
     virtual bool is_opaque(declaration const & d) const;
-    virtual optional<module_idx> get_module_idx() const { return m_module_idx; }
 
-    virtual bool may_reduce_later(expr const & e, type_checker & c);
+    virtual bool is_stuck(expr const & e, type_checker & c);
     virtual pair<expr, constraint_seq> whnf(expr const & e_prime, type_checker & c);
     virtual pair<bool, constraint_seq> is_def_eq(expr const & t, expr const & s, type_checker & c, delayed_justification & jst);
 };

@@ -152,9 +152,8 @@ section
       have Hbz : b = 0, from le.antisymm Hb' Hb,
       and.intro Haz Hbz)
     (assume Hab : a = 0 ∧ b = 0,
-      match Hab with
-      | and.intro Ha' Hb' := by rewrite [Ha', Hb', add_zero]
-      end)
+     obtain Ha' Hb', from Hab,
+     by rewrite [Ha', Hb', add_zero])
 
   theorem le_add_of_nonneg_of_le (Ha : 0 ≤ a) (Hbc : b ≤ c) : b ≤ a + c :=
   !zero_add ▸ add_le_add Ha Hbc
@@ -489,7 +488,7 @@ section
   abs.by_cases H1 H2
 
   -- the triangle inequality
-  context
+  section
     private lemma aux1 {a b : A} (H1 : a + b ≥ 0) (H2 : a ≥ 0) : abs (a + b) ≤ abs a + abs b :=
     decidable.by_cases
       (assume H3 : b ≥ 0,
@@ -520,7 +519,7 @@ section
           have H3 : abs (b + a) ≤ abs b + abs a,
           begin
             rewrite add.comm at H1,
-            exact (aux1 H1 H2)
+            exact aux1 H1 H2
           end,
           rewrite [add.comm, {abs a + _}add.comm],
           exact H3

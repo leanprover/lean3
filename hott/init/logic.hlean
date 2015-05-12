@@ -7,18 +7,18 @@ Authors: Leonardo de Moura
 -/
 
 prelude
-import init.datatypes init.reserved_notation
+import init.reserved_notation
 
-definition not.{l} (a : Type.{l}) := a → empty.{l}
+/- not -/
+
+definition not (a : Type) := a → empty
 prefix `¬` := not
 
-definition absurd {a : Type} {b : Type} (H₁ : a) (H₂ : ¬a) : b :=
+definition absurd {a b : Type} (H₁ : a) (H₂ : ¬a) : b :=
 empty.rec (λ e, b) (H₂ H₁)
 
 definition mt {a b : Type} (H₁ : a → b) (H₂ : ¬b) : ¬a :=
 assume Ha : a, absurd (H₁ Ha) H₂
-
-/- not -/
 
 protected definition not_empty : ¬ empty :=
 assume H : empty, H
@@ -26,9 +26,9 @@ assume H : empty, H
 definition not_not_intro {a : Type} (Ha : a) : ¬¬a :=
 assume Hna : ¬a, absurd Ha Hna
 
-definition not.intro {a : Type} (H : a → empty) : ¬a := H
-
 definition not.elim {a : Type} (H₁ : ¬a) (H₂ : a) : empty := H₁ H₂
+
+definition not.intro {a : Type} (H : a → empty) : ¬a := H
 
 definition not_not_of_not_implies {a b : Type} (H : ¬(a → b)) : ¬¬a :=
 assume Hna : ¬a, absurd (assume Ha : a, absurd Ha Hna) H
@@ -42,8 +42,7 @@ notation a = b := eq a b
 definition rfl {A : Type} {a : A} := eq.refl a
 
 namespace eq
-  variables {A : Type}
-  variables {a b c a' : A}
+  variables {A : Type} {a b c : A}
 
   definition subst {P : A → Type} (H₁ : a = b) (H₂ : P a) : P b :=
   eq.rec H₂ H₁
@@ -61,6 +60,9 @@ namespace eq
   end ops
 end eq
 
+definition congr {A B : Type} {f₁ f₂ : A → B} {a₁ a₂ : A} (H₁ : f₁ = f₂) (H₂ : a₁ = a₂) : f₁ a₁ = f₂ a₂ :=
+eq.subst H₁ (eq.subst H₂ rfl)
+
 section
   variables {A : Type} {a b c: A}
   open eq.ops
@@ -72,10 +74,10 @@ section
   H₁⁻¹ ▸ H₂
 end
 
-calc_subst eq.subst
-calc_refl  eq.refl
-calc_trans eq.trans
-calc_symm  eq.symm
+attribute eq.subst [subst]
+attribute eq.refl [refl]
+attribute eq.trans [trans]
+attribute eq.symm [symm]
 
 namespace lift
   definition down_up.{l₁ l₂} {A : Type.{l₁}} (a : A) : down (up.{l₁ l₂} a) = a :=
@@ -122,9 +124,6 @@ section
   assume H₁ H₂, H₂ ▸ H₁
 end
 
-calc_trans ne.of_eq_of_ne
-calc_trans ne.of_ne_of_eq
-
 /- iff -/
 
 definition iff (a b : Type) := prod (a → b) (b → a)
@@ -151,6 +150,8 @@ namespace iff
 
   definition elim_right (H : a ↔ b) : b → a :=
   elim (assume H₁ H₂, H₂) H
+
+  definition mp' := @elim_right
 
   definition flip_sign (H₁ : a ↔ b) : ¬a ↔ ¬b :=
   intro
@@ -184,8 +185,9 @@ namespace iff
   iff.intro (λ Ha, H ▸ Ha) (λ Hb, H⁻¹ ▸ Hb)
 end iff
 
-calc_refl iff.refl
-calc_trans iff.trans
+attribute iff.refl [refl]
+attribute iff.trans [trans]
+attribute iff.symm [symm]
 
 /- inhabited -/
 
@@ -316,6 +318,8 @@ if_pos unit.star
 definition if_empty {A : Type} (t e : A) : (if empty then t else e) = e :=
 if_neg not_empty
 
+section
+open eq.ops
 definition if_cond_congr {c₁ c₂ : Type} [H₁ : decidable c₁] [H₂ : decidable c₂] (Heq : c₁ ↔ c₂) {A : Type} (t e : A)
                       : (if c₁ then t else e) = (if c₂ then t else e) :=
 decidable.rec_on H₁
@@ -357,3 +361,25 @@ decidable.rec
 -- Remark: dite and ite are "definitionally equal" when we ignore the proofs.
 definition dite_ite_eq (c : Type) [H : decidable c] {A : Type} (t : A) (e : A) : dite c (λh, t) (λh, e) = ite c t e :=
 rfl
+end
+open eq.ops unit
+
+definition is_unit (c : Type) [H : decidable c] : Type₀ :=
+if c then unit else empty
+
+definition is_empty (c : Type) [H : decidable c] : Type₀ :=
+if c then empty else unit
+
+theorem of_is_unit {c : Type} [H₁ : decidable c] (H₂ : is_unit c) : c :=
+decidable.rec_on H₁ (λ Hc, Hc) (λ Hnc, empty.rec _ (if_neg Hnc ▸ H₂))
+
+notation `dec_trivial` := of_is_unit star
+
+theorem not_of_not_is_unit {c : Type} [H₁ : decidable c] (H₂ : ¬ is_unit c) : ¬ c :=
+decidable.rec_on H₁ (λ Hc, absurd star (if_pos Hc ▸ H₂)) (λ Hnc, Hnc)
+
+theorem not_of_is_empty {c : Type} [H₁ : decidable c] (H₂ : is_empty c) : ¬ c :=
+decidable.rec_on H₁ (λ Hc, empty.rec _ (if_pos Hc ▸ H₂)) (λ Hnc, Hnc)
+
+theorem of_not_is_empty {c : Type} [H₁ : decidable c] (H₂ : ¬ is_empty c) : c :=
+decidable.rec_on H₁ (λ Hc, Hc) (λ Hnc, absurd star (if_neg Hnc ▸ H₂))

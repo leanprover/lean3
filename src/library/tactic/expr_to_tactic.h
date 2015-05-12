@@ -29,7 +29,11 @@ tactic expr_to_tactic(environment const & env, elaborate_fn const & fn, expr con
 
 name const & get_tactic_name();
 
+unsigned get_unsigned_arg(type_checker & tc, expr const & e, unsigned i);
+optional<unsigned> get_optional_unsigned(type_checker & tc, expr const & e);
+
 expr const & get_tactic_expr_type();
+expr const & get_tactic_identifier_type();
 expr mk_tactic_expr(expr const & e);
 bool is_tactic_expr(expr const & e);
 expr const & get_tactic_expr_expr(expr const & e);
@@ -56,6 +60,11 @@ expr mk_by(expr const & t);
 bool is_by(expr const & t);
 /** \see mk_by */
 expr const & get_by_arg(expr const & t);
+
+// Similar to mk_by, but instructs the elaborator to include the whole context
+expr mk_by_plus(expr const & t);
+bool is_by_plus(expr const & t);
+expr const & get_by_plus_arg(expr const & t);
 
 expr const & get_tactic_type();
 expr const & get_and_then_tac_fn();

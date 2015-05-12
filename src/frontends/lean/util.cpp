@@ -60,27 +60,9 @@ void check_atomic(name const & n) {
         throw exception(sstream() << "invalid declaration name '" << n << "', identifier must be atomic");
 }
 
-void check_in_context(parser const & p) {
-    if (!in_context(p.env()))
-        throw exception(sstream() << "invalid command, it must be used in a (local) context");
-}
-
-void check_in_context_or_section(parser const & p) {
-    if (!in_context(p.env()) && !in_section(p.env()))
-        throw exception(sstream() << "invalid command, it must be used in a (local) context or section");
-}
-
-bool in_parametric_section(parser const & p) {
-    return in_section(p.env()) && p.has_params();
-}
-
-void check_not_in_parametric_section(parser const & p) {
-    if (in_parametric_section(p))
-        throw exception(sstream() << "invalid command, it cannot be used in sections containing parameters");
-}
-
-bool in_context_or_parametric_section(parser const & p) {
-    return in_context(p.env()) || in_parametric_section(p);
+void check_in_section(parser const & p) {
+    if (!in_section(p.env()))
+        throw exception(sstream() << "invalid command, it must be used in a section");
 }
 
 bool is_root_namespace(name const & n) {
@@ -144,8 +126,10 @@ void collect_locals(expr const & type, expr const & value, parser const & p, buf
     buffer<expr> include_vars;
     p.get_include_variables(include_vars);
     for (expr const & param : include_vars) {
-        collect_locals_ignoring_tactics(mlocal_type(param), ls);
-        ls.insert(param);
+        if (is_local(param)) {
+            collect_locals_ignoring_tactics(mlocal_type(param), ls);
+            ls.insert(param);
+        }
     }
     collect_locals_ignoring_tactics(type, ls);
     collect_locals_ignoring_tactics(value, ls);
@@ -389,21 +373,6 @@ expr univ_metavars_to_params(environment const & env, local_decls<level> const &
     return univ_metavars_to_params_fn(env, lls, s, ps, new_ps)(e);
 }
 
-justification mk_type_mismatch_jst(expr const & v, expr const & v_type, expr const & t, expr const & src) {
-    return mk_justification(src, [=](formatter const & fmt, substitution const & subst) {
-            substitution s(subst);
-            format expected_fmt, given_fmt;
-            std::tie(expected_fmt, given_fmt) = pp_until_different(fmt, s.instantiate(t), s.instantiate(v_type));
-            format r("type mismatch at term");
-            r += pp_indent_expr(fmt, s.instantiate(v));
-            r += compose(line(), format("has type"));
-            r += given_fmt;
-            r += compose(line(), format("but is expected to have type"));
-            r += expected_fmt;
-            return r;
-        });
-}
-
 std::tuple<expr, level_param_names> parse_local_expr(parser & p, bool relaxed) {
     expr e   = p.parse_expr();
     list<expr> ctx = p.locals_to_context();
@@ -459,5 +428,21 @@ name get_priority_namespace() {
 
 environment open_priority_aliases(environment const & env) {
     return overwrite_aliases(env, get_priority_namespace(), name());
+}
+
+char const * open_binder_string(binder_info const & bi, bool unicode) {
+    if (bi.is_implicit()) return "{";
+    else if (bi.is_inst_implicit()) return "[";
+    else if (bi.is_strict_implicit() && unicode) return "⦃";
+    else if (bi.is_strict_implicit() && !unicode) return "{{";
+    else return "(";
+}
+
+char const * close_binder_string(binder_info const & bi, bool unicode) {
+    if (bi.is_implicit()) return "}";
+    else if (bi.is_inst_implicit()) return "]";
+    else if (bi.is_strict_implicit() && unicode) return "⦄";
+    else if (bi.is_strict_implicit() && !unicode) return "}}";
+    else return ")";
 }
 }

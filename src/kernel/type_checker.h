@@ -79,8 +79,11 @@ class type_checker {
         virtual pair<bool, constraint_seq> is_def_eq(expr const & e1, expr const & e2, delayed_justification & j) {
             return m_tc.is_def_eq(e1, e2, j);
         }
-        virtual pair<expr, constraint_seq> infer_type(expr const & e) { return m_tc.infer_type(e); }
+        virtual pair<expr, constraint_seq> check_type(expr const & e, bool infer_only) {
+            return m_tc.infer_type_core(e, infer_only);
+        }
         virtual name mk_fresh_name() { return m_tc.m_gen.next(); }
+        virtual optional<expr> is_stuck(expr const & e) { return m_tc.is_stuck(e); }
     };
 
     environment                m_env;
@@ -147,8 +150,8 @@ public:
        The result is meaningful only if the generated constraints can be solved.
     */
     pair<expr, constraint_seq> check(expr const & t, level_param_names const & ps = level_param_names());
-    /** \brief Like \c check, but ignores undefined universe level parameters */
-    pair<expr, constraint_seq> check_ignore_levels(expr const & e);
+    /** \brief Like \c check, but ignores undefined universes */
+    pair<expr, constraint_seq> check_ignore_undefined_universes(expr const & e);
 
     /** \brief Return true iff t is definitionally equal to s. */
     pair<bool, constraint_seq> is_def_eq(expr const & t, expr const & s);
@@ -215,7 +218,7 @@ public:
 
     optional<declaration> is_delta(expr const & e) const { return m_conv->is_delta(e); }
 
-    bool may_reduce_later(expr const & e) { return m_conv->may_reduce_later(e, *this); }
+    bool may_reduce_later(expr const & e) { return m_conv->is_stuck(e, *this); }
 
     template<typename F>
     typename std::result_of<F()>::type with_params(level_param_names const & ps, F && f) {

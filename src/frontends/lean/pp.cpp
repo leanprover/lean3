@@ -29,10 +29,13 @@ Author: Leonardo de Moura
 #include "library/pp_options.h"
 #include "library/constants.h"
 #include "library/replace_visitor.h"
+#include "library/definitional/equations.h"
 #include "frontends/lean/pp.h"
+#include "frontends/lean/util.h"
 #include "frontends/lean/token_table.h"
 #include "frontends/lean/builtin_exprs.h"
 #include "frontends/lean/parser_config.h"
+#include "frontends/lean/local_ref_info.h"
 
 namespace lean {
 static format * g_ellipsis_n_fmt  = nullptr;
@@ -50,6 +53,7 @@ static format * g_let_fmt         = nullptr;
 static format * g_in_fmt          = nullptr;
 static format * g_assign_fmt      = nullptr;
 static format * g_have_fmt        = nullptr;
+static format * g_assert_fmt      = nullptr;
 static format * g_from_fmt        = nullptr;
 static format * g_visible_fmt     = nullptr;
 static format * g_show_fmt        = nullptr;
@@ -125,6 +129,7 @@ void initialize_pp() {
     g_in_fmt          = new format(highlight_keyword(format("in")));
     g_assign_fmt      = new format(highlight_keyword(format(":=")));
     g_have_fmt        = new format(highlight_keyword(format("have")));
+    g_assert_fmt      = new format(highlight_keyword(format("assert")));
     g_from_fmt        = new format(highlight_keyword(format("from")));
     g_visible_fmt     = new format(highlight_keyword(format("[visible]")));
     g_show_fmt        = new format(highlight_keyword(format("show")));
@@ -150,6 +155,7 @@ void finalize_pp() {
     delete g_in_fmt;
     delete g_assign_fmt;
     delete g_have_fmt;
+    delete g_assert_fmt;
     delete g_from_fmt;
     delete g_visible_fmt;
     delete g_show_fmt;
@@ -363,10 +369,30 @@ auto pretty_fn::pp_child_core(expr const & e, unsigned bp, bool ignore_hide) -> 
     }
 }
 
+// Return some result if \c e is of the form (c p_1 ... p_n) where
+// c is a constant, and p_i's are parameters fixed in a section.
+auto pretty_fn::pp_local_ref(expr const & e) -> optional<result> {
+    lean_assert(is_app(e));
+    expr const & rfn = get_app_fn(e);
+    if (is_constant(rfn)) {
+        if (auto info = get_local_ref_info(m_env, const_name(rfn))) {
+            buffer<expr> args;
+            get_app_args(e, args);
+            if (args.size() == info->second) {
+                // TODO(Leo): must check if the arguments are really the fixed parameters.
+                return some(pp_const(rfn));
+            }
+        }
+    }
+    return optional<result>();
+}
+
 auto pretty_fn::pp_child(expr const & e, unsigned bp, bool ignore_hide) -> result {
     if (auto it = is_abbreviated(e))
         return pp_abbreviation(e, *it, false, bp, ignore_hide);
     if (is_app(e)) {
+        if (auto r = pp_local_ref(e))
+            return *r;
         expr const & f = app_fn(e);
         if (auto it = is_abbreviated(f)) {
             return pp_abbreviation(e, *it, true, bp, ignore_hide);
@@ -438,9 +464,19 @@ auto pretty_fn::pp_const(expr const & e) -> result {
             n = *n1;
     }
     if (m_universes && !empty(const_levels(e))) {
+        unsigned first_idx = 0;
+        buffer<level> ls;
+        to_buffer(const_levels(e), ls);
+        if (auto info = get_local_ref_info(m_env, n)) {
+            if (ls.size() <= info->first)
+                return result(format(n));
+            else
+                first_idx = info->first;
+        }
         format r = compose(format(n), format(".{"));
         bool first = true;
-        for (auto const & l : const_levels(e)) {
+        for (unsigned i = first_idx; i < ls.size(); i++) {
+            level const & l = ls[i];
             format l_fmt = pp_level(l);
             if (is_max(l) || is_imax(l))
                 l_fmt = paren(l_fmt);
@@ -490,6 +526,8 @@ bool pretty_fn::has_implicit_args(expr const & f) {
 }
 
 auto pretty_fn::pp_app(expr const & e) -> result {
+    if (auto r = pp_local_ref(e))
+        return *r;
     expr const & fn = app_fn(e);
     if (auto it = is_abbreviated(fn))
         return pp_abbreviation(e, *it, true);
@@ -508,21 +546,13 @@ auto pretty_fn::pp_app(expr const & e) -> result {
 
 format pretty_fn::pp_binder_block(buffer<name> const & names, expr const & type, binder_info const & bi) {
     format r;
-    if (bi.is_implicit()) r += format("{");
-    else if (bi.is_inst_implicit()) r += format("[");
-    else if (bi.is_strict_implicit() && m_unicode) r += format("⦃");
-    else if (bi.is_strict_implicit() && !m_unicode) r += format("{{");
-    else r += format("(");
+    r += format(open_binder_string(bi, m_unicode));
     for (name const & n : names) {
         r += format(n);
         r += space();
     }
     r += compose(colon(), nest(m_indent, compose(line(), pp_child(type, 0).fmt())));
-    if (bi.is_implicit()) r += format("}");
-    else if (bi.is_inst_implicit()) r += format("]");
-    else if (bi.is_strict_implicit() && m_unicode) r += format("⦄");
-    else if (bi.is_strict_implicit() && !m_unicode) r += format("}}");
-    else r += format(")");
+    r += format(close_binder_string(bi, m_unicode));
     return group(r);
 }
 
@@ -612,9 +642,8 @@ auto pretty_fn::pp_have(expr const & e) -> result {
     format type_fmt  = pp_child(mlocal_type(local), 0).fmt();
     format proof_fmt = pp_child(proof, 0).fmt();
     format body_fmt  = pp_child(body, 0).fmt();
-    format r = *g_have_fmt + space() + format(n) + space();
-    if (binding_info(binding).is_contextual())
-        r += compose(*g_visible_fmt, space());
+    format head_fmt  = (binding_info(binding).is_contextual()) ? *g_assert_fmt : *g_have_fmt;
+    format r = head_fmt + space() + format(n) + space();
     r += colon() + nest(m_indent, line() + type_fmt + comma() + space() + *g_from_fmt);
     r = group(r);
     r += nest(m_indent, line() + proof_fmt + comma());
@@ -644,6 +673,10 @@ auto pretty_fn::pp_explicit(expr const & e) -> result {
 auto pretty_fn::pp_macro(expr const & e) -> result {
     if (is_explicit(e)) {
         return pp_explicit(e);
+    } else if (is_inaccessible(e)) {
+        format li = m_unicode ? format("⌞") : format("?(");
+        format ri = m_unicode ? format("⌟") : format(")");
+        return result(group(nest(1, li + pp(get_annotation_arg(e)).fmt() + ri)));
     } else if (is_annotation(e)) {
         return pp(get_annotation_arg(e));
     } else {
@@ -812,10 +845,10 @@ bool pretty_fn::match(expr const & p, expr const & e, buffer<optional<expr>> & a
 
 static unsigned get_some_precedence(token_table const & t, name const & tk) {
     if (tk.is_atomic() && tk.is_string()) {
-        if (auto p = get_precedence(t, tk.get_string()))
+        if (auto p = get_expr_precedence(t, tk.get_string()))
             return *p;
     } else {
-        if (auto p = get_precedence(t, tk.to_string().c_str()))
+        if (auto p = get_expr_precedence(t, tk.to_string().c_str()))
             return *p;
     }
     return 0;
@@ -1103,6 +1136,7 @@ static bool is_pp_atomic(expr const & e) {
 }
 
 auto pretty_fn::pp(expr const & e, bool ignore_hide) -> result {
+    check_system("pretty printer");
     if ((m_depth >= m_max_depth ||
          m_num_steps > m_max_steps ||
          (m_hide_full_terms && !ignore_hide && !has_expr_metavar_relaxed(e))) &&
@@ -1196,4 +1230,35 @@ formatter_factory mk_pretty_formatter_factory() {
             });
     };
 }
+
+static options mk_options(bool detail) {
+    options opts;
+    if (detail) {
+        opts = opts.update(name{"pp", "implicit"}, true);
+        opts = opts.update(name{"pp", "notation"}, false);
+    }
+    return opts;
 }
+
+static void pp_core(environment const & env, expr const & e, bool detail) {
+    io_state ios(mk_pretty_formatter_factory(), mk_options(detail));
+    regular(env, ios) << e << "\n";
+}
+
+static void pp_core(environment const & env, goal const & g, bool detail) {
+    io_state ios(mk_pretty_formatter_factory(), mk_options(detail));
+    regular(env, ios) << g << "\n";
+}
+
+static void pp_core(environment const & env, proof_state const & s, bool detail) {
+    io_state ios(mk_pretty_formatter_factory(), mk_options(detail));
+    regular(env, ios) << s.pp(env, ios) << "\n";
+}
+}
+// for debugging purposes
+void pp(lean::environment const & env, lean::expr const & e) { lean::pp_core(env, e, false); }
+void pp(lean::environment const & env, lean::goal const & g) { lean::pp_core(env, g, false); }
+void pp(lean::environment const & env, lean::proof_state const & s) { lean::pp_core(env, s, false); }
+void pp_detail(lean::environment const & env, lean::expr const & e) { lean::pp_core(env, e, true); }
+void pp_detail(lean::environment const & env, lean::goal const & g) { lean::pp_core(env, g, true); }
+void pp_detail(lean::environment const & env, lean::proof_state const & s) { lean::pp_core(env, s, true); }

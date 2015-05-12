@@ -62,19 +62,19 @@ namespace eq
 
   definition transport_eq_l (p : a1 = a2) (q : a1 = a3)
     : transport (λx, x = a3) p q = p⁻¹ ⬝ q :=
-  by cases p; cases q; apply idp
+  by cases p; cases q; reflexivity
 
   definition transport_eq_r (p : a2 = a3) (q : a1 = a2)
     : transport (λx, a1 = x) p q = q ⬝ p :=
-  by cases p; cases q; apply idp
+  by cases p; cases q; reflexivity
 
   definition transport_eq_lr (p : a1 = a2) (q : a1 = a1)
     : transport (λx, x = x) p q = p⁻¹ ⬝ q ⬝ p :=
   begin
-  apply (eq.rec_on p),
-  apply inverse, apply concat,
+  cases p,
+  symmetry, transitivity (refl a1)⁻¹ ⬝ q,
     apply con_idp,
-  apply idp_con
+    apply idp_con
   end
 
   definition transport_eq_Fl (p : a1 = a2) (q : f a1 = b)
@@ -88,41 +88,43 @@ namespace eq
   definition transport_eq_FlFr (p : a1 = a2) (q : f a1 = g a1)
     : transport (λx, f x = g x) p q = (ap f p)⁻¹ ⬝ q ⬝ (ap g p) :=
   begin
-  apply (eq.rec_on p),
-  apply inverse, apply concat,
+  cases p,
+  symmetry, transitivity (ap f (refl a1))⁻¹ ⬝ q,
     apply con_idp,
-  apply idp_con
+    apply idp_con
   end
 
   definition transport_eq_FlFr_D {B : A → Type} {f g : Πa, B a}
     (p : a1 = a2) (q : f a1 = g a1)
-      : transport (λx, f x = g x) p q = (apD f p)⁻¹ ⬝ ap (transport B p) q ⬝ (apD g p) :=
+      : transport (λx, f x = g x) p q = (apd f p)⁻¹ ⬝ ap (transport B p) q ⬝ (apd g p) :=
   begin
-  apply (eq.rec_on p),
-  apply inverse,
-  apply concat, apply con_idp,
-  apply concat, apply idp_con,
-  apply ap_id
+  cases p,
+  symmetry,
+  transitivity _,
+    apply con_idp,
+    transitivity _,
+      apply idp_con,
+      apply ap_id
   end
 
   definition transport_eq_FFlr (p : a1 = a2) (q : h (f a1) = a1)
     : transport (λx, h (f x) = x) p q = (ap h (ap f p))⁻¹ ⬝ q ⬝ p :=
   begin
-  apply (eq.rec_on p),
-  apply inverse,
-  apply concat, apply con_idp,
-  apply idp_con,
+  cases p,
+  symmetry,
+  transitivity (ap h (ap f (refl a1)))⁻¹ ⬝ q,
+     apply con_idp,
+     apply idp_con,
   end
 
   definition transport_eq_lFFr (p : a1 = a2) (q : a1 = h (f a1))
     : transport (λx, x = h (f x)) p q = p⁻¹ ⬝ q ⬝ (ap h (ap f p)) :=
   begin
-  apply (eq.rec_on p),
-  apply inverse,
-  apply concat, apply con_idp,
-  apply idp_con,
+  cases p, symmetry,
+  transitivity (refl a1)⁻¹ ⬝ q,
+    apply con_idp,
+    apply idp_con,
   end
-
 
   -- The Functorial action of paths is [ap].
 
@@ -137,18 +139,18 @@ namespace eq
   /- Path operations are equivalences -/
 
   definition is_equiv_eq_inverse (a1 a2 : A) : is_equiv (@inverse A a1 a2) :=
-  is_equiv.mk inverse inv_inv inv_inv (λp, eq.rec_on p idp)
+  is_equiv.mk inverse inverse inv_inv inv_inv (λp, eq.rec_on p idp)
   local attribute is_equiv_eq_inverse [instance]
 
   definition eq_equiv_eq_symm (a1 a2 : A) : (a1 = a2) ≃ (a2 = a1) :=
   equiv.mk inverse _
 
   definition is_equiv_concat_left [instance] (p : a1 = a2) (a3 : A)
-    : is_equiv (@concat _ a1 a2 a3 p) :=
-  is_equiv.mk (concat p⁻¹)
+    : is_equiv (concat p : a2 = a3 → a1 = a3) :=
+  is_equiv.mk (concat p) (concat p⁻¹)
               (con_inv_cancel_left p)
               (inv_con_cancel_left p)
-              (eq.rec_on p (λq, eq.rec_on q idp))
+              (λq, by cases p;cases q;exact idp)
   local attribute is_equiv_concat_left [instance]
 
   definition equiv_eq_closed_left (p : a1 = a2) (a3 : A) : (a1 = a3) ≃ (a2 = a3) :=
@@ -156,10 +158,10 @@ namespace eq
 
   definition is_equiv_concat_right [instance] (p : a2 = a3) (a1 : A)
     : is_equiv (λq : a1 = a2, q ⬝ p) :=
-  is_equiv.mk (λq, q ⬝ p⁻¹)
+  is_equiv.mk (λq, q ⬝ p) (λq, q ⬝ p⁻¹)
               (λq, inv_con_cancel_right q p)
               (λq, con_inv_cancel_right q p)
-              (eq.rec_on p (λq, eq.rec_on q idp))
+              (λq, by cases p;cases q;exact idp)
   local attribute is_equiv_concat_right [instance]
 
   definition equiv_eq_closed_right (p : a2 = a3) (a1 : A) : (a1 = a2) ≃ (a1 = a3) :=
@@ -193,15 +195,15 @@ namespace eq
   begin
   fapply adjointify,
     {intro s, apply (!cancel_right s)},
-    {intro s, cases r, cases s, cases q, apply idp},
-    {intro s, cases s, cases r, cases p, apply idp}
+    {intro s, cases r, cases s, cases q, reflexivity},
+    {intro s, cases s, cases r, cases p, reflexivity}
   end
 
   definition eq_equiv_con_eq_con_right (p q : a1 = a2) (r : a2 = a3) : (p = q) ≃ (p ⬝ r = q ⬝ r) :=
   equiv.mk _ !is_equiv_whisker_right
 
   definition is_equiv_con_eq_of_eq_inv_con (p : a1 = a3) (q : a2 = a3) (r : a2 = a1)
-    : is_equiv (con_eq_of_eq_inv_con p q r) :=
+    : is_equiv (con_eq_of_eq_inv_con : p = r⁻¹ ⬝ q → r ⬝ p = q) :=
   begin
    cases r,
    apply (@is_equiv_compose _ _ _ _ _ !is_equiv_concat_left !is_equiv_concat_right),
@@ -212,7 +214,7 @@ namespace eq
   equiv.mk _ !is_equiv_con_eq_of_eq_inv_con
 
   definition is_equiv_con_eq_of_eq_con_inv (p : a1 = a3) (q : a2 = a3) (r : a2 = a1)
-    : is_equiv (con_eq_of_eq_con_inv p q r) :=
+    : is_equiv (con_eq_of_eq_con_inv : r = q ⬝ p⁻¹ → r ⬝ p = q) :=
   begin
     cases p,
     apply (@is_equiv_compose _ _ _ _ _ !is_equiv_concat_left !is_equiv_concat_right)
@@ -223,7 +225,7 @@ namespace eq
   equiv.mk _ !is_equiv_con_eq_of_eq_con_inv
 
   definition is_equiv_inv_con_eq_of_eq_con (p : a1 = a3) (q : a2 = a3) (r : a1 = a2)
-    : is_equiv (inv_con_eq_of_eq_con p q r) :=
+    : is_equiv (inv_con_eq_of_eq_con : p = r ⬝ q → r⁻¹ ⬝ p = q) :=
   begin
     cases r,
     apply (@is_equiv_compose _ _ _ _ _ !is_equiv_concat_left !is_equiv_concat_right)
@@ -234,7 +236,7 @@ namespace eq
   equiv.mk _ !is_equiv_inv_con_eq_of_eq_con
 
   definition is_equiv_con_inv_eq_of_eq_con (p : a3 = a1) (q : a2 = a3) (r : a2 = a1)
-    : is_equiv (con_inv_eq_of_eq_con p q r) :=
+    : is_equiv (con_inv_eq_of_eq_con : r = q ⬝ p → r ⬝ p⁻¹ = q) :=
   begin
     cases p,
     apply (@is_equiv_compose _ _ _ _ _ !is_equiv_concat_left !is_equiv_concat_right)
@@ -245,7 +247,7 @@ namespace eq
    equiv.mk _ !is_equiv_con_inv_eq_of_eq_con
 
   definition is_equiv_eq_con_of_inv_con_eq (p : a1 = a3) (q : a2 = a3) (r : a2 = a1)
-    : is_equiv (eq_con_of_inv_con_eq p q r) :=
+    : is_equiv (eq_con_of_inv_con_eq : r⁻¹ ⬝ q = p → q = r ⬝ p) :=
   begin
     cases r,
     apply (@is_equiv_compose _ _ _ _ _ !is_equiv_concat_left !is_equiv_concat_right)
@@ -256,7 +258,7 @@ namespace eq
   equiv.mk _ !is_equiv_eq_con_of_inv_con_eq
 
   definition is_equiv_eq_con_of_con_inv_eq (p : a1 = a3) (q : a2 = a3) (r : a2 = a1)
-    : is_equiv (eq_con_of_con_inv_eq p q r) :=
+    : is_equiv (eq_con_of_con_inv_eq : q ⬝ p⁻¹ = r → q = r ⬝ p) :=
   begin
     cases p,
     apply (@is_equiv_compose _ _ _ _ _ !is_equiv_concat_left !is_equiv_concat_right)

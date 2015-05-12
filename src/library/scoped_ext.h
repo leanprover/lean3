@@ -16,11 +16,11 @@ Author: Leonardo de Moura
 #include "library/fingerprint.h"
 
 namespace lean {
-enum class scope_kind { Namespace, Section, Context };
+enum class scope_kind { Namespace, Section };
 typedef environment (*using_namespace_fn)(environment const &, io_state const &, name const &);
 typedef environment (*export_namespace_fn)(environment const &, io_state const &, name const &);
-typedef environment (*push_scope_fn)(environment const &, scope_kind);
-typedef environment (*pop_scope_fn)(environment const &, scope_kind);
+typedef environment (*push_scope_fn)(environment const &, io_state const &, scope_kind);
+typedef environment (*pop_scope_fn)(environment const &, io_state const &, scope_kind);
 
 void register_scoped_ext(name const & n, using_namespace_fn use, export_namespace_fn ex, push_scope_fn push, pop_scope_fn pop);
 /** \brief Use objects defined in the namespace \c n.
@@ -37,11 +37,11 @@ environment push_scope(environment const & env, io_state const & ios, scope_kind
 /** \brief Delete the most recent scope, all scoped extensions are notified.
     \remark method throws an exception if there are no open scopes, or \c n does not match the name of the open scope
 */
-environment pop_scope(environment const & env, name const & n = name());
+environment pop_scope(environment const & env, io_state const & ios, name const & n = name());
 /** \brief Similar to \c pop_scope, but it always succeed.
     It always pops the current open scope, and does nothing if there are no open scope.
 */
-environment pop_scope_core(environment const & env);
+environment pop_scope_core(environment const & env, io_state const & ios);
 /** \brief Return true iff there are open scopes */
 bool has_open_scopes(environment const & env);
 
@@ -56,7 +56,6 @@ environment add_namespace(environment const & env, name const & ns);
 
 name const & get_namespace(environment const & env);
 list<name> const & get_namespaces(environment const & env);
-bool in_context(environment const & env);
 bool in_section(environment const & env);
 
 /** \brief Check if \c n may be a reference to a namespace, if it is return it.
@@ -93,10 +92,11 @@ class scoped_ext : public environment_extension {
 
     state                 m_state;
     list<state>           m_scopes;
-    name_map<list<entry>> m_entries;
+    list<list<entry>>     m_nonlocal_entries; // nonlocal entries per scope (for sections)
+    name_map<list<entry>> m_entries_map;      // namespace -> entries
 
     void using_namespace_core(environment const & env, io_state const & ios, name const & n) {
-        if (auto it = m_entries.find(n)) {
+        if (auto it = m_entries_map.find(n)) {
             buffer<entry> entries;
             to_buffer(*it, entries);
             unsigned i = entries.size();
@@ -108,10 +108,10 @@ class scoped_ext : public environment_extension {
     }
 
     void register_entry_core(name n, entry const & e) {
-        if (auto it = m_entries.find(n))
-            m_entries.insert(n, cons(e, *it));
+        if (auto it = m_entries_map.find(n))
+            m_entries_map.insert(n, cons(e, *it));
         else
-            m_entries.insert(n, to_list(e));
+            m_entries_map.insert(n, to_list(e));
     }
 
     void add_entry_core(environment const & env, io_state const & ios, entry const & e) {
@@ -130,6 +130,8 @@ class scoped_ext : public environment_extension {
     scoped_ext _add_entry(environment const & env, io_state const & ios, entry const & e) const {
         scoped_ext r(*this);
         r.register_entry_core(get_namespace(env), e);
+        if (r.m_nonlocal_entries)
+            r.m_nonlocal_entries = cons(cons(e, head(r.m_nonlocal_entries)), tail(r.m_nonlocal_entries));
         add_entry(env, ios, r.m_state, e);
         return r;
     }
@@ -148,7 +150,7 @@ public:
     }
 
     environment export_namespace(environment env, io_state const & ios, name const & n) const {
-        if (auto it = m_entries.find(n)) {
+        if (auto it = m_entries_map.find(n)) {
             buffer<entry> entries;
             to_buffer(*it, entries);
             unsigned i = entries.size();
@@ -162,16 +164,26 @@ public:
 
     scoped_ext push() const {
         scoped_ext r(*this);
-        r.m_scopes     = cons(m_state, r.m_scopes);
+        r.m_scopes           = cons(m_state, r.m_scopes);
+        r.m_nonlocal_entries = cons(list<entry>(), r.m_nonlocal_entries);
         return r;
     }
 
-    scoped_ext pop() const {
+    pair<scoped_ext, list<entry>> pop(scope_kind k) const {
         lean_assert(!is_nil(m_scopes));
         scoped_ext r(*this);
         r.m_state  = head(m_scopes);
         r.m_scopes = tail(m_scopes);
-        return r;
+        if (k == scope_kind::Section) {
+            auto entries = head(r.m_nonlocal_entries);
+            r.m_nonlocal_entries = tail(r.m_nonlocal_entries);
+            if (r.m_nonlocal_entries)
+                r.m_nonlocal_entries = cons(append(entries, head(r.m_nonlocal_entries)), tail(r.m_nonlocal_entries));
+            return mk_pair(r, entries);
+        } else {
+            r.m_nonlocal_entries = tail(r.m_nonlocal_entries);
+            return mk_pair(r, list<entry>());
+        }
     }
 
     struct reg {
@@ -199,17 +211,20 @@ public:
     static environment export_namespace_fn(environment const & env, io_state const & ios, name const & n) {
         return get(env).export_namespace(env, ios, n);
     }
-    static environment push_fn(environment const & env, scope_kind k) {
-        if (k != scope_kind::Section)
-            return update(env, get(env).push());
-        else
-            return env;
+    static environment push_fn(environment const & env, io_state const &, scope_kind) {
+        return update(env, get(env).push());
     }
-    static environment pop_fn(environment const & env, scope_kind k) {
-        if (k != scope_kind::Section)
-            return update(env, get(env).pop());
-        else
-            return env;
+    static environment pop_fn(environment const & env, io_state const & ios, scope_kind k) {
+        auto p = get(env).pop(k);
+        environment new_env = update(env, p.first);
+        buffer<entry> entries;
+        to_buffer(p.second, entries);
+        unsigned i = entries.size();
+        while (i > 0) {
+            --i;
+            new_env = update(new_env, get(new_env)._add_tmp_entry(new_env, ios, entries[i]));
+        }
+        return new_env;
     }
     static environment register_entry(environment const & env, io_state const & ios, name const & n, entry const & e) {
         return update(env, get(env)._register_entry(env, ios, n, e));
@@ -218,18 +233,18 @@ public:
         if (auto h = get_fingerprint(e)) {
             env = update_fingerprint(env, *h);
         }
-        if (in_context(env) || !persistent) {
+        if (!persistent) {
             return update(env, get(env)._add_tmp_entry(env, ios, e));
         } else {
             name n = get_namespace(env);
-            env = module::add(env, get_serialization_key(), [=](serializer & s) {
+            env = module::add(env, get_serialization_key(), [=](environment const &, serializer & s) {
                     s << n;
                     write_entry(s, e);
                 });
             return update(env, get(env)._add_entry(env, ios, e));
         }
     }
-    static void reader(deserializer & d, module_idx, shared_environment &,
+    static void reader(deserializer & d, shared_environment &,
                        std::function<void(asynch_update_fn const &)> &,
                        std::function<void(delayed_update_fn const &)> & add_delayed_update) {
         name n;
@@ -243,7 +258,7 @@ public:
         return get(env).m_state;
     }
     static list<entry> const * get_entries(environment const & env, name const & n) {
-        return get(env).m_entries.find(n);
+        return get(env).m_entries_map.find(n);
     }
 };
 

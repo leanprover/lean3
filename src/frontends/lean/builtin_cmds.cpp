@@ -13,6 +13,7 @@ Author: Leonardo de Moura
 #include "kernel/instantiate.h"
 #include "kernel/inductive/inductive.h"
 #include "kernel/quotient/quotient.h"
+#include "kernel/hits/hits.h"
 #include "kernel/default_converter.h"
 #include "library/io_state_stream.h"
 #include "library/scoped_ext.h"
@@ -26,6 +27,7 @@ Author: Leonardo de Moura
 #include "library/class.h"
 #include "library/flycheck.h"
 #include "library/util.h"
+#include "library/user_recursors.h"
 #include "library/pp_options.h"
 #include "library/definitional/projection.h"
 #include "frontends/lean/util.h"
@@ -70,6 +72,7 @@ static void print_axioms(parser & p) {
             name const & n = d.get_name();
             if (!d.is_definition() &&
                 !is_quotient_decl(env, n) &&
+                !is_hits_decl(env, n) &&
                 !inductive::is_inductive_decl(env, n) &&
                 !inductive::is_elim_rule(env, n) &&
                 !inductive::is_intro_rule(env, n)) {
@@ -98,10 +101,8 @@ static void print_prefix(parser & p) {
         p.regular_stream() << "no declaration starting with prefix '" << prefix << "'" << endl;
 }
 
-static void print_fields(parser & p) {
-    auto pos = p.pos();
+static void print_fields(parser & p, name const & S, pos_info const & pos) {
     environment const & env = p.env();
-    name S = p.check_constant_next("invalid 'print fields' command, constant expected");
     if (!is_structure(env, S))
         throw parser_error(sstream() << "invalid 'print fields' command, '" << S << "' is not a structure", pos);
     buffer<name> field_names;
@@ -166,6 +167,172 @@ static void print_metaclasses(parser & p) {
         p.regular_stream() << "[" << n << "]" << endl;
 }
 
+static void print_definition(parser const & p, name const & n, pos_info const & pos) {
+    environment const & env = p.env();
+    declaration d = env.get(n);
+    io_state_stream out = p.regular_stream();
+    options opts        = out.get_options();
+    opts                = opts.update_if_undef(get_pp_beta_name(), false);
+    io_state_stream new_out = out.update_options(opts);
+    if (d.is_axiom())
+        throw parser_error(sstream() << "invalid 'print definition', theorem '" << n
+                           << "' is not available (suggestion: use command 'wait " << n << "')", pos);
+    if (!d.is_definition())
+        throw parser_error(sstream() << "invalid 'print definition', '" << n << "' is not a definition", pos);
+    new_out << d.get_value() << endl;
+}
+
+void print_attributes(parser & p, name const & n) {
+    environment const & env = p.env();
+    io_state_stream out = p.regular_stream();
+    if (is_coercion(env, n))
+        out << " [coercion]";
+    if (is_class(env, n))
+        out << " [class]";
+    if (is_instance(env, n))
+        out << " [instance]";
+    switch (get_reducible_status(env, n)) {
+    case reducible_status::Reducible:      out << " [reducible]"; break;
+    case reducible_status::Irreducible:    out << " [irreducible]"; break;
+    case reducible_status::Quasireducible: out << " [quasireducible]"; break;
+    case reducible_status::Semireducible:  break;
+    }
+}
+
+static void print_inductive(parser & p, name const & n, pos_info const & pos) {
+    environment const & env = p.env();
+    io_state_stream out = p.regular_stream();
+    if (auto idecls = inductive::is_inductive_decl(env, n)) {
+        level_param_names ls; unsigned nparams; list<inductive::inductive_decl> dlist;
+        std::tie(ls, nparams, dlist) = *idecls;
+        if (is_structure(env, n))
+            out << "structure";
+        else
+            out << "inductive";
+        out << " " << n;
+        print_attributes(p, n);
+        out << " : " << env.get(n).get_type() << "\n";
+        if (is_structure(env, n)) {
+            out << "fields:\n";
+            print_fields(p, n, pos);
+        } else {
+            out << "constructors:\n";
+            buffer<name> constructors;
+            get_intro_rule_names(env, n, constructors);
+            for (name const & c : constructors) {
+                out << c << " : " << env.get(c).get_type() << "\n";
+            }
+        }
+    } else {
+        throw parser_error(sstream() << "invalid 'print inductive', '" << n << "' is not an inductive declaration", pos);
+    }
+}
+
+static void print_recursor_info(parser & p) {
+    name c = p.check_constant_next("invalid 'print [recursor]', constant expected");
+    recursor_info info = get_recursor_info(p.env(), c);
+    p.regular_stream() << "recursor information\n"
+                       << "  num. parameters:    " << info.get_num_params() << "\n"
+                       << "  num. indices:       " << info.get_num_indices() << "\n";
+    if (auto r = info.get_motive_univ_pos())
+        p.regular_stream() << "  motive univ. pos. : " << *r << "\n";
+    else
+        p.regular_stream() << "  recursor eliminate only to Prop\n";
+    p.regular_stream() << "  motive pos.:        " << info.get_motive_pos() << "\n"
+                       << "  major premise pos.: " << info.get_major_pos() << "\n"
+                       << "  dep. elimination:   " << info.has_dep_elim() << "\n";
+}
+
+bool print_constant(parser & p, char const * kind, declaration const & d) {
+    io_state_stream out = p.regular_stream();
+    out << kind << " " << d.get_name();
+    print_attributes(p, d.get_name());
+    out << " : " << d.get_type() << "\n";
+    return true;
+}
+
+bool print_polymorphic(parser & p) {
+    environment const & env = p.env();
+    io_state_stream out = p.regular_stream();
+    auto pos = p.pos();
+    try {
+        name id = p.check_id_next("");
+        // declarations
+        try {
+            name c = p.to_constant(id, "", pos);
+            declaration const & d = env.get(c);
+            if (d.is_theorem()) {
+                print_constant(p, "theorem", d);
+                print_definition(p, c, pos);
+                return true;
+            } else if (d.is_axiom() || d.is_constant_assumption()) {
+                if (inductive::is_inductive_decl(env, c)) {
+                    print_inductive(p, c, pos);
+                    return true;
+                } else if (inductive::is_intro_rule(env, c)) {
+                    return print_constant(p, "constructor", d);
+                } else if (inductive::is_elim_rule(env, c)) {
+                    return print_constant(p, "eliminator", d);
+                } else if (is_quotient_decl(env, c)) {
+                    return print_constant(p, "builtin-quotient-type-constant", d);
+                } else if (is_hits_decl(env, c)) {
+                    return print_constant(p, "builtin-HIT-constant", d);
+                } else if (d.is_axiom()) {
+                    return print_constant(p, "axiom", d);
+                } else if (d.is_constant_assumption()) {
+                    return print_constant(p, "constant", d);
+                }
+            } else if (d.is_definition()) {
+                print_constant(p, "definition", d);
+                print_definition(p, c, pos);
+                return true;
+            }
+        } catch (exception & ex) {}
+
+        // variables and parameters
+        if (expr const * type = p.get_local(id)) {
+            if (is_local(*type)) {
+                if (p.is_local_variable(*type)) {
+                    out << "variable " << id << " : " << mlocal_type(*type) << "\n";
+                } else {
+                    out << "parameter " << id << " : " << mlocal_type(*type) << "\n";
+                }
+                return true;
+            }
+        }
+
+        // options
+        for (auto odecl : get_option_declarations()) {
+            auto opt = odecl.second;
+            if (opt.get_name() == id || opt.get_name() == name("lean") + id) {
+                out << "option  " << opt.get_name() << " (" << opt.kind() << ") "
+                    << opt.get_description() << " (default: " << opt.get_default_value() << ")" << endl;
+                return true;
+            }
+        }
+    } catch (exception &) {}
+
+    // notation
+    if (p.curr_is_keyword()) {
+        buffer<name> tokens;
+        name tk = p.get_token_info().token();
+        tokens.push_back(tk);
+        bool found = false;
+        if (print_parse_table(p, get_nud_table(p.env()), true, tokens)) {
+            p.next();
+            found = true;
+        }
+        if (print_parse_table(p, get_led_table(p.env()), false, tokens)) {
+            p.next();
+            found = true;
+        }
+        if (found)
+            return true;
+    }
+
+    return false;
+}
+
 environment print_cmd(parser & p) {
     flycheck_information info(p.regular_stream());
     if (info.enabled()) {
@@ -192,15 +359,7 @@ environment print_cmd(parser & p) {
         p.next();
         auto pos = p.pos();
         name c = p.check_constant_next("invalid 'print definition', constant expected");
-        environment const & env = p.env();
-        declaration d = env.get(c);
-        io_state_stream out = p.regular_stream();
-        options opts        = out.get_options();
-        opts                = opts.update_if_undef(get_pp_beta_name(), false);
-        io_state_stream new_out = out.update_options(opts);
-        if (!d.is_definition())
-            throw parser_error(sstream() << "invalid 'print definition', '" << c << "' is not a definition", pos);
-        new_out << d.get_value() << endl;
+        print_definition(p, c, pos);
     } else if (p.curr_is_token_or_id(get_instances_tk())) {
         p.next();
         name c = p.check_constant_next("invalid 'print instances', constant expected");
@@ -234,10 +393,21 @@ environment print_cmd(parser & p) {
         print_axioms(p);
     } else if (p.curr_is_token_or_id(get_fields_tk())) {
         p.next();
-        print_fields(p);
+        auto pos = p.pos();
+        name S = p.check_constant_next("invalid 'print fields' command, constant expected");
+        print_fields(p, S, pos);
     } else if (p.curr_is_token_or_id(get_notation_tk())) {
         p.next();
         print_notation(p);
+    } else if (p.curr_is_token_or_id(get_inductive_tk())) {
+        p.next();
+        auto pos = p.pos();
+        name c = p.check_constant_next("invalid 'print inductive', constant expected");
+        print_inductive(p, c, pos);
+    } else if (p.curr_is_token(get_recursor_tk())) {
+        p.next();
+        print_recursor_info(p);
+    } else if (print_polymorphic(p)) {
     } else {
         throw parser_error("invalid print command", p.pos());
     }
@@ -252,15 +422,6 @@ environment section_cmd(parser & p) {
     return push_scope(p.env(), p.ios(), scope_kind::Section, n);
 }
 
-environment context_cmd(parser & p) {
-    name n;
-    if (p.curr_is_identifier())
-        n = p.check_atomic_id_next("invalid context, atomic identifier expected");
-    bool save_options = true;
-    p.push_local_scope(save_options);
-    return push_scope(p.env(), p.ios(), scope_kind::Context, n);
-}
-
 environment namespace_cmd(parser & p) {
     auto pos = p.pos();
     name n = p.check_atomic_id_next("invalid namespace declaration, atomic identifier expected");
@@ -270,12 +431,12 @@ environment namespace_cmd(parser & p) {
     return push_scope(p.env(), p.ios(), scope_kind::Namespace, n);
 }
 
-static void redeclare_aliases(parser & p,
-                              list<pair<name, level>> old_level_entries,
-                              list<pair<name, expr>> old_entries) {
-    environment const & env = p.env();
-    if (!in_context(env))
-        return;
+static environment redeclare_aliases(environment env, parser & p,
+                                     list<pair<name, level>> old_level_entries,
+                                     list<pair<name, expr>> old_entries) {
+    environment const & old_env = p.env();
+    if (!in_section(old_env))
+        return env;
     list<pair<name, expr>> new_entries = p.get_local_entries();
     buffer<pair<name, expr>> to_redeclare;
     name_set popped_locals;
@@ -299,8 +460,9 @@ static void redeclare_aliases(parser & p,
     for (auto const & entry : to_redeclare) {
         expr new_ref = update_local_ref(entry.second, popped_levels, popped_locals);
         if (!is_constant(new_ref))
-            p.add_local_expr(entry.first, new_ref);
+            env = p.add_local_ref(env, entry.first, new_ref);
     }
+    return env;
 }
 
 environment end_scoped_cmd(parser & p) {
@@ -309,20 +471,18 @@ environment end_scoped_cmd(parser & p) {
     p.pop_local_scope();
     if (p.curr_is_identifier()) {
         name n = p.check_atomic_id_next("invalid end of scope, atomic identifier expected");
-        environment env = pop_scope(p.env(), n);
-        redeclare_aliases(p, level_entries, entries);
-        return env;
+        environment env = pop_scope(p.env(), p.ios(), n);
+        return redeclare_aliases(env, p, level_entries, entries);
     } else {
-        environment env = pop_scope(p.env());
-        redeclare_aliases(p, level_entries, entries);
-        return env;
+        environment env = pop_scope(p.env(), p.ios());
+        return redeclare_aliases(env, p, level_entries, entries);
     }
 }
 
 environment check_cmd(parser & p) {
     expr e; level_param_names ls;
     std::tie(e, ls) = parse_local_expr(p);
-    auto tc = mk_type_checker(p.env(), p.mk_ngen(), true);
+    auto tc = mk_type_checker(p.env(), p.mk_ngen());
     expr type = tc->check(e, ls).first;
     auto reg              = p.regular_stream();
     formatter fmt         = reg.get_formatter();
@@ -340,38 +500,21 @@ environment check_cmd(parser & p) {
     return p.env();
 }
 
-class all_transparent_converter : public default_converter {
-public:
-    all_transparent_converter(environment const & env):
-        default_converter(env, optional<module_idx>(), true) {
-    }
-    virtual bool is_opaque(declaration const &) const {
-        return false;
-    }
-};
-
 environment eval_cmd(parser & p) {
     bool whnf   = false;
-    bool all_transparent = false;
     if (p.curr_is_token(get_whnf_tk())) {
         p.next();
         whnf = true;
-    } else if (p.curr_is_token(get_all_transparent_tk())) {
-        p.next();
-        all_transparent = true;
     }
     expr e; level_param_names ls;
     std::tie(e, ls) = parse_local_expr(p);
     expr r;
     if (whnf) {
-        auto tc = mk_type_checker(p.env(), p.mk_ngen(), true);
+        auto tc = mk_type_checker(p.env(), p.mk_ngen());
         r = tc->whnf(e).first;
-    } else if (all_transparent) {
-        type_checker tc(p.env(), name_generator(),
-                        std::unique_ptr<converter>(new all_transparent_converter(p.env())));
-        r = normalize(tc, ls, e);
     } else {
-        r = normalize(p.env(), ls, e);
+        type_checker tc(p.env());
+        r = normalize(tc, ls, e);
     }
     flycheck_information info(p.regular_stream());
     if (info.enabled()) {
@@ -464,6 +607,8 @@ static void parse_metaclasses(parser & p, buffer<name> & r) {
         while (p.curr_is_token(get_lbracket_tk())) {
             name m = parse_metaclass(p);
             tmp.erase_elem(m);
+            if (m == get_declarations_tk())
+                tmp.erase_elem(get_decls_tk());
         }
         r.append(tmp);
     } else {
@@ -486,12 +631,11 @@ static environment add_abbrev(parser & p, environment const & env, name const & 
     for (name const & l : decl.get_univ_params())
         ls.push_back(mk_param_univ(l));
     expr value  = mk_constant(d, to_list(ls.begin(), ls.end()));
-    bool opaque = false;
     name const & ns = get_namespace(env);
     name full_id    = ns + id;
     p.add_abbrev_index(full_id, d);
     environment new_env =
-        module::add(env, check(env, mk_definition(env, full_id, decl.get_univ_params(), decl.get_type(), value, opaque)));
+        module::add(env, check(env, mk_definition(env, full_id, decl.get_univ_params(), decl.get_type(), value)));
     if (full_id != id)
         new_env = add_expr_alias_rec(new_env, id, full_id);
     return new_env;
@@ -627,7 +771,7 @@ environment telescope_eq_cmd(parser & p) {
         t.push_back(local);
         e = instantiate(binding_body(e), local);
     }
-    auto tc = mk_type_checker(p.env(), p.mk_ngen(), true);
+    auto tc = mk_type_checker(p.env(), p.mk_ngen());
     buffer<expr> eqs;
     mk_telescopic_eq(*tc, t, eqs);
     for (expr const & eq : eqs) {
@@ -684,7 +828,15 @@ static environment help_cmd(parser & p) {
 }
 
 environment init_quotient_cmd(parser & p) {
+    if (!(p.env().prop_proof_irrel() && p.env().impredicative()))
+        throw parser_error("invalid init_quotient command, this command is only available for kernels containing an impredicative and proof irrelevant Prop", p.cmd_pos());
     return module::declare_quotient(p.env());
+}
+
+environment init_hits_cmd(parser & p) {
+    if (p.env().prop_proof_irrel() || p.env().impredicative())
+        throw parser_error("invalid init_hits command, this command is only available for proof relevant and predicative kernels", p.cmd_pos());
+    return module::declare_hits(p.env());
 }
 
 void init_cmd_table(cmd_table & r) {
@@ -696,7 +848,6 @@ void init_cmd_table(cmd_table & r) {
     add_cmd(r, cmd_info("exit",          "exit", exit_cmd));
     add_cmd(r, cmd_info("print",         "print a string", print_cmd));
     add_cmd(r, cmd_info("section",       "open a new section", section_cmd));
-    add_cmd(r, cmd_info("context",       "open a new context", context_cmd));
     add_cmd(r, cmd_info("namespace",     "open a new namespace", namespace_cmd));
     add_cmd(r, cmd_info("end",           "close the current namespace/section", end_scoped_cmd));
     add_cmd(r, cmd_info("check",         "type check given expression, and display its type", check_cmd));
@@ -705,6 +856,7 @@ void init_cmd_table(cmd_table & r) {
     add_cmd(r, cmd_info("local",         "define local attributes or notation", local_cmd));
     add_cmd(r, cmd_info("help",          "brief description of available commands and options", help_cmd));
     add_cmd(r, cmd_info("init_quotient", "initialize quotient type computational rules", init_quotient_cmd));
+    add_cmd(r, cmd_info("init_hits",     "initialize builtin HITs", init_hits_cmd));
     add_cmd(r, cmd_info("#erase_cache",  "erase cached definition (for debugging purposes)", erase_cache_cmd));
     add_cmd(r, cmd_info("#projections",  "generate projections for inductive datatype (for debugging purposes)", projections_cmd));
     add_cmd(r, cmd_info("#telescope_eq", "(for debugging purposes)", telescope_eq_cmd));
@@ -714,7 +866,6 @@ void init_cmd_table(cmd_table & r) {
     register_structure_cmd(r);
     register_migrate_cmd(r);
     register_notation_cmds(r);
-    register_calc_cmds(r);
     register_begin_end_cmds(r);
     register_tactic_hint_cmd(r);
 }

@@ -9,7 +9,18 @@ Authors: Leonardo de Moura, Jakob von Raumer
 prelude
 import init.datatypes init.reserved_notation init.tactic init.logic
 import init.bool init.num init.priority init.relation init.wf
-import init.types.sigma init.types.prod init.types.empty
+import init.types
 import init.trunc init.path init.equiv init.util
-import init.axioms.ua init.axioms.funext_of_ua
-import init.hedberg init.nat
+import init.ua init.funext
+import init.hedberg init.nat init.hit
+
+namespace core
+  export bool empty unit sum
+  export sigma (hiding pr1 pr2)
+  export [notations] prod
+  export eq (idp idpath concat inverse transport ap ap10 cast tr_inv homotopy ap11 apd refl)
+  export [declarations] function
+  export equiv (to_inv to_right_inv to_left_inv)
+  export is_equiv (inv right_inv left_inv)
+
+end core
