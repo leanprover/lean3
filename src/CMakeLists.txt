@@ -263,12 +263,6 @@ ENDIF()
 # Python
 find_package(PythonInterp REQUIRED)
 
-# Examples
-file(GLOB LEANLIB "${LEAN_SOURCE_DIR}/../examples/*.lean")
-FOREACH(FILE ${LEANLIB})
-   install_files(/examples FILES "${FILE}")
-ENDFOREACH(FILE)
-
 include_directories(${LEAN_SOURCE_DIR})
 
 # Git HASH
@@ -315,6 +309,8 @@ add_subdirectory(kernel/hits)
 set(LEAN_LIBS ${LEAN_LIBS} hits)
 add_subdirectory(library)
 set(LEAN_LIBS ${LEAN_LIBS} library)
+add_subdirectory(library/simplifier)
+set(LEAN_LIBS ${LEAN_LIBS} simplifier)
 add_subdirectory(library/tactic)
 set(LEAN_LIBS ${LEAN_LIBS} tactic)
 add_subdirectory(library/definitional)

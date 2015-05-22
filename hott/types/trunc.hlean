@@ -69,7 +69,7 @@ namespace is_trunc
       fapply (IH (g b = g b')),
       { intro q, exact ((ε b)⁻¹ ⬝ ap f q ⬝ ε b')},
       { apply (is_retraction.mk (ap g)),
-        { intro p, cases p, {rewrite [↑ap, con_idp, con.left_inv]}}},
+        { intro p, cases p, {rewrite [↑ap, con.left_inv]}}},
       { apply is_trunc_eq}}
   end
 
@@ -148,25 +148,29 @@ namespace trunc
   protected definition code (n : trunc_index) (aa aa' : trunc n.+1 A) : n-Type :=
   trunc.rec_on aa (λa, trunc.rec_on aa' (λa', trunctype.mk' n (trunc n (a = a'))))
 
-  -- protected definition encode (n : trunc_index) (aa aa' : trunc n.+1 A) : aa = aa' → code n aa aa' :=
-  -- trunc.rec_on aa (λa, trunc.rec_on aa' (λa' p, _))
+  protected definition encode (n : trunc_index) (aa aa' : trunc n.+1 A) : aa = aa' → trunc.code n aa aa' :=
+  begin
+    intro p, cases p, apply (trunc.rec_on aa),
+    intro a, esimp [trunc.code,trunc.rec_on], exact (tr idp)
+  end
+
+  protected definition decode (n : trunc_index) (aa aa' : trunc n.+1 A) : trunc.code n aa aa' → aa = aa' :=
+  begin
+    eapply (trunc.rec_on aa'), eapply (trunc.rec_on aa),
+    intro a a' x, esimp [trunc.code, trunc.rec_on] at x,
+    apply (trunc.rec_on x), intro p, exact (ap tr p)
+  end
 
   definition trunc_eq_equiv (n : trunc_index) (aa aa' : trunc n.+1 A)
-    : aa = aa' ≃ code n aa aa' :=
+    : aa = aa' ≃ trunc.code n aa aa' :=
   begin
     fapply equiv.MK,
-    { intro p, cases p, apply (trunc.rec_on aa),
-      intro a, esimp [code,trunc.rec_on], exact (tr idp)},
+    { apply trunc.encode},
+    { apply trunc.decode},
     { eapply (trunc.rec_on aa'), eapply (trunc.rec_on aa),
-      intro a a' x, esimp [code, trunc.rec_on] at x,
-      apply (trunc.rec_on x), intro p, exact (ap tr p)},
-    {
-      -- apply (trunc.rec_on aa'), apply (trunc.rec_on aa),
-      -- intro a a' x, esimp [code, trunc.rec_on] at x,
-      -- apply (trunc.rec_on x), intro p,
-      -- cases p, esimp [trunc.rec_on,eq.cases_on,compose,id], -- apply idp --?
-      apply sorry},
-    { intro p, cases p, apply (trunc.rec_on aa), intro a, apply sorry},
+      intro a a' x, esimp [trunc.code, trunc.rec_on] at x,
+      apply (trunc.rec_on x), intro p, cases p, exact idp},
+    { intro p, cases p, apply (trunc.rec_on aa), intro a, exact idp},
   end
 
   definition tr_eq_tr_equiv (n : trunc_index) (a a' : A)

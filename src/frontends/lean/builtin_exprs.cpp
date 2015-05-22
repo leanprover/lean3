@@ -228,13 +228,10 @@ static expr parse_begin_end_core(parser & p, pos_info const & pos, name const & 
                         throw parser_error("invalid 'have' tactic, 'by', 'begin', 'proof', or 'from' expected", p.pos());
                     }
                 }
-            } else if (p.curr_is_token(get_show_tk())) {
-                auto pos = p.pos();
-                expr t = p.parse_tactic_expr_arg();
-                t      = p.mk_app(get_rexact_tac_fn(), t, pos);
-                add_tac(t, pos);
             } else if (p.curr_is_token(get_match_tk()) || p.curr_is_token(get_assume_tk()) ||
-                       p.curr_is_token(get_take_tk())  || p.curr_is_token(get_fun_tk())) {
+                       p.curr_is_token(get_take_tk())  || p.curr_is_token(get_fun_tk()) ||
+                       p.curr_is_token(get_calc_tk())  || p.curr_is_token(get_show_tk()) ||
+                       p.curr_is_token(get_obtain_tk())) {
                 auto pos = p.pos();
                 expr t = p.parse_tactic_expr_arg();
                 t      = p.mk_app(get_exact_tac_fn(), t, pos);
@@ -303,10 +300,14 @@ static expr parse_using_expr(parser & p, expr const & prop, pos_info const & usi
         expr l      = p.parse_id();
         if (!is_local(l))
             throw parser_error("invalid 'using' declaration for 'have', local expected", id_pos);
-        expr new_l = l;
-        binder_info bi = local_info(l);
-        if (!bi.is_contextual())
-            new_l = update_local(l, bi.update_contextual(true));
+        expr new_l;
+        binder_info bi = local_info(l).update_contextual(true);
+        if (p.is_local_variable_parameter(local_pp_name(l))) {
+            expr new_type = p.save_pos(mk_as_is(mlocal_type(l)), id_pos);
+            new_l = p.save_pos(mk_local(mlocal_name(l), local_pp_name(l), new_type, bi), id_pos);
+        } else {
+            new_l = p.save_pos(update_local(l, bi), id_pos);
+        }
         p.add_local(new_l);
         locals.push_back(l);
         new_locals.push_back(new_l);
@@ -558,9 +559,10 @@ static expr parse_calc_expr(parser & p, unsigned, expr const *, pos_info const &
     return parse_calc(p);
 }
 
-static expr parse_overwrite_notation(parser & p, unsigned, expr const *, pos_info const &) {
+static expr parse_override_notation(parser & p, unsigned, expr const *, pos_info const &) {
     name n = p.check_id_next("invalid '#' local notation, identifier expected");
-    environment env = overwrite_notation(p.env(), n);
+    bool persistent = false;
+    environment env = override_notation(p.env(), n, persistent);
     return p.parse_expr_with_env(env);
 }
 
@@ -629,7 +631,7 @@ parse_table init_nud_table() {
     r = r.add({transition("Type", mk_ext_action(parse_Type))}, x0);
     r = r.add({transition("let", mk_ext_action(parse_let_expr))}, x0);
     r = r.add({transition("calc", mk_ext_action(parse_calc_expr))}, x0);
-    r = r.add({transition("#", mk_ext_action(parse_overwrite_notation))}, x0);
+    r = r.add({transition("#", mk_ext_action(parse_override_notation))}, x0);
     r = r.add({transition("@", mk_ext_action(parse_explicit_expr))}, x0);
     r = r.add({transition("!", mk_ext_action(parse_consume_args_expr))}, x0);
     r = r.add({transition("begin", mk_ext_action_core(parse_begin_end))}, x0);

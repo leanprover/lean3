@@ -10,6 +10,9 @@ Author: Leonardo de Moura
 
 namespace lean {
 typedef std::unique_ptr<type_checker> type_checker_ptr;
+/** \brief Unfold constant \c e or constant application (i.e., \c e is of the form (f ....),
+    where \c f is a constant */
+optional<expr> unfold_term(environment const & env, expr const & e);
 /** \brief If \c e is of the form <tt>(f a_1 ... a_n)</tt>, where \c f is
     a non-opaque definition, then unfold \c f, and beta reduce.
     Otherwise, return none.
@@ -150,6 +153,10 @@ bool is_heq(expr const & e, expr & A, expr & lhs, expr & B, expr & rhs);
 bool is_iff(expr const & e);
 expr mk_iff(expr const & lhs, expr const & rhs);
 expr mk_iff_refl(expr const & a);
+/** \brief Given <tt>iff_pr : iff_term</tt>, where \c iff_term is of the form <tt>l <-> r</tt>,
+    return the term <tt>propext l r iff_pr</tt>
+*/
+expr apply_propext(expr const & iff_pr, expr const & iff_term);
 
 /** \brief If in HoTT mode, apply lift.down.
     The no_confusion constructions uses lifts in the proof relevant version (aka HoTT mode).

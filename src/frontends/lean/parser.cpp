@@ -110,12 +110,14 @@ parser::parser(environment const & env, io_state const & ios,
     m_scanner(strm, strm_name, s ? s->m_line : 1),
     m_theorem_queue(*this, num_threads > 1 ? num_threads - 1 : 0),
     m_snapshot_vector(sv), m_info_manager(im), m_cache(nullptr), m_index(nullptr) {
+    m_local_decls_size_at_beg_cmd = 0;
     m_profile    = ios.get_options().get_bool("profile", false);
     if (num_threads > 1 && m_profile)
         throw exception("option --profile cannot be used when theorems are compiled in parallel");
     m_has_params = false;
     m_keep_theorem_mode = tmode;
     if (s) {
+        m_ngen               = s->m_ngen;
         m_local_level_decls  = s->m_lds;
         m_local_decls        = s->m_eds;
         m_level_variables    = s->m_lvars;
@@ -1228,22 +1230,30 @@ expr parser::id_to_expr(name const & id, pos_info const & p) {
     return *r;
 }
 
-name parser::to_constant(name const & id, char const * msg, pos_info const & p) {
+list<name> parser::to_constants(name const & id, char const * msg, pos_info const & p) {
     expr e  = id_to_expr(id, p);
-    if (in_section(m_env) && is_as_atomic(e)) {
-        e = get_app_fn(get_as_atomic_arg(e));
-        if (is_explicit(e))
-            e = get_explicit_arg(e);
-    }
 
-    while (is_choice(e))
-        e = get_choice(e, 0);
+    buffer<name> rs;
+    std::function<void(expr const & e)> visit = [&](expr const & e) {
+        if (in_section(m_env) && is_as_atomic(e)) {
+            visit(get_app_fn(get_as_atomic_arg(e)));
+        } else if (is_explicit(e)) {
+            visit(get_explicit_arg(e));
+        } else if (is_choice(e)) {
+            for (unsigned i = 0; i < get_num_choices(e); i++)
+                visit(get_choice(e, i));
+        } else if (is_constant(e)) {
+            rs.push_back(const_name(e));
+        } else {
+            throw parser_error(msg, p);
+        }
+    };
+    visit(e);
+    return to_list(rs);
+}
 
-    if (is_constant(e)) {
-        return const_name(e);
-    } else {
-        throw parser_error(msg, p);
-    }
+name parser::to_constant(name const & id, char const * msg, pos_info const & p) {
+    return head(to_constants(id, msg, p));
 }
 
 name parser::check_constant_next(char const * msg) {
@@ -1413,6 +1423,10 @@ static bool is_tactic_opt_identifier_list_type(expr const & e) {
     return is_constant(e) && const_name(e) == get_tactic_opt_identifier_list_name();
 }
 
+static bool is_tactic_using_expr(expr const & e) {
+    return is_constant(e) && const_name(e) == get_tactic_using_expr_name();
+}
+
 static bool is_option_num(expr const & e) {
     return is_app(e) && is_constant(app_fn(e)) && const_name(app_fn(e)) == get_option_name() &&
         is_constant(app_arg(e)) && const_name(app_arg(e)) == get_num_name();
@@ -1524,6 +1538,16 @@ expr parser::parse_tactic_option_num() {
     }
 }
 
+expr parser::parse_tactic_using_expr() {
+    auto p = pos();
+    if (curr_is_token(get_using_tk())) {
+        next();
+        return parse_expr();
+    } else {
+        return save_pos(mk_constant(get_tactic_none_expr_name()), p);
+    }
+}
+
 expr parser::parse_tactic_nud() {
     if (curr_is_identifier()) {
         auto id_pos = pos();
@@ -1553,6 +1577,8 @@ expr parser::parse_tactic_nud() {
                     r = mk_app(r, parse_tactic_id_list(), id_pos);
                 } else if (is_tactic_opt_identifier_list_type(d)) {
                     r = mk_app(r, parse_tactic_opt_id_list(), id_pos);
+                } else if (is_tactic_using_expr(d)) {
+                    r = mk_app(r, parse_tactic_using_expr(), id_pos);
                 } else if (arity == 1 && is_option_num(d)) {
                     r = mk_app(r, parse_tactic_option_num(), id_pos);
                 } else {
@@ -1598,6 +1624,7 @@ void parser::parse_command() {
     m_cmd_token = get_token_info().token();
     if (auto it = cmds().find(cmd_name)) {
         next();
+        m_local_decls_size_at_beg_cmd = m_local_decls.size();
         m_env = it->get_fn()(*this);
     } else {
         auto p = pos();
@@ -1652,6 +1679,7 @@ void parser::parse_imports() {
     bool prelude     = false;
     std::string base = dirname(get_stream_name().c_str());
     bool imported    = false;
+    unsigned fingerprint = 0;
     if (curr_is_token(get_prelude_tk())) {
         next();
         prelude = true;
@@ -1689,6 +1717,9 @@ void parser::parse_imports() {
             if (!curr_is_identifier())
                 break;
             name f            = get_name_val();
+            fingerprint       = hash(fingerprint, f.hash());
+            if (k)
+                fingerprint = hash(fingerprint, *k);
             if (auto it = try_file(f, ".lua")) {
                 if (k)
                     throw parser_error(sstream() << "invalid import, failed to import '" << f
@@ -1706,6 +1737,7 @@ void parser::parse_imports() {
     bool keep_imported_thms = (m_keep_theorem_mode == keep_theorem_mode::All);
     m_env = import_modules(m_env, base, olean_files.size(), olean_files.data(), num_threads,
                            keep_imported_thms, m_ios);
+    m_env = update_fingerprint(m_env, fingerprint);
     for (auto const & f : lua_files) {
         std::string rname = find_file(f, {".lua"});
         system_import(rname.c_str());
@@ -1839,7 +1871,7 @@ void parser::save_snapshot() {
     if (!m_snapshot_vector)
         return;
     if (m_snapshot_vector->empty() || static_cast<int>(m_snapshot_vector->back().m_line) != m_scanner.get_line())
-        m_snapshot_vector->push_back(snapshot(m_env, m_local_level_decls, m_local_decls,
+        m_snapshot_vector->push_back(snapshot(m_env, m_ngen, m_local_level_decls, m_local_decls,
                                               m_level_variables, m_variables, m_include_vars,
                                               m_ios.get_options(), m_parser_scope_stack, m_scanner.get_line()));
 }

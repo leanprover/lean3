@@ -40,7 +40,8 @@ inductive int : Type :=
 
 notation `ℤ` := int
 attribute int.of_nat [coercion]
-definition int.of_num [coercion] [reducible] (n : num) : ℤ := int.of_nat (nat.of_num n)
+definition int.of_num [coercion] [reducible] [constructor] (n : num) : ℤ :=
+int.of_nat (nat.of_num n)
 
 namespace int
 
@@ -146,16 +147,6 @@ int.cases_on a
   (take m, assume H : nat_abs (of_nat m) = 0, ap of_nat H)
   (take m', assume H : nat_abs (neg_succ_of_nat m') = 0, absurd H (succ_ne_zero _))
 
-definition rec_nat_on {P : ℤ → Type} (z : ℤ) (H0 : P 0) (Hsucc : Π⦃n : ℕ⦄, P n → P (succ n))
-  (Hpred : Π⦃n : ℕ⦄, P (- n) → P (-succ n)) : P z :=
-int.rec_on z (λn, nat.rec_on n H0 Hsucc) (λn, nat.rec_on n (Hpred H0) (λm H, Hpred H))
-
---the only computation rule of rec_nat_on which is not definitional
-definition rec_nat_on_neg {P : ℤ → Type} (n : nat) (H0 : P zero)
-  (Hsucc : Π⦃n : nat⦄, P n → P (succ n)) (Hpred : Π⦃n : nat⦄, P (- n) → P (-succ n))
-  : rec_nat_on (-succ n) H0 Hsucc Hpred = Hpred (rec_nat_on (-n) H0 Hsucc Hpred) :=
-nat.rec_on n rfl (λn H, rfl)
-
 /- int is a quotient of ordered pairs of natural numbers -/
 
 definition int_equiv (p q : ℕ × ℕ) : Type₀ :=  pr1 p + pr2 q = pr2 p + pr1 q
@@ -180,10 +171,10 @@ have H3 : pr1 p + pr2 r + pr2 q = pr2 p + pr1 r + pr2 q, from
     ... = pr2 p + pr1 r + pr2 q                  : by exact sorry,
 show pr1 p + pr2 r = pr2 p + pr1 r, from add.cancel_right H3
 
-protected definition int_equiv_int_equiv : is_equivalence int_equiv :=
+definition int_equiv_int_equiv : is_equivalence int_equiv :=
 is_equivalence.mk @int_equiv.refl @int_equiv.symm @int_equiv.trans
 
-protected definition int_equiv_cases {p q : ℕ × ℕ} (H : int_equiv p q) :
+definition int_equiv_cases {p q : ℕ × ℕ} (H : int_equiv p q) :
     (pr1 p ≥ pr2 p × pr1 q ≥ pr2 q) ⊎ (pr1 p < pr2 p × pr1 q < pr2 q) :=
 sum.rec_on (@le_or_gt (pr2 p) (pr1 p))
   (assume H1: pr1 p ≥ pr2 p,
@@ -193,7 +184,7 @@ sum.rec_on (@le_or_gt (pr2 p) (pr1 p))
     have H2 : pr2 p + pr1 q < pr2 p + pr2 q, from H ▸ add_lt_add_right H1 (pr2 q),
     sum.inr (pair H1 (lt_of_add_lt_add_left H2)))
 
-protected definition int_equiv_of_eq {p q : ℕ × ℕ} (H : p = q) : p ≡ q := H ▸ int_equiv.refl
+definition int_equiv_of_eq {p q : ℕ × ℕ} (H : p = q) : p ≡ q := H ▸ int_equiv.refl
 
 /- the representation and abstraction functions -/
 
@@ -790,5 +781,32 @@ sub_eq_of_eq_add H2
 
 definition neg_succ_of_nat_eq' (m : ℕ) : -[m +1] = -m - 1 :=
 by rewrite [neg_succ_of_nat_eq, -of_nat_add_of_nat, neg_add]
+
+definition succ (a : ℤ) := a + (nat.succ zero)
+definition pred (a : ℤ) := a - (nat.succ zero)
+definition pred_succ (a : ℤ) : pred (succ a) = a := !sub_add_cancel
+definition succ_pred (a : ℤ) : succ (pred a) = a := !add_sub_cancel
+definition neg_succ (a : ℤ) : -succ a = pred (-a) :=
+by rewrite [↑succ,neg_add]
+definition succ_neg_succ (a : ℤ) : succ (-succ a) = -a :=
+by rewrite [neg_succ,succ_pred]
+definition neg_pred (a : ℤ) : -pred a = succ (-a) :=
+by rewrite [↑pred,neg_sub,sub_eq_add_neg,add.comm]
+definition pred_neg_pred (a : ℤ) : pred (-pred a) = -a :=
+by rewrite [neg_pred,pred_succ]
+
+definition pred_nat_succ (n : ℕ) : pred (nat.succ n) = n := pred_succ n
+definition neg_nat_succ (n : ℕ) : -nat.succ n = pred (-n) := !neg_succ
+definition succ_neg_nat_succ (n : ℕ) : succ (-nat.succ n) = -n := !succ_neg_succ
+
+definition rec_nat_on [unfold-c 2] {P : ℤ → Type} (z : ℤ) (H0 : P 0)
+  (Hsucc : Π⦃n : ℕ⦄, P n → P (succ n)) (Hpred : Π⦃n : ℕ⦄, P (-n) → P (-nat.succ n)) : P z :=
+int.rec_on z (λn, nat.rec_on n H0 Hsucc) (λn, nat.rec_on n (Hpred H0) (λm H, Hpred H))
+
+--the only computation rule of rec_nat_on which is not definitional
+definition rec_nat_on_neg {P : ℤ → Type} (n : nat) (H0 : P zero)
+  (Hsucc : Π⦃n : nat⦄, P n → P (succ n)) (Hpred : Π⦃n : nat⦄, P (-n) → P (-nat.succ n))
+  : rec_nat_on (-nat.succ n) H0 Hsucc Hpred = Hpred (rec_nat_on (-n) H0 Hsucc Hpred) :=
+nat.rec_on n rfl (λn H, rfl)
 
 end int

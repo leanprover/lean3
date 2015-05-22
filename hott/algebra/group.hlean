@@ -86,7 +86,10 @@ theorem mul.right_cancel [s : right_cancel_semigroup A] {a b c : A} :
 /- additive semigroup -/
 
 structure add_semigroup [class] (A : Type) extends has_add A :=
+(is_hset_carrier : is_hset A)
 (add_assoc : ∀a b c, add (add a b) c = add a (add b c))
+
+attribute add_semigroup.is_hset_carrier [instance]
 
 theorem add.assoc [s : add_semigroup A] (a b c : A) : a + b + c = a + (b + c) :=
 !add_semigroup.add_assoc
@@ -163,7 +166,7 @@ section group
   theorem inv_eq_of_mul_eq_one {a b : A} (H : a * b = 1) : a⁻¹ = b :=
   by rewrite [-mul_one a⁻¹, -H, inv_mul_cancel_left]
 
-  theorem inv_one : 1⁻¹ = 1 := inv_eq_of_mul_eq_one (one_mul 1)
+  theorem inv_one : 1⁻¹ = (1:A) := inv_eq_of_mul_eq_one (one_mul 1)
 
   theorem inv_inv (a : A) : (a⁻¹)⁻¹ = a := inv_eq_of_mul_eq_one (mul.left_inv a)
 
@@ -281,7 +284,7 @@ section add_group
   theorem neg_eq_of_add_eq_zero {a b : A} (H : a + b = 0) : -a = b :=
   by rewrite [-add_zero, -H, neg_add_cancel_left]
 
-  theorem neg_zero : -0 = 0 := neg_eq_of_add_eq_zero (zero_add 0)
+  theorem neg_zero : -0 = (0:A) := neg_eq_of_add_eq_zero (zero_add 0)
 
   theorem neg_neg (a : A) : -(-a) = a := neg_eq_of_add_eq_zero (add.left_inv a)
 
@@ -475,6 +478,17 @@ section add_comm_group
   theorem add_eq_of_eq_sub' {a b c : A} (H : b = c - a) : a + b = c :=
   !add.comm ▸ add_eq_of_eq_sub H
 end add_comm_group
+
+definition group_of_add_group (A : Type) [G : add_group A] : group A :=
+⦃group,
+  mul             := has_add.add,
+  mul_assoc       := add.assoc,
+  one             := !has_zero.zero,
+  one_mul         := zero_add,
+  mul_one         := add_zero,
+  inv             := has_neg.neg,
+  mul_left_inv    := add.left_inv,
+  is_hset_carrier := !add_group.is_hset_carrier⦄
 
 /- bundled structures -/
 structure Semigroup :=

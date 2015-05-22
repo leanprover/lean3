@@ -205,17 +205,16 @@ namespace sigma
     intro u,
     cases u with a b,
     apply (sigma_eq (left_inv f a)),
-    show transport B (left_inv f a) ((g (f⁻¹ (f a)))⁻¹ (transport B' (right_inv f (f a))⁻¹ (g a b))) = b,
-    from calc
+    calc
       transport B (left_inv f a) ((g (f⁻¹ (f a)))⁻¹ (transport B' (right_inv f (f a))⁻¹ (g a b)))
           = (g a)⁻¹ (transport (B' ∘ f) (left_inv f a) (transport B' (right_inv f (f a))⁻¹ (g a b)))
-              : by rewrite (fn_tr_eq_tr_fn (left_inv f a) (λ a, (g a)⁻¹))
+              : by esimp; rewrite (fn_tr_eq_tr_fn (left_inv f a) (λ a, (g a)⁻¹))
       ... = (g a)⁻¹ (transport B' (ap f (left_inv f a)) (transport B' (right_inv f (f a))⁻¹ (g a b)))
               : ap (g a)⁻¹ !transport_compose
       ... = (g a)⁻¹ (transport B' (ap f (left_inv f a)) (transport B' (ap f (left_inv f a))⁻¹ (g a b)))
            : ap (λ x, (g a)⁻¹ (transport B' (ap f (left_inv f a)) (transport B' x⁻¹ (g a b)))) (adj f a)
       ... = (g a)⁻¹ (g a b) : {!tr_inv_tr}
-      ... = b : by rewrite (left_inv (g a) b)
+      ... = b : by esimp; rewrite (left_inv (g a) b)
   end
 
   definition sigma_equiv_sigma_of_is_equiv [H1 : is_equiv f] [H2 : Π a, is_equiv (g a)]
@@ -273,7 +272,7 @@ namespace sigma
   definition sigma_assoc_equiv (C : (Σa, B a) → Type) : (Σa b, C ⟨a, b⟩) ≃ (Σu, C u) :=
   equiv.mk _ (adjointify
     (λav, ⟨⟨av.1, av.2.1⟩, av.2.2⟩)
-    (λuc, ⟨uc.1.1, uc.1.2, !eta⁻¹ ▸ uc.2⟩)
+    (λuc, ⟨uc.1.1, uc.1.2, !sigma.eta⁻¹ ▸ uc.2⟩)
     begin intro uc, cases uc with u c, cases u, reflexivity end
     begin intro av, cases av with a v, cases v, reflexivity end)
 
@@ -331,18 +330,18 @@ namespace sigma
   ⟨fg.1 a, fg.2 a⟩
 
   protected definition coind (f : Π a, B a) (g : Π a, C a (f a)) (a : A) : Σ(b : B a), C a b :=
-  coind_uncurried ⟨f, g⟩ a
+  sigma.coind_uncurried ⟨f, g⟩ a
 
   --is the instance below dangerous?
   --in Coq this can be done without function extensionality
   definition is_equiv_coind [instance] (C : Πa, B a → Type)
-    : is_equiv (@coind_uncurried _ _ C) :=
+    : is_equiv (@sigma.coind_uncurried _ _ C) :=
   adjointify _ (λ h, ⟨λa, (h a).1, λa, (h a).2⟩)
-               (λ h, proof eq_of_homotopy (λu, !eta) qed)
+               (λ h, proof eq_of_homotopy (λu, !sigma.eta) qed)
                (λfg, destruct fg (λ(f : Π (a : A), B a) (g : Π (x : A), C x (f x)), proof idp qed))
 
   definition sigma_pi_equiv_pi_sigma : (Σ(f : Πa, B a), Πa, C a (f a)) ≃ (Πa, Σb, C a b) :=
-  equiv.mk coind_uncurried _
+  equiv.mk sigma.coind_uncurried _
   end
 
   /- ** Subtypes (sigma types whose second components are hprops) -/

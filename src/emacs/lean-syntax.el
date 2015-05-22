@@ -12,13 +12,13 @@
     "hiding" "exposing" "parameter" "parameters" "begin" "begin+" "proof" "qed" "conjecture" "constant" "constants"
     "hypothesis" "lemma" "corollary" "variable" "variables" "premise" "premises"
     "print" "theorem" "example" "abbreviation"
-    "open" "as" "export" "axiom" "axioms" "inductive" "with" "structure" "record" "universe" "universes"
+    "open" "as" "export" "override" "axiom" "axioms" "inductive" "with" "structure" "record" "universe" "universes"
     "alias" "help" "environment" "options" "precedence" "reserve"
     "match" "infix" "infixl" "infixr" "notation" "postfix" "prefix"
     "tactic_infix" "tactic_infixl" "tactic_infixr" "tactic_notation" "tactic_postfix" "tactic_prefix"
-    "eval" "check" "coercion" "end" "reveal"
+    "eval" "check" "end" "reveal"
     "using" "namespace" "section" "fields" "find_decl"
-    "attribute" "local" "set_option" "add_rewrite" "extends" "include" "omit" "classes"
+    "attribute" "local" "set_option" "extends" "include" "omit" "classes"
     "instances" "coercions" "metaclasses" "raw" "migrate" "replacing")
   "lean keywords")
 
@@ -98,7 +98,7 @@
 
 (defconst lean-font-lock-defaults
   `((;; Keywords
-     (,(rx word-start (or "calc" "have" "obtains" "show" "by" "by+" "in" "at" "let" "forall" "fun"
+     (,(rx word-start (or "calc" "have" "show" "by" "by+" "in" "at" "let" "forall" "fun"
                             "exists" "if" "dif" "then" "else" "assume" "assert" "take" "obtain" "from") word-end)
       . font-lock-keyword-face)
      ;; String
@@ -123,11 +123,12 @@
                "\[irreducible\]" "\[semireducible\]" "\[quasireducible\]" "\[wf\]"
                "\[whnf\]" "\[multiple-instances\]" "\[none\]"
                "\[decls\]" "\[declarations\]" "\[coercions\]" "\[classes\]"
-               "\[symm\]" "\[subst\]" "\[refl\]" "\[trans\]" "\[recursor\]"
+               "\[symm\]" "\[subst\]" "\[refl\]" "\[trans\]"
                "\[notations\]" "\[abbreviations\]" "\[begin-end-hints\]" "\[tactic-hints\]"
                "\[reduce-hints\]" "\[unfold-hints\]" "\[aliases\]" "\[eqv\]" "\[localrefinfo\]"))
       . 'font-lock-doc-face)
      (,(rx "\[priority" (zero-or-more (not (any "\]"))) "\]") . font-lock-doc-face)
+     (,(rx "\[recursor" (zero-or-more (not (any "\]"))) "\]") . font-lock-doc-face)
      (,(rx "\[unfold-c" (zero-or-more (not (any "\]"))) "\]") . font-lock-doc-face)
      ;; tactics
      ("cases[ \t\n]+[^ \t\n]+[ \t\n]+\\(with\\)" (1 'font-lock-constant-face))
@@ -138,7 +139,7 @@
                 "generalize" "generalizes" "clear" "clears" "revert" "reverts" "back" "beta" "done" "exact" "rexact"
                 "refine" "repeat" "whnf" "rotate" "rotate_left" "rotate_right" "inversion" "cases" "rewrite" "esimp"
                 "unfold" "change" "check_expr" "contradiction" "exfalso" "split" "existsi" "constructor" "left" "right"
-                "injection" "congruence" "reflexivity" "symmetry" "transitivity" "state"))
+                "injection" "congruence" "reflexivity" "symmetry" "transitivity" "state" "induction" "induction_using"))
            word-end)
       (1 'font-lock-constant-face))
      ;; Types

@@ -8,8 +8,10 @@ Author: Leonardo de Moura
 #include "util/optional.h"
 #include "util/name.h"
 #include "util/rb_map.h"
+#include "util/sstream.h"
 #include "library/constants.h"
 #include "library/scoped_ext.h"
+#include "library/relation_manager.h"
 
 namespace lean {
 // Check whether e is of the form (f ...) where f is a constant. If it is return f.
@@ -36,23 +38,61 @@ static expr extract_arg_types(environment const & env, name const & f, buffer<ex
 
 enum class op_kind { Subst, Trans, Refl, Symm };
 
-struct eqv_entry {
+struct rel_entry {
     op_kind m_kind;
     name    m_name;
-    eqv_entry() {}
-    eqv_entry(op_kind k, name const & n):m_kind(k), m_name(n) {}
+    rel_entry() {}
+    rel_entry(op_kind k, name const & n):m_kind(k), m_name(n) {}
 };
 
-struct eqv_state {
+struct rel_state {
     typedef name_map<std::tuple<name, unsigned, unsigned>> refl_table;
     typedef name_map<std::tuple<name, unsigned, unsigned>> subst_table;
     typedef name_map<std::tuple<name, unsigned, unsigned>> symm_table;
     typedef rb_map<name_pair, std::tuple<name, name, unsigned>, name_pair_quick_cmp> trans_table;
+    typedef name_map<relation_info> rop_table;
     trans_table    m_trans_table;
     refl_table     m_refl_table;
     subst_table    m_subst_table;
     symm_table     m_symm_table;
-    eqv_state() {}
+    rop_table      m_rop_table;
+    rel_state() {}
+
+    bool is_equivalence(name const & rop) const {
+        return m_trans_table.contains(mk_pair(rop, rop)) && m_refl_table.contains(rop) && m_symm_table.contains(rop);
+    }
+
+    static void throw_invalid_relation(name const & rop) {
+        throw exception(sstream() << "invalid binary relation declaration, relation '" << rop
+                        << "' must have two explicit parameters");
+    }
+
+    void register_rop(environment const & env, name const & rop) {
+        if (m_rop_table.contains(rop))
+            return;
+        declaration const & d = env.get(rop);
+        optional<unsigned> lhs_pos;
+        optional<unsigned> rhs_pos;
+        unsigned i = 0;
+        expr type = d.get_type();
+        while (is_pi(type)) {
+            if (is_explicit(binding_info(type))) {
+                if (!lhs_pos)
+                    lhs_pos = i;
+                else if (!rhs_pos)
+                    rhs_pos = i;
+                else
+                    throw_invalid_relation(rop);
+            }
+            type = binding_body(type);
+            i++;
+        }
+        if (lhs_pos && rhs_pos) {
+            m_rop_table.insert(rop, relation_info(i, *lhs_pos, *rhs_pos));
+        } else {
+            throw_invalid_relation(rop);
+        }
+    }
 
     void add_subst(environment const & env, name const & subst) {
         buffer<expr> arg_types;
@@ -75,6 +115,7 @@ struct eqv_state {
         if (nargs < 1)
             throw exception("invalid reflexivity rule, it must have at least 1 argument");
         name const & rop = get_fn_const(r_type, "invalid reflexivity rule, result type must be an operator application");
+        register_rop(env, rop);
         m_refl_table.insert(rop, std::make_tuple(refl, nargs, nunivs));
     }
 
@@ -87,6 +128,7 @@ struct eqv_state {
         name const & rop = get_fn_const(r_type, "invalid transitivity rule, result type must be an operator application");
         name const & op1 = get_fn_const(arg_types[nargs-2], "invalid transitivity rule, penultimate argument must be an operator application");
         name const & op2 = get_fn_const(arg_types[nargs-1], "invalid transitivity rule, last argument must be an operator application");
+        register_rop(env, rop);
         m_trans_table.insert(name_pair(op1, op2), std::make_tuple(trans, rop, nargs));
     }
 
@@ -99,16 +141,17 @@ struct eqv_state {
         if (nargs < 1)
             throw exception("invalid symmetry rule, it must have at least 1 argument");
         name const & rop = get_fn_const(r_type, "invalid symmetry rule, result type must be an operator application");
+        register_rop(env, rop);
         m_symm_table.insert(rop, std::make_tuple(symm, nargs, nunivs));
     }
 };
 
-static name * g_eqv_name  = nullptr;
+static name * g_rel_name  = nullptr;
 static std::string * g_key = nullptr;
 
-struct eqv_config {
-    typedef eqv_state state;
-    typedef eqv_entry entry;
+struct rel_config {
+    typedef rel_state state;
+    typedef rel_entry entry;
     static void add_entry(environment const & env, io_state const &, state & s, entry const & e) {
         switch (e.m_kind) {
         case op_kind::Refl:  s.add_refl(env, e.m_name); break;
@@ -118,7 +161,7 @@ struct eqv_config {
         }
     }
     static name const & get_class_name() {
-        return *g_eqv_name;
+        return *g_rel_name;
     }
     static std::string const & get_serialization_key() {
         return *g_key;
@@ -138,23 +181,23 @@ struct eqv_config {
     }
 };
 
-template class scoped_ext<eqv_config>;
-typedef scoped_ext<eqv_config> eqv_ext;
+template class scoped_ext<rel_config>;
+typedef scoped_ext<rel_config> rel_ext;
 
 environment add_subst(environment const & env, name const & n, bool persistent) {
-    return eqv_ext::add_entry(env, get_dummy_ios(), eqv_entry(op_kind::Subst, n), persistent);
+    return rel_ext::add_entry(env, get_dummy_ios(), rel_entry(op_kind::Subst, n), persistent);
 }
 
 environment add_refl(environment const & env, name const & n, bool persistent) {
-    return eqv_ext::add_entry(env, get_dummy_ios(), eqv_entry(op_kind::Refl, n), persistent);
+    return rel_ext::add_entry(env, get_dummy_ios(), rel_entry(op_kind::Refl, n), persistent);
 }
 
 environment add_symm(environment const & env, name const & n, bool persistent) {
-    return eqv_ext::add_entry(env, get_dummy_ios(), eqv_entry(op_kind::Symm, n), persistent);
+    return rel_ext::add_entry(env, get_dummy_ios(), rel_entry(op_kind::Symm, n), persistent);
 }
 
 environment add_trans(environment const & env, name const & n, bool persistent) {
-    return eqv_ext::add_entry(env, get_dummy_ios(), eqv_entry(op_kind::Trans, n), persistent);
+    return rel_ext::add_entry(env, get_dummy_ios(), rel_entry(op_kind::Trans, n), persistent);
 }
 
 static optional<std::tuple<name, unsigned, unsigned>> get_info(name_map<std::tuple<name, unsigned, unsigned>> const & table, name const & op) {
@@ -166,17 +209,17 @@ static optional<std::tuple<name, unsigned, unsigned>> get_info(name_map<std::tup
 }
 
 optional<std::tuple<name, unsigned, unsigned>> get_refl_extra_info(environment const & env, name const & op) {
-    return get_info(eqv_ext::get_state(env).m_refl_table, op);
+    return get_info(rel_ext::get_state(env).m_refl_table, op);
 }
 optional<std::tuple<name, unsigned, unsigned>> get_subst_extra_info(environment const & env, name const & op) {
-    return get_info(eqv_ext::get_state(env).m_subst_table, op);
+    return get_info(rel_ext::get_state(env).m_subst_table, op);
 }
 optional<std::tuple<name, unsigned, unsigned>> get_symm_extra_info(environment const & env, name const & op) {
-    return get_info(eqv_ext::get_state(env).m_symm_table, op);
+    return get_info(rel_ext::get_state(env).m_symm_table, op);
 }
 
 optional<std::tuple<name, name, unsigned>> get_trans_extra_info(environment const & env, name const & op1, name const & op2) {
-    if (auto it = eqv_ext::get_state(env).m_trans_table.find(mk_pair(op1, op2))) {
+    if (auto it = rel_ext::get_state(env).m_trans_table.find(mk_pair(op1, op2))) {
         return optional<std::tuple<name, name, unsigned>>(*it);
     } else {
         return optional<std::tuple<name, name, unsigned>>();
@@ -204,15 +247,23 @@ optional<name> get_trans_info(environment const & env, name const & op) {
         return optional<name>();
 }
 
-void initialize_equivalence_manager() {
-    g_eqv_name = new name("eqv");
-    g_key       = new std::string("eqv");
-    eqv_ext::initialize();
+bool is_equivalence(environment const & env, name const & rop) {
+    return rel_ext::get_state(env).is_equivalence(rop);
 }
 
-void finalize_equivalence_manager() {
-    eqv_ext::finalize();
+relation_info const * get_relation_info(environment const & env, name const & rop) {
+    return rel_ext::get_state(env).m_rop_table.find(rop);
+}
+
+void initialize_relation_manager() {
+    g_rel_name = new name("rel");
+    g_key       = new std::string("rel");
+    rel_ext::initialize();
+}
+
+void finalize_relation_manager() {
+    rel_ext::finalize();
     delete g_key;
-    delete g_eqv_name;
+    delete g_rel_name;
 }
 }

@@ -133,6 +133,7 @@ static bool print_parse_table(parser & p, parse_table const & t, bool nud, buffe
     options os   = ios.get_options();
     os = os.update_if_undef(get_pp_full_names_option_name(), true);
     os = os.update(get_pp_notation_option_name(), false);
+    os = os.update(get_pp_preterm_name(), true);
     ios.set_options(os);
     optional<token_table> tt(get_token_table(p.env()));
     t.for_each([&](unsigned num, notation::transition const * ts, list<expr> const & overloads) {
@@ -230,21 +231,40 @@ static void print_inductive(parser & p, name const & n, pos_info const & pos) {
 
 static void print_recursor_info(parser & p) {
     name c = p.check_constant_next("invalid 'print [recursor]', constant expected");
+    auto out = p.regular_stream();
     recursor_info info = get_recursor_info(p.env(), c);
-    p.regular_stream() << "recursor information\n"
-                       << "  num. parameters:    " << info.get_num_params() << "\n"
-                       << "  num. indices:       " << info.get_num_indices() << "\n";
+    out << "recursor information\n"
+        << "  num. parameters:          " << info.get_num_params() << "\n"
+        << "  num. indices:             " << info.get_num_indices() << "\n";
     if (auto r = info.get_motive_univ_pos())
-        p.regular_stream() << "  motive univ. pos. : " << *r << "\n";
+        out << "  motive univ. pos.:        " << *r << "\n";
     else
-        p.regular_stream() << "  recursor eliminate only to Prop\n";
-    p.regular_stream() << "  motive pos.:        " << info.get_motive_pos() << "\n"
-                       << "  major premise pos.: " << info.get_major_pos() << "\n"
-                       << "  dep. elimination:   " << info.has_dep_elim() << "\n";
+        out << "  recursor eliminate only to Prop\n";
+    out << "  motive pos.:              " << info.get_motive_pos() + 1 << "\n"
+        << "  major premise pos.:       " << info.get_major_pos() + 1 << "\n"
+        << "  dep. elimination:         " << info.has_dep_elim() << "\n";
+    if (info.get_num_params() > 0) {
+        out << "  parameters pos. at major:";
+        for (optional<unsigned> const & p : info.get_params_pos()) {
+            if (p)
+                out << " " << *p+1;
+            else
+                out << " [instance]";
+        }
+        out << "\n";
+    }
+    if (info.get_num_indices() > 0) {
+        out << "  indices pos. at major:   ";
+        for (unsigned p : info.get_indices_pos())
+            out << " " << p+1;
+        out << "\n";
+    }
 }
 
 bool print_constant(parser & p, char const * kind, declaration const & d) {
     io_state_stream out = p.regular_stream();
+    if (is_protected(p.env(), d.get_name()))
+        out << "protected ";
     out << kind << " " << d.get_name();
     print_attributes(p, d.get_name());
     out << " : " << d.get_type() << "\n";
@@ -259,34 +279,34 @@ bool print_polymorphic(parser & p) {
         name id = p.check_id_next("");
         // declarations
         try {
-            name c = p.to_constant(id, "", pos);
-            declaration const & d = env.get(c);
-            if (d.is_theorem()) {
-                print_constant(p, "theorem", d);
-                print_definition(p, c, pos);
-                return true;
-            } else if (d.is_axiom() || d.is_constant_assumption()) {
-                if (inductive::is_inductive_decl(env, c)) {
-                    print_inductive(p, c, pos);
-                    return true;
-                } else if (inductive::is_intro_rule(env, c)) {
-                    return print_constant(p, "constructor", d);
-                } else if (inductive::is_elim_rule(env, c)) {
-                    return print_constant(p, "eliminator", d);
-                } else if (is_quotient_decl(env, c)) {
-                    return print_constant(p, "builtin-quotient-type-constant", d);
-                } else if (is_hits_decl(env, c)) {
-                    return print_constant(p, "builtin-HIT-constant", d);
-                } else if (d.is_axiom()) {
-                    return print_constant(p, "axiom", d);
-                } else if (d.is_constant_assumption()) {
-                    return print_constant(p, "constant", d);
+            list<name> cs = p.to_constants(id, "", pos);
+            for (name const & c : cs) {
+                declaration const & d = env.get(c);
+                if (d.is_theorem()) {
+                    print_constant(p, "theorem", d);
+                    print_definition(p, c, pos);
+                } else if (d.is_axiom() || d.is_constant_assumption()) {
+                    if (inductive::is_inductive_decl(env, c)) {
+                        print_inductive(p, c, pos);
+                    } else if (inductive::is_intro_rule(env, c)) {
+                        print_constant(p, "constructor", d);
+                    } else if (inductive::is_elim_rule(env, c)) {
+                        print_constant(p, "eliminator", d);
+                    } else if (is_quotient_decl(env, c)) {
+                        print_constant(p, "builtin-quotient-type-constant", d);
+                    } else if (is_hits_decl(env, c)) {
+                        print_constant(p, "builtin-HIT-constant", d);
+                    } else if (d.is_axiom()) {
+                        print_constant(p, "axiom", d);
+                    } else {
+                        print_constant(p, "constant", d);
+                    }
+                } else if (d.is_definition()) {
+                    print_constant(p, "definition", d);
+                    print_definition(p, c, pos);
                 }
-            } else if (d.is_definition()) {
-                print_constant(p, "definition", d);
-                print_definition(p, c, pos);
-                return true;
             }
+            return true;
         } catch (exception & ex) {}
 
         // variables and parameters
@@ -358,8 +378,20 @@ environment print_cmd(parser & p) {
     } else if (p.curr_is_token_or_id(get_definition_tk())) {
         p.next();
         auto pos = p.pos();
-        name c = p.check_constant_next("invalid 'print definition', constant expected");
-        print_definition(p, c, pos);
+        name id  = p.check_id_next("invalid 'print definition', constant expected");
+        list<name> cs = p.to_constants(id, "invalid 'print definition', constant expected", pos);
+        for (name const & c : cs) {
+            declaration const & d = p.env().get(c);
+            if (d.is_theorem()) {
+                print_constant(p, "theorem", d);
+                print_definition(p, c, pos);
+            } else if (d.is_definition()) {
+                print_constant(p, "definition", d);
+                print_definition(p, c, pos);
+            } else {
+                throw parser_error(sstream() << "invalid 'print definition', '" << c << "' is not a definition", pos);
+            }
+        }
     } else if (p.curr_is_token_or_id(get_instances_tk())) {
         p.next();
         name c = p.check_constant_next("invalid 'print instances', constant expected");
@@ -406,6 +438,7 @@ environment print_cmd(parser & p) {
         print_inductive(p, c, pos);
     } else if (p.curr_is_token(get_recursor_tk())) {
         p.next();
+        p.check_token_next(get_rbracket_tk(), "invalid 'print [recursor]', ']' expected");
         print_recursor_info(p);
     } else if (print_polymorphic(p)) {
     } else {
@@ -514,7 +547,9 @@ environment eval_cmd(parser & p) {
         r = tc->whnf(e).first;
     } else {
         type_checker tc(p.env());
-        r = normalize(tc, ls, e);
+        bool eta = false;
+        bool eval_nested_prop = false;
+        r = normalize(tc, ls, e, eta, eval_nested_prop);
     }
     flycheck_information info(p.regular_stream());
     if (info.enabled()) {
@@ -644,6 +679,7 @@ static environment add_abbrev(parser & p, environment const & env, name const & 
 // open/export [class] id (as id)? (id ...) (renaming id->id id->id) (hiding id ... id)
 environment open_export_cmd(parser & p, bool open) {
     environment env = p.env();
+    unsigned fingerprint = 0;
     while (true) {
         buffer<name> metacls;
         parse_metaclasses(p, metacls);
@@ -652,12 +688,15 @@ environment open_export_cmd(parser & p, bool open) {
             std::find(metacls.begin(), metacls.end(), get_decls_tk()) != metacls.end() ||
             std::find(metacls.begin(), metacls.end(), get_declarations_tk()) != metacls.end())
             decls = true;
+        for (name const & n : metacls)
+            fingerprint = hash(fingerprint, n.hash());
         auto pos   = p.pos();
         name ns    = p.check_id_next("invalid 'open/export' command, identifier expected");
         optional<name> real_ns = to_valid_namespace_name(env, ns);
         if (!real_ns)
             throw parser_error(sstream() << "invalid namespace name '" << ns << "'", pos);
         ns = *real_ns;
+        fingerprint = hash(fingerprint, ns.hash());
         name as;
         if (p.curr_is_token_or_id(get_as_tk())) {
             p.next();
@@ -680,6 +719,7 @@ environment open_export_cmd(parser & p, bool open) {
                         p.next();
                         p.check_token_next(get_arrow_tk(), "invalid 'open/export' command renaming, '->' expected");
                         name to_id = p.check_id_next("invalid 'open/export' command renaming, identifier expected");
+                        fingerprint = hash(hash(fingerprint, from_id.hash()), to_id.hash());
                         check_identifier(p, env, ns, from_id);
                         exceptions.push_back(from_id);
                         if (open)
@@ -694,12 +734,14 @@ environment open_export_cmd(parser & p, bool open) {
                         p.next();
                         check_identifier(p, env, ns, id);
                         exceptions.push_back(id);
+                        fingerprint = hash(fingerprint, id.hash());
                     }
                 } else if (p.curr_is_identifier()) {
                     found_explicit = true;
                     while (p.curr_is_identifier()) {
                         name id = p.get_name_val();
                         p.next();
+                        fingerprint = hash(fingerprint, id.hash());
                         check_identifier(p, env, ns, id);
                         if (open)
                             env = add_expr_alias(env, as+id, ns+id);
@@ -736,18 +778,34 @@ environment open_export_cmd(parser & p, bool open) {
         if (!p.curr_is_token(get_lbracket_tk()) && !p.curr_is_identifier())
             break;
     }
+    return update_fingerprint(env, fingerprint);
+}
+static environment open_cmd(parser & p) { return open_export_cmd(p, true); }
+static environment export_cmd(parser & p) { return open_export_cmd(p, false); }
+
+static environment override_cmd(parser & p) {
+    environment env = p.env();
+    while (p.curr_is_identifier()) {
+        auto pos   = p.pos();
+        name ns    = p.check_id_next("invalid 'override' command, identifier expected");
+        optional<name> real_ns = to_valid_namespace_name(env, ns);
+        if (!real_ns)
+            throw parser_error(sstream() << "invalid namespace name '" << ns << "'", pos);
+        ns = *real_ns;
+        bool persistent = false;
+        env = override_notation(env, ns, persistent);
+        env = update_fingerprint(env, ns.hash());
+    }
     return env;
 }
-environment open_cmd(parser & p) { return open_export_cmd(p, true); }
-environment export_cmd(parser & p) { return open_export_cmd(p, false); }
 
-environment erase_cache_cmd(parser & p) {
+static environment erase_cache_cmd(parser & p) {
     name n = p.check_id_next("invalid #erase_cache command, identifier expected");
     p.erase_cached_definition(n);
     return p.env();
 }
 
-environment projections_cmd(parser & p) {
+static environment projections_cmd(parser & p) {
     name n = p.check_id_next("invalid #projections command, identifier expected");
     if (p.curr_is_token(get_dcolon_tk())) {
         p.next();
@@ -762,7 +820,7 @@ environment projections_cmd(parser & p) {
     }
 }
 
-environment telescope_eq_cmd(parser & p) {
+static environment telescope_eq_cmd(parser & p) {
     expr e; level_param_names ls;
     std::tie(e, ls) = parse_local_expr(p);
     buffer<expr> t;
@@ -781,7 +839,7 @@ environment telescope_eq_cmd(parser & p) {
     return p.env();
 }
 
-environment local_cmd(parser & p) {
+static environment local_cmd(parser & p) {
     if (p.curr_is_token_or_id(get_attribute_tk())) {
         p.next();
         return local_attribute_cmd(p);
@@ -827,13 +885,13 @@ static environment help_cmd(parser & p) {
     return p.env();
 }
 
-environment init_quotient_cmd(parser & p) {
+static environment init_quotient_cmd(parser & p) {
     if (!(p.env().prop_proof_irrel() && p.env().impredicative()))
         throw parser_error("invalid init_quotient command, this command is only available for kernels containing an impredicative and proof irrelevant Prop", p.cmd_pos());
     return module::declare_quotient(p.env());
 }
 
-environment init_hits_cmd(parser & p) {
+static environment init_hits_cmd(parser & p) {
     if (p.env().prop_proof_irrel() || p.env().impredicative())
         throw parser_error("invalid init_hits command, this command is only available for proof relevant and predicative kernels", p.cmd_pos());
     return module::declare_hits(p.env());
@@ -844,6 +902,8 @@ void init_cmd_table(cmd_table & r) {
                         open_cmd));
     add_cmd(r, cmd_info("export",        "create abbreviations for declarations, "
                         "and export objects defined in other namespaces", export_cmd));
+    add_cmd(r, cmd_info("override",      "override notation declarations using the ones defined in the given namespace",
+                        override_cmd));
     add_cmd(r, cmd_info("set_option",    "set configuration option", set_option_cmd));
     add_cmd(r, cmd_info("exit",          "exit", exit_cmd));
     add_cmd(r, cmd_info("print",         "print a string", print_cmd));

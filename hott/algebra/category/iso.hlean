@@ -139,7 +139,8 @@ namespace iso
 
   attribute to_hom [coercion]
 
-  protected definition MK (f : a ⟶ b) (g : b ⟶ a) (H1 : g ∘ f = id) (H2 : f ∘ g = id) :=
+  protected definition MK [constructor] (f : a ⟶ b) (g : b ⟶ a)
+    (H1 : g ∘ f = id) (H2 : f ∘ g = id) :=
   @mk _ _ _ _ f (is_iso.mk H1 H2)
 
   definition to_inv (f : a ≅ b) : b ⟶ a :=
@@ -231,7 +232,7 @@ namespace iso
     (λ c g h H,
       calc
         g = g ∘ id               : by rewrite id_right
-      ... = g ∘ f ∘ section_of f : by rewrite -comp_section
+      ... = g ∘ f ∘ section_of f : by rewrite -(comp_section f)
       ... = h ∘ f ∘ section_of f : by rewrite [assoc, H, -assoc]
       ... = h ∘ id               : by rewrite comp_section
       ... = h                    : by rewrite id_right)

@@ -109,8 +109,14 @@ notation `∅` := !empty
 theorem not_mem_empty (a : A) : a ∉ ∅ :=
 λ aine : a ∈ ∅, aine
 
+theorem mem_empty_iff (x : A) : x ∈ ∅ ↔ false :=
+iff.mp' !iff_false_iff_not !not_mem_empty
+
 theorem mem_empty_eq (x : A) : x ∈ ∅ = false :=
-propext (iff.mp' !iff_false_iff_not !not_mem_empty)
+propext !mem_empty_iff
+
+theorem eq_empty_of_forall_not_mem {s : finset A} (H : ∀x, ¬ x ∈ s) : s = ∅ :=
+ext (take x, iff_false_intro (H x))
 
 /- universe -/
 definition univ [h : fintype A] : finset A :=
@@ -145,7 +151,7 @@ quot.lift_on s
 
 -- set builder notation
 notation `{[`:max a:(foldr `,` (x b, insert x b) ∅) `]}`:0 := a
-notation `⦃` a:(foldr `,` (x b, insert x b) ∅) `⦄` := a
+-- notation `⦃` a:(foldr `,` (x b, insert x b) ∅) `⦄` := a
 
 theorem mem_insert (a : A) (s : finset A) : a ∈ insert a s :=
 quot.induction_on s
@@ -165,7 +171,7 @@ propext (iff.intro
     (assume H' : x = a, eq.subst (eq.symm H') !mem_insert)
     (assume H' : x ∈ s, !mem_insert_of_mem H')))
 
-theorem insert_empty_eq (a : A) : ⦃a⦄ = singleton a := rfl
+theorem insert_empty_eq (a : A) : {[ a ]} = singleton a := rfl
 
 theorem insert_eq_of_mem {a : A} {s : finset A} (H : a ∈ s) : insert a s = s :=
 ext
@@ -188,7 +194,7 @@ theorem card_insert_of_not_mem {a : A} {s : finset A} : a ∉ s → card (insert
 quot.induction_on s
   (λ (l : nodup_list A) (nainl : a ∉ ⟦l⟧), list.length_insert_of_not_mem nainl)
 
-protected theorem induction {P : finset A → Prop}
+protected theorem induction [recursor 6] {P : finset A → Prop}
     (H1 : P empty)
     (H2 : ∀⦃s : finset A⦄, ∀{a : A}, a ∉ s → P s → P (insert a s)) :
   ∀s, P s :=
@@ -217,7 +223,7 @@ protected theorem induction_on {P : finset A → Prop} (s : finset A)
     (H1 : P empty)
     (H2 : ∀⦃s : finset A⦄, ∀{a : A}, a ∉ s → P s → P (insert a s)) :
   P s :=
-induction H1 H2 s
+finset.induction H1 H2 s
 end insert
 
 /- erase -/
@@ -306,7 +312,7 @@ ext (take x,
     x ∈ insert a s ↔ x ∈ insert a s            : iff.refl
                ... = (x = a ∨ x ∈ s)           : mem_insert_eq
                ... = (x ∈ singleton a ∨ x ∈ s) : mem_singleton_eq
-               ... = (x ∈ ⦃a⦄ ∪ s)             : mem_union_eq)
+               ... = (x ∈ {[ a ]} ∪ s)         : mem_union_eq)
 
 theorem insert_union (a : A) (s t : finset A) : insert a (s ∪ t) = insert a s ∪ t :=
 by rewrite [*insert_eq, union.assoc]
@@ -423,17 +429,21 @@ quot.induction_on₂ s₁ s₂ (take u₁ u₂, assume H H1 H2, H x H1 H2)
 theorem disjoint.intro {s₁ s₂ : finset A} : (∀{x : A}, x ∈ s₁ → x ∈ s₂ → false) → disjoint s₁ s₂ :=
 quot.induction_on₂ s₁ s₂ (take u₁ u₂, assume H, H)
 
-theorem inter_empty_of_disjoint [h : decidable_eq A] {s₁ s₂ : finset A} (H : disjoint s₁ s₂) : s₁ ∩ s₂ = ∅ :=
+theorem inter_eq_empty_of_disjoint [h : decidable_eq A] {s₁ s₂ : finset A} (H : disjoint s₁ s₂) : s₁ ∩ s₂ = ∅ :=
 ext (take x, iff_false_intro (assume H1,
   disjoint.elim H (mem_of_mem_inter_left H1) (mem_of_mem_inter_right H1)))
 
-theorem disjoint_of_inter_empty [h : decidable_eq A] {s₁ s₂ : finset A} (H : s₁ ∩ s₂ = ∅) : disjoint s₁ s₂ :=
+theorem disjoint_of_inter_eq_empty [h : decidable_eq A] {s₁ s₂ : finset A} (H : s₁ ∩ s₂ = ∅) : disjoint s₁ s₂ :=
 disjoint.intro (take x H1 H2,
   have H3 : x ∈ s₁ ∩ s₂, from mem_inter H1 H2,
   !not_mem_empty (eq.subst H H3))
 
 theorem disjoint.comm {s₁ s₂ : finset A} : disjoint s₁ s₂ → disjoint s₂ s₁ :=
 quot.induction_on₂ s₁ s₂ (λ l₁ l₂ d, list.disjoint.comm d)
+
+theorem inter_eq_empty [h : decidable_eq A] {s₁ s₂ : finset A}
+    (H : ∀x : A, x ∈ s₁ → x ∈ s₂ → false) : s₁ ∩ s₂ = ∅ :=
+inter_eq_empty_of_disjoint (disjoint.intro H)
 
 /- subset -/
 definition subset (s₁ s₂ : finset A) : Prop :=
@@ -492,5 +502,59 @@ iff.intro lt_of_mem_upto mem_upto_of_lt
 theorem mem_upto_eq (a n : nat) : a ∈ upto n = (a < n) :=
 propext !mem_upto_iff
 end upto
+
+/- useful rules for calculations with quantifiers -/
+theorem exists_mem_empty_iff {A : Type} (P : A → Prop) : (∃ x, x ∈ ∅ ∧ P x) ↔ false :=
+iff.intro
+  (assume H,
+    obtain x (H1 : x ∈ ∅ ∧ P x), from H,
+    !not_mem_empty (and.left H1))
+  (assume H, false.elim H)
+
+theorem exists_mem_empty_eq {A : Type} (P : A → Prop) : (∃ x, x ∈ ∅ ∧ P x) = false :=
+propext !exists_mem_empty_iff
+
+theorem exists_mem_insert_iff {A : Type} [d : decidable_eq A]
+    (a : A) (s : finset A) (P : A → Prop) :
+  (∃ x, x ∈ insert a s ∧ P x) ↔ P a ∨ (∃ x, x ∈ s ∧ P x) :=
+iff.intro
+  (assume H,
+    obtain x [H1 H2], from H,
+    or.elim (eq_or_mem_of_mem_insert H1)
+      (assume H3 : x = a, or.inl (eq.subst H3 H2))
+      (assume H3 : x ∈ s, or.inr (exists.intro x (and.intro H3 H2))))
+  (assume H,
+    or.elim H
+      (assume H1 : P a, exists.intro a (and.intro !mem_insert H1))
+      (assume H1 : ∃ x, x ∈ s ∧ P x,
+        obtain x [H2 H3], from H1,
+        exists.intro x (and.intro (!mem_insert_of_mem H2) H3)))
+
+theorem exists_mem_insert_eq {A : Type} [d : decidable_eq A] (a : A) (s : finset A) (P : A → Prop) :
+  (∃ x, x ∈ insert a s ∧ P x) = (P a ∨ (∃ x, x ∈ s ∧ P x)) :=
+propext !exists_mem_insert_iff
+
+theorem forall_mem_empty_iff {A : Type} (P : A → Prop) : (∀ x, x ∈ ∅ → P x) ↔ true :=
+iff.intro
+  (assume H, trivial)
+  (assume H, take x, assume H', absurd H' !not_mem_empty)
+
+theorem forall_mem_empty_eq {A : Type} (P : A → Prop) : (∀ x, x ∈ ∅ → P x) = true :=
+propext !forall_mem_empty_iff
+
+theorem forall_mem_insert_iff {A : Type} [d : decidable_eq A]
+    (a : A) (s : finset A) (P : A → Prop) :
+  (∀ x, x ∈ insert a s → P x) ↔ P a ∧ (∀ x, x ∈ s → P x) :=
+iff.intro
+  (assume H, and.intro (H _ !mem_insert) (take x, assume H', H _ (!mem_insert_of_mem H')))
+  (assume H, take x, assume H' : x ∈ insert a s,
+    or.elim (eq_or_mem_of_mem_insert H')
+      (assume H1 : x = a, eq.subst (eq.symm H1) (and.left H))
+      (assume H1 : x ∈ s, and.right H _ H1))
+
+theorem forall_mem_insert_eq {A : Type} [d : decidable_eq A] (a : A) (s : finset A) (P : A → Prop) :
+  (∀ x, x ∈ insert a s → P x) = (P a ∧ (∀ x, x ∈ s → P x)) :=
+propext !forall_mem_insert_iff
+
 end finset
 abbreviation finset := finset.finset

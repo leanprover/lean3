@@ -107,17 +107,18 @@ void init_token_table(token_table & t) {
          "definition", "example", "coercion", "abbreviation",
          "variables", "parameter", "parameters", "constant", "constants", "[persistent]", "[visible]", "[instance]",
          "[none]", "[class]", "[coercion]", "[reducible]", "[irreducible]", "[semireducible]", "[quasireducible]",
-         "[parsing-only]", "[multiple-instances]", "[symm]", "[trans]", "[refl]", "[subst]", "[recursor]",
+         "[parsing-only]", "[multiple-instances]", "[symm]", "[trans]", "[refl]", "[subst]", "[recursor",
          "evaluate", "check", "eval", "[wf]", "[whnf]", "[priority", "[unfold-f]",
          "[constructor]", "[unfold-c", "print",
          "end", "namespace", "section", "prelude", "help",
          "import", "inductive", "record", "structure", "module", "universe", "universes", "local",
          "precedence", "reserve", "infixl", "infixr", "infix", "postfix", "prefix", "notation",
          "tactic_infixl", "tactic_infixr", "tactic_infix", "tactic_postfix", "tactic_prefix", "tactic_notation",
-         "exit", "set_option", "open", "export", "calc_subst", "calc_refl", "calc_trans", "calc_symm", "tactic_hint",
+         "exit", "set_option", "open", "export", "override", "calc_subst", "calc_refl", "calc_trans", "calc_symm", "tactic_hint",
          "add_begin_end_tactic", "set_begin_end_tactic", "instance", "class",
          "multiple_instances", "find_decl", "attribute", "persistent",
-         "include", "omit", "migrate", "init_quotient", "init_hits", "#erase_cache", "#projections", "#telescope_eq", nullptr};
+         "include", "omit", "migrate", "init_quotient", "init_hits", "#erase_cache", "#projections", "#telescope_eq",
+         nullptr};
 
     pair<char const *, char const *> aliases[] =
         {{g_lambda_unicode, "fun"}, {"forall", "Pi"}, {g_forall_unicode, "Pi"}, {g_pi_unicode, "Pi"},

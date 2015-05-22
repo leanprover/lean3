@@ -21,6 +21,7 @@ namespace nat
 
   definition le [reducible] (a b : nat) : Prop := a < succ b
 
+  notation a <= b := le a b
   notation a ≤ b := le a b
 
   definition pred (a : nat) : nat :=
@@ -138,9 +139,9 @@ namespace nat
 
   theorem le.rec_on {a : nat} {P : nat → Prop} {b : nat} (H : a ≤ b) (H₁ : P a) (H₂ : ∀ b, a < b → P b) : P b :=
   begin
-    cases H with b' hlt,
+    cases H with b hlt,
       apply H₁,
-      apply H₂ b' hlt
+      apply H₂ b hlt
   end
 
   theorem lt.irrefl (a : nat) : ¬ a < a :=
@@ -251,6 +252,7 @@ namespace nat
   definition decidable_ge [instance] : decidable_rel ge :=
   _
 
+  notation a >= b := ge a b
   notation a ≥ b := ge a b
 
   -- add is defined in init.num

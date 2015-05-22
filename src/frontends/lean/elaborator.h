@@ -33,6 +33,8 @@ class elaborator : public coercion_info_manager {
     elaborator_context & m_ctx;
     name_generator       m_ngen;
     type_checker_ptr     m_tc;
+    type_checker_ptr     m_coercion_from_tc;
+    type_checker_ptr     m_coercion_to_tc;
     // mapping from metavariable ?m to the (?m l_1 ... l_n) where [l_1 ... l_n] are the local constants
     // representing the context where ?m was created.
     local_context        m_context; // current local context: a list of local constants
@@ -179,7 +181,7 @@ class elaborator : public coercion_info_manager {
                              expr const & goal, bool first, constraint_seq & cs, expr const & src);
     expr visit_obtain_expr(expr const & e, constraint_seq & cs);
 public:
-    elaborator(elaborator_context & ctx, name_generator const & ngen, bool nice_mvar_names = false);
+    elaborator(elaborator_context & ctx, name_generator && ngen, bool nice_mvar_names = false);
     std::tuple<expr, level_param_names> operator()(list<expr> const & ctx, expr const & e, bool _ensure_type);
     std::tuple<expr, expr, level_param_names> operator()(expr const & t, expr const & v, name const & n);
 };

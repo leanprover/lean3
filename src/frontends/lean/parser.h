@@ -67,6 +67,7 @@ typedef list<parser_scope_stack_elem> parser_scope_stack;
 /** \brief Snapshot of the state of the Lean parser */
 struct snapshot {
     environment        m_env;
+    name_generator     m_ngen;
     local_level_decls  m_lds;
     local_expr_decls   m_eds;
     name_set           m_lvars; // subset of m_lds that is tagged as level variable
@@ -77,10 +78,10 @@ struct snapshot {
     unsigned           m_line;
     snapshot():m_line(0) {}
     snapshot(environment const & env, options const & o):m_env(env), m_options(o), m_line(1) {}
-    snapshot(environment const & env, local_level_decls const & lds, local_expr_decls const & eds,
-             name_set const & lvars, name_set const & vars, name_set const & includes, options const & opts,
-             parser_scope_stack const & pss, unsigned line):
-        m_env(env), m_lds(lds), m_eds(eds), m_lvars(lvars), m_vars(vars), m_include_vars(includes),
+    snapshot(environment const & env, name_generator const & ngen, local_level_decls const & lds,
+             local_expr_decls const & eds, name_set const & lvars, name_set const & vars,
+             name_set const & includes, options const & opts, parser_scope_stack const & pss, unsigned line):
+        m_env(env), m_ngen(ngen), m_lds(lds), m_eds(eds), m_lvars(lvars), m_vars(vars), m_include_vars(includes),
         m_options(opts), m_parser_scope_stack(pss), m_line(line) {}
 };
 
@@ -142,6 +143,9 @@ class parser {
 
     // profiling
     bool                   m_profile;
+
+    // auxiliary field used to record the size of m_local_decls before a command is executed.
+    unsigned               m_local_decls_size_at_beg_cmd;
 
     void display_warning_pos(unsigned line, unsigned pos);
     void display_error_pos(unsigned line, unsigned pos);
@@ -239,6 +243,7 @@ class parser {
     expr parse_tactic_opt_expr_list();
     expr parse_tactic_id_list();
     expr parse_tactic_opt_id_list();
+    expr parse_tactic_using_expr();
 
 public:
     parser(environment const & env, io_state const & ios,
@@ -340,6 +345,7 @@ public:
     /** \brief Check if the current token is an atomic identifier, if it is, return it and move to next token,
         otherwise throw an exception. */
     name check_atomic_id_next(char const * msg);
+    list<name> to_constants(name const & id, char const * msg, pos_info const & p);
     name to_constant(name const & id, char const * msg, pos_info const & p);
     /** \brief Check if the current token is a constant, if it is, return it and move to next token, otherwise throw an exception. */
     name check_constant_next(char const * msg);
@@ -435,6 +441,11 @@ public:
     bool is_local_level_variable(name const & n) const { return m_level_variables.contains(n); }
     bool is_local_variable(name const & n) const { return m_variables.contains(n); }
     bool is_local_variable(expr const & e) const { return is_local_variable(local_pp_name(e)); }
+    /** \brief Return true iff n is the name of a variable or parameter. */
+    bool is_local_variable_parameter(name const & n) const {
+        unsigned idx = m_local_decls.find_idx(n);
+        return 0 < idx && idx <= m_local_decls_size_at_beg_cmd;
+    }
     /** \brief Update binder information for the section parameter n, return true if success, and false if n is not a section parameter. */
     bool update_local_binder_info(name const & n, binder_info const & bi);
     void include_variable(name const & n) { m_include_vars.insert(n); }

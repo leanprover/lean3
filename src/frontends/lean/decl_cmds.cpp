@@ -27,7 +27,7 @@ Author: Leonardo de Moura
 #include "library/replace_visitor.h"
 #include "library/class.h"
 #include "library/abbreviation.h"
-#include "library/equivalence_manager.h"
+#include "library/relation_manager.h"
 #include "library/user_recursors.h"
 #include "library/unfold_macros.h"
 #include "library/definitional/equations.h"
@@ -152,8 +152,12 @@ static environment declare_var(parser & p, environment env,
             env = module::add(env, check(env, mk_constant_assumption(full_n, ls, new_type)));
             p.add_decl_index(full_n, pos, get_variable_tk(), new_type);
         }
-        if (!ns.is_anonymous())
-            env = add_expr_alias(env, n, full_n);
+        if (!ns.is_anonymous()) {
+            if (is_protected)
+                env = add_expr_alias(env, get_protected_shortest_name(full_n), full_n);
+            else
+                env = add_expr_alias(env, n, full_n);
+        }
         if (is_protected)
             env = add_protected(env, full_n);
         return env;
@@ -361,6 +365,7 @@ struct decl_attributes {
     bool               m_refl;
     bool               m_subst;
     bool               m_recursor;
+    optional<unsigned> m_recursor_major_pos;
     optional<unsigned> m_priority;
     optional<unsigned> m_unfold_c_hint;
 
@@ -513,6 +518,13 @@ struct decl_attributes {
                 m_subst = true;
             } else if (p.curr_is_token(get_recursor_tk())) {
                 p.next();
+                if (!p.curr_is_token(get_rbracket_tk())) {
+                    unsigned r = p.parse_small_nat();
+                    if (r == 0)
+                        throw parser_error("invalid '[recursor]' attribute, value must be greater than 0", pos);
+                    m_recursor_major_pos = r - 1;
+                }
+                p.check_token_next(get_rbracket_tk(), "invalid 'recursor', ']' expected");
                 m_recursor = true;
             } else {
                 break;
@@ -570,7 +582,7 @@ struct decl_attributes {
         if (m_subst)
             env = add_subst(env, d, m_persistent);
         if (m_recursor)
-            env = add_user_recursor(env, d, m_persistent);
+            env = add_user_recursor(env, d, m_recursor_major_pos, m_persistent);
         if (m_is_class)
             env = add_class(env, d, m_persistent);
         if (m_has_multiple_instances)
@@ -1093,8 +1105,12 @@ class definition_cmd_fn {
                 m_p.add_decl_index(real_n, m_pos, m_p.get_cmd_token(), type);
             if (m_is_protected)
                 m_env = add_protected(m_env, real_n);
-            if (n != real_n)
-                m_env = add_expr_alias_rec(m_env, n, real_n);
+            if (n != real_n) {
+                if (m_is_protected)
+                    m_env = add_expr_alias_rec(m_env, get_protected_shortest_name(real_n), real_n);
+                else
+                    m_env = add_expr_alias_rec(m_env, n, real_n);
+            }
             if (m_kind == Abbreviation || m_kind == LocalAbbreviation) {
                 bool persistent = m_kind == Abbreviation;
                 m_env = add_abbreviation(m_env, real_n, m_attributes.m_is_parsing_only, persistent);

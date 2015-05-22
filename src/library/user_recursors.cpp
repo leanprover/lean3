@@ -22,20 +22,29 @@ bool recursor_info::is_minor(unsigned pos) const {
     return true;
 }
 
-recursor_info::recursor_info(name const & r, name const & I, unsigned num_params, unsigned num_indices, unsigned major,
-                             optional<unsigned> const & motive_univ_pos, bool dep_elim):
-    m_recursor(r), m_type_name(I), m_num_params(num_params), m_num_indices(num_indices), m_major_pos(major),
-    m_motive_univ_pos(motive_univ_pos), m_dep_elim(dep_elim) {}
+recursor_info::recursor_info(name const & r, name const & I, optional<unsigned> const & motive_univ_pos,
+                             bool dep_elim, unsigned num_args, unsigned major_pos,
+                             list<optional<unsigned>> const & params_pos, list<unsigned> const & indices_pos,
+                             list<bool> const & produce_motive):
+    m_recursor(r), m_type_name(I), m_motive_univ_pos(motive_univ_pos), m_dep_elim(dep_elim),
+    m_num_args(num_args), m_major_pos(major_pos), m_params_pos(params_pos), m_indices_pos(indices_pos),
+    m_produce_motive(produce_motive) {}
 recursor_info::recursor_info() {}
 
 void recursor_info::write(serializer & s) const {
-    s << m_recursor << m_type_name << m_num_params << m_num_indices << m_major_pos << m_motive_univ_pos << m_dep_elim;
+    s << m_recursor << m_type_name << m_motive_univ_pos << m_dep_elim << m_num_args << m_major_pos;
+    write_list(s, m_params_pos);
+    write_list(s, m_indices_pos);
+    write_list(s, m_produce_motive);
 }
 
 recursor_info recursor_info::read(deserializer & d) {
     recursor_info info;
-    d >> info.m_recursor >> info.m_type_name >> info.m_num_params >> info.m_num_indices >> info.m_major_pos
-      >> info.m_motive_univ_pos >> info.m_dep_elim;
+    d >> info.m_recursor >> info.m_type_name >> info.m_motive_univ_pos >> info.m_dep_elim
+      >> info.m_num_args >> info.m_major_pos;
+    info.m_params_pos     = read_list<optional<unsigned>>(d);
+    info.m_indices_pos    = read_list<unsigned>(d);
+    info.m_produce_motive = read_list<bool>(d);
     return info;
 }
 
@@ -47,30 +56,26 @@ static void throw_invalid_motive(expr const & C) {
                     "and I is a constant");
 }
 
-static void throw_invalid_major(buffer<expr> const & tele, expr const & I, unsigned num_params,
-                                unsigned num_indices, unsigned major_pos) {
-    sstream msg;
-    msg << "invalid user defined recursor, major premise '" << tele[major_pos] << "' is expected to have type " << I;
-    for (unsigned i = 0; i < num_params; i++)
-        msg << " " << tele[i];
-    for (unsigned i = major_pos - num_indices; i < major_pos; i++)
-        msg << " " << tele[i];
-    throw exception(msg);
-}
-
-recursor_info mk_recursor_info(environment const & env, name const & r) {
+recursor_info mk_recursor_info(environment const & env, name const & r, optional<unsigned> const & given_major_pos) {
     if (auto I = inductive::is_elim_rule(env, r)) {
         if (*inductive::get_num_type_formers(env, *I) > 1)
             throw exception(sstream() << "unsupported recursor '" << r << "', it has multiple motives");
         optional<unsigned> motive_univ_pos;
         if (env.get(name(*I, "rec")).get_num_univ_params() != env.get(name(*I)).get_num_univ_params())
             motive_univ_pos = 0;
-        return recursor_info(r, *I,
-                             *inductive::get_num_params(env, *I),
-                             *inductive::get_num_indices(env, *I),
-                             *inductive::get_elim_major_idx(env, r),
-                             motive_univ_pos,
-                             inductive::has_dep_elim(env, *I));
+        unsigned major_pos         = *inductive::get_elim_major_idx(env, r);
+        unsigned num_indices       = *inductive::get_num_indices(env, *I);
+        unsigned num_params        = *inductive::get_num_params(env, *I);
+        unsigned num_minors        = *inductive::get_num_minor_premises(env, *I);
+        unsigned num_args          = num_params + 1 /* motive */ + num_minors + num_indices + 1 /* major */;
+        list<bool> produce_motive;
+        for (unsigned i = 0; i < num_minors; i++)
+            produce_motive = cons(true, produce_motive);
+        list<optional<unsigned>> params_pos = map2<optional<unsigned>>(mk_list_range(0, num_params),
+                                                                       [](unsigned i) { return optional<unsigned>(i); });
+        list<unsigned> indices_pos = mk_list_range(num_params, num_params + num_indices);
+        return recursor_info(r, *I, motive_univ_pos, inductive::has_dep_elim(env, *I),
+                             num_args, major_pos, params_pos, indices_pos, produce_motive);
     }
     declaration d = env.get(r);
     type_checker tc(env);
@@ -78,22 +83,112 @@ recursor_info mk_recursor_info(environment const & env, name const & r) {
     expr rtype    = to_telescope(tc, d.get_type(), tele);
     buffer<expr> C_args;
     expr C        = get_app_args(rtype, C_args);
-    if (!is_local(C) || !std::all_of(C_args.begin(), C_args.end(), is_local) || C_args.empty()) {
-        throw exception("invalid user defined recursor, result type must be of the form (C i t), "
-                        "where C and t are bound variables, and i is a (possibly empty) sequence of bound variables");
+    if (!is_local(C) || !std::all_of(C_args.begin(), C_args.end(), is_local)) {
+        throw exception("invalid user defined recursor, result type must be of the form (C t), "
+                        "where C is a bound variable, and t is a (possibly empty) sequence of bound variables");
     }
-    unsigned num_indices = C_args.size() - 1;
+
+    // Compute number of parameters.
+    // We assume a parameter is anything that occurs before the motive.
     unsigned num_params  = 0;
     for (expr const & x : tele) {
         if (mlocal_name(x) == mlocal_name(C))
             break;
         num_params++;
     }
+
+    // Locate major premise, and check whether the recursor supports dependent elimination or not.
+    expr major;
+    unsigned major_pos = 0;
+    bool dep_elim;
+    if (given_major_pos) {
+        if (*given_major_pos >= tele.size())
+            throw exception(sstream() << "invalid user defined recursor, invalid major premise position, "
+                            "recursor has only " << tele.size() << "arguments");
+        major     = tele[*given_major_pos];
+        major_pos = *given_major_pos;
+        if (!C_args.empty() && tc.is_def_eq(C_args.back(), major).first)
+            dep_elim = true;
+        else
+            dep_elim = false;
+    } else if (C_args.empty()) {
+        throw exception(sstream() << "invalid user defined recursor, '" << r << "' does not support dependent elimination, "
+                        << "and position of the major premise was not specified "
+                        << "(solution: set attribute '[recursor <pos>]', where <pos> is the position of the major premise)");
+    } else {
+        major    = C_args.back();
+        dep_elim = true;
+        for (expr const & x : tele) {
+            if (tc.is_def_eq(x, major).first)
+                break;
+            major_pos++;
+        }
+    }
+
+    // Number of indices
+    unsigned num_indices = C_args.size();
+    if (dep_elim)
+        num_indices--; // when we have dependent elimination, the last element is the major premise.
+    if (major_pos < num_indices)
+        throw exception(sstream() << "invalid user defined recursor, indices must occur before major premise '"
+                        << major << "'");
+
+    buffer<expr> I_args;
+    expr I = get_app_args(mlocal_type(major), I_args);
+    if (!is_constant(I)) {
+        throw exception(sstream() << "invalid user defined recursor, type of the major premise '" << major
+                        << "' must be for the form (I ...), where I is a constant");
+    }
+
+    // Store position of the recursor parameters in the major premise.
+    buffer<optional<unsigned>> params_pos;
+    for (unsigned i = 0; i < num_params; i++) {
+        expr const & A = tele[i];
+        unsigned j = 0;
+        for (; j < I_args.size(); j++) {
+            if (tc.is_def_eq(I_args[j], A).first)
+                break;
+        }
+        if (j == I_args.size()) {
+            if (local_info(tele[i]).is_inst_implicit()) {
+                params_pos.push_back(optional<unsigned>());
+            } else {
+                throw exception(sstream() << "invalid user defined recursor, type of the major premise '" << major
+                                << "' does not contain the recursor parameter '" << A << "'");
+            }
+        } else {
+            params_pos.push_back(optional<unsigned>(j));
+        }
+    }
+
+    // Store position of the recursor indices in the major premise
+    buffer<unsigned> indices_pos;
+    for (unsigned i = major_pos - num_indices; i < major_pos; i++) {
+        expr const & idx = tele[i];
+        unsigned j = 0;
+        for (; j < I_args.size(); j++) {
+            if (tc.is_def_eq(I_args[j], idx).first)
+                break;
+        }
+        if (j == I_args.size()) {
+            throw exception(sstream() << "invalid user defined recursor, type of the major premise '" << major
+                            << "' does not contain the recursor index '" << idx << "'");
+        }
+        indices_pos.push_back(j);
+    }
+
+
     buffer<expr> C_tele;
     expr C_rtype  = to_telescope(tc, mlocal_type(C), C_tele);
     if (!is_sort(C_rtype) || C_tele.size() != C_args.size()) {
         throw_invalid_motive(C);
     }
+    // Calculate position of the motive's universe.
+    // Remark: if we are in the standard environment, then the motive may be a proposition, and be fixed at 0.
+    // The following pragma is for avoiding gcc bogus warning
+    #if defined(__GNUC__) && !defined(__CLANG__)
+    #pragma GCC diagnostic ignored "-Wmaybe-uninitialized"
+    #endif
     optional<unsigned> C_univ_pos;
     level C_lvl = sort_level(C_rtype);
     if (!is_standard(env) || !is_zero(C_lvl)) {
@@ -106,70 +201,34 @@ recursor_info mk_recursor_info(environment const & env, name const & r) {
                                 "motive result sort must be Type.{l} where l is a universe parameter");
         }
         name l  = param_id(C_lvl);
-        C_univ_pos = 0;
+        unsigned uni_pos = 0;
         for (name const & l_curr : d.get_univ_params()) {
             if (l_curr == l)
                 break;
-            C_univ_pos = *C_univ_pos + 1;
+            uni_pos++;
         }
+        C_univ_pos = uni_pos;
         lean_assert(*C_univ_pos < length(d.get_univ_params()));
     }
 
-    buffer<expr> I_args;
-    expr I = get_app_args(mlocal_type(C_tele.back()), I_args);
-    if (!is_constant(I) || I_args.size() != num_params + num_indices) {
-        throw_invalid_motive(C);
-    }
-    for (unsigned i = 0; i < num_params; i++) {
-        if (mlocal_name(I_args[i]) != mlocal_name(tele[i]))
-            throw_invalid_motive(C);
-    }
-    for (unsigned i = 0; i < num_indices; i++) {
-        if (mlocal_name(I_args[num_params + i]) != mlocal_name(C_tele[i]))
-            throw_invalid_motive(C);
-    }
-    expr const & major  = C_args.back();
-    unsigned major_pos  = 0;
-    for (expr const & x : tele) {
-        if (mlocal_name(x) == mlocal_name(major))
-            break;
-        major_pos++;
-    }
-    lean_assert(major_pos < tele.size());
-    if (major_pos < num_indices)
-        throw exception(sstream() << "invalid user defined recursor, indices must occur before major premise '"
-                        << major << "'");
-    recursor_info info(r, const_name(I), num_params, num_indices, major_pos, C_univ_pos, true);
-    unsigned first_index_pos = info.get_first_index_pos();
-    for (unsigned i = 0; i < num_indices; i++) {
-        if (mlocal_name(tele[first_index_pos+i]) != mlocal_name(C_args[i])) {
-            throw exception(sstream() << "invalid user defined recursor, index '" << C_args[i]
-                            << "' expected, but got '" << tele[i] << "'");
+    buffer<bool> produce_motive;
+    unsigned nparams  = params_pos.size();
+    unsigned nindices = indices_pos.size();
+    for (unsigned i = nparams+1; i < tele.size(); i++) {
+        if (i < major_pos - nindices || i > major_pos) {
+            // i is a minor premise
+            buffer<expr> tmp;
+            expr res = get_app_fn(to_telescope(tc, mlocal_type(tele[i]), tmp));
+            if (is_local(res) && mlocal_name(C) == mlocal_name(res)) {
+                produce_motive.push_back(true);
+            } else {
+                produce_motive.push_back(false);
+            }
         }
     }
-    buffer<expr> I_args_major;
-    expr I_major = get_app_args(mlocal_type(tele[major_pos]), I_args_major);
-    if (I != I_major)
-        throw_invalid_major(tele, I, num_params, num_indices, major_pos);
-    for (unsigned i = 0; i < num_params; i++) {
-        if (mlocal_name(I_args_major[i]) != mlocal_name(tele[i]))
-            throw_invalid_major(tele, I, num_params, num_indices, major_pos);
-    }
-    for (unsigned i = 0; i < num_indices; i++) {
-        if (mlocal_name(I_args_major[num_params + i]) != mlocal_name(tele[first_index_pos + i]))
-            throw_invalid_major(tele, I, num_params, num_indices, major_pos);
-    }
-    for (unsigned i = 0; i < tele.size(); i++) {
-        if (info.is_minor(i)) {
-            buffer<expr> minor_tele;
-            expr minor_rtype = to_telescope(tc, mlocal_type(tele[i]), minor_tele);
-            expr minor_C     = get_app_fn(minor_rtype);
-            if (!is_local(minor_C) || mlocal_name(minor_C) != mlocal_name(C))
-                throw exception(sstream() << "invalid user defined recursor, resultant type of minor premise '"
-                                << tele[i] << "' must be of the form (" << C << " ...)");
-        }
-    }
-    return info;
+
+    return recursor_info(r, const_name(I), C_univ_pos, dep_elim, tele.size(), major_pos,
+                         to_list(params_pos), to_list(indices_pos), to_list(produce_motive));
 }
 
 struct recursor_state {
@@ -218,17 +277,18 @@ struct recursor_config {
 template class scoped_ext<recursor_config>;
 typedef scoped_ext<recursor_config> recursor_ext;
 
-environment add_user_recursor(environment const & env, name const & r, bool persistent) {
+environment add_user_recursor(environment const & env, name const & r, optional<unsigned> const & major_pos,
+                              bool persistent) {
     if (inductive::is_elim_rule(env, r))
         throw exception(sstream() << "invalid user defined recursor, '" << r << "' is a builtin recursor");
-    recursor_info info = mk_recursor_info(env, r);
+    recursor_info info = mk_recursor_info(env, r, major_pos);
     return recursor_ext::add_entry(env, get_dummy_ios(), info, persistent);
 }
 
 recursor_info get_recursor_info(environment const & env, name const & r) {
     if (auto info = recursor_ext::get_state(env).m_recursors.find(r))
         return *info;
-    return mk_recursor_info(env, r);
+    return mk_recursor_info(env, r, optional<unsigned>());
 }
 
 list<name> get_recursors_for(environment const & env, name const & I) {
@@ -237,6 +297,9 @@ list<name> get_recursors_for(environment const & env, name const & I) {
     else
         return list<name>();
 }
+
+has_recursors_pred::has_recursors_pred(environment const & env):
+    m_type2recursors(recursor_ext::get_state(env).m_type2recursors) {}
 
 void initialize_user_recursors() {
     g_class_name = new name("recursor");

@@ -36,18 +36,18 @@ namespace natural_transformation
                       ... = (η b ∘ θ b) ∘ F f : assoc)
 --congr_arg (λx, η b ∘ x) (naturality θ f) -- this needed to be explicit for some reason (on Oct 24)
 
-  infixr `∘n`:60 := compose
+  infixr `∘n`:60 := natural_transformation.compose
   protected theorem assoc (η₃ : H ⟹ I) (η₂ : G ⟹ H) (η₁ : F ⟹ G) :
       η₃ ∘n (η₂ ∘n η₁) = (η₃ ∘n η₂) ∘n η₁ :=
   dcongr_arg2 mk (funext (take x, !assoc)) !proof_irrel
 
   protected definition id {C D : Category} {F : functor C D} : natural_transformation F F :=
   mk (λa, id) (λa b f, !id_right ⬝ symm !id_left)
-  protected definition ID {C D : Category} (F : functor C D) : natural_transformation F F := id
+  protected definition ID {C D : Category} (F : functor C D) : natural_transformation F F := natural_transformation.id
 
-  protected theorem id_left (η : F ⟹ G) : natural_transformation.compose id η = η :=
+  protected theorem id_left (η : F ⟹ G) : natural_transformation.compose natural_transformation.id η = η :=
   natural_transformation.rec (λf H, dcongr_arg2 mk (funext (take x, !id_left)) !proof_irrel) η
 
-  protected theorem id_right (η : F ⟹ G) : natural_transformation.compose η id = η :=
+  protected theorem id_right (η : F ⟹ G) : natural_transformation.compose η natural_transformation.id = η :=
   natural_transformation.rec (λf H, dcongr_arg2 mk (funext (take x, !id_right)) !proof_irrel) η
 end natural_transformation

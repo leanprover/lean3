@@ -62,10 +62,15 @@ inductive expr_list : Type :=
 -- auxiliary type used to mark optional list of arguments
 definition opt_expr_list := expr_list
 
--- auxiliary types used to mark that the expression (list) is an identifier (list)
+-- auxiliary types used to mark that the expression is suppose to be an identifier, optional, or a list.
 definition identifier := expr
 definition identifier_list := expr_list
 definition opt_identifier_list := expr_list
+
+-- Marker for instructing the parser to parse it as '?(using <expr>)'
+definition using_expr := expr
+-- Constant used to denote the case were no expression was provided
+definition none_expr : expr := expr.builtin
 
 definition apply      (e : expr)            : tactic := builtin
 definition eapply     (e : expr)            : tactic := builtin
@@ -87,6 +92,8 @@ definition trace      (s : string)          : tactic := builtin
 definition rewrite_tac (e : expr_list) : tactic := builtin
 
 definition cases (id : identifier) (ids : opt_identifier_list) : tactic := builtin
+
+definition induction (h : identifier) (rec : using_expr) (ids : opt_identifier_list) : tactic := builtin
 
 definition intros (ids : opt_identifier_list) : tactic := builtin
 

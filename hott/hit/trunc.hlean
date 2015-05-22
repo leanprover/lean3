@@ -12,7 +12,7 @@ Ported from Coq HoTT
 
 /- The hit n-truncation is primitive, declared in init.hit. -/
 
-import types.sigma
+import types.sigma types.pointed
 
 open is_trunc eq equiv is_equiv function prod sum sigma
 
@@ -24,7 +24,7 @@ namespace trunc
 
   protected definition elim_on {n : trunc_index} {A : Type} {P : Type} (aa : trunc n A)
     [Pt : is_trunc n P] (H : A → P) : P :=
-  elim H aa
+  trunc.elim H aa
 
   /-
     there are no theorems to eliminate to the universe here,
@@ -47,17 +47,14 @@ namespace trunc
   equiv.mk tr _
 
   definition is_trunc_of_is_equiv_tr [H : is_equiv (@tr n A)] : is_trunc n A :=
-  is_trunc_is_equiv_closed n tr⁻¹
+  is_trunc_is_equiv_closed n (@tr n _)⁻¹
 
   definition untrunc_of_is_trunc [reducible] [H : is_trunc n A] : trunc n A → A :=
   tr⁻¹
 
   /- Functoriality -/
-  definition trunc_functor (f : X → Y) : trunc n X → trunc n Y :=
+  definition trunc_functor [unfold-c 5] (f : X → Y) : trunc n X → trunc n Y :=
   λxx, trunc.rec_on xx (λx, tr (f x))
---  by intro xx; apply (trunc.rec_on xx); intro x; exact (tr (f x))
---  by intro xx; fapply (trunc.rec_on xx); intro x; exact (tr (f x))
---  by intro xx; exact (trunc.rec_on xx (λx, (tr (f x))))
 
   definition trunc_functor_compose (f : X → Y) (g : Y → Z)
     : trunc_functor n (g ∘ f) ∼ trunc_functor n g ∘ trunc_functor n f :=
@@ -73,25 +70,25 @@ namespace trunc
              (λxx, trunc.rec_on xx (λx, ap tr !left_inv))
 
   section
+    open equiv.ops
+    definition trunc_equiv_trunc (f : X ≃ Y) : trunc n X ≃ trunc n Y :=
+    equiv.mk _ (is_equiv_trunc_functor n f)
+  end
+
+  section
   open prod.ops
   definition trunc_prod_equiv : trunc n (X × Y) ≃ trunc n X × trunc n Y :=
-  sorry
-  -- equiv.MK (λpp, trunc.rec_on pp (λp, (tr p.1, tr p.2)))
-  --          (λp, trunc.rec_on p.1 (λx, trunc.rec_on p.2 (λy, tr (x,y))))
-  --          sorry --(λp, trunc.rec_on p.1 (λx, trunc.rec_on p.2 (λy, idp)))
-  --          (λpp, trunc.rec_on pp (λp, prod.rec_on p (λx y, idp)))
-
-  -- begin
-  --   fapply equiv.MK,
-  --     apply sorry, --{exact (λpp, trunc.rec_on pp (λp, (tr p.1, tr p.2)))},
-  --     apply sorry, /-{intro p, cases p with xx yy,
-  --       apply (trunc.rec_on xx), intro x,
-  --       apply (trunc.rec_on yy), intro y, exact (tr (x,y))},-/
-  --     apply sorry, /-{intro p, cases p with xx yy,
-  --       apply (trunc.rec_on xx), intro x,
-  --       apply (trunc.rec_on yy), intro y, apply idp},-/
-  --     apply sorry --{intro pp, apply (trunc.rec_on pp), intro p, cases p, apply idp},
-  -- end
+  begin
+    fapply equiv.MK,
+      {exact (λpp, trunc.rec_on pp (λp, (tr p.1, tr p.2)))},
+      {intro p, cases p with xx yy,
+        apply (trunc.rec_on xx), intro x,
+        apply (trunc.rec_on yy), intro y, exact (tr (x,y))},
+      {intro p, cases p with xx yy,
+        apply (trunc.rec_on xx), intro x,
+        apply (trunc.rec_on yy), intro y, apply idp},
+      {intro pp, apply (trunc.rec_on pp), intro p, cases p, apply idp}
+  end
   end
 
   /- Propositional truncation -/

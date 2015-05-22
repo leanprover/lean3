@@ -136,6 +136,21 @@ theorem add_zero [s : add_monoid A] (a : A) : a + 0 = a := !add_monoid.add_zero
 
 structure add_comm_monoid [class] (A : Type) extends add_monoid A, add_comm_semigroup A
 
+definition add_monoid.to_monoid {A : Type} [s : add_monoid A] : monoid A :=
+⦃ monoid,
+  mul         := add_monoid.add,
+  mul_assoc   := add_monoid.add_assoc,
+  one         := add_monoid.zero A,
+  mul_one     := add_monoid.add_zero,
+  one_mul     := add_monoid.zero_add
+⦄
+
+definition add_comm_monoid.to_comm_monoid {A : Type} [s : add_comm_monoid A] : comm_monoid A :=
+⦃ comm_monoid,
+  add_monoid.to_monoid,
+  mul_comm    := add_comm_monoid.add_comm
+⦄
+
 /- group -/
 
 structure group [class] (A : Type) extends monoid A, has_inv A :=
@@ -159,7 +174,7 @@ section group
   theorem inv_eq_of_mul_eq_one {a b : A} (H : a * b = 1) : a⁻¹ = b :=
   by rewrite [-mul_one a⁻¹, -H, inv_mul_cancel_left]
 
-  theorem inv_one : 1⁻¹ = 1 := inv_eq_of_mul_eq_one (one_mul 1)
+  theorem inv_one : 1⁻¹ = (1 : A) := inv_eq_of_mul_eq_one (one_mul 1)
 
   theorem inv_inv (a : A) : (a⁻¹)⁻¹ = a := inv_eq_of_mul_eq_one (mul.left_inv a)
 
@@ -277,7 +292,7 @@ section add_group
   theorem neg_eq_of_add_eq_zero {a b : A} (H : a + b = 0) : -a = b :=
   by rewrite [-add_zero, -H, neg_add_cancel_left]
 
-  theorem neg_zero : -0 = 0 := neg_eq_of_add_eq_zero (zero_add 0)
+  theorem neg_zero : -0 = (0 : A) := neg_eq_of_add_eq_zero (zero_add 0)
 
   theorem neg_neg (a : A) : -(-a) = a := neg_eq_of_add_eq_zero (add.left_inv a)
 
@@ -471,5 +486,15 @@ section add_comm_group
   theorem add_eq_of_eq_sub' {a b c : A} (H : b = c - a) : a + b = c :=
   !add.comm ▸ add_eq_of_eq_sub H
 end add_comm_group
+
+definition group_of_add_group (A : Type) [G : add_group A] : group A :=
+⦃group,
+  mul             := has_add.add,
+  mul_assoc       := add.assoc,
+  one             := !has_zero.zero,
+  one_mul         := zero_add,
+  mul_one         := add_zero,
+  inv             := has_neg.neg,
+  mul_left_inv    := add.left_inv⦄
 
 end algebra

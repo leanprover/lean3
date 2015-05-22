@@ -61,6 +61,7 @@ name const * g_prod = nullptr;
 name const * g_prod_mk = nullptr;
 name const * g_prod_pr1 = nullptr;
 name const * g_prod_pr2 = nullptr;
+name const * g_propext = nullptr;
 name const * g_sigma = nullptr;
 name const * g_sigma_mk = nullptr;
 name const * g_string = nullptr;
@@ -94,8 +95,11 @@ name const * g_tactic_expr_builtin = nullptr;
 name const * g_tactic_expr_list = nullptr;
 name const * g_tactic_expr_list_cons = nullptr;
 name const * g_tactic_expr_list_nil = nullptr;
+name const * g_tactic_using_expr = nullptr;
+name const * g_tactic_none_expr = nullptr;
 name const * g_tactic_identifier = nullptr;
 name const * g_tactic_identifier_list = nullptr;
+name const * g_tactic_opt_expr = nullptr;
 name const * g_tactic_opt_identifier_list = nullptr;
 name const * g_tactic_fail = nullptr;
 name const * g_tactic_fixpoint = nullptr;
@@ -189,6 +193,7 @@ void initialize_constants() {
     g_prod_mk = new name{"prod", "mk"};
     g_prod_pr1 = new name{"prod", "pr1"};
     g_prod_pr2 = new name{"prod", "pr2"};
+    g_propext = new name{"propext"};
     g_sigma = new name{"sigma"};
     g_sigma_mk = new name{"sigma", "mk"};
     g_string = new name{"string"};
@@ -222,8 +227,11 @@ void initialize_constants() {
     g_tactic_expr_list = new name{"tactic", "expr_list"};
     g_tactic_expr_list_cons = new name{"tactic", "expr_list", "cons"};
     g_tactic_expr_list_nil = new name{"tactic", "expr_list", "nil"};
+    g_tactic_using_expr = new name{"tactic", "using_expr"};
+    g_tactic_none_expr = new name{"tactic", "none_expr"};
     g_tactic_identifier = new name{"tactic", "identifier"};
     g_tactic_identifier_list = new name{"tactic", "identifier_list"};
+    g_tactic_opt_expr = new name{"tactic", "opt_expr"};
     g_tactic_opt_identifier_list = new name{"tactic", "opt_identifier_list"};
     g_tactic_fail = new name{"tactic", "fail"};
     g_tactic_fixpoint = new name{"tactic", "fixpoint"};
@@ -318,6 +326,7 @@ void finalize_constants() {
     delete g_prod_mk;
     delete g_prod_pr1;
     delete g_prod_pr2;
+    delete g_propext;
     delete g_sigma;
     delete g_sigma_mk;
     delete g_string;
@@ -351,8 +360,11 @@ void finalize_constants() {
     delete g_tactic_expr_list;
     delete g_tactic_expr_list_cons;
     delete g_tactic_expr_list_nil;
+    delete g_tactic_using_expr;
+    delete g_tactic_none_expr;
     delete g_tactic_identifier;
     delete g_tactic_identifier_list;
+    delete g_tactic_opt_expr;
     delete g_tactic_opt_identifier_list;
     delete g_tactic_fail;
     delete g_tactic_fixpoint;
@@ -446,6 +458,7 @@ name const & get_prod_name() { return *g_prod; }
 name const & get_prod_mk_name() { return *g_prod_mk; }
 name const & get_prod_pr1_name() { return *g_prod_pr1; }
 name const & get_prod_pr2_name() { return *g_prod_pr2; }
+name const & get_propext_name() { return *g_propext; }
 name const & get_sigma_name() { return *g_sigma; }
 name const & get_sigma_mk_name() { return *g_sigma_mk; }
 name const & get_string_name() { return *g_string; }
@@ -479,8 +492,11 @@ name const & get_tactic_expr_builtin_name() { return *g_tactic_expr_builtin; }
 name const & get_tactic_expr_list_name() { return *g_tactic_expr_list; }
 name const & get_tactic_expr_list_cons_name() { return *g_tactic_expr_list_cons; }
 name const & get_tactic_expr_list_nil_name() { return *g_tactic_expr_list_nil; }
+name const & get_tactic_using_expr_name() { return *g_tactic_using_expr; }
+name const & get_tactic_none_expr_name() { return *g_tactic_none_expr; }
 name const & get_tactic_identifier_name() { return *g_tactic_identifier; }
 name const & get_tactic_identifier_list_name() { return *g_tactic_identifier_list; }
+name const & get_tactic_opt_expr_name() { return *g_tactic_opt_expr; }
 name const & get_tactic_opt_identifier_list_name() { return *g_tactic_opt_identifier_list; }
 name const & get_tactic_fail_name() { return *g_tactic_fail; }
 name const & get_tactic_fixpoint_name() { return *g_tactic_fixpoint; }

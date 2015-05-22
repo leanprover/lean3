@@ -54,6 +54,42 @@ Author: Leonardo de Moura
 #include "frontends/lean/calc.h"
 
 namespace lean {
+/** \brief Custom converter that does not unfold constants that contains coercions from it.
+    We use this converter for detecting whether we have coercions from a given type. */
+class coercion_from_converter : public unfold_semireducible_converter {
+    environment m_env;
+public:
+    coercion_from_converter(environment const & env):unfold_semireducible_converter(env, true), m_env(env) {}
+    virtual bool is_opaque(declaration const & d) const {
+        if (has_coercions_from(m_env, d.get_name()))
+            return true;
+        return unfold_semireducible_converter::is_opaque(d);
+    }
+};
+
+/** \brief Custom converter that does not unfold constants that contains coercions to it.
+    We use this converter for detecting whether we have coercions to a given type. */
+class coercion_to_converter : public unfold_semireducible_converter {
+    environment m_env;
+public:
+    coercion_to_converter(environment const & env):unfold_semireducible_converter(env, true), m_env(env) {}
+    virtual bool is_opaque(declaration const & d) const {
+        if (has_coercions_to(m_env, d.get_name()))
+            return true;
+        return unfold_semireducible_converter::is_opaque(d);
+    }
+};
+
+type_checker_ptr mk_coercion_from_type_checker(environment const & env, name_generator && ngen) {
+    return std::unique_ptr<type_checker>(new type_checker(env, std::move(ngen),
+           std::unique_ptr<converter>(new coercion_from_converter(env))));
+}
+
+type_checker_ptr mk_coercion_to_type_checker(environment const & env, name_generator && ngen) {
+    return std::unique_ptr<type_checker>(new type_checker(env, std::move(ngen),
+           std::unique_ptr<converter>(new coercion_to_converter(env))));
+}
+
 /** \brief 'Choice' expressions <tt>(choice e_1 ... e_n)</tt> are mapped into a metavariable \c ?m
     and a choice constraints <tt>(?m in fn)</tt> where \c fn is a choice function.
     The choice function produces a stream of alternatives. In this case, it produces a stream of
@@ -105,7 +141,7 @@ struct elaborator::choice_expr_elaborator : public choice_iterator {
     }
 };
 
-elaborator::elaborator(elaborator_context & ctx, name_generator const & ngen, bool nice_mvar_names):
+elaborator::elaborator(elaborator_context & ctx, name_generator && ngen, bool nice_mvar_names):
     m_ctx(ctx),
     m_ngen(ngen),
     m_context(),
@@ -116,6 +152,8 @@ elaborator::elaborator(elaborator_context & ctx, name_generator const & ngen, bo
     m_no_info           = false;
     m_in_equation_lhs   = false;
     m_tc                = mk_type_checker(ctx.m_env, m_ngen.mk_child());
+    m_coercion_from_tc  = mk_coercion_from_type_checker(ctx.m_env, m_ngen.mk_child());
+    m_coercion_to_tc    = mk_coercion_to_type_checker(ctx.m_env, m_ngen.mk_child());
     m_nice_mvar_names   = nice_mvar_names;
 }
 
@@ -296,10 +334,30 @@ expr elaborator::visit_choice(expr const & e, optional<expr> const & t, constrai
     local_context ctx      = m_context;
     local_context full_ctx = m_full_context;
     auto fn = [=](expr const & meta, expr const & type, substitution const & /* s */,
-                  name_generator const & /* ngen */) {
+                  name_generator && /* ngen */) {
         return choose(std::make_shared<choice_expr_elaborator>(*this, ctx, full_ctx, meta, type, e));
     };
-    justification j = mk_justification("none of the overloads is applicable", some_expr(e));
+    auto pp_fn = [=](formatter const & fmt, pos_info_provider const * pos_prov, substitution const &, bool is_main) {
+        format r = pp_previous_error_header(fmt, pos_prov, some_expr(e), is_main);
+        r += format("none of the overloads is applicable:");
+        for (unsigned i = 0; i < get_num_choices(e); i++) {
+            expr const & c = get_choice(e, i);
+            expr const & f = get_app_fn(c);
+            optional<name> fn;
+            if (is_constant(f))
+                fn = const_name(f);
+            else if (is_local(f))
+                fn = local_pp_name(f);
+            r += space();
+            if (fn) {
+                r += format(*fn);
+            } else {
+                r += format("[nontrivial]");
+            }
+        }
+        return r;
+    };
+    justification j = mk_justification(some_expr(e), pp_fn);
     cs += mk_choice_cnstr(m, fn, to_delay_factor(cnstr_group::Basic), true, j);
     return m;
 }
@@ -383,60 +441,58 @@ static expr mk_coercion_app(expr const & coe, expr const & a) {
 */
 pair<expr, expr> elaborator::ensure_fun(expr f, constraint_seq & cs) {
     expr f_type = infer_type(f, cs);
+    expr saved_f_type       = f_type;
+    constraint_seq saved_cs = cs;
     if (!is_pi(f_type))
         f_type = whnf(f_type, cs);
-    if (!is_pi(f_type) && has_metavar(f_type)) {
-        constraint_seq saved_cs = cs;
-        expr new_f_type = whnf(f_type, cs);
-        if (!is_pi(new_f_type) && m_tc->is_stuck(new_f_type)) {
-            cs = saved_cs;
-            // let type checker add constraint
-            f_type = m_tc->ensure_pi(f_type, f, cs);
-        } else {
-            f_type = new_f_type;
-        }
-    }
-    if (!is_pi(f_type)) {
-        // try coercion to function-class
-        list<expr> coes  = get_coercions_to_fun(env(), f_type);
-        if (is_nil(coes)) {
-            throw_kernel_exception(env(), f, [=](formatter const & fmt) { return pp_function_expected(fmt, f); });
-        } else if (is_nil(tail(coes))) {
-            expr old_f = f;
-            f = mk_coercion_app(head(coes), f);
-            f = add_implict_args(f, cs);
-            f_type = infer_type(f, cs);
-            save_coercion_info(old_f, f);
-            lean_assert(is_pi(f_type));
-        } else {
-            local_context ctx      = m_context;
-            local_context full_ctx = m_full_context;
-            justification j        = mk_justification(f, [=](formatter const & fmt, substitution const & subst) {
-                    return pp_function_expected(fmt, substitution(subst).instantiate(f));
-                });
-            auto choice_fn = [=](expr const & meta, expr const &, substitution const &, name_generator const &) {
-                flet<local_context> save1(m_context,      ctx);
-                flet<local_context> save2(m_full_context, full_ctx);
-                list<constraints> choices = map2<constraints>(coes, [&](expr const & coe) {
-                        expr new_f      = mk_coercion_app(coe, f);
-                        constraint_seq cs;
-                        new_f = add_implict_args(new_f, cs);
-                        cs += mk_eq_cnstr(meta, new_f, j);
-                        return cs.to_list();
-                    });
-                return choose(std::make_shared<coercion_elaborator>(*this, f, choices, coes, false));
-            };
-            f   = m_full_context.mk_meta(m_ngen, none_expr(), f.get_tag());
-            register_meta(f);
-            cs += mk_choice_cnstr(f, choice_fn, to_delay_factor(cnstr_group::Basic), true, j);
-            lean_assert(is_meta(f));
-            // let type checker add constraint
-            f_type = infer_type(f, cs);
-            f_type = m_tc->ensure_pi(f_type, f, cs);
-            lean_assert(is_pi(f_type));
-        }
-    } else {
+    if (is_pi(f_type)) {
         erase_coercion_info(f);
+    } else {
+        if (m_tc->is_stuck(f_type)) {
+            f_type = m_tc->ensure_pi(f_type, f, cs);
+            erase_coercion_info(f);
+        } else {
+            cs     = saved_cs;
+            f_type = m_coercion_from_tc->whnf(saved_f_type, cs);
+            // try coercion to function-class
+            list<expr> coes  = get_coercions_to_fun(env(), f_type);
+            if (is_nil(coes)) {
+                throw_kernel_exception(env(), f, [=](formatter const & fmt) { return pp_function_expected(fmt, f); });
+            } else if (is_nil(tail(coes))) {
+                expr old_f = f;
+                f = mk_coercion_app(head(coes), f);
+                f = add_implict_args(f, cs);
+                f_type = infer_type(f, cs);
+                save_coercion_info(old_f, f);
+                lean_assert(is_pi(f_type));
+            } else {
+                local_context ctx      = m_context;
+                local_context full_ctx = m_full_context;
+                justification j        = mk_justification(f, [=](formatter const & fmt, substitution const & subst) {
+                        return pp_function_expected(fmt, substitution(subst).instantiate(f));
+                    });
+                auto choice_fn = [=](expr const & meta, expr const &, substitution const &, name_generator &&) {
+                    flet<local_context> save1(m_context,      ctx);
+                    flet<local_context> save2(m_full_context, full_ctx);
+                    list<constraints> choices = map2<constraints>(coes, [&](expr const & coe) {
+                            expr new_f      = mk_coercion_app(coe, f);
+                            constraint_seq cs;
+                            new_f = add_implict_args(new_f, cs);
+                            cs += mk_eq_cnstr(meta, new_f, j);
+                            return cs.to_list();
+                        });
+                    return choose(std::make_shared<coercion_elaborator>(*this, f, choices, coes, false));
+                };
+                f   = m_full_context.mk_meta(m_ngen, none_expr(), f.get_tag());
+                register_meta(f);
+                cs += mk_choice_cnstr(f, choice_fn, to_delay_factor(cnstr_group::Basic), true, j);
+                lean_assert(is_meta(f));
+                // let type checker add constraint
+                f_type = infer_type(f, cs);
+                f_type = m_tc->ensure_pi(f_type, f, cs);
+                lean_assert(is_pi(f_type));
+            }
+        }
     }
     lean_assert(is_pi(f_type));
     return mk_pair(f, f_type);
@@ -444,7 +500,7 @@ pair<expr, expr> elaborator::ensure_fun(expr f, constraint_seq & cs) {
 
 bool elaborator::has_coercions_from(expr const & a_type) {
     try {
-        expr a_cls = get_app_fn(whnf(a_type).first);
+        expr a_cls = get_app_fn(m_coercion_from_tc->whnf(a_type).first);
         return is_constant(a_cls) && ::lean::has_coercions_from(env(), const_name(a_cls));
     } catch (exception&) {
         return false;
@@ -453,7 +509,7 @@ bool elaborator::has_coercions_from(expr const & a_type) {
 
 bool elaborator::has_coercions_to(expr d_type) {
     try {
-        d_type = whnf(d_type).first;
+        d_type = m_coercion_to_tc->whnf(d_type).first;
         expr const & fn = get_app_fn(d_type);
         if (is_constant(fn))
             return ::lean::has_coercions_to(env(), const_name(fn));
@@ -469,10 +525,10 @@ bool elaborator::has_coercions_to(expr d_type) {
 }
 
 expr elaborator::apply_coercion(expr const & a, expr a_type, expr d_type) {
-    a_type = whnf(a_type).first;
-    d_type = whnf(d_type).first;
+    a_type = m_coercion_from_tc->whnf(a_type).first;
+    d_type = m_coercion_to_tc->whnf(d_type).first;
     constraint_seq aux_cs;
-    list<expr> coes = get_coercions_from_to(*m_tc, a_type, d_type, aux_cs);
+    list<expr> coes = get_coercions_from_to(*m_coercion_from_tc, *m_coercion_to_tc, a_type, d_type, aux_cs);
     if (is_nil(coes)) {
         erase_coercion_info(a);
         return a;
@@ -501,10 +557,10 @@ expr elaborator::apply_coercion(expr const & a, expr a_type, expr d_type) {
 pair<expr, constraint_seq> elaborator::mk_delayed_coercion(
     expr const & a, expr const & a_type, expr const & expected_type,
     justification const & j) {
-    type_checker & tc = *m_tc;
     expr m       = m_full_context.mk_meta(m_ngen, some_expr(expected_type), a.get_tag());
     register_meta(m);
-    constraint c = mk_coercion_cnstr(tc, *this, m, a, a_type, j, to_delay_factor(cnstr_group::Basic));
+    constraint c = mk_coercion_cnstr(*m_coercion_from_tc, *m_coercion_to_tc, *this, m, a, a_type, j,
+                                     to_delay_factor(cnstr_group::Basic));
     return to_ecs(m, c);
 }
 
@@ -605,7 +661,8 @@ expr elaborator::visit_app(expr const & e, constraint_seq & cs) {
     }
     constraint_seq a_cs;
     expr d_type = binding_domain(f_type);
-    if (d_type == get_tactic_expr_type() || d_type == get_tactic_identifier_type()) {
+    if (d_type == get_tactic_expr_type() || d_type == get_tactic_identifier_type() ||
+        d_type == get_tactic_using_expr_type()) {
         expr const & a = app_arg(e);
         expr r;
         if (is_local(a) &&
@@ -700,6 +757,8 @@ expr elaborator::ensure_type(expr const & e, constraint_seq & cs) {
     erase_coercion_info(e);
     if (is_sort(t))
         return e;
+    expr            saved_t = t;
+    constraint_seq saved_cs = cs;
     t = whnf(t, cs);
     if (is_sort(t))
         return e;
@@ -713,6 +772,8 @@ expr elaborator::ensure_type(expr const & e, constraint_seq & cs) {
             return e;
         }
     }
+    cs = saved_cs;
+    t  = m_coercion_from_tc->whnf(saved_t, cs);
     list<expr> coes = get_coercions_to_sort(env(), t);
     if (is_nil(coes)) {
         throw_kernel_exception(env(), e, [=](formatter const & fmt) { return pp_type_expected(fmt, e); });
@@ -1051,13 +1112,13 @@ constraint elaborator::mk_equations_cnstr(expr const & m, expr const & eqns) {
     io_state const & _ios    = ios();
     justification j          = mk_failed_to_synthesize_jst(_env, m);
     auto choice_fn = [=](expr const & meta, expr const & meta_type, substitution const & s,
-                         name_generator const & ngen) {
+                         name_generator && ngen) {
         substitution new_s  = s;
         expr new_eqns       = new_s.instantiate_all(eqns);
         new_eqns            = solve_unassigned_mvars(new_s, new_eqns);
         if (display_unassigned_mvars(new_eqns, new_s))
             return lazy_list<constraints>();
-        type_checker_ptr tc = mk_type_checker(_env, ngen);
+        type_checker_ptr tc = mk_type_checker(_env, std::move(ngen));
         new_eqns            = assign_equation_lhs_metas(*tc, new_eqns);
         expr val            = compile_equations(*tc, _ios, new_eqns, meta, meta_type);
         justification j     = mk_justification("equation compilation", some_expr(eqns));
@@ -1117,7 +1178,9 @@ expr elaborator::visit_equations(expr const & eqns, constraint_seq & cs) {
         new_cs.linearize(tmp_cs);
         for (constraint const & c : tmp_cs) {
             justification j = c.get_justification();
-            auto pp_fn      = [=](formatter const & fmt, pos_info_provider const * pp, substitution const & s) {
+            auto pp_fn      = [=](formatter const & fmt, pos_info_provider const * pp, substitution const & s, bool is_main) {
+                if (!is_main)
+                    return format();
                 format r = j.pp(fmt, pp, s);
                 r += compose(line(), format("The following identifier(s) are introduced as free variables by the "
                                             "left-hand-side of the equation:"));
@@ -1624,9 +1687,9 @@ optional<expr> elaborator::get_pre_tactic_for(expr const & mvar) {
 
 optional<tactic> elaborator::pre_tactic_to_tactic(expr const & pre_tac) {
     try {
-        auto fn = [=](goal const & g, name_generator const & ngen, expr const & e, optional<expr> const & expected_type,
+        auto fn = [=](goal const & g, name_generator && ngen, expr const & e, optional<expr> const & expected_type,
                       substitution const & subst, bool report_unassigned) {
-            elaborator aux_elaborator(m_ctx, ngen);
+            elaborator aux_elaborator(m_ctx, std::move(ngen));
             // Disable tactic hints when processing expressions nested in tactics.
             // We must do it otherwise, it is easy to make the system loop.
             bool use_tactic_hints = false;

@@ -169,7 +169,7 @@ section migrate_algebra
   local attribute nat.linear_ordered_semiring [instance]
 
   migrate from algebra with nat
-    replacing has_le.ge → ge, has_lt.gt → gt
+    replacing dvd → dvd, has_le.ge → ge, has_lt.gt → gt
     hiding add_pos_of_pos_of_nonneg,  add_pos_of_nonneg_of_pos,
       add_eq_zero_iff_eq_zero_and_eq_zero_of_nonneg_of_nonneg, le_add_of_nonneg_of_le,
       le_add_of_le_of_nonneg, lt_add_of_nonneg_of_lt, lt_add_of_lt_of_nonneg,
@@ -326,10 +326,10 @@ H1 !lt_succ_self
 
 protected theorem case_strong_induction_on {P : nat → Prop} (a : nat) (H0 : P 0)
   (Hind : ∀(n : nat), (∀m, m ≤ n → P m) → P (succ n)) : P a :=
-strong_induction_on a (
-  take n,
-  show (∀m, m < n → P m) → P n, from
-    nat.cases_on n
+nat.strong_induction_on a
+  (take n,
+   show (∀ m, m < n → P m) → P n, from
+     nat.cases_on n
        (assume H : (∀m, m < 0 → P m), show P 0, from H0)
        (take n,
          assume H : (∀m, m < succ n → P m),
