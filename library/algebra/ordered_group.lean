@@ -1,8 +1,6 @@
 /-
 Copyright (c) 2014 Jeremy Avigad. All rights reserved.
 Released under Apache 2.0 license as described in the file LICENSE.
-
-Module: algebra.ordered_group
 Authors: Jeremy Avigad
 
 Partially ordered additive groups, modeled on Isabelle's library. We could refine the structures,
@@ -546,28 +544,28 @@ section
         ... ≤ abs (a - b) + abs b   : abs_add_le_abs_add_abs,
   algebra.le_of_add_le_add_right H1
 
-definition max (a b : A) : A :=
+  definition max (a b : A) : A :=
   if a < b then b else a
 
   definition min (a b : A) : A :=
   if a < b then a else b
 
-  definition max_a_a (a : A) : a = max a a :=
+  theorem max_a_a (a : A) : a = max a a :=
   eq.rec_on !if_t_t rfl
 
-  definition max.eq_right {a b : A} (H : a < b) : max a b = b :=
+  theorem max.eq_right {a b : A} (H : a < b) : max a b = b :=
   if_pos H
 
-  definition max.eq_left {a b : A} (H : ¬ a < b) : max a b = a :=
+  theorem max.eq_left {a b : A} (H : ¬ a < b) : max a b = a :=
   if_neg H
 
-  definition max.right_eq {a b : A} (H : a < b) : b = max a b :=
+  theorem max.right_eq {a b : A} (H : a < b) : b = max a b :=
   eq.rec_on (max.eq_right H) rfl
 
-  definition max.left_eq {a b : A} (H : ¬ a < b) : a = max a b :=
+  theorem max.left_eq {a b : A} (H : ¬ a < b) : a = max a b :=
   eq.rec_on (max.eq_left H) rfl
 
-  definition max.left (a b : A) : a ≤ max a b :=
+  theorem max.left (a b : A) : a ≤ max a b :=
   decidable.by_cases
     (λ h : a < b,   le_of_lt (eq.rec_on (max.right_eq h) h))
     (λ h : ¬ a < b, eq.rec_on (max.eq_left h) !le.refl)
@@ -578,7 +576,7 @@ theorem eq_or_lt_of_not_lt (H : ¬ a < b) : a = b ∨ b < a :=
     (take H'' : b = a, or.inl (symm H''))
     (take H'' : b < a, or.inr H'')
     
-  definition max.right (a b : A) : b ≤ max a b :=
+  theorem max.right (a b : A) : b ≤ max a b :=
   decidable.by_cases
     (λ h : a < b,   eq.rec_on (max.eq_right h) !le.refl)
     (λ h : ¬ a < b, or.rec_on (eq_or_lt_of_not_lt h)

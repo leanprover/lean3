@@ -1,8 +1,6 @@
 /-
 Copyright (c) 2014 Microsoft Corporation. All rights reserved.
 Released under Apache 2.0 license as described in the file LICENSE.
-
-Module: init.reserved_notation
 Authors: Leonardo de Moura, Jeremy Avigad
 -/
 prelude
@@ -88,6 +86,7 @@ reserve infix `∈`:50
 reserve infix `∉`:50
 reserve infixl `∩`:70
 reserve infixl `∪`:65
+reserve infix `⊆`:50
 
 /- other symbols -/
 

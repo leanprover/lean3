@@ -1,12 +1,10 @@
 /-
 Copyright (c) 2014 Floris van Doorn. All rights reserved.
 Released under Apache 2.0 license as described in the file LICENSE.
-
-Module: algebra.category.functor
 Author: Floris van Doorn
 -/
 import .basic
-import logic.cast logic.funext
+import logic.cast algebra.function
 open function
 open category eq eq.ops heq
 

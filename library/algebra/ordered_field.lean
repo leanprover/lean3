@@ -1,8 +1,6 @@
 /-
 Copyright (c) 2014 Robert Lewis. All rights reserved.
 Released under Apache 2.0 license as described in the file LICENSE.
-
-Module: algebra.ordered_field
 Authors: Robert Lewis
 
 -/
@@ -255,7 +253,7 @@ section linear_ordered_field
   theorem div_lt_div_of_lt_of_neg (H : b < a) (Hc : c < 0) : a / c < b / c :=
     div_eq_mul_one_div⁻¹ ▸ div_eq_mul_one_div⁻¹ ▸ mul_lt_mul_of_neg_right H (div_neg_of_neg Hc)
 
-  theorem two_ne_zero : 1 + 1 ≠ 0 :=
+  theorem two_ne_zero : (1 : A) + 1 ≠ 0 :=
     ne.symm (ne_of_lt (add_pos zero_lt_one zero_lt_one))
 
   theorem add_halves : a / (1 + 1) + a / (1 + 1) = a :=

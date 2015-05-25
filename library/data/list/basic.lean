@@ -1,8 +1,6 @@
 /-
 Copyright (c) 2014 Parikshit Khanna. All rights reserved.
 Released under Apache 2.0 license as described in the file LICENSE.
-
-Module: data.list.basic
 Authors: Parikshit Khanna, Jeremy Avigad, Leonardo de Moura
 
 Basic properties of lists.
@@ -286,7 +284,7 @@ assume nin nainl, absurd (or.inr nainl) nin
 
 definition sublist (l₁ l₂ : list T) := ∀ ⦃a : T⦄, a ∈ l₁ → a ∈ l₂
 
-infix `⊆`:50 := sublist
+infix `⊆` := sublist
 
 theorem nil_sub (l : list T) : [] ⊆ l :=
 λ b i, false.elim (iff.mp (mem_nil_iff b) i)
@@ -382,6 +380,14 @@ definition nth : list T → nat → option T
 theorem nth_zero (a : T) (l : list T) : nth (a :: l) 0 = some a
 
 theorem nth_succ (a : T) (l : list T) (n : nat) : nth (a::l) (succ n) = nth l n
+
+theorem nth_eq_some : ∀ {l : list T} {n : nat}, n < length l → Σ a : T, nth l n = some a
+| []     n        h := absurd h !not_lt_zero
+| (a::l) 0        h := ⟨a, rfl⟩
+| (a::l) (succ n) h :=
+  have aux : n < length l,                 from lt_of_succ_lt_succ h,
+  obtain (r : T) (req : nth l n = some r), from nth_eq_some aux,
+  ⟨r, by rewrite [nth_succ, req]⟩
 
 open decidable
 theorem find_nth [h : decidable_eq T] {a : T} : ∀ {l}, a ∈ l → nth l (find a l) = some a
