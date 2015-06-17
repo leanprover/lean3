@@ -11,6 +11,17 @@ open eq.ops
 namespace eq
   variables {A B : Type} {a a' a₁ a₂ a₃ a₄ : A}
 
+  -- the "C rule" for eq, which also contracts the equality proof to refl
+  protected theorem rec' {C : Π (a' : A), a = a' → Type}
+    (H : C a (eq.refl a)) {a' : A} (p : a = a') : C a' p :=
+  have H' : ∀ q : a = a, C a q, from (take q, H),
+  have H'' : ∀ q : a = a', C a' q, from eq.rec_on p H',
+  H'' p
+
+  protected theorem rec_on' {C : Π (a' : A), a = a' → Type}
+    {a' : A} (p : a = a') (H : C a (eq.refl a)) : C a' p :=
+  eq.rec' H p
+
   theorem irrel (H₁ H₂ : a = a') : H₁ = H₂ :=
   !proof_irrel
 
