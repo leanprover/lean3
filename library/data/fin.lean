@@ -258,4 +258,40 @@ lemma val_succ : ∀ (i : fin n), val (succ i) = nat.succ (val i)
 definition elim0 {C : Type} : fin 0 → C
 | (mk v h) := absurd h !not_lt_zero
 
+definition zero_rec {C : fin 0 → Type} : Π i : fin 0, C i
+| (mk v h) := absurd h !not_lt_zero
+
+definition succ_rec {C : fin (nat.succ n) → Type} :
+  C (zero n) → (Π j : fin n, C (succ j)) → (Π k : fin (nat.succ n), C k) :=
+  take CO CS, fin.rec (take vk pk,
+    decidable.rec_on (nat.decidable_lt 0 vk)
+    (take H, let vj := nat.pred vk in
+     have HSv : vk = nat.succ vj, from
+       eq.symm (succ_pred_of_pos H),
+     assert pj : vj < n, from
+       lt_of_succ_lt_succ (eq.subst HSv pk),
+     have HS : succ (mk vj pj) = mk vk pk, from
+       val_inj (eq.symm HSv),
+     eq.rec_on HS (CS (mk vj pj)))
+       (take F,
+        have HOv : vk = 0, from
+         eq_zero_of_le_zero (le_of_not_gt F),
+        have HO : zero n = mk vk pk, from
+          val_inj (eq.symm HOv),
+        eq.rec_on HO CO))
+
+theorem choice : ∀ {C : fin n → Type},
+  (∀ i : fin n, nonempty (C i)) → nonempty (Π i : fin n, C i) :=
+  nat.induction_on n
+    (take C H, nonempty.intro zero_rec)
+    (take m IH C NH,
+     have NO : nonempty (C (zero m)), from
+       NH (zero m),
+     have NS : nonempty (Π i, C (succ i)),
+     begin
+       apply IH, intro i, exact NH (succ i)
+     end,
+     nonempty.elim NO (take CO, nonempty.elim NS (take CS,
+     nonempty.intro (succ_rec CO CS))))
+
 end fin
