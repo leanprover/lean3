@@ -6,7 +6,7 @@ Author: Leonardo de Moura, Jeremy Avigad
 Finite sets.
 -/
 import data.fintype.basic data.nat data.list.perm data.subtype algebra.binary
-open nat quot list subtype binary function
+open nat quot list subtype binary function eq.ops
 open [declarations] perm
 
 definition nodup_list (A : Type) := {l : list A | nodup l}
@@ -84,7 +84,7 @@ theorem mem_list_of_mem {a : A} {l : nodup_list A} : a ∈ ⟦l⟧ → a ∈ elt
 definition singleton (a : A) : finset A :=
 to_finset_of_nodup [a] !nodup_singleton
 
-theorem mem_singleton (a : A) : a ∈ singleton a :=
+theorem mem_singleton [rewrite] (a : A) : a ∈ singleton a :=
 mem_of_mem_list !mem_cons
 
 theorem eq_of_mem_singleton {x a : A} : x ∈ singleton a → x = a :=
@@ -92,6 +92,9 @@ list.mem_singleton
 
 theorem mem_singleton_eq (x a : A) : (x ∈ singleton a) = (x = a) :=
 propext (iff.intro eq_of_mem_singleton (assume H, eq.subst H !mem_singleton))
+
+lemma eq_of_singleton_eq {a b : A} : singleton a = singleton b → a = b :=
+assume Pseq, eq_of_mem_singleton (Pseq ▸ mem_singleton a)
 
 definition decidable_mem [instance] [h : decidable_eq A] : ∀ (a : A) (s : finset A), decidable (a ∈ s) :=
 λ a s, quot.rec_on_subsingleton s
@@ -116,10 +119,10 @@ to_finset_of_nodup [] nodup_nil
 
 notation `∅` := !empty
 
-theorem not_mem_empty (a : A) : a ∉ ∅ :=
+theorem not_mem_empty [rewrite] (a : A) : a ∉ ∅ :=
 λ aine : a ∈ ∅, aine
 
-theorem mem_empty_iff (x : A) : x ∈ ∅ ↔ false :=
+theorem mem_empty_iff [rewrite] (x : A) : x ∈ ∅ ↔ false :=
 iff.mp' !iff_false_iff_not !not_mem_empty
 
 theorem mem_empty_eq (x : A) : x ∈ ∅ = false :=

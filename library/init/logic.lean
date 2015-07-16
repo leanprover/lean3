@@ -338,6 +338,15 @@ section
 
   definition  decidable_of_decidable_of_eq (Hp : decidable p) (H : p = q) : decidable q :=
   decidable_of_decidable_of_iff Hp (iff.of_eq H)
+
+  protected definition or.by_cases [Hp : decidable p] [Hq : decidable q] {A : Type}
+                                   : p ∨ q → (p → A) → (q → A) → A :=
+  assume h h₁ h₂, by_cases
+    (λ hp  : p,  h₁ hp)
+    (λ hnp : ¬p,
+      by_cases
+        (λ hq : q, h₂ hq)
+        (λ hnq : ¬q, absurd h (λ n, or.elim h hnp hnq)))
 end
 
 section
@@ -504,7 +513,7 @@ decidable.rec
   (λ Hnc : ¬c,  eq.refl (@ite c (decidable.inr Hnc) A t e))
   H
 
-theorem if_t_t (c : Prop) [H : decidable c] {A : Type} (t : A) : (if c then t else t) = t :=
+theorem if_t_t [rewrite] (c : Prop) [H : decidable c] {A : Type} (t : A) : (if c then t else t) = t :=
 decidable.rec
   (λ Hc  : c,  eq.refl (@ite c (decidable.inl Hc)  A t t))
   (λ Hnc : ¬c, eq.refl (@ite c (decidable.inr Hnc) A t t))

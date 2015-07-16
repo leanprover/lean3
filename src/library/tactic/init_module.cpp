@@ -30,6 +30,8 @@ Author: Leonardo de Moura
 #include "library/tactic/relation_tactics.h"
 #include "library/tactic/induction_tactic.h"
 #include "library/tactic/subst_tactic.h"
+#include "library/tactic/location.h"
+#include "library/tactic/with_options_tactic.h"
 
 namespace lean {
 void initialize_tactic_module() {
@@ -58,9 +60,13 @@ void initialize_tactic_module() {
     initialize_relation_tactics();
     initialize_induction_tactic();
     initialize_subst_tactic();
+    initialize_location();
+    initialize_with_options_tactic();
 }
 
 void finalize_tactic_module() {
+    finalize_with_options_tactic();
+    finalize_location();
     finalize_subst_tactic();
     finalize_induction_tactic();
     finalize_relation_tactics();

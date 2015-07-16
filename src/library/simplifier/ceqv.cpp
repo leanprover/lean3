@@ -31,10 +31,14 @@ class to_ceqvs_fn {
         return is_sort(m_tc.whnf(m_tc.infer(e).first).first);
     }
 
-    bool is_equivalence(expr const & e) {
+    bool is_transitive(expr const & e) {
         if (!is_app(e)) return false;
         expr const & fn = get_app_fn(e);
-        return is_constant(fn) && ::lean::is_equivalence(m_env, const_name(fn)) && is_type(e);
+        return is_constant(fn) && ::lean::is_trans_relation(m_env, const_name(fn)) && is_type(e);
+    }
+
+    bool is_relation(expr const & e) {
+        return is_transitive(e);
     }
 
     list<expr_pair> lift(expr const & local, list<expr_pair> const & l) {
@@ -44,26 +48,32 @@ class to_ceqvs_fn {
             });
     }
 
-    list<expr_pair> apply(expr const & e, expr const & H) {
+    bool is_prop(expr const & e) {
+        constraint_seq cs;
+        return m_tc.is_prop(e, cs) && !cs;
+    }
+
+    // If restricted is true, we don't use (e <-> true) rewrite
+    list<expr_pair> apply(expr const & e, expr const & H, bool restrited) {
         expr c, Hdec, A, arg1, arg2;
-        if (is_equivalence(e)) {
+        if (is_relation(e)) {
             return mk_singleton(e, H);
         } else if (is_standard(m_env) && is_not(m_env, e, arg1)) {
-            expr new_e = mk_iff(e, mk_false());
+            expr new_e = mk_iff(arg1, mk_false());
             expr new_H = mk_app(mk_constant(get_iff_false_intro_name()), arg1, H);
             return mk_singleton(new_e, new_H);
         } else if (is_standard(m_env) && is_and(e, arg1, arg2)) {
             // TODO(Leo): we can extend this trick to any type that has only one constructor
             expr H1 = mk_app(mk_constant(get_and_elim_left_name()), arg1, arg2, H);
             expr H2 = mk_app(mk_constant(get_and_elim_right_name()), arg1, arg2, H);
-            auto r1 = apply(arg1, H1);
-            auto r2 = apply(arg2, H2);
+            auto r1 = apply(arg1, H1, restrited);
+            auto r2 = apply(arg2, H2, restrited);
             return append(r1, r2);
         } else if (is_pi(e)) {
             expr local = mk_local(m_tc.mk_fresh_name(), binding_name(e), binding_domain(e), binding_info(e));
             expr new_e = instantiate(binding_body(e), local);
             expr new_H = mk_app(H, local);
-            auto r = apply(new_e, new_H);
+            auto r = apply(new_e, new_H, restrited);
             unsigned len = length(r);
             if (len == 0) {
                 return r;
@@ -72,7 +82,7 @@ class to_ceqvs_fn {
             } else {
                 return lift(local, r);
             }
-        } else if (is_standard(m_env) && is_ite(e, c, Hdec, A, arg1, arg2)) {
+        } else if (is_standard(m_env) && is_ite(e, c, Hdec, A, arg1, arg2) && is_prop(e)) {
             // TODO(Leo): support HoTT mode if users request
             expr not_c = mk_not(m_tc, c);
             expr Hc    = mk_local(m_tc.mk_fresh_name(), c);
@@ -81,28 +91,34 @@ class to_ceqvs_fn {
                                  c, arg1, arg2, Hdec, e, Hc});
             expr H2    = mk_app({mk_constant(get_implies_of_if_neg_name()),
                                  c, arg1, arg2, Hdec, e, Hnc});
-            auto r1    = lift(Hc, apply(arg1, H1));
-            auto r2    = lift(Hnc, apply(arg2, H2));
+            auto r1    = lift(Hc, apply(arg1, H1, restrited));
+            auto r2    = lift(Hnc, apply(arg2, H2, restrited));
             return append(r1, r2);
-        } else {
+        } else if (!restrited) {
             constraint_seq cs;
             expr new_e = m_tc.whnf(e, cs);
             if (new_e != e && !cs) {
-                return apply(new_e, H);
-            } else if (is_standard(m_env)) {
+                if (auto r = apply(new_e, H, true))
+                    return r;
+            }
+            if (is_standard(m_env) && is_prop(e)) {
                 expr new_e = mk_iff(e, mk_true());
                 expr new_H = mk_app(mk_constant(get_iff_true_intro_name()), arg1, H);
                 return mk_singleton(new_e, new_H);
             } else {
                 return list<expr_pair>();
             }
+        } else {
+            return list<expr_pair>();
         }
     }
 public:
     to_ceqvs_fn(type_checker & tc):m_env(tc.env()), m_tc(tc) {}
 
     list<expr_pair> operator()(expr const & e, expr const & H) {
-        return filter(apply(e, H), [&](expr_pair const & p) { return is_ceqv(m_tc, p.first); });
+        bool restrited = false;
+        list<expr_pair> lst = apply(e, H, restrited);
+        return filter(lst, [&](expr_pair const & p) { return is_ceqv(m_tc, p.first); });
     }
 };
 
@@ -110,10 +126,10 @@ list<expr_pair> to_ceqvs(type_checker & tc, expr const & e, expr const & H) {
     return to_ceqvs_fn(tc)(e, H);
 }
 
-bool is_equivalence(environment const & env, expr const & e, expr & rel, expr & lhs, expr & rhs) {
+bool is_transitive(environment const & env, expr const & e, expr & rel, expr & lhs, expr & rhs) {
     buffer<expr> args;
     rel = get_app_args(e, args);
-    if (!is_constant(rel) || !is_equivalence(env, const_name(rel)))
+    if (!is_constant(rel) || !is_trans_relation(env, const_name(rel)))
         return false;
     relation_info const * rel_info = get_relation_info(env, const_name(rel));
     if (!rel_info || rel_info->get_lhs_pos() >= args.size() || rel_info->get_rhs_pos() >= args.size())
@@ -123,9 +139,9 @@ bool is_equivalence(environment const & env, expr const & e, expr & rel, expr & 
     return true;
 }
 
-bool is_equivalence(environment const & env, expr const & e, expr & lhs, expr & rhs) {
+bool is_transitive(environment const & env, expr const & e, expr & lhs, expr & rhs) {
     expr rel;
-    return is_equivalence(env, e, rel, lhs, rhs);
+    return is_transitive(env, e, rel, lhs, rhs);
 }
 
 bool is_ceqv(type_checker & tc, expr e) {
@@ -167,7 +183,7 @@ bool is_ceqv(type_checker & tc, expr e) {
         e = instantiate(binding_body(e), local);
     }
     expr lhs, rhs;
-    if (!is_equivalence(env, e, lhs, rhs))
+    if (!is_transitive(env, e, lhs, rhs))
         return false;
     // traverse lhs, and remove found variables from to_find
     for_each(lhs, visitor_fn);
@@ -230,7 +246,7 @@ bool is_permutation_ceqv(environment const & env, expr e) {
         num_args++;
     }
     expr lhs, rhs;
-    if (is_equivalence(env, e, lhs, rhs)) {
+    if (is_transitive(env, e, lhs, rhs)) {
         buffer<optional<unsigned>> permutation;
         permutation.resize(num_args);
         return is_permutation(lhs, rhs, 0, permutation);

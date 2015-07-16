@@ -11,6 +11,7 @@ Author: Leonardo de Moura
 #include "library/util.h"
 #include "library/replace_visitor.h"
 #include "library/constants.h"
+#include "library/user_recursors.h"
 #include "library/tactic/location.h"
 
 extern void pp_detail(lean::environment const & env, lean::expr const & e);
@@ -60,8 +61,10 @@ class unfold_rec_fn : public replace_visitor_aux {
         throw exception("ill-formed expression");
     }
 
-    static bool is_rec_building_part(name const & n) {
+    bool is_rec_building_part(name const & n) {
         if (n == get_prod_pr1_name() || n == get_prod_pr2_name())
+            return true;
+        if (is_user_defined_recursor(m_env, n))
             return true;
         if (n.is_atomic() || !n.is_string())
             return false;
@@ -87,7 +90,8 @@ class unfold_rec_fn : public replace_visitor_aux {
     }
 
     // return true if e is of the form (C.rec ...)
-    bool is_rec_app(expr const & e, buffer<expr> const & locals, name & rec_name, unsigned & main_arg_pos, buffer<unsigned> & rec_arg_pos) {
+    bool is_rec_app(expr const & e, buffer<expr> const & locals, name & rec_name, buffer<unsigned> & indices_pos,
+                    unsigned & main_arg_pos, buffer<unsigned> & rec_arg_pos) {
         buffer<expr> args;
         expr fn = get_app_args(e, args);
         if (!is_constant(fn))
@@ -99,34 +103,58 @@ class unfold_rec_fn : public replace_visitor_aux {
         if (!is_recursive_datatype(m_env, *I))
             return false;
         unsigned major_idx = *inductive::get_elim_major_idx(m_env, const_name(fn));
-        if (major_idx >= args.size())
-            return false;
-        if (auto it = get_local_pos(locals, args[major_idx])) {
-            main_arg_pos = *it;
-            for (unsigned i = major_idx+1; i < args.size(); i++) {
-                if (auto it2 = get_local_pos(locals, args[i])) {
-                    rec_arg_pos.push_back(*it2);
-                } else {
-                    return false;
-                }
+        unsigned nindices  = *inductive::get_num_indices(m_env, *I);
+        lean_assert(nindices <= major_idx);
+        unsigned rel_idx   = major_idx - nindices; // first index we should track
+        // Collect position of indices (at least the ones that occur in e)
+        while (rel_idx < args.size() && rel_idx < major_idx) {
+            if (auto it2 = get_local_pos(locals, args[rel_idx])) {
+                indices_pos.push_back(*it2);
+            } else {
+                return false;
             }
+            rel_idx++;
+        }
+
+        if (major_idx >= args.size()) {
+            // Some indices and the major premise may not occur in e because of eta-reduction
+            main_arg_pos      = locals.size() + major_idx - args.size();
+            for (unsigned i = rel_idx; i < major_idx; i++)
+                indices_pos.push_back(locals.size() + i - args.size());
             return true;
         }
-        return false;
+
+        if (auto it = get_local_pos(locals, args[major_idx])) {
+            main_arg_pos = *it;
+        } else {
+            return false;
+        }
+
+        for (unsigned i = major_idx+1; i < args.size(); i++) {
+            if (auto it2 = get_local_pos(locals, args[i])) {
+                rec_arg_pos.push_back(*it2);
+            } else {
+                return false;
+            }
+        }
+        return true;
     }
 
     enum rec_kind { BREC, REC, NOREC };
 
     // try to detect the kind of recursive definition
-    rec_kind get_rec_kind(expr const & e, buffer<expr> const & locals, name & rec_name, unsigned & main_arg_pos, buffer<unsigned> & rec_arg_pos) {
-        if (is_rec_app(e, locals, rec_name, main_arg_pos, rec_arg_pos))
+    rec_kind get_rec_kind(expr const & e, buffer<expr> const & locals, name & rec_name,
+                          buffer<unsigned> & indices_pos, unsigned & main_arg_pos, buffer<unsigned> & rec_arg_pos) {
+        if (is_rec_app(e, locals, rec_name, indices_pos, main_arg_pos, rec_arg_pos))
             return REC;
         buffer<expr> args;
         expr fn = get_app_args(e, args);
         if (is_constant(fn) && const_name(fn) == inductive::get_elim_name(get_prod_name()) &&
             args.size() >= 5) {
             // try do detect brec_on pattern
-            if (is_rec_app(args[4], locals, rec_name, main_arg_pos, rec_arg_pos)) {
+            if (is_rec_app(args[4], locals, rec_name, indices_pos, main_arg_pos, rec_arg_pos) &&
+                // for brec, eta is not applicable, so main_arg_pos must be < locals.size()
+                main_arg_pos < locals.size()) {
                 for (unsigned i = 5; i < args.size(); i++) {
                     if (auto it2 = get_local_pos(locals, args[i])) {
                         rec_arg_pos.push_back(*it2);
@@ -173,14 +201,16 @@ class unfold_rec_fn : public replace_visitor_aux {
         rec_kind                 m_kind;
         name                     m_rec_name;
         unsigned                 m_major_idx; // position of the major premise in the recursor
+        buffer<unsigned> const & m_indices_pos; // position of the datatype indices in the function being unfolded
         unsigned                 m_main_pos;  // position of the (recursive) argument in the function being unfolded
         buffer<unsigned> const & m_rec_arg_pos; // position of the other arguments that are not fixed in the recursion
         name                     m_prod_rec_name;
 
         fold_rec_fn(type_checker_ptr & tc, expr const & fn, buffer<expr> const & args, rec_kind k, name const & rec_name,
-                    unsigned main_pos, buffer<unsigned> const & rec_arg_pos):
+                    buffer<unsigned> const & indices_pos, unsigned main_pos, buffer<unsigned> const & rec_arg_pos):
             m_tc(tc), m_fn(fn), m_args(args), m_kind(k), m_rec_name(rec_name),
             m_major_idx(*inductive::get_elim_major_idx(m_tc->env(), rec_name)),
+            m_indices_pos(indices_pos),
             m_main_pos(main_pos), m_rec_arg_pos(rec_arg_pos) {
             m_prod_rec_name = inductive::get_elim_name(get_prod_name());
             lean_assert(m_main_pos < args.size());
@@ -194,6 +224,10 @@ class unfold_rec_fn : public replace_visitor_aux {
                 throw fold_failed();
             buffer<expr> new_args;
             new_args.append(m_args);
+            unsigned nindices = m_indices_pos.size();
+            for (unsigned i = 0; i < m_indices_pos.size(); i++) {
+                new_args[m_indices_pos[i]] = args[m_major_idx - nindices + i];
+            }
             new_args[m_main_pos] = args[m_major_idx];
             for (unsigned i = 0; i < m_rec_arg_pos.size(); i++) {
                 new_args[m_rec_arg_pos[i]] = args[m_major_idx + 1 + i];
@@ -216,6 +250,10 @@ class unfold_rec_fn : public replace_visitor_aux {
             }
             buffer<expr> new_args;
             new_args.append(m_args);
+            unsigned nindices = m_indices_pos.size();
+            for (unsigned i = 0; i < m_indices_pos.size(); i++) {
+                new_args[m_indices_pos[i]] = nested_args[m_major_idx - nindices + i];
+            }
             new_args[m_main_pos] = nested_args[m_major_idx];
             for (unsigned i = 0; i < m_rec_arg_pos.size(); i++) {
                 new_args[m_rec_arg_pos[i]] = args[prefix_size + i];
@@ -262,13 +300,15 @@ class unfold_rec_fn : public replace_visitor_aux {
         }
         name rec_name;
         unsigned main_pos;
+        buffer<unsigned> indices_pos;
         buffer<unsigned> rec_arg_pos;
-        rec_kind k = get_rec_kind(fn_body, fn_locals, rec_name, main_pos, rec_arg_pos);
-        if (k == NOREC) {
+        rec_kind k = get_rec_kind(fn_body, fn_locals, rec_name, indices_pos, main_pos, rec_arg_pos);
+        if (k == NOREC || main_pos >= args.size()) {
             // norecursive definition
             return unfold_simple(fn, args);
         }
-        for (unsigned i = fn_locals.size(); i < args.size(); i++)
+        unsigned rest = main_pos >= fn_locals.size() ? main_pos+1 : fn_locals.size();
+        for (unsigned i = rest; i < args.size(); i++)
             rec_arg_pos.push_back(i);
         auto new_main_cs  = m_tc->whnf(args[main_pos]);
         if (!is_constructor_app(m_env, new_main_cs.first) || new_main_cs.second) {
@@ -291,7 +331,7 @@ class unfold_rec_fn : public replace_visitor_aux {
         //    //head is a recursor... so the unfold is probably not generating a nice result...
         //    throw fold_failed();
         // }
-        return fold_rec_fn(m_tc, fn, args, k, rec_name, main_pos, rec_arg_pos)(new_e);
+        return fold_rec_fn(m_tc, fn, args, k, rec_name, indices_pos, main_pos, rec_arg_pos)(new_e);
     }
 
     bool unfold_cnst(expr const & e) {
@@ -343,7 +383,7 @@ public:
         m_ngen(ngen),
         m_force_unfold(force_unfold),
         m_tc(mk_type_checker(m_env, m_ngen.mk_child(), [](name const &) { return false; })),
-        m_norm_decl_tc(mk_type_checker(m_env, m_ngen.mk_child(), [](name const & n) { return !is_rec_building_part(n); })),
+        m_norm_decl_tc(mk_type_checker(m_env, m_ngen.mk_child(), [&](name const & n) { return !is_rec_building_part(n); })),
         m_to_unfold(to_unfold),
         m_occs(occs),
         m_occ_idx(0)
