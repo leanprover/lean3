@@ -35,6 +35,8 @@ option(CONSERVE_MEMORY    "CONSERVE_MEMORY"   OFF)
 option(INCLUDE_MSYS2_DLLS "INCLUDE_MSYS2_DLLS" OFF)
 # When ON we add lean binary dependency to standard and HOTT libraries
 option(LEAN_BIN_DEP       "LEAN_BIN_DEP"      ON)
+# When ON we include githash in the version string
+option(USE_GITHASH        "GIT_HASH"          ON)
 # Directory that include lean emacs mode dependecies
 set(EMACS_DEPENDENCIES "${CMAKE_SOURCE_DIR}/emacs/dependencies")
 
@@ -111,6 +113,15 @@ set(CMAKE_CXX_FLAGS_RELEASE        "-O3 -DNDEBUG")
 set(CMAKE_CXX_FLAGS_RELWITHDEBINFO "-O2 -g")
 set(CMAKE_CXX_FLAGS_GPROF          "-O2 -g -pg")
 set(CMAKE_CXX_FLAGS_EMSCRIPTEN     "-Oz -s DISABLE_EXCEPTION_CATCHING=0 -D LEAN_EMSCRIPTEN -Wno-warn-absolute-paths --bind")
+
+# OSX .dmg generation (this is working in progress)
+set(CPACK_DMG_BACKGROUND_IMAGE "${LEAN_SOURCE_DIR}/../images/lean.png")
+set(CPACK_DMG_VOLUME_NAME "Lean-${LEAN_VERSION_MAJOR}.${LEAN_VERSION_MINOR}")
+set(CPACK_BUNDLE_NAME "Lean-${LEAN_VERSION_MAJOR}.${LEAN_VERSION_MINOR}")
+set(CPACK_BUNDLE_STARTUP_COMMAND "bin/leanemacs")
+set(CPACK_PACKAGE_FILE_NAME "Lean-${LEAN_VERSION_MAJOR}.${LEAN_VERSION_MINOR}")
+set(CPACK_PACKAGE_ICON "${LEAN_SOURCE_DIR}/../images/lean.png")
+##################
 
 include(CheckIncludeFileCXX)
 check_include_file_cxx("unistd.h" HAVE_UNISTD)
@@ -266,17 +277,25 @@ find_package(PythonInterp REQUIRED)
 include_directories(${LEAN_SOURCE_DIR})
 
 # Git HASH
-include(GetGitRevisionDescription)
-get_git_head_revision(GIT_REFSPEC GIT_SHA1)
 set(LEAN_PACKAGE_VERSION "NOT-FOUND")
-if(${GIT_SHA1} MATCHES "GITDIR-NOTFOUND")
-  message(STATUS "Failed to read git_sha1")
+if(USE_GITHASH)
+  include(GetGitRevisionDescription)
+  get_git_head_revision(GIT_REFSPEC GIT_SHA1)
+  if(${GIT_SHA1} MATCHES "GITDIR-NOTFOUND")
+    message(STATUS "Failed to read git_sha1")
+    if(EXISTS "${LEAN_SOURCE_DIR}/../bin/package_version")
+      file(STRINGS "${LEAN_SOURCE_DIR}/../bin/package_version" LEAN_PACKAGE_VERSION)
+      message(STATUS "Package version detected: ${LEAN_PACKAGE_VERSION}")
+    endif()
+  else()
+    message(STATUS "git commit sha1: ${GIT_SHA1}")
+  endif()
+else()
+  set(GIT_SHA1 "GITDIR-NOTFOUND")
   if(EXISTS "${LEAN_SOURCE_DIR}/../bin/package_version")
     file(STRINGS "${LEAN_SOURCE_DIR}/../bin/package_version" LEAN_PACKAGE_VERSION)
     message(STATUS "Package version detected: ${LEAN_PACKAGE_VERSION}")
   endif()
-else()
-  message(STATUS "git commit sha1: ${GIT_SHA1}")
 endif()
 configure_file("${LEAN_SOURCE_DIR}/githash.h.in" "${LEAN_BINARY_DIR}/githash.h")
 
@@ -342,6 +361,7 @@ add_subdirectory(tests/frontends/lean)
 add_subdirectory(tests/shell)
 
 # Include style check
+if (NOT(${CMAKE_SYSTEM_NAME} MATCHES "Windows"))
 include(StyleCheck)
 file(GLOB_RECURSE LEAN_SOURCES
   "${LEAN_SOURCE_DIR}"
@@ -349,6 +369,7 @@ file(GLOB_RECURSE LEAN_SOURCES
   "${LEAN_SOURCE_DIR}/[A-Za-z]*.h")
 add_style_check_target(style "${LEAN_SOURCES}")
 add_test(NAME style_check COMMAND "${PYTHON_EXECUTABLE}" "${LEAN_SOURCE_DIR}/cmake/Modules/cpplint.py" ${LEAN_SOURCES})
+endif()
 
 # Set PROCESSOR_COUNT
 if(NOT DEFINED PROCESSOR_COUNT)

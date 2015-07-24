@@ -64,6 +64,7 @@ namespace eq
     notation H `⁻¹` := symm H --input with \sy or \-1 or \inv
     notation H1 ⬝ H2 := trans H1 H2
     notation H1 ▸ H2 := subst H1 H2
+    notation H1 ▹ H2 := eq.rec H2 H1
   end ops
 end eq
 
@@ -165,13 +166,34 @@ namespace heq
   theorem of_eq_of_heq (H₁ : a = a') (H₂ : a' == b) : a == b :=
   trans (of_eq H₁) H₂
 
+  definition type_eq (H : a == b) : A = B :=
+  heq.rec_on H (eq.refl A)
 end heq
 
-theorem eq_rec_heq {A : Type} {P : A → Type} {a a' : A} (H : a = a') (p : P a) : eq.rec_on H p == p :=
+open eq.ops
+theorem eq_rec_heq {A : Type} {P : A → Type} {a a' : A} (H : a = a') (p : P a) : H ▹ p == p :=
 eq.drec_on H !heq.refl
+
+theorem eq_rec_of_heq_left : ∀ {A₁ A₂ : Type} {a₁ : A₁} {a₂ : A₂} (h : a₁ == a₂), heq.type_eq h ▹ a₁ = a₂
+| A A a a (heq.refl a) := rfl
+
+reveal eq.symm
+theorem eq_rec_of_heq_right : ∀ {A₁ A₂ : Type} {a₁ : A₁} {a₂ : A₂} (h : a₁ == a₂), a₁ = (heq.type_eq h)⁻¹ ▹ a₂
+| A A a a (heq.refl a) := rfl
+
+theorem heq_of_eq_rec_left {A : Type} {P : A → Type} : ∀ {a a' : A} {p₁ : P a} {p₂ : P a'} (e : a = a') (h₂ : e ▹ p₁ = p₂), p₁ == p₂
+| a a p₁ p₂ (eq.refl a) h := eq.rec_on h !heq.refl
+
+theorem heq_of_eq_rec_right {A : Type} {P : A → Type} : ∀ {a a' : A} {p₁ : P a} {p₂ : P a'} (e : a' = a) (h₂ : p₁ = e ▹ p₂), p₁ == p₂
+| a a p₁ p₂ (eq.refl a) h := eq.rec_on h !heq.refl
 
 theorem of_heq_true {a : Prop} (H : a == true) : a :=
 of_eq_true (heq.to_eq H)
+
+theorem eq_rec_compose : ∀ {A B C : Type} (p₁ : B = C) (p₂ : A = B) (a : A), p₁ ▹ (p₂ ▹ a : B) = (p₂ ⬝ p₁) ▹ a
+| A A A (eq.refl A) (eq.refl A) a := calc
+  eq.refl A ▹ eq.refl A ▹ a = eq.refl A ▹ a              : rfl
+            ...             = (eq.refl A ⬝ eq.refl A) ▹ a : {proof_irrel (eq.refl A) (eq.refl A ⬝ eq.refl A)}
 
 attribute heq.refl [refl]
 attribute heq.trans [trans]
@@ -227,7 +249,7 @@ namespace iff
   theorem elim_right (H : a ↔ b) : b → a :=
   elim (assume H₁ H₂, H₂) H
 
-  definition mp' := @elim_right
+  definition mpr := @elim_right
 
   theorem refl (a : Prop) : a ↔ a :=
   intro (assume H, H) (assume H, H)
@@ -513,7 +535,7 @@ decidable.rec
   (λ Hnc : ¬c,  eq.refl (@ite c (decidable.inr Hnc) A t e))
   H
 
-theorem if_t_t [rewrite] (c : Prop) [H : decidable c] {A : Type} (t : A) : (if c then t else t) = t :=
+theorem if_t_t [simp] (c : Prop) [H : decidable c] {A : Type} (t : A) : (if c then t else t) = t :=
 decidable.rec
   (λ Hc  : c,  eq.refl (@ite c (decidable.inl Hc)  A t t))
   (λ Hnc : ¬c, eq.refl (@ite c (decidable.inr Hnc) A t t))
@@ -547,15 +569,15 @@ theorem if_congr {A : Type} {b c : Prop} [dec_b : decidable b] [dec_c : decidabl
         (if b then x else y) = (if c then u else v) :=
 @if_ctx_congr A b c dec_b dec_c x y u v h_c (λ h, h_t) (λ h, h_e)
 
-theorem if_ctx_rw_congr {A : Type} {b c : Prop} [dec_b : decidable b] {x y u v : A}
+theorem if_ctx_simp_congr {A : Type} {b c : Prop} [dec_b : decidable b] {x y u v : A}
                         (h_c : b ↔ c) (h_t : c → x = u) (h_e : ¬c → y = v) :
         (if b then x else y) = (@ite c (decidable_of_decidable_of_iff dec_b h_c) A u v) :=
 @if_ctx_congr A b c dec_b (decidable_of_decidable_of_iff dec_b h_c) x y u v h_c h_t h_e
 
-theorem if_rw_congr {A : Type} {b c : Prop} [dec_b : decidable b] {x y u v : A}
+theorem if_simp_congr [congr] {A : Type} {b c : Prop} [dec_b : decidable b] {x y u v : A}
                  (h_c : b ↔ c) (h_t : x = u) (h_e : y = v) :
         (if b then x else y) = (@ite c (decidable_of_decidable_of_iff dec_b h_c) A u v) :=
-@if_ctx_rw_congr A b c dec_b x y u v h_c (λ h, h_t) (λ h, h_e)
+@if_ctx_simp_congr A b c dec_b x y u v h_c (λ h, h_t) (λ h, h_e)
 
 theorem if_congr_prop {b c x y u v : Prop} [dec_b : decidable b] [dec_c : decidable c]
                       (h_c : b ↔ c) (h_t : c → (x ↔ u)) (h_e : ¬c → (y ↔ v)) :
@@ -572,10 +594,15 @@ decidable.rec_on dec_b
       ...  ↔ v                    : h_e (iff.mp (not_iff_not_of_iff h_c) hn)
       ...  ↔ (if c then u else v) : iff.of_eq (if_neg (iff.mp (not_iff_not_of_iff h_c) hn)))
 
-theorem if_rw_congr_prop {b c x y u v : Prop} [dec_b : decidable b]
-                         (h_c : b ↔ c) (h_t : c → (x ↔ u)) (h_e : ¬c → (y ↔ v)) :
+theorem if_ctx_simp_congr_prop {b c x y u v : Prop} [dec_b : decidable b]
+                               (h_c : b ↔ c) (h_t : c → (x ↔ u)) (h_e : ¬c → (y ↔ v)) :
         if b then x else y ↔ (@ite c (decidable_of_decidable_of_iff dec_b h_c) Prop u v) :=
 @if_congr_prop b c x y u v dec_b (decidable_of_decidable_of_iff dec_b h_c) h_c h_t h_e
+
+theorem if_simp_congr_prop [congr] {b c x y u v : Prop} [dec_b : decidable b]
+                           (h_c : b ↔ c) (h_t : x ↔ u) (h_e : y ↔ v) :
+        if b then x else y ↔ (@ite c (decidable_of_decidable_of_iff dec_b h_c) Prop u v) :=
+@if_ctx_simp_congr_prop b c x y u v dec_b h_c (λ h, h_t) (λ h, h_e)
 
 -- We use "dependent" if-then-else to be able to communicate the if-then-else condition
 -- to the branches
@@ -597,14 +624,14 @@ decidable.rec
 theorem dif_ctx_congr {A : Type} {b c : Prop} [dec_b : decidable b] [dec_c : decidable c]
                       {x : b → A} {u : c → A} {y : ¬b → A} {v : ¬c → A}
                       (h_c : b ↔ c)
-                      (h_t : ∀ (h : c),    x (iff.mp' h_c h)                      = u h)
-                      (h_e : ∀ (h : ¬c),   y (iff.mp' (not_iff_not_of_iff h_c) h) = v h) :
+                      (h_t : ∀ (h : c),    x (iff.mpr h_c h)                      = u h)
+                      (h_e : ∀ (h : ¬c),   y (iff.mpr (not_iff_not_of_iff h_c) h) = v h) :
         (@dite b dec_b A x y) = (@dite c dec_c A u v) :=
 decidable.rec_on dec_b
   (λ hp : b, calc
     (if h : b then x h else y h)
            = x hp                            : dif_pos hp
-      ...  = x (iff.mp' h_c (iff.mp h_c hp)) : proof_irrel
+      ...  = x (iff.mpr h_c (iff.mp h_c hp)) : proof_irrel
       ...  = u (iff.mp h_c hp)               : h_t
       ...  = (if h : c then u h else v h)    : dif_pos (iff.mp h_c hp))
   (λ hn : ¬b,
@@ -612,15 +639,15 @@ decidable.rec_on dec_b
     calc
      (if h : b then x h else y h)
            = y hn                              : dif_neg hn
-      ...  = y (iff.mp' h_nc (iff.mp h_nc hn)) : proof_irrel
+      ...  = y (iff.mpr h_nc (iff.mp h_nc hn)) : proof_irrel
       ...  = v (iff.mp h_nc hn)                : h_e
       ...  = (if h : c then u h else v h)      : dif_neg (iff.mp h_nc hn))
 
-theorem dif_ctx_rw_congr {A : Type} {b c : Prop} [dec_b : decidable b]
+theorem dif_ctx_simp_congr {A : Type} {b c : Prop} [dec_b : decidable b]
                          {x : b → A} {u : c → A} {y : ¬b → A} {v : ¬c → A}
                          (h_c : b ↔ c)
-                         (h_t : ∀ (h : c),    x (iff.mp' h_c h)                      = u h)
-                         (h_e : ∀ (h : ¬c),   y (iff.mp' (not_iff_not_of_iff h_c) h) = v h) :
+                         (h_t : ∀ (h : c),    x (iff.mpr h_c h)                      = u h)
+                         (h_e : ∀ (h : ¬c),   y (iff.mpr (not_iff_not_of_iff h_c) h) = v h) :
         (@dite b dec_b A x y) = (@dite c (decidable_of_decidable_of_iff dec_b h_c) A u v) :=
 @dif_ctx_congr A b c dec_b (decidable_of_decidable_of_iff dec_b h_c) x u y v h_c h_t h_e
 
@@ -647,3 +674,10 @@ decidable.rec_on H₁ (λ Hc, !false.rec (if_pos Hc ▸ H₂)) (λ Hnc, Hnc)
 
 theorem of_not_is_false {c : Prop} [H₁ : decidable c] (H₂ : ¬ is_false c) : c :=
 decidable.rec_on H₁ (λ Hc, Hc) (λ Hnc, absurd true.intro (if_neg Hnc ▸ H₂))
+
+-- namespace used to collect congruence rules for "contextual simplification"
+namespace contextual
+  attribute if_ctx_simp_congr      [congr]
+  attribute if_ctx_simp_congr_prop [congr]
+  attribute dif_ctx_simp_congr     [congr]
+end contextual

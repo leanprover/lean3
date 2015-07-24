@@ -712,6 +712,29 @@ expr mk_sigma_mk(type_checker & tc, buffer<expr> const & ts, buffer<expr> const 
     return mk_sigma_mk(tc, ts.size(), ts.data(), as.data(), cs);
 }
 
+bool is_none(expr const & e, expr & A) {
+    buffer<expr> args;
+    expr const & fn = get_app_args(e, args);
+    if (is_constant(fn) && const_name(fn) == get_option_none_name() && args.size() == 1) {
+        A = args[0];
+        return true;
+    } else {
+        return false;
+    }
+}
+
+bool is_some(expr const & e, expr & A, expr & a) {
+    buffer<expr> args;
+    expr const & fn = get_app_args(e, args);
+    if (is_constant(fn) && const_name(fn) == get_option_some_name() && args.size() == 2) {
+        A = args[0];
+        a = args[1];
+        return true;
+    } else {
+        return false;
+    }
+}
+
 expr infer_implicit_params(expr const & type, unsigned nparams, implicit_infer_kind k) {
     switch (k) {
     case implicit_infer_kind::Implicit: {
@@ -799,32 +822,37 @@ justification mk_type_mismatch_jst(expr const & v, expr const & v_type, expr con
         });
 }
 
-format format_goal(formatter const & fmt, buffer<expr> const & hyps, expr const & conclusion, substitution const & s) {
+format format_goal(formatter const & _fmt, buffer<expr> const & hyps, expr const & conclusion, substitution const & s) {
     substitution tmp_subst(s);
-    options const & opts = fmt.get_options();
+    options opts     = _fmt.get_options();
+    opts             = opts.update_if_undef(get_pp_purify_locals_name(), false);
+    formatter fmt    = _fmt.update_options(opts);
     unsigned indent  = get_pp_indent(opts);
     bool unicode     = get_pp_unicode(opts);
     bool compact     = get_pp_compact_goals(opts);
     format turnstile = unicode ? format("\u22A2") /* ⊢ */ : format("|-");
     format r;
-    unsigned i = 0;
-    while (i < hyps.size()) {
-        if (i > 0)
-            r += compose(comma(), line());
+    unsigned i = hyps.size();
+    bool first = true;
+    while (i > 0) {
+        i--;
         expr l     = hyps[i];
         format ids = fmt(l);
         expr t     = tmp_subst.instantiate(mlocal_type(l));
         lean_assert(hyps.size() > 0);
-        while (i < hyps.size() - 1) {
-            expr l2 = hyps[i+1];
+        while (i > 0) {
+            expr l2 = hyps[i-1];
             expr t2 = tmp_subst.instantiate(mlocal_type(l2));
             if (t2 != t)
                 break;
-            ids += space() + fmt(l2);
-            i++;
+            ids = fmt(l2) + space() + ids;
+            i--;
         }
-        r += group(ids + space() + colon() + nest(indent, line() + fmt(t)));
-        i++;
+        if (first)
+            first = false;
+        else
+            r = compose(comma(), line()) + r;
+        r = group(ids + space() + colon() + nest(indent, line() + fmt(t))) + r;
     }
     if (compact)
         r = group(r);

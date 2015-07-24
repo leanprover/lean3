@@ -16,7 +16,7 @@
     "alias" "help" "environment" "options" "precedence" "reserve"
     "match" "infix" "infixl" "infixr" "notation" "postfix" "prefix"
     "tactic_infix" "tactic_infixl" "tactic_infixr" "tactic_notation" "tactic_postfix" "tactic_prefix"
-    "eval" "check" "end" "reveal"
+    "eval" "check" "end" "reveal" "this" "suppose"
     "using" "namespace" "section" "fields" "find_decl"
     "attribute" "local" "set_option" "extends" "include" "omit" "classes"
     "instances" "coercions" "metaclasses" "raw" "migrate" "replacing")
@@ -123,7 +123,7 @@
                "\[irreducible\]" "\[semireducible\]" "\[quasireducible\]" "\[wf\]"
                "\[whnf\]" "\[multiple-instances\]" "\[none\]"
                "\[decls\]" "\[declarations\]" "\[coercions\]" "\[classes\]"
-               "\[symm\]" "\[subst\]" "\[refl\]" "\[trans\]" "\[rewrite\]"
+               "\[symm\]" "\[subst\]" "\[refl\]" "\[trans\]" "\[simp\]" "\[congr\]"
                "\[notations\]" "\[abbreviations\]" "\[begin-end-hints\]" "\[tactic-hints\]"
                "\[reduce-hints\]" "\[unfold-hints\]" "\[aliases\]" "\[eqv\]" "\[localrefinfo\]"))
       . 'font-lock-doc-face)
@@ -138,7 +138,7 @@
                 "apply" "fapply" "eapply" "rename" "intro" "intros" "all_goals" "fold" "focus" "focus_at"
                 "generalize" "generalizes" "clear" "clears" "revert" "reverts" "back" "beta" "done" "exact" "rexact"
                 "refine" "repeat" "whnf" "rotate" "rotate_left" "rotate_right" "inversion" "cases" "rewrite"
-                "xrewrite" "krewrite" "esimp" "unfold" "change" "check_expr" "contradiction"
+                "xrewrite" "krewrite" "simp" "esimp" "unfold" "change" "check_expr" "contradiction"
                 "exfalso" "split" "existsi" "constructor" "fconstructor" "left" "right" "injection" "congruence" "reflexivity"
                 "symmetry" "transitivity" "state" "induction" "induction_using"
                 "substvars" "now" "with_options"))

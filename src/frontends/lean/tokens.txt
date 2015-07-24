@@ -42,6 +42,7 @@ show         show
 have         have
 assert       assert
 assume       assume
+suppose      suppose
 take         take
 fun          fun
 match        match
@@ -109,7 +110,8 @@ symm         [symm]
 trans        [trans]
 refl         [refl]
 subst        [subst]
-rewrite_attr [rewrite]
+simp_attr    [simp]
+congr_attr   [congr]
 recursor     [recursor
 attribute    attribute
 with         with
@@ -121,12 +123,19 @@ foldr        foldr
 foldl        foldl
 binder       binder
 binders      binders
+precedence   precedence
 infix        infix
 infixl       infixl
 infixr       infixr
 postfix      postfix
 prefix       prefix
 notation     notation
+tactic_infix tactic_infix
+tactic_infixl tactic_infixl
+tactic_infixr tactic_infixr
+tactic_postfix tactic_postfix
+tactic_prefix tactic_prefix
+tactic_notation tactic_notation
 call         call
 calc         calc
 obtain       obtain
@@ -136,3 +145,4 @@ fields       fields
 trust        trust
 metaclasses  metaclasses
 inductive    inductive
+this         this

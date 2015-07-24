@@ -88,7 +88,7 @@ static char const * g_decreasing_unicode = "↓";
 
 void init_token_table(token_table & t) {
     pair<char const *, unsigned> builtin[] =
-        {{"fun", 0}, {"Pi", 0}, {"let", 0}, {"in", 0}, {"at", 0}, {"have", 0}, {"assert", 0}, {"show", 0}, {"obtain", 0},
+        {{"fun", 0}, {"Pi", 0}, {"let", 0}, {"in", 0}, {"at", 0}, {"have", 0}, {"assert", 0}, {"suppose", 0}, {"show", 0}, {"obtain", 0},
          {"if", 0}, {"then", 0}, {"else", 0}, {"by", 0}, {"by+", 0}, {"hiding", 0}, {"replacing", 0}, {"renaming", 0},
          {"from", 0}, {"(", g_max_prec}, {")", 0}, {"{", g_max_prec}, {"}", 0}, {"_", g_max_prec},
          {"[", g_max_prec}, {"]", 0}, {"⦃", g_max_prec}, {"⦄", 0}, {".{", 0}, {"Type", g_max_prec},
@@ -108,7 +108,7 @@ void init_token_table(token_table & t) {
          "definition", "example", "coercion", "abbreviation",
          "variables", "parameter", "parameters", "constant", "constants", "[persistent]", "[visible]", "[instance]", "[trans-instance]",
          "[none]", "[class]", "[coercion]", "[reducible]", "[irreducible]", "[semireducible]", "[quasireducible]",
-         "[rewrite]", "[parsing-only]", "[multiple-instances]", "[symm]", "[trans]", "[refl]", "[subst]", "[recursor",
+         "[simp]", "[congr]", "[parsing-only]", "[multiple-instances]", "[symm]", "[trans]", "[refl]", "[subst]", "[recursor",
          "evaluate", "check", "eval", "[wf]", "[whnf]", "[priority", "[unfold-full]", "[unfold-hints]",
          "[constructor]", "[unfold", "print",
          "end", "namespace", "section", "prelude", "help",

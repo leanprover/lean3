@@ -233,6 +233,10 @@ class parser {
     elaborator_context mk_elaborator_context(environment const & env, pos_info_provider const & pp);
     elaborator_context mk_elaborator_context(environment const & env, local_level_decls const & lls, pos_info_provider const & pp);
 
+    bool m_in_backtick; // true if parser `expr` notation
+    expr parse_backtick_expr_core();
+    expr parse_backtick_expr();
+
     optional<expr> is_tactic_command(name & id);
     expr parse_tactic_option_num();
     expr parse_tactic_led(expr left);
@@ -335,6 +339,8 @@ public:
     bool curr_is_token_or_id(name const & tk) const;
     /** \brief Return true iff the current token is a command, EOF, period or script block */
     bool curr_is_command_like() const;
+    /** \brief Return true iff the current token is a backtick ` */
+    bool curr_is_backtick() const { return curr() == scanner::token_kind::Backtick; }
     /** \brief Read the next token if the current one is not End-of-file. */
     void next() { if (m_curr != scanner::token_kind::Eof) scan(); }
     /** \brief Return true iff the current token is a keyword (or command keyword) named \c tk */
@@ -511,6 +517,12 @@ public:
 
     /** parse all commands in the input stream */
     bool operator()() { return parse_commands(); }
+
+    class in_notation_ctx {
+        scanner::in_notation_ctx m_ctx;
+    public:
+        in_notation_ctx(parser & p):m_ctx(p.m_scanner) {}
+    };
 };
 
 bool parse_commands(environment & env, io_state & ios, std::istream & in, char const * strm_name,

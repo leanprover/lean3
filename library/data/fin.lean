@@ -24,7 +24,7 @@ lemma eq_of_veq : ∀ {i j : fin n}, (val i) = j → i = j
 
 lemma veq_of_eq : ∀ {i j : fin n}, i = j → (val i) = j
 | (mk iv ilt) (mk jv jlt) := assume Peq,
-  have veq : iv = jv, from fin.no_confusion Peq (λ Pe Pqe, Pe), veq
+  show iv = jv, from fin.no_confusion Peq (λ Pe Pqe, Pe)
 
 lemma eq_iff_veq : ∀ {i j : fin n}, (val i) = j ↔ i = j :=
 take i j, iff.intro eq_of_veq veq_of_eq
@@ -57,8 +57,8 @@ dmap_nodup_of_dinj (dinj_lt n) (list.nodup_upto n)
 lemma mem_upto (n : nat) : ∀ (i : fin n), i ∈ upto n :=
 take i, fin.destruct i
   (take ival Piltn,
-    assert Pin : ival ∈ list.upto n, from mem_upto_of_lt Piltn,
-    mem_dmap Piltn Pin)
+    assert ival ∈ list.upto n, from mem_upto_of_lt Piltn,
+    mem_dmap Piltn this)
 
 lemma upto_zero : upto 0 = [] :=
 by rewrite [↑upto, list.upto_nil, dmap_nil]
@@ -132,13 +132,13 @@ by intro hlt he; substvars; exact absurd hlt (lt.irrefl n)
 
 lemma lt_max_of_ne_max {i : fin (succ n)} : i ≠ maxi → i < n :=
 assume hne  : i ≠ maxi,
-assert visn : val i < nat.succ n, from val_lt i,
-assert aux  : val (@maxi n) = n,   from rfl,
 assert vne  : val i ≠ n, from
   assume he,
-    have vivm : val i = val (@maxi n), from he ⬝ aux⁻¹,
-    absurd (eq_of_veq vivm) hne,
-lt_of_le_of_ne (le_of_lt_succ visn) vne
+    have val (@maxi n) = n,   from rfl,
+    have val i = val (@maxi n), from he ⬝ this⁻¹,
+    absurd (eq_of_veq this) hne,
+have val i < nat.succ n, from val_lt i,
+lt_of_le_of_ne (le_of_lt_succ this) vne
 
 lemma lift_succ_ne_max {i : fin n} : lift_succ i ≠ maxi :=
 begin
@@ -155,9 +155,9 @@ lemma lt_of_inj_of_max (f : fin (succ n) → fin (succ n)) :
   injective f → (f maxi = maxi) → ∀ i, i < n → f i < n :=
 assume Pinj Peq, take i, assume Pilt,
 assert P1 : f i = f maxi → i = maxi, from assume Peq, Pinj i maxi Peq,
-have P : f i ≠ maxi, from
+have f i ≠ maxi, from
      begin rewrite -Peq, intro P2, apply absurd (P1 P2) (ne_max_of_lt_max Pilt) end,
-lt_max_of_ne_max P
+lt_max_of_ne_max this
 
 definition lift_fun : (fin n → fin n) → (fin (succ n) → fin (succ n)) :=
 λ f i, dite (i = maxi) (λ Pe, maxi) (λ Pne, lift_succ (f (mk i (lt_max_of_ne_max Pne))))
@@ -199,8 +199,8 @@ end
 
 lemma lift_fun_inj : injective (@lift_fun n) :=
 take f₁ f₂ Peq, funext (λ i,
-assert Peqi : lift_fun f₁ (lift_succ i) = lift_fun f₂ (lift_succ i), from congr_fun Peq _,
-begin revert Peqi, rewrite [*lift_fun_eq], apply lift_succ_inj end)
+assert lift_fun f₁ (lift_succ i) = lift_fun f₂ (lift_succ i), from congr_fun Peq _,
+begin revert this, rewrite [*lift_fun_eq], apply lift_succ_inj end)
 
 lemma lower_inj_apply {f Pinj Pmax} (i : fin n) :
   val (lower_inj f Pinj Pmax i) = val (f (lift_succ i)) :=
@@ -291,19 +291,19 @@ begin
   induction (nat.decidable_lt 0 vk) with [HT, HF],
   { show C (mk vk pk), from
     let vj := nat.pred vk in
-    have HSv : vk = nat.succ vj, from
+    have vk = vj+1, from
       eq.symm (succ_pred_of_pos HT),
-    assert pj : vj < n, from
-      lt_of_succ_lt_succ (eq.subst HSv pk),
-    have HS : succ (mk vj pj) = mk vk pk, from
-      val_inj (eq.symm HSv),
-    eq.rec_on HS (CS (mk vj pj)) },
+    assert vj < n, from
+      lt_of_succ_lt_succ (eq.subst `vk = vj+1` pk),
+    have succ (mk vj `vj < n`) = mk vk pk, from
+      val_inj (eq.symm `vk = vj+1`),
+    eq.rec_on this (CS (mk vj `vj < n`)) },
   { show C (mk vk pk), from
-    have HOv : vk = 0, from
+    have vk = 0, from
       eq_zero_of_le_zero (le_of_not_gt HF),
-    have HO : zero n = mk vk pk, from
-      val_inj (eq.symm HOv),
-    eq.rec_on HO CO }
+    have zero n = mk vk pk, from
+      val_inj (eq.symm this),
+    eq.rec_on this CO }
 end
 
 definition succ_maxi_cases {C : fin (nat.succ n) → Type} :
@@ -345,6 +345,31 @@ begin
     intro CS,
     apply nonempty.intro,
     exact zero_succ_cases CO CS }
+end
+
+section
+open list
+local postfix `+1`:100 := nat.succ
+
+lemma dmap_map_lift {n : nat} : ∀ l : list nat, (∀ i, i ∈ l → i < n) → dmap (λ i, i < n +1) mk l = map lift_succ (dmap (λ i, i < n) mk l)
+| []     := assume Plt, rfl
+| (i::l) := assume Plt, begin
+  rewrite [@dmap_cons_of_pos _ _ (λ i, i < n +1) _ _ _ (lt_succ_of_lt (Plt i !mem_cons)), @dmap_cons_of_pos _ _ (λ i, i < n) _ _ _ (Plt i !mem_cons), map_cons],
+  congruence,
+  apply dmap_map_lift,
+  intro j Pjinl, apply Plt, apply mem_cons_of_mem, assumption end
+
+lemma upto_succ (n : nat) : upto (n +1) = maxi :: map lift_succ (upto n) :=
+begin
+  rewrite [↑fin.upto, list.upto_succ, @dmap_cons_of_pos _ _ (λ i, i < n +1) _ _ _ (nat.self_lt_succ n)],
+  congruence,
+  apply dmap_map_lift, apply @list.lt_of_mem_upto
+end
+
+definition upto_step : ∀ {n : nat}, fin.upto (n +1) = (map succ (upto n))++[zero n]
+| 0      := rfl
+| (i +1) := begin rewrite [upto_succ i, map_cons, append_cons, succ_max, upto_succ, -lift_zero],
+  congruence, rewrite [map_map, -lift_succ.comm, -map_map, -(map_singleton _ (zero i)), -map_append, -upto_step] end
 end
 
 end fin

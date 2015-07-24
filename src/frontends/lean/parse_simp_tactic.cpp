@@ -8,7 +8,7 @@ Author: Leonardo de Moura
 #include "library/scoped_ext.h"
 #include "library/tactic/exact_tactic.h"
 #include "library/tactic/expr_to_tactic.h"
-#include "library/simplifier/rewrite_rule_set.h"
+#include "library/simplifier/simp_rule_set.h"
 #include "library/simplifier/simp_tactic.h"
 #include "frontends/lean/parser.h"
 #include "frontends/lean/parse_tactic_location.h"
@@ -53,8 +53,9 @@ expr parse_simp_tactic(parser & p) {
             while (true) {
                 auto id_pos = p.pos();
                 name id = p.check_constant_next("invalid 'simp' tactic, constant expected");
-                if (!is_rewrite_rule(p.env(), id))
-                    throw parser_error(sstream() << "invalid 'simp' tactic, '" << id << "' is not an active rewriting rule", id_pos);
+                if (!is_simp_rule(p.env(), id))
+                    throw parser_error(sstream() << "invalid 'simp' tactic, '" << id
+                                       << "' is not an active simplification rule", id_pos);
                 hiding.push_back(id);
                 if (!p.curr_is_token(get_comma_tk()))
                     break;
@@ -73,12 +74,6 @@ expr parse_simp_tactic(parser & p) {
     location loc = parse_tactic_location(p);
 
     // Remark: simp_tac is the actual result
-    expr simp_tac = mk_simp_tactic_expr(lemmas, ns, hiding, tac, loc);
-
-    // Using (or_else simp_tac (exact sorry)) to simplify testing
-    auto pos = p.pos();
-    expr sorry = p.mk_sorry(pos);
-    expr exact_sorry = p.mk_app(get_exact_tac_fn(), sorry, pos);
-    return mk_app(get_or_else_tac_fn(), simp_tac, exact_sorry);
+    return mk_simp_tactic_expr(lemmas, ns, hiding, tac, loc);
 }
 }
