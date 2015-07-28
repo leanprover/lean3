@@ -407,13 +407,10 @@ theorem converges_of_cauchy {X : r_seq} {M : ℕ+ → ℕ+} (Hc : cauchy X M) :
     apply rat.le.refl
   end
 
---------------------------------------------------
--- archimedean property
-
-theorem archimedean (x y : ℝ) (Hx : x > 0) (Hy : y > 0) : ∃ n : ℕ, (of_rat (of_nat n)) * x ≥ y := sorry
 
 --------------------------------------------------
 -- supremum property
+-- this development roughly follows the proof of completeness done in Isabelle.
 
 section supremum
 open prod nat
@@ -424,7 +421,7 @@ parameter X : ℝ → Prop
 
 definition rpt {A : Type} (op : A → A) : ℕ → A → A
  | rpt 0 := λ a, a
- | rpt (succ k) := λ a, ((rpt k) (op a))
+ | rpt (succ k) := λ a, op (rpt k a)
 
 
 definition ub (x : ℝ) := ∀ y : ℝ, X y → y ≤ x
@@ -521,14 +518,42 @@ definition over_seq := λ n : ℕ, pr2 (rpt bisect n (under, over)) -- B
 
 definition avg_seq := λ n : ℕ, avg (over_seq n) (under_seq n) -- C
 
+theorem avg_symm (n : ℕ) : avg_seq n = avg (under_seq n) (over_seq n) :=
+  by rewrite [↑avg_seq, ↑avg, rat.add.comm]
+
 theorem over_0 : over_seq 0 = over := rfl
 theorem under_0 : under_seq 0 = under := rfl
 
+theorem succ_helper (n : ℕ) : avg (pr1 (rpt bisect n (under, over))) (pr2 (rpt bisect n (under, over))) = avg_seq n :=
+   by rewrite avg_symm
+
 theorem under_succ (n : ℕ) : under_seq (succ n) =
-        (if ub (avg_seq n) then under_seq n else avg_seq n) := sorry
+        (if ub (avg_seq n) then under_seq n else avg_seq n) :=
+  begin
+    cases (decidable.em (ub (avg_seq n))) with [Hub, Hub],
+    rewrite [if_pos Hub],
+    have H :  pr1 (bisect (rpt bisect n (under, over))) = under_seq n, by
+      rewrite [↑under_seq, ↑bisect at {2}, -succ_helper at Hub, if_pos Hub],
+    apply H,
+    rewrite [if_neg Hub],
+    have H : pr1 (bisect (rpt bisect n (under, over))) = avg_seq n, by
+      rewrite [↑bisect at {2}, -succ_helper at Hub, if_neg Hub, avg_symm],
+    apply H
+  end
 
 theorem over_succ (n : ℕ) : over_seq (succ n) =
-        (if ub (avg_seq n) then avg_seq n else over_seq n) := sorry
+        (if ub (avg_seq n) then avg_seq n else over_seq n) :=
+  begin
+    cases (decidable.em (ub (avg_seq n))) with [Hub, Hub],
+    rewrite [if_pos Hub],
+    have H : pr2 (bisect (rpt bisect n (under, over))) = avg_seq n, by
+      rewrite [↑bisect at {2}, -succ_helper at Hub, if_pos Hub, avg_symm],
+    apply H,
+    rewrite [if_neg Hub],
+    have H : pr2 (bisect (rpt bisect n (under, over))) = over_seq n, by
+      rewrite [↑over_seq, ↑bisect at {2}, -succ_helper at Hub, if_neg Hub],
+    apply H
+  end
 
 -- rat.pow_zero refers to algebra.pow?
 theorem rat.pow_zero (a : ℚ) : rat.pow a 0 = 1 := sorry
@@ -539,17 +564,12 @@ theorem rat.pow_one (a : ℚ) : rat.pow a 1 = a := sorry
 
 theorem rat.pow_add (a : ℚ) (m : ℕ) : ∀ n, rat.pow a (m + n) = rat.pow a m * rat.pow a n := sorry
 
---theorem rat.pow_div (a : ℚ) (n : ℕ) : rat.pow a n * a = rat.pow a (n+1) := sorry
-
---rat.pow
-
 theorem div_two_sub_self (a : ℚ) : a / 2 - a = - (a / 2) := sorry
 
 theorem sub_self_div_two (a : ℚ) : a - a / 2 = a / 2 := sorry
 
 theorem rat.div_sub_div_same (a b c : ℚ) : (a / c) - (b / c) = (a - b) / c := sorry
 
-omit inh bdd floor_spec ceil_spec floor_succ ceil_succ
 theorem width (n : ℕ) : over_seq n - under_seq n = (over - under) / (rat.pow 2 n) :=
   nat.induction_on n
     (by rewrite [over_0, under_0, rat.pow_zero, rat.div_one])
@@ -561,17 +581,31 @@ theorem width (n : ℕ) : over_seq n - under_seq n = (over - under) / (rat.pow 2
         ... = (over - under) / (rat.pow 2 a * 2) : rat.div_div_eq_div_mul (rat.ne_of_gt (rat.pow_pos dec_trivial _)) dec_trivial
         ... = (over - under) / rat.pow 2 (a + 1) : by rewrite  rat.pow_add,
       cases (decidable.em (ub (avg_seq a))),
-      rewrite [*if_pos a_1],
-      rewrite [↑succ, -Hou, -rat.sub_eq_add_neg, -div_two_sub_self, rat.add.assoc],
-      rewrite [*if_neg a_1],
-      apply (calc
-        over_seq a - avg_seq a = over_seq a - (over_seq a) / 2 - (under_seq a) / 2 : rat.sub_add_eq_sub_sub
-        ... = (over_seq a) / 2 - (under_seq a) / 2 : sub_self_div_two
-        ... = (over - under) / rat.pow 2 (a + 1) : Hou
-      )
+      rewrite [*if_pos a_1, -add_one, -Hou, ↑avg_seq, ↑avg, rat.add.assoc, div_two_sub_self],
+      rewrite [*if_neg a_1, -add_one, -Hou, ↑avg_seq, ↑avg, rat.sub_add_eq_sub_sub, sub_self_div_two]
     end)
 
-theorem binary_bound (a : ℚ) : ∃ n : ℕ, a ≤ rat.pow 2 n := sorry
+
+
+theorem binary_nat_bound (a : ℕ) : of_nat a ≤ (rat.pow 2 a) :=
+  nat.induction_on a (rat.zero_le_one) (begin apply sorry end)
+
+theorem binary_bound (a : ℚ) : ∃ n : ℕ, a ≤ rat.pow 2 n :=
+  exists.intro (ubound a) (calc
+      a ≤ of_nat (ubound a) : ubound_ge
+    ... ≤ rat.pow 2 (ubound a) : binary_nat_bound)
+
+theorem rat_of_pnat_add {k : ℕ} (H : succ k > 0) : rat_of_pnat (subtype.tag (succ k) H) = (rat.of_nat k) + 1 := sorry
+
+theorem rat_power_two_le (k : ℕ+) : rat_of_pnat k ≤ rat.pow 2 k~ :=
+  begin
+  apply subtype.rec_on k,
+  intros n Hn,
+  induction n,
+  apply absurd Hn !nat.not_lt_self,
+  rewrite (rat_of_pnat_add Hn),
+  apply sorry
+  end
 
 theorem width_narrows : ∃ n : ℕ, over_seq n - under_seq n ≤ 1 :=
   begin
@@ -711,17 +745,7 @@ theorem over_seq_mono (i j : ℕ) (H : i ≤ j) : over_seq j ≤ over_seq i :=
     apply over_seq_mono_helper
   end
 
-theorem rat_of_pnat_add {k : ℕ} (H : succ k > 0) : rat_of_pnat (subtype.tag (succ k) H) = (rat.of_nat k) + 1 := sorry
 
-theorem rat_power_two_le (k : ℕ+) : rat_of_pnat k ≤ rat.pow 2 k~ :=
-  begin
-  apply subtype.rec_on k,
-  intros n Hn,
-  induction n,
-  apply absurd Hn !nat.not_lt_self,
-  rewrite (rat_of_pnat_add Hn),
-  apply sorry
-  end
 
 theorem rat_power_two_inv_ge (k : ℕ+) : 1 / rat.pow 2 k~ ≤ k⁻¹ :=
   rat.div_le_div_of_le !rat_of_pnat_is_pos !rat_power_two_le
