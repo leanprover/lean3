@@ -431,7 +431,6 @@ definition ub (x : ℝ) := ∀ y : ℝ, X y → y ≤ x
 definition bounded := ∃ x : ℝ, ub x
 definition sup (x : ℝ) := ub x ∧ ∀ y : ℝ, ub y → x ≤ y
 
-
 parameter elt : ℝ
 hypothesis inh :  X elt
 parameter bound : ℝ
@@ -445,6 +444,16 @@ hypothesis floor_succ : ∀ x : ℝ, int.lt (floor (x - 1)) (floor x)
 hypothesis ceil_succ : ∀ x : ℝ, int.lt (ceil x) (ceil (x + 1))
 
 include inh bdd floor_spec ceil_spec floor_succ ceil_succ
+
+
+-- this should exist somewhere, no? I can't find it
+theorem not_forall_of_exists_not {A : Type} {P : A → Prop} (H : ∃ a : A, ¬ P a) :
+        ¬ ∀ a : A, P a :=
+  begin
+    intro Hall,
+    cases H with [a, Ha],
+    apply Ha (Hall a)
+  end
 
 definition avg (a b : ℚ) := a / 2 + b / 2
 
@@ -466,9 +475,6 @@ theorem under_spec1 : of_rat under < elt :=
     apply fs
   end,
   lt_of_lt_of_le H !floor_spec
-
-
-theorem not_forall_of_exists_not {A : Type} {P : A → Prop} (H : ∃ a : A, ¬ P a) : ¬ ∀ a : A, P a := sorry
 
 theorem under_spec : ¬ ub under :=
   using inh,
@@ -524,21 +530,45 @@ theorem under_succ (n : ℕ) : under_seq (succ n) =
 theorem over_succ (n : ℕ) : over_seq (succ n) =
         (if ub (avg_seq n) then avg_seq n else over_seq n) := sorry
 
+-- rat.pow_zero refers to algebra.pow?
 theorem rat.pow_zero (a : ℚ) : rat.pow a 0 = 1 := sorry
 
 theorem rat.pow_pos {a : ℚ} (H : a > 0) (n : ℕ) : rat.pow a n > 0 := sorry
 
+theorem rat.pow_one (a : ℚ) : rat.pow a 1 = a := sorry
+
+theorem rat.pow_add (a : ℚ) (m : ℕ) : ∀ n, rat.pow a (m + n) = rat.pow a m * rat.pow a n := sorry
+
+--theorem rat.pow_div (a : ℚ) (n : ℕ) : rat.pow a n * a = rat.pow a (n+1) := sorry
+
+--rat.pow
+
+theorem div_two_sub_self (a : ℚ) : a / 2 - a = - (a / 2) := sorry
+
+theorem sub_self_div_two (a : ℚ) : a - a / 2 = a / 2 := sorry
+
+theorem rat.div_sub_div_same (a b c : ℚ) : (a / c) - (b / c) = (a - b) / c := sorry
+
+omit inh bdd floor_spec ceil_spec floor_succ ceil_succ
 theorem width (n : ℕ) : over_seq n - under_seq n = (over - under) / (rat.pow 2 n) :=
   nat.induction_on n
     (by rewrite [over_0, under_0, rat.pow_zero, rat.div_one])
     (begin
       intro a Ha,
       rewrite [over_succ, under_succ],
+      let Hou := calc
+        (over_seq a) / 2 - (under_seq a) / 2 = ((over - under) / rat.pow 2 a) / 2 : by rewrite [rat.div_sub_div_same, Ha]
+        ... = (over - under) / (rat.pow 2 a * 2) : rat.div_div_eq_div_mul (rat.ne_of_gt (rat.pow_pos dec_trivial _)) dec_trivial
+        ... = (over - under) / rat.pow 2 (a + 1) : by rewrite  rat.pow_add,
       cases (decidable.em (ub (avg_seq a))),
       rewrite [*if_pos a_1],
-      apply sorry,
+      rewrite [↑succ, -Hou, -rat.sub_eq_add_neg, -div_two_sub_self, rat.add.assoc],
       rewrite [*if_neg a_1],
-      apply sorry
+      apply (calc
+        over_seq a - avg_seq a = over_seq a - (over_seq a) / 2 - (under_seq a) / 2 : rat.sub_add_eq_sub_sub
+        ... = (over_seq a) / 2 - (under_seq a) / 2 : sub_self_div_two
+        ... = (over - under) / rat.pow 2 (a + 1) : Hou
+      )
     end)
 
 theorem binary_bound (a : ℚ) : ∃ n : ℕ, a ≤ rat.pow 2 n := sorry
@@ -767,7 +797,6 @@ theorem over_bound : ub sup_over :=
     apply PB,
     apply Hy
   end
-set_option pp.coercions true
 
 theorem under_lowest_bound : ∀ y : ℝ, ub y → sup_under ≤ y :=
   begin
