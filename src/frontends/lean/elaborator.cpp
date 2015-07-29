@@ -225,6 +225,16 @@ void elaborator::save_placeholder_info(expr const & e, expr const & r) {
         save_type_data(e, r);
         save_synth_data(e, r);
     }
+    unsigned line, col;
+    if (m_ctx.has_show_hole_at(line, col)) {
+        if (auto p = pip()->get_pos_info(e)) {
+            if (p->first == line && p->second == col) {
+                m_to_show_hole = r;
+                m_to_show_hole_ref = e;
+                m_ctx.reset_show_goal_at();
+            }
+        }
+    }
 }
 
 /** \brief Auxiliary function for saving information about which coercion was used by the elaborator.
@@ -247,13 +257,23 @@ void elaborator::erase_coercion_info(expr const & e) {
     }
 }
 
-void elaborator::copy_info_to_manager(substitution s) {
-    if (!infom())
-        return;
-    m_pre_info_data.instantiate(s);
-    bool overwrite = true;
-    infom()->merge(m_pre_info_data, overwrite);
-    m_pre_info_data.clear();
+void elaborator::instantiate_info(substitution s) {
+    if (m_to_show_hole) {
+        expr meta      = s.instantiate(*m_to_show_hole);
+        expr meta_type = s.instantiate(type_checker(env()).infer(meta).first);
+        goal g(meta, meta_type);
+        proof_state ps(goals(g), s, m_ngen, constraints());
+        auto out = regular(env(), ios());
+        out << "LEAN_INFORMATION\n";
+        out << ps.pp(env(), ios()) << endl;
+        out << "END_LEAN_INFORMATION\n";
+    }
+    if (infom()) {
+        m_pre_info_data.instantiate(s);
+        bool overwrite = true;
+        infom()->merge(m_pre_info_data, overwrite);
+        m_pre_info_data.clear();
+    }
 }
 
 optional<name> elaborator::mk_mvar_suffix(expr const & b) {
@@ -1764,6 +1784,7 @@ bool elaborator::try_using(substitution & subst, expr const & mvar, proof_state 
     lean_assert(length(ps.get_goals()) == 1);
     // make sure ps is a really a proof state for mvar.
     lean_assert(mlocal_name(get_app_fn(head(ps.get_goals()).get_meta())) == mlocal_name(mvar));
+    show_goal(ps, pre_tac, pre_tac, pre_tac);
     try {
         proof_state_seq seq = tac(env(), ios(), ps);
         auto r = seq.pull();
@@ -1808,8 +1829,38 @@ static void extract_begin_end_tactics(expr pre_tac, buffer<expr> & pre_tac_seq) 
     }
 }
 
+void elaborator::show_goal(proof_state const & ps, expr const & start, expr const & end, expr const & curr) {
+    unsigned line, col;
+    if (!m_ctx.has_show_goal_at(line, col))
+        return;
+    auto start_pos = pip()->get_pos_info(start);
+    auto end_pos   = pip()->get_pos_info(end);
+    auto curr_pos  = pip()->get_pos_info(curr);
+    if (!start_pos || !end_pos || !curr_pos)
+        return;
+    if (start_pos->first > line || (start_pos->first == line && start_pos->second > col))
+        return;
+    if (end_pos->first < line || (end_pos->first == line && end_pos->second < col))
+        return;
+    if (curr_pos->first < line || (curr_pos->first == line && curr_pos->second < col))
+        return;
+    m_ctx.reset_show_goal_at();
+    goals const & gs = ps.get_goals();
+    auto out = regular(env(), ios());
+    out << "LEAN_INFORMATION\n";
+    out << "position " << curr_pos->first << ":" << curr_pos->second << "\n";
+    if (empty(gs)) {
+        out << "no goals\n";
+    } else {
+        out << head(gs) << "\n";
+    }
+    out << "END_LEAN_INFORMATION\n";
+}
+
 bool elaborator::try_using_begin_end(substitution & subst, expr const & mvar, proof_state ps, expr const & pre_tac) {
     lean_assert(is_begin_end_annotation(pre_tac));
+    expr end_expr   = pre_tac;
+    expr start_expr = get_annotation_arg(pre_tac);
     buffer<expr> pre_tac_seq;
     extract_begin_end_tactics(get_annotation_arg(pre_tac), pre_tac_seq);
     for (expr ptac : pre_tac_seq) {
@@ -1825,6 +1876,7 @@ bool elaborator::try_using_begin_end(substitution & subst, expr const & mvar, pr
                 return false;
             ps = proof_state(ps, tail(gs), subst, ngen);
         } else {
+            show_goal(ps, start_expr, end_expr, ptac);
             expr new_ptac = subst.instantiate_all(ptac);
             if (auto tac = pre_tactic_to_tactic(new_ptac)) {
                 try {
@@ -1865,6 +1917,7 @@ bool elaborator::try_using_begin_end(substitution & subst, expr const & mvar, pr
             }
         }
     }
+    show_goal(ps, start_expr, end_expr, end_expr);
 
     if (!empty(ps.get_goals())) {
         display_unsolved_subgoals(mvar, ps, pre_tac);
@@ -2103,7 +2156,7 @@ auto elaborator::operator()(list<expr> const & ctx, expr const & e, bool _ensure
     substitution s = p->first.first;
     auto result = apply(s, r);
     check_sort_assignments(s);
-    copy_info_to_manager(s);
+    instantiate_info(s);
     check_used_local_tactic_hints();
     return result;
 }
@@ -2130,7 +2183,7 @@ std::tuple<expr, expr, level_param_names> elaborator::operator()(expr const & t,
     expr new_r_t = apply(s, r_t, univ_params, new_params);
     expr new_r_v = apply(s, r_v, univ_params, new_params);
     check_sort_assignments(s);
-    copy_info_to_manager(s);
+    instantiate_info(s);
     check_used_local_tactic_hints();
     return std::make_tuple(new_r_t, new_r_v, to_list(new_params.begin(), new_params.end()));
 }
@@ -2205,7 +2258,7 @@ elaborate_result elaborator::elaborate_nested(list<expr> const & ctx, optional<e
     r = new_subst.instantiate_all(r);
     r = solve_unassigned_mvars(new_subst, r);
     rcs = map(rcs, [&](constraint const & c) { return instantiate_metavars(c, new_subst); });
-    copy_info_to_manager(new_subst);
+    instantiate_info(new_subst);
     if (report_unassigned)
         display_unassigned_mvars(r, new_subst);
     if (expected_type) {

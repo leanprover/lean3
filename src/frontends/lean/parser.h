@@ -147,6 +147,10 @@ class parser {
     // auxiliary field used to record the size of m_local_decls before a command is executed.
     unsigned               m_local_decls_size_at_beg_cmd;
 
+    // stop at line/col
+    bool                   m_stop_at; // if true, then parser stops execution after the given line and column is reached
+    unsigned               m_stop_at_line;
+
     void display_warning_pos(unsigned line, unsigned pos);
     void display_error_pos(unsigned line, unsigned pos);
     void display_error_pos(pos_info p);
@@ -248,6 +252,8 @@ class parser {
     expr parse_tactic_opt_id_list();
     expr parse_tactic_using_expr();
 
+    void init_stop_at(options const & opts);
+
 public:
     parser(environment const & env, io_state const & ios,
            std::istream & strm, char const * str_name,
@@ -300,6 +306,7 @@ public:
     pos_info pos() const { return pos_info(m_scanner.get_line(), m_scanner.get_pos()); }
     expr save_pos(expr e, pos_info p);
     expr rec_save_pos(expr const & e, pos_info p);
+    expr update_pos(expr e, pos_info p);
     pos_info pos_of(expr const & e, pos_info default_pos) const;
     pos_info pos_of(expr const & e) const { return pos_of(e, pos()); }
     pos_info cmd_pos() const { return m_last_cmd_pos; }

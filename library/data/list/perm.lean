@@ -119,7 +119,7 @@ assume p, perm.induction_on p
   (λ x y l, by rewrite *length_cons)
   (λ l₁ l₂ l₃ p₁ p₂ r₁ r₂, eq.trans r₁ r₂)
 
-theorem eq_singlenton_of_perm_inv (a : A) {l : list A} : [a] ~ l → l = [a] :=
+theorem eq_singleton_of_perm_inv (a : A) {l : list A} : [a] ~ l → l = [a] :=
 have gen : ∀ l₂, perm l₂ l → l₂ = [a] → l = [a], from
   take l₂, assume p, perm.induction_on p
     (λ e, e)
@@ -134,10 +134,10 @@ have gen : ∀ l₂, perm l₂ l → l₂ = [a] → l = [a], from
     (λ l₁ l₂ l₃ p₁ p₂ r₁ r₂ e, r₂ (r₁ e)),
 assume p, gen [a] p rfl
 
-theorem eq_singlenton_of_perm (a b : A) : [a] ~ [b] → a = b :=
+theorem eq_singleton_of_perm (a b : A) : [a] ~ [b] → a = b :=
 assume p,
 begin
-  injection eq_singlenton_of_perm_inv a p with e₁,
+  injection eq_singleton_of_perm_inv a p with e₁,
   rewrite e₁
 end
 
@@ -793,4 +793,22 @@ assume u, perm.induction_on u
           (assume H2 : ¬ p y,
              by rewrite [filter_cons_of_neg _ H1, *filter_cons_of_neg _ H2, filter_cons_of_neg _ H1])))
     (λ l₁ l₂ l₃ p₁ p₂ r₁ r₂, trans r₁ r₂)
+
+section count
+variable [decA : decidable_eq A]
+include decA
+
+theorem count_eq_of_perm {l₁ l₂ : list A} : l₁ ~ l₂ → ∀ a, count a l₁ = count a l₂ :=
+suppose l₁ ~ l₂, perm.induction_on this
+  (λ a, rfl)
+  (λ x l₁ l₂ p h a, by rewrite [*count_cons, *h a])
+  (λ x y l a, by_cases
+     (suppose a = x, by_cases
+       (suppose a = y, begin subst x, subst y end)
+       (suppose a ≠ y, begin subst x, rewrite [count_cons_of_ne this, *count_cons_eq, count_cons_of_ne this] end))
+     (suppose a ≠ x, by_cases
+       (suppose a = y, begin subst y, rewrite [count_cons_of_ne this, *count_cons_eq, count_cons_of_ne this] end)
+       (suppose a ≠ y, begin rewrite [count_cons_of_ne `a≠x`, *count_cons_of_ne `a≠y`, count_cons_of_ne `a≠x`] end)))
+  (λ l₁ l₂ l₃ p₁ p₂ h₁ h₂ a, eq.trans (h₁ a) (h₂ a))
+end count
 end perm

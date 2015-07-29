@@ -69,6 +69,9 @@ class elaborator : public coercion_info_manager {
     // If m_nice_mvar_names is true, we append (when possible) a more informative name for a metavariable.
     // That is, whenever a metavariables comes from a binding, we add the binding name as a suffix
     bool                 m_nice_mvar_names;
+
+    optional<expr>       m_to_show_hole; // type information for "show hole" command line
+    expr                 m_to_show_hole_ref; // provide position information
     struct choice_expr_elaborator;
 
     environment const & env() const { return m_ctx.m_env; }
@@ -102,7 +105,7 @@ class elaborator : public coercion_info_manager {
     void save_placeholder_info(expr const & e, expr const & r);
     virtual void save_coercion_info(expr const & e, expr const & c);
     virtual void erase_coercion_info(expr const & e);
-    void copy_info_to_manager(substitution s);
+    void instantiate_info(substitution s);
     /** \brief If info manager is being used, then create a metavariable suffix based on binding_name(b) */
     optional<name> mk_mvar_suffix(expr const & b);
     expr mk_placeholder_meta(optional<name> const & suffix, optional<expr> const & type,
@@ -186,6 +189,8 @@ class elaborator : public coercion_info_manager {
     expr visit_obtain_expr(expr const & e, constraint_seq & cs);
 
     void check_used_local_tactic_hints();
+
+    void show_goal(proof_state const & ps, expr const & start, expr const & end, expr const & curr);
 public:
     elaborator(elaborator_context & ctx, name_generator && ngen, bool nice_mvar_names = false);
     std::tuple<expr, level_param_names> operator()(list<expr> const & ctx, expr const & e, bool _ensure_type);

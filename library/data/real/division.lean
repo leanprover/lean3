@@ -16,14 +16,15 @@ open eq.ops pnat
 
 local notation 0 := rat.of_num 0
 local notation 1 := rat.of_num 1
-local notation 2 := pnat.pos (nat.of_num 2) dec_trivial
+local notation 2 := subtype.tag (nat.of_num 2) dec_trivial
 
 namespace s
 
 -----------------------------
 -- helper lemmas
 
-theorem neg_add_rewrite {a b : ℚ} : a + -b = -(b + -a) := sorry
+theorem neg_add_rewrite {a b : ℚ} : a + -b = -(b + -a) :=
+  by rewrite[neg_add_rev,neg_neg]
 
 theorem abs_abs_sub_abs_le_abs_sub (a b : ℚ) : abs (abs a - abs b) ≤ abs (a - b) :=
   begin
@@ -37,10 +38,6 @@ theorem abs_abs_sub_abs_le_abs_sub (a b : ℚ) : abs (abs a - abs b) ≤ abs (a 
     apply le_abs_self,
     apply trivial
   end
-
--- does this not exist already??
-theorem forall_of_not_exists {A : Type} {P : A → Prop} (H : ¬ ∃ a : A, P a) : ∀ a : A, ¬ P a :=
-  take a, assume Ha, H (exists.intro a Ha)
 
 theorem and_of_not_or {a b : Prop} (H : ¬ (a ∨ b)) : ¬ a ∧ ¬ b :=
   and.intro (assume H', H (or.inl H')) (assume H', H (or.inr H'))
@@ -110,9 +107,9 @@ theorem sep_zero_of_pos {s : seq} (Hs : regular s) (Hpos : pos s) : sep s zero :
 ------------------------
 -- This section could be cleaned up.
 
-definition pb {s : seq} (Hs : regular s) (Hpos : pos s) :=
+noncomputable definition pb {s : seq} (Hs : regular s) (Hpos : pos s) :=
   some (abs_pos_of_nonzero Hs (sep_zero_of_pos Hs Hpos))
-definition ps {s : seq} (Hs : regular s) (Hsep : sep s zero) :=
+noncomputable definition ps {s : seq} (Hs : regular s) (Hsep : sep s zero) :=
   some (abs_pos_of_nonzero Hs Hsep)
 
 
@@ -124,7 +121,7 @@ theorem ps_spec {s : seq} (Hs : regular s) (Hsep : sep s zero) :
         ∀ m : ℕ+, m ≥ (ps Hs Hsep) → abs (s m) ≥ (ps Hs Hsep)⁻¹ :=
   some_spec (abs_pos_of_nonzero Hs Hsep)
 
-definition s_inv {s : seq} (Hs : regular s) (n : ℕ+) : ℚ :=
+noncomputable definition s_inv {s : seq} (Hs : regular s) (n : ℕ+) : ℚ :=
   if H : sep s zero then
       (if n < (ps Hs H) then 1 / (s ((ps Hs H) * (ps Hs H) * (ps Hs H)))
         else 1 / (s ((ps Hs H) * (ps Hs H) * n)))
@@ -517,7 +514,7 @@ theorem s_le_total {s t : seq} (Hs : regular s) (Ht : regular t) : s_le s t ∨ 
 theorem s_le_of_not_lt {s t : seq} (Hle : ¬ s_lt s t) : s_le t s :=
   begin
     rewrite [↑s_le, ↑nonneg, ↑s_lt at Hle, ↑pos at Hle],
-    let Hle' := forall_of_not_exists Hle,
+    let Hle' := iff.mp forall_iff_not_exists Hle,
     intro n,
     let Hn := neg_le_neg (rat.le_of_not_gt (Hle' n)),
     rewrite [↑sadd, ↑sneg, neg_add_rewrite],
@@ -573,7 +570,7 @@ theorem s_le_of_equiv_le_right {s t u : seq} (Hs : regular s) (Ht : regular t) (
 
 -----------------------------
 
-definition r_inv (s : reg_seq) : reg_seq := reg_seq.mk (s_inv (reg_seq.is_reg s))
+noncomputable definition r_inv (s : reg_seq) : reg_seq := reg_seq.mk (s_inv (reg_seq.is_reg s))
   (if H : sep (reg_seq.sq s) zero then reg_inv_reg (reg_seq.is_reg s) H else
     have Hz : s_inv (reg_seq.is_reg s) = zero, from funext (λ n, dif_neg H), Hz⁻¹ ▸ zero_is_reg)
 
@@ -608,7 +605,7 @@ end s
 namespace real
 open [classes] s
 
-definition inv (x : ℝ) : ℝ := quot.lift_on x (λ a, quot.mk (s.r_inv a))
+noncomputable definition inv (x : ℝ) : ℝ := quot.lift_on x (λ a, quot.mk (s.r_inv a))
            (λ a b H, quot.sound (s.r_inv_well_defined H))
 postfix [priority real.prio] `⁻¹` := inv
 
@@ -654,7 +651,7 @@ theorem dec_lt : decidable_rel lt :=
 section migrate_algebra
   open [classes] algebra
 
-  protected definition discrete_linear_ordered_field [reducible] :
+  protected noncomputable definition discrete_linear_ordered_field [reducible] :
       algebra.discrete_linear_ordered_field ℝ :=
   ⦃ algebra.discrete_linear_ordered_field, real.comm_ring, real.ordered_ring,
     le_total := le_total,
@@ -670,11 +667,11 @@ section migrate_algebra
   local attribute real.comm_ring [instance]
   local attribute real.ordered_ring [instance]
 
-  definition abs (n : ℝ) : ℝ := algebra.abs n
-  definition sign (n : ℝ) : ℝ := algebra.sign n
-  definition max (a b : ℝ) : ℝ   := algebra.max a b
-  definition min (a b : ℝ) : ℝ   := algebra.min a b
-  definition divide (a b : ℝ): ℝ := algebra.divide a b
+  noncomputable definition abs (n : ℝ) : ℝ := algebra.abs n
+  noncomputable definition sign (n : ℝ) : ℝ := algebra.sign n
+  noncomputable definition max (a b : ℝ) : ℝ   := algebra.max a b
+  noncomputable definition min (a b : ℝ) : ℝ   := algebra.min a b
+  noncomputable definition divide (a b : ℝ): ℝ := algebra.divide a b
 
   migrate from algebra with real
     replacing has_le.ge → ge, has_lt.gt → gt, sub → sub, abs → abs, sign → sign, dvd → dvd,

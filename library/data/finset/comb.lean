@@ -20,6 +20,7 @@ definition image (f : A → B) (s : finset A) : finset B :=
 quot.lift_on s
   (λ l, to_finset (list.map f (elt_of l)))
   (λ l₁ l₂ p, quot.sound (perm_erase_dup_of_perm (perm_map _ p)))
+notation f `'[`:max a `]` := image f a
 
 theorem image_empty (f : A → B) : image f ∅ = ∅ :=
 rfl
@@ -27,7 +28,7 @@ rfl
 theorem mem_image_of_mem (f : A → B) {s : finset A} {a : A} : a ∈ s → f a ∈ image f s :=
 quot.induction_on s (take l, assume H : a ∈ elt_of l, mem_to_finset (mem_map f H))
 
-theorem mem_image_of_mem_of_eq {f : A → B} {s : finset A} {a : A} {b : B}
+theorem mem_image {f : A → B} {s : finset A} {a : A} {b : B}
     (H1 : a ∈ s) (H2 : f a = b) :
   b ∈ image f s :=
 eq.subst H2 (mem_image_of_mem f H1)
@@ -42,7 +43,7 @@ theorem mem_image_iff (f : A → B) {s : finset A} {y : B} : y ∈ image f s ↔
 iff.intro exists_of_mem_image
   (assume H,
     obtain x (H₁ : x ∈ s) (H₂ : f x = y), from H,
-    mem_image_of_mem_of_eq H₁ H₂)
+    mem_image H₁ H₂)
 
 theorem mem_image_eq (f : A → B) {s : finset A} {y : B} : y ∈ image f s = ∃x, x ∈ s ∧ f x = y :=
 propext (mem_image_iff f)
@@ -51,7 +52,7 @@ theorem mem_image_of_mem_image_of_subset {f : A → B} {s t : finset A} {y : B}
     (H1 : y ∈ image f s) (H2 : s ⊆ t) : y ∈ image f t :=
 obtain x (H3: x ∈ s) (H4 : f x = y), from exists_of_mem_image H1,
 have H5 : x ∈ t, from mem_of_subset_of_mem H2 H3,
-show y ∈ image f t, from mem_image_of_mem_of_eq H5 H4
+show y ∈ image f t, from mem_image H5 H4
 
 theorem image_insert [h' : decidable_eq A] (f : A → B) (s : finset A) (a : A) :
   image f (insert a s) = insert (f a) (image f s) :=
@@ -84,8 +85,30 @@ ext (take z, iff.intro
   (suppose z ∈ image f (image g s),
     obtain y (Hy : y ∈ image g s) (Hfy : f y = z), from exists_of_mem_image this,
     obtain x (Hx : x ∈ s) (Hgx : g x = y), from exists_of_mem_image Hy,
-    mem_image_of_mem_of_eq Hx (by esimp; rewrite [Hgx, Hfy])))
+    mem_image Hx (by esimp; rewrite [Hgx, Hfy])))
 
+lemma image_subset {a b : finset A} (f : A → B) (H : a ⊆ b) : f '[a] ⊆ f '[b] :=
+subset_of_forall
+  (take y, assume Hy : y ∈ f '[a],
+    obtain x (Hx₁ : x ∈ a) (Hx₂ : f x = y), from exists_of_mem_image Hy,
+    mem_image (mem_of_subset_of_mem H Hx₁) Hx₂)
+
+theorem image_union [h' : decidable_eq A] (f : A → B) (s t : finset A) :
+  image f (s ∪ t) = image f s ∪ image f t :=
+ext (take y, iff.intro
+  (assume H : y ∈ image f (s ∪ t),
+    obtain x [(xst : x ∈ s ∪ t) (fxy : f x = y)], from exists_of_mem_image H,
+    or.elim (mem_or_mem_of_mem_union xst)
+      (assume xs, mem_union_l (mem_image xs fxy))
+      (assume xt, mem_union_r (mem_image xt fxy)))
+  (assume H : y ∈ image f s ∪ image f t,
+    or.elim (mem_or_mem_of_mem_union H)
+      (assume yifs : y ∈ image f s,
+        obtain x [(xs : x ∈ s) (fxy : f x = y)], from exists_of_mem_image yifs,
+        mem_image (mem_union_l xs) fxy)
+      (assume yift : y ∈ image f t,
+        obtain x [(xt : x ∈ t) (fxy : f x = y)], from exists_of_mem_image yift,
+        mem_image (mem_union_r xt) fxy)))
 end image
 
 /- filter and set-builder notation -/
@@ -126,7 +149,16 @@ iff.intro
 
 theorem mem_filter_eq : x ∈ filter p s = (x ∈ s ∧ p x) :=
 propext !mem_filter_iff
+
+variable t : finset A
+
+theorem mem_filter_union_iff : x ∈ filter p (s ∪ t) ↔ x ∈ filter p s ∨ x ∈ filter p t :=
+by rewrite [*mem_filter_iff, mem_union_iff, and.right_distrib]
+
 end filter
+
+theorem mem_singleton_eq' {A : Type} [deceq : decidable_eq A] (x a : A) : x ∈ '{a} = (x = a) :=
+by rewrite [mem_insert_eq, mem_empty_eq, or_false]
 
 /- set difference -/
 section diff
@@ -302,4 +334,109 @@ ext (λ p,
      (λ i, absurd i !not_mem_empty)
   end)
 end product
+
+/- powerset -/
+section powerset
+variables {A : Type} [deceqA : decidable_eq A]
+include deceqA
+
+  section list_powerset
+  open list
+
+  definition list_powerset : list A → finset (finset A)
+  | []       := '{∅}
+  | (a :: l) := list_powerset l ∪ image (insert a) (list_powerset l)
+
+  end list_powerset
+
+private theorem image_insert_comm (a b : A) (s : finset (finset A)) :
+  image (insert a) (image (insert b) s) = image (insert b) (image (insert a) s) :=
+have aux' : ∀ a b : A, ∀ x : finset A,
+  x ∈ image (insert a) (image (insert b) s) →
+    x ∈ image (insert b) (image (insert a) s), from
+  begin
+    intros [a, b, x, H],
+    cases (exists_of_mem_image H) with [y, Hy],
+    cases Hy with [Hy1, Hy2],
+    cases (exists_of_mem_image Hy1) with [z, Hz],
+    cases Hz with [Hz1, Hz2],
+    substvars,
+    rewrite insert.comm,
+    repeat (apply mem_image_of_mem),
+    assumption
+  end,
+ext (take x, iff.intro (aux' a b x) (aux' b a x))
+
+theorem list_powerset_eq_list_powerset_of_perm {l₁ l₂ : list A} (p : l₁ ~ l₂) :
+    list_powerset l₁ = list_powerset l₂ :=
+perm.induction_on p
+  rfl
+  (λ x l₁ l₂ p ih, by rewrite [↑list_powerset, ih])
+  (λ x y l, by rewrite [↑list_powerset, ↑list_powerset, *image_union, image_insert_comm,
+                        *union.assoc, union.left_comm (finset.image (finset.insert x) _)])
+  (λ l₁ l₂ l₃ p₁ p₂ r₁ r₂, eq.trans r₁ r₂)
+
+definition powerset (s : finset A) : finset (finset A) :=
+quot.lift_on s
+  (λ l, list_powerset (elt_of l))
+  (λ l₁ l₂ p, list_powerset_eq_list_powerset_of_perm p)
+
+theorem powerset_empty : powerset (∅ : finset A) = '{∅} := rfl
+
+theorem powerset_insert {a : A} {s : finset A} : a ∉ s →
+  powerset (insert a s) = powerset s ∪ image (insert a) (powerset s) :=
+quot.induction_on s
+  (λ l,
+    assume H : a ∉ quot.mk l,
+    calc
+      powerset (insert a (quot.mk l))
+            = list_powerset (list.insert a (elt_of l)) : rfl
+        ... = list_powerset (#list a :: elt_of l)       : by rewrite [list.insert_eq_of_not_mem H]
+        ... = powerset (quot.mk l) ∪ image (insert a) (powerset (quot.mk l)) : rfl)
+
+theorem mem_powerset_iff_subset (s : finset A) : ∀ x, x ∈ powerset s ↔ x ⊆ s :=
+begin
+  induction s with a s nains ih,
+    intro x,
+    rewrite powerset_empty,
+    show x ∈ '{∅} ↔ x ⊆ ∅, by rewrite [mem_singleton_eq', subset_empty_iff],
+  intro x,
+    rewrite [powerset_insert nains, mem_union_iff, ih, mem_image_iff],
+    exact
+      (iff.intro
+        (assume H,
+          or.elim H
+            (suppose x ⊆ s, subset.trans this !subset_insert)
+            (suppose ∃ y, y ∈ powerset s ∧ insert a y = x,
+              obtain y [yps iay], from this,
+              show x ⊆ insert a s,
+                begin
+                  rewrite [-iay],
+                  apply insert_subset_insert,
+                  rewrite -ih,
+                  apply yps
+                end))
+        (assume H : x ⊆ insert a s,
+          assert H' : erase a x ⊆ s, from erase_subset_of_subset_insert H,
+          decidable.by_cases
+            (suppose a ∈ x,
+              or.inr (exists.intro (erase a x)
+                (and.intro
+                  (show erase a x ∈ powerset s, by rewrite ih; apply H')
+                  (show insert a (erase a x) = x, from insert_erase this))))
+            (suppose a ∉ x, or.inl
+              (show x ⊆ s, by rewrite [(erase_eq_of_not_mem this) at H']; apply H'))))
+end
+
+theorem subset_of_mem_powerset {s t : finset A} (H : s ∈ powerset t) : s ⊆ t :=
+by rewrite mem_powerset_iff_subset at H; exact H
+
+theorem mem_powerset_of_subset {s t : finset A} (H : s ⊆ t) : s ∈ powerset t :=
+by rewrite -mem_powerset_iff_subset at H; exact H
+
+theorem empty_mem_powerset (s : finset A) : ∅ ∈ powerset s :=
+by rewrite mem_powerset_iff_subset; apply empty_subset
+
+end powerset
+
 end finset
