@@ -6,8 +6,6 @@ The real numbers, constructed as equivalence classes of Cauchy sequences of rati
 This construction follows Bishop and Bridges (1985).
 
 To do:
- o Break positive naturals into their own file and fill in sorry's
- o Fill in sorrys for helper lemmas that will not be handled by simplifier
  o Rename things and possibly make theorems private
 -/
 
@@ -918,8 +916,24 @@ theorem s_lt_of_le_of_lt {s t u : seq} (Hs : regular s) (Ht : regular t) (Hu : r
     apply max_left
   end
 
+theorem le_of_le_reprs {s t : seq} (Hs : regular s) (Ht : regular t)
+        (Hle : ∀ n : ℕ+, s_le s (const (t n))) : s_le s t :=
+  begin
+    rewrite [↑s_le, ↑nonneg],
+    intro m,
+    apply Hle (2 * m) m
+  end
+
+theorem le_of_reprs_le {s t : seq} (Hs : regular s) (Ht : regular t)
+        (Hle : ∀ n : ℕ+, s_le (const (t n)) s) : s_le t s :=
+  begin
+    rewrite [↑s_le, ↑nonneg],
+    intro m,
+    apply Hle (2 * m) m
+  end
+
 -----------------------------
--- const theorems
+-- of_rat theorems
 
 theorem const_le_const_of_le {a b : ℚ} (H : a ≤ b) : s_le (const a) (const b) :=
   begin
@@ -939,6 +953,52 @@ theorem le_of_const_le_const {a b : ℚ} (H : s_le (const a) (const b)) : a ≤ 
     rewrite [↑s_le at H, ↑nonneg at H, ↑sadd at H, ↑sneg at H, ↑const at H],
     apply iff.mp !rat.sub_nonneg_iff_le,
     apply nonneg_of_ge_neg_invs _ H
+  end
+
+theorem nat_inv_lt_rat {a : ℚ} (H : a > 0) : ∃ n : ℕ+, n⁻¹ < a :=
+  begin
+    existsi (pceil (1 / (a / (1 + 1)))),
+    apply lt_of_le_of_lt,
+    rotate 1,
+    apply div_two_lt_of_pos H,
+    rewrite -(@div_div' (a / (1 + 1))),
+    apply pceil_helper,
+    rewrite div_div',
+    apply pnat.le.refl,
+    apply div_pos_of_pos,
+    apply pos_div_of_pos_of_pos H dec_trivial
+  end
+
+
+theorem const_lt_const_of_lt {a b : ℚ} (H : a < b) : s_lt (const a) (const b) :=
+  begin
+    rewrite [↑s_lt, ↑pos, ↑sadd, ↑sneg, ↑const],
+    apply nat_inv_lt_rat,
+    apply (iff.mpr !sub_pos_iff_lt H)
+  end
+
+theorem lt_of_const_lt_const {a b : ℚ} (H : s_lt (const a) (const b)) : a < b :=
+  begin
+    rewrite [↑s_lt at H, ↑pos at H, ↑const at H, ↑sadd at H, ↑sneg at H],
+    cases H with [n, Hn],
+    apply (iff.mp !sub_pos_iff_lt),
+    apply lt.trans,
+    rotate 1,
+    assumption,
+    apply pnat.inv_pos
+  end
+
+theorem s_le_of_le_pointwise {s t : seq} (Hs : regular s) (Ht : s.regular t)
+        (H : ∀ n : ℕ+, s n ≤ t n) : s_le s t :=
+  begin
+    rewrite [↑s_le, ↑nonneg, ↑sadd, ↑sneg],
+    intros,
+    apply rat.le.trans,
+    apply iff.mpr !neg_nonpos_iff_nonneg,
+    apply le_of_lt,
+    apply inv_pos,
+    apply iff.mpr !sub_nonneg_iff_le,
+    apply H
   end
 
 -------- lift to reg_seqs
@@ -1021,6 +1081,18 @@ theorem r_const_le_const_of_le {a b : ℚ} (H : a ≤ b) : r_le (r_const a) (r_c
 
 theorem r_le_of_const_le_const {a b : ℚ} (H : r_le (r_const a) (r_const b)) : a ≤ b :=
   le_of_const_le_const H
+
+theorem r_const_lt_const_of_lt {a b : ℚ} (H : a < b) : r_lt (r_const a) (r_const b) :=
+  const_lt_const_of_lt H
+
+theorem r_lt_of_const_lt_const {a b : ℚ} (H : r_lt (r_const a) (r_const b)) : a < b :=
+  lt_of_const_lt_const H
+
+theorem r_le_of_le_reprs (s t : reg_seq) (Hle : ∀ n : ℕ+, r_le s (r_const (reg_seq.sq t n))) : r_le s t :=
+  le_of_le_reprs (reg_seq.is_reg s) (reg_seq.is_reg t) Hle
+
+theorem r_le_of_reprs_le (s t : reg_seq) (Hle : ∀ n : ℕ+, r_le (r_const (reg_seq.sq t n)) s) : r_le t s :=
+  le_of_reprs_le (reg_seq.is_reg s) (reg_seq.is_reg t) Hle
 
 end s
 
@@ -1136,10 +1208,34 @@ section migrate_algebra
                    gt_of_ge_of_gt [trans]
 end migrate_algebra
 
-theorem const_le_const_of_le (a b : ℚ) : a ≤ b → const a ≤ const b :=
+theorem of_rat_le_of_rat_of_le (a b : ℚ) : a ≤ b → of_rat a ≤ of_rat b :=
   s.r_const_le_const_of_le
 
-theorem le_of_const_le_const (a b : ℚ) : const a ≤ const b → a ≤ b :=
+theorem le_of_rat_le_of_rat (a b : ℚ) : of_rat a ≤ of_rat b → a ≤ b :=
   s.r_le_of_const_le_const
+
+theorem of_rat_lt_of_rat_of_lt (a b : ℚ) : a < b → of_rat a < of_rat b :=
+  s.r_const_lt_const_of_lt
+
+theorem lt_of_rat_lt_of_rat (a b : ℚ) : of_rat a < of_rat b → a < b :=
+  s.r_lt_of_const_lt_const
+
+theorem of_rat_sub (a b : ℚ) : of_rat a - of_rat b = of_rat (a - b) := rfl
+
+open s
+theorem le_of_le_reprs (x : ℝ) (t : seq) (Ht : regular t) : (∀ n : ℕ+, x ≤ t n) →
+        x ≤ quot.mk (reg_seq.mk t Ht) :=
+  quot.induction_on x (take s Hs,
+    show s.r_le s (reg_seq.mk t Ht), from
+      have H' : ∀ n : ℕ+, r_le s (r_const (t n)), from Hs,
+      by apply r_le_of_le_reprs; apply Hs)
+
+
+theorem le_of_reprs_le (x : ℝ) (t : seq) (Ht : regular t) : (∀ n : ℕ+, t n ≤ x) →
+        quot.mk (reg_seq.mk t Ht) ≤ x :=
+  quot.induction_on x (take s Hs,
+    show s.r_le (reg_seq.mk t Ht) s, from
+      have H' : ∀ n : ℕ+, r_le (r_const (t n)) s, from Hs,
+      by apply r_le_of_reprs_le; apply Hs)
 
 end real

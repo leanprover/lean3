@@ -6,7 +6,6 @@ The real numbers, constructed as equivalence classes of Cauchy sequences of rati
 This construction follows Bishop and Bridges (1985).
 
 To do:
- o Break positive naturals into their own file
  o Rename things and possibly make theorems private
 -/
 
@@ -292,6 +291,26 @@ theorem canon_bound {s : seq} (Hs : regular s) (n : ℕ+) : abs (s n) ≤ rat_of
     ... ≤ of_nat (ubound (abs (s pone))) + (1 + 1) : rat.add_le_add_right (!ubound_ge)
     ... = of_nat (ubound (abs (s pone)) + (1 + 1)) : of_nat_add
     ... = of_nat (ubound (abs (s pone)) + 1 + 1) : nat.add.assoc
+
+theorem bdd_of_regular {s : seq} (H : regular s) : ∃ b : ℚ, ∀ n : ℕ+, s n ≤ b :=
+  begin
+    existsi rat_of_pnat (K s),
+    intros,
+    apply rat.le.trans,
+    apply le_abs_self,
+    apply canon_bound H
+  end
+
+theorem bdd_of_regular_strict {s : seq} (H : regular s) : ∃ b : ℚ, ∀ n : ℕ+, s n < b :=
+  begin
+    cases bdd_of_regular H with [b, Hb],
+    existsi b + 1,
+    intro n,
+    apply rat.lt_of_le_of_lt,
+    apply Hb,
+    apply rat.lt_add_of_pos_right,
+    apply rat.zero_lt_one
+  end
 
 definition K₂ (s t : seq) := max (K s) (K t)
 
@@ -687,8 +706,7 @@ theorem mul_bound_helper {s t : seq} (Hs : regular s) (Ht : regular t) (a b c : 
     apply add_invs_nonneg,
     rewrite [*inv_mul_eq_mul_inv, -rat.right_distrib, mul.comm _ n⁻¹, rat.mul.assoc],
     apply rat.mul_le_mul,
-    apply rat.le.refl,
-    apply rat.le.refl,
+    repeat apply rat.le.refl,
     apply rat.le_of_lt,
     apply rat.mul_pos,
     apply rat.add_pos,
@@ -946,10 +964,13 @@ theorem const_reg (a : ℚ) : regular (const a) :=
   end
 
 theorem add_consts (a b : ℚ) : sadd (const a) (const b) ≡ const (a + b) :=
-  begin
-    rewrite [↑sadd, ↑const],
-    apply equiv.refl
-  end
+  by apply equiv.refl
+
+theorem mul_consts (a b : ℚ) : smul (const a) (const b) ≡ const (a * b) :=
+  by apply equiv.refl
+
+theorem neg_const (a : ℚ) : sneg (const a) ≡ const (-a) :=
+  by apply equiv.refl
 
 ---------------------------------------------
 -- create the type of regular sequences and lift theorems
@@ -1037,6 +1058,10 @@ theorem r_zero_nequiv_one : ¬ requiv r_zero r_one :=
 definition r_const (a : ℚ) : reg_seq := reg_seq.mk (const a) (const_reg a)
 
 theorem r_add_consts (a b : ℚ) : requiv (r_const a + r_const b) (r_const (a + b)) := add_consts a b
+
+theorem r_mul_consts (a b : ℚ) : requiv (r_const a * r_const b) (r_const (a * b)) := mul_consts a b
+
+theorem r_neg_const (a : ℚ) : requiv (-r_const a) (r_const (-a)) := neg_const a
 
 end s
 ----------------------------------------------
@@ -1128,14 +1153,19 @@ protected definition comm_ring [reducible] : algebra.comm_ring ℝ :=
     apply mul_comm
   end
 
-definition const (a : ℚ) : ℝ := quot.mk (s.r_const a)
+definition of_rat [coercion] (a : ℚ) : ℝ := quot.mk (s.r_const a)
 
-theorem add_consts (a b : ℚ) : const a + const b = const (a + b) :=
-  quot.sound (s.r_add_consts a b)
+theorem of_rat_add (a b : ℚ) : of_rat a + of_rat b = of_rat (a + b) :=
+   quot.sound (s.r_add_consts a b)
 
-theorem sub_consts (a b : ℚ) : const a + -const b = const (a - b) := !add_consts
+theorem of_rat_neg (a : ℚ) : -of_rat a = of_rat (-a) := quot.sound (s.r_neg_const a)
 
-theorem add_half_const (n : ℕ+) : const (2 * n)⁻¹ + const (2 * n)⁻¹ = const (n⁻¹) :=
-  by rewrite [add_consts, pnat.add_halves]
+--theorem of_rat_sub (a b : ℚ) : of_rat a + - of_rat b = of_rat (a - b) := !of_rat_add
+
+theorem of_rat_mul (a b : ℚ) : of_rat a * of_rat b = of_rat (a * b) :=
+  quot.sound (s.r_mul_consts a b)
+
+theorem add_half_of_rat (n : ℕ+) : of_rat (2 * n)⁻¹ + of_rat (2 * n)⁻¹ = of_rat (n⁻¹) :=
+  by rewrite [of_rat_add, pnat.add_halves]
 
 end real
