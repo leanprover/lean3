@@ -9,7 +9,7 @@ At this point, we no longer proceed constructively: this file makes heavy use of
 and excluded middle.
 -/
 
-import data.real.basic data.real.order data.rat data.nat logic.axioms.classical
+import data.real.basic data.real.order data.rat data.nat logic.choice
 open -[coercions] rat
 open -[coercions] nat
 open eq.ops pnat
@@ -641,7 +641,7 @@ theorem lt_or_eq_of_le (x y : ℝ) : x ≤ y → x < y ∨ x = y :=
 theorem le_iff_lt_or_eq (x y : ℝ) : x ≤ y ↔ x < y ∨ x = y :=
   iff.intro (lt_or_eq_of_le x y) (le_of_lt_or_eq x y)
 
-theorem dec_lt : decidable_rel lt :=
+noncomputable definition dec_lt : decidable_rel lt :=
   begin
     rewrite ↑decidable_rel,
     intros,
@@ -677,5 +677,7 @@ section migrate_algebra
     replacing has_le.ge → ge, has_lt.gt → gt, sub → sub, abs → abs, sign → sign, dvd → dvd,
       divide → divide, max → max, min → min
 end migrate_algebra
+
+infix / := divide
 
 end real

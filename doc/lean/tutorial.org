@@ -126,12 +126,12 @@ the type =false= must be empty, since we don't have a proof for =false=.
 
 Most systems based on the _propositions as types_ paradigm are based on constructive logic.
 In Lean, we support classical and constructive logic. We can load
-_classical axiom_ by using =import classical=. When the classical
+_classical choice axiom_ by using =import logic.choice= or =import classical=. When the classical
 extensions are loaded, the _excluded middle_ is a theorem,
 and =em p= is a proof for =p ∨ ¬ p=.
 
 #+BEGIN_SRC lean
-  import logic.axioms.classical
+  import logic.choice
   constant p : Prop
   check em p
 #+END_SRC
@@ -233,7 +233,7 @@ What is the type of =Type=?
   check Type
 #+END_SRC
 
-Lean reports =Type : Type=, is it Lean inconsistent? Now, it is not.
+Lean reports =Type : Type=, is Lean inconsistent? No, it is not.
 Internally, Lean maintains a hierarchy of Types. We say each one of
 them _lives_ in a universe. Lean is universe polymorphic, and by
 default all universes are hidden from the user. Like implicit
@@ -371,7 +371,7 @@ examples.
 #+END_SRC
 
 In many cases, Lean can automatically infer the type of the variable. Actually,
-In all examples above, the type can be inferred automatically.
+in all examples above, the type can be inferred automatically.
 
 #+BEGIN_SRC lean
   import data.nat
@@ -477,7 +477,7 @@ Now, we prove =p ∧ q → q ∧ p= with the following simple proof term.
 Note that the proof term is very similar to a function that just swaps the
 elements of a pair.
 
-*** (disjunction)
+*** Or (disjunction)
 
 The expression =or.intro_left b H1= creates a proof for =a ∨ b= using a proof =H1 : a=.
 Similarly, =or.intro_right a H2= creates a proof for =a ∨ b= using a proof =H2 : b=.
@@ -630,7 +630,7 @@ tedious steps. Here is a very simple example.
 
 Lean supports _dependent functions_. In type theory, they are also called dependent product types or Pi-types.
 The idea is quite simple, suppose we have a type =A : Type=, and a family of types =B : A → Type= which assigns to each =a : A= a type =B a=. So a dependent function is a function whose range varies depending on its arguments.
-In Lean, the dependent functions is written as =forall a : A, B a=,
+In Lean, the type of a dependent function is written as =forall a : A, B a=,
 =Pi a : A, B a=, =∀ x : A, B a=, or =Π x : A, B a=. We usually use
 =forall= and =∀= for propositions, and =Pi= and =Π= for everything
 else. In the previous examples, we have seen many examples of
@@ -639,12 +639,12 @@ equality are all dependent functions.
 
 The universal quantifier is just a dependent function.
 In Lean, if we have a family of types =B : A → Prop=,
-then =∀ x : A, B a= has type =Prop=.
-This features complicates the Lean set-theoretic model, but it
+then =∀ a : A, B a= has type =Prop=.
+This feature complicates the Lean set-theoretic model, but it
 improves usability.
 Several theorem provers have a =forall elimination= (aka
 instantiation) proof rule.
-In Lean (and other systems based on proposition as types), this rule
+In Lean (and other systems based on propositions as types), this rule
 is just function application.
 In the following example we add an axiom stating that =f x= is =0=
 forall =x=.
@@ -709,7 +709,7 @@ for =∃ a : nat, a = w= using
 
 
 Note that =exists.intro= also has implicit arguments. For example, Lean has to infer the implicit argument
-=P : A → Bool=, a predicate (aka function to Prop). This creates complications. For example, suppose
+=P : A → Prop=, a predicate (aka function to Prop). This creates complications. For example, suppose
 we have =Hg : g 0 0 = 0= and we invoke =exists.intro 0 Hg=. There are different possible values for =P=.
 Each possible value corresponds to a different theorem: =∃ x, g x x = x=, =∃ x, g x x = 0=,
 =∃ x, g x 0 = x=, etc. Lean uses the context where =exists.intro= occurs to infer the users intent.

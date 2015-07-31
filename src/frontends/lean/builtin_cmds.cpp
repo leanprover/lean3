@@ -25,6 +25,7 @@ Author: Leonardo de Moura
 #include "library/reducible.h"
 #include "library/normalize.h"
 #include "library/print.h"
+#include "library/noncomputable.h"
 #include "library/class.h"
 #include "library/flycheck.h"
 #include "library/abbreviation.h"
@@ -142,7 +143,7 @@ static void print_prefix(parser & p) {
         p.regular_stream() << "no declaration starting with prefix '" << prefix << "'" << endl;
 }
 
-static void print_fields(parser & p, name const & S, pos_info const & pos) {
+static void print_fields(parser const & p, name const & S, pos_info const & pos) {
     environment const & env = p.env();
     if (!is_structure(env, S))
         throw parser_error(sstream() << "invalid 'print fields' command, '" << S << "' is not a structure", pos);
@@ -168,7 +169,7 @@ static bool uses_some_token(unsigned num, notation::transition const * ts, buffe
         std::any_of(tokens.begin(), tokens.end(), [&](name const & token) { return uses_token(num, ts, token); });
 }
 
-static bool print_parse_table(parser & p, parse_table const & t, bool nud, buffer<name> const & tokens) {
+static bool print_parse_table(parser const & p, parse_table const & t, bool nud, buffer<name> const & tokens, bool tactic_table = false) {
     bool found = false;
     io_state ios = p.ios();
     options os   = ios.get_options();
@@ -179,8 +180,10 @@ static bool print_parse_table(parser & p, parse_table const & t, bool nud, buffe
     optional<token_table> tt(get_token_table(p.env()));
     t.for_each([&](unsigned num, notation::transition const * ts, list<pair<unsigned, expr>> const & overloads) {
             if (uses_some_token(num, ts, tokens)) {
-                found = true;
                 io_state_stream out = regular(p.env(), ios);
+                if (tactic_table)
+                    out << "tactic notation ";
+                found = true;
                 notation::display(out, num, ts, overloads, nud, tt);
             }
         });
@@ -202,7 +205,7 @@ static void print_notation(parser & p) {
         p.regular_stream() << "no notation" << endl;
 }
 
-static void print_metaclasses(parser & p) {
+static void print_metaclasses(parser const & p) {
     buffer<name> c;
     get_metaclasses(c);
     for (name const & n : c)
@@ -224,7 +227,7 @@ static void print_definition(parser const & p, name const & n, pos_info const & 
     new_out << d.get_value() << endl;
 }
 
-void print_attributes(parser & p, name const & n) {
+static void print_attributes(parser const & p, name const & n) {
     environment const & env = p.env();
     io_state_stream out = p.regular_stream();
     if (is_coercion(env, n))
@@ -245,7 +248,7 @@ void print_attributes(parser & p, name const & n) {
     }
 }
 
-static void print_inductive(parser & p, name const & n, pos_info const & pos) {
+static void print_inductive(parser const & p, name const & n, pos_info const & pos) {
     environment const & env = p.env();
     io_state_stream out = p.regular_stream();
     if (auto idecls = inductive::is_inductive_decl(env, n)) {
@@ -311,8 +314,10 @@ static void print_recursor_info(parser & p) {
     }
 }
 
-bool print_constant(parser & p, char const * kind, declaration const & d, bool is_def = false) {
+static bool print_constant(parser const & p, char const * kind, declaration const & d, bool is_def = false) {
     io_state_stream out = p.regular_stream();
+    if (d.is_definition() && is_marked_noncomputable(p.env(), d.get_name()))
+        out << "noncomputable ";
     if (is_protected(p.env(), d.get_name()))
         out << "protected ";
     out << kind << " " << d.get_name();
@@ -324,20 +329,21 @@ bool print_constant(parser & p, char const * kind, declaration const & d, bool i
     return true;
 }
 
-bool print_polymorphic(parser & p) {
-    environment const & env = p.env();
-    io_state_stream out = p.regular_stream();
-    auto pos = p.pos();
+bool print_id_info(parser const & p, name const & id, bool show_value, pos_info const & pos) {
+    // declarations
     try {
-        name id = p.check_id_next("");
-        // declarations
+        environment const & env = p.env();
+        io_state_stream out = p.regular_stream();
         try {
             list<name> cs = p.to_constants(id, "", pos);
+            bool first = true;
             for (name const & c : cs) {
+                if (first) first = false; else out << "\n";
                 declaration const & d = env.get(c);
                 if (d.is_theorem()) {
-                    print_constant(p, "theorem", d, true);
-                    print_definition(p, c, pos);
+                    print_constant(p, "theorem", d, show_value);
+                    if (show_value)
+                        print_definition(p, c, pos);
                 } else if (d.is_axiom() || d.is_constant_assumption()) {
                     if (inductive::is_inductive_decl(env, c)) {
                         print_inductive(p, c, pos);
@@ -352,8 +358,10 @@ bool print_polymorphic(parser & p) {
                     } else if (d.is_axiom()) {
                         if (p.in_theorem_queue(d.get_name())) {
                             print_constant(p, "theorem", d);
-                            out << "'" << d.get_name() << "' is still in the theorem queue, use command 'reveal "
-                                << d.get_name() << "' to access its definition.\n";
+                            if (show_value) {
+                                out << "'" << d.get_name() << "' is still in the theorem queue, use command 'reveal "
+                                    << d.get_name() << "' to access its definition.\n";
+                            }
                         } else {
                             print_constant(p, "axiom", d);
                         }
@@ -361,8 +369,9 @@ bool print_polymorphic(parser & p) {
                         print_constant(p, "constant", d);
                     }
                 } else if (d.is_definition()) {
-                    print_constant(p, "definition", d, true);
-                    print_definition(p, c, pos);
+                    print_constant(p, "definition", d, show_value);
+                    if (show_value)
+                        print_definition(p, c, pos);
                 }
             }
             return true;
@@ -390,25 +399,46 @@ bool print_polymorphic(parser & p) {
             }
         }
     } catch (exception &) {}
+    return false;
+}
+
+bool print_token_info(parser const & p, name const & tk) {
+    buffer<name> tokens;
+    tokens.push_back(tk);
+    bool found = false;
+    if (print_parse_table(p, get_nud_table(p.env()), true, tokens)) {
+        found = true;
+    }
+    if (print_parse_table(p, get_led_table(p.env()), false, tokens)) {
+        found = true;
+    }
+    bool tactic_table = true;
+    if (print_parse_table(p, get_tactic_nud_table(p.env()), true, tokens, tactic_table)) {
+        found = true;
+    }
+    if (print_parse_table(p, get_tactic_led_table(p.env()), false, tokens, tactic_table)) {
+        found = true;
+    }
+    return found;
+}
+
+bool print_polymorphic(parser & p) {
+    auto pos = p.pos();
+    try {
+        name id = p.check_id_next("");
+        bool show_value = true;
+        if (print_id_info(p, id, show_value, pos))
+            return true;
+    } catch (exception &) {}
 
     // notation
     if (p.curr_is_keyword()) {
-        buffer<name> tokens;
         name tk = p.get_token_info().token();
-        tokens.push_back(tk);
-        bool found = false;
-        if (print_parse_table(p, get_nud_table(p.env()), true, tokens)) {
+        if (print_token_info(p, tk)) {
             p.next();
-            found = true;
-        }
-        if (print_parse_table(p, get_led_table(p.env()), false, tokens)) {
-            p.next();
-            found = true;
-        }
-        if (found)
             return true;
+        }
     }
-
     return false;
 }
 
@@ -483,7 +513,12 @@ environment print_cmd(parser & p) {
         auto pos = p.pos();
         name id  = p.check_id_next("invalid 'print definition', constant expected");
         list<name> cs = p.to_constants(id, "invalid 'print definition', constant expected", pos);
+        bool first = true;
         for (name const & c : cs) {
+            if (first)
+                first = false;
+            else
+                p.regular_stream() << "\n";
             declaration const & d = p.env().get(c);
             if (d.is_theorem()) {
                 print_constant(p, "theorem", d);

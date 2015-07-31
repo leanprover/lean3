@@ -107,9 +107,6 @@ will be flushed everytime it's executed."
     (when process-buffer
       (with-current-buffer process-buffer
         (erase-buffer))))
-  ;; Ask to save current buffer
-  (when (buffer-file-name)
-    (save-some-buffers nil `(lambda () (s-equals? (buffer-file-name) ,(buffer-file-name)))))
   ;; Start process
   (let* ((target-file-name
           (or
@@ -161,6 +158,13 @@ placeholder, call lean-server with --hole option, otherwise call
               (lean-exec-at-pos "lean-hole" "*Lean Goal*" "--hole"))
          (t
           (lean-exec-at-pos "lean-goal" "*Lean Goal*" "--goal"))))
+(defun lean-show-id-keyword-info ()
+  "Show ID/Keyword Information at the position"
+  (interactive)
+  (lean-exec-at-pos
+   "lean-print-id-keyword-info"
+   "*Lean Print*"
+   "--info"))
 
 (defun lean-std-exe ()
   (interactive)
@@ -193,17 +197,19 @@ placeholder, call lean-server with --hole option, otherwise call
           (t (lean-tab-indent)))))
 
 (defun lean-set-keys ()
-  (local-set-key "\C-c\C-x"  'lean-std-exe)
-  (local-set-key "\C-c\C-l"  'lean-std-exe)
-  (local-set-key "\C-c\C-k"  'quail-show-key)
-  (local-set-key "\C-c\C-o"  'lean-set-option)
-  (local-set-key "\C-c\C-e"  'lean-eval-cmd)
-  (local-set-key "\C-c\C-t"  'lean-show-type)
-  (local-set-key "\C-c\C-f"  'lean-fill-placeholder)
-  (local-set-key "\C-c\C-r"  'lean-server-restart-process)
-  (local-set-key "\M-."      'lean-find-tag)
-  (local-set-key (kbd "TAB") 'lean-tab-indent-or-complete)
-  (lean-define-key-binding "\C-c\C-g" '(lean-show-goal-at-pos)))
+  (local-set-key lean-keybinding-std-exe1                  'lean-std-exe)
+  (local-set-key lean-keybinding-std-exe2                  'lean-std-exe)
+  (local-set-key lean-keybinding-show-key                  'quail-show-key)
+  (local-set-key lean-keybinding-set-option                'lean-set-option)
+  (local-set-key lean-keybinding-eval-cmd                  'lean-eval-cmd)
+  (local-set-key lean-keybinding-show-type                 'lean-show-type)
+  (local-set-key lean-keybinding-fill-placeholder          'lean-fill-placeholder)
+  (local-set-key lean-keybinding-server-restart-process    'lean-server-restart-process)
+  (local-set-key lean-keybinding-find-tag                  'lean-find-tag)
+  (local-set-key lean-keybinding-tab-indent-or-complete    'lean-tab-indent-or-complete)
+  (local-set-key lean-keybinding-lean-show-goal-at-pos     'lean-show-goal-at-pos)
+  (local-set-key lean-keybinding-lean-show-id-keyword-info 'lean-show-id-keyword-info)
+  )
 
 (defun lean-define-key-binding (key cmd)
   (local-set-key key `(lambda () (interactive) ,cmd)))
@@ -221,6 +227,8 @@ placeholder, call lean-server with --hole option, otherwise call
     ["Create a new project" (call-interactively 'lean-project-create) (not (lean-project-inside-p))]
     "-----------------"
     ["Show type info"       lean-show-type                    (and lean-eldoc-use eldoc-mode)]
+    ["Show goal"            lean-show-goal-at-pos             t]
+    ["Show id/keyword info" lean-show-id-keyword-info         t]
     ["Fill a placeholder"   lean-fill-placeholder             (looking-at  (rx symbol-start "_"))]
     ["Find tag at point"    lean-find-tag                     t]
     ["Global tag search"    lean-global-search                t]

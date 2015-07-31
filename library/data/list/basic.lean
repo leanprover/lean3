@@ -107,6 +107,10 @@ theorem concat_eq_append (a : T) : ∀ (l : list T), concat a l = l ++ [a]
 theorem concat_ne_nil [simp] (a : T) : ∀ (l : list T), concat a l ≠ [] :=
 by intro l; induction l; repeat contradiction
 
+theorem length_concat [simp] (a : T) : ∀ (l : list T), length (concat a l) = length l + 1
+| []      := rfl
+| (x::xs) := by rewrite [concat_cons, *length_cons, length_concat]
+
 /- last -/
 
 definition last : Π l : list T, l ≠ [] → T
@@ -174,6 +178,10 @@ theorem concat_eq_reverse_cons (x : T) (l : list T) : concat x l = reverse (x ::
 calc
   concat x l = concat x (reverse (reverse l)) : reverse_reverse
          ... = reverse (x :: reverse l)       : rfl
+
+theorem length_reverse : ∀ (l : list T), length (reverse l) = length l
+| []      := rfl
+| (x::xs) := begin unfold reverse, rewrite [length_concat, length_cons, length_reverse] end
 
 /- head and tail -/
 
@@ -498,6 +506,20 @@ theorem inth_zero [h : inhabited T] (a : T) (l : list T) : inth (a :: l) 0 = a
 
 theorem inth_succ [h : inhabited T] (a : T) (l : list T) (n : nat) : inth (a::l) (n+1) = inth l n
 end nth
+
+section ith
+definition ith : Π (l : list T) (i : nat), i < length l → T
+| nil     i        h := absurd h !not_lt_zero
+| (x::xs) 0        h := x
+| (x::xs) (succ i) h := ith xs i (lt_of_succ_lt_succ h)
+
+lemma ith_zero [simp] (a : T) (l : list T) (h : 0 < length (a::l)) : ith (a::l) 0 h = a :=
+rfl
+
+lemma ith_succ [simp] (a : T) (l : list T) (i : nat) (h : succ i < length (a::l))
+                      : ith (a::l) (succ i) h = ith l i (lt_of_succ_lt_succ h) :=
+rfl
+end ith
 
 open decidable
 definition has_decidable_eq {A : Type} [H : decidable_eq A] : ∀ l₁ l₂ : list A, decidable (l₁ = l₂)
