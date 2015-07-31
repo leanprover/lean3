@@ -20,12 +20,10 @@ open -[coercions] nat
 open eq.ops
 open pnat
 
-
 local notation 2 := subtype.tag (nat.of_num 2) dec_trivial
 local notation 3 := subtype.tag (nat.of_num 3) dec_trivial
 
 namespace s
-
 
 theorem rat_approx_l1 {s : seq} (H : regular s) :
         ∀ n : ℕ+, ∃ q : ℚ, ∃ N : ℕ+, ∀ m : ℕ+, m ≥ N → abs (s m - q) ≤ n⁻¹ :=
@@ -461,7 +459,7 @@ theorem archimedean_strict' (x : ℝ) : ∃ z : ℤ, x > of_rat (of_int z) :=
   end
 
 theorem ex_smallest_of_bdd {P : ℤ → Prop} (Hbdd : ∃ b : ℤ, ∀ z : ℤ, z ≤ b → ¬ P z)
-        (Hinh : ∃ z : ℤ, P z) : ∃ lb : ℤ, P lb ∧ (∀ z : ℤ, z < lb → ¬ P z) := 
+        (Hinh : ∃ z : ℤ, P z) : ∃ lb : ℤ, P lb ∧ (∀ z : ℤ, z < lb → ¬ P z) :=
   begin
     cases Hbdd with [b, Hb],
     cases Hinh with [elt, Helt],
@@ -472,7 +470,7 @@ theorem ex_smallest_of_bdd {P : ℤ → Prop} (Hbdd : ∃ b : ℤ, ∀ z : ℤ, 
       apply false.elim ((Hb _ Hge) Helt)
     end,
     have H' : P (b + of_nat (nat_abs (elt - b))), begin
-      rewrite [of_nat_nat_abs_of_nonneg (int.le_of_lt (iff.mpr !int.sub_pos_iff_lt Heltb)), 
+      rewrite [of_nat_nat_abs_of_nonneg (int.le_of_lt (iff.mpr !int.sub_pos_iff_lt Heltb)),
               int.add.comm, int.sub_add_cancel],
       apply Helt
     end,
@@ -483,7 +481,7 @@ theorem ex_smallest_of_bdd {P : ℤ → Prop} (Hbdd : ∃ b : ℤ, ∀ z : ℤ, 
     apply Hb _ Hzb,
     let Hzb' := int.lt_of_not_ge Hzb,
     let Hpos := iff.mpr !int.sub_pos_iff_lt Hzb',
-    have Hzbk : z = b + of_nat (nat_abs (z - b)), 
+    have Hzbk : z = b + of_nat (nat_abs (z - b)),
       by rewrite [of_nat_nat_abs_of_nonneg (int.le_of_lt Hpos), int.add.comm, int.sub_add_cancel],
     have Hk : nat_abs (z - b) < least (λ n, P (b + of_nat n)) (succ (nat_abs (elt - b))), begin
      let Hz' := iff.mp !int.lt_add_iff_sub_lt_left Hz,
@@ -493,7 +491,7 @@ theorem ex_smallest_of_bdd {P : ℤ → Prop} (Hbdd : ∃ b : ℤ, ∀ z : ℤ, 
     let Hk' := nat.not_le_of_gt Hk,
     rewrite Hzbk,
     apply λ p, mt (ge_least_of_lt _ p) Hk',
-    apply nat.lt.trans Hk, 
+    apply nat.lt.trans Hk,
     apply least_lt _ !lt_succ_self H'
   end
 
@@ -748,9 +746,6 @@ theorem over_succ (n : ℕ) : over_seq (succ n) =
       rewrite [↑over_seq, ↑bisect at {2}, -succ_helper at Hub, if_neg Hub],
     apply H
   end
-
--- ???
-theorem rat.pow_add (a : ℚ) (m : ℕ) : ∀ n, rat.pow a (m + n) = rat.pow a m * rat.pow a n := rat.pow_add a m
 
 theorem width (n : ℕ) : over_seq n - under_seq n = (over - under) / (rat.pow 2 n) :=
   nat.induction_on n
