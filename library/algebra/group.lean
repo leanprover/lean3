@@ -348,6 +348,11 @@ structure comm_group [class] (A : Type) extends group A, comm_monoid A
 structure add_group [class] (A : Type) extends add_monoid A, has_neg A :=
 (add_left_inv : ∀a, add (neg a) a = zero)
 
+definition add_group.to_group {A : Type} [s : add_group A] : group A :=
+⦃ group, add_monoid.to_monoid,
+  mul_left_inv := add_group.add_left_inv ⦄
+
+
 section add_group
 
   variables [s : add_group A]
@@ -561,7 +566,7 @@ section add_comm_group
 
   theorem sub_sub_self (a b : A) : a - (a - b) = b :=
   by rewrite [sub_eq_add_neg, neg_sub, add.comm, sub_add_cancel]
- 
+
 end add_comm_group
 
 definition group_of_add_group (A : Type) [G : add_group A] : group A :=
