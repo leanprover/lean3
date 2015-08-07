@@ -178,9 +178,22 @@ notation `{` binder `|` r:(scoped:1 P, set_of P) `}` := r
 definition filter (P : X → Prop) (s : set X) : set X := λx, x ∈ s ∧ P x
 notation `{` binder ∈ s `|` r:(scoped:1 p, filter p s) `}` := r
 
--- '{x, y, z}
+/- insert -/
+
 definition insert (x : X) (a : set X) : set X := {y : X | y = x ∨ y ∈ a}
+
+-- '{x, y, z}
 notation `'{`:max a:(foldr `,` (x b, insert x b) ∅) `}`:0 := a
+
+theorem subset_insert (x : X) (a : set X) : a ⊆ insert x a :=
+take y, assume ys, or.inr ys
+
+/- filter -/
+
+theorem eq_filter_of_subset {s t : set X} (ssubt : s ⊆ t) : s = {x ∈ t | x ∈ s} :=
+setext (take x, iff.intro
+  (suppose x ∈ s, and.intro (ssubt this) this)
+  (suppose x ∈ {x ∈ t | x ∈ s}, and.right this))
 
 /- set difference -/
 
@@ -196,9 +209,24 @@ and.right H
 theorem mem_diff {s t : set X} {x : X} (H1 : x ∈ s) (H2 : x ∉ t) : x ∈ s \ t :=
 and.intro H1 H2
 
+theorem diff_eq (s t : set X) : s \ t = {x ∈ s | x ∉ t} := rfl
+
 theorem mem_diff_iff (s t : set X) (x : X) : x ∈ s \ t ↔ x ∈ s ∧ x ∉ t := !iff.refl
 
 theorem mem_diff_eq (s t : set X) (x : X) : x ∈ s \ t = (x ∈ s ∧ x ∉ t) := rfl
+
+theorem union_diff_cancel {s t : set X} [dec : Π x, decidable (x ∈ s)] (H : s ⊆ t) : s ∪ (t \ s) = t :=
+setext (take x, iff.intro
+  (assume H1 : x ∈ s ∪ (t \ s), or.elim H1 (assume H2, !H H2) (assume H2, and.left H2))
+  (assume H1 : x ∈ t,
+    decidable.by_cases 
+      (suppose x ∈ s, or.inl this)
+      (suppose x ∉ s, or.inr (and.intro H1 this))))
+
+/- powerset -/
+
+definition powerset (s : set X) : set (set X) := {x : set X | x ⊆ s}
+notation `𝒫` s := powerset s
 
 /- large unions -/
 
