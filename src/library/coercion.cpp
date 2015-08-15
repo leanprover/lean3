@@ -16,6 +16,8 @@ Author: Leonardo de Moura
 #include "library/module.h"
 #include "library/kernel_serializer.h"
 #include "library/scoped_ext.h"
+#include "library/pp_options.h"
+#include "library/generic_exception.h"
 
 namespace lean {
 static name * g_fun  = nullptr;
@@ -230,11 +232,23 @@ static void check_pi(name const & f, expr const & t) {
 // similar to check_pi, but produces a more informative message
 static void check_valid_coercion(name const & f, expr const & t) {
     if (!is_pi(t)) {
-        throw exception(sstream() << "invalid coercion, type of '" << f
-                        << "' does not match any of the allowed expected types for coercions\n"
-                        << "  Pi (x_1 : A_1) ... (x_n : A_n) (y: C x_1 ... x_n), D t_1 ... t_m\n"
-                        << "  Pi (x_1 : A_1) ... (x_n : A_n) (y: C x_1 ... x_n), Type\n"
-                        << "  Pi (x_1 : A_1) ... (x_n : A_n) (y: C x_1 ... x_n), A -> B");
+        throw_generic_exception(optional<expr>(),[=](formatter const & fmt) {
+                options o = fmt.get_options();
+                bool show_universes = get_pp_universes(o) || get_pp_all(o);
+                std::string ls = show_universes ? ".{ls}" : "";
+                std::string us = show_universes ? ".{us}" : "";
+                std::string u = show_universes ? ".{u}" : "";
+                return format((sstream()
+                               << "invalid coercion, type of '" << f
+                               << "' does not match any of the acceptable forms "
+                               << "for coercions\n"
+                               << "coe" << ls << " : Pi (x_1 : A_1) ... (x_n : A_n) (y: C"
+                               << ls << " x_1 ... x_n), D" << us << " t_1 ... t_m\n"
+                               << "coe" << ls << " : Pi (x_1 : A_1) ... (x_n : A_n) (y: C"
+                               << ls << " x_1 ... x_n), Type" << u << "\n"
+                               << "coe" << ls << " : Pi (x_1 : A_1) ... (x_n : A_n) (y: C"
+                               << ls << " x_1 ... x_n), (Pi x : A, B x)").str());
+            });
     }
 }
 
@@ -327,8 +341,9 @@ static environment add_coercion(environment const & env, name const & f, name co
             check_levels(const_levels(C_fn), d.get_univ_params())) {
             optional<name> cls = type_to_coercion_class(binding_body(t));
             if (!cls)
-                throw exception(sstream() << "invalid coercion, '" << f << "' cannot be used as a coercion from '"
-                                << C << "'");
+                throw exception(sstream() << "invalid coercion, '" << f << "' cannot be used as a coercion from source '"
+                                << C << "', since target does not match any of the acceptable forms\n"
+                                << "D t_1 ... t_m\n" << "Type\n" << "Pi x : A, B x\n");
             else if (is_user_class(*cls) && *cls == C)
                 throw exception(sstream() << "invalid coercion, '" << f << "' is a coercion from '" << C << "' to itself");
             return add_coercion_core(env, C, f, num, *cls, persistent);
@@ -351,7 +366,9 @@ environment add_coercion(environment const & env, io_state const &, name const &
         t = binding_body(t);
     }
     if (Cs.empty())
-        throw exception(sstream() << "invalid coercion, '" << f << "' cannot be used as a coercion");
+        throw exception(sstream() << "invalid coercion, '" << f << "' cannot be used as a coercion "
+                        << "because there is no acceptable source type; coercions must be of the form\n"
+                        << "coe : Pi (x_1 : A_1) ... (x_n : A_n) (y: C x_1 ... x_n), <target>");
     unsigned i = Cs.size();
     while (i > 0) {
         --i;
