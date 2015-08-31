@@ -16,14 +16,6 @@ open eq sigma sigma.ops pi function equiv is_trunc.trunctype
 namespace is_trunc
   variables {A B : Type} {n : trunc_index}
 
-  definition is_trunc_succ_of_imp_is_trunc_succ (H : A → is_trunc (n.+1) A) : is_trunc (n.+1) A :=
-  @is_trunc_succ_intro _ _ (λx y, @is_trunc_eq _ _ (H x) x y)
-
-  definition is_trunc_of_imp_is_trunc_of_leq (Hn : -1 ≤ n) (H : A → is_trunc n A) : is_trunc n A :=
-  trunc_index.rec_on n (λHn H, empty.rec _ Hn)
-                       (λn IH Hn, is_trunc_succ_of_imp_is_trunc_succ)
-                       Hn H
-
   /- theorems about trunctype -/
   protected definition trunctype.sigma_char.{l} (n : trunc_index) :
     (trunctype.{l} n) ≃ (Σ (A : Type.{l}), is_trunc n A) :=
@@ -227,7 +219,7 @@ namespace trunc
   begin
     revert A m H, eapply (trunc_index.rec_on n),
     { clear n, intro A m H, apply is_contr_equiv_closed,
-      { apply equiv_trunc, apply (@is_trunc_of_leq _ -2), exact unit.star} },
+      { apply equiv.symm, apply trunc_equiv, apply (@is_trunc_of_leq _ -2), exact unit.star} },
     { clear n, intro n IH A m H, induction m with m,
       { apply (@is_trunc_of_leq _ -2), exact unit.star},
       { apply is_trunc_succ_intro, intro aa aa',
@@ -237,6 +229,12 @@ namespace trunc
         { apply tr_eq_tr_equiv},
         { exact (IH _ _ _)}}}
   end
+
+  open equiv.ops
+  definition unique_choice {P : A → Type} [H : Πa, is_hprop (P a)] (f : Πa, ∥ P a ∥) (a : A)
+    : P a :=
+  !trunc_equiv (f a)
+
 
 end trunc open trunc
 

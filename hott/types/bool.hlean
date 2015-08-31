@@ -13,7 +13,7 @@ namespace bool
   definition ff_ne_tt : ff = tt → empty
   | [none]
 
-  definition is_equiv_bnot [instance] [priority 500] : is_equiv bnot :=
+  definition is_equiv_bnot [constructor] [instance] [priority 500] : is_equiv bnot :=
   begin
     fapply is_equiv.mk,
       exact bnot,
@@ -21,7 +21,11 @@ namespace bool
 --      all_goals (focus (intro b;cases b;all_goals reflexivity)),
   end
 
-  definition equiv_bnot : bool ≃ bool := equiv.mk bnot _
+  definition bnot_ne : Π(b : bool), bnot b ≠ b
+  | bnot_ne tt := ff_ne_tt
+  | bnot_ne ff := ne.symm ff_ne_tt
+
+  definition equiv_bnot [constructor] : bool ≃ bool := equiv.mk bnot _
   definition eq_bnot    : bool = bool := ua equiv_bnot
 
   definition eq_bnot_ne_idp : eq_bnot ≠ idp :=
@@ -29,9 +33,6 @@ namespace bool
   assert H2 : bnot = id, from !cast_ua_fn⁻¹ ⬝ ap cast H,
   absurd (ap10 H2 tt) ff_ne_tt
 
-  definition not_is_hset_type : ¬is_hset Type₀ :=
-  assume H : is_hset Type₀,
-  absurd !is_hset.elim eq_bnot_ne_idp
 
   definition bool_equiv_option_unit : bool ≃ option unit :=
   begin

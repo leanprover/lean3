@@ -20,7 +20,7 @@
     "using" "namespace" "section" "fields" "find_decl"
     "attribute" "local" "set_option" "extends" "include" "omit" "classes"
     "instances" "coercions" "metaclasses" "raw" "migrate" "replacing"
-    "calc" "have" "show" "suffices" "by" "in" "at" "let" "forall" "fun"
+    "calc" "have" "show" "suffices" "by" "in" "at" "let" "forall" "Pi" "fun"
     "exists" "if" "dif" "then" "else" "assume" "assert" "take"
     "obtain" "from")
   "lean keywords ending with 'word' (not symbol)")
@@ -160,7 +160,7 @@
                 "refine" "repeat" "whnf" "rotate" "rotate_left" "rotate_right" "inversion" "cases" "rewrite"
                 "xrewrite" "krewrite" "simp" "esimp" "unfold" "change" "check_expr" "contradiction"
                 "exfalso" "split" "existsi" "constructor" "fconstructor" "left" "right" "injection" "congruence" "reflexivity"
-                "symmetry" "transitivity" "state" "induction" "induction_using"
+                "symmetry" "transitivity" "state" "induction" "induction_using" "fail" "append"
                 "substvars" "now" "with_options"))
            word-end)
       (1 'font-lock-constant-face))

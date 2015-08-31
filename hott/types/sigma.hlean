@@ -9,7 +9,7 @@ Theorems about sigma-types (dependent sums)
 
 import types.prod
 
-open eq sigma sigma.ops equiv is_equiv function
+open eq sigma sigma.ops equiv is_equiv function is_trunc
 
 namespace sigma
   variables {A A' : Type} {B : A → Type} {B' : A' → Type} {C : Πa, B a → Type}
@@ -17,6 +17,8 @@ namespace sigma
             {a a' a'' : A} {b b₁ b₂ : B a} {b' : B a'} {b'' : B a''} {u v w : Σa, B a}
 
   definition destruct := @sigma.cases_on
+
+  /- Paths in a sigma-type -/
 
   protected definition eta : Π (u : Σa, B a), ⟨u.1 , u.2⟩ = u
   | eta ⟨u₁, u₂⟩ := idp
@@ -33,9 +35,7 @@ namespace sigma
   definition sigma_eq (p : u.1 = v.1) (q : u.2 =[p] v.2) : u = v :=
   by induction u; induction v; exact (dpair_eq_dpair p q)
 
-  /- Projections of paths from a total space -/
-
-  definition eq_pr1 (p : u = v) : u.1 = v.1 :=
+  definition eq_pr1 [unfold 5] (p : u = v) : u.1 = v.1 :=
   ap pr1 p
 
   postfix `..1`:(max+1) := eq_pr1
@@ -162,8 +162,8 @@ namespace sigma
   by induction p; induction bc; reflexivity
 
   /- The special case when the second variable doesn't depend on the first is simpler. -/
-  definition sigma_transport_nondep {B : Type} {C : A → B → Type} (p : a = a') (bc : Σ(b : B), C a b)
-      : p ▸ bc = ⟨bc.1, p ▸ bc.2⟩ :=
+  definition sigma_transport_nondep {B : Type} {C : A → B → Type} (p : a = a')
+    (bc : Σ(b : B), C a b) : p ▸ bc = ⟨bc.1, p ▸ bc.2⟩ :=
   by induction p; induction bc; reflexivity
 
   /- Or if the second variable contains a first component that doesn't depend on the first. -/
@@ -176,7 +176,7 @@ namespace sigma
 
   /- Pathovers -/
 
-  definition eta_pathover (p : a = a') (bc : Σ(b : B a), C a b)
+  definition etao (p : a = a') (bc : Σ(b : B a), C a b)
     : bc =[p] ⟨p ▸ bc.1, p ▸D bc.2⟩ :=
   by induction p; induction bc; apply idpo
 
@@ -187,7 +187,8 @@ namespace sigma
     esimp [apo011] at s, induction s using idp_rec_on, apply idpo
   end
 
-  /- TODO:
+  /-
+    TODO:
     * define the projections from the type u =[p] v
     * show that the uncurried version of sigma_pathover is an equivalence
   -/
@@ -241,7 +242,7 @@ namespace sigma
   -- by induction u; induction v; apply ap_sigma_functor_eq_dpair
 
   /- definition 3.11.9(i): Summing up a contractible family of types does nothing. -/
-  open is_trunc
+
   definition is_equiv_pr1 [instance] (B : A → Type) [H : Π a, is_contr (B a)]
       : is_equiv (@pr1 A B) :=
   adjointify pr1
@@ -340,18 +341,22 @@ namespace sigma
   equiv.mk sigma.coind_unc _
   end
 
-  /- ** Subtypes (sigma types whose second components are hprops) -/
+  /- Subtypes (sigma types whose second components are hprops) -/
+
+  definition subtype [reducible] {A : Type} (P : A → Type) [H : Πa, is_hprop (P a)] :=
+  Σ(a : A), P a
+  notation [parsing-only] `{` binder `|` r:(scoped:1 P, subtype P) `}` := r
 
   /- To prove equality in a subtype, we only need equality of the first component. -/
-  definition subtype_eq [H : Πa, is_hprop (B a)] (u v : Σa, B a) : u.1 = v.1 → u = v :=
+  definition subtype_eq [H : Πa, is_hprop (B a)] (u v : {a | B a}) : u.1 = v.1 → u = v :=
   sigma_eq_unc ∘ inv pr1
 
-  definition is_equiv_subtype_eq [H : Πa, is_hprop (B a)] (u v : Σa, B a)
+  definition is_equiv_subtype_eq [H : Πa, is_hprop (B a)] (u v : {a | B a})
       : is_equiv (subtype_eq u v) :=
   !is_equiv_compose
   local attribute is_equiv_subtype_eq [instance]
 
-  definition equiv_subtype [H : Πa, is_hprop (B a)] (u v : Σa, B a) : (u.1 = v.1) ≃ (u = v) :=
+  definition equiv_subtype [H : Πa, is_hprop (B a)] (u v : {a | B a}) : (u.1 = v.1) ≃ (u = v) :=
   equiv.mk !subtype_eq _
 
   /- truncatedness -/

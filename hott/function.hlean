@@ -26,6 +26,16 @@ structure is_retraction [class] (f : A → B) :=
   (sect : B → A)
   (right_inverse : Π(b : B), f (sect b) = b)
 
+definition is_weakly_constant [class] (f : A → B) (a a' : A) := f a = f a'
+
+structure is_constant [class] (f : A → B) :=
+  (pt : B)
+  (eq : Π(a : A), f a = pt)
+
+structure conditionally_constant [class] (f : A → B) :=
+  (g : ∥A∥ → B)
+  (eq : Π(a : A), f a = g (tr a))
+
 namespace function
 
   attribute is_embedding.elim [instance]
@@ -80,6 +90,39 @@ namespace function
     apply is_trunc_equiv_closed,
     exact H,
   end
+
+  -- definition is_hprop_is_split_surjective [instance] (f : A → B) : is_hprop (is_split_surjective f) :=
+  -- begin
+  --   have H : (Π(b : B), fiber f b) ≃ is_split_surjective f,
+  --   begin
+  --     fapply equiv.MK,
+  --       {exact is_split_surjective.mk},
+  --       {intro h, cases h, exact elim},
+  --       {intro h, cases h, apply idp},
+  --       {intro p, apply idp},
+  --   end,
+  --   apply is_trunc_equiv_closed,
+  --   exact H,
+  --   apply is_trunc_pi, intro b,
+  --   apply is_trunc_equiv_closed_rev,
+  --   apply fiber.sigma_char,
+  -- end
+
+  -- definition is_hprop_is_retraction [instance] (f : A → B) : is_hprop (is_retraction f) :=
+  -- begin
+  --   have H : (Σ(g : B → A), Πb, f (g b) = b) ≃ is_retraction f,
+  --   begin
+  --     fapply equiv.MK,
+  --       {intro x, induction x with g p, constructor, exact p},
+  --       {intro h, induction h, apply sigma.mk, assumption},
+  --       {intro h, induction h, reflexivity},
+  --       {intro x, induction x, reflexivity},
+  --   end,
+  --   apply is_trunc_equiv_closed,
+  --   exact H,
+  --   apply is_trunc_of_imp_is_trunc, intro x, induction x with g p,
+  --   apply is_contr_right_inverse
+  -- end
 
   definition is_embedding_of_is_equiv [instance] (f : A → B) [H : is_equiv f] : is_embedding f :=
   is_embedding.mk _

@@ -143,6 +143,16 @@ namespace is_trunc
            @is_trunc_succ_intro A m (λx y, IHm n (x = y) (trunc_index.le_of_succ_le_succ Hnm) _)),
   trunc_index.rec_on m base step n A Hnm Hn
 
+  definition is_trunc_of_imp_is_trunc {n : trunc_index} (H : A → is_trunc (n.+1) A)
+    : is_trunc (n.+1) A :=
+  @is_trunc_succ_intro _ _ (λx y, @is_trunc_eq _ _ (H x) x y)
+
+  definition is_trunc_of_imp_is_trunc_of_leq {n : trunc_index} (Hn : -1 ≤ n) (H : A → is_trunc n A)
+    : is_trunc n A :=
+  trunc_index.rec_on n (λHn H, empty.rec _ Hn)
+                       (λn IH Hn, is_trunc_of_imp_is_trunc)
+                       Hn H
+
   -- the following cannot be instances in their current form, because they are looping
   theorem is_trunc_of_is_contr (A : Type) (n : trunc_index) [H : is_contr A] : is_trunc n A :=
   trunc_index.rec_on n H _
@@ -300,11 +310,14 @@ namespace is_trunc
   theorem is_hset.elimo (q q' : c =[p] c₂) [H : is_hset (C a)] : q = q' :=
   !is_hprop.elim
 
-  /- truncatedness of lift -/
-  definition is_trunc_lift [instance] (A : Type) (n : trunc_index) [H : is_trunc n A]
-    : is_trunc n (lift A) :=
-  is_trunc_equiv_closed _ !equiv_lift
-
   -- TODO: port "Truncated morphisms"
 
 end is_trunc
+
+/- truncatedness of lift -/
+namespace lift
+  open is_trunc equiv
+  definition is_trunc_lift [instance] [priority 1450] (A : Type) (n : trunc_index)
+    [H : is_trunc n A] : is_trunc n (lift A) :=
+  is_trunc_equiv_closed _ !equiv_lift
+end lift

@@ -9,10 +9,12 @@ Theorems about products
 
 open eq equiv is_equiv is_trunc prod prod.ops unit equiv.ops
 
-variables {A A' B B' C D : Type}
+variables {A A' B B' C D : Type} {P Q : A → Type}
           {a a' a'' : A} {b b₁ b₂ b' b'' : B} {u v w : A × B}
 
 namespace prod
+
+  /- Paths in a product space -/
 
   protected definition eta (u : A × B) : (pr₁ u, pr₂ u) = u :=
   by cases u; apply idp
@@ -22,8 +24,6 @@ namespace prod
 
   definition prod_eq [unfold 3 4 5 6] (H₁ : u.1 = v.1) (H₂ : u.2 = v.2) : u = v :=
   by cases u; cases v; exact pair_eq H₁ H₂
-
-  /- Projections of paths from a total space -/
 
   definition eq_pr1 (p : u = v) : u.1 = v.1 :=
   ap pr1 p
@@ -50,8 +50,7 @@ namespace prod
   definition prod_eq_eta (p : u = v) : prod_eq (p..1) (p..2) = p :=
   by induction p; induction u; reflexivity
 
-  /- the uncurried version of prod_eq. We will prove that this is an equivalence -/
-
+  -- the uncurried version of prod_eq. We will prove that this is an equivalence
   definition prod_eq_unc (H : u.1 = v.1 × u.2 = v.2) : u = v :=
   by cases H with H₁ H₂;exact prod_eq H₁ H₂
 
@@ -68,21 +67,40 @@ namespace prod
   definition prod_eq_unc_eta (p : u = v) : prod_eq_unc (p..1, p..2) = p :=
   prod_eq_eta p
 
-  definition is_equiv_prod_eq [instance] (u v : A × B)
+  definition is_equiv_prod_eq [instance] [constructor] (u v : A × B)
     : is_equiv (prod_eq_unc : u.1 = v.1 × u.2 = v.2 → u = v) :=
   adjointify prod_eq_unc
              (λp, (p..1, p..2))
              prod_eq_unc_eta
              pair_prod_eq_unc
 
-  definition prod_eq_equiv (u v : A × B) : (u = v) ≃ (u.1 = v.1 × u.2 = v.2) :=
+  definition prod_eq_equiv [constructor] (u v : A × B) : (u = v) ≃ (u.1 = v.1 × u.2 = v.2) :=
   (equiv.mk prod_eq_unc _)⁻¹ᵉ
 
   /- Transport -/
 
-  definition prod_transport {P Q : A → Type} {a a' : A} (p : a = a') (u : P a × Q a)
+  definition prod_transport (p : a = a') (u : P a × Q a)
     : p ▸ u = (p ▸ u.1, p ▸ u.2) :=
   by induction p; induction u; reflexivity
+
+  /- Pathovers -/
+
+  definition etao (p : a = a') (bc : P a × Q a) : bc =[p] (p ▸ bc.1, p ▸ bc.2) :=
+  by induction p; induction bc; apply idpo
+
+  definition prod_pathover (p : a = a') (u : P a × Q a) (v : P a' × Q a')
+    (r : u.1 =[p] v.1) (s : u.2 =[p] v.2) : u =[p] v :=
+  begin
+    induction u, induction v, esimp at *, induction r,
+    induction s using idp_rec_on,
+    apply idpo
+  end
+
+  /-
+    TODO:
+    * define the projections from the type u =[p] v
+    * show that the uncurried version of prod_pathover is an equivalence
+  -/
 
   /- Functorial action -/
 
@@ -96,7 +114,7 @@ namespace prod
 
   /- Equivalences -/
 
-  definition is_equiv_prod_functor [instance] [H : is_equiv f] [H : is_equiv g]
+  definition is_equiv_prod_functor [instance] [constructor] [H : is_equiv f] [H : is_equiv g]
     : is_equiv (prod_functor f g) :=
   begin
     apply adjointify _ (prod_functor f⁻¹ g⁻¹),
@@ -104,33 +122,34 @@ namespace prod
       intro u, induction u, rewrite [▸*,left_inv f,left_inv g],
   end
 
-  definition prod_equiv_prod_of_is_equiv [H : is_equiv f] [H : is_equiv g]
+  definition prod_equiv_prod_of_is_equiv [constructor] [H : is_equiv f] [H : is_equiv g]
     : A × B ≃ A' × B' :=
   equiv.mk (prod_functor f g) _
 
-  definition prod_equiv_prod (f : A ≃ A') (g : B ≃ B') : A × B ≃ A' × B' :=
+  definition prod_equiv_prod [constructor] (f : A ≃ A') (g : B ≃ B') : A × B ≃ A' × B' :=
   equiv.mk (prod_functor f g) _
 
-  definition prod_equiv_prod_left (g : B ≃ B') : A × B ≃ A × B' :=
+  definition prod_equiv_prod_left [constructor] (g : B ≃ B') : A × B ≃ A × B' :=
   prod_equiv_prod equiv.refl g
 
-  definition prod_equiv_prod_right (f : A ≃ A') : A × B ≃ A' × B :=
+  definition prod_equiv_prod_right [constructor] (f : A ≃ A') : A × B ≃ A' × B :=
   prod_equiv_prod f equiv.refl
 
   /- Symmetry -/
 
-  definition is_equiv_flip [instance] (A B : Type) : is_equiv (@flip A B) :=
+  definition is_equiv_flip [instance] [constructor] (A B : Type)
+    : is_equiv (flip : A × B → B × A) :=
   adjointify flip
              flip
              (λu, destruct u (λb a, idp))
              (λu, destruct u (λa b, idp))
 
-  definition prod_comm_equiv (A B : Type) : A × B ≃ B × A :=
+  definition prod_comm_equiv [constructor] (A B : Type) : A × B ≃ B × A :=
   equiv.mk flip _
 
   /- Associativity -/
 
-  definition prod_assoc_equiv (A B C : Type) : A × (B × C) ≃ (A × B) × C :=
+  definition prod_assoc_equiv [constructor] (A B C : Type) : A × (B × C) ≃ (A × B) × C :=
   begin
     fapply equiv.MK,
     { intro z, induction z with a z, induction z with b c, exact (a, b, c)},
@@ -139,24 +158,24 @@ namespace prod
     { intro z, induction z with a z, induction z with b c, reflexivity},
   end
 
-  definition prod_contr_equiv (A B : Type) [H : is_contr B] : A × B ≃ A :=
+  definition prod_contr_equiv [constructor] (A B : Type) [H : is_contr B] : A × B ≃ A :=
   equiv.MK pr1
            (λx, (x, !center))
            (λx, idp)
            (λx, by cases x with a b; exact pair_eq idp !center_eq)
 
-  definition prod_unit_equiv (A : Type) : A × unit ≃ A :=
+  definition prod_unit_equiv [constructor] (A : Type) : A × unit ≃ A :=
   !prod_contr_equiv
 
   /- Universal mapping properties -/
-  definition is_equiv_prod_rec [instance] (P : A × B → Type)
+  definition is_equiv_prod_rec [instance] [constructor] (P : A × B → Type)
     : is_equiv (prod.rec : (Πa b, P (a, b)) → Πu, P u) :=
   adjointify _
              (λg a b, g (a, b))
              (λg, eq_of_homotopy (λu, by induction u;reflexivity))
              (λf, idp)
 
-  definition equiv_prod_rec (P : A × B → Type) : (Πa b, P (a, b)) ≃ (Πu, P u) :=
+  definition equiv_prod_rec [constructor] (P : A × B → Type) : (Πa b, P (a, b)) ≃ (Πu, P u) :=
   equiv.mk prod.rec _
 
   definition imp_imp_equiv_prod_imp (A B C : Type) : (A → B → C) ≃ (A × B → C) :=
@@ -166,17 +185,19 @@ namespace prod
     : P a × Q a :=
   (u.1 a, u.2 a)
 
-  definition is_equiv_prod_corec (P Q : A → Type)
+  definition is_equiv_prod_corec [constructor] (P Q : A → Type)
     : is_equiv (prod_corec_unc : (Πa, P a) × (Πa, Q a) → Πa, P a × Q a) :=
   adjointify _
              (λg, (λa, (g a).1, λa, (g a).2))
              (by intro g; apply eq_of_homotopy; intro a; esimp; induction (g a); reflexivity)
              (by intro h; induction h with f g; reflexivity)
 
-  definition equiv_prod_corec (P Q : A → Type) : ((Πa, P a) × (Πa, Q a)) ≃ (Πa, P a × Q a) :=
+  definition equiv_prod_corec [constructor] (P Q : A → Type)
+    : ((Πa, P a) × (Πa, Q a)) ≃ (Πa, P a × Q a) :=
   equiv.mk _ !is_equiv_prod_corec
 
-  definition imp_prod_imp_equiv_imp_prod (A B C : Type) : (A → B) × (A → C) ≃ (A → (B × C)) :=
+  definition imp_prod_imp_equiv_imp_prod [constructor] (A B C : Type)
+    : (A → B) × (A → C) ≃ (A → (B × C)) :=
   !equiv_prod_corec
 
   definition is_trunc_prod (A B : Type) (n : trunc_index) [HA : is_trunc n A] [HB : is_trunc n B]

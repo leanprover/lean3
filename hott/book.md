@@ -17,13 +17,13 @@ The rows indicate the chapters, the columns the sections.
 |-------|---|---|---|---|---|---|---|---|---|----|----|----|----|----|----|
 | Ch 1  | . | . | . | . | + | + | + | + | + | .  | +  | +  |    |    |    |
 | Ch 2  | + | + | + | + | . | + | + | + | + | +  | +  | +  | +  | +  | +  |
-| Ch 3  | + | - | + | + | ½ | + | + | - | ½ | .  | +  |    |    |    |    |
+| Ch 3  | + | + | + | + | ½ | + | + | - | + | .  | +  |    |    |    |    |
 | Ch 4  | - | + | - | + | . | + | - | - | + |    |    |    |    |    |    |
 | Ch 5  | - | . | - | - | - | . | . | ½ |   |    |    |    |    |    |    |
 | Ch 6  | . | + | + | + | + | ½ | ½ | ¼ | ¼ | ¼  | ¾  | -  | .  |    |    |
 | Ch 7  | + | + | + | - | - | - | - |   |   |    |    |    |    |    |    |
 | Ch 8  | ¾ | - | - | - | - | - | - | - | - | -  |    |    |    |    |    |
-| Ch 9  | ¾ | + | ¼ | ¼ | ½ | ½ | - | - | - |    |    |    |    |    |    |
+| Ch 9  | ¾ | + | + | ¼ | ½ | ½ | - | - | - |    |    |    |    |    |    |
 | Ch 10 | - | - | - | - | - |   |   |   |   |    |    |    |    |    |    |
 | Ch 11 | - | - | - | - | - | - |   |   |   |    |    |    |    |    |    |
 
@@ -69,15 +69,15 @@ Chapter 2: Homotopy type theory
 Chapter 3: Sets and logic
 ---------
 
-- 3.1 (Sets and n-types): [init.trunc](init/trunc.hlean)
-- 3.2 (Propositions as types?): not formalized
+- 3.1 (Sets and n-types): [init.trunc](init/trunc.hlean). Example 3.1.9 in [types.univ](types/univ.hlean)
+- 3.2 (Propositions as types?): [types.univ](types/univ.hlean)
 - 3.3 (Mere propositions): [init.trunc](init/trunc.hlean) and [hprop_trunc](hprop_trunc.hlean) (Lemma 3.3.5).
 - 3.4 (Classical vs. intuitionistic logic): decidable is defined in [init.logic](init/logic.hlean)
 - 3.5 (Subsets and propositional resizing): Lemma 3.5.1 is subtype_eq in [types.sigma](types/sigma.hlean), we don't have propositional resizing as axiom yet.
 - 3.6 (The logic of mere propositions): in the corresponding file in the [types](types/types.md) folder. (is_trunc_prod is defined in [types.sigma](types/sigma.hlean))
 - 3.7 (Propositional truncation): [init.hit](init/hit.hlean) and [hit.trunc](hit/trunc.hlean)
 - 3.8 (The axiom of choice): not formalized
-- 3.9 (The principle of unique choice): Lemma 9.3.1 is equiv_trunc in [hit.trunc](hit/trunc.hlean), Lemma 9.3.2 is not formalized
+- 3.9 (The principle of unique choice): Lemma 9.3.1 in [hit.trunc](hit/trunc.hlean), Lemma 9.3.2 in [types.trunc](types/trunc.hlean)
 - 3.10 (When are propositions truncated?): no formalizable content
 - 3.11 (Contractibility): [init.trunc](init/trunc.hlean) (mostly), [types.pi](types/pi.hlean) (Lemma 3.11.6), [types.trunc](types/trunc.hlean) (Lemma 3.11.7), [types.sigma](types/sigma.hlean) (Lemma 3.11.9) 
 
@@ -155,7 +155,7 @@ Every file is in the folder [algebra.category](algebra/category/category.md)
 
 - 9.1 (Categories and precategories): [precategory](algebra/category/precategory.hlean), [iso](algebra/category/iso.hlean), [category](algebra/category/category.hlean), [groupoid](algebra/category/groupoid.hlean) (mostly)
 - 9.2 (Functors and transformations): [functor](algebra/category/functor.hlean), [nat_trans](algebra/category/nat_trans.hlean), [constructions.functor](algebra/category/constructions/functor.hlean)
-- 9.3 (Adjunctions): [adjoint](algebra/category/adjoint.hlean) (only definition)
+- 9.3 (Adjunctions): [adjoint](algebra/category/adjoint.hlean)
 - 9.4 (Equivalences): [adjoint](algebra/category/adjoint.hlean) (only definitions)
 - 9.5 (The Yoneda lemma): [constructions.opposite](algebra/category/constructions/opposite.hlean), [constructions.product](algebra/category/constructions/product.hlean), [yoneda](algebra/category/yoneda.hlean) (up to definition of Yoneda embedding)
 - 9.6 (Strict categories): [strict](algebra/category/strict.hlean) (only definition)
