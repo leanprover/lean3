@@ -3,42 +3,13 @@ Copyright (c) 2015 Ulrik Buchholtz. All rights reserved.
 Released under Apache 2.0 license as described in the file LICENSE.
 Authors: Ulrik Buchholtz
 -/
-import types.trunc
+import types.trunc types.arrow_2 types.fiber
 
 open eq is_trunc is_equiv nat equiv trunc function
 
--- TODO(Ulrik) move this to somewhere else (cannot be sigma b/c dep. on fiber)
-namespace sigma
-  variables {A : Type} {P Q : A → Type}
-
-  definition total [reducible] (f : Πa, P a → Q a) : (Σa, P a) → (Σa, Q a) :=
-  sigma.rec (λa p, ⟨a , f a p⟩)
-
-  -- Theorem 4.7.6
-  --definition fiber_total_equiv (f : Πa, P a → Q a) {a : A} (q : Q a)
-  --  : fiber (total f) ⟨a , q⟩ ≃ fiber (f a) q :=
-  --sorry
-
-end sigma
-
--- TODO(Ulrik) move this to somewhere else (cannot be unit b/c dep. on fiber)
-namespace unit
-
-  definition fiber_star_equiv (A : Type) : fiber (λx : A, star) star ≃ A :=
-  begin
-    fapply equiv.MK,
-    { intro f, cases f with a H, exact a },
-    { intro a, apply fiber.mk a, reflexivity },
-    { intro a, reflexivity },
-    { intro f, cases f with a H, change fiber.mk a (refl star) = fiber.mk a H,
-      rewrite [is_hset.elim H (refl star)] }
-  end
-
-end unit
-
 namespace homotopy
 
-  definition is_conn (n : trunc_index) (A : Type) : Type :=
+  definition is_conn [reducible] (n : trunc_index) (A : Type) : Type :=
   is_contr (trunc n A)
 
   definition is_conn_map (n : trunc_index) {A B : Type} (f : A → B) : Type :=
@@ -48,7 +19,7 @@ namespace homotopy
     : is_conn_map n (λx : A, unit.star) → is_conn n A :=
   begin
     intro H, unfold is_conn_map at H,
-    rewrite [-(ua (unit.fiber_star_equiv A))],
+    rewrite [-(ua (fiber.fiber_star_equiv A))],
     exact (H unit.star)
   end
 
@@ -67,10 +38,31 @@ namespace homotopy
     exact @center (∥fiber f b∥) (H b),
   end
 
-  definition merely_of_minus_one_conn {A : Type} : is_conn -1 A → ∥ A ∥ :=
+  definition merely_of_minus_one_conn {A : Type} : is_conn -1 A → ∥A∥ :=
   λH, @center (∥A∥) H
 
   definition minus_one_conn_of_merely {A : Type} : ∥A∥ → is_conn -1 A :=
   @is_contr_of_inhabited_hprop (∥A∥) (is_trunc_trunc -1 A)
+
+  section
+    open arrow
+
+    variables {f g : arrow}
+
+    -- Lemma 7.5.4
+    definition retract_of_conn_is_conn [instance] (r : arrow_hom f g) [H : is_retraction r]
+      (n : trunc_index) [K : is_conn_map n f] : is_conn_map n g :=
+    begin
+      intro b, unfold is_conn,
+      apply is_contr_retract (trunc_functor n (retraction_on_fiber r b)),
+      exact K (on_cod (arrow.is_retraction.sect r) b)
+    end
+
+  end
+
+  -- Corollary 7.5.5
+  definition is_conn_homotopy (n : trunc_index) {A B : Type} {f g : A → B}
+    (p : f ~ g) (H : is_conn_map n f) : is_conn_map n g :=
+  @retract_of_conn_is_conn _ _ (arrow.arrow_hom_of_homotopy p) (arrow.is_retraction_arrow_hom_of_homotopy p) n H 
 
 end homotopy

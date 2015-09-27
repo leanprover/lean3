@@ -44,3 +44,65 @@ namespace fiber
   to_inv !fiber_eq_equiv ⟨p, q⟩
 
 end fiber
+
+open unit is_trunc
+
+namespace fiber
+
+  definition fiber_star_equiv (A : Type) : fiber (λx : A, star) star ≃ A :=
+  begin
+    fapply equiv.MK,
+    { intro f, cases f with a H, exact a },
+    { intro a, apply fiber.mk a, reflexivity },
+    { intro a, reflexivity },
+    { intro f, cases f with a H, change fiber.mk a (refl star) = fiber.mk a H,
+      rewrite [is_hset.elim H (refl star)] }
+  end
+
+end fiber
+
+open function is_equiv
+
+namespace fiber
+  /- Theorem 4.7.6 -/
+  variables {A : Type} {P Q : A → Type}
+  variable (f : Πa, P a → Q a)
+
+  /- Note that the map on total spaces/sigmas is just sigma_functor id -/
+  definition fiber_total_equiv {a : A} (q : Q a)
+    : fiber (sigma_functor id f) ⟨a , q⟩ ≃ fiber (f a) q :=
+  calc
+    fiber (sigma_functor id f) ⟨a , q⟩
+          ≃ Σ(w : Σx, P x), ⟨w.1 , f w.1 w.2 ⟩ = ⟨a , q⟩
+            : sigma_char
+      ... ≃ Σ(x : A), Σ(p : P x), ⟨x , f x p⟩ = ⟨a , q⟩
+            : sigma_assoc_equiv
+      ... ≃ Σ(x : A), Σ(p : P x), Σ(H : x = a), f x p =[H] q
+            :
+            begin
+              apply sigma_equiv_sigma_id, intro x,
+              apply sigma_equiv_sigma_id, intro p,
+              apply sigma_eq_equiv
+            end
+      ... ≃ Σ(x : A), Σ(H : x = a), Σ(p : P x), f x p =[H] q
+            :
+            begin
+              apply sigma_equiv_sigma_id, intro x,
+              apply sigma_comm_equiv
+            end
+      ... ≃ Σ(w : Σx, x = a), Σ(p : P w.1), f w.1 p =[w.2] q
+            : sigma_assoc_equiv
+      ... ≃ Σ(p : P (center (Σx, x=a)).1), f (center (Σx, x=a)).1 p =[(center (Σx, x=a)).2] q
+            : sigma_equiv_of_is_contr_left
+      ... ≃ Σ(p : P a), f a p =[idpath a] q
+            : equiv_of_eq idp
+      ... ≃ Σ(p : P a), f a p = q
+            :
+            begin
+              apply sigma_equiv_sigma_id, intro p,
+              apply pathover_idp
+            end
+      ... ≃ fiber (f a) q
+            : sigma_char
+
+end fiber
