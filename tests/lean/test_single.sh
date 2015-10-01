@@ -25,7 +25,7 @@ echo "-- testing $f"
 sed "/warning: imported file uses 'sorry'/d" "$f.produced.out.1" | sed "/warning: using 'sorry'/d" > "$f.produced.out"
 rm -f "$f.produced.out.1"
 if test -f "$f.expected.out"; then
-    if diff --ignore-all-space -I "executing external script" "$f.produced.out" "$f.expected.out"; then
+    if diff -I "executing external script" "$f.produced.out" "$f.expected.out"; then
         echo "-- checked"
         exit 0
     else
@@ -36,7 +36,7 @@ if test -f "$f.expected.out"; then
                 echo "-- mismath was fixed"
             fi
         else
-            diff --ignore-all-space -I "executing external script" "$f.produced.out" "$f.expected.out"
+            diff -I "executing external script" "$f.produced.out" "$f.expected.out"
         fi
         exit 1
     fi
