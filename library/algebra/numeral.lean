@@ -18,6 +18,13 @@ add a a
 definition bit1 [s₁ : has_add A] [s₂ : has_one A] (a : A) : A :=
 add (add a a) one
 
--- variables [s : ring A]
--- set_option pp.all true
+ variables [s : ring A]
+ include s
+ --set_option pp.all true
 -- check bit1 (bit0 (one : A))
+
+--example : (one : A) = (one : A) := begin norm_num end
+
+--example : bit1 (one : A) = (one : A) := begin norm_num end
+
+example : bit1 (bit0 (one : A)) = (one : A) := begin norm_num end
