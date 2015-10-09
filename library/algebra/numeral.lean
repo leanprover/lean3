@@ -3,14 +3,8 @@ open algebra
 
 variable {A : Type}
 
-/-structure add_numeral_struct [class] (A : Type) extends has_add A :=
-  (add_comm : ∀ a b : A, add a b = add b a)
-  (add_assoc : ∀ a b c : A, add (add a b) c = add a (add b c))-/
-
 structure add_num_struct [class] (A : Type) extends comm_ring A
 
-definition b [class] (A : Type) := A
---open add_numeral_struct
 definition zero [s : add_num_struct A] : A :=
 has_zero.zero A
 
@@ -24,10 +18,10 @@ definition add1 [s : add_num_struct A] : A → A :=
 λ a, a + one
 
 definition bit0 [s : add_num_struct A] (a : A) : A :=
- a + a--add a a
+ a + a
 
 definition bit1 [s₁ : add_num_struct A] (a : A) : A :=
- a + a + one --add (add a a) one
+ a + a + one
 
 theorem add_comm_four [s : add_num_struct A] (a b : A) : a + a + (b + b) = (a + b) + (a + b) :=
   by rewrite [-add.assoc at {1}, add.comm, {a + b}add.comm at {1}, *add.assoc]
@@ -35,7 +29,6 @@ theorem add_comm_four [s : add_num_struct A] (a b : A) : a + a + (b + b) = (a + 
 theorem add_comm_middle [s : add_num_struct A] (a b c : A) : a + b + c = a + c + b := sorry
 
 theorem bit0_add_bit0 [s : add_num_struct A] (a b : A) : bit0 a + bit0 b = bit0 (a + b) :=
---add (bit0 a) (bit0 b) = bit0 (add a b) :=
   !add_comm_four
 
 theorem bit0_add_bit0_helper [s : add_num_struct A] (a b t : A) (H : a + b = t) :
@@ -116,14 +109,3 @@ theorem mk_cong (op : A → A) (a b : A) (H : a = b) : op a = op b :=
   by congruence; exact H
 
 theorem mk_eq (a : A) : a = a := rfl
-
--- variables [s : add_num_struct A]
--- include s
- --set_option pp.all true
--- check bit1 (bit0 (one : A))
-
---example : (one : A) = (one : A) := begin norm_num end
-
---example : bit1 (one : A) = (one : A) := begin norm_num end
-
---example : bit0 (bit0 (one : A)) + bit0 (one : A) = (one : A) := begin norm_num end

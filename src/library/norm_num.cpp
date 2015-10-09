@@ -4,6 +4,7 @@ Released under Apache 2.0 license as described in the file LICENSE.
 
 Author: Robert Y. Lewis
 */
+
 #include "library/norm_num.h"
 namespace lean {
 static name * g_one     = nullptr;
@@ -87,17 +88,10 @@ pair<expr, expr> norm_num_context::mk_norm(expr const & e) {
         throw exception("cannot take norm of nonconstant");
     }
     m_lvls = const_levels(f);
-    //std::cout << "here now " << std::to_string(args.size())  << "\n";
-    //std::cout << " " << const_name(f) << " " << *g_add << "\n";
     if (const_name(f) == *g_add && args.size() == 4) {
-        //std::cout << "we are adding " << args[2] << " and " << args[3] << ". time to normalize.\n";
         auto lhs_p = mk_norm(args[2]);
 	auto rhs_p = mk_norm(args[3]);
-	//std::cout << "normalized lhs and rhs. \n ";
-	//std::cout << " started with " << args[2] << " and " << args[3]<<",\n";
-	//std::cout << " ended with " << lhs_p.first << " and " << rhs_p.first << "\n";
         auto add_p = mk_norm_add(lhs_p.first, rhs_p.first);
-	//std::cout << "adding " << lhs_p.first << " to " << rhs_p.first << " gave " << add_p.first << ".\n";
 	expr prf = mk_app({mk_const(*g_subst_sum), args[0], args[1], args[2], args[3], 
 	                  lhs_p.first, rhs_p.first, add_p.first, lhs_p.second, rhs_p.second, add_p.second});
 	return pair<expr, expr>(add_p.first, prf);
@@ -116,12 +110,8 @@ pair<expr, expr> norm_num_context::mk_norm(expr const & e) {
     // TODO(Rob): cases for mul, sub, div
 }
 
-// returns <t, p> such that p is a proof that lhs + rhs = t. (is that true? symm?)
+// returns <t, p> such that p is a proof that lhs + rhs = t.
 pair<expr, expr> norm_num_context::mk_norm_add(expr const & lhs, expr const & rhs) { 
-    /*buffer<expr> args;
-    expr f_add = get_app_args(e, args);
-    expr lhs = args[2];
-    expr rhs = args[3];*/
     buffer<expr> args_lhs;
     buffer<expr> args_rhs;
     expr lhs_head = get_app_args (lhs, args_lhs);
@@ -133,7 +123,6 @@ pair<expr, expr> norm_num_context::mk_norm_add(expr const & lhs, expr const & rh
     auto typec = args_lhs[1];
     expr rv;
     expr prf;
-    //std::cout << "we are adding " << lhs_head << " to " << rhs_head << ".\n";
     if (is_bit0(lhs_head) && is_bit0(rhs_head)) {
         auto p = mk_norm_add(args_lhs[2], args_rhs[2]);
 	rv = mk_app(lhs_head, type, typec, p.first);
@@ -185,7 +174,6 @@ pair<expr, expr> norm_num_context::mk_norm_add(expr const & lhs, expr const & rh
 }
 
 pair<expr, expr> norm_num_context::mk_norm_add1(expr const & e) {
-    // TODO(Rob)
     buffer<expr> args;
     expr f = get_app_args(e, args);
     expr p = args[2];
