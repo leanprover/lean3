@@ -104,7 +104,6 @@ pair<expr, expr> norm_num_context::mk_norm(expr const & e) {
         return pair<expr, expr>(e, mk_app({mk_const(*g_mk_eq), args[0], e}));
     } else {
         std::cout << "error with name " << const_name(f) << " and size " << args.size() << ".\n";
-	std::cout << "args were " << args[0] << ", " << args[1] << ", " << args[2] << ", " << args[3] << "\n";
         throw exception("mk_norm found unrecognized combo ");
     }
     // TODO(Rob): cases for mul, sub, div
@@ -140,10 +139,11 @@ pair<expr, expr> norm_num_context::mk_norm_add(expr const & lhs, expr const & rh
 	prf = mk_app({mk_const(*g_bit1_add_bit0), type, typec, args_lhs[2], args_rhs[2], p.first, p.second});
     } else if (is_bit1(lhs_head) && is_bit1(rhs_head)) {
         expr f_add = mk_app({mk_const(*g_add), type, typec});
-        expr add1 = mk_app({mk_const(*g_add1), type, typec, mk_app({f_add, type, typec, args_lhs[2], args_rhs[2]})});
+	auto add_ts = mk_norm_add(args_lhs[2], args_rhs[2]);
+        expr add1 = mk_app({mk_const(*g_add1), type, typec, add_ts.first});
 	auto p = mk_norm_add1(add1);
-	rv = mk_app({mk_const(*g_bitzero), type, typec, p.first});
-	prf = mk_app({mk_const(*g_bit1_add_bit1), type, typec, args_lhs[2], args_rhs[2], p.first, p.second});
+        rv = mk_app({mk_const(*g_bitzero), type, typec, p.first});
+	prf = mk_app({mk_const(*g_bit1_add_bit1), type, typec, args_lhs[2], args_rhs[2], add_ts.first, p.first, add_ts.second, p.second});
     } else if (is_bit1(lhs_head) && is_one(rhs_head)) {
         expr add1 = mk_app({mk_const(*g_add1), type, typec, lhs});
 	auto p = mk_norm_add1(add1);
@@ -195,6 +195,7 @@ pair<expr, expr> norm_num_context::mk_norm_add1(expr const & e) {
         rv = mk_app({mk_const(*g_bitzero), args[0], args[1], mk_app({mk_const(*g_one), args[0], args[1]})});
 	prf = mk_app({mk_const(*g_add1_one), args[0], args[1]});
     } else {
+        std::cout << "malformed add1: " << ne << "\n";
         throw exception("malformed add1");
     }
     return pair<expr, expr>(rv, prf);

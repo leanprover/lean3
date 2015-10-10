@@ -56,8 +56,8 @@ theorem bit1_add_bit1 [s : add_num_struct A] (a b : A) : bit1 a + bit1 b = bit0 
     apply sorry
   end
 
-theorem bit1_add_bit1_helper [s : add_num_struct A] (a b t : A) (H : add1 (a + b) = t) : bit1 a + bit1 b = bit0 t :=
-  begin rewrite -H, apply bit1_add_bit1 end
+theorem bit1_add_bit1_helper [s : add_num_struct A] (a b t s: A) (H : (a + b) = t) (H2 : add1 t = s) : bit1 a + bit1 b = bit0 s :=
+  begin rewrite [-H2, -H], apply bit1_add_bit1 end
 
 theorem bin_add_zero [s : add_num_struct A] (a : A) : a + zero = a := !add_zero
 

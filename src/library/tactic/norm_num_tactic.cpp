@@ -6,6 +6,8 @@ Author: Robert Y. Lewis
 */
 #include "kernel/type_checker.h"
 #include "library/util.h"
+#include "library/reducible.h"
+#include "library/normalize.h"
 #include "library/norm_num.h"
 #include "library/tactic/expr_to_tactic.h"
 
@@ -24,6 +26,10 @@ tactic norm_num_tactic() {
                 throw_tactic_exception_if_enabled(s, "norm_num tactic failed, conclusion is not an equality");
                 return none_proof_state();
             }
+	    type_checker_ptr rtc = mk_type_checker(env, UnfoldReducible);
+	    lhs = normalize(*rtc, lhs);
+	    rhs = normalize(*rtc, rhs);
+
             buffer<expr> hyps;
             g.get_hyps(hyps);
             local_context ctx(to_list(hyps));
@@ -36,12 +42,9 @@ tactic norm_num_tactic() {
 		expr new_rhs = p2.first;
 		expr new_rhs_pr = p2.second;
                 if (new_lhs != new_rhs) {
-		    std::cout << "found new lhs: " << new_lhs << "\n";
-		    std::cout << "rhs was: " << rhs << "\n";
-                    throw_tactic_exception_if_enabled(s, "norm_num tactic failed, lhs normal form doesn't match rhs");
+		    throw_tactic_exception_if_enabled(s, "norm_num tactic failed, lhs normal form doesn't match rhs");
                     return none_proof_state();
                 }
-		std::cout << "trying to show that " << new_lhs << " = " << new_rhs << ". \n";
 		type_checker tc(env);
 		expr g_prf = mk_trans(tc, new_lhs_pr, mk_symm(tc, new_rhs_pr));
                 substitution new_subst = s.get_subst();
