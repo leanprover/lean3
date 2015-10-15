@@ -11,11 +11,16 @@ has_zero.zero A
 definition one [s : add_num_struct A] : A :=
 has_one.one A
 
+-- addition
+
 definition add [s : add_num_struct A] : A → A → A :=
 has_add.add
 
 definition add1 [s : add_num_struct A] : A → A :=
 λ a, a + one
+
+definition mul [s : add_num_struct A] : A → A → A :=
+has_mul.mul
 
 definition bit0 [s : add_num_struct A] (a : A) : A :=
  a + a
@@ -103,6 +108,37 @@ theorem one_add_one [s : add_num_struct A] : (one : A) + one = bit0 one :=
 
 theorem subst_into_sum [s : add_num_struct A] (l r tl tr t : A) (prl : l = tl) (prr : r = tr) (prt : tl + tr = t) :
         l + r = t :=
+   by rewrite [prl, prr, prt]
+
+-- multiplication
+
+theorem mul_zero [s : add_num_struct A] (a : A) : a * zero = zero :=
+  by rewrite [↑zero, mul_zero]
+
+--theorem zero_mul [s : add_num_struct A] (a : A) : zero * a = zero :=
+--  by rewrite [↑zero, zero_mul]
+
+theorem mul_one [s : add_num_struct A] (a : A) : a * one = a :=
+  by rewrite [↑one, mul_one]
+
+--theorem one_mul [s : add_num_struct A] (a : A) : one * a = a :=
+--  by rewrite [↑one, one_mul]
+
+theorem mul_bit0 [s : add_num_struct A] (a b : A) : a * (bit0 b) = bit0 (a * b) :=
+  by rewrite [↑bit0, left_distrib]
+
+theorem mul_bit0_helper [s : add_num_struct A] (a b t : A) (H : a * b = t) : a * (bit0 b) = bit0 t :=
+  by rewrite -H; apply mul_bit0
+
+theorem mul_bit1 [s : add_num_struct A] (a b : A) : a * (bit1 b) = bit0 (a * b) + a :=
+  by rewrite [↑bit0, ↑bit1, +left_distrib, ↑one, mul_one]
+
+theorem mul_bit1_helper [s : add_num_struct A] (a b s t : A) (Hs : a * b = s) (Ht : bit0 s + a  = t) :
+        a * (bit1 b) = t :=
+  begin rewrite [-Ht, -Hs, mul_bit1] end
+
+theorem subst_into_prod [s : add_num_struct A] (l r tl tr t : A) (prl : l = tl) (prr : r = tr) (prt : tl * tr = t) :
+        l * r = t :=
    by rewrite [prl, prr, prt]
 
 theorem mk_cong (op : A → A) (a b : A) (H : a = b) : op a = op b :=

@@ -7,34 +7,39 @@ Author: Robert Y. Lewis
 
 #include "library/norm_num.h"
 namespace lean {
-static name * g_one     = nullptr;
-static name * g_zero    = nullptr;
-static name * g_bitone  = nullptr;
-static name * g_bitzero = nullptr;
-static name * g_add     = nullptr;
-static name * g_add1    = nullptr;
-static name * g_mul     = nullptr;
-static name * g_div     = nullptr;
-static name * g_sub     = nullptr;
-static name * g_bit0_add_bit0 = nullptr;
-static name * g_bit1_add_bit0 = nullptr;
-static name * g_bit0_add_bit1 = nullptr;
-static name * g_bit1_add_bit1 = nullptr;
-static name * g_bin_add_0     = nullptr;
-static name * g_bin_0_add     = nullptr;
-static name * g_bin_add_1     = nullptr;
-static name * g_1_add_bit0    = nullptr;
-static name * g_bit0_add_1    = nullptr;
-static name * g_bit1_add_1    = nullptr;
-static name * g_1_add_bit1    = nullptr;
-static name * g_one_add_one   = nullptr;
-static name * g_add1_bit0     = nullptr;
-static name * g_add1_bit1     = nullptr;
-static name * g_add1_zero     = nullptr;
-static name * g_add1_one      = nullptr;
-static name * g_subst_sum     = nullptr;
-static name * g_mk_cong       = nullptr;
-static name * g_mk_eq         = nullptr;
+  static name * g_one     = nullptr,
+              * g_zero    = nullptr,
+              * g_bitone  = nullptr,
+              * g_bitzero = nullptr,
+              * g_add     = nullptr,
+              * g_add1    = nullptr,
+              * g_mul     = nullptr,
+              * g_div     = nullptr,
+              * g_sub     = nullptr,
+              * g_bit0_add_bit0 = nullptr,
+              * g_bit1_add_bit0 = nullptr,
+              * g_bit0_add_bit1 = nullptr,
+              * g_bit1_add_bit1 = nullptr,
+              * g_bin_add_0     = nullptr,
+              * g_bin_0_add     = nullptr,
+              * g_bin_add_1     = nullptr,
+              * g_1_add_bit0    = nullptr,
+              * g_bit0_add_1    = nullptr,
+              * g_bit1_add_1    = nullptr,
+              * g_1_add_bit1    = nullptr,
+              * g_one_add_one   = nullptr,
+              * g_add1_bit0     = nullptr,
+              * g_add1_bit1     = nullptr,
+              * g_add1_zero     = nullptr,
+              * g_add1_one      = nullptr,
+              * g_subst_sum     = nullptr,
+              * g_subst_prod    = nullptr,
+              * g_mk_cong       = nullptr,
+              * g_mk_eq         = nullptr,
+              * g_mul_zero      = nullptr,
+              * g_mul_one       = nullptr,
+              * g_mul_bit0      = nullptr,
+              * g_mul_bit1      = nullptr;
 
 static bool is_numeral_aux(expr const & e, bool is_first) {
     buffer<expr> args;
@@ -95,6 +100,13 @@ pair<expr, expr> norm_num_context::mk_norm(expr const & e) {
 	expr prf = mk_app({mk_const(*g_subst_sum), args[0], args[1], args[2], args[3], 
 	                  lhs_p.first, rhs_p.first, add_p.first, lhs_p.second, rhs_p.second, add_p.second});
 	return pair<expr, expr>(add_p.first, prf);
+    } else if (const_name(f) == *g_mul && args.size() == 4) {
+        auto lhs_p = mk_norm(args[2]);
+	auto rhs_p = mk_norm(args[3]);
+        auto mul_p = mk_norm_mul(lhs_p.first, rhs_p.first);
+	expr prf = mk_app({mk_const(*g_subst_prod), args[0], args[1], args[2], args[3], 
+	                  lhs_p.first, rhs_p.first, mul_p.first, lhs_p.second, rhs_p.second, mul_p.second});
+	return pair<expr, expr>(mul_p.first, prf);
     } else if ((const_name(f) == *g_bitzero || const_name(f) == *g_bitone) && args.size() == 3) {
         auto arg = mk_norm(args[2]);
 	expr rv = mk_app({f, args[0], args[1], arg.first});
@@ -201,9 +213,38 @@ pair<expr, expr> norm_num_context::mk_norm_add1(expr const & e) {
     return pair<expr, expr>(rv, prf);
 }
 
-pair<expr, expr> norm_num_context::mk_norm_mul(expr const &, expr const &) {
-    // TODO(Rob)
-    throw exception("not implemented yet -- mk_norm_mul");
+pair<expr, expr> norm_num_context::mk_norm_mul(expr const & lhs, expr const & rhs) {
+    buffer<expr> args_lhs;
+    buffer<expr> args_rhs;
+    expr lhs_head = get_app_args (lhs, args_lhs);
+    expr rhs_head = get_app_args (rhs, args_rhs);
+    if (!is_constant(lhs_head) || !is_constant(rhs_head)) {
+        throw exception("cannot take norm_add of nonconstant");
+    }
+    auto type = args_lhs[0];
+    auto typec = args_lhs[1];
+    expr rv;
+    expr prf;
+    if (is_zero(rhs_head)) {
+        rv = rhs;
+        prf = mk_app({mk_const(*g_mul_zero), type, typec, lhs});
+    } else if (is_one(rhs_head)) {
+        rv = lhs;
+        prf = mk_app({mk_const(*g_mul_one), type, typec, lhs});
+    } else if (is_bit0(rhs_head)) {
+        auto mtp = mk_norm_mul(lhs, args_rhs[2]);
+        rv = mk_app({mk_const(*g_bitzero), type, typec, mtp.first});
+        prf = mk_app({mk_const(*g_mul_bit0), type, typec, lhs, args_rhs[2], mtp.first, mtp.second});
+    } else if (is_bit1(rhs_head)) {
+        auto mtp = mk_norm_mul(lhs, args_rhs[2]);
+        auto atp = mk_norm_add(mk_app({mk_const(*g_bitzero), type, typec, mtp.first}), lhs);
+	rv = atp.first;
+	prf = mk_app({mk_const(*g_mul_bit1), type, typec, lhs, args_rhs[2],
+	      mtp.first, atp.first, mtp.second, atp.second});
+    } else {
+      throw exception("mk_norm_mul got malformed args");
+    }
+    return pair<expr, expr>(rv, prf);
 }
 
 pair<expr, expr> norm_num_context::mk_norm_div(expr const &, expr const &) {
@@ -243,8 +284,13 @@ void initialize_norm_num() {
   g_add1_zero     = new name("add1_zero");
   g_add1_one      = new name("add1_one");
   g_subst_sum     = new name("subst_into_sum");
+  g_subst_prod    = new name("subst_into_prod");
   g_mk_cong       = new name("mk_cong");
   g_mk_eq         = new name("mk_eq");
+  g_mul_zero      = new name("mul_zero");
+  g_mul_one       = new name("mul_one");
+  g_mul_bit0      = new name("mul_bit0_helper");
+  g_mul_bit1      = new name("mul_bit1_helper");
 }
 
 void finalize_norm_num() {
@@ -274,7 +320,12 @@ void finalize_norm_num() {
   delete g_add1_zero;
   delete g_add1_one;
   delete g_subst_sum;
+  delete g_subst_prod;
   delete g_mk_cong;
   delete g_mk_eq;
+  delete g_mul_zero;
+  delete g_mul_one;
+  delete g_mul_bit0;
+  delete g_mul_bit1;
 }
 }

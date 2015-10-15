@@ -42,6 +42,8 @@ example : of_num 5 = (bit1 (bit0 (one : A))) := by norm_num
 
 definition foo : of_num 45000000000 = add ((of_num 23000000000) : A) (of_num 22000000000) := by norm_num
 
+example : of_num 86326116 = mul (of_num 8741) ((of_num 9876) : A) := by norm_num
+
 -- print foo
 
 
