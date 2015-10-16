@@ -31,6 +31,7 @@ namespace is_trunc
   notation `-2` := trunc_index.minus_two
   notation `-1` := -2.+1 -- ISSUE: -1 gets printed as -2.+1
   export [coercions] nat
+  notation `ℕ₋₂` := trunc_index
 
   namespace trunc_index
   definition add (n m : trunc_index) : trunc_index :=
@@ -308,7 +309,7 @@ namespace is_trunc
   structure trunctype (n : trunc_index) :=
   (carrier : Type) (struct : is_trunc n carrier)
   attribute trunctype.carrier [coercion]
-  attribute trunctype.struct [instance]
+  attribute trunctype.struct [instance] [priority 1400]
 
   notation n `-Type` := trunctype n
   abbreviation hprop := -1-Type

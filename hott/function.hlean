@@ -75,10 +75,21 @@ namespace function
     {intro p, apply is_hset.elim},
     {intro p, apply is_hset.elim}
   end
+
   variable (f)
 
   definition is_hprop_is_embedding [instance] : is_hprop (is_embedding f) :=
   by unfold is_embedding; exact _
+
+  definition is_embedding_equiv_is_injective [HA : is_hset A] [HB : is_hset B]
+    : is_embedding f ≃ (Π(a a' : A), f a = f a' → a = a') :=
+  begin
+  fapply equiv.MK,
+    { apply @is_injective_of_is_embedding},
+    { apply is_embedding_of_is_injective},
+    { intro H, apply is_hprop.elim},
+    { intro H, apply is_hprop.elim, }
+  end
 
   definition is_hprop_fiber_of_is_embedding [H : is_embedding f] (b : B) :
     is_hprop (fiber f b) :=
@@ -225,7 +236,8 @@ namespace function
                     ... = a : left_inverse)
 
   section
-    local attribute is_equiv_of_is_section_of_is_retraction [instance]
+    local attribute is_equiv_of_is_section_of_is_retraction [instance] [priority 10000]
+    local attribute trunctype.struct [priority 1] -- remove after #842 is closed
     variable (f)
     definition is_hprop_is_retraction_prod_is_section : is_hprop (is_retraction f × is_section f) :=
     begin

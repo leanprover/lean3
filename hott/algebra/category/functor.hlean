@@ -124,6 +124,18 @@ namespace functor
     : to_fun_iso F (f ⬝i g) = to_fun_iso F f ⬝i to_fun_iso F g :=
   iso_eq !respect_comp
 
+  definition respect_iso_of_eq (F : C ⇒ D) {a b : C} (p : a = b) :
+    to_fun_iso F (iso_of_eq p) = iso_of_eq (ap F p) :=
+  by induction p; apply respect_refl
+
+  theorem respect_hom_of_eq (F : C ⇒ D) {a b : C} (p : a = b) :
+    F (hom_of_eq p) = hom_of_eq (ap F p) :=
+  by induction p; apply respect_id
+
+  definition respect_inv_of_eq (F : C ⇒ D) {a b : C} (p : a = b) :
+    F (inv_of_eq p) = inv_of_eq (ap F p) :=
+  by induction p; apply respect_id
+
   protected definition assoc (H : C ⇒ D) (G : B ⇒ C) (F : A ⇒ B) :
       H ∘f (G ∘f F) = (H ∘f G) ∘f F :=
   !functor_mk_eq_constant (λa b f, idp)
@@ -155,6 +167,7 @@ namespace functor
 
   section
     local attribute precategory.is_hset_hom [priority 1001]
+    local attribute trunctype.struct [priority 1] -- remove after #842 is closed
     protected theorem is_hset_functor [instance]
       [HD : is_hset D] : is_hset (functor C D) :=
     by apply is_trunc_equiv_closed; apply functor.sigma_char

@@ -32,6 +32,8 @@ namespace nat_trans
 
   infixr ` ∘n `:60 := nat_trans.compose
 
+  definition compose_def (η : G ⟹ H) (θ : F ⟹ G) (c : C) : (η ∘n θ) c = η c ∘ θ c := idp
+
   protected definition id [reducible] [constructor] {F : C ⇒ D} : nat_trans F F :=
   mk (λa, id) (λa b f, !id_right ⬝ !id_left⁻¹)
 
@@ -175,4 +177,9 @@ namespace nat_trans
   nat_trans.mk (λc, hom_of_eq (ap010 to_fun_ob p c))
                (λa b f, eq.rec_on p (!id_right ⬝ !id_left⁻¹))
 
+  definition compose_rev [unfold-full] (θ : F ⟹ G) (η : G ⟹ H) : F ⟹ H := η ∘n θ
+
 end nat_trans
+
+attribute nat_trans.compose_rev [trans] -- TODO: this doesn't work
+attribute nat_trans.id [refl]

@@ -7,7 +7,7 @@ Limits in a category
 -/
 
 import .constructions.cone .constructions.discrete .constructions.product
-       .constructions.finite_cats .category
+       .constructions.finite_cats .category .constructions.functor
 
 open is_trunc functor nat_trans eq
 
@@ -145,6 +145,10 @@ namespace category
     {h₂ : d ⟶ limit_object F} (q₂ : Πi, limit_morphism F i ∘ h₂ = η i): h₁ = h₂ :=
   eq_hom_limit p q₁ ⬝ (eq_hom_limit p q₂)⁻¹
 
+  definition limit_hom_limit {F G : I ⇒ D} (η : F ⟹ G) : limit_object F ⟶ limit_object G :=
+  hom_limit _ (λi, η i ∘ limit_morphism F i)
+              abstract by intro i j f; rewrite [assoc,naturality,-assoc,limit_commute] end
+
   omit H
 
 -- notation `noinstances` t:max := by+ with_options [elaborator.ignore_instances true] (exact t)
@@ -176,7 +180,8 @@ namespace category
   definition product_object : D :=
   limit_object (c2_functor D d d')
 
-  infixr × := product_object
+  infixr `×l`:30 := product_object
+  local infixr × := product_object
 
   definition pr1 : d × d' ⟶ d :=
   limit_morphism (c2_functor D d d') ff
@@ -335,5 +340,9 @@ namespace category
   limit_object_iso_limit_object _ H₁ H₂
 
   end pullbacks
+
+  namespace ops
+  infixr × := product_object
+  end ops
 
 end category
