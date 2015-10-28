@@ -5,12 +5,11 @@ Common categories and constructions on categories. The following files are in th
 
 * [functor](functor.hlean) : Functor category
 * [opposite](opposite.hlean) : Opposite category
-* [hset](hset.hlean) : Category of sets
+* [set](set.hlean) : Category of sets
 * [sum](sum.hlean) : Sum category
 * [product](product.hlean) : Product category
 * [comma](comma.hlean) : Comma category
 * [cone](cone.hlean) : Cone category
-
 
 Discrete, indiscrete or finite categories:
 

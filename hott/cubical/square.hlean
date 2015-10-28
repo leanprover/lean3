@@ -76,12 +76,12 @@ namespace eq
     square p₁₀ p₁₂ p₀₁ p :=
   by induction r; exact s₁₁
 
-  infix `⬝h`:75 := hconcat
-  infix `⬝v`:75 := vconcat
-  infix `⬝hp`:75 := hconcat_eq
-  infix `⬝vp`:75 := vconcat_eq
-  infix `⬝ph`:75 := eq_hconcat
-  infix `⬝pv`:75 := eq_vconcat
+  infix ` ⬝h `:75 := hconcat
+  infix ` ⬝v `:75 := vconcat
+  infix ` ⬝hp `:75 := hconcat_eq
+  infix ` ⬝vp `:75 := vconcat_eq
+  infix ` ⬝ph `:75 := eq_hconcat
+  infix ` ⬝pv `:75 := eq_vconcat
   postfix `⁻¹ʰ`:(max+1) := hinverse
   postfix `⁻¹ᵛ`:(max+1) := vinverse
 
@@ -260,7 +260,7 @@ namespace eq
   /-
     the following two equivalences have as underlying inverse function the functions
     hdeg_square and vdeg_square, respectively.
-    See examples below the definition
+    See example below the definition
   -/
   definition hdeg_square_equiv [constructor] (p q : a = a') : square idp idp p q ≃ p = q :=
   begin
@@ -280,8 +280,12 @@ namespace eq
     { reflexivity}
   end
 
-  -- example (p q : a = a') : to_inv (hdeg_square_equiv' p q) = hdeg_square := idp -- this fails
   example (p q : a = a') : to_inv (hdeg_square_equiv p q) = hdeg_square := idp
+
+  /-
+    characterization of pathovers in a equality type. The type B of the equality is fixed here.
+    A version where B may also varies over the path p is given in the file squareover
+  -/
 
   definition eq_pathover [unfold 7] {f g : A → B} {p : a = a'} {q : f a = g a} {r : f a' = g a'}
     (s : square q r (ap f p) (ap g p)) : q =[p] r :=
@@ -466,6 +470,10 @@ namespace eq
     (s₁ : square t₁ b₁ l₁ r₁) (s₂ : square t₂ b₂ l₂ r₂)
       : square (t₁ ◾ t₂) (b₁ ◾ b₂) (l₁ ◾ l₂) (r₁ ◾ r₂) :=
   by induction s₂;induction s₁;constructor
+
+  open is_trunc
+  definition is_hset.elims [H : is_hset A] : square p₁₀ p₁₂ p₀₁ p₂₁ :=
+  square_of_eq !is_hset.elim
 
   -- definition square_of_con_inv_hsquare {p₁ p₂ p₃ p₄ : a₁ = a₂}
   --   {t : p₁ = p₂} {b : p₃ = p₄} {l : p₁ = p₃} {r : p₂ = p₄}

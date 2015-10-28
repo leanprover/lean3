@@ -4,10 +4,9 @@ Released under Apache 2.0 license as described in the file LICENSE.
 Authors: Floris van Doorn, Jakob von Raumer
 -/
 
-import .iso types.pi
+import ..iso types.pi
 
-open function category eq prod prod.ops equiv is_equiv sigma sigma.ops is_trunc funext iso
-open pi
+open function category eq prod prod.ops equiv is_equiv sigma sigma.ops is_trunc funext iso pi
 
 structure functor (C D : Precategory) : Type :=
   (to_fun_ob : C → D)
@@ -18,7 +17,7 @@ structure functor (C D : Precategory) : Type :=
 
 namespace functor
 
-  infixl ` ⇒ `:25 := functor
+  infixl ` ⇒ `:55 := functor
   variables {A B C D E : Precategory}
 
   attribute to_fun_ob [coercion]
@@ -38,7 +37,7 @@ namespace functor
       G (F (g ∘ f)) = G (F g ∘ F f)     : by rewrite respect_comp
                 ... = G (F g) ∘ G (F f) : by rewrite respect_comp end)
 
-  infixr ` ∘f `:60 := functor.compose
+  infixr ` ∘f `:75 := functor.compose
 
   protected definition id [reducible] [constructor] {C : Precategory} : functor C C :=
   mk (λa, a) (λ a b f, f) (λ a, idp) (λ a b c f g, idp)
@@ -52,6 +51,7 @@ namespace functor
              (λc, idp)
              (λa b c g f, !id_id⁻¹)
 
+  /- introduction rule for equalities between functors -/
   definition functor_mk_eq' {F₁ F₂ : C → D} {H₁ : Π(a b : C), hom a b → hom (F₁ a) (F₁ b)}
     {H₂ : Π(a b : C), hom a b → hom (F₂ a) (F₂ b)} (id₁ id₂ comp₁ comp₂)
     (pF : F₁ = F₂) (pH : pF ▸ H₁ = H₂)
@@ -108,7 +108,7 @@ namespace functor
   attribute preserve_is_iso [instance] [priority 100]
 
   definition to_fun_iso [constructor] (F : C ⇒ D) {a b : C} (f : a ≅ b) : F a ≅ F b :=
-  iso.mk (F f)
+  iso.mk (F f) _
 
   theorem respect_inv' (F : C ⇒ D) {a b : C} (f : hom a b) {H : is_iso f} : F (f⁻¹) = (F f)⁻¹ :=
   respect_inv F f
@@ -124,6 +124,18 @@ namespace functor
     : to_fun_iso F (f ⬝i g) = to_fun_iso F f ⬝i to_fun_iso F g :=
   iso_eq !respect_comp
 
+  definition respect_iso_of_eq (F : C ⇒ D) {a b : C} (p : a = b) :
+    to_fun_iso F (iso_of_eq p) = iso_of_eq (ap F p) :=
+  by induction p; apply respect_refl
+
+  theorem respect_hom_of_eq (F : C ⇒ D) {a b : C} (p : a = b) :
+    F (hom_of_eq p) = hom_of_eq (ap F p) :=
+  by induction p; apply respect_id
+
+  definition respect_inv_of_eq (F : C ⇒ D) {a b : C} (p : a = b) :
+    F (inv_of_eq p) = inv_of_eq (ap F p) :=
+  by induction p; apply respect_id
+
   protected definition assoc (H : C ⇒ D) (G : B ⇒ C) (F : A ⇒ B) :
       H ∘f (G ∘f F) = (H ∘f G) ∘f F :=
   !functor_mk_eq_constant (λa b f, idp)
@@ -137,7 +149,12 @@ namespace functor
   protected definition comp_id_eq_id_comp (F : C ⇒ D) : F ∘f 1 = 1 ∘f F :=
   !functor.id_right ⬝ !functor.id_left⁻¹
 
-  -- "functor C D" is equivalent to a certain sigma type
+  definition functor_of_eq [constructor] {C D : Precategory} (p : C = D :> Precategory) : C ⇒ D :=
+  functor.mk (transport carrier p)
+             (λa b f, by induction p; exact f)
+             (by intro c; induction p; reflexivity)
+             (by intros; induction p; reflexivity)
+
   protected definition sigma_char :
     (Σ (to_fun_ob : C → D)
     (to_fun_hom : Π ⦃a b : C⦄, hom a b → hom (to_fun_ob a) (to_fun_ob b)),
@@ -153,17 +170,29 @@ namespace functor
       {intro S, induction S with d1 S2, induction S2 with d2 P1, induction P1, reflexivity},
   end
 
+  definition change_fun [constructor] (F : C ⇒ D) (Fob : C → D)
+    (Fhom : Π⦃c c' : C⦄ (f : c ⟶ c'), Fob c ⟶ Fob c') (p : F = Fob) (q : F =[p] Fhom) : C ⇒ D :=
+  functor.mk
+    Fob
+    Fhom
+    proof abstract λa, transporto (λFo (Fh : Π⦃c c'⦄, _), Fh (ID a) = ID (Fo a))
+      q (respect_id F a) end qed
+    proof abstract λa b c g f, transporto (λFo (Fh : Π⦃c c'⦄, _), Fh (g ∘ f) = Fh g ∘ Fh f)
+      q (respect_comp F g f) end qed
+
   section
     local attribute precategory.is_hset_hom [priority 1001]
+    local attribute trunctype.struct [priority 1] -- remove after #842 is closed
     protected theorem is_hset_functor [instance]
       [HD : is_hset D] : is_hset (functor C D) :=
     by apply is_trunc_equiv_closed; apply functor.sigma_char
   end
 
+  /- higher equalities in the functor type -/
   definition functor_mk_eq'_idp (F : C → D) (H : Π(a b : C), hom a b → hom (F a) (F b))
     (id comp) : functor_mk_eq' id id comp comp (idpath F) (idpath H) = idp :=
   begin
-    fapply (apd011 (apd01111 functor.mk idp idp)),
+    fapply apd011 (apd01111 functor.mk idp idp),
     apply is_hset.elim,
     apply is_hset.elim
   end
@@ -175,7 +204,7 @@ namespace functor
       : functor_eq' (ap to_fun_ob p) (!tr_compose⁻¹ ⬝ apd to_fun_hom p) = p :=
   begin
     cases p, cases F₁,
-    apply concat, rotate_left 1, apply functor_eq'_idp,
+    refine _ ⬝ !functor_eq'_idp,
     esimp
   end
 

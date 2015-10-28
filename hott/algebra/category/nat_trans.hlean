@@ -3,7 +3,8 @@ Copyright (c) 2015 Floris van Doorn. All rights reserved.
 Released under Apache 2.0 license as described in the file LICENSE.
 Author: Floris van Doorn, Jakob von Raumer
 -/
-import .functor .iso
+
+import .functor.basic
 open eq category functor is_trunc equiv sigma.ops sigma is_equiv function pi funext iso
 
 structure nat_trans {C : Precategory} {D : Precategory} (F G : C ⇒ D)
@@ -32,6 +33,8 @@ namespace nat_trans
 
   infixr ` ∘n `:60 := nat_trans.compose
 
+  definition compose_def (η : G ⟹ H) (θ : F ⟹ G) (c : C) : (η ∘n θ) c = η c ∘ θ c := idp
+
   protected definition id [reducible] [constructor] {F : C ⇒ D} : nat_trans F F :=
   mk (λa, id) (λa b f, !id_right ⬝ !id_left⁻¹)
 
@@ -39,6 +42,10 @@ namespace nat_trans
   (@nat_trans.id C D F)
 
   notation 1 := nat_trans.id
+
+  definition constant_nat_trans [constructor] (C : Precategory) {D : Precategory} {d d' : D}
+    (g : d ⟶ d') : constant_functor C d ⟹ constant_functor C d' :=
+  mk (λc, g) (λc c' f, !id_comp_eq_comp_id)
 
   definition nat_trans_mk_eq {η₁ η₂ : Π (a : C), hom (F a) (G a)}
     (nat₁ : Π (a b : C) (f : hom a b), G f ∘ η₁ a = η₁ b ∘ F f)
@@ -171,8 +178,13 @@ namespace nat_trans
   definition nf_id (η : G ⟹ H) (c : C) : (η ∘nf 1) c = η c :=
   idp
 
-  definition nat_trans_of_eq [reducible] (p : F = G) : F ⟹ G :=
+  definition nat_trans_of_eq [reducible] [constructor] (p : F = G) : F ⟹ G :=
   nat_trans.mk (λc, hom_of_eq (ap010 to_fun_ob p c))
                (λa b f, eq.rec_on p (!id_right ⬝ !id_left⁻¹))
 
+  definition compose_rev [unfold_full] (θ : F ⟹ G) (η : G ⟹ H) : F ⟹ H := η ∘n θ
+
 end nat_trans
+
+attribute nat_trans.compose_rev [trans]
+attribute nat_trans.id [refl]

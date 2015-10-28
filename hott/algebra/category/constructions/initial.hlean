@@ -28,7 +28,7 @@ namespace category
              (λx, empty.elim x)
              (λx y z g f, empty.elim x)
 
-  definition is_contr_zero_functor [instance] (C : Precategory) : is_contr (0 ⇒ C) :=
+  definition is_contr_initial_functor [instance] (C : Precategory) : is_contr (0 ⇒ C) :=
   is_contr.mk (initial_functor C)
               begin
                 intro F, fapply functor_eq,
@@ -37,7 +37,7 @@ namespace category
               end
 
   definition initial_functor_op (C : Precategory)
-    : (initial_functor C)ᵒᵖ = initial_functor Cᵒᵖ :=
+    : (initial_functor C)ᵒᵖᶠ = initial_functor Cᵒᵖ :=
   by apply @is_hprop.elim (0 ⇒ Cᵒᵖ)
 
   definition initial_functor_comp {C D : Precategory} (F : C ⇒ D)
