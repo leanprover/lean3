@@ -45,11 +45,11 @@ namespace functor
 
   protected definition id [reducible] {C : Category} : functor C C :=
   mk (λa, a) (λ a b f, f) (λ a, rfl) (λ a b c f g, rfl)
-  protected definition ID [reducible] (C : Category) : functor C C := @functor.id C
+  protected definition ID [reducible] (C : Category) : functor C C := @@functor.id C
 
-  protected theorem id_left  (F : functor C D) : (@functor.id D) ∘f F = F :=
+  protected theorem id_left  (F : functor C D) : (@@functor.id D) ∘f F = F :=
   functor.rec (λ obF homF idF compF, dcongr_arg4 mk rfl rfl !proof_irrel !proof_irrel) F
-  protected theorem id_right (F : functor C D) : F ∘f (@functor.id C) = F :=
+  protected theorem id_right (F : functor C D) : F ∘f (@@functor.id C) = F :=
   functor.rec (λ obF homF idF compF, dcongr_arg4 mk rfl rfl !proof_irrel !proof_irrel) F
 
 end functor

@@ -12,7 +12,7 @@ namespace option
   | none     := true
   | (some v) := false
 
-  theorem is_none_none {A : Type} : is_none (@none A) :=
+  theorem is_none_none {A : Type} : is_none (@@none A) :=
   trivial
 
   theorem not_is_none_some {A : Type} (a : A) : ¬ is_none (some a) :=

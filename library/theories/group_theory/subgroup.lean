@@ -207,9 +207,9 @@ variable [is_subg : is_subgroup H]
 include is_subg
 section set_reducible
 local attribute set [reducible]
-lemma subg_has_one : H (1 : A) := @is_subgroup.has_one A s H is_subg
-lemma subg_mul_closed : mul_closed_on H := @is_subgroup.mul_closed A s H is_subg
-lemma subg_has_inv : subgroup.has_inv H := @is_subgroup.has_inv A s H is_subg
+lemma subg_has_one : H (1 : A) := @@is_subgroup.has_one A s H is_subg
+lemma subg_mul_closed : mul_closed_on H := @@is_subgroup.mul_closed A s H is_subg
+lemma subg_has_inv : subgroup.has_inv H := @@is_subgroup.has_inv A s H is_subg
 lemma subgroup_coset_id : ∀ a, a ∈ H → (a ∘> H = H ∧ H <∘ a = H) :=
       take a, assume PHa : H a,
       assert Pl : a ∘> H ⊆ H, from closed_lcontract a H subg_mul_closed PHa,
@@ -290,7 +290,7 @@ include is_nsubg
 
 local notation a `~` b := same_lcoset N a b -- note : does not bind as strong as →
 
-lemma nsubg_normal : same_left_right_coset N := @is_normal_subgroup.normal A s N is_nsubg
+lemma nsubg_normal : same_left_right_coset N := @@is_normal_subgroup.normal A s N is_nsubg
 lemma nsubg_same_lcoset_product : ∀ a1 a2 b1 b2, (a1 ~ b1) → (a2 ~ b2) →  ((a1*a2) ~ (b1*b2)) :=
   take a1, take a2, take b1, take b2,
   assume Psame1 : a1 ∘> N = b1 ∘> N,

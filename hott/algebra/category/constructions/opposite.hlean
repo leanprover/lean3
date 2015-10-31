@@ -26,7 +26,7 @@ namespace category
   definition Opposite [reducible] [constructor] (C : Precategory) : Precategory :=
   precategory.Mk (opposite C)
 
-  infixr `∘op`:60 := @comp _ (opposite _) _ _ _
+  infixr `∘op`:60 := @@comp _ (opposite _) _ _ _
   postfix `ᵒᵖ`:(max+2) := Opposite
 
   variables {C D : Precategory} {a b c : C}
@@ -41,25 +41,25 @@ namespace category
   (ap (Precategory.mk C) (opposite_opposite' C)) ⬝ !Precategory.eta
 
   theorem opposite_hom_of_eq {ob : Type} [C : precategory ob] {c c' : ob} (p : c = c')
-    : @hom_of_eq ob (opposite C) c c' p = inv_of_eq p :=
+    : @@hom_of_eq ob (opposite C) c c' p = inv_of_eq p :=
   by induction p; reflexivity
 
   theorem opposite_inv_of_eq {ob : Type} [C : precategory ob] {c c' : ob} (p : c = c')
-    : @inv_of_eq ob (opposite C) c c' p = hom_of_eq p :=
+    : @@inv_of_eq ob (opposite C) c c' p = hom_of_eq p :=
   by induction p; reflexivity
 
   definition opposite_functor [constructor] (F : C ⇒ D) : Cᵒᵖ ⇒ Dᵒᵖ :=
   begin
   apply functor.mk,
     intros, apply respect_id F,
-    intros, apply @respect_comp C D
+    intros, apply @@respect_comp C D
   end
 
   definition opposite_functor_rev [constructor] (F : Cᵒᵖ ⇒ Dᵒᵖ) : C ⇒ D :=
   begin
   apply functor.mk,
     intros, apply respect_id F,
-    intros, apply @respect_comp Cᵒᵖ Dᵒᵖ
+    intros, apply @@respect_comp Cᵒᵖ Dᵒᵖ
   end
 
   postfix `ᵒᵖᶠ`:(max+2) := opposite_functor
@@ -88,14 +88,14 @@ namespace category
   begin
     fapply nat_trans.mk: esimp,
     { intro c, exact η c},
-    { intro c c' f, exact !(@naturality Cᵒᵖ Dᵒᵖ)⁻¹},
+    { intro c c' f, exact !(@@naturality Cᵒᵖ Dᵒᵖ)⁻¹},
   end
 
   definition opposite_nat_trans_rev [constructor] {F G : C ⇒ D} (η : Fᵒᵖᶠ ⟹ Gᵒᵖᶠ) : G ⟹ F :=
   begin
     fapply nat_trans.mk: esimp,
     { intro c, exact η c},
-    { intro c c' f, exact !(@naturality Cᵒᵖ Dᵒᵖ _ _ η)⁻¹},
+    { intro c c' f, exact !(@@naturality Cᵒᵖ Dᵒᵖ _ _ η)⁻¹},
   end
 
   definition opposite_rev_nat_trans_rev [constructor] {F G : Cᵒᵖ ⇒ Dᵒᵖ} (η : Fᵒᵖ' ⟹ Gᵒᵖ') : G ⟹ F :=
@@ -106,9 +106,9 @@ namespace category
   end
 
   definition opposite_iso [constructor] {ob : Type} [C : precategory ob] {a b : ob}
-    (H : @iso _ C a b) : @iso _ (opposite C) a b :=
+    (H : @@iso _ C a b) : @@iso _ (opposite C) a b :=
   begin
-    fapply @iso.MK _ (opposite C),
+    fapply @@iso.MK _ (opposite C),
     { exact to_inv H},
     { exact to_hom H},
     { exact to_left_inverse  H},
@@ -116,7 +116,7 @@ namespace category
   end
 
   definition iso_of_opposite_iso [constructor]  {ob : Type} [C : precategory ob] {a b : ob}
-    (H : @iso _ (opposite C) a b) : @iso _ C a b :=
+    (H : @@iso _ (opposite C) a b) : @@iso _ C a b :=
   begin
     fapply iso.MK,
     { exact to_inv H},
@@ -126,7 +126,7 @@ namespace category
   end
 
   definition opposite_iso_equiv [constructor]  {ob : Type} [C : precategory ob] (a b : ob)
-    : @iso _ (opposite C) a b ≃ @iso _ C a b :=
+    : @@iso _ (opposite C) a b ≃ @@iso _ C a b :=
   begin
     fapply equiv.MK,
     { exact iso_of_opposite_iso},
@@ -139,7 +139,7 @@ namespace category
   begin
     intro x y,
     fapply is_equiv_of_equiv_of_homotopy,
-    { refine @eq_equiv_iso C C x y ⬝e _, symmetry, esimp at *, apply opposite_iso_equiv},
+    { refine @@eq_equiv_iso C C x y ⬝e _, symmetry, esimp at *, apply opposite_iso_equiv},
     { intro p, induction p, reflexivity}
   end
 

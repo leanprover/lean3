@@ -164,7 +164,7 @@ lemma strongly_sorted_sort_aux : ∀ {n : nat} {l : list A} (h : length l = n), 
 variable {R}
 
 lemma strongly_sorted_sort_core (to : total R) (tr : transitive R) (rf : reflexive R) (l : list A) : strongly_sorted R (sort R l) :=
-@strongly_sorted_sort_aux _ _ _ _ to tr rf (length l) l rfl
+@@strongly_sorted_sort_aux _ _ _ _ to tr rf (length l) l rfl
 
 lemma sort_eq_of_perm_core {l₁ l₂ : list A} (to : total R) (tr : transitive R) (rf : reflexive R) (asy : anti_symmetric R) (h : l₁ ~ l₂) : sort R l₁ = sort R l₂ :=
 have s₁ : sorted R (sort R l₁),  from sorted_of_strongly_sorted (strongly_sorted_sort_core to tr rf l₁),
@@ -179,9 +179,9 @@ section
 open algebra
 omit decR
 lemma strongly_sorted_sort [ord : decidable_linear_order A] (l : list A) : strongly_sorted le (sort le l) :=
-strongly_sorted_sort_core le.total (@le.trans A ord) le.refl l
+strongly_sorted_sort_core le.total (@@le.trans A ord) le.refl l
 
 lemma sort_eq_of_perm {l₁ l₂ : list A} [ord : decidable_linear_order A] (h : l₁ ~ l₂) : sort le l₁ = sort le l₂ :=
-sort_eq_of_perm_core le.total (@le.trans A ord) le.refl (@le.antisymm A ord) h
+sort_eq_of_perm_core le.total (@@le.trans A ord) le.refl (@@le.antisymm A ord) h
 end
 end list

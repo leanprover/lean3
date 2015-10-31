@@ -18,7 +18,7 @@ namespace category
 
   variables {I C D : Precategory} {F : I ⇒ C} {x y z : cone_obj F} {i : I}
 
-  definition cone_to_obj [unfold 4] := @cone_obj.c
+  definition cone_to_obj [unfold 4] := @@cone_obj.c
   definition cone_to_nat [unfold 4] (c : cone_obj F) : constant_functor I (cone_to_obj c) ⟹ F :=
   cone_obj.η c
 
@@ -28,7 +28,7 @@ namespace category
   (f : x ⟶ y)
   (p : Πi, cone_to_nat y i ∘ f = cone_to_nat x i)
 
-  definition cone_to_hom [unfold 6] := @cone_hom.f
+  definition cone_to_hom [unfold 6] := @@cone_hom.f
   definition cone_to_eq [unfold 6] (f : cone_hom x y) (i : I)
     : cone_to_nat y i ∘ (cone_to_hom f) = cone_to_nat x i :=
   cone_hom.p f i
@@ -60,13 +60,13 @@ namespace category
   theorem cone_hom_eq {f f' : cone_hom x y} (q : cone_to_hom f = cone_to_hom f') : f = f' :=
   begin
     induction f, induction f', esimp at *, induction q, apply ap (cone_hom.mk f),
-    apply @is_hprop.elim, apply pi.is_trunc_pi, intro x, apply is_trunc_eq, -- type class fails
+    apply @@is_hprop.elim, apply pi.is_trunc_pi, intro x, apply is_trunc_eq, -- type class fails
   end
 
   variable (F)
 
   definition precategory_cone [instance] [constructor] : precategory (cone_obj F) :=
-  @precategory.mk _ cone_hom
+  @@precategory.mk _ cone_hom
                  abstract begin
                    intro x y,
                    assert H : cone_hom x y ≃ Σ(f : x ⟶ y), Πi, cone_to_nat y i ∘ f = cone_to_nat x i,

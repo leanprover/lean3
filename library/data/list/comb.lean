@@ -282,7 +282,7 @@ definition unzip : list (A × B) → list A × list B
   | (la, lb) := (a :: la, b :: lb)
   end
 
-theorem unzip_nil [simp] : unzip (@nil (A × B)) = ([], [])
+theorem unzip_nil [simp] : unzip (@@nil (A × B)) = ([], [])
 
 theorem unzip_cons [simp] (a : A) (b : B) (l : list (A × B)) :
    unzip ((a, b) :: l) = match unzip l with (la, lb) := (a :: la, b :: lb) end :=
@@ -311,12 +311,12 @@ definition product : list A → list B → list (A × B)
 | []      l₂ := []
 | (a::l₁) l₂ := map (λ b, (a, b)) l₂ ++ product l₁ l₂
 
-theorem nil_product (l : list B) : product (@nil A) l = []
+theorem nil_product (l : list B) : product (@@nil A) l = []
 
 theorem product_cons (a : A) (l₁ : list A) (l₂ : list B)
         : product (a::l₁) l₂ = map (λ b, (a, b)) l₂ ++ product l₁ l₂
 
-theorem product_nil : ∀ (l : list A), product l (@nil B) = []
+theorem product_nil : ∀ (l : list A), product l (@@nil B) = []
 | []     := rfl
 | (a::l) := by rewrite [product_cons, map_nil, product_nil]
 

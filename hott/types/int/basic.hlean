@@ -169,11 +169,11 @@ add.cancel_right (calc
     ... = pr2 p + pr1 r + pr2 q                  : add.right_comm)
 
 definition int_equiv_int_equiv : is_equivalence int_equiv :=
-is_equivalence.mk @int_equiv.refl @int_equiv.symm @int_equiv.trans
+is_equivalence.mk @@int_equiv.refl @@int_equiv.symm @@int_equiv.trans
 
 definition int_equiv_cases {p q : ℕ × ℕ} (H : int_equiv p q) :
     (pr1 p ≥ pr2 p × pr1 q ≥ pr2 q) ⊎ (pr1 p < pr2 p × pr1 q < pr2 q) :=
-sum.rec_on (@le_or_gt (pr2 p) (pr1 p))
+sum.rec_on (@@le_or_gt (pr2 p) (pr1 p))
   (assume H1: pr1 p ≥ pr2 p,
     have H2 : pr2 p + pr1 q ≥ pr2 p + pr2 q, from H ▸ add_le_add_right H1 (pr2 q),
     sum.inl (pair H1 (le_of_add_le_add_left H2)))
@@ -200,7 +200,7 @@ definition abstr_repr (a : ℤ) : abstr (repr a) = a :=
 int.cases_on a (take m, (sub_nat_nat_of_ge (zero_le m))) (take m, rfl)
 
 definition repr_sub_nat_nat (m n : ℕ) : repr (sub_nat_nat m n) ≡ (m, n) :=
-sum.rec_on (@le_or_gt n m)
+sum.rec_on (@@le_or_gt n m)
   (take H : m ≥ n,
     have H1 : repr (sub_nat_nat m n) = (m - n, 0), from sub_nat_nat_of_ge H ▸ rfl,
     H1⁻¹ ▸
@@ -273,7 +273,7 @@ local attribute abstr [reducible]
 local attribute dist [reducible]
 definition nat_abs_abstr (p : ℕ × ℕ) : nat_abs (abstr p) = dist (pr1 p) (pr2 p) :=
 let m := pr1 p, n := pr2 p in
-sum.rec_on (@le_or_gt n m)
+sum.rec_on (@@le_or_gt n m)
   (assume H : m ≥ n,
     calc
       nat_abs (abstr (m, n)) = nat_abs (of_nat (m - n)) : int.abstr_of_ge H
@@ -550,9 +550,9 @@ private theorem pmul_assoc_prep {p1 p2 q1 q2 r1 r2 : ℕ} :
    (p1*(q1*r1+q2*r2)+p2*(q1*r2+q2*r1), p1*(q1*r2+q2*r1)+p2*(q1*r1+q2*r2)) :=
 begin
    rewrite[+mul.left_distrib,+mul.right_distrib,*mul.assoc],
-   rewrite (@add.comm4 (p1 * (q1 * r1)) (p2 * (q2 * r1)) (p1 * (q2 * r2)) (p2 * (q1 * r2))),
+   rewrite (@@add.comm4 (p1 * (q1 * r1)) (p2 * (q2 * r1)) (p1 * (q2 * r2)) (p2 * (q1 * r2))),
    rewrite (nat.add.comm (p2 * (q2 * r1)) (p2 * (q1 * r2))),
-   rewrite (@add.comm4 (p1 * (q1 * r2)) (p2 * (q2 * r2)) (p1 * (q2 * r1)) (p2 * (q1 * r1))),
+   rewrite (@@add.comm4 (p1 * (q1 * r2)) (p2 * (q2 * r2)) (p1 * (q2 * r1)) (p2 * (q1 * r1))),
    rewrite (nat.add.comm (p2 * (q2 * r2)) (p2 * (q1 * r1)))
 end
 
@@ -639,7 +639,7 @@ section
     left_distrib   := mul.left_distrib,
     right_distrib  := mul.right_distrib,
     mul_comm       := mul.comm,
-    eq_zero_or_eq_zero_of_mul_eq_zero := @eq_zero_or_eq_zero_of_mul_eq_zero,
+    eq_zero_or_eq_zero_of_mul_eq_zero := @@eq_zero_or_eq_zero_of_mul_eq_zero,
     is_hset_carrier := is_hset_of_decidable_eq⦄
 end
 
@@ -651,50 +651,50 @@ section port_algebra
   definition mul.right_comm : Πa b c : ℤ, (a * b) * c = (a * c) * b := algebra.mul.right_comm
   definition add.left_comm : Πa b c : ℤ, a + (b + c) = b + (a + c) := algebra.add.left_comm
   definition add.right_comm : Πa b c : ℤ, (a + b) + c = (a + c) + b := algebra.add.right_comm
-  definition add.left_cancel : Π{a b c : ℤ}, a + b = a + c → b = c := @algebra.add.left_cancel _ _
-  definition add.right_cancel : Π{a b c : ℤ}, a + b = c + b → a = c := @algebra.add.right_cancel _ _
+  definition add.left_cancel : Π{a b c : ℤ}, a + b = a + c → b = c := @@algebra.add.left_cancel _ _
+  definition add.right_cancel : Π{a b c : ℤ}, a + b = c + b → a = c := @@algebra.add.right_cancel _ _
   definition neg_add_cancel_left : Πa b : ℤ, -a + (a + b) = b := algebra.neg_add_cancel_left
   definition neg_add_cancel_right : Πa b : ℤ, a + -b + b = a := algebra.neg_add_cancel_right
   definition neg_eq_of_add_eq_zero : Π{a b : ℤ}, a + b = 0 → -a = b :=
-    @algebra.neg_eq_of_add_eq_zero _ _
+    @@algebra.neg_eq_of_add_eq_zero _ _
   definition neg_zero : -0 = 0 := algebra.neg_zero
   definition neg_neg : Πa : ℤ, -(-a) = a := algebra.neg_neg
-  definition neg.inj : Π{a b : ℤ}, -a = -b → a = b := @algebra.neg.inj _ _
+  definition neg.inj : Π{a b : ℤ}, -a = -b → a = b := @@algebra.neg.inj _ _
   definition neg_eq_neg_iff_eq : Πa b : ℤ, -a = -b ↔ a = b := algebra.neg_eq_neg_iff_eq
   definition neg_eq_zero_iff_eq_zero : Πa : ℤ, -a = 0 ↔ a = 0 := algebra.neg_eq_zero_iff_eq_zero
-  definition eq_neg_of_eq_neg : Π{a b : ℤ}, a = -b → b = -a := @algebra.eq_neg_of_eq_neg _ _
-  definition eq_neg_iff_eq_neg : Π{a b : ℤ}, a = -b ↔ b = -a := @algebra.eq_neg_iff_eq_neg _ _
+  definition eq_neg_of_eq_neg : Π{a b : ℤ}, a = -b → b = -a := @@algebra.eq_neg_of_eq_neg _ _
+  definition eq_neg_iff_eq_neg : Π{a b : ℤ}, a = -b ↔ b = -a := @@algebra.eq_neg_iff_eq_neg _ _
   definition add.right_inv : Πa : ℤ, a + -a = 0 := algebra.add.right_inv
   definition add_neg_cancel_left : Πa b : ℤ, a + (-a + b) = b := algebra.add_neg_cancel_left
   definition add_neg_cancel_right : Πa b : ℤ, a + b + -b = a := algebra.add_neg_cancel_right
   definition neg_add_rev : Πa b : ℤ, -(a + b) = -b + -a := algebra.neg_add_rev
   definition eq_add_neg_of_add_eq : Π{a b c : ℤ}, a + c = b → a = b + -c :=
-    @algebra.eq_add_neg_of_add_eq _ _
+    @@algebra.eq_add_neg_of_add_eq _ _
   definition eq_neg_add_of_add_eq : Π{a b c : ℤ}, b + a = c → a = -b + c :=
-    @algebra.eq_neg_add_of_add_eq _ _
+    @@algebra.eq_neg_add_of_add_eq _ _
   definition neg_add_eq_of_eq_add : Π{a b c : ℤ}, b = a + c → -a + b = c :=
-    @algebra.neg_add_eq_of_eq_add _ _
+    @@algebra.neg_add_eq_of_eq_add _ _
   definition add_neg_eq_of_eq_add : Π{a b c : ℤ}, a = c + b → a + -b = c :=
-    @algebra.add_neg_eq_of_eq_add _ _
+    @@algebra.add_neg_eq_of_eq_add _ _
   definition eq_add_of_add_neg_eq : Π{a b c : ℤ}, a + -c = b → a = b + c :=
-    @algebra.eq_add_of_add_neg_eq _ _
+    @@algebra.eq_add_of_add_neg_eq _ _
   definition eq_add_of_neg_add_eq : Π{a b c : ℤ}, -b + a = c → a = b + c :=
-    @algebra.eq_add_of_neg_add_eq _ _
+    @@algebra.eq_add_of_neg_add_eq _ _
   definition add_eq_of_eq_neg_add : Π{a b c : ℤ}, b = -a + c → a + b = c :=
-    @algebra.add_eq_of_eq_neg_add _ _
+    @@algebra.add_eq_of_eq_neg_add _ _
   definition add_eq_of_eq_add_neg : Π{a b c : ℤ}, a = c + -b → a + b = c :=
-    @algebra.add_eq_of_eq_add_neg _ _
+    @@algebra.add_eq_of_eq_add_neg _ _
   definition add_eq_iff_eq_neg_add : Πa b c : ℤ, a + b = c ↔ b = -a + c :=
-    @algebra.add_eq_iff_eq_neg_add _ _
+    @@algebra.add_eq_iff_eq_neg_add _ _
   definition add_eq_iff_eq_add_neg : Πa b c : ℤ, a + b = c ↔ a = c + -b :=
-    @algebra.add_eq_iff_eq_add_neg _ _
+    @@algebra.add_eq_iff_eq_add_neg _ _
   definition sub (a b : ℤ) : ℤ := algebra.sub a b
   infix - := int.sub
   definition sub_eq_add_neg : Πa b : ℤ, a - b = a + -b := algebra.sub_eq_add_neg
   definition sub_self : Πa : ℤ, a - a = 0 := algebra.sub_self
   definition sub_add_cancel : Πa b : ℤ, a - b + b = a := algebra.sub_add_cancel
   definition add_sub_cancel : Πa b : ℤ, a + b - b = a := algebra.add_sub_cancel
-  definition eq_of_sub_eq_zero : Π{a b : ℤ}, a - b = 0 → a = b := @algebra.eq_of_sub_eq_zero _ _
+  definition eq_of_sub_eq_zero : Π{a b : ℤ}, a - b = 0 → a = b := @@algebra.eq_of_sub_eq_zero _ _
   definition eq_iff_sub_eq_zero : Πa b : ℤ, a = b ↔ a - b = 0 := algebra.eq_iff_sub_eq_zero
   definition zero_sub : Πa : ℤ, 0 - a = -a := algebra.zero_sub
   definition sub_zero : Πa : ℤ, a - 0 = a := algebra.sub_zero
@@ -706,11 +706,11 @@ section port_algebra
   definition sub_eq_iff_eq_add : Πa b c : ℤ, a - b = c ↔ a = c + b := algebra.sub_eq_iff_eq_add
   definition eq_sub_iff_add_eq : Πa b c : ℤ, a = b - c ↔ a + c = b := algebra.eq_sub_iff_add_eq
   definition eq_iff_eq_of_sub_eq_sub : Π{a b c d : ℤ}, a - b = c - d → (a = b ↔ c = d) :=
-    @algebra.eq_iff_eq_of_sub_eq_sub _ _
-  definition eq_sub_of_add_eq : Π{a b c : ℤ}, a + c = b → a = b - c := @algebra.eq_sub_of_add_eq _ _
-  definition sub_eq_of_eq_add : Π{a b c : ℤ}, a = c + b → a - b = c := @algebra.sub_eq_of_eq_add _ _
-  definition eq_add_of_sub_eq : Π{a b c : ℤ}, a - c = b → a = b + c := @algebra.eq_add_of_sub_eq _ _
-  definition add_eq_of_eq_sub : Π{a b c : ℤ}, a = c - b → a + b = c := @algebra.add_eq_of_eq_sub _ _
+    @@algebra.eq_iff_eq_of_sub_eq_sub _ _
+  definition eq_sub_of_add_eq : Π{a b c : ℤ}, a + c = b → a = b - c := @@algebra.eq_sub_of_add_eq _ _
+  definition sub_eq_of_eq_add : Π{a b c : ℤ}, a = c + b → a - b = c := @@algebra.sub_eq_of_eq_add _ _
+  definition eq_add_of_sub_eq : Π{a b c : ℤ}, a - c = b → a = b + c := @@algebra.eq_add_of_sub_eq _ _
+  definition add_eq_of_eq_sub : Π{a b c : ℤ}, a = c - b → a + b = c := @@algebra.add_eq_of_eq_sub _ _
   definition sub_add_eq_sub_sub : Πa b c : ℤ, a - (b + c) = a - b - c := algebra.sub_add_eq_sub_sub
   definition neg_add_eq_sub : Πa b : ℤ, -a + b = b - a := algebra.neg_add_eq_sub
   definition neg_add : Πa b : ℤ, -(a + b) = -a + -b := algebra.neg_add
@@ -718,44 +718,44 @@ section port_algebra
   definition sub_sub_ : Πa b c : ℤ, a - b - c = a - (b + c) := algebra.sub_sub
   definition add_sub_add_left_eq_sub : Πa b c : ℤ, (c + a) - (c + b) = a - b :=
     algebra.add_sub_add_left_eq_sub
-  definition eq_sub_of_add_eq' : Π{a b c : ℤ}, c + a = b → a = b - c := @algebra.eq_sub_of_add_eq' _ _
-  definition sub_eq_of_eq_add' : Π{a b c : ℤ}, a = b + c → a - b = c := @algebra.sub_eq_of_eq_add' _ _
-  definition eq_add_of_sub_eq' : Π{a b c : ℤ}, a - b = c → a = b + c := @algebra.eq_add_of_sub_eq' _ _
-  definition add_eq_of_eq_sub' : Π{a b c : ℤ}, b = c - a → a + b = c := @algebra.add_eq_of_eq_sub' _ _
+  definition eq_sub_of_add_eq' : Π{a b c : ℤ}, c + a = b → a = b - c := @@algebra.eq_sub_of_add_eq' _ _
+  definition sub_eq_of_eq_add' : Π{a b c : ℤ}, a = b + c → a - b = c := @@algebra.sub_eq_of_eq_add' _ _
+  definition eq_add_of_sub_eq' : Π{a b c : ℤ}, a - b = c → a = b + c := @@algebra.eq_add_of_sub_eq' _ _
+  definition add_eq_of_eq_sub' : Π{a b c : ℤ}, b = c - a → a + b = c := @@algebra.add_eq_of_eq_sub' _ _
   definition ne_zero_of_mul_ne_zero_right : Π{a b : ℤ}, a * b ≠ 0 → a ≠ 0 :=
-    @algebra.ne_zero_of_mul_ne_zero_right _ _
+    @@algebra.ne_zero_of_mul_ne_zero_right _ _
   definition ne_zero_of_mul_ne_zero_left : Π{a b : ℤ}, a * b ≠ 0 → b ≠ 0 :=
-    @algebra.ne_zero_of_mul_ne_zero_left _ _
+    @@algebra.ne_zero_of_mul_ne_zero_left _ _
   definition dvd (a b : ℤ) : Type₀ := algebra.dvd a b
   notation a ∣ b := dvd a b
-  definition dvd.intro : Π{a b c : ℤ} (H : a * c = b), a ∣ b := @algebra.dvd.intro _ _
-  definition dvd.intro_left : Π{a b c : ℤ} (H : c * a = b), a ∣ b := @algebra.dvd.intro_left _ _
+  definition dvd.intro : Π{a b c : ℤ} (H : a * c = b), a ∣ b := @@algebra.dvd.intro _ _
+  definition dvd.intro_left : Π{a b c : ℤ} (H : c * a = b), a ∣ b := @@algebra.dvd.intro_left _ _
   definition exists_eq_mul_right_of_dvd : Π{a b : ℤ} (H : a ∣ b), Σc, b = a * c :=
-    @algebra.exists_eq_mul_right_of_dvd _ _
+    @@algebra.exists_eq_mul_right_of_dvd _ _
   definition dvd.elim : Π{P : Type} {a b : ℤ} (H₁ : a ∣ b) (H₂ : Πc, b = a * c → P), P :=
-    @algebra.dvd.elim _ _
+    @@algebra.dvd.elim _ _
   definition exists_eq_mul_left_of_dvd : Π{a b : ℤ} (H : a ∣ b), Σc, b = c * a :=
-    @algebra.exists_eq_mul_left_of_dvd _ _
+    @@algebra.exists_eq_mul_left_of_dvd _ _
   definition dvd.elim_left : Π{P : Type} {a b : ℤ} (H₁ : a ∣ b) (H₂ : Πc, b = c * a → P), P :=
-    @algebra.dvd.elim_left _ _
+    @@algebra.dvd.elim_left _ _
   definition dvd.refl : Πa : ℤ, (a ∣ a) := algebra.dvd.refl
-  definition dvd.trans : Π{a b c : ℤ} (H₁ : a ∣ b) (H₂ : b ∣ c), a ∣ c := @algebra.dvd.trans _ _
-  definition eq_zero_of_zero_dvd : Π{a : ℤ} (H : 0 ∣ a), a = 0 := @algebra.eq_zero_of_zero_dvd _ _
+  definition dvd.trans : Π{a b c : ℤ} (H₁ : a ∣ b) (H₂ : b ∣ c), a ∣ c := @@algebra.dvd.trans _ _
+  definition eq_zero_of_zero_dvd : Π{a : ℤ} (H : 0 ∣ a), a = 0 := @@algebra.eq_zero_of_zero_dvd _ _
   definition dvd_zero : Πa : ℤ, a ∣ 0 := algebra.dvd_zero
   definition one_dvd : Πa : ℤ, 1 ∣ a := algebra.one_dvd
   definition dvd_mul_right : Πa b : ℤ, a ∣ a * b := algebra.dvd_mul_right
   definition dvd_mul_left : Πa b : ℤ, a ∣ b * a := algebra.dvd_mul_left
   definition dvd_mul_of_dvd_left : Π{a b : ℤ} (H : a ∣ b) (c : ℤ), a ∣ b * c :=
-    @algebra.dvd_mul_of_dvd_left _ _
+    @@algebra.dvd_mul_of_dvd_left _ _
   definition dvd_mul_of_dvd_right : Π{a b : ℤ} (H : a ∣ b) (c : ℤ), a ∣ c * b :=
-    @algebra.dvd_mul_of_dvd_right _ _
+    @@algebra.dvd_mul_of_dvd_right _ _
   definition mul_dvd_mul : Π{a b c d : ℤ}, a ∣ b → c ∣ d → a * c ∣ b * d :=
-    @algebra.mul_dvd_mul _ _
+    @@algebra.mul_dvd_mul _ _
   definition dvd_of_mul_right_dvd : Π{a b c : ℤ}, a * b ∣ c → a ∣ c :=
-    @algebra.dvd_of_mul_right_dvd _ _
+    @@algebra.dvd_of_mul_right_dvd _ _
   definition dvd_of_mul_left_dvd : Π{a b c : ℤ}, a * b ∣ c → b ∣ c :=
-    @algebra.dvd_of_mul_left_dvd _ _
-  definition dvd_add : Π{a b c : ℤ}, a ∣ b → a ∣ c → a ∣ b + c := @algebra.dvd_add _ _
+    @@algebra.dvd_of_mul_left_dvd _ _
+  definition dvd_add : Π{a b c : ℤ}, a ∣ b → a ∣ c → a ∣ b + c := @@algebra.dvd_add _ _
   definition zero_mul : Πa : ℤ, 0 * a = 0 := algebra.zero_mul
   definition mul_zero : Πa : ℤ, a * 0 = 0 := algebra.mul_zero
   definition neg_mul_eq_neg_mul : Πa b : ℤ, -(a * b) = -a * b := algebra.neg_mul_eq_neg_mul
@@ -777,19 +777,19 @@ section port_algebra
   definition dvd_neg_iff_dvd : Πa b : ℤ, a ∣ -b ↔ a ∣ b := algebra.dvd_neg_iff_dvd
   definition neg_dvd_iff_dvd : Πa b : ℤ, -a ∣ b ↔ a ∣ b := algebra.neg_dvd_iff_dvd
   definition dvd_sub : Πa b c : ℤ, a ∣ b → a ∣ c → a ∣ b - c := algebra.dvd_sub
-  definition mul_ne_zero : Π{a b : ℤ}, a ≠ 0 → b ≠ 0 → a * b ≠ 0 := @algebra.mul_ne_zero _ _
+  definition mul_ne_zero : Π{a b : ℤ}, a ≠ 0 → b ≠ 0 → a * b ≠ 0 := @@algebra.mul_ne_zero _ _
   definition eq_of_mul_eq_mul_right : Π{a b c : ℤ}, a ≠ 0 → b * a = c * a → b = c :=
-    @algebra.eq_of_mul_eq_mul_right _ _
+    @@algebra.eq_of_mul_eq_mul_right _ _
   definition eq_of_mul_eq_mul_left : Π{a b c : ℤ}, a ≠ 0 → a * b = a * c → b = c :=
-    @algebra.eq_of_mul_eq_mul_left _ _
+    @@algebra.eq_of_mul_eq_mul_left _ _
   definition mul_self_eq_mul_self_iff : Πa b : ℤ, a * a = b * b ↔ a = b ⊎ a = -b :=
     algebra.mul_self_eq_mul_self_iff
   definition mul_self_eq_one_iff : Πa : ℤ, a * a = 1 ↔ a = 1 ⊎ a = -1 :=
     algebra.mul_self_eq_one_iff
   definition dvd_of_mul_dvd_mul_left : Π{a b c : ℤ}, a ≠ 0 → a*b ∣ a*c → b ∣ c :=
-    @algebra.dvd_of_mul_dvd_mul_left _ _
+    @@algebra.dvd_of_mul_dvd_mul_left _ _
   definition dvd_of_mul_dvd_mul_right : Π{a b c : ℤ}, a ≠ 0 → b*a ∣ c*a → b ∣ c :=
-    @algebra.dvd_of_mul_dvd_mul_right _ _
+    @@algebra.dvd_of_mul_dvd_mul_right _ _
 end port_algebra
 
 /- additional properties -/

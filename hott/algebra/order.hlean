@@ -104,7 +104,7 @@ definition wf.rec_on {A : Type} [s : wf_strict_order A] {P : A → Type}
     (x : A) (H : Πx, (Πy, wf_strict_order.lt y x → P y) → P x) : P x :=
 wf_strict_order.wf_rec P H x
 
-definition wf.ind_on := @wf.rec_on
+definition wf.ind_on := @@wf.rec_on
 
 /- structures with a weak and a strict order -/
 
@@ -299,7 +299,7 @@ section
   open decidable
 
   definition decidable_lt [instance] : decidable (a < b) :=
-    @decidable_linear_order.decidable_lt _ _ _ _
+    @@decidable_linear_order.decidable_lt _ _ _ _
 
   definition decidable_le [instance] : decidable (a ≤ b) :=
   by_cases

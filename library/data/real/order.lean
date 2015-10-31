@@ -1092,16 +1092,16 @@ protected theorem le_of_lt_or_eq (x y : ℝ) : x < y ∨ x = y → x ≤ y :=
 definition ordered_ring [reducible] [instance] : algebra.ordered_ring ℝ :=
 ⦃ algebra.ordered_ring, real.comm_ring,
   le_refl := real.le_refl,
-  le_trans := @real.le_trans,
+  le_trans := @@real.le_trans,
   mul_pos := real.mul_pos,
   mul_nonneg := real.mul_nonneg,
   zero_ne_one := real.zero_ne_one,
   add_le_add_left := real.add_le_add_left,
-  le_antisymm := @real.eq_of_le_of_ge,
+  le_antisymm := @@real.eq_of_le_of_ge,
   lt_irrefl := real.lt_irrefl,
-  lt_of_le_of_lt := @real.lt_of_le_of_lt,
-  lt_of_lt_of_le := @real.lt_of_lt_of_le,
-  le_of_lt := @real.le_of_lt,
+  lt_of_le_of_lt := @@real.lt_of_le_of_lt,
+  lt_of_lt_of_le := @@real.lt_of_lt_of_le,
+  le_of_lt := @@real.le_of_lt,
   add_lt_add_left := real.add_lt_add_left
 ⦄
 

@@ -41,16 +41,16 @@ namespace category
     end
 
     definition is_equiv_iso_of_equiv [constructor] (A B : set)
-      : is_equiv (@iso_of_equiv A B) :=
+      : is_equiv (@@iso_of_equiv A B) :=
     adjointify _ (λf, equiv_of_iso f)
                  (λf, proof iso_eq idp qed)
                  (λf, equiv_eq idp)
 
     local attribute is_equiv_iso_of_equiv [instance]
 
-    definition iso_of_eq_eq_compose (A B : hset) : @iso_of_eq _ _ A B =
-      @iso_of_equiv A B ∘ @equiv_of_eq A B ∘ subtype_eq_inv _ _ ∘
-      @ap _ _ (to_fun (trunctype.sigma_char 0)) A B :=
+    definition iso_of_eq_eq_compose (A B : hset) : @@iso_of_eq _ _ A B =
+      @@iso_of_equiv A B ∘ @@equiv_of_eq A B ∘ subtype_eq_inv _ _ ∘
+      @@ap _ _ (to_fun (trunctype.sigma_char 0)) A B :=
     eq_of_homotopy (λp, eq.rec_on p idp)
 
     definition equiv_equiv_iso (A B : set) : (A ≃ B) ≃ (A ≅ B) :=
@@ -66,13 +66,13 @@ namespace category
     ua !equiv_equiv_iso
 
     definition is_univalent_hset (A B : set) : is_equiv (iso_of_eq : A = B → A ≅ B) :=
-    assert H₁ : is_equiv (@iso_of_equiv A B ∘ @equiv_of_eq A B ∘ subtype_eq_inv _ _ ∘
-                  @ap _ _ (to_fun (trunctype.sigma_char 0)) A B), from
-      @is_equiv_compose _ _ _ _ _
-      (@is_equiv_compose _ _ _ _ _
-         (@is_equiv_compose _ _ _ _ _
+    assert H₁ : is_equiv (@@iso_of_equiv A B ∘ @@equiv_of_eq A B ∘ subtype_eq_inv _ _ ∘
+                  @@ap _ _ (to_fun (trunctype.sigma_char 0)) A B), from
+      @@is_equiv_compose _ _ _ _ _
+      (@@is_equiv_compose _ _ _ _ _
+         (@@is_equiv_compose _ _ _ _ _
            _
-           (@is_equiv_subtype_eq_inv _ _ _ _ _))
+           (@@is_equiv_subtype_eq_inv _ _ _ _ _))
          !univalence)
        !is_equiv_iso_of_equiv,
     let H₂ := (iso_of_eq_eq_compose A B)⁻¹ in

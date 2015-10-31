@@ -21,7 +21,7 @@ namespace susp
   definition south {A : Type} : susp A :=
   inr star
 
-  definition merid (a : A) : @north A = @south A :=
+  definition merid (a : A) : @@north A = @@south A :=
   glue a
 
   protected definition rec {P : susp A → Type} (PN : P north) (PS : P south)

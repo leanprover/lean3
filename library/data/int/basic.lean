@@ -187,11 +187,11 @@ add.right_cancel (calc
     ... = pr2 p + pr1 r + pr2 q                  : by rewrite add.right_comm)
 
 protected theorem equiv_equiv : is_equivalence int.equiv :=
-is_equivalence.mk @equiv.refl @equiv.symm @equiv.trans
+is_equivalence.mk @@equiv.refl @@equiv.symm @@equiv.trans
 
 protected theorem equiv_cases {p q : ℕ × ℕ} (H : p ≡ q) :
     (pr1 p ≥ pr2 p ∧ pr1 q ≥ pr2 q) ∨ (pr1 p < pr2 p ∧ pr1 q < pr2 q) :=
-or.elim (@le_or_gt _ _ (pr2 p) (pr1 p))
+or.elim (@@le_or_gt _ _ (pr2 p) (pr1 p))
   (suppose pr1 p ≥ pr2 p,
     have pr2 p + pr1 q ≥ pr2 p + pr2 q, from H ▸ add_le_add_right this (pr2 q),
     or.inl (and.intro `pr1 p ≥ pr2 p` (le_of_add_le_add_left this)))
@@ -571,7 +571,7 @@ protected definition integral_domain [reducible] [trans_instance] : algebra.inte
   right_distrib  := int.right_distrib,
   mul_comm       := int.mul_comm,
   zero_ne_one    := int.zero_ne_one,
-  eq_zero_or_eq_zero_of_mul_eq_zero := @int.eq_zero_or_eq_zero_of_mul_eq_zero⦄
+  eq_zero_or_eq_zero_of_mul_eq_zero := @@int.eq_zero_or_eq_zero_of_mul_eq_zero⦄
 
 definition int_has_sub [reducible] [instance] [priority int.prio] : has_sub int :=
 has_sub.mk has_sub.sub

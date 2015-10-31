@@ -27,7 +27,7 @@ section
 
   definition incl : colimit :=
   class_of R ⟨i, a⟩
-  abbreviation ι := @incl
+  abbreviation ι := @@incl
 
   definition cglue : ι (f j b) = ι b :=
   eq_of_rel colim_rel (Rmk f b)
@@ -111,7 +111,7 @@ section
   definition inclusion : seq_colim :=
   class_of R ⟨n, a⟩
 
-  abbreviation sι := @inclusion
+  abbreviation sι := @@inclusion
 
   definition glue : sι (f a) = sι a :=
   eq_of_rel seq_rel (Rmk f a)

@@ -38,7 +38,7 @@ namespace is_equiv
   variables {A B C : Type} (f : A → B) (g : B → C) {f' : A → B}
 
   -- The variant of mk' where f is explicit.
-  protected abbreviation mk [constructor] := @is_equiv.mk' A B f
+  protected abbreviation mk [constructor] := @@is_equiv.mk' A B f
 
   -- The identity function is an equivalence.
   definition is_equiv_id [instance] (A : Type) : (is_equiv (id : A → A)) :=
@@ -135,11 +135,11 @@ namespace is_equiv
 
   definition cancel_right (g : B → C) [Hgf : is_equiv (g ∘ f)] : (is_equiv g) :=
   have Hfinv [visible] : is_equiv f⁻¹, from is_equiv_inv f,
-  @homotopy_closed _ _ _ _ (is_equiv_compose f⁻¹ (g ∘ f)) (λb, ap g (@right_inv _ _ f _ b))
+  @@homotopy_closed _ _ _ _ (is_equiv_compose f⁻¹ (g ∘ f)) (λb, ap g (@@right_inv _ _ f _ b))
 
   definition cancel_left (g : C → A) [Hgf : is_equiv (f ∘ g)] : (is_equiv g) :=
   have Hfinv [visible] : is_equiv f⁻¹, from is_equiv_inv f,
-  @homotopy_closed _ _ _ _ (is_equiv_compose (f ∘ g) f⁻¹) (λa, left_inv f (g a))
+  @@homotopy_closed _ _ _ _ (is_equiv_compose (f ∘ g) f⁻¹) (λa, left_inv f (g a))
 
   definition eq_of_fn_eq_fn' {x y : A} (q : f x = f y) : x = y :=
   (left_inv f x)⁻¹ ⬝ ap f⁻¹ q ⬝ left_inv f y
@@ -223,7 +223,7 @@ namespace is_equiv
   is_equiv.mk _ (transport P p⁻¹) (tr_inv_tr p) (inv_tr_tr p) (tr_inv_tr_lemma p)
 
   section
-  variables {A : Type} {B C : A → Type} (f : Π{a}, B a → C a) [H : Πa, is_equiv (@f a)]
+  variables {A : Type} {B C : A → Type} (f : Π{a}, B a → C a) [H : Πa, is_equiv (@@f a)]
     {g : A → A} (h : Π{a}, B a → B (g a)) (h' : Π{a}, C a → C (g a))
   include H
   definition inv_commute' (p : Π⦃a : A⦄ (b : B a), f (h b) = h' (f b)) {a : A} (c : C a) :
@@ -235,7 +235,7 @@ namespace is_equiv
   eq_of_fn_eq_fn' f⁻¹ (left_inv f (h b) ⬝ ap h (left_inv f b)⁻¹ ⬝ (p (f b))⁻¹)
 
   definition ap_inv_commute' (p : Π⦃a : A⦄ (b : B a), f (h b) = h' (f b)) {a : A} (c : C a) :
-    ap f (inv_commute' @f @h @h' p c)
+    ap f (inv_commute' @@f @@h @@h' p c)
       = right_inv f (h' c) ⬝ ap h' (right_inv f c)⁻¹ ⬝ (p (f⁻¹ c))⁻¹ :=
   !ap_eq_of_fn_eq_fn'
 
@@ -290,7 +290,7 @@ namespace equiv
   infixl `⬝e`:75 := equiv.trans
   postfix [parsing_only] `⁻¹ᵉ`:(max + 1) := equiv.symm
     -- notation for inverse which is not overloaded
-  abbreviation erfl [constructor] := @equiv.refl
+  abbreviation erfl [constructor] := @@equiv.refl
 
   definition to_inv_trans [reducible] [unfold_full] (f : A ≃ B) (g : B ≃ C)
     : to_inv (f ⬝e g) = to_fun (g⁻¹ᵉ ⬝e f⁻¹ᵉ) :=
@@ -351,11 +351,11 @@ namespace equiv
 
   definition inv_commute (p : Π⦃a : A⦄ (b : B a), f (h b) = h' (f b)) {a : A} (c : C a) :
     f⁻¹ (h' c) = h (f⁻¹ c) :=
-  inv_commute' @f @h @h' p c
+  inv_commute' @@f @@h @@h' p c
 
   definition fun_commute_of_inv_commute (p : Π⦃a : A⦄ (c : C a), f⁻¹ (h' c) = h (f⁻¹ c))
     {a : A} (b : B a) : f (h b) = h' (f b) :=
-  fun_commute_of_inv_commute' @f @h @h' p b
+  fun_commute_of_inv_commute' @@f @@h @@h' p b
   end
 
 

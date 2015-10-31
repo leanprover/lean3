@@ -244,7 +244,7 @@ lemma subg_moversets_of_orbit_eq_stab_lcosets :
       existsi h, subst Pb₂, assumption
       end)
       (assume Pr, obtain h Ph₁ Ph₂, from exists_of_mem_image Pr,
-      obtain b Pb, from @subg_lcoset_of_stab_is_moverset_of_orbit G S ambientG finS deceqS deceqG hom H a Hom subgH h Ph₁, begin
+      obtain b Pb, from @@subg_lcoset_of_stab_is_moverset_of_orbit G S ambientG finS deceqS deceqG hom H a Hom subgH h Ph₁, begin
       rewrite [mem_image_eq],
       existsi b, subst Ph₂, assumption
       end))
@@ -299,7 +299,7 @@ take a b, propext (iff.intro
 variables (hom) (H)
 open nat nat.finset finset.partition fintype
 
-definition orbit_partition : @partition S _ :=
+definition orbit_partition : @@partition S _ :=
 mk univ (orbit hom H) orbit_is_partition
   (restriction_imp_union (orbit hom H) orbit_is_partition (λ a Pa, !subset_univ))
 
@@ -389,13 +389,13 @@ take g, perm.mk (lmul_by g) (lmul_inj g)
 variable [deceqG : decidable_eq G]
 include deceqG
 
-lemma action_by_lmul_hom : homomorphic (@action_by_lmul G _ _) :=
+lemma action_by_lmul_hom : homomorphic (@@action_by_lmul G _ _) :=
 take g₁ (g₂ : G), eq.symm (calc
       action_by_lmul g₁ * action_by_lmul g₂
     = perm.mk ((lmul_by g₁)∘(lmul_by g₂)) _ : rfl
 ... = perm.mk (lmul_by (g₁*g₂)) _ : by congruence; apply coset.lmul_compose)
 
-lemma action_by_lmul_inj : injective (@action_by_lmul G _ _) :=
+lemma action_by_lmul_inj : injective (@@action_by_lmul G _ _) :=
 take g₁ g₂, assume Peq, perm.no_confusion Peq
   (λ Pfeq Pqeq,
   have Pappeq : g₁*1 = g₂*1, from congr_fun Pfeq _,
@@ -403,7 +403,7 @@ take g₁ g₂, assume Peq, perm.no_confusion Peq
       ... = g₂ * 1 : Pappeq
       ... = g₂ : mul_one)
 
-definition action_by_lmul_is_iso [instance] : is_iso_class (@action_by_lmul G _ _) :=
+definition action_by_lmul_is_iso [instance] : is_iso_class (@@action_by_lmul G _ _) :=
 is_iso_class.mk action_by_lmul_hom action_by_lmul_inj
 
 end cayley
@@ -523,13 +523,13 @@ lemma lift_lower_eq : ∀ {p : perm (fin (succ n))} (P : p maxi = maxi),
       congruence, rewrite [-eq_iff_veq]
   end
 
-lemma lift_perm_inj : injective (@lift_perm n) :=
+lemma lift_perm_inj : injective (@@lift_perm n) :=
 take p1 p2, assume Peq, eq_of_feq (lift_fun_inj (feq_of_eq Peq))
 
-lemma lift_perm_inj_on_univ : set.inj_on (@lift_perm n) (ts univ) :=
+lemma lift_perm_inj_on_univ : set.inj_on (@@lift_perm n) (ts univ) :=
 eq.symm to_set_univ ▸ iff.elim_left set.injective_iff_inj_on_univ lift_perm_inj
 
-lemma lift_to_stab : image (@lift_perm n) univ = stab id univ maxi :=
+lemma lift_to_stab : image (@@lift_perm n) univ = stab id univ maxi :=
 ext (take (pp : perm (fin (succ n))), iff.intro
   (assume Pimg, obtain p P_ Pp, from exists_of_mem_image Pimg,
   assert Ppp : pp maxi = maxi, from calc
@@ -544,7 +544,7 @@ ext (take (pp : perm (fin (succ n))), iff.intro
 definition move_from_max_to (i : fin (succ n)) : perm (fin (succ n)) :=
 perm.mk (madd (i - maxi)) madd_inj
 
-lemma orbit_max : orbit (@id (perm (fin (succ n)))) univ maxi = univ :=
+lemma orbit_max : orbit (@@id (perm (fin (succ n)))) univ maxi = univ :=
 ext (take i, iff.intro
   (assume P, !mem_univ)
   (assume P, begin
@@ -554,15 +554,15 @@ ext (take i, iff.intro
       apply sub_add_cancel
     end))
 
-lemma card_orbit_max : card (orbit (@id (perm (fin (succ n)))) univ maxi) = succ n :=
-calc card (orbit (@id (perm (fin (succ n)))) univ maxi) = card univ : by rewrite orbit_max
+lemma card_orbit_max : card (orbit (@@id (perm (fin (succ n)))) univ maxi) = succ n :=
+calc card (orbit (@@id (perm (fin (succ n)))) univ maxi) = card univ : by rewrite orbit_max
                                                     ... = succ n    : card_fin (succ n)
 
 open fintype
 
-lemma card_lift_to_stab : card (stab (@id (perm (fin (succ n)))) univ maxi) = card (perm (fin n)) :=
- calc finset.card (stab (@id (perm (fin (succ n)))) univ maxi)
-    = finset.card (image (@lift_perm n) univ) : by rewrite lift_to_stab
+lemma card_lift_to_stab : card (stab (@@id (perm (fin (succ n)))) univ maxi) = card (perm (fin n)) :=
+ calc finset.card (stab (@@id (perm (fin (succ n)))) univ maxi)
+    = finset.card (image (@@lift_perm n) univ) : by rewrite lift_to_stab
 ... = card univ                               : by rewrite (card_image_eq_of_inj_on lift_perm_inj_on_univ)
 
 lemma card_perm_step : card (perm (fin (succ n))) = (succ n) * card (perm (fin n)) :=

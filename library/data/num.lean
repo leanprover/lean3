@@ -300,7 +300,7 @@ namespace pos_num
   | (bit0 a) (bit1 b) (bit0 c) H₁ H₂ :=
     begin
       rewrite [lt_bit0_bit1_eq_lt_succ at H₁, lt_bit1_bit0_eq_lt at H₂, lt_bit0_bit0_eq_lt],
-      apply @by_cases (a = b),
+      apply @@by_cases (a = b),
       begin
          intro H, rewrite -H at H₂, exact H₂
       end,
@@ -322,7 +322,7 @@ namespace pos_num
   | (bit1 a) (bit0 b) (bit1 c) H₁ H₂ :=
     begin
       rewrite [lt_bit1_bit0_eq_lt at H₁, lt_bit0_bit1_eq_lt_succ at H₂, lt_bit1_bit1_eq_lt],
-      apply @by_cases (b = c),
+      apply @@by_cases (b = c),
       begin
         intro H, rewrite H at H₁, exact H₁
       end,
@@ -359,7 +359,7 @@ namespace pos_num
       have H₁ : succ b ≮ a, from lt_antisymm H,
       apply eq_ff_of_ne_tt,
         intro H₂,
-        apply @by_cases (succ b = a),
+        apply @@by_cases (succ b = a),
         show succ b = a → false,
         begin
           intro Hp,
@@ -382,7 +382,7 @@ namespace pos_num
       have H₁ : lt b a = ff, from lt_antisymm H,
       apply eq_ff_of_ne_tt,
         intro H₂,
-        apply @by_cases (b = a),
+        apply @@by_cases (b = a),
         show b = a → false,
         begin
           intro Hp,
@@ -441,7 +441,7 @@ namespace pos_num
       rewrite [le_eq_lt_succ at H₁, succ_bit0 at H₁, lt_bit1_bit1_eq_lt at H₁],
       rewrite lt_bit0_bit1_eq_lt_succ at H₂,
       have H₃ : a < succ b, from lt_step H₁,
-      apply @by_cases (b = a),
+      apply @@by_cases (b = a),
       begin
         intro Hba, rewrite -Hba at H₁,
         apply absurd_of_eq_ff_of_eq_tt (lt_irrefl b) H₁
@@ -498,7 +498,7 @@ namespace pos_num
   begin
     intro H₁ H₂,
     rewrite [le_eq_lt_succ at *],
-    apply @by_cases (a = b),
+    apply @@by_cases (a = b),
     begin
       intro Hab, rewrite Hab, exact H₂
     end,

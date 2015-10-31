@@ -283,19 +283,19 @@ protected definition complete_lattice_Inf [reducible] [instance] : complete_latt
 ⦃ algebra.complete_lattice_Inf,
   le           := weakens,
   le_refl      := weakens.refl,
-  le_trans     := @weakens.trans A,
-  le_antisymm  := @weakens.antisymm A,
+  le_trans     := @@weakens.trans A,
+  le_antisymm  := @@weakens.antisymm A,
 --  inf          := inf,
---  le_inf       := @inf_refines A,
+--  le_inf       := @@inf_refines A,
 --  inf_le_left  := refines_inf_left,
 --  inf_le_right := refines_inf_right,
 --  sup          := sup,
---  sup_le       := @refines_sup A,
+--  sup_le       := @@refines_sup A,
 --  le_sup_left  := sup_refines_left,
 --  le_sup_right := sup_refines_right,
   Inf          := Inf,
-  Inf_le       := @refines_Inf A,
-  le_Inf       := @Inf_refines A
+  Inf_le       := @@refines_Inf A,
+  le_Inf       := @@Inf_refines A
 ⦄
 
 -- The previous instance is enough for showing that (filter A) is a complete_lattice

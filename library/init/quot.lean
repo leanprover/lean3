@@ -148,7 +148,7 @@ namespace quot
   protected definition rec_on_subsingleton₂ [reducible]
      {C : quot s₁ → quot s₂ → Type₁} [H : ∀ a b, subsingleton (C ⟦a⟧ ⟦b⟧)]
      (q₁ : quot s₁) (q₂ : quot s₂) (f : Π a b, C ⟦a⟧ ⟦b⟧) : C q₁ q₂:=
-  @quot.rec_on_subsingleton _ _ _
+  @@quot.rec_on_subsingleton _ _ _
     (λ a, quot.ind _ _)
     q₁ (λ a, quot.rec_on_subsingleton q₂ (λ b, f a b))
 

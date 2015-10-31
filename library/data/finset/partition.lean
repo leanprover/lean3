@@ -44,7 +44,7 @@ begin
   intro Pe, exact absurd Pe Pne
 end
 
-theorem class_equation (f : @partition A _) :
+theorem class_equation (f : @@partition A _) :
   card (partition.set f) = nat.finset.Sum (equiv_classes f) card :=
 let s := (partition.set f), p := (partition.part f), img := image p s in
   calc

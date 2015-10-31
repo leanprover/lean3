@@ -15,8 +15,8 @@ namespace arrow
     (cod : Type)
     (arrow : dom → cod)
 
-  abbreviation dom [unfold 2] := @arrow.dom
-  abbreviation cod [unfold 2] := @arrow.cod
+  abbreviation dom [unfold 2] := @@arrow.dom
+  abbreviation cod [unfold 2] := @@arrow.cod
 
   definition arrow_of_fn {A B : Type} (f : A → B) : arrow :=
   arrow.mk A B f
@@ -34,9 +34,9 @@ namespace arrow
     (on_cod : cod f → cod g)
     (commute : Π(x : dom f), g (on_dom x) = on_cod (f x))
 
-  abbreviation on_dom [unfold 2] := @arrow_hom.on_dom
-  abbreviation on_cod [unfold 2] := @arrow_hom.on_cod
-  abbreviation commute [unfold 2] := @arrow_hom.commute
+  abbreviation on_dom [unfold 2] := @@arrow_hom.on_dom
+  abbreviation on_cod [unfold 2] := @@arrow_hom.on_cod
+  abbreviation commute [unfold 2] := @@arrow_hom.commute
 
   variables {f g : arrow}
 
@@ -60,7 +60,7 @@ namespace arrow
     : retraction_on_fiber r b (on_fiber (is_retraction.sect r) b (fiber.mk a p)) = fiber.mk a p :=
   begin
     induction p, unfold on_fiber, unfold retraction_on_fiber,
-    apply @fiber.fiber_eq _ _ g (g a)
+    apply @@fiber.fiber_eq _ _ g (g a)
       (fiber.mk
         (on_dom r (on_dom (is_retraction.sect r) a))
         (commute r (on_dom (is_retraction.sect r) a)
@@ -86,7 +86,7 @@ namespace arrow
   definition retract_of_equivalence_is_equivalence (r : arrow_hom f g) [H : is_retraction r]
     [K : is_equiv f] : is_equiv g :=
   begin
-    apply @is_equiv_of_is_contr_fun _ _ g,
+    apply @@is_equiv_of_is_contr_fun _ _ g,
     intro b,
     apply is_contr_retract (retraction_on_fiber r b),
     exact is_contr_fun_of_is_equiv f (on_cod (is_retraction.sect r) b)

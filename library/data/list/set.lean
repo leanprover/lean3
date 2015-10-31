@@ -191,7 +191,7 @@ section nodup
 open nodup
 variables {A B : Type}
 
-theorem nodup_nil : @nodup A [] :=
+theorem nodup_nil : @@nodup A [] :=
 ndnil
 
 theorem nodup_cons {a : A} {l : list A} : a ∉ l → nodup l → nodup (a::l)  :=

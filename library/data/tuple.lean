@@ -16,7 +16,7 @@ namespace tuple
 
   theorem induction_on [recursor 4] {P : ∀ {n}, tuple A n → Prop}
                        : ∀ {n} (v : tuple A n), (∀ (l : list A) {n : nat} (h : length l = n), P (tag l h)) → P v
-  | n (tag l h) H := @H l n h
+  | n (tag l h) H := @@H l n h
 
   definition nil : tuple A 0 :=
   tag [] rfl
@@ -200,13 +200,13 @@ namespace tuple
   definition product {n m : nat} : tuple A n → tuple B m → tuple (A × B) (n * m)
   | (tag l₁ h₁) (tag l₂ h₂) := tag (list.product l₁ l₂) (by rewrite [length_product, h₁, h₂])
 
-  theorem nil_product {m : nat} (v : tuple B m) : !zero_mul ▹ product (@nil A) v = nil :=
+  theorem nil_product {m : nat} (v : tuple B m) : !zero_mul ▹ product (@@nil A) v = nil :=
   begin induction v, unfold [nil, product], rewrite push_eq_rec end
 
-  theorem nil_product_heq {m : nat} (v : tuple B m) : product (@nil A) v == (@nil (A × B)) :=
+  theorem nil_product_heq {m : nat} (v : tuple B m) : product (@@nil A) v == (@@nil (A × B)) :=
   heq_of_eq_rec_left _ (nil_product v)
 
-  theorem product_nil {n : nat} (v : tuple A n) : product v (@nil B) = nil :=
+  theorem product_nil {n : nat} (v : tuple A n) : product v (@@nil B) = nil :=
   begin induction v, unfold [nil, product], congruence, apply list.product_nil end
 
   theorem mem_product {n m : nat} {a : A} {b : B} {v₁ : tuple A n} {v₂ : tuple B m} : a ∈ v₁ → b ∈ v₂ → (a, b) ∈ product v₁ v₂ :=

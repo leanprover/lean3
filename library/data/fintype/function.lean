@@ -23,7 +23,7 @@ definition cons_all_of (elts : list A) (ls : list (list A)) : list (list A) :=
 lemma pair_of_cons {a} {l} {pr : A × list A} : cons_pair pr = a::l → pr = (a, l) :=
       prod.destruct pr (λ p1 p2, assume Peq, list.no_confusion Peq (by intros; substvars))
 
-lemma cons_pair_inj : injective (@cons_pair A) :=
+lemma cons_pair_inj : injective (@@cons_pair A) :=
       take p1 p2, assume Pl,
       prod.eq (list.no_confusion Pl (λ P1 P2, P1)) (list.no_confusion Pl (λ P1 P2, P2))
 
@@ -47,12 +47,12 @@ definition all_lists_of_len : ∀ (n : nat), list (list A)
 definition all_nodups_of_len [deceqA : decidable_eq A] (n : nat) : list (list A) :=
            filter nodup (all_lists_of_len n)
 
-lemma nodup_all_lists : ∀ {n : nat}, nodup (@all_lists_of_len A _ n)
+lemma nodup_all_lists : ∀ {n : nat}, nodup (@@all_lists_of_len A _ n)
 | 0                   := nodup_singleton []
 | (succ n)            := nodup_of_cons_all (fintype.unique A) nodup_all_lists
 
 lemma nodup_all_nodups [deceqA : decidable_eq A] {n : nat} :
-      nodup (@all_nodups_of_len A _ _ n) :=
+      nodup (@@all_nodups_of_len A _ _ n) :=
       nodup_filter nodup nodup_all_lists
 
 lemma mem_all_lists : ∀ {n : nat} {l : list A}, length l = n → l ∈ all_lists_of_len n
@@ -90,7 +90,7 @@ lemma length_mem_all_nodups [deceqA : decidable_eq A] {n : nat} ⦃l : list A⦄
       assume Pl, length_mem_all_lists (mem_of_mem_filter Pl)
 
 open fintype
-lemma length_all_lists : ∀ {n : nat}, length (@all_lists_of_len A _ n) = (card A) ^ n
+lemma length_all_lists : ∀ {n : nat}, length (@@all_lists_of_len A _ n) = (card A) ^ n
 | 0         := calc length [[]] = 1 : length_cons
 | (succ n)  := calc length _ = card A * length (all_lists_of_len n) : length_cons_all
                          ... = card A * (card A ^ n) : length_all_lists
@@ -270,7 +270,7 @@ lemma fun_eq_list_to_fun_map (f : A → B) : ∀ P, f = list_to_fun (map f (elem
       rewrite [list_to_fun_apply _ Pleq a (Pleq⁻¹ ▸ find_lt_length (complete a))],
       assert Pmlt : find a (elems A) < length (map f (elems A)),
         {rewrite length_map, exact Plt},
-      rewrite [@kth_of_map A B f (find a (elems A)) (elems A) Plt _, kth_find]
+      rewrite [@@kth_of_map A B f (find a (elems A)) (elems A) Plt _, kth_find]
       end)
 
 lemma list_eq_map_list_to_fun  (l : list B) (leq : length l = card A)
@@ -300,7 +300,7 @@ lemma dinj_list_to_fun : dinj (λ (l : list B), length l = card A) list_to_fun :
 variable [finB : fintype B]
 include finB
 
-lemma nodup_all_funs : nodup (@all_funs A B _ _ _) :=
+lemma nodup_all_funs : nodup (@@all_funs A B _ _ _) :=
       dmap_nodup_of_dinj dinj_list_to_fun nodup_all_lists
 
 lemma all_funs_complete (f : A → B) : f ∈ all_funs :=
@@ -311,10 +311,10 @@ lemma all_funs_complete (f : A → B) : f ∈ all_funs :=
       begin rewrite [fun_eq_list_to_fun_map f (length_map_of_fintype f)], apply Plfin end
 
 lemma all_funs_to_all_lists :
-      map fun_to_list (@all_funs A B _ _ _) = all_lists_of_len (card A) :=
+      map fun_to_list (@@all_funs A B _ _ _) = all_lists_of_len (card A) :=
       map_dmap_of_inv_of_pos list_to_fun_to_list length_mem_all_lists
 
-lemma length_all_funs : length (@all_funs A B _ _ _) = (card B) ^ (card A) := calc
+lemma length_all_funs : length (@@all_funs A B _ _ _) = (card B) ^ (card A) := calc
       length _ = length (map fun_to_list all_funs) : length_map
            ... = length (all_lists_of_len (card A)) : all_funs_to_all_lists
            ... = (card B) ^ (card A) : length_all_lists

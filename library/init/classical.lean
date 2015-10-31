@@ -34,21 +34,21 @@ let u : {x | (∃y, P y) → P x} :=
 elt_of u
 
 theorem epsilon_spec_aux {A : Type} (H : nonempty A) (P : A → Prop) (Hex : ∃y, P y) :
-    P (@epsilon A H P) :=
+    P (@@epsilon A H P) :=
 let u : {x | (∃y, P y) → P x} :=
   strong_indefinite_description P H in
 have aux : (∃y, P y) → P (elt_of (strong_indefinite_description P H)), from has_property u,
 aux Hex
 
 theorem epsilon_spec {A : Type} {P : A → Prop} (Hex : ∃y, P y) :
-    P (@epsilon A (nonempty_of_exists Hex) P) :=
+    P (@@epsilon A (nonempty_of_exists Hex) P) :=
 epsilon_spec_aux (nonempty_of_exists Hex) P Hex
 
-theorem epsilon_singleton {A : Type} (a : A) : @epsilon A (nonempty.intro a) (λx, x = a) = a :=
+theorem epsilon_singleton {A : Type} (a : A) : @@epsilon A (nonempty.intro a) (λx, x = a) = a :=
 epsilon_spec (exists.intro a (eq.refl a))
 
 noncomputable definition some {A : Type} {P : A → Prop} (H : ∃x, P x) : A :=
-@epsilon A (nonempty_of_exists H) P
+@@epsilon A (nonempty_of_exists H) P
 
 theorem some_spec {A : Type} {P : A → Prop} (H : ∃x, P x) : P (some H) :=
 epsilon_spec H

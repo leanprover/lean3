@@ -13,7 +13,7 @@ open algebra
 variable {A : Type}
 
 definition bag.setoid [instance] (A : Type) : setoid (list A) :=
-setoid.mk (@perm A) (mk_equivalence (@perm A) (@perm.refl A) (@perm.symm A) (@perm.trans A))
+setoid.mk (@@perm A) (mk_equivalence (@@perm A) (@@perm.refl A) (@@perm.symm A) (@@perm.trans A))
 
 definition bag (A : Type) : Type :=
 quot (bag.setoid A)
@@ -156,13 +156,13 @@ begin unfold [extract, singleton, of_list, filter], rewrite [if_neg (λ h : a �
 lemma extract_insert (a : A) (b : bag A) : extract a (insert a b) = extract a b :=
 quot.induction_on b (λ l, begin
   unfold [insert, extract],
-  rewrite [@filter_cons_of_neg _ (λ c, c ≠ a) _ _ l (not_not_intro (eq.refl a))]
+  rewrite [@@filter_cons_of_neg _ (λ c, c ≠ a) _ _ l (not_not_intro (eq.refl a))]
 end)
 
 lemma extract_insert_of_ne {a₁ a₂ : A} (h : a₁ ≠ a₂) (b : bag A) : extract a₁ (insert a₂ b) = insert a₂ (extract a₁ b) :=
 quot.induction_on b (λ l, begin
   unfold [insert, extract],
-  rewrite [@filter_cons_of_pos _ (λ c, c ≠ a₁) _ _ l (ne.symm h)]
+  rewrite [@@filter_cons_of_pos _ (λ c, c ≠ a₁) _ _ l (ne.symm h)]
 end)
 
 lemma count_extract (a : A) (b : bag A) : count a (extract a b) = 0 :=
@@ -526,22 +526,22 @@ end)
 lemma inter.left_distrib (b₁ b₂ b₃ : bag A) : b₁ ∩ (b₂ ∪ b₃) = (b₁ ∩ b₂) ∪ (b₁ ∩ b₃) :=
 bag.ext (λ a, begin
   rewrite [*count_inter, *count_union, *count_inter],
-  apply (@by_cases (count a b₁ ≤ count a b₂)),
-  { intro H₁₂, apply (@by_cases (count a b₂ ≤ count a b₃)),
+  apply (@@by_cases (count a b₁ ≤ count a b₂)),
+  { intro H₁₂, apply (@@by_cases (count a b₂ ≤ count a b₃)),
     { intro H₂₃,
       have H₁₃ : count a b₁ ≤ count a b₃, from le.trans H₁₂ H₂₃,
       rewrite [max_eq_right H₂₃, min_eq_left H₁₂, min_eq_left H₁₃, max_self]},
     { intro H₂₃,
       rewrite [min_eq_left H₁₂, max.comm, max_eq_right_of_lt (lt_of_not_ge H₂₃) ],
-      apply (@by_cases (count a b₁ ≤ count a b₃)),
+      apply (@@by_cases (count a b₁ ≤ count a b₃)),
       { intro H₁₃, rewrite [min_eq_left H₁₃, max_self, min_eq_left H₁₂] },
       { intro H₁₃,
         rewrite [min.comm (count a b₁) (count a b₃), min_eq_left_of_lt (lt_of_not_ge H₁₃),
                  min_eq_left H₁₂, max.comm, max_eq_right_of_lt (lt_of_not_ge H₁₃)]}}},
-  { intro H₁₂, apply (@by_cases (count a b₂ ≤ count a b₃)),
+  { intro H₁₂, apply (@@by_cases (count a b₂ ≤ count a b₃)),
     { intro H₂₃,
       rewrite [max_eq_right H₂₃],
-      apply (@by_cases (count a b₁ ≤ count a b₃)),
+      apply (@@by_cases (count a b₁ ≤ count a b₃)),
       { intro H₁₃, rewrite [min_eq_left H₁₃, min.comm, min_eq_left_of_lt (lt_of_not_ge H₁₂), max_eq_right_of_lt (lt_of_not_ge H₁₂)] },
       { intro H₁₃, rewrite [min.comm, min_eq_left_of_lt (lt_of_not_ge H₁₃), min.comm, min_eq_left_of_lt (lt_of_not_ge H₁₂), max_eq_right H₂₃] } },
     { intro H₂₃,

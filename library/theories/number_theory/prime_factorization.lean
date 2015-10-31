@@ -296,7 +296,7 @@ theorem eq_prime_factorization {n : ℕ} (npos : n > 0) :
   n = (∏ p ∈ prime_factors n, p^(mult p n)) :=
 let nprod := ∏ p ∈ prime_factors n, p^(mult p n) in
 assert primefactors : ∀ p, p ∈ prime_factors n → prime p,
-  from take p, @prime_of_mem_prime_factors p n,
+  from take p, @@prime_of_mem_prime_factors p n,
 have prodpos : (∏ q ∈ prime_factors n, q^(mult q n)) > 0,
   from Prod_pos (take q, assume qpf,
     !pow_pos_of_pos (pos_of_prime (prime_of_mem_prime_factors qpf))),

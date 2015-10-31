@@ -240,7 +240,7 @@ assume hh ht,
     (λ s₁ s₂, head s₁ = head s₂ ∧ ∀ (B : Type) (fr : stream A → B), fr s₁ = fr s₂ → fr (tail s₁) = fr (tail s₂))
     (λ s₁ s₂ h,
       have h₁ : head s₁ = head s₂,               from and.elim_left h,
-      have h₂ : head (tail s₁) = head (tail s₂), from and.elim_right h A (@head A) h₁,
+      have h₂ : head (tail s₁) = head (tail s₂), from and.elim_right h A (@@head A) h₁,
       have h₃ : ∀ (B : Type) (fr : stream A → B), fr (tail s₁) = fr (tail s₂) → fr (tail (tail s₁)) = fr (tail (tail s₂)), from
         λ B fr, and.elim_right h B (λ s, fr (tail s)),
       and.intro h₁ (and.intro h₂ h₃))

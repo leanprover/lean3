@@ -48,7 +48,7 @@ theorem gcd_of_ne_zero (a : ℤ) {b : ℤ} (H : b ≠ 0) : gcd a b = gcd b (abs 
 have nat_abs b ≠ 0,  from assume H', H (eq_zero_of_nat_abs_eq_zero H'),
 have nat_abs b > 0,  from pos_of_ne_zero this,
 assert nat.gcd (nat_abs a) (nat_abs b) = (nat.gcd (nat_abs b) (nat_abs a % nat_abs b)),
-  from @nat.gcd_of_pos (nat_abs a) (nat_abs b) this,
+  from @@nat.gcd_of_pos (nat_abs a) (nat_abs b) this,
 calc
  gcd a b = nat.gcd (nat_abs b) (nat_abs a % nat_abs b) : by rewrite [↑gcd, this]
      ... = gcd (abs b) (abs a % abs b)                 : by rewrite [↑gcd, -*of_nat_nat_abs, of_nat_mod]

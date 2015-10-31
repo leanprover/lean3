@@ -18,7 +18,7 @@ namespace sigma
 
   theorem dpair_heq {a : A} {a' : A'} {b : B a} {b' : B' a'}
       (HB : B == B') (Ha : a == a') (Hb : b == b') : ⟨a, b⟩ == ⟨a', b'⟩ :=
-  hcongr_arg4 @mk (heq.type_eq Ha) HB Ha Hb
+  hcongr_arg4 @@mk (heq.type_eq Ha) HB Ha Hb
 
   protected theorem heq {p : Σa : A, B a} {p' : Σa' : A', B' a'} (HB : B == B') :
     ∀(H₁ : p.1 == p'.1) (H₂ : p.2 == p'.2), p == p' :=

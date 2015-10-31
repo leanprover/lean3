@@ -32,11 +32,11 @@ namespace category
     (H : Π(c : C), ε (F c) ∘ F (η c) = ID (F c))
     (K : Π(d : D), G (ε d) ∘ η (G d) = ID (G d))
 
-  abbreviation right_adjoint  [unfold 4] := @is_left_adjoint.G
-  abbreviation unit           [unfold 4] := @is_left_adjoint.η
-  abbreviation counit         [unfold 4] := @is_left_adjoint.ε
-  abbreviation counit_unit_eq [unfold 4] := @is_left_adjoint.H
-  abbreviation unit_counit_eq [unfold 4] := @is_left_adjoint.K
+  abbreviation right_adjoint  [unfold 4] := @@is_left_adjoint.G
+  abbreviation unit           [unfold 4] := @@is_left_adjoint.η
+  abbreviation counit         [unfold 4] := @@is_left_adjoint.ε
+  abbreviation counit_unit_eq [unfold 4] := @@is_left_adjoint.H
+  abbreviation unit_counit_eq [unfold 4] := @@is_left_adjoint.K
 
   theorem is_hprop_is_left_adjoint [instance] {C : Category} {D : Precategory} (F : C ⇒ D)
     : is_hprop (is_left_adjoint F) :=

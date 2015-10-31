@@ -12,9 +12,9 @@ open eq prod equiv pushout is_trunc bool
 
 namespace join
 
-  definition join (A B : Type) : Type := @pushout (A × B) A B pr1 pr2
+  definition join (A B : Type) : Type := @@pushout (A × B) A B pr1 pr2
 
-  definition jglue {A B : Type} (a : A) (b : B) := @glue (A × B) A B pr1 pr2 (a, b)
+  definition jglue {A B : Type} (a : A) (b : B) := @@glue (A × B) A B pr1 pr2 (a, b)
 
   protected definition is_contr (A B : Type) [HA : is_contr A] :
     is_contr (join A B) :=

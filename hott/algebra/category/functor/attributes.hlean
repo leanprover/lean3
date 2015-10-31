@@ -16,8 +16,8 @@ namespace category
   variables {C D E : Precategory} {F : C ⇒ D} {G : D ⇒ C}
 
   definition faithful [class] (F : C ⇒ D) := Π⦃c c' : C⦄ ⦃f f' : c ⟶ c'⦄, F f = F f' → f = f'
-  definition full [class] (F : C ⇒ D) := Π⦃c c' : C⦄, is_surjective (@(to_fun_hom F) c c')
-  definition fully_faithful [class] (F : C ⇒ D) := Π(c c' : C), is_equiv (@(to_fun_hom F) c c')
+  definition full [class] (F : C ⇒ D) := Π⦃c c' : C⦄, is_surjective (@@(to_fun_hom F) c c')
+  definition fully_faithful [class] (F : C ⇒ D) := Π(c c' : C), is_equiv (@@(to_fun_hom F) c c')
   definition split_essentially_surjective [class] (F : C ⇒ D) := Π(d : D), Σ(c : C), F c ≅ d
   definition essentially_surjective [class] (F : C ⇒ D) := Π(d : D), ∃(c : C), F c ≅ d
   definition is_weak_equivalence [class] (F : C ⇒ D) :=
@@ -25,7 +25,7 @@ namespace category
 
 
   definition is_equiv_of_fully_faithful [instance] [reducible] (F : C ⇒ D)
-    [H : fully_faithful F] (c c' : C) : is_equiv (@(to_fun_hom F) c c') :=
+    [H : fully_faithful F] (c c' : C) : is_equiv (@@(to_fun_hom F) c c') :=
   !H
 
   definition hom_inv [reducible] (F : C ⇒ D) [H : fully_faithful F] (c c' : C) (f : F c ⟶ F c')
@@ -55,7 +55,7 @@ namespace category
 
   theorem reflect_inverse (F : C ⇒ D) [H : fully_faithful F] {c c' : C} (f : c ⟶ c')
     [H : is_iso f] : (to_fun_hom F)⁻¹ᶠ (F f)⁻¹ = f⁻¹ :=
-  inverse_eq_inverse (idp : to_hom (@(iso.mk f) (reflect_is_iso F f)) = f)
+  inverse_eq_inverse (idp : to_hom (@@(iso.mk f) (reflect_is_iso F f)) = f)
 
   definition hom_equiv_F_hom_F [constructor] (F : C ⇒ D)
     [H : fully_faithful F] (c c' : C) : (c ⟶ c') ≃ (F c ⟶ F c') :=
@@ -75,7 +75,7 @@ namespace category
       { exact abstract begin
         apply eq_of_fn_eq_fn' (to_fun_hom F),
         rewrite [respect_comp, respect_id,
-                 right_inv (to_fun_hom F), right_inv (@(to_fun_hom F) c' c), q],
+                 right_inv (to_fun_hom F), right_inv (@@(to_fun_hom F) c' c), q],
         end end}
   end
 
@@ -94,7 +94,7 @@ namespace category
   end
 
   definition full_of_fully_faithful [instance] (F : C ⇒ D) [H : fully_faithful F] : full F :=
-  λc c' g, tr (fiber.mk ((@(to_fun_hom F) c c')⁻¹ᶠ g) !right_inv)
+  λc c' g, tr (fiber.mk ((@@(to_fun_hom F) c c')⁻¹ᶠ g) !right_inv)
 
   definition faithful_of_fully_faithful [instance] (F : C ⇒ D) [H : fully_faithful F]
     : faithful F :=
@@ -109,7 +109,7 @@ namespace category
 
   definition is_surjective_of_full [instance] (F : C ⇒ D) [H : full F] (c c' : C)
     : is_surjective (to_fun_hom F : c ⟶ c' → F c ⟶ F c') :=
-  @H c c'
+  @@H c c'
 
   definition fully_faithful_of_full_of_faithful (H : faithful F) (K : full F)
     : fully_faithful F :=

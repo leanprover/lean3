@@ -12,10 +12,10 @@ section
 hypothesis nat_nat_encodable : encodable (nat → nat)
 
 private definition decode_fun (n : nat) : option (nat → nat) :=
-@decode (nat → nat) nat_nat_encodable n
+@@decode (nat → nat) nat_nat_encodable n
 
 private definition encode_fun (f : nat → nat) : nat :=
-@encode (nat → nat) nat_nat_encodable f
+@@encode (nat → nat) nat_nat_encodable f
 
 private lemma encodek_fun : ∀ f : nat → nat, decode_fun (encode_fun f) = some f :=
 λ f, !encodek

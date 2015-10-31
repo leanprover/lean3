@@ -52,10 +52,10 @@ structure is_conditionally_constant [class] (f : A → B) :=
 
 namespace function
 
-  abbreviation sect          [unfold 4] := @is_retraction.sect
-  abbreviation right_inverse [unfold 4] := @is_retraction.right_inverse
-  abbreviation retr          [unfold 4] := @is_section.retr
-  abbreviation left_inverse  [unfold 4] := @is_section.left_inverse
+  abbreviation sect          [unfold 4] := @@is_retraction.sect
+  abbreviation right_inverse [unfold 4] := @@is_retraction.right_inverse
+  abbreviation retr          [unfold 4] := @@is_section.retr
+  abbreviation left_inverse  [unfold 4] := @@is_section.left_inverse
 
   definition is_equiv_ap_of_embedding [instance] [H : is_embedding f] (a a' : A)
     : is_equiv (ap f : a = a' → f a = f a') :=
@@ -85,7 +85,7 @@ namespace function
     : is_embedding f ≃ (Π(a a' : A), f a = f a' → a = a') :=
   begin
   fapply equiv.MK,
-    { apply @is_injective_of_is_embedding},
+    { apply @@is_injective_of_is_embedding},
     { apply is_embedding_of_is_injective},
     { intro H, apply is_hprop.elim},
     { intro H, apply is_hprop.elim, }
@@ -168,7 +168,7 @@ namespace function
 
   definition is_equiv_of_is_surjective_of_is_embedding
     [H : is_embedding f] [H' : is_surjective f] : is_equiv f :=
-  @is_equiv_of_is_contr_fun _ _ _
+  @@is_equiv_of_is_contr_fun _ _ _
     (λb, is_surjective_rec_on H' b
       (λa, is_contr.mk a
         (λa',
@@ -189,7 +189,7 @@ namespace function
     { intro p, exact ap point (is_hprop.elim (fiber.mk a p) (fiber.mk a' idp))},
     { exact abstract begin
       intro p, rewrite [-ap_compose],
-      apply @is_constant.eq _ _ _ (is_constant_ap (f ∘ point) (fiber.mk a p) (fiber.mk a' idp))
+      apply @@is_constant.eq _ _ _ (is_constant_ap (f ∘ point) (fiber.mk a p) (fiber.mk a' idp))
       end end },
     { intro p, induction p, rewrite [▸*,is_hprop_elim_self]},
   end

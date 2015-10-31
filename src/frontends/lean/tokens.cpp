@@ -38,6 +38,7 @@ static name const * g_plus_tk = nullptr;
 static name const * g_star_tk = nullptr;
 static name const * g_turnstile_tk = nullptr;
 static name const * g_explicit_tk = nullptr;
+static name const * g_partial_explicit_tk = nullptr;
 static name const * g_max_tk = nullptr;
 static name const * g_imax_tk = nullptr;
 static name const * g_cup_tk = nullptr;
@@ -190,7 +191,8 @@ void initialize_tokens() {
     g_plus_tk = new name{"+"};
     g_star_tk = new name{"*"};
     g_turnstile_tk = new name{"⊢"};
-    g_explicit_tk = new name{"@"};
+    g_explicit_tk = new name{"@@"};
+    g_partial_explicit_tk = new name{"@"};
     g_max_tk = new name{"max"};
     g_imax_tk = new name{"imax"};
     g_cup_tk = new name{"\u2294"};

@@ -44,9 +44,9 @@ namespace eq
    {q₀₃ : b₀₂ =[p₀₃] b₀₄} /-t₁₃-/ {q₂₃ : b₂₂ =[p₂₃] b₂₄} /-t₃₃-/ {q₄₃ : b₄₂ =[p₄₃] b₄₄}
             /-b₀₄-/ {q₁₄ : b₀₄ =[p₁₄] b₂₄} /-b₂₄-/ {q₃₄ : b₂₄ =[p₃₄] b₄₄} /-b₄₄-/
 
-  definition squareo := @squareover A B a₀₀
-  definition idsquareo [reducible] [constructor] (b₀₀ : B a₀₀) := @squareover.idsquareo A B a₀₀ b₀₀
-  definition idso      [reducible] [constructor]               := @squareover.idsquareo A B a₀₀ b₀₀
+  definition squareo := @@squareover A B a₀₀
+  definition idsquareo [reducible] [constructor] (b₀₀ : B a₀₀) := @@squareover.idsquareo A B a₀₀ b₀₀
+  definition idso      [reducible] [constructor]               := @@squareover.idsquareo A B a₀₀ b₀₀
 
   definition apds (f : Πa, B a) (s : square p₁₀ p₁₂ p₀₁ p₂₁)
     : squareover B s (apdo f p₁₀) (apdo f p₁₂) (apdo f p₀₁) (apdo f p₂₁) :=

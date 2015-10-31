@@ -1048,7 +1048,7 @@ static pair<lhs_meta_kind, expr> find_lhs_meta(type_checker & tc, expr const & e
 
    After elaboration the second equation will be
 
-   @map (succ ?M) (@cons A ?M a va) (@cons A ?M b vb) := @cons A ?M (f ab) (@map ?M va vb)
+   @@map (succ ?M) (@@cons A ?M a va) (@@cons A ?M b vb) := @@cons A ?M (f ab) (@@map ?M va vb)
 
    This procedure replaces ?M with (x_1 : nat), where x_1 is a new local constant.
    The resultant eqns object is:
@@ -1065,15 +1065,15 @@ static pair<lhs_meta_kind, expr> find_lhs_meta(type_checker & tc, expr const & e
    ideq H := H
 
    After elaboration the equation is:
-   @ideq ?M1 ?M2 ?M3 H := H
+   @@ideq ?M1 ?M2 ?M3 H := H
 
    This procedure replaces ?M1 ?M2 ?M3 with
    (x_1 : Type) (x_2 : x_1) (x_3 : x_1)
    The resultant eqns object is
 
    [equations
-    (λ (ideq : ∀ {A : Type} {a b : A}, @eq A a b → @eq A a b) (x_1 : Type) (x_2 x_3 : x_1) (H : @eq x_1 x_2 x_3),
-       [equation (@ideq x_1 x_2 x_3 H) H])]
+    (λ (ideq : ∀ {A : Type} {a b : A}, @@eq A a b → @@eq A a b) (x_1 : Type) (x_2 x_3 : x_1) (H : @@eq x_1 x_2 x_3),
+       [equation (@@ideq x_1 x_2 x_3 H) H])]
 */
 static expr assign_equation_lhs_metas(type_checker & tc, expr const & eqns) {
     lean_assert(is_equations(eqns));

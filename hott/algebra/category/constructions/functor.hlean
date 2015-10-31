@@ -71,7 +71,7 @@ namespace functor
   definition is_natural_inverse (η : Πc, F c ≅ G c)
     (nat : Π⦃a b : C⦄ (f : hom a b), G f ∘ to_hom (η a) = to_hom (η b) ∘ F f)
     {a b : C} (f : hom a b) : F f ∘ to_inv (η a) = to_inv (η b) ∘ G f :=
-  let η' : F ⟹ G := nat_trans.mk (λc, to_hom (η c)) @nat in
+  let η' : F ⟹ G := nat_trans.mk (λc, to_hom (η c)) @@nat in
   naturality (nat_trans_inverse η') f
 
   definition is_natural_inverse' (η₁ : Πc, F c ≅ G c) (η₂ : F ⟹ G) (p : η₁ ~ η₂)
@@ -82,7 +82,7 @@ namespace functor
   definition natural_iso.MK [constructor]
     (η : Πc, F c ⟶ G c) (p : Π(c c' : C) (f : c ⟶ c'), G f ∘ η c = η c' ∘ F f)
     (θ : Πc, G c ⟶ F c) (r : Πc, θ c ∘ η c = id) (q : Πc, η c ∘ θ c = id) : F ≅ G :=
-  iso.mk (nat_trans.mk η p) (@(is_natural_iso _) (λc, is_iso.mk (θ c) (r c) (q c)))
+  iso.mk (nat_trans.mk η p) (@@(is_natural_iso _) (λc, is_iso.mk (θ c) (r c) (q c)))
 
   end
 
@@ -91,7 +91,7 @@ namespace functor
   variables {A B C D : Precategory} {F G : C ⇒ D} (η : hom F G) [isoη : is_iso η] (c : C)
   include isoη
   definition componentwise_is_iso [constructor] : is_iso (η c) :=
-  @is_iso.mk _ _ _ _ _ (natural_map η⁻¹ c) (ap010 natural_map ( left_inverse η) c)
+  @@is_iso.mk _ _ _ _ _ (natural_map η⁻¹ c) (ap010 natural_map ( left_inverse η) c)
                                            (ap010 natural_map (right_inverse η) c)
 
   local attribute componentwise_is_iso [instance]
@@ -115,7 +115,7 @@ namespace functor
 
   definition componentwise_iso (η : F ≅ G) (c : C) : F c ≅ G c :=
   iso.mk (natural_map (to_hom η) c)
-         (@componentwise_is_iso _ _ _ _ (to_hom η) (struct η) c)
+         (@@componentwise_is_iso _ _ _ _ (to_hom η) (struct η) c)
 
   definition componentwise_iso_id (c : C) : componentwise_iso (iso.refl F) c = iso.refl (F c) :=
   iso_eq (idpath (ID (F c)))
@@ -200,16 +200,16 @@ namespace functor
   definition is_iso_nf_compose [constructor] (G : D ⇒ E) (η : F ⟹ F') [H : is_iso η]
     : is_iso (G ∘fn η) :=
   is_iso.mk
-    (G ∘fn @inverse (C ⇒ D) _ _ _ η _)
-    abstract !fn_n_distrib⁻¹ ⬝ ap (λx, G ∘fn x) (@left_inverse  (C ⇒ D) _ _ _ η _)  ⬝ !fn_id end
-    abstract !fn_n_distrib⁻¹ ⬝ ap (λx, G ∘fn x) (@right_inverse (C ⇒ D) _ _ _ η _) ⬝ !fn_id end
+    (G ∘fn @@inverse (C ⇒ D) _ _ _ η _)
+    abstract !fn_n_distrib⁻¹ ⬝ ap (λx, G ∘fn x) (@@left_inverse  (C ⇒ D) _ _ _ η _)  ⬝ !fn_id end
+    abstract !fn_n_distrib⁻¹ ⬝ ap (λx, G ∘fn x) (@@right_inverse (C ⇒ D) _ _ _ η _) ⬝ !fn_id end
 
   definition is_iso_fn_compose [constructor] (η : G ⟹ G') (F : C ⇒ D) [H : is_iso η]
     : is_iso (η ∘nf F) :=
   is_iso.mk
-    (@inverse (D ⇒ E) _ _ _ η _ ∘nf F)
-    abstract !n_nf_distrib⁻¹ ⬝ ap (λx, x ∘nf F) (@left_inverse  (D ⇒ E) _ _ _ η _)  ⬝ !id_nf end
-    abstract !n_nf_distrib⁻¹ ⬝ ap (λx, x ∘nf F) (@right_inverse (D ⇒ E) _ _ _ η _)  ⬝ !id_nf end
+    (@@inverse (D ⇒ E) _ _ _ η _ ∘nf F)
+    abstract !n_nf_distrib⁻¹ ⬝ ap (λx, x ∘nf F) (@@left_inverse  (D ⇒ E) _ _ _ η _)  ⬝ !id_nf end
+    abstract !n_nf_distrib⁻¹ ⬝ ap (λx, x ∘nf F) (@@right_inverse (D ⇒ E) _ _ _ η _)  ⬝ !id_nf end
 
   definition functor_iso_compose [constructor] (G : D ⇒ E) (η : F ≅ F') : G ∘f F ≅ G ∘f F' :=
   iso.mk _ (is_iso_nf_compose G (to_hom η))
@@ -225,7 +225,7 @@ namespace functor
   definition nidf_compose [constructor] (η : J ⟹ 1) (F : C ⇒ D) [H : is_iso η]
     : is_iso (η ∘n1f F) :=
   is_iso.mk
-   (@inverse (D ⇒ D) _ _ _ η _ ∘1nf F)
+   (@@inverse (D ⇒ D) _ _ _ η _ ∘1nf F)
    abstract _ end
             _
 
@@ -264,7 +264,7 @@ namespace functor
       {intro c c' f,
         esimp [eq_of_iso_ob, inv_of_eq, hom_of_eq, eq_of_iso],
         rewrite [*right_inv iso_of_eq],
-        symmetry, apply @naturality_iso _ _ _ _ _ (iso.struct _)
+        symmetry, apply @@naturality_iso _ _ _ _ _ (iso.struct _)
       }
     end
 
@@ -351,7 +351,7 @@ namespace functor
 
   definition functor_flip [constructor] (F : I ⇒ D ^c C) : C ⇒ D ^c I :=
   functor.mk (constant2_functor F)
-             @(constant2_functor_natural F)
+             @@(constant2_functor_natural F)
              abstract begin intros, apply nat_trans_eq, intro i, esimp, apply respect_id end end
              abstract begin intros, apply nat_trans_eq, intro i, esimp, apply respect_comp end end
 

@@ -16,7 +16,7 @@ open relation nonempty subtype classical
 noncomputable definition prelim_map {A : Type} (R : A → A → Prop) (a : A) :=
 -- TODO: it is interesting how the elaborator fails here
 -- epsilon (fun b, R a b)
-@epsilon _ (nonempty.intro a) (fun b, R a b)
+@@epsilon _ (nonempty.intro a) (fun b, R a b)
 
 -- TODO: only needed R reflexive (or weaker: R a a)
 theorem prelim_map_rel {A : Type} {R : A → A → Prop} (H : is_equivalence R) (a : A)
@@ -53,6 +53,6 @@ theorem quotient_is_quotient  {A : Type} (R : A → A → Prop) (H : is_equivale
 representative_map_to_quotient_equiv
   H
   (prelim_map_rel H)
-  (@prelim_map_congr _ _ H)
+  (@@prelim_map_congr _ _ H)
 
 end quotient

@@ -24,7 +24,7 @@ namespace functor
     : functor_curry_ob F c ⟹ functor_curry_ob F c' :=
   F ∘fn (constant_nat_trans D f ×n 1)
 
-  local abbreviation Fhom [constructor] := @functor_curry_hom
+  local abbreviation Fhom [constructor] := @@functor_curry_hom
 
   theorem functor_curry_id (c : C) : Fhom F (ID c) = 1 :=
   nat_trans_eq (λd, respect_id F (c, d))
@@ -55,7 +55,7 @@ namespace functor
     : functor_curry_rev_ob F d ⟹ functor_curry_rev_ob F d' :=
   F ∘fn (1 ×n constant_nat_trans C g)
 
-  local abbreviation Fhomr [constructor] := @functor_curry_rev_hom
+  local abbreviation Fhomr [constructor] := @@functor_curry_rev_hom
   theorem functor_curry_rev_id (d : D) : Fhomr F (ID d) = nat_trans.id :=
   nat_trans_eq (λc, respect_id F (c, d))
 
@@ -79,7 +79,7 @@ namespace functor
   definition functor_uncurry_hom ⦃p p' : C ×c D⦄ (f : hom p p')
     : functor_uncurry_ob G p ⟶ functor_uncurry_ob G p'  :=
   to_fun_hom (to_fun_ob G p'.1) f.2 ∘ natural_map (to_fun_hom G f.1) p.2
-  local abbreviation Ghom := @functor_uncurry_hom
+  local abbreviation Ghom := @@functor_uncurry_hom
 
   theorem functor_uncurry_id (p : C ×c D) : Ghom G (ID p) = id :=
   calc
@@ -207,12 +207,12 @@ namespace functor
   -- the functor hom(-,-)
   definition hom_functor.{u v} [constructor] (C : Precategory.{u v}) : Cᵒᵖ ×c C ⇒ set.{v} :=
   functor.mk
-    (λ (x : Cᵒᵖ ×c C), @homset (Cᵒᵖ) C x.1 x.2)
-    (λ (x y : Cᵒᵖ ×c C) (f : @category.precategory.hom (Cᵒᵖ ×c C) (Cᵒᵖ ×c C) x y)
-       (h : @homset (Cᵒᵖ) C x.1 x.2), f.2 ∘[C] (h ∘[C] f.1))
-    (λ x, abstract @eq_of_homotopy _ _ _ (ID (@homset Cᵒᵖ C x.1 x.2))
-            (λ h, concat (by apply @id_left) (by apply @id_right)) end)
-    (λ x y z g f, abstract eq_of_homotopy (by intros; apply @hom_functor_assoc) end)
+    (λ (x : Cᵒᵖ ×c C), @@homset (Cᵒᵖ) C x.1 x.2)
+    (λ (x y : Cᵒᵖ ×c C) (f : @@category.precategory.hom (Cᵒᵖ ×c C) (Cᵒᵖ ×c C) x y)
+       (h : @@homset (Cᵒᵖ) C x.1 x.2), f.2 ∘[C] (h ∘[C] f.1))
+    (λ x, abstract @@eq_of_homotopy _ _ _ (ID (@@homset Cᵒᵖ C x.1 x.2))
+            (λ h, concat (by apply @@id_left) (by apply @@id_right)) end)
+    (λ x y z g f, abstract eq_of_homotopy (by intros; apply @@hom_functor_assoc) end)
 
   -- the functor hom(-, c)
   definition hom_functor_left.{u v} [constructor] {C : Precategory.{u v}} (c : C)

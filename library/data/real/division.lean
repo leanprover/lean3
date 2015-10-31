@@ -310,7 +310,7 @@ protected theorem mul_inv {s : seq} (Hs : regular s) (Hsep : sep s zero) :
     apply le_of_lt,
     apply rat_of_pnat_is_pos,
     rewrite [left_distrib, pnat.mul_comm ((ps Hs Hsep) * (ps Hs Hsep)), *pnat.mul_assoc,
-            *(@pnat.inv_mul_eq_mul_inv (K₂ s (s_inv Hs))), -*mul.assoc, *pnat.inv_cancel_left,
+            *(@@pnat.inv_mul_eq_mul_inv (K₂ s (s_inv Hs))), -*mul.assoc, *pnat.inv_cancel_left,
             *one_mul, -(add_halves j)],
     apply add_le_add,
     apply inv_ge_of_le,

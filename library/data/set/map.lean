@@ -38,9 +38,9 @@ assume H₁ : f₁ ~ f₂, assume H₂ : f₂ ~ f₃,
 take x, assume Ha : x ∈ a, eq.trans (H₁ Ha) (H₂ Ha)
 
 protected theorem equiv.is_equivalence {X Y : Type} (a : set X) (b : set Y) :
-  equivalence (@map.equiv X Y a b) :=
-mk_equivalence (@map.equiv X Y a b) (@equiv.refl X Y a b) (@equiv.symm X Y a b)
-    (@equiv.trans X Y a b)
+  equivalence (@@map.equiv X Y a b) :=
+mk_equivalence (@@map.equiv X Y a b) (@@equiv.refl X Y a b) (@@equiv.symm X Y a b)
+    (@@equiv.trans X Y a b)
 
 /- compose -/
 

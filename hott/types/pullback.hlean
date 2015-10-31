@@ -74,7 +74,7 @@ namespace pullback
     (is_pullback : is_equiv (pullback_corec comm : A₀₀ → pullback f₂₁ f₁₂))
 
   attribute pullback_square.is_pullback [instance]
-  definition pbs_comm [unfold 9] := @pullback_square.comm
+  definition pbs_comm [unfold 9] := @@pullback_square.comm
 
   definition pullback_square_pullback
     : pullback_square (pr1 : pullback f₂₁ f₁₂ → A₂₀) f₁₂ pr2 f₂₁ :=

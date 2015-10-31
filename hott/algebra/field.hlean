@@ -76,7 +76,7 @@ section division_ring
 --    assume Ha : a = 0, absurd (Ha⁻¹ ▸ one_div_zero) H
 
   definition inv_one_eq : 1⁻¹ = (1:A) :=
-    by rewrite [-mul_one, (inv_mul_cancel (ne.symm (@zero_ne_one A _)))]
+    by rewrite [-mul_one, (inv_mul_cancel (ne.symm (@@zero_ne_one A _)))]
 
   definition div_one : a / 1 = a :=
     by rewrite [↑divide, inv_one_eq, mul_one]
@@ -355,11 +355,11 @@ section discrete_field
   definition one_div_mul_one_div'' : (1 / a) * (1 / b) = 1 / (b * a) :=
     decidable.by_cases
       (assume Ha : a = 0,
-        by rewrite [Ha, div_zero, zero_mul, -(@div_zero A s 1), mul_zero b])
+        by rewrite [Ha, div_zero, zero_mul, -(@@div_zero A s 1), mul_zero b])
       (assume Ha : a ≠ 0,
         decidable.by_cases
           (assume Hb : b = 0,
-            by rewrite [Hb, div_zero, mul_zero, -(@div_zero A s 1), zero_mul a])
+            by rewrite [Hb, div_zero, mul_zero, -(@@div_zero A s 1), zero_mul a])
           (assume Hb : b ≠ 0, one_div_mul_one_div Ha Hb))
 
   definition one_div_neg_eq_neg_one_div' : 1 / (- a) = - (1 / a) :=
@@ -413,10 +413,10 @@ section discrete_field
 
   definition div_mul_div' : (a / b) * (c / d) = (a * c) / (b * d) :=
     decidable.by_cases
-      (assume Hb : b = 0, by rewrite [Hb, div_zero, zero_mul, -(@div_zero A s (a * c)), zero_mul])
+      (assume Hb : b = 0, by rewrite [Hb, div_zero, zero_mul, -(@@div_zero A s (a * c)), zero_mul])
       (assume Hb : b ≠ 0,
         decidable.by_cases
-          (assume Hd : d = 0, by rewrite [Hd, div_zero, mul_zero, -(@div_zero A s (a * c)), mul_zero])
+          (assume Hd : d = 0, by rewrite [Hd, div_zero, mul_zero, -(@@div_zero A s (a * c)), mul_zero])
           (assume Hd : d ≠ 0, div_mul_div Hb Hd))
 
   definition mul_div_mul_left' (Hc : c ≠ 0) : (c * a) / (c * b) = a / b :=
@@ -430,7 +430,7 @@ section discrete_field
   -- this one is odd -- I am not sure what to call it, but again, the prefix is right
   definition div_mul_eq_mul_div_comm' : (b / c) * a = b * (a / c) :=
     decidable.by_cases
-      (assume Hc : c = 0, by rewrite [Hc, div_zero, zero_mul, -(mul_zero b), -(@div_zero A s a)])
+      (assume Hc : c = 0, by rewrite [Hc, div_zero, zero_mul, -(mul_zero b), -(@@div_zero A s a)])
       (assume Hc : c ≠ 0, div_mul_eq_mul_div_comm Hc)
 
  definition one_div_div' : 1 / (a / b) = b / a :=

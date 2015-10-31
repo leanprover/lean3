@@ -96,7 +96,7 @@ theorem nn_em : ¬¬(p ∨ ¬p) :=
    We can "simulate" the classical proofs using double negation.
 -/
 example : ¬¬((p → q) → (¬p ∨ q)) :=
-nn_imp_intro (λ h, nn_or_elim (@nn_em p)
+nn_imp_intro (λ h, nn_or_elim (@@nn_em p)
   (λ hp  : p,
      have hnnq : ¬¬q, from nn_mp h hp,
      nn_or_inr hnnq)
@@ -104,7 +104,7 @@ nn_imp_intro (λ h, nn_or_elim (@nn_em p)
 
 /- "Prove" Peirce's law -/
 example : ¬¬(((p → q) → p) → p) :=
-nn_imp_intro (λ h, nn_or_elim (@nn_em p)
+nn_imp_intro (λ h, nn_or_elim (@@nn_em p)
   (λ hp  :  p, nn_intro hp)
   (λ hnp : ¬p,
     have h₁ : ¬(p → q), from nn_mt h hnp,

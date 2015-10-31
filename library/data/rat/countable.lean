@@ -40,7 +40,7 @@ definition decidable_equiv [instance] : ∀ a b : prerat, decidable (prerat.equi
 
 
 definition encodable_rat [instance] : encodable rat :=
-@encodable_quot _ _ decidable_equiv encodable_prerat
+@@encodable_quot _ _ decidable_equiv encodable_prerat
 
 lemma countable_rat : countable rat :=
 countable_of_encodable encodable_rat

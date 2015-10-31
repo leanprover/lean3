@@ -37,7 +37,7 @@ theorem mul_zero [s : mul_zero_class A] (a : A) : a * 0 = 0 := !mul_zero_class.m
 structure zero_ne_one_class [class] (A : Type) extends has_zero A, has_one A :=
 (zero_ne_one : zero ≠ one)
 
-theorem zero_ne_one [s: zero_ne_one_class A] : 0 ≠ (1:A) := @zero_ne_one_class.zero_ne_one A s
+theorem zero_ne_one [s: zero_ne_one_class A] : 0 ≠ (1:A) := @@zero_ne_one_class.zero_ne_one A s
 
 /- semiring -/
 

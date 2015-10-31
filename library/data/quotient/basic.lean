@@ -288,7 +288,7 @@ intro
   (take u : image f,
     show R (elt_of u) (elt_of u), from
       obtain (a : A) (Ha : f a = elt_of u), from image_elt_of u,
-        Ha ▸ (@representative_map_refl_rep A R f H1 H2 a))
+        Ha ▸ (@@representative_map_refl_rep A R f H1 H2 a))
   (take a a',
     subst (fun_image_eq f a a') (H2 a a'))
 
@@ -305,7 +305,7 @@ show R a b, from
 
 theorem representative_map_to_quotient_equiv {A : Type} {R : A → A → Prop}
     (equiv : is_equivalence R) {f : A → A} (H1 : ∀a, R a (f a)) (H2 : ∀a b, R a b → f a = f b) :
-  @is_quotient A (image f) R (fun_image f) elt_of :=
+  @@is_quotient A (image f) R (fun_image f) elt_of :=
 representative_map_to_quotient
   H1
   (take a b,

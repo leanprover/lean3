@@ -23,12 +23,12 @@ definition perm [reducible] (A : Type) := equiv A A
 infix ` ≃ `:50 := equiv
 
 definition fn {A B : Type} (e : equiv A B) : A → B :=
-@equiv.to_fun A B e
+@@equiv.to_fun A B e
 
 infixr ` ∙ `:100 := fn
 
 definition inv {A B : Type} [e : equiv A B] : B → A :=
-@equiv.inv_fun A B e
+@@equiv.inv_fun A B e
 
 lemma eq_of_to_fun_eq {A B : Type} : ∀ {e₁ e₂ : equiv A B}, fn e₁ = fn e₂ → e₁ = e₂
 | (mk f₁ g₁ l₁ r₁) (mk f₂ g₂ l₂ r₂) h :=
@@ -40,7 +40,7 @@ lemma eq_of_to_fun_eq {A B : Type} : ∀ {e₁ e₂ : equiv A B}, fn e₁ = fn e
   by congruence; repeat assumption
 
 protected definition refl [refl] (A : Type) : A ≃ A :=
-mk (@id A) (@id A) (λ x, rfl) (λ x, rfl)
+mk (@@id A) (@@id A) (λ x, rfl) (λ x, rfl)
 
 protected definition symm [symm] {A B : Type} : A ≃ B → B ≃ A
 | (mk f g h₁ h₂) := mk g f h₂ h₁

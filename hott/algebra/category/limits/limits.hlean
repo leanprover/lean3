@@ -45,12 +45,12 @@ namespace category
     (d : D)
     (is_terminal : is_terminal d)
 
-  definition terminal_object [reducible] [unfold 2] := @has_terminal_object.d
+  definition terminal_object [reducible] [unfold 2] := @@has_terminal_object.d
   attribute has_terminal_object.is_terminal [instance]
 
   variable {D}
   definition terminal_object_iso_terminal_object (H₁ H₂ : has_terminal_object D)
-    : @terminal_object D H₁ ≅ @terminal_object D H₂ :=
+    : @@terminal_object D H₁ ≅ @@terminal_object D H₂ :=
   !terminal_iso_terminal
 
   theorem is_hprop_has_terminal_object [instance] (D : Category)
@@ -184,12 +184,12 @@ namespace category
   variable {H}
   definition hom_limit {d : D} (η : Πi, d ⟶ F i)
     (p : Π⦃i j : I⦄ (f : i ⟶ j), to_fun_hom F f ∘ η i = η j) : d ⟶ limit_object F :=
-  cone_to_hom (@(terminal_morphism (limit_cone_obj F p) _) (is_terminal_limit_cone _))
+  cone_to_hom (@@(terminal_morphism (limit_cone_obj F p) _) (is_terminal_limit_cone _))
 
   theorem hom_limit_commute {d : D} (η : Πi, d ⟶ F i)
     (p : Π⦃i j : I⦄ (f : i ⟶ j), to_fun_hom F f ∘ η i = η j) (i : I)
     : limit_morphism F i ∘ hom_limit F η p = η i :=
-  cone_to_eq (@(terminal_morphism (limit_cone_obj F p) _) (is_terminal_limit_cone _)) i
+  cone_to_eq (@@(terminal_morphism (limit_cone_obj F p) _) (is_terminal_limit_cone _)) i
 
   definition limit_cone_hom [constructor] {d : D} {η : Πi, d ⟶ F i}
     (p : Π⦃i j : I⦄ (f : i ⟶ j), to_fun_hom F f ∘ η i = η j) {h : d ⟶ limit_object F}
@@ -200,7 +200,7 @@ namespace category
   theorem eq_hom_limit {d : D} {η : Πi, d ⟶ F i}
     (p : Π⦃i j : I⦄ (f : i ⟶ j), to_fun_hom F f ∘ η i = η j) {h : d ⟶ limit_object F}
     (q : Πi, limit_morphism F i ∘ h = η i) : h = hom_limit F η p :=
-  ap cone_to_hom (@eq_terminal_morphism _ _ _ _ (is_terminal_limit_cone _) (limit_cone_hom F p q))
+  ap cone_to_hom (@@eq_terminal_morphism _ _ _ _ (is_terminal_limit_cone _) (limit_cone_hom F p q))
 
   theorem limit_cone_unique {d : D} {η : Πi, d ⟶ F i}
     (p : Π⦃i j : I⦄ (f : i ⟶ j), to_fun_hom F f ∘ η i = η j)
@@ -219,13 +219,13 @@ namespace category
   -- theorem hom_limit_commute {d : D} (η : Πi, d ⟶ F i)
   --   (p : Π⦃i j : I⦄ (f : i ⟶ j), to_fun_hom F f ∘ η i = η j) (i : I)
   --   : limit_morphism F i ∘ hom_limit F η p = η i :=
-  -- cone_to_eq (@(terminal_morphism (limit_cone_obj F p) _) (is_terminal_limit_cone _)) i
+  -- cone_to_eq (@@(terminal_morphism (limit_cone_obj F p) _) (is_terminal_limit_cone _)) i
 
   omit H
 
   variable (F)
   definition limit_object_iso_limit_object [constructor] (H₁ H₂ : has_limits_of_shape D I) :
-    @(limit_object F) H₁ ≅ @(limit_object F) H₂ :=
+    @@(limit_object F) H₁ ≅ @@(limit_object F) H₂ :=
   cone_iso_pr1 !terminal_object_iso_terminal_object
 
   definition limit_functor [constructor] (D I : Precategory) [H : has_limits_of_shape D I]
@@ -233,7 +233,7 @@ namespace category
   begin
     fapply functor.mk: esimp,
     { intro F, exact limit_object F},
-    { apply @limit_hom_limit},
+    { apply @@limit_hom_limit},
     { intro F, unfold limit_hom_limit, refine (eq_hom_limit _ _)⁻¹, intro i,
       apply comp_id_eq_id_comp},
     { intro F G H η θ, unfold limit_hom_limit, refine (eq_hom_limit _ _)⁻¹, intro i,
@@ -291,7 +291,7 @@ namespace category
   variables {D} (d d')
 
   definition product_object_iso_product_object [constructor] (H₁ H₂ : has_binary_products D) :
-    @product_object D H₁ d d' ≅ @product_object D H₂ d d' :=
+    @@product_object D H₁ d d' ≅ @@product_object D H₂ d d' :=
   limit_object_iso_limit_object _ H₁ H₂
 
   end bin_products
@@ -344,7 +344,7 @@ namespace category
   omit K
   variables (f g)
   definition equalizer_object_iso_equalizer_object [constructor] (H₁ H₂ : has_equalizers D) :
-    @equalizer_object D H₁ _ _ f g ≅ @equalizer_object D H₂ _ _ f g :=
+    @@equalizer_object D H₁ _ _ f g ≅ @@equalizer_object D H₂ _ _ f g :=
   limit_object_iso_limit_object _ H₁ H₂
 
   end equalizers
@@ -405,7 +405,7 @@ namespace category
 
   variables (f g)
   definition pullback_object_iso_pullback_object [constructor] (H₁ H₂ : has_pullbacks D) :
-    @pullback_object D H₁ _ _ _ f g ≅ @pullback_object D H₂ _ _ _ f g :=
+    @@pullback_object D H₁ _ _ _ f g ≅ @@pullback_object D H₂ _ _ _ f g :=
   limit_object_iso_limit_object _ H₁ H₂
 
   end pullbacks

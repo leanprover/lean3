@@ -12,7 +12,7 @@ structure fintype [class] (A : Type) : Type :=
 (elems : list A) (unique : nodup elems) (complete : ∀ a, a ∈ elems)
 
 definition elements_of (A : Type) [h : fintype A] : list A :=
-@fintype.elems A h
+@@fintype.elems A h
 
 section
 open equiv

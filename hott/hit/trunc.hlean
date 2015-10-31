@@ -46,7 +46,7 @@ namespace trunc
   trunc.rec id
 
   variables (A n)
-  definition is_equiv_tr [instance] [constructor] [H : is_trunc n A] : is_equiv (@tr n A) :=
+  definition is_equiv_tr [instance] [constructor] [H : is_trunc n A] : is_equiv (@@tr n A) :=
   adjointify _
              (untrunc_of_is_trunc)
              (λaa, trunc.rec_on aa (λa, idp))
@@ -55,8 +55,8 @@ namespace trunc
   definition trunc_equiv [constructor] [H : is_trunc n A] : trunc n A ≃ A :=
   (equiv.mk tr _)⁻¹ᵉ
 
-  definition is_trunc_of_is_equiv_tr [H : is_equiv (@tr n A)] : is_trunc n A :=
-  is_trunc_is_equiv_closed n (@tr n _)⁻¹
+  definition is_trunc_of_is_equiv_tr [H : is_equiv (@@tr n A)] : is_trunc n A :=
+  is_trunc_is_equiv_closed n (@@tr n _)⁻¹
 
   /- Functoriality -/
   definition trunc_functor [unfold 5] (f : X → Y) : trunc n X → trunc n Y :=
@@ -66,7 +66,7 @@ namespace trunc
     : trunc_functor n (g ∘ f) ~ trunc_functor n g ∘ trunc_functor n f :=
   λxx, trunc.rec_on xx (λx, idp)
 
-  definition trunc_functor_id : trunc_functor n (@id A) ~ id :=
+  definition trunc_functor_id : trunc_functor n (@@id A) ~ id :=
   λxx, trunc.rec_on xx (λx, idp)
 
   definition is_equiv_trunc_functor [constructor] (f : X → Y) [H : is_equiv f]

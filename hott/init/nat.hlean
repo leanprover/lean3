@@ -281,7 +281,7 @@ namespace nat
         (lt.base a₁)
         (λ b₁ bpos,
           eq.rec_on (sub_eq_succ_sub_succ a₁ b₁)
-            (lt.trans (@ih b₁ bpos) (lt.base a₁)))),
+            (lt.trans (@@ih b₁ bpos) (lt.base a₁)))),
   λ h₁ h₂, aux h₁ h₂
 
   definition sub_le (a b : ℕ) : a - b ≤ a :=

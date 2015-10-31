@@ -33,7 +33,7 @@ structure is_hom_class [class] (f : A → B) : Type :=
           (is_hom : homomorphic f)
 -- the proof of hom_prop if the class can be inferred
 definition is_hom (f : A → B) [h : is_hom_class f] : homomorphic f :=
-           @is_hom_class.is_hom A B s1 s2 f h
+           @@is_hom_class.is_hom A B s1 s2 f h
 
 definition ker (f : A → B) [h : is_hom_class f] : set A := {a : A | f a = 1}
 
@@ -41,7 +41,7 @@ definition isomorphic (f : A → B) := injective f ∧ homomorphic f
 structure is_iso_class [class] (f : A → B) extends is_hom_class f : Type :=
           (inj : injective f)
 lemma iso_is_inj (f : A → B) [h : is_iso_class f] : injective f:=
-      @is_iso_class.inj A B s1 s2 f h
+      @@is_iso_class.inj A B s1 s2 f h
 lemma iso_is_iso (f : A → B) [h : is_iso_class f] : isomorphic f:=
       and.intro (iso_is_inj f) (is_hom f)
 
@@ -51,7 +51,7 @@ section
 variables {A B : Type}
 variable [s1 : group A]
 
-definition id_is_iso [instance] : @is_hom_class A A s1 s1 (@id A) :=
+definition id_is_iso [instance] : @@is_hom_class A A s1 s1 (@@id A) :=
 is_iso_class.mk (take a b, rfl) injective_id
 
 variable [s2 : group B]
@@ -117,7 +117,7 @@ variable [is_subgH : is_subgroup H]
 include is_subgH
 
 theorem hom_map_subgroup : is_subgroup (f '[H]) :=
-  have Pone : 1 ∈ f '[H], from mem_image (@subg_has_one _ _ H _) (hom_map_one f),
+  have Pone : 1 ∈ f '[H], from mem_image (@@subg_has_one _ _ H _) (hom_map_one f),
   have Pclosed : mul_closed_on (f '[H]), from hom_map_mul_closed f H subg_mul_closed,
   assert Pinv : ∀ b, b ∈ f '[H] → b⁻¹ ∈ f '[H], from
   assume b, assume Pimg,
@@ -179,7 +179,7 @@ lemma ker_coset_inj (a b : A) : (ker_natural_map ⟦a⟧ = ker_natural_map ⟦b�
       ... = (f b)⁻¹ * (f a)       : by rewrite (hom_map_inv f)
       ... = (f a)⁻¹ * (f a)       : by rewrite Pfeq
       ... = 1                     : by rewrite (mul.left_inv (f a)),
-      quot.sound (@subg_in_lcoset_same_lcoset _ _ (ker f) _ a b Painb)
+      quot.sound (@@subg_in_lcoset_same_lcoset _ _ (ker f) _ a b Painb)
 
 lemma ker_map_is_inj : injective (ker_natural_map : coset_of (ker f) → B) :=
       take aK bK,

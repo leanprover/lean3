@@ -65,7 +65,7 @@ definition length : list T → nat
 | []       := 0
 | (a :: l) := length l + 1
 
-theorem length_nil [simp] : length (@nil T) = 0
+theorem length_nil [simp] : length (@@nil T) = 0
 
 theorem length_cons [simp] (x : T) (t : list T) : length (x::t) = length t + 1
 
@@ -147,7 +147,7 @@ definition reverse : list T → list T
 | []       := []
 | (a :: l) := concat a (reverse l)
 
-theorem reverse_nil [simp] : reverse (@nil T) = []
+theorem reverse_nil [simp] : reverse (@@nil T) = []
 
 theorem reverse_cons [simp] (x : T) (l : list T) : reverse (x::l) = concat x (reverse l)
 
@@ -202,7 +202,7 @@ definition tail : list T → list T
 | []       := []
 | (a :: l) := l
 
-theorem tail_nil [simp] : tail (@nil T) = []
+theorem tail_nil [simp] : tail (@@nil T) = []
 
 theorem tail_cons [simp] (a : T) (l : list T) : tail (a::l) = l
 

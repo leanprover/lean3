@@ -59,7 +59,7 @@ section division_ring
     absurd C1 zero_ne_one
 
   theorem one_inv_eq : 1⁻¹ = (1:A) :=
-  by rewrite [-mul_one, inv_mul_cancel (ne.symm (@zero_ne_one A _))]
+  by rewrite [-mul_one, inv_mul_cancel (ne.symm (@@zero_ne_one A _))]
 
   theorem div_one (a : A) : a / 1 = a :=
     by rewrite [*division.def, one_inv_eq, mul_one]
@@ -355,11 +355,11 @@ section discrete_field
   theorem one_div_mul_one_div' : (1 / a) * (1 / b) = 1 / (b * a) :=
     decidable.by_cases
       (suppose a = 0,
-        by rewrite [this, div_zero, zero_mul, -(@div_zero A s 1), mul_zero b])
+        by rewrite [this, div_zero, zero_mul, -(@@div_zero A s 1), mul_zero b])
       (assume Ha : a ≠ 0,
         decidable.by_cases
           (suppose b = 0,
-            by rewrite [this, div_zero, mul_zero, -(@div_zero A s 1), zero_mul a])
+            by rewrite [this, div_zero, mul_zero, -(@@div_zero A s 1), zero_mul a])
           (suppose b ≠ 0, division_ring.one_div_mul_one_div Ha this))
 
   theorem one_div_neg_eq_neg_one_div : 1 / (- a) = - (1 / a) :=
@@ -413,10 +413,10 @@ section discrete_field
   variables (a b c)
   theorem div_mul_div : (a / b) * (c / d) = (a * c) / (b * d) :=
     decidable.by_cases
-      (assume Hb : b = 0, by rewrite [Hb, div_zero, zero_mul, -(@div_zero A s (a * c)), zero_mul])
+      (assume Hb : b = 0, by rewrite [Hb, div_zero, zero_mul, -(@@div_zero A s (a * c)), zero_mul])
       (assume Hb : b ≠ 0,
         decidable.by_cases
-          (assume Hd : d = 0, by rewrite [Hd, div_zero, mul_zero, -(@div_zero A s (a * c)),
+          (assume Hd : d = 0, by rewrite [Hd, div_zero, mul_zero, -(@@div_zero A s (a * c)),
                                           mul_zero])
           (assume Hd : d ≠ 0, !field.div_mul_div Hb Hd))
 
@@ -432,7 +432,7 @@ section discrete_field
   variables (a b c d)
   theorem div_mul_eq_mul_div_comm : (b / c) * a = b * (a / c) :=
     decidable.by_cases
-      (assume Hc : c = 0, by rewrite [Hc, div_zero, zero_mul, -(mul_zero b), -(@div_zero A s a)])
+      (assume Hc : c = 0, by rewrite [Hc, div_zero, zero_mul, -(mul_zero b), -(@@div_zero A s a)])
       (assume Hc : c ≠ 0, !field.div_mul_eq_mul_div_comm Hc)
 
   theorem one_div_div : 1 / (a / b) = b / a :=

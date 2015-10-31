@@ -254,7 +254,7 @@ section
   open decidable
 
   definition decidable_lt [instance] : decidable (a < b) :=
-    @decidable_linear_order.decidable_lt _ _ _ _
+    @@decidable_linear_order.decidable_lt _ _ _ _
 
   definition decidable_le [instance] : decidable (a ≤ b) :=
   by_cases
@@ -360,10 +360,10 @@ section
   end
 
   theorem min.left_comm (a b c : A) : min a (min b c) = min b (min a c) :=
-  binary.left_comm (@min.comm A s) (@min.assoc A s) a b c
+  binary.left_comm (@@min.comm A s) (@@min.assoc A s) a b c
 
   theorem min.right_comm (a b c : A) : min (min a b) c = min (min a c) b :=
-  binary.right_comm (@min.comm A s) (@min.assoc A s) a b c
+  binary.right_comm (@@min.comm A s) (@@min.assoc A s) a b c
 
   theorem min_self (a : A) : min a a = a :=
   by apply eq.symm; apply eq_min (le.refl a) !le.refl; intros; assumption
@@ -391,10 +391,10 @@ section
   end
 
   theorem max.left_comm (a b c : A) : max a (max b c) = max b (max a c) :=
-  binary.left_comm (@max.comm A s) (@max.assoc A s) a b c
+  binary.left_comm (@@max.comm A s) (@@max.assoc A s) a b c
 
   theorem max.right_comm (a b c : A) : max (max a b) c = max (max a c) b :=
-  binary.right_comm (@max.comm A s) (@max.assoc A s) a b c
+  binary.right_comm (@@max.comm A s) (@@max.assoc A s) a b c
 
   theorem max_self (a : A) : max a a = a :=
   by apply eq.symm; apply eq_max (le.refl a) !le.refl; intros; assumption

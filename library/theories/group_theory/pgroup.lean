@@ -32,7 +32,7 @@ lemma card_mod_eq_of_action_by_psubg {p : nat} :
 | 0        := by rewrite [↑psubg, pow_zero]; intro Psubg;
   rewrite [finsubg_eq_singleton_one_of_card_one (and.right Psubg), fixed_points_of_one]
 | (succ m) := take Ppsubg, begin
-  rewrite [@orbit_class_equation' G S ambientG finS deceqS hom Hom H subgH],
+  rewrite [@@orbit_class_equation' G S ambientG finS deceqS hom Hom H subgH],
   apply add_mod_eq_of_dvd, apply dvd_Sum_of_dvd,
   intro s Psin,
   rewrite mem_sep_iff at Psin,
@@ -115,7 +115,7 @@ lemma all_prodl_eq_one_complete {n : nat} : ∀ {l : list A}, length l = succ n 
   end
 
 open fintype
-lemma length_all_prodl_eq_one {n : nat} : length (@all_prodl_eq_one A _ _ n) = (card A)^n :=
+lemma length_all_prodl_eq_one {n : nat} : length (@@all_prodl_eq_one A _ _ n) = (card A)^n :=
 eq.trans !length_map length_all_lists
 
 open fin
@@ -320,7 +320,7 @@ lemma generator_of_prime_of_dvd_order {p : nat}
 assume Pprime Pdvd,
 let pp := nat.pred p, spp := nat.succ pp in
 assert Peq : spp = p, from succ_pred_prime Pprime,
-assert Ppsubg : psubg (@univ (fin spp) _) spp 1,
+assert Ppsubg : psubg (@@univ (fin spp) _) spp 1,
   from and.intro (eq.symm Peq ▸ Pprime) (by rewrite [Peq, card_fin, pow_one]),
 have (pow_nat (card A) pp) % spp = (card (fixed_points (rotl_perm_ps A pp) univ)) % spp,
   by rewrite -card_peo_seq; apply card_mod_eq_of_action_by_psubg Ppsubg,

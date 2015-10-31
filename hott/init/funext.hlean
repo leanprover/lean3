@@ -19,7 +19,7 @@ open eq is_trunc sigma function is_equiv equiv prod unit prod.ops lift
 -/
 
 definition funext.{l k} :=
-  Π ⦃A : Type.{l}⦄ {P : A → Type.{k}} (f g : Π x, P x), is_equiv (@apd10 A P f g)
+  Π ⦃A : Type.{l}⦄ {P : A → Type.{k}} (f g : Π x, P x), is_equiv (@@apd10 A P f g)
 
 -- Naive funext is the simple assertion that pointwise equal functions are equal.
 definition naive_funext :=
@@ -57,15 +57,15 @@ section
       (λ dp, sigma.rec_on dp
         (λ (g : Π x, B x) (h : f ~ g),
           let r := λ (k : Π x, Σ y, f x = y),
-            @sigma.mk _ (λg, f ~ g)
+            @@sigma.mk _ (λg, f ~ g)
               (λx, pr1 (k x)) (λx, pr2 (k x)) in
-          let s := λ g h x, @sigma.mk _ (λy, f x = y) (g x) (h x) in
+          let s := λ g h x, @@sigma.mk _ (λy, f x = y) (g x) (h x) in
           have t1 : Πx, is_contr (Σ y, f x = y),
             from (λx, !is_contr_sigma_eq),
           have t2 : is_contr (Πx, Σ y, f x = y),
             from !wf,
-          have t3 : (λ x, @sigma.mk _ (λ y, f x = y) (f x) idp) = s g h,
-            from @eq_of_is_contr (Π x, Σ y, f x = y) t2 _ _,
+          have t3 : (λ x, @@sigma.mk _ (λ y, f x = y) (f x) idp) = s g h,
+            from @@eq_of_is_contr (Π x, Σ y, f x = y) t2 _ _,
           have t4 : r (λ x, sigma.mk (f x) idp) = r (s g h),
             from ap r t3,
           have endt : sigma.mk f (homotopy.refl f) = sigma.mk g h,
@@ -78,13 +78,13 @@ section
   parameters (Q : Π g (h : f ~ g), Type) (d : Q f (homotopy.refl f))
 
   definition homotopy_ind (g : Πx, B x) (h : f ~ g) : Q g h :=
-    @transport _ (λ gh, Q (pr1 gh) (pr2 gh)) (sigma.mk f (homotopy.refl f)) (sigma.mk g h)
-      (@eq_of_is_contr _ is_contr_sigma_homotopy _ _) d
+    @@transport _ (λ gh, Q (pr1 gh) (pr2 gh)) (sigma.mk f (homotopy.refl f)) (sigma.mk g h)
+      (@@eq_of_is_contr _ is_contr_sigma_homotopy _ _) d
 
   local attribute weak_funext [reducible]
   local attribute homotopy_ind [reducible]
   definition homotopy_ind_comp : homotopy_ind f (homotopy.refl f) = d :=
-    (@hprop_eq_of_is_contr _ _ _ _ !eq_of_is_contr idp)⁻¹ ▸ idp
+    (@@hprop_eq_of_is_contr _ _ _ _ !eq_of_is_contr idp)⁻¹ ▸ idp
 end
 
 /- Now the proof is fairly easy; we can just use the same induction principle on both sides. -/
@@ -114,20 +114,20 @@ section
   universe variables l
 
   private theorem ua_isequiv_postcompose {A B : Type.{l}} {C : Type}
-      {w : A → B} [H0 : is_equiv w] : is_equiv (@compose C A B w) :=
+      {w : A → B} [H0 : is_equiv w] : is_equiv (@@compose C A B w) :=
     let w' := equiv.mk w H0 in
-    let eqinv : A = B := ((@is_equiv.inv _ _ _ (univalence A B)) w') in
+    let eqinv : A = B := ((@@is_equiv.inv _ _ _ (univalence A B)) w') in
     let eq' := equiv_of_eq eqinv in
-    is_equiv.adjointify (@compose C A B w)
-      (@compose C B A (is_equiv.inv w))
+    is_equiv.adjointify (@@compose C A B w)
+      (@@compose C B A (is_equiv.inv w))
       (λ (x : C → B),
         have eqretr : eq' = w',
-          from (@right_inv _ _ (@equiv_of_eq A B) (univalence A B) w'),
+          from (@@right_inv _ _ (@@equiv_of_eq A B) (univalence A B) w'),
         have invs_eq : (to_fun eq')⁻¹ = (to_fun w')⁻¹,
           from inv_eq eq' w' eqretr,
         have eqfin : (to_fun eq') ∘ ((to_fun eq')⁻¹ ∘ x) = x,
           from (λ p,
-            (@eq.rec_on Type.{l} A
+            (@@eq.rec_on Type.{l} A
               (λ B' p', Π (x' : C → B'), (to_fun (equiv_of_eq p'))
                 ∘ ((to_fun (equiv_of_eq p'))⁻¹ ∘ x') = x')
               B p (λ x', idp))
@@ -140,7 +140,7 @@ section
       )
       (λ (x : C → A),
         have eqretr : eq' = w',
-          from (@right_inv _ _ (@equiv_of_eq A B) (univalence A B) w'),
+          from (@@right_inv _ _ (@@equiv_of_eq A B) (univalence A B) w'),
         have invs_eq : (to_fun eq')⁻¹ = (to_fun w')⁻¹,
           from inv_eq eq' w' eqretr,
         have eqfin : (to_fun eq')⁻¹ ∘ ((to_fun eq') ∘ x) = x,
@@ -158,10 +158,10 @@ section
     := Σ xy : B × B, pr₁ xy = pr₂ xy
 
   private definition isequiv_src_compose {A B : Type}
-      : @is_equiv (A → diagonal B)
+      : @@is_equiv (A → diagonal B)
                  (A → B)
                  (compose (pr₁ ∘ pr1)) :=
-    @ua_isequiv_postcompose _ _ _ (pr₁ ∘ pr1)
+    @@ua_isequiv_postcompose _ _ _ (pr₁ ∘ pr1)
         (is_equiv.adjointify (pr₁ ∘ pr1)
           (λ x, sigma.mk (x , x) idp) (λx, idp)
           (λ x, sigma.rec_on x
@@ -171,7 +171,7 @@ section
   private definition isequiv_tgt_compose {A B : Type}
       : is_equiv (compose (pr₂ ∘ pr1) : (A → diagonal B) → (A → B)) :=
   begin
-    refine @ua_isequiv_postcompose _ _ _ (pr2 ∘ pr1) _,
+    refine @@ua_isequiv_postcompose _ _ _ (pr2 ∘ pr1) _,
     fapply adjointify,
     { intro b, exact ⟨(b, b), idp⟩},
     { intro b, reflexivity},
@@ -185,7 +185,7 @@ section
         let e := λ (x : A), sigma.mk (f x , g x) (p x) in
         let precomp1 :=  compose (pr₁ ∘ pr1) in
         have equiv1 [visible] : is_equiv precomp1,
-          from @isequiv_src_compose A B,
+          from @@isequiv_src_compose A B,
         have equiv2 [visible] : Π x y, is_equiv (ap precomp1),
           from is_equiv.is_equiv_ap precomp1,
         have H' : Π (x y : A → diagonal B),
@@ -208,11 +208,11 @@ theorem weak_funext_of_ua : weak_funext :=
   (λ (A : Type) (P : A → Type) allcontr,
     let U := (λ (x : A), lift unit) in
   have pequiv : Π (x : A), P x ≃ unit,
-    from (λ x, @equiv_unit_of_is_contr (P x) (allcontr x)),
+    from (λ x, @@equiv_unit_of_is_contr (P x) (allcontr x)),
   have psim : Π (x : A), P x = U x,
     from (λ x, eq_of_equiv_lift (pequiv x)),
   have p : P = U,
-    from @nondep_funext_from_ua A Type P U psim,
+    from @@nondep_funext_from_ua A Type P U psim,
   have tU' : is_contr (A → lift unit),
     from is_contr.mk (λ x, up ⋆)
       (λ f, nondep_funext_from_ua (λa, by induction (f a) with u;induction u;reflexivity)),
@@ -224,12 +224,12 @@ theorem weak_funext_of_ua : weak_funext :=
 
 -- In the following we will proof function extensionality using the univalence axiom
 definition funext_of_ua : funext :=
-  funext_of_weak_funext (@weak_funext_of_ua)
+  funext_of_weak_funext (@@weak_funext_of_ua)
 
 variables {A : Type} {P : A → Type} {f g : Π x, P x}
 
 namespace funext
-  theorem is_equiv_apd [instance] (f g : Π x, P x) : is_equiv (@apd10 A P f g) :=
+  theorem is_equiv_apd [instance] (f g : Π x, P x) : is_equiv (@@apd10 A P f g) :=
   funext_of_ua f g
 end funext
 
@@ -239,7 +239,7 @@ definition eq_equiv_homotopy : (f = g) ≃ (f ~ g) :=
 equiv.mk apd10 _
 
 definition eq_of_homotopy [reducible] : f ~ g → f = g :=
-(@apd10 A P f g)⁻¹
+(@@apd10 A P f g)⁻¹
 
 definition apd10_eq_of_homotopy (p : f ~ g) : apd10 (eq_of_homotopy p) = p :=
 right_inv apd10 p

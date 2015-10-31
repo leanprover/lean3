@@ -67,7 +67,7 @@ exists.intro _ (or_resolve_right !eq_zero_or_eq_succ_pred H)
 theorem succ.inj {n m : ℕ} (H : succ n = succ m) : n = m :=
 nat.no_confusion H imp.id
 
-abbreviation eq_of_succ_eq_succ := @succ.inj
+abbreviation eq_of_succ_eq_succ := @@succ.inj
 
 theorem succ_ne_self {n : ℕ} : succ n ≠ n :=
 nat.induction_on n

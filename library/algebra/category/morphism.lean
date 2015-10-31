@@ -82,7 +82,7 @@ namespace morphism
       : is_iso f :=
   is_iso.mk (subst (section_eq_retraction f) (retraction_compose f)) (compose_section f)
 
-  theorem inverse_unique (H H' : is_iso f) : @inverse _ _ _ _ f H = @inverse _ _ _ _ f H' :=
+  theorem inverse_unique (H H' : is_iso f) : @@inverse _ _ _ _ f H = @@inverse _ _ _ _ f H' :=
   inverse_eq_intro_left !inverse_compose
 
   theorem inverse_involutive (f : a ⟶ b) [H : is_iso f] : (f⁻¹)⁻¹ = f :=

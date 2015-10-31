@@ -15,10 +15,10 @@ namespace algebra
   -- we prove under which conditions two groups are equal
   universe variable l
   variables {A B : Type.{l}}
-  definition group_eq {G H : group A} (same_mul' : Π(g h : A), @mul A G g h = @mul A H g h)
+  definition group_eq {G H : group A} (same_mul' : Π(g h : A), @@mul A G g h = @@mul A H g h)
     : G = H :=
   begin
-    have foo : Π(g : A), @inv A G g = (@inv A G g * g) * @inv A H g,
+    have foo : Π(g : A), @@inv A G g = (@@inv A G g * g) * @@inv A H g,
       from λg, !mul_inv_cancel_right⁻¹,
     cases G with Gm Gs Gh1 G1 Gh2 Gh3 Gi Gh4,
     cases H with Hm Hs Hh1 H1 Hh2 Hh3 Hi Hh4,

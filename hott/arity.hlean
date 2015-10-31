@@ -185,7 +185,7 @@ end eq
 open eq equiv is_equiv
 namespace funext
   definition is_equiv_apd100 [instance] (f g : Πa b, C a b)
-    : is_equiv (@apd100 A B C f g) :=
+    : is_equiv (@@apd100 A B C f g) :=
   adjointify _
              eq_of_homotopy2
              begin
@@ -199,7 +199,7 @@ namespace funext
              end
 
   definition is_equiv_apd1000 [instance] (f g : Πa b c, D a b c)
-    : is_equiv (@apd1000 A B C D f g) :=
+    : is_equiv (@@apd1000 A B C D f g) :=
   adjointify _
              eq_of_homotopy3
              begin
