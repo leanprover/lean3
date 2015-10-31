@@ -127,7 +127,7 @@ void initialize_pp() {
     g_visible_fmt     = new format(highlight_keyword(format("[visible]")));
     g_show_fmt        = new format(highlight_keyword(format("show")));
     g_explicit_fmt    = new format(highlight_keyword(format("@@")));
-    g_partial_explicit_fmt    = new format(highlight_keyword(format("@")));    
+    g_partial_explicit_fmt    = new format(highlight_keyword(format("@")));
     g_tmp_prefix      = new name(name::mk_internal_unique_name());
     g_nat_numeral_pp  = new nat_numeral_pp();
 }
@@ -153,7 +153,7 @@ void finalize_pp() {
     delete g_from_fmt;
     delete g_visible_fmt;
     delete g_show_fmt;
-    delete g_partial_explicit_fmt;    
+    delete g_partial_explicit_fmt;
     delete g_explicit_fmt;
     delete g_tmp_prefix;
 }
