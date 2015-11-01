@@ -45,8 +45,8 @@ namespace yoneda
     fapply nat_trans.mk,
     { intro c', esimp [yoneda_embedding], intro f, exact F f x},
     { intro c' c'' f, esimp [yoneda_embedding], apply eq_of_homotopy, intro f',
-      refine _ ⬝ ap (λy, to_fun_hom F y x) !(@id_left _ C)⁻¹,
-      exact ap10 !(@respect_comp Cᵒᵖ cset)⁻¹ x}
+      refine _ ⬝ ap (λy, to_fun_hom F y x) !(@@id_left _ C)⁻¹,
+      exact ap10 !(@@respect_comp Cᵒᵖ cset)⁻¹ x}
   end
 
   definition yoneda_lemma_equiv [constructor] {C : Precategory} (c : C)
@@ -112,7 +112,7 @@ namespace yoneda
   begin
     intro c c',
     fapply is_equiv_of_equiv_of_homotopy,
-    { symmetry, transitivity _, apply @equiv_of_iso (homset _ _),
+    { symmetry, transitivity _, apply @@equiv_of_iso (homset _ _),
       rexact yoneda_lemma c (ɏ c'), esimp [yoneda_embedding], exact !equiv_lift⁻¹ᵉ},
     { intro f, apply nat_trans_eq, intro c, apply eq_of_homotopy, intro f',
       esimp [equiv.symm,equiv.trans],

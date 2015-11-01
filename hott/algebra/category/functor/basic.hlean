@@ -42,7 +42,7 @@ namespace functor
   protected definition id [reducible] [constructor] {C : Precategory} : functor C C :=
   mk (λa, a) (λ a b f, f) (λ a, idp) (λ a b c f g, idp)
 
-  protected definition ID [reducible] [constructor] (C : Precategory) : functor C C := @functor.id C
+  protected definition ID [reducible] [constructor] (C : Precategory) : functor C C := @@functor.id C
   notation 1 := functor.id
 
   definition constant_functor [constructor] (C : Precategory) {D : Precategory} (d : D) : C ⇒ D :=
@@ -59,7 +59,7 @@ namespace functor
   apd01111 functor.mk pF pH !is_hprop.elim !is_hprop.elim
 
   definition functor_eq' {F₁ F₂ : C ⇒ D} : Π(p : to_fun_ob F₁ = to_fun_ob F₂),
-    (transport (λx, Πa b f, hom (x a) (x b)) p @(to_fun_hom F₁) = @(to_fun_hom F₂)) → F₁ = F₂ :=
+    (transport (λx, Πa b f, hom (x a) (x b)) p @@(to_fun_hom F₁) = @@(to_fun_hom F₂)) → F₁ = F₂ :=
   by induction F₁; induction F₂; apply functor_mk_eq'
 
   definition functor_mk_eq {F₁ F₂ : C → D} {H₁ : Π(a b : C), hom a b → hom (F₁ a) (F₁ b)}
@@ -86,7 +86,7 @@ namespace functor
   definition preserve_is_iso [constructor] (F : C ⇒ D) {a b : C} (f : hom a b) [H : is_iso f]
     : is_iso (F f) :=
   begin
-    fapply @is_iso.mk, apply (F (f⁻¹)),
+    fapply @@is_iso.mk, apply (F (f⁻¹)),
     repeat (apply concat ; symmetry ;  apply (respect_comp F) ;
       apply concat ; apply (ap (λ x, to_fun_hom F x)) ;
       (apply iso.left_inverse | apply iso.right_inverse);
@@ -96,7 +96,7 @@ namespace functor
   theorem respect_inv (F : C ⇒ D) {a b : C} (f : hom a b) [H : is_iso f] [H' : is_iso (F f)] :
     F (f⁻¹) = (F f)⁻¹ :=
   begin
-    fapply @left_inverse_eq_right_inverse, apply (F f),
+    fapply @@left_inverse_eq_right_inverse, apply (F f),
       transitivity to_fun_hom F (f⁻¹ ∘ f),
         {symmetry, apply (respect_comp F)},
         {transitivity to_fun_hom F category.id,
@@ -164,8 +164,8 @@ namespace functor
   begin
     fapply equiv.MK,
       {intro S, induction S with d1 S2, induction S2 with d2 P1, induction P1 with P11 P12,
-       exact functor.mk d1 d2 P11 @P12},
-      {intro F, induction F with d1 d2 d3 d4, exact ⟨d1, @d2, (d3, @d4)⟩},
+       exact functor.mk d1 d2 P11 @@P12},
+      {intro F, induction F with d1 d2 d3 d4, exact ⟨d1, @@d2, (d3, @@d4)⟩},
       {intro F, induction F, reflexivity},
       {intro S, induction S with d1 S2, induction S2 with d2 P1, induction P1, reflexivity},
   end
@@ -231,7 +231,7 @@ namespace functor
   by induction pF; induction pH; induction pid; induction pcomp; reflexivity
 
   definition ap010_functor_eq {F₁ F₂ : C ⇒ D} (p : to_fun_ob F₁ ~ to_fun_ob F₂)
-    (q : (λ(a b : C) (f : hom a b), hom_of_eq (p b) ∘ F₁ f ∘ inv_of_eq (p a)) ~3 @(to_fun_hom F₂))
+    (q : (λ(a b : C) (f : hom a b), hom_of_eq (p b) ∘ F₁ f ∘ inv_of_eq (p a)) ~3 @@(to_fun_hom F₂))
     (c : C) : ap010 to_fun_ob (functor_eq p q) c = p c :=
   begin
     cases F₁ with F₁o F₁h F₁id F₁comp, cases F₂ with F₂o F₂h F₂id F₂comp,

@@ -27,10 +27,10 @@ protected definition has_decidable_eq [reducible] [instance] : decidable_eq hf :
 nat.has_decidable_eq
 
 definition of_finset (s : finset hf) : hf :=
-@equiv.to_fun _ _ finset_nat_equiv_nat s
+@@equiv.to_fun _ _ finset_nat_equiv_nat s
 
 definition to_finset (h : hf) : finset hf :=
-@equiv.inv _ _ finset_nat_equiv_nat h
+@@equiv.inv _ _ finset_nat_equiv_nat h
 
 definition to_nat (h : hf) : nat :=
 h
@@ -39,10 +39,10 @@ definition of_nat (n : nat) : hf :=
 n
 
 lemma to_finset_of_finset (s : finset hf) : to_finset (of_finset s) = s :=
-@equiv.left_inv _ _ finset_nat_equiv_nat s
+@@equiv.left_inv _ _ finset_nat_equiv_nat s
 
 lemma of_finset_to_finset (s : hf) : of_finset (to_finset s) = s :=
-@equiv.right_inv _ _ finset_nat_equiv_nat s
+@@equiv.right_inv _ _ finset_nat_equiv_nat s
 
 lemma to_finset_inj {s₁ s₂ : hf} : to_finset s₁ = to_finset s₂ → s₁ = s₂ :=
 λ h, function.injective_of_left_inverse of_finset_to_finset h
@@ -123,7 +123,7 @@ begin unfold mem, intro h, unfold [mem, insert], rewrite (finset.insert_eq_of_me
 protected theorem induction [recursor 4] {P : hf → Prop}
     (h₁ : P empty) (h₂ : ∀ (a s : hf), a ∉ s → P s → P (insert a s)) (s : hf) : P s :=
 assert P (of_finset (to_finset s)), from
-  @finset.induction _ _ _ h₁
+  @@finset.induction _ _ _ h₁
     (λ a s nain ih,
        begin
          unfold [mem, insert] at h₂,
@@ -482,16 +482,16 @@ mem_powerset_of_subset (empty_subset s)
 open - [notations] list
 
 definition of_list (s : list hf) : hf :=
-@equiv.to_fun _ _ list_nat_equiv_nat s
+@@equiv.to_fun _ _ list_nat_equiv_nat s
 
 definition to_list (h : hf) : list hf :=
-@equiv.inv _ _ list_nat_equiv_nat h
+@@equiv.inv _ _ list_nat_equiv_nat h
 
 lemma to_list_of_list (s : list hf) : to_list (of_list s) = s :=
-@equiv.left_inv _ _ list_nat_equiv_nat s
+@@equiv.left_inv _ _ list_nat_equiv_nat s
 
 lemma of_list_to_list (s : hf) : of_list (to_list s) = s :=
-@equiv.right_inv _ _ list_nat_equiv_nat s
+@@equiv.right_inv _ _ list_nat_equiv_nat s
 
 lemma to_list_inj {s₁ s₂ : hf} : to_list s₁ = to_list s₂ → s₁ = s₂ :=
 λ h, function.injective_of_left_inverse of_list_to_list h

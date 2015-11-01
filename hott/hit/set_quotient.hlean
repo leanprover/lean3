@@ -30,7 +30,7 @@ section
     (Pc : Π(a : A), P (class_of a)) (Pp : Π⦃a a' : A⦄ (H : R a a'), Pc a =[eq_of_rel H] Pc a')
     (x : set_quotient) : P x :=
   begin
-    apply (@trunc.rec_on _ _ P x),
+    apply (@@trunc.rec_on _ _ P x),
     { intro x', apply Pt},
     { intro y, fapply (quotient.rec_on y),
       { exact Pc},

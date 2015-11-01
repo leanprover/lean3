@@ -14,9 +14,9 @@ open two_quotient eq bool unit relation
 namespace torus
 
   definition torus_R (x y : unit) := bool
-  local infix `⬝r`:75 := @e_closure.trans unit torus_R star star star
-  local postfix `⁻¹ʳ`:(max+10) := @e_closure.symm unit torus_R star star
-  local notation `[`:max a `]`:0 := @e_closure.of_rel unit torus_R star star a
+  local infix `⬝r`:75 := @@e_closure.trans unit torus_R star star star
+  local postfix `⁻¹ʳ`:(max+10) := @@e_closure.symm unit torus_R star star
+  local notation `[`:max a `]`:0 := @@e_closure.of_rel unit torus_R star star a
 
   inductive torus_Q : Π⦃x y : unit⦄, e_closure torus_R x y → e_closure torus_R x y → Type :=
   | Qmk : torus_Q ([ff] ⬝r [tt]) ([tt] ⬝r [ff])

@@ -37,7 +37,7 @@ prod.rec (λ a b, a) p
 definition prod.pr2 [reducible] [unfold 3] {A B : Type} (p : prod A B) : B :=
 prod.rec (λ a b, b) p
 
-definition prod.destruct [reducible] := @prod.cases_on
+definition prod.destruct [reducible] := @@prod.cases_on
 
 inductive sum (A B : Type) : Type :=
 | inl {} : A → sum A B

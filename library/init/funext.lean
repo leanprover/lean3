@@ -26,8 +26,8 @@ namespace function
   protected theorem equiv.trans {f₁ f₂ f₃ : Πx: A, B x} : f₁ ~ f₂ → f₂ ~ f₃ → f₁ ~ f₃ :=
   λH₁ H₂ x, eq.trans (H₁ x) (H₂ x)
 
-  protected theorem equiv.is_equivalence (A : Type) (B : A → Type) : equivalence (@function.equiv A B) :=
-  mk_equivalence (@function.equiv A B) (@equiv.refl A B) (@equiv.symm A B) (@equiv.trans A B)
+  protected theorem equiv.is_equivalence (A : Type) (B : A → Type) : equivalence (@@function.equiv A B) :=
+  mk_equivalence (@@function.equiv A B) (@@equiv.refl A B) (@@equiv.symm A B) (@@equiv.trans A B)
 end function
 
 section
@@ -35,7 +35,7 @@ section
   variables {A : Type} {B : A → Type}
 
   private definition fun_setoid [instance] (A : Type) (B : A → Type) : setoid (Πx : A, B x) :=
-  setoid.mk (@function.equiv A B) (function.equiv.is_equivalence A B)
+  setoid.mk (@@function.equiv A B) (function.equiv.is_equivalence A B)
 
   private definition extfun (A : Type) (B : A → Type) : Type :=
   quot (fun_setoid A B)

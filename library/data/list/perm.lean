@@ -54,11 +54,11 @@ take l₁ l₂ p, perm.induction_on p
 
 attribute perm.trans [trans]
 
-theorem eqv (A : Type) : equivalence (@perm A) :=
-mk_equivalence (@perm A) (@perm.refl A) (@perm.symm A) (@perm.trans A)
+theorem eqv (A : Type) : equivalence (@@perm A) :=
+mk_equivalence (@@perm A) (@@perm.refl A) (@@perm.symm A) (@@perm.trans A)
 
 protected definition is_setoid [instance] (A : Type) : setoid (list A) :=
-setoid.mk (@perm A) (perm.eqv A)
+setoid.mk (@@perm A) (perm.eqv A)
 
 theorem mem_perm {a : A} {l₁ l₂ : list A} : l₁ ~ l₂ → a ∈ l₁ → a ∈ l₂ :=
 assume p, perm.induction_on p

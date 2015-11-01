@@ -261,11 +261,11 @@ namespace iff
 
   theorem elim_left : (a ↔ b) → a → b := and.left
 
-  definition mp := @elim_left
+  definition mp := @@elim_left
 
   theorem elim_right : (a ↔ b) → b → a := and.right
 
-  definition mpr := @elim_right
+  definition mpr := @@elim_right
 
   theorem refl (a : Prop) : a ↔ a :=
   intro (assume H, H) (assume H, H)
@@ -319,7 +319,7 @@ attribute iff.trans [trans]
 inductive Exists {A : Type} (P : A → Prop) : Prop :=
 intro : ∀ (a : A), P a → Exists P
 
-definition exists.intro := @Exists.intro
+definition exists.intro := @@Exists.intro
 
 notation `exists` binders `, ` r:(scoped P, Exists P) := r
 notation `∃` binders `, ` r:(scoped P, Exists P) := r
@@ -417,7 +417,7 @@ end
 
 definition decidable_pred [reducible] {A : Type} (R : A   →   Prop) := Π (a   : A), decidable (R a)
 definition decidable_rel  [reducible] {A : Type} (R : A → A → Prop) := Π (a b : A), decidable (R a b)
-definition decidable_eq   [reducible] (A : Type) := decidable_rel (@eq A)
+definition decidable_eq   [reducible] (A : Type) := decidable_rel (@@eq A)
 definition decidable_ne [instance] {A : Type} [H : decidable_eq A] (a b : A) : decidable (a ≠ b) :=
 decidable_implies
 
@@ -531,20 +531,20 @@ decidable.rec_on H (λh, H3 h) (λh, H4 h) --this can be proven using dependent 
 
 theorem if_pos {c : Prop} [H : decidable c] (Hc : c) {A : Type} {t e : A} : (ite c t e) = t :=
 decidable.rec
-  (λ Hc : c,    eq.refl (@ite c (decidable.inl Hc) A t e))
+  (λ Hc : c,    eq.refl (@@ite c (decidable.inl Hc) A t e))
   (λ Hnc : ¬c,  absurd Hc Hnc)
   H
 
 theorem if_neg {c : Prop} [H : decidable c] (Hnc : ¬c) {A : Type} {t e : A} : (ite c t e) = e :=
 decidable.rec
   (λ Hc : c,    absurd Hc Hnc)
-  (λ Hnc : ¬c,  eq.refl (@ite c (decidable.inr Hnc) A t e))
+  (λ Hnc : ¬c,  eq.refl (@@ite c (decidable.inr Hnc) A t e))
   H
 
 theorem if_t_t [simp] (c : Prop) [H : decidable c] {A : Type} (t : A) : (ite c t t) = t :=
 decidable.rec
-  (λ Hc  : c,  eq.refl (@ite c (decidable.inl Hc)  A t t))
-  (λ Hnc : ¬c, eq.refl (@ite c (decidable.inr Hnc) A t t))
+  (λ Hc  : c,  eq.refl (@@ite c (decidable.inl Hc)  A t t))
+  (λ Hnc : ¬c, eq.refl (@@ite c (decidable.inr Hnc) A t t))
   H
 
 theorem implies_of_if_pos {c t e : Prop} [H : decidable c] (h : ite c t e) : c → t :=
@@ -571,17 +571,17 @@ theorem if_congr {A : Type} {b c : Prop} [dec_b : decidable b] [dec_c : decidabl
                  {x y u v : A}
                  (h_c : b ↔ c) (h_t : x = u) (h_e : y = v) :
         ite b x y = ite c u v :=
-@if_ctx_congr A b c dec_b dec_c x y u v h_c (λ h, h_t) (λ h, h_e)
+@@if_ctx_congr A b c dec_b dec_c x y u v h_c (λ h, h_t) (λ h, h_e)
 
 theorem if_ctx_simp_congr {A : Type} {b c : Prop} [dec_b : decidable b] {x y u v : A}
                         (h_c : b ↔ c) (h_t : c → x = u) (h_e : ¬c → y = v) :
-        ite b x y = (@ite c (decidable_of_decidable_of_iff dec_b h_c) A u v) :=
-@if_ctx_congr A b c dec_b (decidable_of_decidable_of_iff dec_b h_c) x y u v h_c h_t h_e
+        ite b x y = (@@ite c (decidable_of_decidable_of_iff dec_b h_c) A u v) :=
+@@if_ctx_congr A b c dec_b (decidable_of_decidable_of_iff dec_b h_c) x y u v h_c h_t h_e
 
 theorem if_simp_congr [congr] {A : Type} {b c : Prop} [dec_b : decidable b] {x y u v : A}
                  (h_c : b ↔ c) (h_t : x = u) (h_e : y = v) :
-        ite b x y = (@ite c (decidable_of_decidable_of_iff dec_b h_c) A u v) :=
-@if_ctx_simp_congr A b c dec_b x y u v h_c (λ h, h_t) (λ h, h_e)
+        ite b x y = (@@ite c (decidable_of_decidable_of_iff dec_b h_c) A u v) :=
+@@if_ctx_simp_congr A b c dec_b x y u v h_c (λ h, h_t) (λ h, h_e)
 
 theorem if_congr_prop {b c x y u v : Prop} [dec_b : decidable b] [dec_c : decidable c]
                       (h_c : b ↔ c) (h_t : c → (x ↔ u)) (h_e : ¬c → (y ↔ v)) :
@@ -598,24 +598,24 @@ decidable.rec_on dec_b
 
 theorem if_ctx_simp_congr_prop {b c x y u v : Prop} [dec_b : decidable b]
                                (h_c : b ↔ c) (h_t : c → (x ↔ u)) (h_e : ¬c → (y ↔ v)) :
-        ite b x y ↔ (@ite c (decidable_of_decidable_of_iff dec_b h_c) Prop u v) :=
-@if_congr_prop b c x y u v dec_b (decidable_of_decidable_of_iff dec_b h_c) h_c h_t h_e
+        ite b x y ↔ (@@ite c (decidable_of_decidable_of_iff dec_b h_c) Prop u v) :=
+@@if_congr_prop b c x y u v dec_b (decidable_of_decidable_of_iff dec_b h_c) h_c h_t h_e
 
 theorem if_simp_congr_prop [congr] {b c x y u v : Prop} [dec_b : decidable b]
                            (h_c : b ↔ c) (h_t : x ↔ u) (h_e : y ↔ v) :
-        ite b x y ↔ (@ite c (decidable_of_decidable_of_iff dec_b h_c) Prop u v) :=
-@if_ctx_simp_congr_prop b c x y u v dec_b h_c (λ h, h_t) (λ h, h_e)
+        ite b x y ↔ (@@ite c (decidable_of_decidable_of_iff dec_b h_c) Prop u v) :=
+@@if_ctx_simp_congr_prop b c x y u v dec_b h_c (λ h, h_t) (λ h, h_e)
 
 theorem dif_pos {c : Prop} [H : decidable c] (Hc : c) {A : Type} {t : c → A} {e : ¬ c → A} : dite c t e = t Hc :=
 decidable.rec
-  (λ Hc : c,    eq.refl (@dite c (decidable.inl Hc) A t e))
+  (λ Hc : c,    eq.refl (@@dite c (decidable.inl Hc) A t e))
   (λ Hnc : ¬c,  absurd Hc Hnc)
   H
 
 theorem dif_neg {c : Prop} [H : decidable c] (Hnc : ¬c) {A : Type} {t : c → A} {e : ¬ c → A} : dite c t e = e Hnc :=
 decidable.rec
   (λ Hc : c,    absurd Hc Hnc)
-  (λ Hnc : ¬c,  eq.refl (@dite c (decidable.inr Hnc) A t e))
+  (λ Hnc : ¬c,  eq.refl (@@dite c (decidable.inr Hnc) A t e))
   H
 
 theorem dif_ctx_congr {A : Type} {b c : Prop} [dec_b : decidable b] [dec_c : decidable c]
@@ -623,7 +623,7 @@ theorem dif_ctx_congr {A : Type} {b c : Prop} [dec_b : decidable b] [dec_c : dec
                       (h_c : b ↔ c)
                       (h_t : ∀ (h : c),    x (iff.mpr h_c h)                      = u h)
                       (h_e : ∀ (h : ¬c),   y (iff.mpr (not_iff_not_of_iff h_c) h) = v h) :
-        (@dite b dec_b A x y) = (@dite c dec_c A u v) :=
+        (@@dite b dec_b A x y) = (@@dite c dec_c A u v) :=
 decidable.rec_on dec_b
   (λ hp : b, calc
     dite b x y = x hp                            : dif_pos hp
@@ -641,8 +641,8 @@ theorem dif_ctx_simp_congr {A : Type} {b c : Prop} [dec_b : decidable b]
                          (h_c : b ↔ c)
                          (h_t : ∀ (h : c),    x (iff.mpr h_c h)                      = u h)
                          (h_e : ∀ (h : ¬c),   y (iff.mpr (not_iff_not_of_iff h_c) h) = v h) :
-        (@dite b dec_b A x y) = (@dite c (decidable_of_decidable_of_iff dec_b h_c) A u v) :=
-@dif_ctx_congr A b c dec_b (decidable_of_decidable_of_iff dec_b h_c) x u y v h_c h_t h_e
+        (@@dite b dec_b A x y) = (@@dite c (decidable_of_decidable_of_iff dec_b h_c) A u v) :=
+@@dif_ctx_congr A b c dec_b (decidable_of_decidable_of_iff dec_b h_c) x u y v h_c h_t h_e
 
 -- Remark: dite and ite are "definitionally equal" when we ignore the proofs.
 theorem dite_ite_eq (c : Prop) [H : decidable c] {A : Type} (t : A) (e : A) : dite c (λh, t) (λh, e) = ite c t e :=

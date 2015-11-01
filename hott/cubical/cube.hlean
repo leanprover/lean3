@@ -39,8 +39,8 @@ namespace eq
             {s₁₂₁ : square p₁₂₀ p₁₂₂ p₀₂₁ p₂₂₁}
             {b₁ b₂ b₃ b₄ : B}
 
-  definition idc    [reducible] [constructor]         := @cube.idc
-  definition idcube [reducible] [constructor] (a : A) := @cube.idc A a
+  definition idc    [reducible] [constructor]         := @@cube.idc
+  definition idcube [reducible] [constructor] (a : A) := @@cube.idc A a
   definition rfl1 : cube s₁₁₀ s₁₁₀ vrfl vrfl vrfl vrfl := by induction s₁₁₀; exact idc
   definition rfl2 : cube vrfl vrfl s₁₁₀ s₁₁₀ hrfl hrfl := by induction s₁₁₀; exact idc
   definition rfl3 : cube hrfl hrfl hrfl hrfl s₁₀₁ s₁₀₁ := by induction s₁₀₁; exact idc

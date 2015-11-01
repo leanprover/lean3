@@ -24,13 +24,13 @@ namespace iso
 
   attribute is_iso [multiple_instances]
   open split_mono split_epi is_iso
-  abbreviation retraction_of [unfold 6] := @split_mono.retraction_of
-  abbreviation retraction_comp [unfold 6] := @split_mono.retraction_comp
-  abbreviation section_of [unfold 6] := @split_epi.section_of
-  abbreviation comp_section [unfold 6] := @split_epi.comp_section
-  abbreviation inverse [unfold 6] := @is_iso.inverse
-  abbreviation left_inverse [unfold 6] := @is_iso.left_inverse
-  abbreviation right_inverse [unfold 6] := @is_iso.right_inverse
+  abbreviation retraction_of [unfold 6] := @@split_mono.retraction_of
+  abbreviation retraction_comp [unfold 6] := @@split_mono.retraction_comp
+  abbreviation section_of [unfold 6] := @@split_epi.section_of
+  abbreviation comp_section [unfold 6] := @@split_epi.comp_section
+  abbreviation inverse [unfold 6] := @@is_iso.inverse
+  abbreviation left_inverse [unfold 6] := @@is_iso.left_inverse
+  abbreviation right_inverse [unfold 6] := @@is_iso.right_inverse
   postfix ⁻¹ := inverse
   --a second notation for the inverse, which is not overloaded
   postfix [parsing_only] `⁻¹ʰ`:std.prec.max_plus := inverse -- input using \-1h
@@ -78,7 +78,7 @@ namespace iso
     [Hl : split_mono f] [Hr : split_epi f] : is_iso f :=
   is_iso.mk _ ((retraction_eq_section f) ▸ (retraction_comp f)) (comp_section f)
 
-  theorem inverse_unique (H H' : is_iso f) : @inverse _ _ _ _ f H = @inverse _ _ _ _ f H' :=
+  theorem inverse_unique (H H' : is_iso f) : @@inverse _ _ _ _ f H = @@inverse _ _ _ _ f H' :=
   inverse_eq_left !left_inverse
 
   theorem inverse_involutive (f : a ⟶ b) [H : is_iso f] [H : is_iso (f⁻¹)]
@@ -118,7 +118,7 @@ namespace iso
   begin
     apply is_hprop.mk, intro H H',
     cases H with g li ri, cases H' with g' li' ri',
-    fapply (apd0111 (@is_iso.mk ob C a b f)),
+    fapply (apd0111 (@@is_iso.mk ob C a b f)),
       apply left_inverse_eq_right_inverse,
         apply li,
         apply ri',
@@ -133,7 +133,7 @@ structure iso {ob : Type} [C : precategory ob] (a b : ob) :=
   (struct : is_iso to_hom)
 
   infix ` ≅ `:50 := iso
-  notation c ` ≅[`:50 C:0 `] `:0 c':50 := @iso C _ c c'
+  notation c ` ≅[`:50 C:0 `] `:0 c':50 := @@iso C _ c c'
   attribute iso.struct [instance] [priority 2000]
 
 namespace iso
@@ -145,7 +145,7 @@ namespace iso
 
   protected definition MK [constructor] (f : a ⟶ b) (g : b ⟶ a)
     (H1 : g ∘ f = id) (H2 : f ∘ g = id) :=
-  @(mk f) (is_iso.mk _ H1 H2)
+  @@(mk f) (is_iso.mk _ H1 H2)
 
   variable {C}
   definition to_inv [reducible] [unfold 5] (f : a ≅ b) : b ⟶ a := (to_hom f)⁻¹

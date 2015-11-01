@@ -14,7 +14,7 @@ variable {A : Type}
 variable [deceq : decidable_eq A]
 
 definition to_set [coercion] (s : finset A) : set A := λx, x ∈ s
-abbreviation ts := @to_set A
+abbreviation ts := @@to_set A
 
 variables (s t : finset A) (x y : A)
 
@@ -29,7 +29,7 @@ definition to_set.inj {s₁ s₂ : finset A} : to_set s₁ = to_set s₂ → s�
 /- operations -/
 
 theorem mem_to_set_empty : (x ∈ ts ∅) = (x ∈ ∅) := rfl
-theorem to_set_empty : ts ∅ = (@set.empty A) := rfl
+theorem to_set_empty : ts ∅ = (@@set.empty A) := rfl
 
 theorem mem_to_set_univ [h : fintype A] : (x ∈ ts univ) = (x ∈ set.univ) :=
   propext (iff.intro (assume H, trivial) (assume H, !mem_univ))

@@ -97,7 +97,7 @@ namespace is_equiv
                (λa, ap point (center_eq (fiber.mk a idp)))
 
   definition is_equiv_of_imp_is_equiv (H : B → is_equiv f) : is_equiv f :=
-  @is_equiv_of_is_contr_fun _ _ f (λb, @is_contr_fiber_of_is_equiv _ _ _ (H b) _)
+  @@is_equiv_of_is_contr_fun _ _ f (λb, @@is_contr_fiber_of_is_equiv _ _ _ (H b) _)
 
   definition is_equiv_equiv_is_contr_fun : is_equiv f ≃ is_contr_fun f :=
   equiv_of_is_hprop _ (λH, !is_equiv_of_is_contr_fun)
@@ -120,7 +120,7 @@ namespace is_equiv
   begin
     intro a,
     apply is_equiv_of_is_contr_fun, intro q,
-    apply @is_contr_equiv_closed _ _ (fiber_total_equiv f q)
+    apply @@is_contr_equiv_closed _ _ (fiber_total_equiv f q)
   end
 
 end is_equiv
@@ -168,7 +168,7 @@ namespace equiv
     fapply adjointify,
       {intro p, cases f with f H, cases f' with f' H', cases p, apply ap (mk f'), apply is_hprop.elim},
       {intro p, cases f with f H, cases f' with f' H', cases p,
-        apply @concat _ _ (ap to_fun (ap (equiv.mk f') (is_hprop.elim H H'))), {apply idp},
+        apply @@concat _ _ (ap to_fun (ap (equiv.mk f') (is_hprop.elim H H'))), {apply idp},
         generalize is_hprop.elim H H', intro q, cases q, apply idp},
       {intro p, cases p, cases f with f H, apply ap (ap (equiv.mk f)), apply is_hset.elim}
   end

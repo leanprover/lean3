@@ -28,7 +28,7 @@ section
 
 end
 
-axiom univalence (A B : Type) : is_equiv (@equiv_of_eq A B)
+axiom univalence (A B : Type) : is_equiv (@@equiv_of_eq A B)
 
 attribute univalence [instance]
 

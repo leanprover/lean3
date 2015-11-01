@@ -21,8 +21,8 @@ structure lattice [class] (A : Type) extends weak_order A :=
 (le_sup_right : ∀ a b, le b (sup a b))
 (sup_le : ∀ a b c, le a c → le b c → le (sup a b) c)
 
-definition inf := @lattice.inf
-definition sup := @lattice.sup
+definition inf := @@lattice.inf
+definition sup := @@lattice.sup
 infix ` ⊓ `:70 := inf
 infix ` ⊔ `:65 := sup
 
@@ -61,10 +61,10 @@ section
   end
 
   theorem inf.left_comm (a b c : A) : a ⊓ (b ⊓ c) = b ⊓ (a ⊓ c) :=
-  binary.left_comm (@inf.comm A s) (@inf.assoc A s) a b c
+  binary.left_comm (@@inf.comm A s) (@@inf.assoc A s) a b c
 
   theorem inf.right_comm (a b c : A) : (a ⊓ b) ⊓ c = (a ⊓ c) ⊓ b :=
-  binary.right_comm (@inf.comm A s) (@inf.assoc A s) a b c
+  binary.right_comm (@@inf.comm A s) (@@inf.assoc A s) a b c
 
   theorem inf_self (a : A) : a ⊓ a = a :=
   by apply eq.symm; apply eq_inf (le.refl a) !le.refl; intros; assumption
@@ -94,10 +94,10 @@ section
   end
 
   theorem sup.left_comm (a b c : A) : a ⊔ (b ⊔ c) = b ⊔ (a ⊔ c) :=
-  binary.left_comm (@sup.comm A s) (@sup.assoc A s) a b c
+  binary.left_comm (@@sup.comm A s) (@@sup.assoc A s) a b c
 
   theorem sup.right_comm (a b c : A) : (a ⊔ b) ⊔ c = (a ⊔ c) ⊔ b :=
-  binary.right_comm (@sup.comm A s) (@sup.assoc A s) a b c
+  binary.right_comm (@@sup.comm A s) (@@sup.assoc A s) a b c
 
   theorem sup_self (a : A) : a ⊔ a = a :=
   by apply eq.symm; apply eq_sup (le.refl a) !le.refl; intros; assumption

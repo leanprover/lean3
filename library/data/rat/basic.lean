@@ -69,7 +69,7 @@ decidable.by_cases
     eq_of_mul_eq_mul_left H3 H4)
 
 theorem equiv.is_equivalence : equivalence equiv :=
-  mk_equivalence equiv equiv.refl @equiv.symm @equiv.trans
+  mk_equivalence equiv equiv.refl @@equiv.symm @@equiv.trans
 
 definition setoid : setoid prerat :=
 setoid.mk equiv equiv.is_equivalence
@@ -394,7 +394,7 @@ quot.lift
 definition reduce : ℚ → prerat :=
 quot.lift
   (λ a : prerat, prerat.reduce a)
-  @prerat.reduce_eq_reduce
+  @@prerat.reduce_eq_reduce
 
 definition num (a : ℚ) : ℤ := prerat.num (reduce a)
 definition denom (a : ℚ) : ℤ := prerat.denom (reduce a)
@@ -569,8 +569,8 @@ protected definition discrete_field [reducible] [trans_instance] : algebra.discr
  left_distrib     := rat.left_distrib,
  right_distrib    := rat.right_distrib,
  mul_comm         := rat.mul_comm,
- mul_inv_cancel   := @rat.mul_inv_cancel,
- inv_mul_cancel   := @rat.inv_mul_cancel,
+ mul_inv_cancel   := @@rat.mul_inv_cancel,
+ inv_mul_cancel   := @@rat.inv_mul_cancel,
  zero_ne_one      := rat.zero_ne_one,
  inv_zero         := rat.inv_zero,
  has_decidable_eq := has_decidable_eq⦄

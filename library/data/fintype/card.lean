@@ -10,7 +10,7 @@ open eq.ops nat function list finset
 
 namespace fintype
 
-definition card [reducible] (A : Type) [finA : fintype A] := finset.card (@finset.univ A _)
+definition card [reducible] (A : Type) [finA : fintype A] := finset.card (@@finset.univ A _)
 
 lemma card_eq_card_image_of_inj
       {A : Type} [finA : fintype A] [deceqA : decidable_eq A]

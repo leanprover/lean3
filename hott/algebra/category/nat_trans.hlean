@@ -39,7 +39,7 @@ namespace nat_trans
   mk (λa, id) (λa b f, !id_right ⬝ !id_left⁻¹)
 
   protected definition ID [reducible] [constructor] (F : C ⇒ D) : nat_trans F F :=
-  (@nat_trans.id C D F)
+  (@@nat_trans.id C D F)
 
   notation 1 := nat_trans.id
 

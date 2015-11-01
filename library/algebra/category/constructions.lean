@@ -30,7 +30,7 @@ namespace category
   --    (λ a b f, !id_right)
   --    (λ a b f, !id_left)
 
-  infixr `∘op`:60 := @compose _ (opposite _) _ _ _
+  infixr `∘op`:60 := @@compose _ (opposite _) _ _ _
 
   variables {C : Category} {a b c : C}
 
@@ -40,7 +40,7 @@ namespace category
   category.rec (λ hom comp id assoc idl idr, refl (mk _ _ _ _ _ _)) C
 
   definition op_op : Opposite (Opposite C) = C :=
-  (@congr_arg _ _ (@opposite C (@opposite C C)) _ (Category.mk C) (op_op' C)) ⬝ !Category.equal
+  (@@congr_arg _ _ (@@opposite C (@@opposite C C)) _ (Category.mk C) (op_op' C)) ⬝ !Category.equal
 
   end
   end opposite
@@ -74,9 +74,9 @@ namespace category
   mk (λa b, set_hom a b)
      (λ a b c g f, set_compose g f)
      (λ a, decidable.rec_on_true rfl ⋆)
-     (λ a b c d h g f, @subsingleton.elim (set_hom a d) _ _ _)
-     (λ a b f, @subsingleton.elim (set_hom a b) _ _ _)
-     (λ a b f, @subsingleton.elim (set_hom a b) _ _ _)
+     (λ a b c d h g f, @@subsingleton.elim (set_hom a d) _ _ _)
+     (λ a b f, @@subsingleton.elim (set_hom a b) _ _ _)
+     (λ a b f, @@subsingleton.elim (set_hom a b) _ _ _)
   local attribute discrete_category [reducible]
   definition Discrete_category (A : Type) [H : decidable_eq A] := Mk (discrete_category A)
     section
@@ -87,12 +87,12 @@ namespace category
 
     theorem discrete_category.discrete {a b : A} (f : a ⟶ b)
       : eq.rec_on (discrete_category.endomorphism f) f = (ID b) :=
-    @subsingleton.elim _ !set_hom_subsingleton _ _
+    @@subsingleton.elim _ !set_hom_subsingleton _ _
 
     definition discrete_category.rec_on {P : Πa b, a ⟶ b → Type} {a b : A} (f : a ⟶ b)
         (H : ∀a, P a a id) : P a b f :=
     cast (dcongr_arg3 P rfl (discrete_category.endomorphism f)⁻¹
-                            (@subsingleton.elim _ !set_hom_subsingleton _ _))⁻¹ (H a)
+                            (@@subsingleton.elim _ !set_hom_subsingleton _ _))⁻¹ (H a)
     end
   end
   section
@@ -134,11 +134,11 @@ namespace category
   section
   open functor
   definition opposite_functor [reducible] {C D : Category} (F : C ⇒ D) : Cᵒᵖ ⇒ Dᵒᵖ :=
-  @functor.mk (Cᵒᵖ) (Dᵒᵖ)
+  @@functor.mk (Cᵒᵖ) (Dᵒᵖ)
               (λ a, F a)
               (λ a b f, F f)
               (λ a, respect_id F a)
-              (λ a b c g f, by apply @respect_comp C D)
+              (λ a b c g f, by apply @@respect_comp C D)
   end
   end opposite
 
@@ -276,7 +276,7 @@ namespace category
   --                    (λb c f, sorry))
 
   --the error message generated here is really confusing: the type of the above refl should be
-  -- "@dpr1 D (λ (a_1 : D), a_1 ⟶ a) x = @dpr1 D (λ (a_1 : D), a_1 ⟶ c) x", but the second dpr1 is not even well-typed
+  -- "@@dpr1 D (λ (a_1 : D), a_1 ⟶ a) x = @@dpr1 D (λ (a_1 : D), a_1 ⟶ c) x", but the second dpr1 is not even well-typed
 
   end slice
 

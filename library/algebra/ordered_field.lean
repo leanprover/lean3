@@ -293,7 +293,7 @@ section linear_ordered_field
       ... = (a * 1 + a * 1) / 2   : by rewrite mul_one
       ... = (a * (1 + 1)) / 2     : by rewrite left_distrib
       ... = (a * 2) / 2           : by rewrite one_add_one_eq_two
-      ... = a                     : by rewrite [@mul_div_cancel A _ _ _ two_ne_zero]
+      ... = a                     : by rewrite [@@mul_div_cancel A _ _ _ two_ne_zero]
 
   theorem sub_self_div_two (a : A) : a - a / 2 = a / 2 :=
     by rewrite [-{a}add_halves at {1}, add_sub_cancel]

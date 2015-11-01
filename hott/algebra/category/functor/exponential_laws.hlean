@@ -119,8 +119,8 @@ namespace category
     { fapply functor_eq: esimp,
       { intro F, apply c2_functor_eta},
       { intro F G η, fapply nat_trans_eq, intro b, esimp,
-        rewrite [@natural_map_hom_of_eq _ _ _ G, @natural_map_inv_of_eq _ _ _ F,
-          ↑c2_functor_eta, +@ap010_functor_eq c2 C, ▸*],
+        rewrite [@@natural_map_hom_of_eq _ _ _ G, @@natural_map_inv_of_eq _ _ _ F,
+          ↑c2_functor_eta, +@@ap010_functor_eq c2 C, ▸*],
         induction b: esimp; apply id_leftright}},
     { fapply functor_eq: esimp,
       { intro v, apply prod.eta},
@@ -134,7 +134,7 @@ namespace category
   begin
     fapply functor.mk: esimp,
     { exact opposite_functor_rev},
-    { apply @opposite_rev_nat_trans},
+    { apply @@opposite_rev_nat_trans},
     { intro F, apply nat_trans_eq, intro d, reflexivity},
     { intro F G H η θ, apply nat_trans_eq, intro d, reflexivity}
   end
@@ -158,14 +158,14 @@ namespace category
     { fapply functor_eq: esimp,
       { exact opposite_rev_opposite_functor},
       { intro F G η, fapply nat_trans_eq, esimp, intro d,
-        rewrite [@natural_map_hom_of_eq _ _ _ G, @natural_map_inv_of_eq _ _ _ F,
-          ↑opposite_rev_opposite_functor, +@ap010_functor_eq Dᵒᵖ Cᵒᵖ, ▸*],
+        rewrite [@@natural_map_hom_of_eq _ _ _ G, @@natural_map_inv_of_eq _ _ _ F,
+          ↑opposite_rev_opposite_functor, +@@ap010_functor_eq Dᵒᵖ Cᵒᵖ, ▸*],
         exact !id_right ⬝ !id_left}},
     { fapply functor_eq: esimp,
       { exact opposite_opposite_rev_functor},
       { intro F G η, fapply nat_trans_eq, esimp, intro d,
-        rewrite [opposite_hom_of_eq, opposite_inv_of_eq, @natural_map_hom_of_eq _ _ _ F,
-          @natural_map_inv_of_eq _ _ _ G, ↑opposite_opposite_rev_functor, +@ap010_functor_eq, ▸*],
+        rewrite [opposite_hom_of_eq, opposite_inv_of_eq, @@natural_map_hom_of_eq _ _ _ F,
+          @@natural_map_inv_of_eq _ _ _ G, ↑opposite_opposite_rev_functor, +@@ap010_functor_eq, ▸*],
         exact !id_right ⬝ !id_left}},
   end
 
@@ -199,7 +199,7 @@ namespace category
     { fapply functor_eq: esimp,
       { exact sum_functor_eta},
       { intro F G η, fapply nat_trans_eq, intro a, esimp,
-        rewrite [@natural_map_hom_of_eq _ _ _ G _ a, @natural_map_inv_of_eq _ _ _ F _ a,
+        rewrite [@@natural_map_hom_of_eq _ _ _ G _ a, @@natural_map_inv_of_eq _ _ _ F _ a,
                  ↑sum_functor_eta,+ap010_functor_eq _ _ a],
         induction a: esimp: apply id_leftright}},
     { fapply functor_eq: esimp,
@@ -207,11 +207,11 @@ namespace category
         apply sum_functor_inl, apply sum_functor_inr},
       { intro V W ν, induction V with F G, induction W with F' G', induction ν with η θ,
         apply prod_eq: apply nat_trans_eq,
-        { intro d, rewrite [▸*,@pr1_hom_of_eq (C ^c D) (C ^c E), @pr1_inv_of_eq (C ^c D) (C ^c E),
-            @natural_map_hom_of_eq _ _ _ F' _ d, @natural_map_inv_of_eq _ _ _ F _ d,
+        { intro d, rewrite [▸*,@@pr1_hom_of_eq (C ^c D) (C ^c E), @@pr1_inv_of_eq (C ^c D) (C ^c E),
+            @@natural_map_hom_of_eq _ _ _ F' _ d, @@natural_map_inv_of_eq _ _ _ F _ d,
             ↑sum_functor_inl,+ap010_functor_eq _ _ d, ▸*], apply id_leftright},
-        { intro e, rewrite [▸*,@pr2_hom_of_eq (C ^c D) (C ^c E), @pr2_inv_of_eq (C ^c D) (C ^c E),
-            @natural_map_hom_of_eq _ _ _ G' _ e, @natural_map_inv_of_eq _ _ _ G _ e,
+        { intro e, rewrite [▸*,@@pr2_hom_of_eq (C ^c D) (C ^c E), @@pr2_inv_of_eq (C ^c D) (C ^c E),
+            @@natural_map_hom_of_eq _ _ _ G' _ e, @@natural_map_inv_of_eq _ _ _ G _ e,
             ↑sum_functor_inr,+ap010_functor_eq _ _ e, ▸*], apply id_leftright}}},
   end
 
@@ -244,17 +244,17 @@ namespace category
     { fapply functor_eq: esimp,
       { exact prod_functor_eta},
       { intro F G η, fapply nat_trans_eq, intro e, esimp,
-        rewrite [@natural_map_hom_of_eq _ _ _ G, @natural_map_inv_of_eq _ _ _ F,↑prod_functor_eta,
+        rewrite [@@natural_map_hom_of_eq _ _ _ G, @@natural_map_inv_of_eq _ _ _ F,↑prod_functor_eta,
           +ap010_functor_eq, +hom_of_eq_inv, ▸*, pr1_hom_of_eq, pr2_hom_of_eq,
           pr1_inv_of_eq, pr2_inv_of_eq, ▸*, +id_leftright, prod.eta]}},
     { fapply functor_eq: esimp,
       { intro V, apply prod_eq: esimp, apply pr1_functor_prod, apply pr2_functor_prod},
-      { intro V W ν, rewrite [@pr1_hom_of_eq (C ^c E) (D ^c E), @pr2_hom_of_eq (C ^c E) (D ^c E),
-          @pr1_inv_of_eq (C ^c E) (D ^c E), @pr2_inv_of_eq (C ^c E) (D ^c E)],
+      { intro V W ν, rewrite [@@pr1_hom_of_eq (C ^c E) (D ^c E), @@pr2_hom_of_eq (C ^c E) (D ^c E),
+          @@pr1_inv_of_eq (C ^c E) (D ^c E), @@pr2_inv_of_eq (C ^c E) (D ^c E)],
         apply prod_eq: apply nat_trans_eq; intro v: esimp,
-        { rewrite [@natural_map_hom_of_eq _ _ _ W.1, @natural_map_inv_of_eq _ _ _ V.1, ▸*,
+        { rewrite [@@natural_map_hom_of_eq _ _ _ W.1, @@natural_map_inv_of_eq _ _ _ V.1, ▸*,
             ↑pr1_functor_prod,+ap010_functor_eq, ▸*, id_leftright]},
-        { rewrite [@natural_map_hom_of_eq _ _ _ W.2, @natural_map_inv_of_eq _ _ _ V.2, ▸*,
+        { rewrite [@@natural_map_hom_of_eq _ _ _ W.2, @@natural_map_inv_of_eq _ _ _ V.2, ▸*,
             ↑pr2_functor_prod,+ap010_functor_eq, ▸*, id_leftright]}}},
   end
 
@@ -265,7 +265,7 @@ namespace category
   begin
     fapply functor.mk: esimp,
     { exact functor_uncurry},
-    { apply @nat_trans_uncurry},
+    { apply @@nat_trans_uncurry},
     { intro F, apply nat_trans_eq, intro e, reflexivity},
     { intro F G H η θ, apply nat_trans_eq, intro e, reflexivity}
   end
@@ -275,7 +275,7 @@ namespace category
   begin
     fapply functor.mk: esimp,
     { exact functor_curry},
-    { apply @nat_trans_curry},
+    { apply @@nat_trans_curry},
     { intro F, apply nat_trans_eq, intro e, reflexivity},
     { intro F G H η θ, apply nat_trans_eq, intro e, reflexivity}
   end
@@ -289,16 +289,16 @@ namespace category
     { fapply functor_eq: esimp,
       { exact functor_curry_functor_uncurry},
       { intro F G η, fapply nat_trans_eq, intro e, esimp,
-        rewrite [@natural_map_hom_of_eq _ _ _ G, @natural_map_inv_of_eq _ _ _ F,
-          ↑functor_curry_functor_uncurry, +@ap010_functor_eq E (C ^c D)],
+        rewrite [@@natural_map_hom_of_eq _ _ _ G, @@natural_map_inv_of_eq _ _ _ F,
+          ↑functor_curry_functor_uncurry, +@@ap010_functor_eq E (C ^c D)],
         apply nat_trans_eq, intro d, rewrite [▸*, hom_of_eq_inv,
-          @natural_map_hom_of_eq _ _ _ (G e), @natural_map_inv_of_eq _ _ _ (F e),
-          ↑functor_curry_functor_uncurry_ob, +@ap010_functor_eq D C, ▸*, id_leftright]}},
+          @@natural_map_hom_of_eq _ _ _ (G e), @@natural_map_inv_of_eq _ _ _ (F e),
+          ↑functor_curry_functor_uncurry_ob, +@@ap010_functor_eq D C, ▸*, id_leftright]}},
     { fapply functor_eq: esimp,
       { intro F, apply functor_uncurry_functor_curry},
       { intro F G η, fapply nat_trans_eq, esimp, intro v, induction v with c d,
-        rewrite [@natural_map_hom_of_eq _ _ _ G, @natural_map_inv_of_eq _ _ _ F,
-          ↑functor_uncurry_functor_curry, +@ap010_functor_eq, ▸*], apply id_leftright}},
+        rewrite [@@natural_map_hom_of_eq _ _ _ G, @@natural_map_inv_of_eq _ _ _ F,
+          ↑functor_uncurry_functor_curry, +@@ap010_functor_eq, ▸*], apply id_leftright}},
   end
 
 end category

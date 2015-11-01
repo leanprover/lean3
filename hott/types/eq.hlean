@@ -473,7 +473,7 @@ namespace eq
       { intro c,
         unfold [encode, decode, decode'],
         induction p, esimp, rewrite [is_hprop_elim_self,▸*,+idp_con], apply tr_eq_of_pathover,
-        eapply @sigma.rec_on _ _ (λx, x.2 =[(is_hprop.elim ⟨x.1, x.2⟩ ⟨a, c⟩)..1] c)
+        eapply @@sigma.rec_on _ _ (λx, x.2 =[(is_hprop.elim ⟨x.1, x.2⟩ ⟨a, c⟩)..1] c)
           (center (sigma code)), -- BUG(?): induction fails
         intro a c, apply eq_pr2},
       { intro q, induction q, esimp, apply con.left_inv, },
@@ -485,7 +485,7 @@ namespace eq
     (encode_decode : Π(a : A) (c : code a), c₀ =[decode a c] c) : (a₀ = a) ≃ code a :=
   begin
     fapply total_space_method,
-    { fapply @is_contr.mk,
+    { fapply @@is_contr.mk,
       { exact ⟨a₀, c₀⟩},
       { intro p, fapply sigma_eq,
           apply decode, exact p.2,

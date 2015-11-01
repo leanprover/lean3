@@ -150,7 +150,7 @@ namespace vector
   | unzip []            := ([], [])
   | unzip ((a, b) :: v) := (a :: pr₁ (unzip v), b :: pr₂ (unzip v))
 
-  theorem unzip_nil : unzip (@nil (A × B)) = ([], []) :=
+  theorem unzip_nil : unzip (@@nil (A × B)) = ([], []) :=
   rfl
 
   theorem unzip_cons {n : nat} (a : A) (b : B) (v : vector (A × B) n) :
@@ -161,7 +161,7 @@ namespace vector
   | zip []      []      := []
   | zip (a::va) (b::vb) := ((a, b) :: zip va vb)
 
-  theorem zip_nil_nil : zip (@nil A) (@nil B) = nil :=
+  theorem zip_nil_nil : zip (@@nil A) (@@nil B) = nil :=
   rfl
 
   theorem zip_cons_cons {n : nat} (a : A) (b : B) (va : vector A n) (vb : vector B n) :

@@ -63,8 +63,8 @@ proposition converges_to_seq_unique {X : ℕ → ℝ} {y₁ y₂ : ℝ}
 metric_space.converges_to_seq_unique H₁ H₂
 
 proposition eq_limit_of_converges_to_seq {X : ℕ → ℝ} (y : ℝ) (H : X ⟶ y in ℕ) :
-  y = @limit_seq X (exists.intro y H) :=
-converges_to_seq_unique H (@converges_to_limit_seq X (exists.intro y H))
+  y = @@limit_seq X (exists.intro y H) :=
+converges_to_seq_unique H (@@converges_to_limit_seq X (exists.intro y H))
 
 proposition converges_to_seq_constant (y : ℝ) : (λn, y) ⟶ y in ℕ :=
 metric_space.converges_to_seq_constant y

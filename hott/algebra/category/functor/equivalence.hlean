@@ -18,7 +18,7 @@ namespace category
     (is_iso_unit : is_iso η)
     (is_iso_counit : is_iso ε)
 
-  abbreviation inverse := @is_equivalence.G
+  abbreviation inverse := @@is_equivalence.G
   postfix ⁻¹ := inverse
   --a second notation for the inverse, which is not overloaded (there is no unicode superscript F)
   postfix [parsing_only] `⁻¹ᴱ`:std.prec.max_plus := inverse
@@ -46,17 +46,17 @@ namespace category
   !is_equivalence.is_iso_counit
 
   definition iso_unit (F : C ⇒ D) [H : is_equivalence F] : F⁻¹ᴱ ∘f F ≅ 1 :=
-  (@(iso.mk _) !is_iso_unit)⁻¹ⁱ
+  (@@(iso.mk _) !is_iso_unit)⁻¹ⁱ
 
   definition iso_counit (F : C ⇒ D) [H : is_equivalence F] : F ∘f F⁻¹ᴱ ≅ 1 :=
-  @(iso.mk _) !is_iso_counit
+  @@(iso.mk _) !is_iso_counit
 
   definition split_essentially_surjective_of_is_equivalence (F : C ⇒ D)
     [H : is_equivalence F] : split_essentially_surjective F :=
   begin
    intro d, fconstructor,
    { exact F⁻¹ d},
-   { exact componentwise_iso (@(iso.mk (counit F)) !is_iso_counit) d}
+   { exact componentwise_iso (@@(iso.mk (counit F)) !is_iso_counit) d}
   end
 
 end category
@@ -123,7 +123,7 @@ namespace category
       { exact εn},
       { exact adjointify_adjH},
       { exact adjointify_adjK},
-      { exact @(is_natural_iso _) (λc, !is_iso_inverse)},
+      { exact @@(is_natural_iso _) (λc, !is_iso_inverse)},
       { unfold εn, apply iso.struct, },
     end
 
@@ -136,7 +136,7 @@ namespace category
   --TODO: add variants
   definition unit_eq_counit_inv (F : C ⇒ D) [H : is_equivalence F] (c : C) :
     to_fun_hom F (natural_map (unit F) c) =
-    @(is_iso.inverse (counit F (F c))) (@(componentwise_is_iso (counit F)) !is_iso_counit (F c)) :=
+    @@(is_iso.inverse (counit F (F c))) (@@(componentwise_is_iso (counit F)) !is_iso_counit (F c)) :=
   begin
     apply eq_inverse_of_comp_eq_id, apply counit_unit_eq
   end
@@ -146,7 +146,7 @@ namespace category
   begin
     intro c c',
     fapply adjointify,
-    { intro g, exact natural_map (@(iso.inverse (unit F)) !is_iso_unit) c' ∘ F⁻¹ g ∘ unit F c},
+    { intro g, exact natural_map (@@(iso.inverse (unit F)) !is_iso_unit) c' ∘ F⁻¹ g ∘ unit F c},
     { intro g, rewrite [+respect_comp,▸*],
       xrewrite [natural_map_inverse (unit F) c', respect_inv'],
       apply inverse_comp_eq_of_eq_comp,
@@ -342,7 +342,7 @@ namespace category
   end
 
   definition is_equiv_isomorphism_of_equivalence [constructor] (C D : Category)
-    : is_equiv (@equivalence_of_isomorphism C D) :=
+    : is_equiv (@@equivalence_of_isomorphism C D) :=
   begin
     fapply adjointify,
     { exact isomorphism_of_equivalence},
@@ -369,7 +369,7 @@ namespace category
 
   /- TODO
   definition is_equiv_isomorphism_of_eq [constructor] (C D : Precategory)
-    : is_equiv (@isomorphism_of_eq C D) :=
+    : is_equiv (@@isomorphism_of_eq C D) :=
   begin
     fapply adjointify,
     { intro H, fapply Precategory_eq_of_equiv,

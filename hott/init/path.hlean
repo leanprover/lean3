@@ -17,7 +17,7 @@ namespace eq
   variables {A B C : Type} {P : A → Type} {x y z t : A}
 
   --notation a = b := eq a b
-  notation x = y `:>`:50 A:49 := @eq A x y
+  notation x = y `:>`:50 A:49 := @@eq A x y
   definition idp [reducible] [constructor] {a : A} := refl a
   definition idpath [reducible] [constructor] (a : A) := refl a
 

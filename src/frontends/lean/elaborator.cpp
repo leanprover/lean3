@@ -670,7 +670,8 @@ expr elaborator::visit_app(expr const & e, constraint_seq & cs) {
     if (is_choice_app(e))
         return visit_choice_app(e, cs);
     constraint_seq f_cs;
-    bool expl   = is_nested_explicit(get_app_fn(e));
+    bool expl         = is_nested_explicit(get_app_fn(e));
+    bool partial_expl = is_nested_partial_explicit(get_app_fn(e));
     expr f      = visit(app_fn(e), f_cs);
     auto f_t    = ensure_fun(f, f_cs);
     f           = f_t.first;
@@ -682,10 +683,13 @@ expr elaborator::visit_app(expr const & e, constraint_seq & cs) {
                binding_info(f_type).is_implicit() ||
                binding_info(f_type).is_inst_implicit()) {
             lean_assert(binding_info(f_type).is_strict_implicit() || !first);
+            expr const & d_type = binding_domain(f_type);
+            if (partial_expl && is_pi(whnf(d_type).first))
+                break;
             tag g          = f.get_tag();
             bool is_strict = true;
             bool inst_imp  = binding_info(f_type).is_inst_implicit();
-            expr imp_arg   = mk_placeholder_meta(mk_mvar_suffix(f_type), some_expr(binding_domain(f_type)),
+            expr imp_arg   = mk_placeholder_meta(mk_mvar_suffix(f_type), some_expr(d_type),
                                                  g, is_strict, inst_imp, f_cs);
             f              = mk_app(f, imp_arg, g);
             auto f_t       = ensure_fun(f, f_cs);
@@ -1048,7 +1052,7 @@ static pair<lhs_meta_kind, expr> find_lhs_meta(type_checker & tc, expr const & e
 
    After elaboration the second equation will be
 
-   @map (succ ?M) (@cons A ?M a va) (@cons A ?M b vb) := @cons A ?M (f ab) (@map ?M va vb)
+   @@map (succ ?M) (@@cons A ?M a va) (@@cons A ?M b vb) := @@cons A ?M (f ab) (@@map ?M va vb)
 
    This procedure replaces ?M with (x_1 : nat), where x_1 is a new local constant.
    The resultant eqns object is:
@@ -1065,15 +1069,15 @@ static pair<lhs_meta_kind, expr> find_lhs_meta(type_checker & tc, expr const & e
    ideq H := H
 
    After elaboration the equation is:
-   @ideq ?M1 ?M2 ?M3 H := H
+   @@ideq ?M1 ?M2 ?M3 H := H
 
    This procedure replaces ?M1 ?M2 ?M3 with
    (x_1 : Type) (x_2 : x_1) (x_3 : x_1)
    The resultant eqns object is
 
    [equations
-    (λ (ideq : ∀ {A : Type} {a b : A}, @eq A a b → @eq A a b) (x_1 : Type) (x_2 x_3 : x_1) (H : @eq x_1 x_2 x_3),
-       [equation (@ideq x_1 x_2 x_3 H) H])]
+    (λ (ideq : ∀ {A : Type} {a b : A}, @@eq A a b → @@eq A a b) (x_1 : Type) (x_2 x_3 : x_1) (H : @@eq x_1 x_2 x_3),
+       [equation (@@ideq x_1 x_2 x_3 H) H])]
 */
 static expr assign_equation_lhs_metas(type_checker & tc, expr const & eqns) {
     lean_assert(is_equations(eqns));
@@ -1268,8 +1272,8 @@ expr elaborator::visit_equation(expr const & eq, constraint_seq & cs) {
     expr const & lhs = equation_lhs(eq);
     expr const & rhs = equation_rhs(eq);
     expr lhs_fn = get_app_fn(lhs);
-    if (is_explicit(lhs_fn))
-        lhs_fn = get_explicit_arg(lhs_fn);
+    if (is_explicit_or_partial_explicit(lhs_fn))
+        lhs_fn = get_explicit_or_partial_explicit_arg(lhs_fn);
     if (!is_local(lhs_fn))
         throw exception("ill-formed equation");
     expr new_lhs, new_rhs;
@@ -1657,9 +1661,9 @@ expr elaborator::visit_core(expr const & e, constraint_seq & cs) {
     } else if (is_consume_args(e)) {
         // ignore annotation
         return visit_core(get_consume_args_arg(e), cs);
-    } else if (is_explicit(e)) {
+    } else if (is_explicit_or_partial_explicit(e)) {
         // ignore annotation
-        return visit_core(get_explicit_arg(e), cs);
+        return visit_core(get_explicit_or_partial_explicit_arg(e), cs);
     } else if (is_sorry(e)) {
         return visit_sorry(e);
     } else if (is_equations(e)) {
@@ -1719,12 +1723,33 @@ pair<expr, constraint_seq> elaborator::visit(expr const & e) {
         r    = visit_equations(e, cs);
     } else if (is_explicit(get_app_fn(e))) {
         r    = visit_core(e, cs);
+    } else if (is_partial_explicit(get_app_fn(e))) {
+        r = visit_core(e, cs);
+        tag  g         = e.get_tag();
+        expr r_type    = whnf(infer_type(r, cs), cs);
+        expr imp_arg;
+        bool is_strict = true;
+        while (is_pi(r_type)) {
+            binder_info bi = binding_info(r_type);
+            if (!bi.is_implicit() && !bi.is_inst_implicit()) {
+                break;
+            }
+            expr const & d_type = binding_domain(r_type);
+            if (is_pi(whnf(d_type).first)) {
+                break;
+            }
+            bool inst_imp = bi.is_inst_implicit();
+            imp_arg = mk_placeholder_meta(mk_mvar_suffix(r_type), some_expr(d_type),
+                                          g, is_strict, inst_imp, cs);
+            r       = mk_app(r, imp_arg, g);
+            r_type  = whnf(instantiate(binding_body(r_type), imp_arg), cs);
+        }
     } else {
         bool consume_args = false;
         if (is_as_atomic(e)) {
             flet<bool> let(m_no_info, true);
             r = get_as_atomic_arg(e);
-            if (is_explicit(r)) r = get_explicit_arg(r);
+            if (is_explicit_or_partial_explicit(r)) r = get_explicit_or_partial_explicit_arg(r);
             r = visit_core(r, cs);
         } else if (is_consume_args(e)) {
             consume_args = true;

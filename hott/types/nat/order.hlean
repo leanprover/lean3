@@ -117,23 +117,23 @@ section
   protected definition linear_ordered_semiring [instance] [reducible] :
     algebra.linear_ordered_semiring nat :=
   ⦃ algebra.linear_ordered_semiring, nat.comm_semiring,
-    add_left_cancel            := @add.cancel_left,
-    add_right_cancel           := @add.cancel_right,
+    add_left_cancel            := @@add.cancel_left,
+    add_right_cancel           := @@add.cancel_right,
     lt                         := lt,
     le                         := le,
     le_refl                    := le.refl,
-    le_trans                   := @le.trans,
-    le_antisymm                := @le.antisymm,
-    le_total                   := @le.total,
-    le_iff_lt_or_eq            := @le_iff_lt_or_eq,
+    le_trans                   := @@le.trans,
+    le_antisymm                := @@le.antisymm,
+    le_total                   := @@le.total,
+    le_iff_lt_or_eq            := @@le_iff_lt_or_eq,
     lt_iff_le_and_ne           := lt_iff_le_and_ne,
-    add_le_add_left            := @add_le_add_left,
-    le_of_add_le_add_left      := @le_of_add_le_add_left,
+    add_le_add_left            := @@add_le_add_left,
+    le_of_add_le_add_left      := @@le_of_add_le_add_left,
     zero_ne_one                := ne.symm (succ_ne_zero zero),
     mul_le_mul_of_nonneg_left  := (take a b c H1 H2, mul_le_mul_left H1 c),
     mul_le_mul_of_nonneg_right := (take a b c H1 H2, mul_le_mul_right H1 c),
-    mul_lt_mul_of_pos_left     := @mul_lt_mul_of_pos_left,
-    mul_lt_mul_of_pos_right    := @mul_lt_mul_of_pos_right ⦄
+    mul_lt_mul_of_pos_left     := @@mul_lt_mul_of_pos_left,
+    mul_lt_mul_of_pos_right    := @@mul_lt_mul_of_pos_right ⦄
 
   migrate from algebra with nat
     replacing has_le.ge → ge, has_lt.gt → gt
@@ -143,29 +143,29 @@ end
 section port_algebra
   open [classes] algebra
   theorem add_pos_left : Π{a : ℕ}, 0 < a → Πb : ℕ, 0 < a + b :=
-    take a H b, @algebra.add_pos_of_pos_of_nonneg _ _ a b H !zero_le
+    take a H b, @@algebra.add_pos_of_pos_of_nonneg _ _ a b H !zero_le
   theorem add_pos_right : Π{a : ℕ}, 0 < a → Πb : ℕ, 0 < b + a :=
     take a H b, !add.comm ▸ add_pos_left H b
   theorem add_eq_zero_iff_eq_zero_and_eq_zero : Π{a b : ℕ},
     a + b = 0 ↔ a = 0 × b = 0 :=
     take a b : ℕ,
-      @algebra.add_eq_zero_iff_eq_zero_and_eq_zero_of_nonneg_of_nonneg _ _ a b !zero_le !zero_le
+      @@algebra.add_eq_zero_iff_eq_zero_and_eq_zero_of_nonneg_of_nonneg _ _ a b !zero_le !zero_le
   theorem le_add_of_le_left : Π{a b c : ℕ}, b ≤ c → b ≤ a + c :=
-    take a b c H, @algebra.le_add_of_nonneg_of_le _ _ a b c !zero_le H
+    take a b c H, @@algebra.le_add_of_nonneg_of_le _ _ a b c !zero_le H
   theorem le_add_of_le_right : Π{a b c : ℕ}, b ≤ c → b ≤ c + a :=
-    take a b c H, @algebra.le_add_of_le_of_nonneg _ _ a b c H !zero_le
+    take a b c H, @@algebra.le_add_of_le_of_nonneg _ _ a b c H !zero_le
   theorem lt_add_of_lt_left : Π{b c : ℕ}, b < c → Πa, b < a + c :=
-    take b c H a, @algebra.lt_add_of_nonneg_of_lt _ _ a b c !zero_le H
+    take b c H a, @@algebra.lt_add_of_nonneg_of_lt _ _ a b c !zero_le H
   theorem lt_add_of_lt_right : Π{b c : ℕ}, b < c → Πa, b < c + a :=
-    take b c H a, @algebra.lt_add_of_lt_of_nonneg _ _ a b c H !zero_le
+    take b c H a, @@algebra.lt_add_of_lt_of_nonneg _ _ a b c H !zero_le
   theorem lt_of_mul_lt_mul_left : Π{a b c : ℕ}, c * a < c * b → a < b :=
-    take a b c H, @algebra.lt_of_mul_lt_mul_left _ _ a b c H !zero_le
+    take a b c H, @@algebra.lt_of_mul_lt_mul_left _ _ a b c H !zero_le
   theorem lt_of_mul_lt_mul_right : Π{a b c : ℕ}, a * c < b * c → a < b :=
-    take a b c H, @algebra.lt_of_mul_lt_mul_right _ _ a b c H !zero_le
+    take a b c H, @@algebra.lt_of_mul_lt_mul_right _ _ a b c H !zero_le
   theorem pos_of_mul_pos_left : Π{a b : ℕ}, 0 < a * b → 0 < b :=
-    take a b H, @algebra.pos_of_mul_pos_left _ _ a b H !zero_le
+    take a b H, @@algebra.pos_of_mul_pos_left _ _ a b H !zero_le
   theorem pos_of_mul_pos_right : Π{a b : ℕ}, 0 < a * b → 0 < a :=
-    take a b H, @algebra.pos_of_mul_pos_right _ _ a b H !zero_le
+    take a b H, @@algebra.pos_of_mul_pos_right _ _ a b H !zero_le
 end port_algebra
 
 theorem zero_le_one : 0 ≤ 1 := dec_trivial
@@ -263,7 +263,7 @@ have H1 : Π {n m : nat}, m < n → P m, from
     (show Πm, m < 0 → P m, from take m H, absurd H !not_lt_zero)
     (take n',
       assume IH : Π {m : nat}, m < n' → P m,
-      have H2: P n', from H n' @IH,
+      have H2: P n', from H n' @@IH,
       show Πm, m < succ n' → P m, from
         take m,
         assume H3 : m < succ n',

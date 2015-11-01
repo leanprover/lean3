@@ -89,7 +89,7 @@ namespace Wtype
   !eta_path_W
 
   definition transport_pr1_path_W_uncurried {B' : A → Type} (pq : Σ(p : w.1 = w'.1), w.2 =[p] w'.2)
-      : transport (λx, B' x.1) (@path_W_uncurried A B w w' pq) = transport B' pq.1 :=
+      : transport (λx, B' x.1) (@@path_W_uncurried A B w w' pq) = transport B' pq.1 :=
   by cases pq with p q; exact (transport_pr1_path_W p q)
 
   definition isequiv_path_W /-[instance]-/ (w w' : W a, B a)

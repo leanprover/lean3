@@ -110,7 +110,7 @@ namespace pi
   begin
     cases p, apply pathover_idp_of_eq,
     apply eq_of_homotopy, intro b,
-    apply (@eq_of_pathover_idp _ C), exact (r b b (pathover.idpatho b)),
+    apply (@@eq_of_pathover_idp _ C), exact (r b b (pathover.idpatho b)),
   end
 
   definition pi_pathover_left' {C : (Σa, B a) → Type} {f : Πb, C ⟨a, b⟩} {g : Πb', C ⟨a', b'⟩}
@@ -180,7 +180,7 @@ namespace pi
     : ap (pi_functor f0 f1) (eq_of_homotopy h)
       = eq_of_homotopy (λa':A', (ap (f1 a') (h (f0 a')))) :=
   begin
-  apply (is_equiv_rect (@apd10 A B g g')), intro p, clear h,
+  apply (is_equiv_rect (@@apd10 A B g g')), intro p, clear h,
   cases p,
   apply concat,
     exact (ap (ap (pi_functor f0 f1)) (eq_of_homotopy_idp g)),
@@ -308,15 +308,15 @@ namespace pi
 
   /- Symmetry of Π -/
   definition is_equiv_flip [instance] {P : A → A' → Type}
-    : is_equiv (@function.flip A A' P) :=
+    : is_equiv (@@function.flip A A' P) :=
   begin
     fapply is_equiv.mk,
-    exact (@function.flip _ _ (function.flip P)),
+    exact (@@function.flip _ _ (function.flip P)),
     repeat (intro f; apply idp)
   end
 
   definition pi_comm_equiv {P : A → A' → Type} : (Πa b, P a b) ≃ (Πb a, P a b) :=
-  equiv.mk (@function.flip _ _ P) _
+  equiv.mk (@@function.flip _ _ P) _
 
 end pi
 

@@ -193,13 +193,13 @@ definition ordered_ring.to_ordered_semiring [instance] [coercion] [reducible] [s
 ⦃ ordered_semiring, s,
   mul_zero                   := mul_zero,
   zero_mul                   := zero_mul,
-  add_left_cancel            := @add.left_cancel A s,
-  add_right_cancel           := @add.right_cancel A s,
-  le_of_add_le_add_left      := @le_of_add_le_add_left A s,
-  mul_le_mul_of_nonneg_left  := @ordered_ring.mul_le_mul_of_nonneg_left A s,
-  mul_le_mul_of_nonneg_right := @ordered_ring.mul_le_mul_of_nonneg_right A s,
-  mul_lt_mul_of_pos_left     := @ordered_ring.mul_lt_mul_of_pos_left A s,
-  mul_lt_mul_of_pos_right    := @ordered_ring.mul_lt_mul_of_pos_right A s ⦄
+  add_left_cancel            := @@add.left_cancel A s,
+  add_right_cancel           := @@add.right_cancel A s,
+  le_of_add_le_add_left      := @@le_of_add_le_add_left A s,
+  mul_le_mul_of_nonneg_left  := @@ordered_ring.mul_le_mul_of_nonneg_left A s,
+  mul_le_mul_of_nonneg_right := @@ordered_ring.mul_le_mul_of_nonneg_right A s,
+  mul_lt_mul_of_pos_left     := @@ordered_ring.mul_lt_mul_of_pos_left A s,
+  mul_lt_mul_of_pos_right    := @@ordered_ring.mul_lt_mul_of_pos_right A s ⦄
 
 section
   variable [s : ordered_ring A]
@@ -274,13 +274,13 @@ definition linear_ordered_ring.to_linear_ordered_semiring [instance] [coercion] 
 ⦃ linear_ordered_semiring, s,
   mul_zero                   := mul_zero,
   zero_mul                   := zero_mul,
-  add_left_cancel            := @add.left_cancel A s,
-  add_right_cancel           := @add.right_cancel A s,
-  le_of_add_le_add_left      := @le_of_add_le_add_left A s,
-  mul_le_mul_of_nonneg_left  := @mul_le_mul_of_nonneg_left A s,
-  mul_le_mul_of_nonneg_right := @mul_le_mul_of_nonneg_right A s,
-  mul_lt_mul_of_pos_left     := @mul_lt_mul_of_pos_left A s,
-  mul_lt_mul_of_pos_right    := @mul_lt_mul_of_pos_right A s,
+  add_left_cancel            := @@add.left_cancel A s,
+  add_right_cancel           := @@add.right_cancel A s,
+  le_of_add_le_add_left      := @@le_of_add_le_add_left A s,
+  mul_le_mul_of_nonneg_left  := @@mul_le_mul_of_nonneg_left A s,
+  mul_le_mul_of_nonneg_right := @@mul_le_mul_of_nonneg_right A s,
+  mul_lt_mul_of_pos_left     := @@mul_lt_mul_of_pos_left A s,
+  mul_lt_mul_of_pos_right    := @@mul_lt_mul_of_pos_right A s,
   le_total                   := linear_ordered_ring.le_total ⦄
 
 structure linear_ordered_comm_ring [class] (A : Type) extends linear_ordered_ring A, comm_monoid A
@@ -325,7 +325,7 @@ definition linear_ordered_comm_ring.to_integral_domain [instance] [coercion] [re
     [s: linear_ordered_comm_ring A] : integral_domain A :=
 ⦃ integral_domain, s,
   eq_zero_or_eq_zero_of_mul_eq_zero :=
-     @linear_ordered_comm_ring.eq_zero_or_eq_zero_of_mul_eq_zero A s ⦄
+     @@linear_ordered_comm_ring.eq_zero_or_eq_zero_of_mul_eq_zero A s ⦄
 
 section
   variable [s : linear_ordered_ring A]

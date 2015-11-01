@@ -228,7 +228,7 @@ section
     (assume H : ¬ ∀ b, b ∉ B,
       have ∃ b, b ∈ B, from exists_of_not_forall_not H,
       obtain b bB, from this,
-      let h := @schroeder_bernstein.h X Y A B f g b in
+      let h := @@schroeder_bernstein.h X Y A B f g b in
       have h_maps_to : maps_to h A B, from schroeder_bernstein.h_maps_to f_maps_to bB,
       have hinj : inj_on h A, from schroeder_bernstein.h_inj finj ginj, -- ginj,
       have hsurj : surj_on h A B, from schroeder_bernstein.h_surj f_maps_to g_maps_to ginj,

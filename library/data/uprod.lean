@@ -30,11 +30,11 @@ take p₁ p₂ p₃ h₁ h₂, or.elim h₁
     (λ e₂₃,  begin esimp [eqv], rewrite es₁₂, right, assumption end)
     (λ es₂₃, begin esimp [eqv], rewrite [-es₁₂ at es₂₃, swap_swap at es₂₃], left, assumption end))
 
-private theorem is_equivalence (A : Type) : equivalence (@eqv A) :=
-mk_equivalence (@eqv A) (@eqv.refl A) (@eqv.symm A) (@eqv.trans A)
+private theorem is_equivalence (A : Type) : equivalence (@@eqv A) :=
+mk_equivalence (@@eqv A) (@@eqv.refl A) (@@eqv.symm A) (@@eqv.trans A)
 
 definition uprod.setoid [instance] (A : Type) : setoid (A × A) :=
-setoid.mk (@eqv A) (is_equivalence A)
+setoid.mk (@@eqv A) (is_equivalence A)
 
 definition uprod (A : Type) : Type :=
 quot (uprod.setoid A)

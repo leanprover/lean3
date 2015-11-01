@@ -238,21 +238,21 @@ protected definition linear_ordered_comm_ring [reducible] [trans_instance] :
 ⦃algebra.linear_ordered_comm_ring, int.integral_domain,
   le               := int.le,
   le_refl          := int.le_refl,
-  le_trans         := @int.le_trans,
-  le_antisymm      := @int.le_antisymm,
+  le_trans         := @@int.le_trans,
+  le_antisymm      := @@int.le_antisymm,
   lt               := int.lt,
-  le_of_lt         := @int.le_of_lt,
+  le_of_lt         := @@int.le_of_lt,
   lt_irrefl        := int.lt_irrefl,
-  lt_of_lt_of_le   := @int.lt_of_lt_of_le,
-  lt_of_le_of_lt   := @int.lt_of_le_of_lt,
-  add_le_add_left  := @int.add_le_add_left,
-  mul_nonneg       := @int.mul_nonneg,
-  mul_pos          := @int.mul_pos,
+  lt_of_lt_of_le   := @@int.lt_of_lt_of_le,
+  lt_of_le_of_lt   := @@int.lt_of_le_of_lt,
+  add_le_add_left  := @@int.add_le_add_left,
+  mul_nonneg       := @@int.mul_nonneg,
+  mul_pos          := @@int.mul_pos,
   le_iff_lt_or_eq  := int.le_iff_lt_or_eq,
   le_total         := int.le_total,
   zero_ne_one      := int.zero_ne_one,
   zero_lt_one      := int.zero_lt_one,
-  add_lt_add_left  := @int.add_lt_add_left⦄
+  add_lt_add_left  := @@int.add_lt_add_left⦄
 
 protected definition decidable_linear_ordered_comm_ring [reducible] [instance] :
     algebra.decidable_linear_ordered_comm_ring int :=

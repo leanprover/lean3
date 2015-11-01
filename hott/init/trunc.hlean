@@ -124,7 +124,7 @@ namespace is_trunc
     [H : is_trunc n A] : is_trunc (n.+1) A :=
   trunc_index.rec_on n
     (λ A (H : is_contr A), !is_trunc_succ_intro)
-    (λ n IH A (H : is_trunc (n.+1) A), @is_trunc_succ_intro _ _ (λ x y, IH _ _))
+    (λ n IH A (H : is_trunc (n.+1) A), @@is_trunc_succ_intro _ _ (λ x y, IH _ _))
     A H
   --in the proof the type of H is given explicitly to make it available for class inference
 
@@ -139,14 +139,14 @@ namespace is_trunc
                 (n : trunc_index) (A : Type)
                 (Hnm : n ≤ m .+1) (Hn : is_trunc n A), is_trunc m .+1 A, from
     λm IHm n, trunc_index.rec_on n
-           (λA Hnm Hn, @is_trunc_succ A m (IHm -2 A star Hn))
+           (λA Hnm Hn, @@is_trunc_succ A m (IHm -2 A star Hn))
            (λn IHn A Hnm (Hn : is_trunc n.+1 A),
-           @is_trunc_succ_intro A m (λx y, IHm n (x = y) (trunc_index.le_of_succ_le_succ Hnm) _)),
+           @@is_trunc_succ_intro A m (λx y, IHm n (x = y) (trunc_index.le_of_succ_le_succ Hnm) _)),
   trunc_index.rec_on m base step n A Hnm Hn
 
   definition is_trunc_of_imp_is_trunc {n : trunc_index} (H : A → is_trunc (n.+1) A)
     : is_trunc (n.+1) A :=
-  @is_trunc_succ_intro _ _ (λx y, @is_trunc_eq _ _ (H x) x y)
+  @@is_trunc_succ_intro _ _ (λx y, @@is_trunc_eq _ _ (H x) x y)
 
   definition is_trunc_of_imp_is_trunc_of_leq {n : trunc_index} (Hn : -1 ≤ n) (H : A → is_trunc n A)
     : is_trunc n A :=
@@ -175,7 +175,7 @@ namespace is_trunc
   is_contr.mk x (λy, !is_hprop.elim)
 
   theorem is_hprop_of_imp_is_contr {A : Type} (H : A → is_contr A) : is_hprop A :=
-  @is_trunc_succ_intro A -2
+  @@is_trunc_succ_intro A -2
     (λx y,
       have H2 [visible] : is_contr A, from H x,
       !is_contr_eq)
@@ -189,7 +189,7 @@ namespace is_trunc
   /- hsets -/
 
   theorem is_hset.mk (A : Type) (H : ∀(x y : A) (p q : x = y), p = q) : is_hset A :=
-  @is_trunc_succ_intro _ _ (λ x y, is_hprop.mk (H x y))
+  @@is_trunc_succ_intro _ _ (λ x y, is_hprop.mk (H x y))
 
   definition is_hset.elim [H : is_hset A] ⦃x y : A⦄ (p q : x = y) : p = q :=
   !is_hprop.elim
@@ -241,7 +241,7 @@ namespace is_trunc
     [HA : is_trunc n A] : is_trunc n B :=
   trunc_index.rec_on n
     (λA (HA : is_contr A) B f (H : is_equiv f), is_contr_is_equiv_closed f)
-    (λn IH A (HA : is_trunc n.+1 A) B f (H : is_equiv f), @is_trunc_succ_intro _ _ (λ x y : B,
+    (λn IH A (HA : is_trunc n.+1 A) B f (H : is_equiv f), @@is_trunc_succ_intro _ _ (λ x y : B,
       IH (f⁻¹ x = f⁻¹ y) _ (x = y) (ap f⁻¹)⁻¹ !is_equiv_inv))
     A HA B f H
 
@@ -315,8 +315,8 @@ namespace is_trunc
   abbreviation hprop := -1-Type
   abbreviation hset := 0-Type
 
-  protected abbreviation hprop.mk := @trunctype.mk -1
-  protected abbreviation hset.mk := @trunctype.mk (-1.+1)
+  protected abbreviation hprop.mk := @@trunctype.mk -1
+  protected abbreviation hset.mk := @@trunctype.mk (-1.+1)
 
   protected abbreviation trunctype.mk' [parsing_only] (n : trunc_index) (A : Type)
     [H : is_trunc n A] : n-Type :=

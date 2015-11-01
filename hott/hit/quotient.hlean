@@ -153,7 +153,7 @@ namespace quotient
 
     theorem elim_Peq {Q : Type} (Qpt : Π{a : A}, C a → Q)
       (Qeq : Π⦃a a' : A⦄ (r : R a a') (c : C a), Qpt c = Qpt (f r c)) {a a' : A} (r : R a a')
-      (c : C a) : ap (elim @Qpt Qeq) (Peq r c) = Qeq r c :=
+      (c : C a) : ap (elim @@Qpt Qeq) (Peq r c) = Qeq r c :=
     begin
       refine !ap_dpair_eq_dpair ⬝ _,
       rewrite [apo011_eq_apo11_apdo, rec_eq_of_rel, ▸*, apo011_arrow_pathover_constant_right,

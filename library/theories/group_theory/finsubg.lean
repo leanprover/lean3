@@ -32,7 +32,7 @@ structure is_finsubg [class] (H : finset G) : Type :=
           (mul_closed : finset_mul_closed_on H)
           (has_inv : finset_has_inv H)
 
-definition univ_is_finsubg [instance] [finG : fintype G] : is_finsubg (@finset.univ G _) :=
+definition univ_is_finsubg [instance] [finG : fintype G] : is_finsubg (@@finset.univ G _) :=
 is_finsubg.mk !mem_univ (λ x y Px Py, !mem_univ) (λ a Pa, !mem_univ)
 
 definition one_is_finsubg [instance] : is_finsubg (singleton (1:G)) :=
@@ -41,11 +41,11 @@ is_finsubg.mk !mem_singleton
   (λ x Px, by rewrite [eq_of_mem_singleton Px, one_inv]; apply mem_singleton)
 
 lemma finsubg_has_one (H : finset G) [h : is_finsubg H] : 1 ∈ H :=
-      @is_finsubg.has_one G _ H h
+      @@is_finsubg.has_one G _ H h
 lemma finsubg_mul_closed (H : finset G) [h : is_finsubg H] {x y : G} : x ∈ H → y ∈ H → x * y ∈ H :=
-      @is_finsubg.mul_closed G _ H h x y
+      @@is_finsubg.mul_closed G _ H h x y
 lemma finsubg_has_inv (H : finset G) [h : is_finsubg H] {a : G} :  a ∈ H → a⁻¹ ∈ H :=
-      @is_finsubg.has_inv G _ H h a
+      @@is_finsubg.has_inv G _ H h a
 
 variable [deceqG : decidable_eq G]
 include deceqG
@@ -290,7 +290,7 @@ subtype.eq (to_set.inj begin
 end)
 
 lemma lcoset_lmul_inj {g : A} {Pg : g ∈ G}:
-  @injective (lcoset_type G H) _ (lcoset_lmul Pg) :=
+  @@injective (lcoset_type G H) _ (lcoset_lmul Pg) :=
 injective_of_has_left_inverse (exists.intro (lcoset_lmul (finsubg_has_inv G Pg)) lcoset_lmul_inv)
 
 lemma card_elt_of_lcoset_type (S : lcoset_type G H) : card (elt_of S) = card H :=

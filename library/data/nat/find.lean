@@ -94,7 +94,7 @@ match x with
 end
 
 private definition find_x : {x : nat | p x} :=
-@fix _ _ _ wf_gtb find.F 0 lbp_zero
+@@fix _ _ _ wf_gtb find.F 0 lbp_zero
 end find_x
 
 protected definition find {p : nat → Prop} [d : decidable_pred p] : (∃ x, p x) → nat :=

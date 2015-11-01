@@ -351,11 +351,11 @@ quot.lift_on₂ s₁ s₂
   (λ l₁ l₂,
     to_finset_of_nodup (product (elt_of l₁) (elt_of l₂))
                        (nodup_product (has_property l₁) (has_property l₂)))
-  (λ v₁ v₂ w₁ w₂ p₁ p₂, begin apply @quot.sound, apply perm_product p₁ p₂ end)
+  (λ v₁ v₂ w₁ w₂ p₁ p₂, begin apply @@quot.sound, apply perm_product p₁ p₂ end)
 
 infix [priority finset.prio] * := product
 
-theorem empty_product (s : finset B) : @empty A * s = ∅ :=
+theorem empty_product (s : finset B) : @@empty A * s = ∅ :=
 quot.induction_on s (λ l, rfl)
 
 theorem mem_product {a : A} {b : B} {s₁ : finset A} {s₂ : finset B}
@@ -370,7 +370,7 @@ theorem mem_of_mem_product_right {a : A} {b : B} {s₁ : finset A} {s₂ : finse
         : (a, b) ∈ s₁ * s₂ → b ∈ s₂ :=
 quot.induction_on₂ s₁ s₂ (λ l₁ l₂ i, list.mem_of_mem_product_right i)
 
-theorem product_empty (s : finset A) : s * @empty B = ∅ :=
+theorem product_empty (s : finset A) : s * @@empty B = ∅ :=
 ext (λ p,
   match p with
   | (a, b) := iff.intro

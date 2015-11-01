@@ -17,7 +17,7 @@ namespace category
   variables {ob : Type} [C : precategory ob] {c c' : ob} (D I : Precategory)
   include C
 
-  definition is_initial [reducible] (c : ob) := @is_terminal _ (opposite C) c
+  definition is_initial [reducible] (c : ob) := @@is_terminal _ (opposite C) c
 
   definition is_contr_of_is_initial (c d : ob) [H : is_initial d]
     : is_contr (d ⟶ c) :=
@@ -35,7 +35,7 @@ namespace category
   !is_hprop.elim
 
   definition initial_iso_initial {c c' : ob} (H : is_initial c) (K : is_initial c') : c ≅ c' :=
-  iso_of_opposite_iso (@terminal_iso_terminal _ (opposite C) _ _ H K)
+  iso_of_opposite_iso (@@terminal_iso_terminal _ (opposite C) _ _ H K)
 
   theorem is_hprop_is_initial [instance] : is_hprop (is_initial c) := _
 
@@ -48,12 +48,12 @@ namespace category
 
   definition has_initial_object.is_initial [H : has_initial_object D]
     : is_initial (initial_object D) :=
-  @has_terminal_object.is_terminal (Opposite D) H
+  @@has_terminal_object.is_terminal (Opposite D) H
 
   variable {D}
   definition initial_object_iso_initial_object (H₁ H₂ : has_initial_object D)
-    : @initial_object D H₁ ≅ @initial_object D H₂ :=
-  initial_iso_initial (@has_initial_object.is_initial D H₁) (@has_initial_object.is_initial D H₂)
+    : @@initial_object D H₁ ≅ @@initial_object D H₂ :=
+  initial_iso_initial (@@has_initial_object.is_initial D H₁) (@@has_initial_object.is_initial D H₂)
 
   set_option pp.coercions true
   theorem is_hprop_has_initial_object [instance] (D : Category)
@@ -141,13 +141,13 @@ namespace category
   theorem eq_colimit_hom {d : D} {η : Πi, F i ⟶ d}
     (p : Π⦃j i : I⦄ (f : i ⟶ j), η j ∘ to_fun_hom F f = η i) {h : colimit_object F ⟶ d}
     (q : Πi, h ∘ colimit_morphism F i = η i) : h = colimit_hom F η p :=
-  by rexact @eq_hom_limit _ _ Fᵒᵖᶠ _ _ _ proof p qed _ proof q qed
+  by rexact @@eq_hom_limit _ _ Fᵒᵖᶠ _ _ _ proof p qed _ proof q qed
 
   theorem colimit_cocone_unique {d : D} {η : Πi, F i ⟶ d}
     (p : Π⦃j i : I⦄ (f : i ⟶ j), η j ∘ to_fun_hom F f = η i)
     {h₁ : colimit_object F ⟶ d} (q₁ : Πi, h₁ ∘ colimit_morphism F i = η i)
     {h₂ : colimit_object F ⟶ d} (q₂ : Πi, h₂ ∘ colimit_morphism F i = η i) : h₁ = h₂ :=
-  @limit_cone_unique _ _ Fᵒᵖᶠ _ _ _ proof p qed _ proof q₁ qed _ proof q₂ qed
+  @@limit_cone_unique _ _ Fᵒᵖᶠ _ _ _ proof p qed _ proof q₁ qed _ proof q₂ qed
 
   definition colimit_hom_colimit [reducible] {F G : I ⇒ D} (η : F ⟹ G)
     : colimit_object F ⟶ colimit_object G :=
@@ -158,7 +158,7 @@ namespace category
 
   variable (F)
   definition colimit_object_iso_colimit_object [constructor] (H₁ H₂ : has_colimits_of_shape D I) :
-    @(colimit_object F) H₁ ≅ @(colimit_object F) H₂ :=
+    @@(colimit_object F) H₁ ≅ @@(colimit_object F) H₂ :=
   iso_of_opposite_iso (limit_object_iso_limit_object Fᵒᵖᶠ H₁ H₂)
 
   definition colimit_functor [constructor] (D I : Precategory) [H : has_colimits_of_shape D I]
@@ -166,7 +166,7 @@ namespace category
   begin
     fapply functor.mk: esimp,
     { intro F, exact colimit_object F},
-    { apply @colimit_hom_colimit},
+    { apply @@colimit_hom_colimit},
     { intro F, unfold colimit_hom_colimit, refine (eq_colimit_hom _ _)⁻¹, intro i,
       apply id_comp_eq_comp_id},
     { intro F G H η θ, unfold colimit_hom_colimit, refine (eq_colimit_hom _ _)⁻¹, intro i,
@@ -225,7 +225,7 @@ namespace category
   variables {D} (d d')
 
   definition coproduct_object_iso_coproduct_object [constructor] (H₁ H₂ : has_binary_coproducts D) :
-    @coproduct_object D H₁ d d' ≅ @coproduct_object D H₂ d d' :=
+    @@coproduct_object D H₁ d d' ≅ @@coproduct_object D H₂ d d' :=
   colimit_object_iso_colimit_object _ H₁ H₂
 
   end bin_coproducts
@@ -244,36 +244,36 @@ namespace category
 
   variables {d d' x : D} (f g : d ⟶ d')
   definition coequalizer_object : D :=
-  !(@equalizer_object Dᵒᵖ) f g
+  !(@@equalizer_object Dᵒᵖ) f g
 
   definition coequalizer : d' ⟶ coequalizer_object f g :=
-  !(@equalizer Dᵒᵖ)
+  !(@@equalizer Dᵒᵖ)
 
   theorem coequalizes : coequalizer f g ∘ f = coequalizer f g ∘ g :=
-  by rexact !(@equalizes Dᵒᵖ)
+  by rexact !(@@equalizes Dᵒᵖ)
 
   variables {f g}
   definition coequalizer_hom (h : d' ⟶ x) (p : h ∘ f = h ∘ g) : coequalizer_object f g ⟶ x :=
-  !(@hom_equalizer Dᵒᵖ) proof p qed
+  !(@@hom_equalizer Dᵒᵖ) proof p qed
 
   theorem coequalizer_hom_coequalizer (h : d' ⟶ x) (p : h ∘ f = h ∘ g)
     : coequalizer_hom h p ∘ coequalizer f g = h :=
-  by rexact !(@equalizer_hom_equalizer Dᵒᵖ)
+  by rexact !(@@equalizer_hom_equalizer Dᵒᵖ)
 
   theorem eq_coequalizer_hom {h : d' ⟶ x} (p : h ∘ f = h ∘ g) {i : coequalizer_object f g ⟶ x}
     (q : i ∘ coequalizer f g = h) : i = coequalizer_hom h p :=
-  by rexact !(@eq_hom_equalizer Dᵒᵖ) proof q qed
+  by rexact !(@@eq_hom_equalizer Dᵒᵖ) proof q qed
 
   theorem coequalizer_cocone_unique {h : d' ⟶ x} (p : h ∘ f = h ∘ g)
     {i₁ : coequalizer_object f g ⟶ x} (q₁ : i₁ ∘ coequalizer f g = h)
     {i₂ : coequalizer_object f g ⟶ x} (q₂ : i₂ ∘ coequalizer f g = h) : i₁ = i₂ :=
-  !(@equalizer_cone_unique Dᵒᵖ) proof p qed proof q₁ qed proof q₂ qed
+  !(@@equalizer_cone_unique Dᵒᵖ) proof p qed proof q₁ qed proof q₂ qed
 
   omit K
   variables (f g)
   definition coequalizer_object_iso_coequalizer_object [constructor] (H₁ H₂ : has_coequalizers D) :
-    @coequalizer_object D H₁ _ _ f g ≅ @coequalizer_object D H₂ _ _ f g :=
-  iso_of_opposite_iso !(@equalizer_object_iso_equalizer_object Dᵒᵖ)
+    @@coequalizer_object D H₁ _ _ f g ≅ @@coequalizer_object D H₂ _ _ f g :=
+  iso_of_opposite_iso !(@@equalizer_object_iso_equalizer_object Dᵒᵖ)
 
   end coequalizers
 
@@ -286,46 +286,46 @@ namespace category
 
   variables {d₁ d₂ d₃ x : D} (f : d₁ ⟶ d₂) (g : d₁ ⟶ d₃)
   definition pushout_object : D :=
-  !(@pullback_object Dᵒᵖ) f g
+  !(@@pullback_object Dᵒᵖ) f g
 
   definition pushout : d₃ ⟶ pushout_object f g :=
-  !(@pullback Dᵒᵖ)
+  !(@@pullback Dᵒᵖ)
 
   definition pushout_rev : d₂ ⟶ pushout_object f g :=
-  !(@pullback_rev Dᵒᵖ)
+  !(@@pullback_rev Dᵒᵖ)
 
   theorem pushout_commutes : pushout_rev f g ∘ f = pushout f g ∘ g :=
-  by rexact !(@pullback_commutes Dᵒᵖ)
+  by rexact !(@@pullback_commutes Dᵒᵖ)
 
   variables {f g}
   definition pushout_hom (h₁ : d₂ ⟶ x) (h₂ : d₃ ⟶ x) (p : h₁ ∘ f = h₂ ∘ g)
     : pushout_object f g ⟶ x :=
-  !(@hom_pullback Dᵒᵖ) proof p qed
+  !(@@hom_pullback Dᵒᵖ) proof p qed
 
   theorem pushout_hom_pushout (h₁ : d₂ ⟶ x) (h₂ : d₃ ⟶ x) (p : h₁ ∘ f = h₂ ∘ g)
     : pushout_hom h₁ h₂ p ∘ pushout f g = h₂ :=
-  by rexact !(@pullback_hom_pullback Dᵒᵖ)
+  by rexact !(@@pullback_hom_pullback Dᵒᵖ)
 
   theorem pushout_hom_pushout_rev (h₁ : d₂ ⟶ x) (h₂ : d₃ ⟶ x) (p : h₁ ∘ f = h₂ ∘ g)
     : pushout_hom h₁ h₂ p ∘ pushout_rev f g = h₁ :=
-  by rexact !(@pullback_rev_hom_pullback Dᵒᵖ)
+  by rexact !(@@pullback_rev_hom_pullback Dᵒᵖ)
 
   theorem eq_pushout_hom {h₁ : d₂ ⟶ x} {h₂ : d₃ ⟶ x} (p : h₁ ∘ f = h₂ ∘ g)
     {i : pushout_object f g ⟶ x} (q : i ∘ pushout f g = h₂) (r : i ∘ pushout_rev f g = h₁)
     : i = pushout_hom h₁ h₂ p :=
-  by rexact !(@eq_hom_pullback Dᵒᵖ) proof q qed proof r qed
+  by rexact !(@@eq_hom_pullback Dᵒᵖ) proof q qed proof r qed
 
   theorem pushout_cocone_unique {h₁ : d₂ ⟶ x} {h₂ : d₃ ⟶ x} (p : h₁ ∘ f = h₂ ∘ g)
     {i₁ : pushout_object f g ⟶ x} (q₁ : i₁ ∘ pushout f g = h₂) (r₁ : i₁ ∘ pushout_rev f g = h₁)
     {i₂ : pushout_object f g ⟶ x} (q₂ : i₂ ∘ pushout f g = h₂) (r₂ : i₂ ∘ pushout_rev f g = h₁)
     : i₁ = i₂ :=
-  !(@pullback_cone_unique Dᵒᵖ) proof p qed proof q₁ qed proof r₁ qed proof q₂ qed proof r₂ qed
+  !(@@pullback_cone_unique Dᵒᵖ) proof p qed proof q₁ qed proof r₁ qed proof q₂ qed proof r₂ qed
 
   omit K
   variables (f g)
   definition pushout_object_iso_pushout_object [constructor] (H₁ H₂ : has_pushouts D) :
-    @pushout_object D H₁ _ _ _ f g ≅ @pushout_object D H₂ _ _ _ f g :=
-  iso_of_opposite_iso !(@pullback_object_iso_pullback_object (Opposite D))
+    @@pushout_object D H₁ _ _ _ f g ≅ @@pushout_object D H₂ _ _ _ f g :=
+  iso_of_opposite_iso !(@@pullback_object_iso_pullback_object (Opposite D))
 
   end pushouts
 

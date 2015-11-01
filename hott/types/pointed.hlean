@@ -25,7 +25,7 @@ namespace pointed
   variables {A B : Type}
 
   definition pt [unfold 2] [H : pointed A] := point A
-  protected definition Mk [constructor] := @Pointed.mk
+  protected definition Mk [constructor] := @@Pointed.mk
   protected definition MK [constructor] (A : Type) (a : A) := Pointed.mk a
   protected definition mk' [constructor] (A : Type) [H : pointed A] : Type* :=
   Pointed.mk (point A)
@@ -85,7 +85,7 @@ namespace pointed
   definition Pointed_eq {A B : Type*} (f : A ≃ B) (p : f pt = pt) : A = B :=
   begin
     cases A with A a, cases B with B b, esimp at *,
-    fapply apd011 @Pointed.mk,
+    fapply apd011 @@Pointed.mk,
     { apply ua f},
     { rewrite [cast_ua,p]},
   end
@@ -103,7 +103,7 @@ namespace pointed
   definition add_point [constructor] (A : Type) : Type* :=
   Pointed.mk (none : option A)
   postfix `₊`:(max+1) := add_point
-  -- the inclusion A → A₊ is called "some", the extra point "pt" or "none" ("@none A")
+  -- the inclusion A → A₊ is called "some", the extra point "pt" or "none" ("@@none A")
 end pointed
 
 open pointed
@@ -115,7 +115,7 @@ open pmap
 
 namespace pointed
 
-  abbreviation respect_pt [unfold 3] := @pmap.resp_pt
+  abbreviation respect_pt [unfold 3] := @@pmap.resp_pt
   notation `map₊` := pmap
   infix ` →* `:30 := pmap
   attribute pmap.map [coercion]
@@ -144,7 +144,7 @@ namespace pointed
     (homotopy_pt : homotopy pt ⬝ respect_pt g = respect_pt f)
 
   infix ` ~* `:50 := phomotopy
-  abbreviation to_homotopy_pt [unfold 5] := @phomotopy.homotopy_pt
+  abbreviation to_homotopy_pt [unfold 5] := @@phomotopy.homotopy_pt
   abbreviation to_homotopy [coercion] [unfold 5] (p : f ~* g) : Πa, f a = g a :=
   phomotopy.homotopy p
 

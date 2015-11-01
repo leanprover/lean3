@@ -84,8 +84,8 @@ eq_of_forall_dist_le
     show dist y₁ y₂ ≤ ε, from le_of_lt this)
 
 proposition eq_limit_of_converges_to_seq {X : ℕ → M} {y : M} (H : X ⟶ y in ℕ) :
-  y = @limit_seq M _ X (exists.intro y H) :=
-converges_to_seq_unique H (@converges_to_limit_seq M _ X (exists.intro y H))
+  y = @@limit_seq M _ X (exists.intro y H) :=
+converges_to_seq_unique H (@@converges_to_limit_seq M _ X (exists.intro y H))
 
 proposition converges_to_seq_constant (y : M) : (λn, y) ⟶ y in ℕ :=
 take ε, assume egt0 : ε > 0,
@@ -133,7 +133,7 @@ by+ rewrite aux at H; exact converges_to_seq_of_converges_to_seq_offset H
 proposition converges_to_seq_of_converges_to_seq_offset_succ
     {X : ℕ → M} {y : M} (H : (λ n, X (succ n)) ⟶ y in ℕ) :
   X ⟶ y in ℕ :=
-@converges_to_seq_of_converges_to_seq_offset M strucM X y 1 H
+@@converges_to_seq_of_converges_to_seq_offset M strucM X y 1 H
 
 proposition converges_to_seq_offset_iff (X : ℕ → M) (y : M) (k : ℕ) :
   ((λ n, X (n + k)) ⟶ y in ℕ) ↔ (X ⟶ y in ℕ) :=

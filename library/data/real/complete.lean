@@ -431,7 +431,7 @@ theorem archimedean_lower_strict (x : ℝ) : ∃ z : ℤ, x > of_int z :=
   end
 
 private definition ex_floor (x : ℝ) :=
-  (@exists_greatest_of_bdd (λ z, x ≥ of_int z) _
+  (@@exists_greatest_of_bdd (λ z, x ≥ of_int z) _
     (begin
       existsi some (archimedean_upper_strict x),
       let Har := some_spec (archimedean_upper_strict x),
@@ -493,7 +493,7 @@ theorem floor_succ (x : ℝ) : floor (x + 1) = floor x + 1 :=
 theorem floor_sub_one_lt_floor (x : ℝ) : floor (x - 1) < floor x :=
   begin
 
-    apply @algebra.lt_of_add_lt_add_right ℤ _ _ 1,
+    apply @@algebra.lt_of_add_lt_add_right ℤ _ _ 1,
     rewrite [-floor_succ (x - 1), sub_add_cancel],
     apply lt_add_of_pos_right dec_trivial
   end

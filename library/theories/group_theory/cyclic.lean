@@ -261,11 +261,11 @@ definition rotr : ∀ {n : nat} m : nat, fin n → fin n
 
 lemma rotl_succ' {n m : nat} : rotl m = madd (mk_mod n (n*m)) := rfl
 
-lemma rotl_zero : ∀ {n : nat}, @rotl n 0 = id
+lemma rotl_zero : ∀ {n : nat}, @@rotl n 0 = id
 | 0        := funext take i, elim0 i
 | (nat.succ n) := funext take i, begin rewrite [↑rotl, mul_zero, mk_mod_zero_eq, zero_madd] end
 
-lemma rotl_id : ∀ {n : nat}, @rotl n n = id
+lemma rotl_id : ∀ {n : nat}, @@rotl n n = id
 | 0        := funext take i, elim0 i
 | (nat.succ n) :=
   assert P : mk_mod n (n * succ n) = mk_mod n 0,
@@ -275,21 +275,21 @@ lemma rotl_id : ∀ {n : nat}, @rotl n n = id
 lemma rotl_to_zero {n i : nat} : rotl i (mk_mod n i) = 0 :=
 eq_of_veq begin rewrite [↑rotl, val_madd], esimp [mk_mod], rewrite [ mod_add_mod, add_mod_mod, -succ_mul, mul_mod_right] end
 
-lemma rotl_compose : ∀ {n : nat} {j k : nat}, (@rotl n j) ∘ (rotl k) = rotl (j + k)
+lemma rotl_compose : ∀ {n : nat} {j k : nat}, (@@rotl n j) ∘ (rotl k) = rotl (j + k)
 | 0        := take j k, funext take i, elim0 i
 | (succ n) :=  take j k, funext take i, eq.symm begin
-  rewrite [*rotl_succ', left_distrib, -(@madd_mk_mod n (n*j)), madd_assoc],
+  rewrite [*rotl_succ', left_distrib, -(@@madd_mk_mod n (n*j)), madd_assoc],
   end
 
 lemma rotr_rotl : ∀ {n : nat} (m : nat) {i : fin n}, rotr m (rotl m i) = i
 | 0            := take m i, elim0 i
 | (nat.succ n) := take m i, calc (-(mk_mod n (n*m))) + ((mk_mod n (n*m)) + i) = i : by rewrite neg_add_cancel_left
 
-lemma rotl_rotr : ∀ {n : nat} (m : nat), (@rotl n m) ∘ (rotr m) = id
+lemma rotl_rotr : ∀ {n : nat} (m : nat), (@@rotl n m) ∘ (rotr m) = id
 | 0            := take m, funext take i, elim0 i
 | (nat.succ n) := take m, funext take i, calc (mk_mod n (n*m)) + (-(mk_mod n (n*m)) + i) = i : add_neg_cancel_left
 
-lemma rotl_succ {n : nat} : (rotl 1) ∘ (@succ n) = lift_succ :=
+lemma rotl_succ {n : nat} : (rotl 1) ∘ (@@succ n) = lift_succ :=
 funext (take i, eq_of_veq (begin rewrite [↑compose, ↑rotl, ↑madd, mul_one n, ↑mk_mod, mod_add_mod, ↑lift_succ, val_succ, -succ_add_eq_succ_add, add_mod_self_left, mod_eq_of_lt (lt.trans (is_lt i) !lt_succ_self), -val_lift] end))
 
 definition list.rotl {A : Type} : ∀ l : list A, list A
@@ -319,10 +319,10 @@ variable {A : Type}
 definition rotl_fun {n : nat} (m : nat) (f : seq A n) : seq A n := f ∘ (rotl m)
 definition rotr_fun {n : nat} (m : nat) (f : seq A n) : seq A n := f ∘ (rotr m)
 
-lemma rotl_seq_zero {n : nat} : rotl_fun 0 = @id (seq A n) :=
+lemma rotl_seq_zero {n : nat} : rotl_fun 0 = @@id (seq A n) :=
 funext take f, begin rewrite [↑rotl_fun, rotl_zero] end
 
-lemma rotl_seq_ne_id : ∀ {n : nat}, (∃ a b : A, a ≠ b) → ∀ i, i < n → rotl_fun (succ i) ≠ (@id (seq A (succ n)))
+lemma rotl_seq_ne_id : ∀ {n : nat}, (∃ a b : A, a ≠ b) → ∀ i, i < n → rotl_fun (succ i) ≠ (@@id (seq A (succ n)))
 | 0            := assume Pex, take i, assume Piltn, absurd Piltn !not_lt_zero
 | (nat.succ n) := assume Pex, obtain a b Pne, from Pex, take i, assume Pilt,
   let f := (λ j : fin (succ (succ n)), if j = 0 then a else b),
@@ -337,7 +337,7 @@ lemma rotr_rotl_fun {n : nat} (m : nat) (f : seq A n) : rotr_fun m (rotl_fun m f
 calc f ∘ (rotl m) ∘ (rotr m) = f ∘ ((rotl m) ∘ (rotr m)) : by rewrite -compose.assoc
                          ... = f ∘ id                    : by rewrite (rotl_rotr m)
 
-lemma rotl_fun_inj {n : nat} {m : nat} : @injective (seq A n) (seq A n) (rotl_fun m) :=
+lemma rotl_fun_inj {n : nat} {m : nat} : @@injective (seq A n) (seq A n) (rotl_fun m) :=
 injective_of_has_left_inverse (exists.intro (rotr_fun m) (rotr_rotl_fun m))
 
 lemma seq_rotl_eq_list_rotl {n : nat} (f : seq A n) :

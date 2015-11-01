@@ -72,13 +72,13 @@ lemma perm.has_decidable_eq [instance] : decidable_eq (perm A) :=
       (λ Peq, decidable.inl (by substvars))
       (λ Pne, decidable.inr begin intro P, injection P, contradiction end)))
 
-lemma dinj_perm_mk : dinj (@injective A A) perm.mk :=
+lemma dinj_perm_mk : dinj (@@injective A A) perm.mk :=
       take a₁ a₂ Pa₁ Pa₂ Pmkeq, perm.no_confusion Pmkeq (λ Pe Pqe, Pe)
 
 definition all_perms : list (perm A) :=
            dmap injective perm.mk (all_injs A)
 
-lemma nodup_all_perms : nodup (@all_perms A _ _) :=
+lemma nodup_all_perms : nodup (@@all_perms A _ _) :=
       dmap_nodup_of_dinj dinj_perm_mk nodup_all_injs
 
 lemma all_perms_complete : ∀ p : perm A, p ∈ all_perms :=
@@ -102,11 +102,11 @@ lemma perm.one_mul (p : perm A) : perm.one ^ p = p :=
 lemma perm.mul_one (p : perm A) : p ^ perm.one = p :=
       perm.cases_on p (λ f inj, rfl)
 lemma perm.left_inv (p : perm A) : (perm.inv p) ^ p = perm.one :=
-      begin rewrite [↑perm.one], generalize @injective_id A,
+      begin rewrite [↑perm.one], generalize @@injective_id A,
       rewrite [-perm_inv_left (perm.inj p)], intros, exact rfl
       end
 lemma perm.right_inv (p : perm A) : p ^ (perm.inv p) = perm.one :=
-      begin rewrite [↑perm.one], generalize @injective_id A,
+      begin rewrite [↑perm.one], generalize @@injective_id A,
       rewrite [-perm_inv_right (perm.inj p)], intros, exact rfl
       end
 

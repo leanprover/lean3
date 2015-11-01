@@ -317,34 +317,34 @@ section port_algebra
   definition dvd (a b : ℕ) : Type₀ := algebra.dvd a b
   notation a ∣ b := dvd a b
 
-  definition dvd.intro : ∀{a b c : ℕ} (H : a * c = b), a ∣ b := @algebra.dvd.intro _ _
-  definition dvd.intro_left : ∀{a b c : ℕ} (H : c * a = b), a ∣ b := @algebra.dvd.intro_left _ _
+  definition dvd.intro : ∀{a b c : ℕ} (H : a * c = b), a ∣ b := @@algebra.dvd.intro _ _
+  definition dvd.intro_left : ∀{a b c : ℕ} (H : c * a = b), a ∣ b := @@algebra.dvd.intro_left _ _
   definition exists_eq_mul_right_of_dvd : ∀{a b : ℕ} (H : a ∣ b), Σc, b = a * c :=
-    @algebra.exists_eq_mul_right_of_dvd _ _
+    @@algebra.exists_eq_mul_right_of_dvd _ _
   definition dvd.elim : ∀{P : Type} {a b : ℕ} (H₁ : a ∣ b) (H₂ : ∀c, b = a * c → P), P :=
-    @algebra.dvd.elim _ _
+    @@algebra.dvd.elim _ _
   definition exists_eq_mul_left_of_dvd : ∀{a b : ℕ} (H : a ∣ b), Σc, b = c * a :=
-    @algebra.exists_eq_mul_left_of_dvd _ _
+    @@algebra.exists_eq_mul_left_of_dvd _ _
   definition dvd.elim_left : ∀{P : Type} {a b : ℕ} (H₁ : a ∣ b) (H₂ : ∀c, b = c * a → P), P :=
-    @algebra.dvd.elim_left _ _
+    @@algebra.dvd.elim_left _ _
   definition dvd.refl : ∀a : ℕ, a ∣ a := algebra.dvd.refl
-  definition dvd.trans : ∀{a b c : ℕ},  a ∣ b → b ∣ c → a ∣ c := @algebra.dvd.trans _ _
-  definition eq_zero_of_zero_dvd : ∀{a : ℕ},  0 ∣ a → a = 0 := @algebra.eq_zero_of_zero_dvd _ _
+  definition dvd.trans : ∀{a b c : ℕ},  a ∣ b → b ∣ c → a ∣ c := @@algebra.dvd.trans _ _
+  definition eq_zero_of_zero_dvd : ∀{a : ℕ},  0 ∣ a → a = 0 := @@algebra.eq_zero_of_zero_dvd _ _
   definition dvd_zero : ∀a : ℕ, a ∣ 0 := algebra.dvd_zero
   definition one_dvd : ∀a : ℕ, 1 ∣ a := algebra.one_dvd
   definition dvd_mul_right : ∀a b : ℕ, a ∣ a * b := algebra.dvd_mul_right
   definition dvd_mul_left : ∀a b : ℕ, a ∣ b * a := algebra.dvd_mul_left
   definition dvd_mul_of_dvd_left : ∀{a b : ℕ} (H : a ∣ b) (c : ℕ), a ∣ b * c :=
-    @algebra.dvd_mul_of_dvd_left _ _
+    @@algebra.dvd_mul_of_dvd_left _ _
   definition dvd_mul_of_dvd_right : ∀{a b : ℕ} (H : a ∣ b) (c : ℕ), a ∣ c * b :=
-    @algebra.dvd_mul_of_dvd_right _ _
+    @@algebra.dvd_mul_of_dvd_right _ _
   definition mul_dvd_mul : ∀{a b c d : ℕ}, a ∣ b → c ∣ d → a * c ∣ b * d :=
-    @algebra.mul_dvd_mul _ _
+    @@algebra.mul_dvd_mul _ _
   definition dvd_of_mul_right_dvd : ∀{a b c : ℕ}, a * b ∣ c → a ∣ c :=
-    @algebra.dvd_of_mul_right_dvd _ _
+    @@algebra.dvd_of_mul_right_dvd _ _
   definition dvd_of_mul_left_dvd : ∀{a b c : ℕ}, a * b ∣ c → b ∣ c :=
-    @algebra.dvd_of_mul_left_dvd _ _
-  definition dvd_add : ∀{a b c : ℕ}, a ∣ b → a ∣ c → a ∣ b + c := @algebra.dvd_add _ _
+    @@algebra.dvd_of_mul_left_dvd _ _
+  definition dvd_add : ∀{a b c : ℕ}, a ∣ b → a ∣ c → a ∣ b + c := @@algebra.dvd_add _ _
 end port_algebra
 
 end nat

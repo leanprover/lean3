@@ -24,7 +24,7 @@ private lemma eqv_trans {A : Type} : ∀ a b c : A, a ~ b → b ~ c → a ~ c :=
 λ a b c h₁ h₂, trivial
 
 definition squash_setoid (A : Type) : setoid A :=
-setoid.mk (@eqv A) (mk_equivalence (@eqv A) (@eqv_refl A) (@eqv_symm A) (@eqv_trans A))
+setoid.mk (@@eqv A) (mk_equivalence (@@eqv A) (@@eqv_refl A) (@@eqv_symm A) (@@eqv_trans A))
 
 definition squash (A : Type) : Type :=
 quot (squash_setoid A)
@@ -50,4 +50,4 @@ definition decidable_eq_squash [instance] (A : Type) : decidable_eq ∥A∥ :=
 λ a b, inl (squash.irrelevant a b)
 
 definition subsingleton_squash [instance] (A : Type) : subsingleton ∥A∥ :=
-subsingleton.intro (@squash.irrelevant A)
+subsingleton.intro (@@squash.irrelevant A)

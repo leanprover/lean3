@@ -26,8 +26,8 @@ namespace eq
   variables {s₁₁ : square p₁₀ p₁₂ p₀₁ p₂₁} {s₃₁ : square p₃₀ p₃₂ p₂₁ p₄₁}
             {s₁₃ : square p₁₂ p₁₄ p₀₃ p₂₃} {s₃₃ : square p₃₂ p₃₄ p₂₃ p₄₃}
 
-  definition ids      [reducible] [constructor]         := @square.ids
-  definition idsquare [reducible] [constructor] (a : A) := @square.ids A a
+  definition ids      [reducible] [constructor]         := @@square.ids
+  definition idsquare [reducible] [constructor] (a : A) := @@square.ids A a
 
   definition hrefl [unfold 4] (p : a = a') : square idp idp p p :=
   by induction p; exact ids
@@ -385,7 +385,7 @@ namespace eq
   --               end)
   --          (λs, begin
   --                 induction p, rewrite [↑[square_of_pathover,eq_pathover],▸*,
-  --                   to_right_inv !(@pathover_idp A) (eq_of_vdeg_square s),
+  --                   to_right_inv !(@@pathover_idp A) (eq_of_vdeg_square s),
   --                   to_left_inv !vdeg_square_equiv s]
   --               end)
 
@@ -405,7 +405,7 @@ namespace eq
       (s : square t b l idp) (H : P ids) : P s :=
   let p : l ⬝ b = t := (eq_of_square s)⁻¹ in
   have H2 : P (square_of_eq (eq_of_square s)⁻¹⁻¹),
-    from @eq.rec_on _ _ (λx p, P (square_of_eq p⁻¹)) _ p (by induction b; induction l; exact H),
+    from @@eq.rec_on _ _ (λx p, P (square_of_eq p⁻¹)) _ p (by induction b; induction l; exact H),
   left_inv (to_fun !square_equiv_eq) s ▸ !inv_inv ▸ H2
 
   definition rec_on_l [recursor] {a₀₁ : A}
@@ -447,7 +447,7 @@ namespace eq
       (s : square t b idp idp) (H : P ids) : P s :=
   let p : idp ⬝ b = t := (eq_of_square s)⁻¹ in
   assert H2 : P (square_of_eq (eq_of_square s)⁻¹⁻¹),
-    from @eq.rec_on _ _ (λx q, P (square_of_eq q⁻¹)) _ p (by induction b; exact H),
+    from @@eq.rec_on _ _ (λx q, P (square_of_eq q⁻¹)) _ p (by induction b; exact H),
   to_left_inv (!square_equiv_eq) s ▸ !inv_inv ▸ H2
 
   --we can also do the other recursors (tl, tr, bl, br, tbl, tbr, tlr, blr), but let's postpone this until they are needed

@@ -17,9 +17,9 @@ namespace category
     (a : A)
     (b : B)
     (f : S a ⟶ T b)
-  abbreviation ob1 [unfold 6] := @comma_object.a
-  abbreviation ob2 [unfold 6] := @comma_object.b
-  abbreviation mor [unfold 6] := @comma_object.f
+  abbreviation ob1 [unfold 6] := @@comma_object.a
+  abbreviation ob2 [unfold 6] := @@comma_object.b
+  abbreviation mor [unfold 6] := @@comma_object.f
 
   variables {A B C : Precategory} (S : A ⇒ C) (T : B ⇒ C)
 
@@ -38,7 +38,7 @@ namespace category
 
   variables {S T}
   definition comma_object_eq' {x y : comma_object S T} (p : ob1 x = ob1 y) (q : ob2 x = ob2 y)
-    (r : mor x =[ap011 (@hom C C) (ap (to_fun_ob S) p) (ap (to_fun_ob T) q)] mor y) : x = y :=
+    (r : mor x =[ap011 (@@hom C C) (ap (to_fun_ob S) p) (ap (to_fun_ob T) q)] mor y) : x = y :=
   begin
     cases x with a b f, cases y with a' b' f', cases p, cases q,
     esimp [ap011,congr,ap,subst] at r,
@@ -60,7 +60,7 @@ namespace category
   end
 
   definition ap_ob1_comma_object_eq' (x y : comma_object S T) (p : ob1 x = ob1 y) (q : ob2 x = ob2 y)
-    (r : mor x =[ap011 (@hom C C) (ap (to_fun_ob S) p) (ap (to_fun_ob T) q)] mor y)
+    (r : mor x =[ap011 (@@hom C C) (ap (to_fun_ob S) p) (ap (to_fun_ob T) q)] mor y)
     : ap ob1 (comma_object_eq' p q r) = p :=
   begin
     cases x with a b f, cases y with a' b' f', cases p, cases q,
@@ -68,7 +68,7 @@ namespace category
   end
 
   definition ap_ob2_comma_object_eq' (x y : comma_object S T) (p : ob1 x = ob1 y) (q : ob2 x = ob2 y)
-    (r : mor x =[ap011 (@hom C C) (ap (to_fun_ob S) p) (ap (to_fun_ob T) q)] mor y)
+    (r : mor x =[ap011 (@@hom C C) (ap (to_fun_ob S) p) (ap (to_fun_ob T) q)] mor y)
     : ap ob2 (comma_object_eq' p q r) = q :=
   begin
     cases x with a b f, cases y with a' b' f', cases p, cases q,
@@ -81,10 +81,10 @@ namespace category
     (h : ob2 x ⟶ ob2 y)
     (p : T h ∘ mor x = mor y ∘ S g)
     (p' : mor y ∘ S g = T h ∘ mor x)
-  abbreviation mor1 := @comma_morphism.g
-  abbreviation mor2 := @comma_morphism.h
-  abbreviation coh  := @comma_morphism.p
-  abbreviation coh' := @comma_morphism.p'
+  abbreviation mor1 := @@comma_morphism.g
+  abbreviation mor2 := @@comma_morphism.h
+  abbreviation coh  := @@comma_morphism.p
+  abbreviation coh' := @@comma_morphism.p'
 
   protected definition comma_morphism.mk [constructor] [reducible]
     {x y : comma_object S T} (g h p) : comma_morphism x y :=
@@ -143,11 +143,11 @@ namespace category
   precategory.MK (comma_object S T)
                  comma_morphism
                  (λa b, !is_trunc_comma_morphism)
-                 (@comma_compose _ _ _ _ _)
-                 (@comma_id _ _ _ _ _)
-                 (@comma_assoc _ _ _ _ _)
-                 (@comma_id_left _ _ _ _ _)
-                 (@comma_id_right _ _ _ _ _)
+                 (@@comma_compose _ _ _ _ _)
+                 (@@comma_id _ _ _ _ _)
+                 (@@comma_assoc _ _ _ _ _)
+                 (@@comma_id_left _ _ _ _ _)
+                 (@@comma_id_right _ _ _ _ _)
 
   --TODO: this definition doesn't use category structure of A and B
   definition strict_precategory_comma [HA : strict_precategory A] [HB : strict_precategory B] :

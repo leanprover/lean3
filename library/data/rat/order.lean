@@ -91,10 +91,10 @@ variables {a b c : ℚ}
 /- transfer properties of pos and nonneg -/
 
 private definition pos (a : ℚ) : Prop :=
-quot.lift prerat.pos @prerat.pos_eq_pos_of_equiv a
+quot.lift prerat.pos @@prerat.pos_eq_pos_of_equiv a
 
 private definition nonneg (a : ℚ) : Prop :=
-quot.lift prerat.nonneg @prerat.nonneg_eq_nonneg_of_equiv a
+quot.lift prerat.nonneg @@prerat.nonneg_eq_nonneg_of_equiv a
 
 private theorem pos_of_int (a : ℤ) : (a > 0) ↔ pos (of_int a) :=
 prerat.pos_of_int a
@@ -105,7 +105,7 @@ prerat.nonneg_of_int a
 private theorem nonneg_zero : nonneg 0 := prerat.nonneg_zero
 
 private theorem nonneg_add : nonneg a → nonneg b → nonneg (a + b) :=
-quot.induction_on₂ a b @prerat.nonneg_add
+quot.induction_on₂ a b @@prerat.nonneg_add
 
 private theorem nonneg_antisymm : nonneg a → nonneg (-a) → a = 0 :=
 quot.induction_on a
@@ -113,10 +113,10 @@ quot.induction_on a
     quot.sound (prerat.nonneg_antisymm H1 H2))
 
 private theorem nonneg_total (a : ℚ) : nonneg a ∨ nonneg (-a) :=
-quot.induction_on a @prerat.nonneg_total
+quot.induction_on a @@prerat.nonneg_total
 
 private theorem nonneg_of_pos : pos a → nonneg a :=
-quot.induction_on a @prerat.nonneg_of_pos
+quot.induction_on a @@prerat.nonneg_of_pos
 
 private theorem ne_zero_of_pos : pos a → a ≠ 0 :=
 quot.induction_on a (take u, assume H1 H2, prerat.ne_zero_of_pos H1 (quot.exact H2))
@@ -130,10 +130,10 @@ quot.induction_on a
    prerat.pos_of_nonneg_of_ne_zero h this)
 
 private theorem nonneg_mul : nonneg a → nonneg b → nonneg (a * b) :=
-quot.induction_on₂ a b @prerat.nonneg_mul
+quot.induction_on₂ a b @@prerat.nonneg_mul
 
 private theorem pos_mul : pos a → pos b → pos (a * b) :=
-quot.induction_on₂ a b @prerat.pos_mul
+quot.induction_on₂ a b @@prerat.pos_mul
 
 private definition decidable_pos (a : ℚ) : decidable (pos a) :=
 quot.rec_on_subsingleton a (take u, int.decidable_lt 0 (prerat.num u))
@@ -307,20 +307,20 @@ protected definition discrete_linear_ordered_field [reducible] [trans_instance] 
 ⦃algebra.discrete_linear_ordered_field,
  rat.discrete_field,
  le_refl          := rat.le_refl,
- le_trans         := @rat.le_trans,
- le_antisymm      := @rat.le_antisymm,
- le_total         := @rat.le_total,
- le_of_lt         := @rat.le_of_lt,
+ le_trans         := @@rat.le_trans,
+ le_antisymm      := @@rat.le_antisymm,
+ le_total         := @@rat.le_total,
+ le_of_lt         := @@rat.le_of_lt,
  lt_irrefl        := rat.lt_irrefl,
- lt_of_lt_of_le   := @rat.lt_of_lt_of_le,
- lt_of_le_of_lt   := @rat.lt_of_le_of_lt,
- le_iff_lt_or_eq  := @rat.le_iff_lt_or_eq,
- add_le_add_left  := @rat.add_le_add_left,
- mul_nonneg       := @rat.mul_nonneg,
- mul_pos          := @rat.mul_pos,
- decidable_lt     := @decidable_lt,
+ lt_of_lt_of_le   := @@rat.lt_of_lt_of_le,
+ lt_of_le_of_lt   := @@rat.lt_of_le_of_lt,
+ le_iff_lt_or_eq  := @@rat.le_iff_lt_or_eq,
+ add_le_add_left  := @@rat.add_le_add_left,
+ mul_nonneg       := @@rat.mul_nonneg,
+ mul_pos          := @@rat.mul_pos,
+ decidable_lt     := @@decidable_lt,
  zero_lt_one      := rat.zero_lt_one,
- add_lt_add_left  := @rat.add_lt_add_left⦄
+ add_lt_add_left  := @@rat.add_lt_add_left⦄
 
 theorem of_nat_abs (a : ℤ) : abs (of_int a) = of_nat (int.nat_abs a) :=
 assert ∀ n : ℕ, of_int (int.neg_succ_of_nat n) = - of_nat (nat.succ n), from λ n, rfl,

@@ -6,7 +6,7 @@ Author: Leonardo de Moura, Jeremy Avigad, Floris van Doorn
 prelude
 import init.datatypes init.num init.wf init.logic init.tactic
 
-definition dpair := @sigma.mk
+definition dpair := @@sigma.mk
 notation `Σ` binders `, ` r:(scoped P, sigma P) := r
 -- notation for n-ary tuples; input ⟨ ⟩ as \< \>
 notation `⟨`:max t:(foldr `, ` (e r, sigma.mk e r)) `⟩`:0 := t
@@ -56,7 +56,7 @@ namespace sigma
           (iHb : ∀ (y : B xa), Rb xa y xb → acc (lex Ra Rb) ⟨xa, y⟩),
           acc.intro ⟨xa, xb⟩ (λp (lt : p ≺ ⟨xa, xb⟩),
             have aux : xa = xa → xb == xb → acc (lex Ra Rb) p, from
-              @sigma.lex.rec_on A B Ra Rb (λp₁ p₂, p₂.1 = xa → p₂.2 == xb → acc (lex Ra Rb) p₁)
+              @@sigma.lex.rec_on A B Ra Rb (λp₁ p₂, p₂.1 = xa → p₂.2 == xb → acc (lex Ra Rb) p₁)
                                 p ⟨xa, xb⟩ lt
                 (λ (a₁ : A) (b₁ : B a₁) (a₂ : A) (b₂ : B a₂) (H : Ra a₁ a₂) (eq₂ : a₂ = xa) (eq₃ : b₂ == xb),
                   begin cases eq₂, exact (iHa a₁ H b₁) end)

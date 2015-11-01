@@ -13,9 +13,9 @@ open eq is_trunc iso category algebra nat unit
 namespace category
 
   structure groupoid [class] (ob : Type) extends parent : precategory ob :=
-  mk' :: (all_iso : Π ⦃a b : ob⦄ (f : hom a b), @is_iso ob parent a b f)
+  mk' :: (all_iso : Π ⦃a b : ob⦄ (f : hom a b), @@is_iso ob parent a b f)
 
-  abbreviation all_iso := @groupoid.all_iso
+  abbreviation all_iso := @@groupoid.all_iso
   attribute groupoid.all_iso [instance] [priority 3000]
 
   definition groupoid.mk [reducible] {ob : Type} (C : precategory ob)
@@ -27,12 +27,12 @@ namespace category
   begin
     fapply groupoid.mk, fapply precategory.mk,
       intros, exact A,
-      intros, apply (@group.is_hset_carrier A G),
-      intros [a, b, c, g, h], exact (@group.mul A G g h),
-      intro a, exact (@group.one A G),
-      intros, exact (@group.mul_assoc A G h g f)⁻¹,
-      intros, exact (@group.one_mul A G f),
-      intros, exact (@group.mul_one A G f),
+      intros, apply (@@group.is_hset_carrier A G),
+      intros [a, b, c, g, h], exact (@@group.mul A G g h),
+      intro a, exact (@@group.one A G),
+      intros, exact (@@group.mul_assoc A G h g f)⁻¹,
+      intros, exact (@@group.one_mul A G f),
+      intros, exact (@@group.mul_one A G f),
       intros, esimp [precategory.mk], apply is_iso.mk,
         apply mul.left_inv,
         apply mul.right_inv,

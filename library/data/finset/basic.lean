@@ -17,7 +17,7 @@ definition to_nodup_list_of_nodup {l : list A} (n : nodup l) : nodup_list A :=
 tag l n
 
 definition to_nodup_list [h : decidable_eq A] (l : list A) : nodup_list A :=
-@to_nodup_list_of_nodup A (erase_dup l) (nodup_erase_dup l)
+@@to_nodup_list_of_nodup A (erase_dup l) (nodup_erase_dup l)
 
 private definition eqv (l₁ l₂ : nodup_list A) :=
 perm (elt_of l₁) (elt_of l₂)
@@ -34,7 +34,7 @@ private definition eqv.trans {l₁ l₂ l₃ : nodup_list A} : l₁ ~ l₂ → l
 perm.trans
 
 definition finset.nodup_list_setoid [instance] (A : Type) : setoid (nodup_list A) :=
-setoid.mk (@eqv A) (mk_equivalence (@eqv A) (@eqv.refl A) (@eqv.symm A) (@eqv.trans A))
+setoid.mk (@@eqv A) (mk_equivalence (@@eqv A) (@@eqv.refl A) (@@eqv.symm A) (@@eqv.trans A))
 
 definition finset (A : Type) : Type :=
 quot (finset.nodup_list_setoid A)
@@ -136,7 +136,7 @@ ext (take x, iff_false_intro (H x))
 
 /- universe -/
 definition univ [h : fintype A] : finset A :=
-to_finset_of_nodup (@fintype.elems A h) (@fintype.unique A h)
+to_finset_of_nodup (@@fintype.elems A h) (@@fintype.unique A h)
 
 theorem mem_univ [h : fintype A] (x : A) : x ∈ univ :=
 fintype.complete x
@@ -149,7 +149,7 @@ quot.lift_on s
   (λ l, length (elt_of l))
   (λ l₁ l₂ p, length_eq_length_of_perm p)
 
-theorem card_empty : card (@empty A) = 0 :=
+theorem card_empty : card (@@empty A) = 0 :=
 rfl
 
 theorem card_singleton (a : A) : card (singleton a) = 1 :=

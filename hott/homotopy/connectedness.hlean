@@ -28,21 +28,21 @@ namespace homotopy
     : is_surjective f → is_conn_map -1 f :=
   begin
     intro H, intro b,
-    exact @is_contr_of_inhabited_hprop (∥fiber f b∥) (is_trunc_trunc -1 (fiber f b)) (H b),
+    exact @@is_contr_of_inhabited_hprop (∥fiber f b∥) (is_trunc_trunc -1 (fiber f b)) (H b),
   end
 
   definition is_surjection_of_minus_one_conn {A B : Type} (f : A → B)
     : is_conn_map -1 f → is_surjective f :=
   begin
     intro H, intro b,
-    exact @center (∥fiber f b∥) (H b),
+    exact @@center (∥fiber f b∥) (H b),
   end
 
   definition merely_of_minus_one_conn {A : Type} : is_conn -1 A → ∥A∥ :=
-  λH, @center (∥A∥) H
+  λH, @@center (∥A∥) H
 
   definition minus_one_conn_of_merely {A : Type} : ∥A∥ → is_conn -1 A :=
-  @is_contr_of_inhabited_hprop (∥A∥) (is_trunc_trunc -1 A)
+  @@is_contr_of_inhabited_hprop (∥A∥) (is_trunc_trunc -1 A)
 
   section
     open arrow
@@ -63,6 +63,6 @@ namespace homotopy
   -- Corollary 7.5.5
   definition is_conn_homotopy (n : trunc_index) {A B : Type} {f g : A → B}
     (p : f ~ g) (H : is_conn_map n f) : is_conn_map n g :=
-  @retract_of_conn_is_conn _ _ (arrow.arrow_hom_of_homotopy p) (arrow.is_retraction_arrow_hom_of_homotopy p) n H 
+  @@retract_of_conn_is_conn _ _ (arrow.arrow_hom_of_homotopy p) (arrow.is_retraction_arrow_hom_of_homotopy p) n H 
 
 end homotopy

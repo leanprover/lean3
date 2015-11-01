@@ -16,7 +16,7 @@ namespace sigma
             {D : Πa b, C a b → Type}
             {a a' a'' : A} {b b₁ b₂ : B a} {b' : B a'} {b'' : B a''} {u v w : Σa, B a}
 
-  definition destruct := @sigma.cases_on
+  definition destruct := @@sigma.cases_on
 
   /- Paths in a sigma-type -/
 
@@ -91,11 +91,11 @@ namespace sigma
 
   definition tr_sigma_eq_pr1_unc {B' : A → Type}
     (pq : Σ(p : u.1 = v.1), u.2 =[p] v.2)
-      : transport (λx, B' x.1) (@sigma_eq_unc A B u v pq) = transport B' pq.1 :=
+      : transport (λx, B' x.1) (@@sigma_eq_unc A B u v pq) = transport B' pq.1 :=
   destruct pq tr_pr1_sigma_eq
 
   definition is_equiv_sigma_eq [instance] (u v : Σa, B a)
-      : is_equiv (@sigma_eq_unc A B u v) :=
+      : is_equiv (@@sigma_eq_unc A B u v) :=
   adjointify sigma_eq_unc
              (λp, ⟨p..1, p..2⟩)
              sigma_eq_eta_unc
@@ -259,7 +259,7 @@ namespace sigma
   /- definition 3.11.9(i): Summing up a contractible family of types does nothing. -/
 
   definition is_equiv_pr1 [instance] [constructor] (B : A → Type) [H : Π a, is_contr (B a)]
-      : is_equiv (@pr1 A B) :=
+      : is_equiv (@@pr1 A B) :=
   adjointify pr1
              (λa, ⟨a, !center⟩)
              (λa, idp)
@@ -399,7 +399,7 @@ namespace sigma
   --is the instance below dangerous?
   --in Coq this can be done without function extensionality
   definition is_equiv_coind [instance] (C : Πa, B a → Type)
-    : is_equiv (@sigma.coind_unc _ _ C) :=
+    : is_equiv (@@sigma.coind_unc _ _ C) :=
   adjointify _ (λ h, ⟨λa, (h a).1, λa, (h a).2⟩)
                (λ h, proof eq_of_homotopy (λu, !sigma.eta) qed)
                (λfg, destruct fg (λ(f : Π (a : A), B a) (g : Π (x : A), C x (f x)), proof idp qed))

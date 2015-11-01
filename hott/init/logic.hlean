@@ -150,12 +150,12 @@ namespace iff
   definition elim_left (H : a ↔ b) : a → b :=
   elim (assume H₁ H₂, H₁) H
 
-  definition mp := @elim_left
+  definition mp := @@elim_left
 
   definition elim_right (H : a ↔ b) : b → a :=
   elim (assume H₁ H₂, H₂) H
 
-  definition mp' := @elim_right
+  definition mp' := @@elim_right
 
   definition flip_sign (H₁ : a ↔ b) : ¬a ↔ ¬b :=
   intro
@@ -298,8 +298,8 @@ end
 
 definition decidable_pred [reducible] {A : Type} (R : A   →   Type) := Π (a   : A), decidable (R a)
 definition decidable_rel  [reducible] {A : Type} (R : A → A → Type) := Π (a b : A), decidable (R a b)
-definition decidable_eq   [reducible] (A : Type) := decidable_rel (@eq A)
-definition decidable_ne [instance] {A : Type} [H : decidable_eq A] : decidable_rel (@ne A) :=
+definition decidable_eq   [reducible] (A : Type) := decidable_rel (@@eq A)
+definition decidable_ne [instance] {A : Type} [H : decidable_eq A] : decidable_rel (@@ne A) :=
 show Π x y : A, decidable (x = y → empty), from _
 
 definition ite (c : Type) [H : decidable c] {A : Type} (t e : A) : A :=
@@ -307,20 +307,20 @@ decidable.rec_on H (λ Hc, t) (λ Hnc, e)
 
 definition if_pos {c : Type} [H : decidable c] (Hc : c) {A : Type} {t e : A} : (if c then t else e) = t :=
 decidable.rec
-  (λ Hc : c,    eq.refl (@ite c (decidable.inl Hc) A t e))
+  (λ Hc : c,    eq.refl (@@ite c (decidable.inl Hc) A t e))
   (λ Hnc : ¬c,  absurd Hc Hnc)
   H
 
 definition if_neg {c : Type} [H : decidable c] (Hnc : ¬c) {A : Type} {t e : A} : (if c then t else e) = e :=
 decidable.rec
   (λ Hc : c,    absurd Hc Hnc)
-  (λ Hnc : ¬c,  eq.refl (@ite c (decidable.inr Hnc) A t e))
+  (λ Hnc : ¬c,  eq.refl (@@ite c (decidable.inr Hnc) A t e))
   H
 
 definition if_t_t (c : Type) [H : decidable c] {A : Type} (t : A) : (if c then t else t) = t :=
 decidable.rec
-  (λ Hc  : c,  eq.refl (@ite c (decidable.inl Hc)  A t t))
-  (λ Hnc : ¬c, eq.refl (@ite c (decidable.inr Hnc) A t t))
+  (λ Hc  : c,  eq.refl (@@ite c (decidable.inl Hc)  A t t))
+  (λ Hnc : ¬c, eq.refl (@@ite c (decidable.inr Hnc) A t t))
   H
 
 definition if_unit {A : Type} (t e : A) : (if unit then t else e) = t :=
@@ -347,7 +347,7 @@ definition if_congr_aux {c₁ c₂ : Type} [H₁ : decidable c₁] [H₂ : decid
 Ht ▸ He ▸ (if_cond_congr Hc t₁ e₁)
 
 definition if_congr {c₁ c₂ : Type} [H₁ : decidable c₁] {A : Type} {t₁ t₂ e₁ e₂ : A} (Hc : c₁ ↔ c₂) (Ht : t₁ = t₂) (He : e₁ = e₂) :
-                 (if c₁ then t₁ else e₁) = (@ite c₂ (decidable.decidable_iff_equiv H₁ Hc) A t₂ e₂) :=
+                 (if c₁ then t₁ else e₁) = (@@ite c₂ (decidable.decidable_iff_equiv H₁ Hc) A t₂ e₂) :=
 have H2 [visible] : decidable c₂, from (decidable.decidable_iff_equiv H₁ Hc),
 if_congr_aux Hc Ht He
 
@@ -364,14 +364,14 @@ decidable.rec_on H (λ Hc, t Hc) (λ Hnc, e Hnc)
 
 definition dif_pos {c : Type} [H : decidable c] (Hc : c) {A : Type} {t : c → A} {e : ¬ c → A} : (if H : c then t H else e H) = t (decidable.pos_witness Hc) :=
 decidable.rec
-  (λ Hc : c,    eq.refl (@dite c (decidable.inl Hc) A t e))
+  (λ Hc : c,    eq.refl (@@dite c (decidable.inl Hc) A t e))
   (λ Hnc : ¬c,  absurd Hc Hnc)
   H
 
 definition dif_neg {c : Type} [H : decidable c] (Hnc : ¬c) {A : Type} {t : c → A} {e : ¬ c → A} : (if H : c then t H else e H) = e (decidable.neg_witness Hnc) :=
 decidable.rec
   (λ Hc : c,    absurd Hc Hnc)
-  (λ Hnc : ¬c,  eq.refl (@dite c (decidable.inr Hnc) A t e))
+  (λ Hnc : ¬c,  eq.refl (@@dite c (decidable.inr Hnc) A t e))
   H
 
 -- Remark: dite and ite are "definitionally equal" when we ignore the proofs.

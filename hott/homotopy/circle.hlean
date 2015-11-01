@@ -217,8 +217,8 @@ namespace circle
       { intros n p,
         apply transport (λ(y : base = base), transport circle.code y _ = _),
         { exact !power_con_inv ⬝ ap (power loop) !neg_succ⁻¹},
-        rewrite [▸*,@con_tr _ circle.code,transport_code_loop_inv, ↑[circle.encode] at p, p, -neg_succ]}},
-    { apply pathover_of_tr_eq, apply eq_of_homotopy, intro a, apply @is_hset.elim,
+        rewrite [▸*,@@con_tr _ circle.code,transport_code_loop_inv, ↑[circle.encode] at p, p, -neg_succ]}},
+    { apply pathover_of_tr_eq, apply eq_of_homotopy, intro a, apply @@is_hset.elim,
       esimp [circle.code,base,base1], exact _}
       --simplify after #587
   end

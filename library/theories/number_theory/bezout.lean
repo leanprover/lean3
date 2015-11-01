@@ -104,7 +104,7 @@ decidable.by_cases
       begin
         apply dvd_of_of_nat_dvd_of_nat,
         rewrite [-this],
-        apply @dvd_add,
+        apply @@dvd_add,
           {apply dvd_mul_of_dvd_left,
             apply dvd_mul_of_dvd_right,
             apply dvd.refl},

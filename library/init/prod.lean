@@ -6,7 +6,7 @@ Author: Leonardo de Moura, Jeremy Avigad
 prelude
 import init.num init.wf
 
-definition pair [constructor] := @prod.mk
+definition pair [constructor] := @@prod.mk
 notation A × B := prod A B
 -- notation for n-ary tuples
 notation `(` h `, ` t:(foldl `, ` (e r, prod.mk r e) h) `)` := t
@@ -20,7 +20,7 @@ namespace prod
   postfix `.2`:(max+1) := pr2
   end ops
 
-  definition destruct [reducible] := @prod.cases_on
+  definition destruct [reducible] := @@prod.cases_on
 
   section
   variables {A B : Type}
@@ -60,7 +60,7 @@ namespace prod
           (iHb : ∀y, Rb y xb → acc (lex Ra Rb) (xa, y)),
           acc.intro (xa, xb) (λp (lt : p ≺ (xa, xb)),
             have aux : xa = xa → xb = xb → acc (lex Ra Rb) p, from
-              @prod.lex.rec_on A B Ra Rb (λp₁ p₂, pr₁ p₂ = xa → pr₂ p₂ = xb → acc (lex Ra Rb) p₁)
+              @@prod.lex.rec_on A B Ra Rb (λp₁ p₂, pr₁ p₂ = xa → pr₂ p₂ = xb → acc (lex Ra Rb) p₁)
                                p (xa, xb) lt
                 (λa₁ b₁ a₂ b₂ (H : Ra a₁ a₂) (eq₂ : a₂ = xa) (eq₃ : b₂ = xb),
                   show acc (lex Ra Rb) (a₁, b₁), from

@@ -39,7 +39,7 @@ namespace category
     abstract by intros a b f; (induction f with rf pf: esimp); rewrite idp_con end
 
   definition sparse_category [constructor] : Precategory :=
-  precategory.Mk (sparse_category' R @H)
+  precategory.Mk (sparse_category' R @@H)
 
   definition sparse_category_functor [constructor] (C : Precategory) (f : A → C)
     (g : Π{a b} (r : R a b), f a ⟶ f b) : sparse_category R H ⇒ C :=

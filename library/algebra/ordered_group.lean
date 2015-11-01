@@ -213,10 +213,10 @@ by rewrite *neg_add_cancel_left at H'; exact H'
 definition ordered_comm_group.to_ordered_cancel_comm_monoid [trans_instance] [coercion] [reducible]
     [s : ordered_comm_group A] : ordered_cancel_comm_monoid A :=
 ⦃ ordered_cancel_comm_monoid, s,
-  add_left_cancel       := @add.left_cancel A s,
-  add_right_cancel      := @add.right_cancel A s,
-  le_of_add_le_add_left := @ordered_comm_group.le_of_add_le_add_left A s,
-  lt_of_add_lt_add_left := @ordered_comm_group.lt_of_add_lt_add_left A s⦄
+  add_left_cancel       := @@add.left_cancel A s,
+  add_right_cancel      := @@add.right_cancel A s,
+  le_of_add_le_add_left := @@ordered_comm_group.le_of_add_le_add_left A s,
+  lt_of_add_lt_add_left := @@ordered_comm_group.lt_of_add_lt_add_left A s⦄
 
 section
   variables [s : ordered_comm_group A] (a b c d e : A)
@@ -585,9 +585,9 @@ definition decidable_linear_ordered_comm_group.to_ordered_comm_group
       [trans_instance] [reducible] [coercion]
    (A : Type) [s : decidable_linear_ordered_comm_group A] : ordered_comm_group A :=
 ⦃ ordered_comm_group, s,
-  le_of_lt := @le_of_lt A s,
-  lt_of_le_of_lt := @lt_of_le_of_lt A s,
-  lt_of_lt_of_le := @lt_of_lt_of_le A s ⦄
+  le_of_lt := @@le_of_lt A s,
+  lt_of_le_of_lt := @@lt_of_le_of_lt A s,
+  lt_of_lt_of_le := @@lt_of_lt_of_le A s ⦄
 
 section
   variables [s : decidable_linear_ordered_comm_group A]

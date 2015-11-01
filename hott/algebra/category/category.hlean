@@ -30,7 +30,7 @@ namespace category
 
   attribute category [multiple_instances]
 
-  abbreviation iso_of_path_equiv := @category.iso_of_path_equiv
+  abbreviation iso_of_path_equiv := @@category.iso_of_path_equiv
   attribute category.iso_of_path_equiv [instance]
 
   definition category.mk [reducible] [unfold 2] {ob : Type} (C : precategory ob)
@@ -66,7 +66,7 @@ namespace category
   begin
     apply is_trunc_succ_intro, intro a b,
     fapply is_trunc_is_equiv_closed,
-          exact (@eq_of_iso _ _ a b),
+          exact (@@eq_of_iso _ _ a b),
         apply is_equiv_inv,
   end
   end basic
@@ -103,26 +103,26 @@ namespace category
 
   definition category_eq {ob : Type}
     {C D : category ob}
-    (p : Π{a b}, @hom ob C a b = @hom ob D a b)
-    (q : Πa b c g f, cast p (@comp ob C a b c g f) = @comp ob D a b c (cast p g) (cast p f))
+    (p : Π{a b}, @@hom ob C a b = @@hom ob D a b)
+    (q : Πa b c g f, cast p (@@comp ob C a b c g f) = @@comp ob D a b c (cast p g) (cast p f))
       : C = D :=
   begin
     apply eq_of_fn_eq_fn !category.sigma_char,
     fapply sigma_eq,
-    { induction C, induction D, esimp, exact precategory_eq @p q},
+    { induction C, induction D, esimp, exact precategory_eq @@p q},
     { unfold is_univalent, apply is_hprop.elimo},
   end
 
   definition category_eq_of_equiv {ob : Type}
     {C D : category ob}
-    (p : Π⦃a b⦄, @hom ob C a b ≃ @hom ob D a b)
-    (q : Π{a b c} g f, p (@comp ob C a b c g f) = @comp ob D a b c (p g) (p f))
+    (p : Π⦃a b⦄, @@hom ob C a b ≃ @@hom ob D a b)
+    (q : Π{a b c} g f, p (@@comp ob C a b c g f) = @@comp ob D a b c (p g) (p f))
       : C = D :=
   begin
     fapply category_eq,
-    { intro a b, exact ua !@p},
+    { intro a b, exact ua !@@p},
     { intros, refine !cast_ua ⬝ !q ⬝ _, unfold [category.to_precategory],
-      apply ap011 !@category.comp !cast_ua⁻¹ᵖ !cast_ua⁻¹ᵖ},
+      apply ap011 !@@category.comp !cast_ua⁻¹ᵖ !cast_ua⁻¹ᵖ},
   end
 
 -- TODO: Category_eq[']

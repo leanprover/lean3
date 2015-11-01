@@ -150,11 +150,11 @@ calc
       ... = f x         : rfg
       ... = y           : Hx
 
-theorem injective_id : injective (@id A) := take a₁ a₂ H, H
+theorem injective_id : injective (@@id A) := take a₁ a₂ H, H
 
-theorem surjective_id : surjective (@id A) := take a, exists.intro a rfl
+theorem surjective_id : surjective (@@id A) := take a, exists.intro a rfl
 
-theorem bijective_id : bijective (@id A) := and.intro injective_id surjective_id
+theorem bijective_id : bijective (@@id A) := and.intro injective_id surjective_id
 
 end function
 

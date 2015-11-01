@@ -33,15 +33,15 @@ end unit
 -- ----------
 
 notation `Σ` binders `, ` r:(scoped P, sigma P) := r
-abbreviation dpair [constructor] := @sigma.mk
+abbreviation dpair [constructor] := @@sigma.mk
 namespace sigma
   notation `⟨`:max t:(foldr `, ` (e r, mk e r)) `⟩`:0 := t --input ⟨ ⟩ as \< \>
 
   namespace ops
   postfix `.1`:(max+1) := pr1
   postfix `.2`:(max+1) := pr2
-  abbreviation pr₁ := @pr1
-  abbreviation pr₂ := @pr2
+  abbreviation pr₁ := @@pr1
+  abbreviation pr₂ := @@pr2
   end ops
 end sigma
 
@@ -77,7 +77,7 @@ end sum
 -- Product type
 -- ------------
 
-abbreviation pair [constructor] := @prod.mk
+abbreviation pair [constructor] := @@prod.mk
 
 namespace prod
 
@@ -90,8 +90,8 @@ namespace prod
   infixr [parsing_only] * := prod
   postfix `.1`:(max+1) := pr1
   postfix `.2`:(max+1) := pr2
-  abbreviation pr₁ := @pr1
-  abbreviation pr₂ := @pr2
+  abbreviation pr₁ := @@pr1
+  abbreviation pr₂ := @@pr2
   end ops
 
   namespace low_precedence_times
@@ -135,7 +135,7 @@ namespace prod
           (iHb : ∀y, Rb y xb → acc (lex Ra Rb) (xa, y)),
           acc.intro (xa, xb) (λp (lt : p ≺ (xa, xb)),
             have aux : xa = xa → xb = xb → acc (lex Ra Rb) p, from
-              @prod.lex.rec_on A B Ra Rb (λp₁ p₂ h, pr₁ p₂ = xa → pr₂ p₂ = xb → acc (lex Ra Rb) p₁)
+              @@prod.lex.rec_on A B Ra Rb (λp₁ p₂ h, pr₁ p₂ = xa → pr₂ p₂ = xb → acc (lex Ra Rb) p₁)
                                p (xa, xb) lt
                 (λa₁ b₁ a₂ b₂ (H : Ra a₁ a₂) (eq₂ : a₂ = xa) (eq₃ : b₂ = xb),
                   show acc (lex Ra Rb) (a₁, b₁), from
