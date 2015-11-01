@@ -55,6 +55,7 @@ Author: Leonardo de Moura
 #include "frontends/lean/tactic_hint.h"
 #include "frontends/lean/tokens.h"
 #include "frontends/lean/parse_table.h"
+#include "frontends/lean/unelaborator.h"
 
 namespace lean {
 static void print_coercions(parser & p, optional<name> const & C) {
@@ -1138,6 +1139,24 @@ static environment relevant_thms_cmd(parser & p) {
     return env;
 }
 
+static environment unelaborate_cmd(parser & p) {
+    environment const & env = p.env();
+
+    expr e; level_param_names ls;
+    std::tie(e, ls) = parse_local_expr(p);
+
+    expr u = unelaborate(env,list<expr>(),e);
+
+    auto reg              = p.regular_stream();
+    flycheck_information info(reg);
+    if (info.enabled()) {
+        p.display_information_pos(p.cmd_pos());
+        reg << "result:\n";
+    }
+    reg << u << endl;
+    return env;
+}
+
 void init_cmd_table(cmd_table & r) {
     add_cmd(r, cmd_info("open",           "create aliases for declarations, and use objects defined in other namespaces",
                         open_cmd));
@@ -1165,6 +1184,7 @@ void init_cmd_table(cmd_table & r) {
     add_cmd(r, cmd_info("#accessible",    "(for debugging purposes) display number of accessible declarations for blast tactic", accessible_cmd));
     add_cmd(r, cmd_info("#decl_stats",    "(for debugging purposes) display declaration statistics", decl_stats_cmd));
     add_cmd(r, cmd_info("#relevant_thms", "(for debugging purposes) select relevant theorems using Meng&Paulson heuristic", relevant_thms_cmd));
+    add_cmd(r, cmd_info("#unelaborate", "(for debugging purposes) elaborate and then unelaborate", unelaborate_cmd));    
 
     register_decl_cmds(r);
     register_inductive_cmd(r);
