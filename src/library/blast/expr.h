@@ -49,6 +49,9 @@ expr mk_local(name const & n, name const & pp_n, expr const & t, binder_info con
 expr mk_app(expr const & f, expr const & a);
 expr mk_app(expr const & f, unsigned num_args, expr const * args);
 expr mk_app(unsigned num_args, expr const * args);
+inline expr mk_app(std::initializer_list<expr> const & l) {
+    return blast::mk_app(l.size(), l.begin());
+}
 expr mk_rev_app(expr const & f, unsigned num_args, expr const * args);
 expr mk_rev_app(unsigned num_args, expr const * args);
 expr mk_binding(expr_kind k, name const & n, expr const & t, expr const & e, binder_info const & bi);
