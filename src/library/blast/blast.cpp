@@ -33,6 +33,7 @@ class blastenv {
     environment                m_env;
     io_state                   m_ios;
     name_generator             m_ngen;
+    tmp_local_generator        m_tmp_local_generator;
     name_set                   m_lemma_hints;
     name_set                   m_unfold_hints;
     name_map<level>            m_uvar2uref;    // map global universe metavariables to blast uref's
@@ -46,39 +47,15 @@ class blastenv {
 
     class tctx : public type_context {
         blastenv &         m_benv;
-        unsigned           m_next_local_idx;
         std::vector<state> m_stack;
     public:
         tctx(blastenv & benv):
-            type_context(benv.m_env, benv.m_ios),
-            m_benv(benv), m_next_local_idx(0) {}
+            type_context(benv.m_env, benv.m_ios, benv.m_tmp_local_generator),
+            m_benv(benv) {}
 
         virtual bool is_extra_opaque(name const & n) const {
             // TODO(Leo): class and instances
             return m_benv.m_not_reducible_pred(n) || m_benv.m_projection_info.contains(n);
-        }
-
-        name mk_tmp_name() {
-            unsigned idx = m_next_local_idx;
-            m_next_local_idx++;
-            return name(*g_tmp_prefix, idx);
-        }
-
-        virtual expr mk_tmp_local(expr const & type, binder_info const & bi) {
-            name n = mk_tmp_name();
-            return blast::mk_local(n, n, type, bi);
-        }
-
-        virtual expr mk_tmp_local(name const & pp_n, expr const & type, binder_info const & bi) {
-            name n = mk_tmp_name();
-            return blast::mk_local(n, pp_n, type, bi);
-        }
-
-        virtual bool is_tmp_local(expr const & e) const {
-            if (!is_local(e))
-                return false;
-            name const & n = mlocal_name(e);
-            return !n.is_atomic() && n.get_prefix() == *g_tmp_prefix;
         }
 
         virtual bool is_uvar(level const & l) const {
@@ -132,7 +109,7 @@ class blastenv {
                         }
                     } else if (is_local(e) && !is_tmp_local(e)) {
                         if (std::all_of(locals.begin(), locals.end(), [&](expr const & a) {
-                                    return local_index(a) != local_index(e); })) {
+                                    return mlocal_name(a) != mlocal_name(e); })) {
                             ok = false; // failed 3
                             return false;
                         }
@@ -206,16 +183,16 @@ class blastenv {
         level to_blast_level(level const & l) {
             level lhs;
             switch (l.kind()) {
-            case level_kind::Succ:    return blast::mk_succ(to_blast_level(succ_of(l)));
-            case level_kind::Zero:    return blast::mk_level_zero();
-            case level_kind::Param:   return blast::mk_param_univ(param_id(l));
-            case level_kind::Global:  return blast::mk_global_univ(global_id(l));
+            case level_kind::Succ:    return mk_succ(to_blast_level(succ_of(l)));
+            case level_kind::Zero:    return mk_level_zero();
+            case level_kind::Param:   return mk_param_univ(param_id(l));
+            case level_kind::Global:  return mk_global_univ(global_id(l));
             case level_kind::Max:
                 lhs = to_blast_level(max_lhs(l));
-                return blast::mk_max(lhs, to_blast_level(max_rhs(l)));
+                return mk_max(lhs, to_blast_level(max_rhs(l)));
             case level_kind::IMax:
                 lhs = to_blast_level(imax_lhs(l));
-                return blast::mk_imax(lhs, to_blast_level(imax_rhs(l)));
+                return mk_imax(lhs, to_blast_level(imax_rhs(l)));
             case level_kind::Meta:
                 if (auto r = m_uvar2uref.find(meta_id(l))) {
                     return *r;
@@ -229,7 +206,7 @@ class blastenv {
         }
 
         virtual expr visit_sort(expr const & e) {
-            return blast::mk_sort(to_blast_level(sort_level(e)));
+            return mk_sort(to_blast_level(sort_level(e)));
         }
 
         virtual expr visit_macro(expr const & e) {
@@ -237,16 +214,16 @@ class blastenv {
             for (unsigned i = 0; i < macro_num_args(e); i++) {
                 new_args.push_back(visit(macro_arg(e, i)));
             }
-            return blast::mk_macro(macro_def(e), new_args.size(), new_args.data());
+            return mk_macro(macro_def(e), new_args.size(), new_args.data());
         }
 
         virtual expr visit_constant(expr const & e) {
             levels new_ls = map(const_levels(e), [&](level const & l) { return to_blast_level(l); });
-            return blast::mk_constant(const_name(e), new_ls);
+            return mk_constant(const_name(e), new_ls);
         }
 
         virtual expr visit_var(expr const & e) {
-            return blast::mk_var(var_idx(e));
+            return mk_var(var_idx(e));
         }
 
         void throw_unsupported_metavar_occ(expr const & e) {
@@ -261,7 +238,7 @@ class blastenv {
             for (unsigned i = 0; i < nargs; i++) {
                 new_args.push_back(visit(args[i]));
             }
-            return blast::mk_app(mref, new_args.size(), new_args.data());
+            return mk_app(mref, new_args.size(), new_args.data());
         }
 
         expr visit_meta_app(expr const & e) {
@@ -339,18 +316,18 @@ class blastenv {
                 return visit_meta_app(e);
             } else {
                 expr f = visit(app_fn(e));
-                return blast::mk_app(f, visit(app_arg(e)));
+                return mk_app(f, visit(app_arg(e)));
             }
         }
 
         virtual expr visit_lambda(expr const & e) {
             expr d = visit(binding_domain(e));
-            return blast::mk_lambda(binding_name(e), d, visit(binding_body(e)), binding_info(e));
+            return mk_lambda(binding_name(e), d, visit(binding_body(e)), binding_info(e));
         }
 
         virtual expr visit_pi(expr const & e) {
             expr d = visit(binding_domain(e));
-            return blast::mk_pi(binding_name(e), d, visit(binding_body(e)), binding_info(e));
+            return mk_pi(binding_name(e), d, visit(binding_body(e)), binding_info(e));
         }
 
     public:
@@ -429,10 +406,8 @@ public:
         return m_projection_info.find(n);
     }
 
-    name mk_fresh_local_name() { return m_ngen.next(); }
     expr mk_fresh_local(expr const & type, binder_info const & bi) {
-        name n = m_ngen.next();
-        return blast::mk_local(n, n, type, bi);
+        return m_tmp_local_generator.mk_tmp_local(type, bi);
     }
     expr whnf(expr const & e) { return m_tctx.whnf(e); }
     expr infer_type(expr const & e) { return m_tctx.infer(e); }
@@ -516,11 +491,6 @@ optional<expr> mk_class_instance(expr const & e) {
     return g_blastenv->mk_class_instance(e);
 }
 
-name mk_fresh_local_name() {
-    lean_assert(g_blastenv);
-    return g_blastenv->mk_fresh_local_name();
-}
-
 expr mk_fresh_local(expr const & type, binder_info const & bi) {
     lean_assert(g_blastenv);
     return g_blastenv->mk_fresh_local(type, bi);
@@ -582,8 +552,8 @@ scope_debug::~scope_debug() {}
     and blast meta-variables are stored in the blast state */
 class tmp_tctx : public tmp_type_context {
 public:
-    tmp_tctx(environment const & env, io_state const & ios):
-        tmp_type_context(env, ios) {}
+    tmp_tctx(environment const & env, io_state const & ios, tmp_local_generator & gen):
+        tmp_type_context(env, ios, gen) {}
 
     /** \brief Return the type of a local constant (local or not).
         \remark This method allows the customer to store the type of local constants
@@ -618,13 +588,21 @@ public:
 tmp_type_context * blastenv::mk_tmp_type_context() {
     tmp_type_context * r;
     if (m_tmp_ctx_pool.empty()) {
-        r = new tmp_tctx(m_env, m_ios);
+        r = new tmp_tctx(m_env, m_ios, m_tmp_local_generator);
     } else {
         r = m_tmp_ctx_pool.back();
         m_tmp_ctx_pool.pop_back();
     }
     // TODO(Leo): set local context
     return r;
+}
+
+blast_tmp_type_context::blast_tmp_type_context(unsigned num_umeta, unsigned num_emeta) {
+    lean_assert(g_blastenv);
+    m_ctx = g_blastenv->mk_tmp_type_context();
+    m_ctx->clear();
+    m_ctx->set_next_uvar_idx(num_umeta);
+    m_ctx->set_next_mvar_idx(num_emeta);
 }
 
 blast_tmp_type_context::blast_tmp_type_context() {

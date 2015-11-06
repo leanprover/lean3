@@ -19,6 +19,7 @@ Author: Leonardo de Moura
 #include "library/reducible.h"
 #include "library/generic_exception.h"
 #include "library/class.h"
+#include "library/constants.h"
 
 #ifndef LEAN_DEFAULT_CLASS_TRACE_INSTANCES
 #define LEAN_DEFAULT_CLASS_TRACE_INSTANCES false
@@ -50,6 +51,32 @@ bool get_class_trans_instances(options const & o) {
     return o.get_bool(*g_class_trans_instances, LEAN_DEFAULT_CLASS_TRANS_INSTANCES);
 }
 
+tmp_local_generator::tmp_local_generator():
+    m_next_local_idx(0) {}
+
+name tmp_local_generator::mk_fresh_name() {
+    unsigned idx = m_next_local_idx;
+    m_next_local_idx++;
+    return name(*g_prefix, idx);
+}
+
+expr tmp_local_generator::mk_tmp_local(expr const & type, binder_info const & bi) {
+    name n = mk_fresh_name();
+    return lean::mk_local(n, n, type, bi);
+}
+
+expr tmp_local_generator::mk_tmp_local(name const & pp_n, expr const & type, binder_info const & bi) {
+    name n = mk_fresh_name();
+    return lean::mk_local(n, pp_n, type, bi);
+}
+
+bool tmp_local_generator::is_tmp_local(expr const & e) const {
+    if (!is_local(e))
+        return false;
+    name const & n = mlocal_name(e);
+    return !n.is_atomic() && n.get_prefix() == *g_prefix;
+}
+
 struct type_context::ext_ctx : public extension_context {
     type_context & m_owner;
 
@@ -78,11 +105,14 @@ struct type_context::ext_ctx : public extension_context {
     }
 };
 
-type_context::type_context(environment const & env, io_state const & ios, bool multiple_instances):
+type_context::type_context(environment const & env, io_state const & ios, tmp_local_generator * gen,
+                           bool gen_owner, bool multiple_instances):
     m_env(env),
     m_ios(ios),
     m_ngen(*g_prefix),
     m_ext_ctx(new ext_ctx(*this)),
+    m_local_gen(gen),
+    m_local_gen_owner(gen_owner),
     m_proj_info(get_projection_info_map(env)) {
     m_pip                   = nullptr;
     m_ci_multiple_instances = multiple_instances;
@@ -96,6 +126,8 @@ type_context::type_context(environment const & env, io_state const & ios, bool m
 }
 
 type_context::~type_context() {
+    if (m_local_gen_owner)
+        delete m_local_gen;
 }
 
 void type_context::set_local_instances(list<expr> const & insts) {
@@ -1610,6 +1642,19 @@ optional<expr> type_context::mk_class_instance(expr const & type) {
     return r;
 }
 
+optional<expr> type_context::mk_subsingleton_instance(expr const & type) {
+    expr Type  = whnf(infer(type));
+    if (!is_sort(Type))
+        return none_expr();
+    level lvl    = sort_level(Type);
+    expr subsingleton;
+    if (is_standard(m_env))
+        subsingleton = mk_app(mk_constant(get_subsingleton_name(), {lvl}), type);
+    else
+        subsingleton = whnf(mk_app(mk_constant(get_is_trunc_is_hprop_name(), {lvl}), type));
+    return mk_class_instance(subsingleton);
+}
+
 optional<expr> type_context::next_class_instance() {
     if (!m_ci_multiple_instances)
         return none_expr();
@@ -1664,34 +1709,12 @@ default_type_context::default_type_context(environment const & env, io_state con
     type_context(env, ios, multiple_instances),
     m_not_reducible_pred(mk_not_reducible_pred(env)) {
     m_ignore_if_zero = false;
-    m_next_local_idx = 0;
     m_next_uvar_idx  = 0;
     m_next_mvar_idx  = 0;
     set_local_instances(insts);
 }
 
 default_type_context::~default_type_context() {}
-
-expr default_type_context::mk_tmp_local(expr const & type, binder_info const & bi) {
-    unsigned idx = m_next_local_idx;
-    m_next_local_idx++;
-    name n(*g_prefix, idx);
-    return lean::mk_local(n, n, type, bi);
-}
-
-expr default_type_context::mk_tmp_local(name const & pp_n, expr const & type, binder_info const & bi) {
-    unsigned idx = m_next_local_idx;
-    m_next_local_idx++;
-    name n(*g_prefix, idx);
-    return lean::mk_local(n, pp_n, type, bi);
-}
-
-bool default_type_context::is_tmp_local(expr const & e) const {
-    if (!is_local(e))
-        return false;
-    name const & n = mlocal_name(e);
-    return !n.is_atomic() && n.get_prefix() == *g_prefix;
-}
 
 bool default_type_context::is_uvar(level const & l) const {
     if (!is_meta(l))
@@ -1749,6 +1772,11 @@ expr default_type_context::mk_mvar(expr const & type) {
     unsigned idx = m_next_mvar_idx;
     m_next_mvar_idx++;
     return mk_metavar(name(*g_prefix, idx), type);
+}
+
+optional<expr> default_type_context::mk_subsingleton_instance(expr const & type) {
+    flet<bool> set(m_ignore_if_zero, true);
+    return type_context::mk_subsingleton_instance(type);
 }
 
 bool default_type_context::ignore_universe_def_eq(level const & l1, level const & l2) const {
