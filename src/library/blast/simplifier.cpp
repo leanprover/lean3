@@ -429,7 +429,7 @@ result simplifier::rewrite(expr const & e, simp_rule const & sr) {
 result simplifier::congr(result const & r_f, result const & r_arg) {
     lean_assert(!r_f.is_none() && !r_arg.is_none());
     // theorem congr {A B : Type} {f₁ f₂ : A → B} {a₁ a₂ : A} (H₁ : f₁ = f₂) (H₂ : a₁ = a₂) : f₁ a₁ = f₂ a₂
-    expr e = blast::mk_app(r_f.get_new(),r_arg.get_new());
+    expr e = mk_app(r_f.get_new(),r_arg.get_new());
     if (auto pf = m_app_builder.mk_app(get_congr_name(),r_f.get_proof(),r_arg.get_proof()))
         return result(e,*pf);
     else
@@ -439,7 +439,7 @@ result simplifier::congr(result const & r_f, result const & r_arg) {
 result simplifier::congr_fun(result const & r_f, expr const & arg) {
     lean_assert(!r_f.is_none());
     // theorem congr_fun {A : Type} {B : A → Type} {f g : Π x, B x} (H : f = g) (a : A) : f a = g a
-    expr e = blast::mk_app(r_f.get_new(),arg);
+    expr e = mk_app(r_f.get_new(),arg);
     if (auto pf = m_app_builder.mk_app(get_congr_fun_name(),r_f.get_proof(),arg))
         return result(e,*pf);
     else
@@ -449,7 +449,7 @@ result simplifier::congr_fun(result const & r_f, expr const & arg) {
 result simplifier::congr_arg(expr const & f, result const & r_arg) {
     lean_assert(!r_arg.is_none());
     // theorem congr_arg {A B : Type} {a₁ a₂ : A} (f : A → B) : a₁ = a₂ → f a₁ = f a₂
-    expr e = blast::mk_app(f,r_arg.get_new());
+    expr e = mk_app(f,r_arg.get_new());
     if (auto pf = m_app_builder.mk_app(get_congr_arg_name(),f,r_arg.get_proof()))
         return result(e,*pf);
     else
@@ -462,7 +462,7 @@ result simplifier::congr_funs(result const & r_f, buffer<expr> const & args) {
     expr e = r_f.get_new();
     expr pf = r_f.get_proof();
     for (unsigned i = 0; i < args.size(); ++i) {
-        e = blast::mk_app(e,args[i]);
+        e = mk_app(e,args[i]);
         auto p = m_app_builder.mk_app(get_congr_fun_name(),pf,args[i]);
         if (p) pf = *p;
         else throw blast_exception("failed on [congr_fun] matching",e);
