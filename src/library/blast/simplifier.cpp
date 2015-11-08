@@ -24,7 +24,7 @@ Author: Daniel Selsam
 #include <map>
 
 #ifndef LEAN_DEFAULT_SIMPLIFY_MAX_STEPS
-#define LEAN_DEFAULT_SIMPLIFY_MAX_STEPS 100
+#define LEAN_DEFAULT_SIMPLIFY_MAX_STEPS 1000
 #endif
 #ifndef LEAN_DEFAULT_SIMPLIFY_TOP_DOWN
 #define LEAN_DEFAULT_SIMPLIFY_TOP_DOWN false
@@ -131,7 +131,6 @@ class simplifier {
     simp_rule_sets add_to_srss(simp_rule_sets const & _srss, buffer<expr> & ls) {
         simp_rule_sets srss = _srss;
         for (unsigned i = 0; i < ls.size(); i++) {
-            // TODO(dhs): assert no metas
             expr & l = ls[i];
             tmp_type_context tctx(env(), ios());
             srss = add(tctx, srss, mlocal_name(l), tctx.infer(l), l);
@@ -340,7 +339,38 @@ result simplifier::simplify_app(expr const & e) {
 
     /* (2) Synthesize congruence lemma */
     if (using_eq()) {
-        // TODO(dhs): synthesize congruence lemma
+        buffer<expr> args;
+        expr fn = get_app_args(e, args);
+        if (auto congr_lemma = mk_congr_lemma_for_simp(fn, args.size())) {
+            expr proof = congr_lemma->get_proof();
+            expr type = congr_lemma->get_type();
+            unsigned i = 0;
+            bool simplified = false;
+            buffer<expr> locals;
+            for_each(congr_lemma->get_arg_kinds(), [&](congr_arg_kind const & ckind) {
+                    proof = mk_app(proof, args[i]);
+                    type = instantiate(binding_body(type), args[i]);
+
+                    if (ckind == congr_arg_kind::Eq) {
+                        result r_arg = simplify(args[i]);
+                        if (!r_arg.is_none()) simplified = true;
+                        r_arg = finalize(r_arg);
+                        proof = mk_app(proof, r_arg.get_new(), r_arg.get_proof());
+                        type = instantiate(binding_body(type), r_arg.get_new());
+                        type = instantiate(binding_body(type), r_arg.get_proof());
+                    }
+                    i++;
+                });
+            if (simplified) {
+                lean_assert(is_eq(type));
+                buffer<expr> type_args;
+                get_app_args(type, type_args);
+                expr & new_e = type_args[2];
+                return join(result(new_e, proof), simplify_fun(new_e));
+            } else {
+                return simplify_fun(e);
+            }
+        }
     }
 
     /* (3) Fall back on generic binary congruence */
@@ -422,8 +452,10 @@ result simplifier::rewrite(expr const & e, simp_rule const & sr) {
         expr const & m = sr.get_emeta(i);
         bool is_instance = sr.is_instance(i);
 
+        expr m_type = tmp_tctx->instantiate_uvars_mvars(tmp_tctx->infer(m));
+        lean_assert(!has_metavar(m_type));
+
         if (is_instance) {
-            expr m_type = tmp_tctx->instantiate_uvars_mvars(tmp_tctx->infer(m));
             if (auto v = tmp_tctx->mk_class_instance(m_type)) {
                 if (!tmp_tctx->force_assign(m, *v)) {
                     if (m_trace) {
@@ -441,7 +473,6 @@ result simplifier::rewrite(expr const & e, simp_rule const & sr) {
 
         if (tmp_tctx->is_mvar_assigned(i)) continue;
 
-        expr m_type = tmp_tctx->instantiate_uvars_mvars(tmp_tctx->infer(m));
         if (tmp_tctx->is_prop(m_type)) {
             flet<name> set_name(m_rel, get_iff_name());
             result r_cond = simplify(m_type);
@@ -563,6 +594,7 @@ result simplifier::try_congr(expr const & e, congr_rule const & cr) {
         while (is_pi(m_type)) {
             expr d = instantiate_rev(binding_domain(m_type), ls.size(), ls.data());
             expr l = tmp_tctx->mk_tmp_local(d, binding_info(m_type));
+            lean_assert(!has_metavar(l));
             ls.push_back(l);
             m_type = instantiate(binding_body(m_type), l);
         }
@@ -578,6 +610,8 @@ result simplifier::try_congr(expr const & e, congr_rule const & cr) {
             flet<simp_rule_sets> set_ctx_srss(m_ctx_srss, add_to_srss(m_ctx_srss, ls));
 
             h_lhs = tmp_tctx->instantiate_uvars_mvars(h_lhs);
+            lean_assert(!has_metavar(h_lhs));
+
             result r_congr_hyp = simplify(h_lhs);
             expr hyp;
             if (r_congr_hyp.is_none()) {
