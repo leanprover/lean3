@@ -11,7 +11,8 @@ Author: Leonardo de Moura
 #include "library/blast/proof_expr.h"
 #include "library/blast/intros_action.h"
 #include "library/blast/subst_action.h"
-#include "library/blast/backward_action.h"
+#include "library/blast/backward/backward_action.h"
+#include "library/blast/backward/backward_strategy.h"
 #include "library/blast/no_confusion_action.h"
 #include "library/blast/simplify_actions.h"
 #include "library/blast/recursor_action.h"
@@ -81,6 +82,11 @@ class simple_strategy : public strategy {
        Return an expression if the goal has been proved during preprocessing step. */
     virtual optional<expr> preprocess() {
         display_msg("* Preprocess");
+
+        // TODO(dhs): put these in state constructor?
+        curr_state().set_simp_rule_sets(get_simp_rule_sets(env()));
+        curr_state().set_backward_rule_set(get_backward_rule_set(env()));
+
         while (true) {
             if (intros_action())
                 continue;
@@ -128,6 +134,11 @@ class simple_strategy : public strategy {
         if (!failed(r)) {
             display_action("constructor");
             return r;
+        }
+
+        if (auto pr = apply_backward_strategy()) {
+            display_action("backward_strategy");
+            return action_result::solved(*pr);
         }
 
         // TODO(Leo): add more actions...
