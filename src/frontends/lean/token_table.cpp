@@ -98,7 +98,7 @@ void init_token_table(token_table & t) {
          {"esimp", 0}, {"fold", 0}, {"unfold", 0}, {"with_options", 0}, {"simp", 0},
          {"generalize", 0}, {"as", 0}, {":=", 0}, {"--", 0}, {"#", 0},
          {"(*", 0}, {"/-", 0}, {"begin", g_max_prec}, {"begin+", g_max_prec}, {"abstract", g_max_prec},
-         {"proof", g_max_prec}, {"qed", 0}, {"@", g_max_prec},
+         {"proof", g_max_prec}, {"qed", 0}, {"@@", g_max_prec}, {"@", g_max_prec},
          {"sorry", g_max_prec}, {"+", g_plus_prec}, {g_cup, g_cup_prec}, {"->", g_arrow_prec},
          {"?(", g_max_prec}, {"⌞", g_max_prec}, {"⌟", 0}, {"match", 0},
          {"<d", g_decreasing_prec}, {"renaming", 0}, {"extends", 0}, {nullptr, 0}};
@@ -106,21 +106,22 @@ void init_token_table(token_table & t) {
     char const * commands[] =
         {"theorem", "axiom", "axioms", "variable", "protected", "private", "reveal",
          "definition", "example", "coercion", "abbreviation", "noncomputable",
-         "variables", "parameter", "parameters", "constant", "constants", "[persistent]", "[visible]", "[instance]", "[trans-instance]",
+         "variables", "parameter", "parameters", "constant", "constants",
+         "[persistent]", "[visible]", "[instance]", "[trans_instance]",
          "[none]", "[class]", "[coercion]", "[reducible]", "[irreducible]", "[semireducible]", "[quasireducible]",
-         "[simp]", "[congr]", "[parsing-only]", "[multiple-instances]", "[symm]", "[trans]", "[refl]", "[subst]", "[recursor",
-         "evaluate", "check", "eval", "[wf]", "[whnf]", "[priority", "[unfold-full]", "[unfold-hints]",
+         "[simp]", "[congr]", "[parsing_only]", "[multiple_instances]", "[symm]", "[trans]", "[refl]", "[subst]", "[recursor",
+         "evaluate", "check", "eval", "[wf]", "[whnf]", "[priority", "[unfold_full]", "[unfold_hints]",
          "[constructor]", "[unfold", "print",
          "end", "namespace", "section", "prelude", "help",
          "import", "inductive", "record", "structure", "module", "universe", "universes", "local",
          "precedence", "reserve", "infixl", "infixr", "infix", "postfix", "prefix", "notation",
          "tactic_infixl", "tactic_infixr", "tactic_infix", "tactic_postfix", "tactic_prefix", "tactic_notation",
-         "exit", "set_option", "open", "export", "override", "calc_subst", "calc_refl", "calc_trans",
-         "calc_symm", "tactic_hint",
+         "exit", "set_option", "open", "export", "override", "tactic_hint",
          "add_begin_end_tactic", "set_begin_end_tactic", "instance", "class",
          "multiple_instances", "find_decl", "attribute", "persistent",
          "include", "omit", "migrate", "init_quotient", "init_hits", "#erase_cache", "#projections", "#telescope_eq",
-         "#compile", "#accessible", nullptr};
+         "#compile", "#accessible", "#decl_stats", "#relevant_thms", "#simplify", "#app_builder", "#refl", "#symm",
+         "#trans", "#replace", "#congr", "#congr_simp", "#congr_rel", "#normalizer", "#abstract_expr", nullptr};
 
     pair<char const *, char const *> aliases[] =
         {{g_lambda_unicode, "fun"}, {"forall", "Pi"}, {g_forall_unicode, "Pi"}, {g_pi_unicode, "Pi"},

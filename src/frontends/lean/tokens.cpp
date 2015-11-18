@@ -38,6 +38,7 @@ static name const * g_plus_tk = nullptr;
 static name const * g_star_tk = nullptr;
 static name const * g_turnstile_tk = nullptr;
 static name const * g_explicit_tk = nullptr;
+static name const * g_partial_explicit_tk = nullptr;
 static name const * g_max_tk = nullptr;
 static name const * g_imax_tk = nullptr;
 static name const * g_cup_tk = nullptr;
@@ -191,6 +192,7 @@ void initialize_tokens() {
     g_star_tk = new name{"*"};
     g_turnstile_tk = new name{"⊢"};
     g_explicit_tk = new name{"@"};
+    g_partial_explicit_tk = new name{"@@"};
     g_max_tk = new name{"max"};
     g_imax_tk = new name{"imax"};
     g_cup_tk = new name{"\u2294"};
@@ -253,19 +255,19 @@ void initialize_tokens() {
     g_variable_tk = new name{"variable"};
     g_variables_tk = new name{"variables"};
     g_instance_tk = new name{"[instance]"};
-    g_trans_inst_tk = new name{"[trans-instance]"};
+    g_trans_inst_tk = new name{"[trans_instance]"};
     g_priority_tk = new name{"[priority"};
     g_unfold_tk = new name{"[unfold"};
-    g_unfold_full_tk = new name{"[unfold-full]"};
-    g_unfold_hints_bracket_tk = new name{"[unfold-hints]"};
-    g_unfold_hints_tk = new name{"unfold-hints"};
+    g_unfold_full_tk = new name{"[unfold_full]"};
+    g_unfold_hints_bracket_tk = new name{"[unfold_hints]"};
+    g_unfold_hints_tk = new name{"unfold_hints"};
     g_constructor_tk = new name{"[constructor]"};
     g_coercion_tk = new name{"[coercion]"};
     g_reducible_tk = new name{"[reducible]"};
     g_quasireducible_tk = new name{"[quasireducible]"};
     g_semireducible_tk = new name{"[semireducible]"};
     g_irreducible_tk = new name{"[irreducible]"};
-    g_parsing_only_tk = new name{"[parsing-only]"};
+    g_parsing_only_tk = new name{"[parsing_only]"};
     g_symm_tk = new name{"[symm]"};
     g_trans_tk = new name{"[trans]"};
     g_refl_tk = new name{"[refl]"};
@@ -276,7 +278,7 @@ void initialize_tokens() {
     g_attribute_tk = new name{"attribute"};
     g_with_tk = new name{"with"};
     g_class_tk = new name{"[class]"};
-    g_multiple_instances_tk = new name{"[multiple-instances]"};
+    g_multiple_instances_tk = new name{"[multiple_instances]"};
     g_prev_tk = new name{"prev"};
     g_scoped_tk = new name{"scoped"};
     g_foldr_tk = new name{"foldr"};
@@ -345,6 +347,7 @@ void finalize_tokens() {
     delete g_star_tk;
     delete g_turnstile_tk;
     delete g_explicit_tk;
+    delete g_partial_explicit_tk;
     delete g_max_tk;
     delete g_imax_tk;
     delete g_cup_tk;
@@ -498,6 +501,7 @@ name const & get_plus_tk() { return *g_plus_tk; }
 name const & get_star_tk() { return *g_star_tk; }
 name const & get_turnstile_tk() { return *g_turnstile_tk; }
 name const & get_explicit_tk() { return *g_explicit_tk; }
+name const & get_partial_explicit_tk() { return *g_partial_explicit_tk; }
 name const & get_max_tk() { return *g_max_tk; }
 name const & get_imax_tk() { return *g_imax_tk; }
 name const & get_cup_tk() { return *g_cup_tk; }

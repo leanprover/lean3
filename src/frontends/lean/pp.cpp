@@ -62,6 +62,7 @@ static format * g_from_fmt        = nullptr;
 static format * g_visible_fmt     = nullptr;
 static format * g_show_fmt        = nullptr;
 static format * g_explicit_fmt    = nullptr;
+static format * g_partial_explicit_fmt    = nullptr;
 static name   * g_tmp_prefix      = nullptr;
 
 class nat_numeral_pp {
@@ -77,14 +78,6 @@ public:
         m_nat_of_num(mk_constant(get_nat_of_num_name())),
         m_zero(mk_constant(get_nat_zero_name())),
         m_succ(mk_constant(get_nat_succ_name())) {
-    }
-
-    // Return ture if the environment has a coercion from num->nat
-    bool has_coercion_num_nat(environment const & env) const {
-        list<expr> coes = get_coercions(env, m_num_type, m_nat);
-        if (length(coes) != 1)
-            return false;
-        return head(coes) == m_nat_of_num;
     }
 
     // Return an unsigned if \c e if of the form (succ^k zero), and k
@@ -108,10 +101,6 @@ public:
 };
 
 static nat_numeral_pp * g_nat_numeral_pp = nullptr;
-
-static bool has_coercion_num_nat(environment const & env) {
-    return g_nat_numeral_pp->has_coercion_num_nat(env);
-}
 
 static optional<unsigned> to_unsigned(expr const & e) {
     return g_nat_numeral_pp->to_unsigned(e);
@@ -138,6 +127,7 @@ void initialize_pp() {
     g_visible_fmt     = new format(highlight_keyword(format("[visible]")));
     g_show_fmt        = new format(highlight_keyword(format("show")));
     g_explicit_fmt    = new format(highlight_keyword(format("@")));
+    g_partial_explicit_fmt    = new format(highlight_keyword(format("@@")));
     g_tmp_prefix      = new name(name::mk_internal_unique_name());
     g_nat_numeral_pp  = new nat_numeral_pp();
 }
@@ -163,6 +153,7 @@ void finalize_pp() {
     delete g_from_fmt;
     delete g_visible_fmt;
     delete g_show_fmt;
+    delete g_partial_explicit_fmt;
     delete g_explicit_fmt;
     delete g_tmp_prefix;
 }
@@ -292,7 +283,7 @@ void pretty_fn::set_options_core(options const & o) {
     m_abbreviations   = !all && get_pp_abbreviations(o);
     m_preterm         = get_pp_preterm(o);
     m_hide_full_terms = get_formatter_hide_full_terms(o);
-    m_num_nat_coe     = m_numerals && !m_coercion && has_coercion_num_nat(m_env);
+    m_num_nat_coe     = m_numerals && !m_coercion;
 }
 
 void pretty_fn::set_options(options const & o) {
@@ -489,6 +480,10 @@ auto pretty_fn::pp_child(expr const & e, unsigned bp, bool ignore_hide) -> resul
     if (is_app(e)) {
         if (auto r = pp_local_ref(e))
             return add_paren_if_needed(*r, bp);
+        if (m_numerals) {
+            if (auto n = to_num(e)) return pp_num(*n);
+            if (auto n = to_num_core(e)) return pp_num(*n);
+        }
         expr const & f = app_fn(e);
         if (auto it = is_abbreviated(f)) {
             return pp_abbreviation(e, *it, true, bp, ignore_hide);
@@ -982,6 +977,10 @@ auto pretty_fn::pp_notation_child(expr const & e, unsigned lbp, unsigned rbp) ->
     if (auto it = is_abbreviated(e))
         return pp_abbreviation(e, *it, false, rbp);
     if (is_app(e)) {
+        if (m_numerals) {
+            if (auto n = to_num(e)) return pp_num(*n);
+            if (auto n = to_num_core(e)) return pp_num(*n);
+        }
         expr const & f = app_fn(e);
         if (auto it = is_abbreviated(f)) {
             return pp_abbreviation(e, *it, true, rbp);
@@ -1233,9 +1232,12 @@ auto pretty_fn::pp(expr const & e, bool ignore_hide) -> result {
     flet<unsigned> let_d(m_depth, m_depth+1);
     m_num_steps++;
 
+    if (m_numerals) {
+        if (auto n = to_num(e)) return pp_num(*n);
+        if (auto n = to_num_core(e)) return pp_num(*n);
+    }
     if (auto n = is_abbreviated(e))
         return pp_abbreviation(e, *n, false);
-
     if (auto r = pp_notation(e))
         return *r;
 
@@ -1245,8 +1247,6 @@ auto pretty_fn::pp(expr const & e, bool ignore_hide) -> result {
     if (is_let(e))          return pp_let(e);
     if (is_typed_expr(e))   return pp(get_typed_expr_expr(e));
     if (is_let_value(e))    return pp(get_let_value_expr(e));
-    if (m_numerals)
-        if (auto n = to_num(e)) return pp_num(*n);
     if (m_num_nat_coe)
         if (auto k = to_unsigned(e))
             return format(*k);

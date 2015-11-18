@@ -61,6 +61,10 @@ namespace function
     : is_equiv (ap f : a = a' → f a = f a') :=
   H a a'
 
+  definition ap_inv_idp {a : A} {H : is_equiv (ap f : a = a → f a = f a)}
+    : (ap f)⁻¹ᶠ idp = idp :> a = a :=
+  !left_inv
+
   variable {f}
   definition is_injective_of_is_embedding [reducible] [H : is_embedding f] {a a' : A}
     : f a = f a' → a = a' :=
@@ -75,10 +79,21 @@ namespace function
     {intro p, apply is_hset.elim},
     {intro p, apply is_hset.elim}
   end
+
   variable (f)
 
   definition is_hprop_is_embedding [instance] : is_hprop (is_embedding f) :=
   by unfold is_embedding; exact _
+
+  definition is_embedding_equiv_is_injective [HA : is_hset A] [HB : is_hset B]
+    : is_embedding f ≃ (Π(a a' : A), f a = f a' → a = a') :=
+  begin
+  fapply equiv.MK,
+    { apply @is_injective_of_is_embedding},
+    { apply is_embedding_of_is_injective},
+    { intro H, apply is_hprop.elim},
+    { intro H, apply is_hprop.elim, }
+  end
 
   definition is_hprop_fiber_of_is_embedding [H : is_embedding f] (b : B) :
     is_hprop (fiber f b) :=
@@ -88,6 +103,17 @@ namespace function
     fapply fiber_eq,
     { esimp, apply is_injective_of_is_embedding p},
     { esimp [is_injective_of_is_embedding], symmetry, apply right_inv}
+  end
+
+  definition is_hprop_fun_of_is_embedding [H : is_embedding f] : is_trunc_fun -1 f :=
+  is_hprop_fiber_of_is_embedding f
+
+  definition is_embedding_of_is_hprop_fun [constructor] [H : is_trunc_fun -1 f] : is_embedding f :=
+  begin
+    intro a a', fapply adjointify,
+    { intro p, exact ap point (@is_hprop.elim (fiber f (f a')) _ (fiber.mk a p) (fiber.mk a' idp))},
+    { intro p, rewrite [-ap_compose], esimp, apply ap_con_eq (@point_eq _ _ f (f a'))},
+    { intro p, induction p, apply ap (ap point), apply is_hprop_elim_self}
   end
 
   variable {f}
@@ -225,7 +251,8 @@ namespace function
                     ... = a : left_inverse)
 
   section
-    local attribute is_equiv_of_is_section_of_is_retraction [instance]
+    local attribute is_equiv_of_is_section_of_is_retraction [instance] [priority 10000]
+    local attribute trunctype.struct [instance] [priority 1] -- remove after #842 is closed
     variable (f)
     definition is_hprop_is_retraction_prod_is_section : is_hprop (is_retraction f × is_section f) :=
     begin

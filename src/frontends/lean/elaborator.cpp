@@ -39,7 +39,7 @@ Author: Leonardo de Moura
 #include "library/choice_iterator.h"
 #include "library/projection.h"
 #include "library/pp_options.h"
-#include "library/class_instance_synth.h"
+#include "library/class_instance_resolution.h"
 #include "library/tactic/expr_to_tactic.h"
 #include "library/error_handling/error_handling.h"
 #include "library/definitional/equations.h"
@@ -57,6 +57,7 @@ Author: Leonardo de Moura
 #include "frontends/lean/calc.h"
 #include "frontends/lean/decl_cmds.h"
 #include "frontends/lean/opt_cmd.h"
+#include "frontends/lean/prenum.h"
 
 namespace lean {
 type_checker_ptr mk_coercion_from_type_checker(environment const & env, name_generator && ngen) {
@@ -292,7 +293,7 @@ expr elaborator::mk_placeholder_meta(optional<name> const & suffix, optional<exp
     if (is_inst_implicit && !m_ctx.m_ignore_instances) {
         auto ec = mk_class_instance_elaborator(
             env(), ios(), m_context, m_ngen.next(), suffix,
-            use_local_instances(), is_strict, type, g, m_unifier_config, m_ctx.m_pos_provider);
+            use_local_instances(), is_strict, type, g, m_ctx.m_pos_provider);
         register_meta(ec.first);
         cs += ec.second;
         return ec.first;
@@ -466,9 +467,12 @@ pair<expr, expr> elaborator::ensure_fun(expr f, constraint_seq & cs) {
             erase_coercion_info(f);
         } else {
             cs     = saved_cs;
-            f_type = m_coercion_from_tc->whnf(saved_f_type, cs);
-            // try coercion to function-class
-            list<expr> coes  = get_coercions_to_fun(env(), f_type);
+            list<expr> coes;
+            // try coercion to function-class IF coercions are enabled
+            if (m_ctx.m_coercions) {
+                f_type = m_coercion_from_tc->whnf(saved_f_type, cs);
+                coes  = get_coercions_to_fun(env(), f_type);
+            }
             if (is_nil(coes)) {
                 throw_kernel_exception(env(), f, [=](formatter const & fmt) { return pp_function_expected(fmt, f); });
             } else if (is_nil(tail(coes))) {
@@ -512,6 +516,8 @@ pair<expr, expr> elaborator::ensure_fun(expr f, constraint_seq & cs) {
 }
 
 bool elaborator::has_coercions_from(expr const & a_type, bool & lifted_coe) {
+    if (!m_ctx.m_coercions)
+        return false;
     try {
         expr a_cls  = get_app_fn(m_coercion_from_tc->whnf(a_type).first);
         if (m_ctx.m_lift_coercions) {
@@ -528,6 +534,8 @@ bool elaborator::has_coercions_from(expr const & a_type, bool & lifted_coe) {
 }
 
 bool elaborator::has_coercions_to(expr d_type) {
+    if (!m_ctx.m_coercions)
+        return false;
     try {
         d_type = m_coercion_to_tc->whnf(d_type).first;
         expr const & fn = get_app_fn(d_type);
@@ -545,10 +553,15 @@ bool elaborator::has_coercions_to(expr d_type) {
 }
 
 pair<expr, constraint_seq> elaborator::apply_coercion(expr const & a, expr a_type, expr d_type, justification const & j) {
+    if (!m_ctx.m_coercions) {
+        erase_coercion_info(a);
+        return to_ecs(a);
+    }
     a_type = m_coercion_from_tc->whnf(a_type).first;
     d_type = m_coercion_to_tc->whnf(d_type).first;
     constraint_seq aux_cs;
-    list<expr> coes = get_coercions_from_to(*m_coercion_from_tc, *m_coercion_to_tc, a_type, d_type, aux_cs, m_ctx.m_lift_coercions);
+    list<expr> coes = get_coercions_from_to(*m_coercion_from_tc, *m_coercion_to_tc, a_type,
+                                            d_type, aux_cs, m_ctx.m_lift_coercions);
     if (is_nil(coes)) {
         erase_coercion_info(a);
         return to_ecs(a);
@@ -603,41 +616,45 @@ pair<expr, constraint_seq> elaborator::mk_delayed_coercion(
 pair<expr, constraint_seq> elaborator::ensure_has_type_core(
     expr const & a, expr const & a_type, expr const & expected_type, bool use_expensive_coercions, justification const & j) {
     bool lifted_coe = false;
-    if (use_expensive_coercions &&
-        has_coercions_from(a_type, lifted_coe) && ((!lifted_coe && is_meta(expected_type)) || (lifted_coe && is_pi_meta(expected_type)))) {
-        return mk_delayed_coercion(a, a_type, expected_type, j);
-    } else if (use_expensive_coercions && !m_in_equation_lhs && is_meta(a_type) && has_coercions_to(expected_type)) {
-        return mk_delayed_coercion(a, a_type, expected_type, j);
-    } else {
-        pair<bool, constraint_seq> dcs;
-        try {
-            dcs = m_tc->is_def_eq(a_type, expected_type, j);
-        } catch (exception&) {
-            dcs.first = false;
+    if (m_ctx.m_coercions && !is_meta(a)) {
+        if (use_expensive_coercions &&
+            has_coercions_from(a_type, lifted_coe) && ((!lifted_coe && is_meta(expected_type)) || (lifted_coe && is_pi_meta(expected_type)))) {
+            return mk_delayed_coercion(a, a_type, expected_type, j);
+        } else if (use_expensive_coercions && !m_in_equation_lhs && is_meta(a_type) && has_coercions_to(expected_type)) {
+            return mk_delayed_coercion(a, a_type, expected_type, j);
         }
-        if (dcs.first) {
-            return to_ecs(a, dcs.second);
+    }
+
+    pair<bool, constraint_seq> dcs;
+    try {
+        dcs = m_tc->is_def_eq(a_type, expected_type, j);
+    } catch (exception&) {
+        dcs.first = false;
+    }
+    if (dcs.first) {
+        return to_ecs(a, dcs.second);
+    } else {
+        if (!m_ctx.m_coercions)
+            throw unifier_exception(j, substitution());
+        auto new_a_cs = apply_coercion(a, a_type, expected_type, j);
+        expr new_a    = new_a_cs.first;
+        constraint_seq cs = new_a_cs.second;
+        bool coercion_worked = false;
+        if (!is_eqp(a, new_a)) {
+            expr new_a_type = infer_type(new_a, cs);
+            try {
+                coercion_worked = m_tc->is_def_eq(new_a_type, expected_type, j, cs);
+            } catch (exception&) {
+                coercion_worked = false;
+            }
+        }
+        if (coercion_worked) {
+            return to_ecs(new_a, cs);
+        } else if (has_metavar(a_type) || has_metavar(expected_type)) {
+            // rely on unification hints to solve this constraint
+            return to_ecs(a, mk_eq_cnstr(a_type, expected_type, j));
         } else {
-            auto new_a_cs = apply_coercion(a, a_type, expected_type, j);
-            expr new_a    = new_a_cs.first;
-            constraint_seq cs = new_a_cs.second;
-            bool coercion_worked = false;
-            if (!is_eqp(a, new_a)) {
-                expr new_a_type = infer_type(new_a, cs);
-                try {
-                    coercion_worked = m_tc->is_def_eq(new_a_type, expected_type, j, cs);
-                } catch (exception&) {
-                    coercion_worked = false;
-                }
-            }
-            if (coercion_worked) {
-                return to_ecs(new_a, cs);
-            } else if (has_metavar(a_type) || has_metavar(expected_type)) {
-                // rely on unification hints to solve this constraint
-                return to_ecs(a, mk_eq_cnstr(a_type, expected_type, j));
-            } else {
-                throw unifier_exception(j, substitution());
-            }
+            throw unifier_exception(j, substitution());
         }
     }
 }
@@ -669,7 +686,8 @@ expr elaborator::visit_app(expr const & e, constraint_seq & cs) {
     if (is_choice_app(e))
         return visit_choice_app(e, cs);
     constraint_seq f_cs;
-    bool expl   = is_nested_explicit(get_app_fn(e));
+    bool expl         = is_nested_explicit(get_app_fn(e));
+    bool partial_expl = is_nested_partial_explicit(get_app_fn(e));
     expr f      = visit(app_fn(e), f_cs);
     auto f_t    = ensure_fun(f, f_cs);
     f           = f_t.first;
@@ -681,10 +699,13 @@ expr elaborator::visit_app(expr const & e, constraint_seq & cs) {
                binding_info(f_type).is_implicit() ||
                binding_info(f_type).is_inst_implicit()) {
             lean_assert(binding_info(f_type).is_strict_implicit() || !first);
+            expr const & d_type = binding_domain(f_type);
+            if (partial_expl && is_pi(whnf(d_type).first))
+                break;
             tag g          = f.get_tag();
             bool is_strict = true;
             bool inst_imp  = binding_info(f_type).is_inst_implicit();
-            expr imp_arg   = mk_placeholder_meta(mk_mvar_suffix(f_type), some_expr(binding_domain(f_type)),
+            expr imp_arg   = mk_placeholder_meta(mk_mvar_suffix(f_type), some_expr(d_type),
                                                  g, is_strict, inst_imp, f_cs);
             f              = mk_app(f, imp_arg, g);
             auto f_t       = ensure_fun(f, f_cs);
@@ -814,8 +835,11 @@ expr elaborator::ensure_type(expr const & e, constraint_seq & cs) {
         }
     }
     cs = saved_cs;
-    t  = m_coercion_from_tc->whnf(saved_t, cs);
-    list<expr> coes = get_coercions_to_sort(env(), t);
+    list<expr> coes;
+    if (m_ctx.m_coercions) {
+        t  = m_coercion_from_tc->whnf(saved_t, cs);
+        coes = get_coercions_to_sort(env(), t);
+    }
     if (is_nil(coes)) {
         throw_kernel_exception(env(), e, [=](formatter const & fmt) { return pp_type_expected(fmt, e); });
     } else {
@@ -1267,8 +1291,8 @@ expr elaborator::visit_equation(expr const & eq, constraint_seq & cs) {
     expr const & lhs = equation_lhs(eq);
     expr const & rhs = equation_rhs(eq);
     expr lhs_fn = get_app_fn(lhs);
-    if (is_explicit(lhs_fn))
-        lhs_fn = get_explicit_arg(lhs_fn);
+    if (is_explicit_or_partial_explicit(lhs_fn))
+        lhs_fn = get_explicit_or_partial_explicit_arg(lhs_fn);
     if (!is_local(lhs_fn))
         throw exception("ill-formed equation");
     expr new_lhs, new_rhs;
@@ -1579,8 +1603,61 @@ expr elaborator::visit_obtain_expr(expr const & e, constraint_seq & cs) {
     return process_obtain_expr(to_list(s), to_list(from), decls_goal, true, cs, e);
 }
 
+expr elaborator::visit_prenum(expr const & e, constraint_seq & cs) {
+    lean_assert(is_prenum(e));
+    mpz const & v  = prenum_value(e);
+    tag e_tag      = e.get_tag();
+    // Remark: In HoTT mode, we only partially support the new encoding for numerals.
+    // We fix A to num, and we rely on coercions to cast them to other types.
+    // This is quite different from the approach used in the standard library
+    expr A;
+    if (is_standard(env()))
+        A = m_full_context.mk_meta(m_ngen, none_expr(), e_tag);
+    else
+        A = mk_constant(get_num_name()).set_tag(e_tag);
+    level A_lvl = sort_level(m_tc->ensure_type(A, cs));
+    levels ls(A_lvl);
+    bool is_strict = true;
+    bool inst_imp  = true;
+    if (v.is_neg())
+        throw_elaborator_exception("invalid pre-numeral, it must be a non-negative value", e);
+    if (v.is_zero()) {
+        expr has_zero_A = mk_app(mk_constant(get_has_zero_name(), ls), A, e_tag);
+        expr S          = mk_placeholder_meta(optional<name>(), some_expr(has_zero_A),
+                                              e_tag, is_strict, inst_imp, cs);
+        return mk_app(mk_app(mk_constant(get_zero_name(), ls), A, e_tag), S, e_tag);
+    } else {
+        expr has_one_A = mk_app(mk_constant(get_has_one_name(), ls), A, e_tag);
+        expr S_one     = mk_placeholder_meta(optional<name>(), some_expr(has_one_A),
+                                             e_tag, is_strict, inst_imp, cs);
+        expr one       = mk_app(mk_app(mk_constant(get_one_name(), ls), A, e_tag), S_one, e_tag);
+        if (v == 1) {
+            return one;
+        } else {
+            expr has_add_A = mk_app(mk_constant(get_has_add_name(), ls), A, e_tag);
+            expr S_add     = mk_placeholder_meta(optional<name>(), some_expr(has_add_A),
+                                                 e_tag, is_strict, inst_imp, cs);
+            std::function<expr(mpz const & v)> convert = [&](mpz const & v) {
+                lean_assert(v > 0);
+                if (v == 1)
+                    return one;
+                else if (v % mpz(2) == 0) {
+                    expr r = convert(v / 2);
+                    return mk_app(mk_app(mk_app(mk_constant(get_bit0_name(), ls), A, e_tag), S_add, e_tag), r, e_tag);
+                } else {
+                    expr r = convert(v / 2);
+                    return mk_app(mk_app(mk_app(mk_app(mk_constant(get_bit1_name(), ls), A, e_tag), S_one, e_tag), S_add, e_tag), r, e_tag);
+                }
+            };
+            return convert(v);
+        }
+    }
+}
+
 expr elaborator::visit_core(expr const & e, constraint_seq & cs) {
-    if (is_placeholder(e)) {
+    if (is_prenum(e)) {
+        return visit_prenum(e, cs);
+    } else if (is_placeholder(e)) {
         return visit_placeholder(e, cs);
     } else if (is_choice(e)) {
         return visit_choice(e, none_expr(), cs);
@@ -1603,9 +1680,9 @@ expr elaborator::visit_core(expr const & e, constraint_seq & cs) {
     } else if (is_consume_args(e)) {
         // ignore annotation
         return visit_core(get_consume_args_arg(e), cs);
-    } else if (is_explicit(e)) {
+    } else if (is_explicit_or_partial_explicit(e)) {
         // ignore annotation
-        return visit_core(get_explicit_arg(e), cs);
+        return visit_core(get_explicit_or_partial_explicit_arg(e), cs);
     } else if (is_sorry(e)) {
         return visit_sorry(e);
     } else if (is_equations(e)) {
@@ -1665,12 +1742,33 @@ pair<expr, constraint_seq> elaborator::visit(expr const & e) {
         r    = visit_equations(e, cs);
     } else if (is_explicit(get_app_fn(e))) {
         r    = visit_core(e, cs);
+    } else if (is_partial_explicit(get_app_fn(e))) {
+        r = visit_core(e, cs);
+        tag  g         = e.get_tag();
+        expr r_type    = whnf(infer_type(r, cs), cs);
+        expr imp_arg;
+        bool is_strict = true;
+        while (is_pi(r_type)) {
+            binder_info bi = binding_info(r_type);
+            if (!bi.is_implicit() && !bi.is_inst_implicit()) {
+                break;
+            }
+            expr const & d_type = binding_domain(r_type);
+            if (is_pi(whnf(d_type).first)) {
+                break;
+            }
+            bool inst_imp = bi.is_inst_implicit();
+            imp_arg = mk_placeholder_meta(mk_mvar_suffix(r_type), some_expr(d_type),
+                                          g, is_strict, inst_imp, cs);
+            r       = mk_app(r, imp_arg, g);
+            r_type  = whnf(instantiate(binding_body(r_type), imp_arg), cs);
+        }
     } else {
         bool consume_args = false;
         if (is_as_atomic(e)) {
             flet<bool> let(m_no_info, true);
             r = get_as_atomic_arg(e);
-            if (is_explicit(r)) r = get_explicit_arg(r);
+            if (is_explicit_or_partial_explicit(r)) r = get_explicit_or_partial_explicit_arg(r);
             r = visit_core(r, cs);
         } else if (is_consume_args(e)) {
             consume_args = true;

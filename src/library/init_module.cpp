@@ -12,7 +12,6 @@ Author: Leonardo de Moura
 #include "library/choice.h"
 #include "library/class.h"
 #include "library/string.h"
-#include "library/num.h"
 #include "library/resolve_macro.h"
 #include "library/annotation.h"
 #include "library/explicit.h"
@@ -38,10 +37,14 @@ Author: Leonardo de Moura
 #include "library/abbreviation.h"
 #include "library/relation_manager.h"
 #include "library/user_recursors.h"
-#include "library/class_instance_synth.h"
 #include "library/composition_manager.h"
 #include "library/noncomputable.h"
 #include "library/aux_recursors.h"
+#include "library/decl_stats.h"
+#include "library/meng_paulson.h"
+#include "library/norm_num.h"
+#include "library/class_instance_resolution.h"
+#include "library/type_context.h"
 
 namespace lean {
 void initialize_library_module() {
@@ -57,7 +60,6 @@ void initialize_library_module() {
     initialize_let();
     initialize_typed_expr();
     initialize_choice();
-    initialize_num();
     initialize_string();
     initialize_resolve_macro();
     initialize_annotation();
@@ -79,17 +81,25 @@ void initialize_library_module() {
     initialize_abbreviation();
     initialize_relation_manager();
     initialize_user_recursors();
-    initialize_class_instance_elaborator();
     initialize_composition_manager();
     initialize_noncomputable();
     initialize_aux_recursors();
+    initialize_decl_stats();
+    initialize_meng_paulson();
+    initialize_norm_num();
+    initialize_class_instance_resolution();
+    initialize_type_context();
 }
 
 void finalize_library_module() {
+    finalize_type_context();
+    finalize_class_instance_resolution();
+    finalize_norm_num();
+    finalize_meng_paulson();
+    finalize_decl_stats();
     finalize_aux_recursors();
     finalize_noncomputable();
     finalize_composition_manager();
-    finalize_class_instance_elaborator();
     finalize_user_recursors();
     finalize_relation_manager();
     finalize_abbreviation();
@@ -111,7 +121,6 @@ void finalize_library_module() {
     finalize_annotation();
     finalize_resolve_macro();
     finalize_string();
-    finalize_num();
     finalize_choice();
     finalize_typed_expr();
     finalize_let();

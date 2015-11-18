@@ -4,17 +4,26 @@
 #include "util/name.h"
 namespace lean{
 name const * g_absurd = nullptr;
+name const * g_algebra_distrib = nullptr;
+name const * g_algebra_left_distrib = nullptr;
+name const * g_algebra_right_distrib = nullptr;
+name const * g_add = nullptr;
 name const * g_and = nullptr;
 name const * g_and_elim_left = nullptr;
 name const * g_and_elim_right = nullptr;
 name const * g_and_intro = nullptr;
+name const * g_bit0 = nullptr;
+name const * g_bit1 = nullptr;
 name const * g_bool = nullptr;
 name const * g_bool_ff = nullptr;
 name const * g_bool_tt = nullptr;
 name const * g_char = nullptr;
 name const * g_char_mk = nullptr;
 name const * g_congr = nullptr;
+name const * g_congr_arg = nullptr;
+name const * g_congr_fun = nullptr;
 name const * g_dite = nullptr;
+name const * g_div = nullptr;
 name const * g_empty = nullptr;
 name const * g_empty_rec = nullptr;
 name const * g_eq = nullptr;
@@ -22,6 +31,9 @@ name const * g_eq_elim_inv_inv = nullptr;
 name const * g_eq_intro = nullptr;
 name const * g_eq_rec = nullptr;
 name const * g_eq_drec = nullptr;
+name const * g_eq_mp = nullptr;
+name const * g_eq_mpr = nullptr;
+name const * g_eq_nrec = nullptr;
 name const * g_eq_rec_eq = nullptr;
 name const * g_eq_refl = nullptr;
 name const * g_eq_symm = nullptr;
@@ -30,12 +42,26 @@ name const * g_eq_subst = nullptr;
 name const * g_exists_elim = nullptr;
 name const * g_false = nullptr;
 name const * g_false_rec = nullptr;
+name const * g_false_of_true_iff_false = nullptr;
 name const * g_funext = nullptr;
+name const * g_has_zero = nullptr;
+name const * g_has_one = nullptr;
+name const * g_has_zero_zero = nullptr;
+name const * g_has_one_one = nullptr;
+name const * g_has_add = nullptr;
+name const * g_has_mul = nullptr;
 name const * g_heq = nullptr;
 name const * g_heq_refl = nullptr;
 name const * g_heq_to_eq = nullptr;
 name const * g_iff = nullptr;
 name const * g_iff_refl = nullptr;
+name const * g_iff_symm = nullptr;
+name const * g_iff_trans = nullptr;
+name const * g_iff_mp = nullptr;
+name const * g_iff_mpr = nullptr;
+name const * g_iff_intro = nullptr;
+name const * g_iff_elim_left = nullptr;
+name const * g_iff_elim_right = nullptr;
 name const * g_iff_false_intro = nullptr;
 name const * g_iff_true_intro = nullptr;
 name const * g_implies = nullptr;
@@ -46,14 +72,19 @@ name const * g_ite = nullptr;
 name const * g_lift = nullptr;
 name const * g_lift_down = nullptr;
 name const * g_lift_up = nullptr;
+name const * g_mul = nullptr;
 name const * g_nat = nullptr;
 name const * g_nat_of_num = nullptr;
 name const * g_nat_succ = nullptr;
 name const * g_nat_zero = nullptr;
+name const * g_neg = nullptr;
 name const * g_not = nullptr;
+name const * g_not_of_iff_false = nullptr;
 name const * g_num = nullptr;
 name const * g_num_zero = nullptr;
 name const * g_num_pos = nullptr;
+name const * g_of_iff_true = nullptr;
+name const * g_one = nullptr;
 name const * g_option = nullptr;
 name const * g_option_some = nullptr;
 name const * g_option_none = nullptr;
@@ -76,6 +107,7 @@ name const * g_rat_divide = nullptr;
 name const * g_rat_of_num = nullptr;
 name const * g_sigma = nullptr;
 name const * g_sigma_mk = nullptr;
+name const * g_sorry = nullptr;
 name const * g_string = nullptr;
 name const * g_string_empty = nullptr;
 name const * g_string_str = nullptr;
@@ -146,19 +178,29 @@ name const * g_true_intro = nullptr;
 name const * g_is_trunc_is_hset = nullptr;
 name const * g_is_trunc_is_hprop = nullptr;
 name const * g_well_founded = nullptr;
+name const * g_zero = nullptr;
 void initialize_constants() {
     g_absurd = new name{"absurd"};
+    g_algebra_distrib = new name{"algebra", "distrib"};
+    g_algebra_left_distrib = new name{"algebra", "left_distrib"};
+    g_algebra_right_distrib = new name{"algebra", "right_distrib"};
+    g_add = new name{"add"};
     g_and = new name{"and"};
     g_and_elim_left = new name{"and", "elim_left"};
     g_and_elim_right = new name{"and", "elim_right"};
     g_and_intro = new name{"and", "intro"};
+    g_bit0 = new name{"bit0"};
+    g_bit1 = new name{"bit1"};
     g_bool = new name{"bool"};
     g_bool_ff = new name{"bool", "ff"};
     g_bool_tt = new name{"bool", "tt"};
     g_char = new name{"char"};
     g_char_mk = new name{"char", "mk"};
     g_congr = new name{"congr"};
+    g_congr_arg = new name{"congr_arg"};
+    g_congr_fun = new name{"congr_fun"};
     g_dite = new name{"dite"};
+    g_div = new name{"div"};
     g_empty = new name{"empty"};
     g_empty_rec = new name{"empty", "rec"};
     g_eq = new name{"eq"};
@@ -166,6 +208,9 @@ void initialize_constants() {
     g_eq_intro = new name{"eq", "intro"};
     g_eq_rec = new name{"eq", "rec"};
     g_eq_drec = new name{"eq", "drec"};
+    g_eq_mp = new name{"eq", "mp"};
+    g_eq_mpr = new name{"eq", "mpr"};
+    g_eq_nrec = new name{"eq", "nrec"};
     g_eq_rec_eq = new name{"eq_rec_eq"};
     g_eq_refl = new name{"eq", "refl"};
     g_eq_symm = new name{"eq", "symm"};
@@ -174,12 +219,26 @@ void initialize_constants() {
     g_exists_elim = new name{"exists", "elim"};
     g_false = new name{"false"};
     g_false_rec = new name{"false", "rec"};
+    g_false_of_true_iff_false = new name{"false_of_true_iff_false"};
     g_funext = new name{"funext"};
+    g_has_zero = new name{"has_zero"};
+    g_has_one = new name{"has_one"};
+    g_has_zero_zero = new name{"has_zero", "zero"};
+    g_has_one_one = new name{"has_one", "one"};
+    g_has_add = new name{"has_add"};
+    g_has_mul = new name{"has_mul"};
     g_heq = new name{"heq"};
     g_heq_refl = new name{"heq", "refl"};
     g_heq_to_eq = new name{"heq", "to_eq"};
     g_iff = new name{"iff"};
     g_iff_refl = new name{"iff", "refl"};
+    g_iff_symm = new name{"iff", "symm"};
+    g_iff_trans = new name{"iff", "trans"};
+    g_iff_mp = new name{"iff", "mp"};
+    g_iff_mpr = new name{"iff", "mpr"};
+    g_iff_intro = new name{"iff", "intro"};
+    g_iff_elim_left = new name{"iff", "elim_left"};
+    g_iff_elim_right = new name{"iff", "elim_right"};
     g_iff_false_intro = new name{"iff_false_intro"};
     g_iff_true_intro = new name{"iff_true_intro"};
     g_implies = new name{"implies"};
@@ -190,14 +249,19 @@ void initialize_constants() {
     g_lift = new name{"lift"};
     g_lift_down = new name{"lift", "down"};
     g_lift_up = new name{"lift", "up"};
+    g_mul = new name{"mul"};
     g_nat = new name{"nat"};
     g_nat_of_num = new name{"nat", "of_num"};
     g_nat_succ = new name{"nat", "succ"};
     g_nat_zero = new name{"nat", "zero"};
+    g_neg = new name{"neg"};
     g_not = new name{"not"};
+    g_not_of_iff_false = new name{"not_of_iff_false"};
     g_num = new name{"num"};
     g_num_zero = new name{"num", "zero"};
     g_num_pos = new name{"num", "pos"};
+    g_of_iff_true = new name{"of_iff_true"};
+    g_one = new name{"one"};
     g_option = new name{"option"};
     g_option_some = new name{"option", "some"};
     g_option_none = new name{"option", "none"};
@@ -220,6 +284,7 @@ void initialize_constants() {
     g_rat_of_num = new name{"rat", "of_num"};
     g_sigma = new name{"sigma"};
     g_sigma_mk = new name{"sigma", "mk"};
+    g_sorry = new name{"sorry"};
     g_string = new name{"string"};
     g_string_empty = new name{"string", "empty"};
     g_string_str = new name{"string", "str"};
@@ -290,20 +355,30 @@ void initialize_constants() {
     g_is_trunc_is_hset = new name{"is_trunc", "is_hset"};
     g_is_trunc_is_hprop = new name{"is_trunc", "is_hprop"};
     g_well_founded = new name{"well_founded"};
+    g_zero = new name{"zero"};
 }
 void finalize_constants() {
     delete g_absurd;
+    delete g_algebra_distrib;
+    delete g_algebra_left_distrib;
+    delete g_algebra_right_distrib;
+    delete g_add;
     delete g_and;
     delete g_and_elim_left;
     delete g_and_elim_right;
     delete g_and_intro;
+    delete g_bit0;
+    delete g_bit1;
     delete g_bool;
     delete g_bool_ff;
     delete g_bool_tt;
     delete g_char;
     delete g_char_mk;
     delete g_congr;
+    delete g_congr_arg;
+    delete g_congr_fun;
     delete g_dite;
+    delete g_div;
     delete g_empty;
     delete g_empty_rec;
     delete g_eq;
@@ -311,6 +386,9 @@ void finalize_constants() {
     delete g_eq_intro;
     delete g_eq_rec;
     delete g_eq_drec;
+    delete g_eq_mp;
+    delete g_eq_mpr;
+    delete g_eq_nrec;
     delete g_eq_rec_eq;
     delete g_eq_refl;
     delete g_eq_symm;
@@ -319,12 +397,26 @@ void finalize_constants() {
     delete g_exists_elim;
     delete g_false;
     delete g_false_rec;
+    delete g_false_of_true_iff_false;
     delete g_funext;
+    delete g_has_zero;
+    delete g_has_one;
+    delete g_has_zero_zero;
+    delete g_has_one_one;
+    delete g_has_add;
+    delete g_has_mul;
     delete g_heq;
     delete g_heq_refl;
     delete g_heq_to_eq;
     delete g_iff;
     delete g_iff_refl;
+    delete g_iff_symm;
+    delete g_iff_trans;
+    delete g_iff_mp;
+    delete g_iff_mpr;
+    delete g_iff_intro;
+    delete g_iff_elim_left;
+    delete g_iff_elim_right;
     delete g_iff_false_intro;
     delete g_iff_true_intro;
     delete g_implies;
@@ -335,14 +427,19 @@ void finalize_constants() {
     delete g_lift;
     delete g_lift_down;
     delete g_lift_up;
+    delete g_mul;
     delete g_nat;
     delete g_nat_of_num;
     delete g_nat_succ;
     delete g_nat_zero;
+    delete g_neg;
     delete g_not;
+    delete g_not_of_iff_false;
     delete g_num;
     delete g_num_zero;
     delete g_num_pos;
+    delete g_of_iff_true;
+    delete g_one;
     delete g_option;
     delete g_option_some;
     delete g_option_none;
@@ -365,6 +462,7 @@ void finalize_constants() {
     delete g_rat_of_num;
     delete g_sigma;
     delete g_sigma_mk;
+    delete g_sorry;
     delete g_string;
     delete g_string_empty;
     delete g_string_str;
@@ -435,19 +533,29 @@ void finalize_constants() {
     delete g_is_trunc_is_hset;
     delete g_is_trunc_is_hprop;
     delete g_well_founded;
+    delete g_zero;
 }
 name const & get_absurd_name() { return *g_absurd; }
+name const & get_algebra_distrib_name() { return *g_algebra_distrib; }
+name const & get_algebra_left_distrib_name() { return *g_algebra_left_distrib; }
+name const & get_algebra_right_distrib_name() { return *g_algebra_right_distrib; }
+name const & get_add_name() { return *g_add; }
 name const & get_and_name() { return *g_and; }
 name const & get_and_elim_left_name() { return *g_and_elim_left; }
 name const & get_and_elim_right_name() { return *g_and_elim_right; }
 name const & get_and_intro_name() { return *g_and_intro; }
+name const & get_bit0_name() { return *g_bit0; }
+name const & get_bit1_name() { return *g_bit1; }
 name const & get_bool_name() { return *g_bool; }
 name const & get_bool_ff_name() { return *g_bool_ff; }
 name const & get_bool_tt_name() { return *g_bool_tt; }
 name const & get_char_name() { return *g_char; }
 name const & get_char_mk_name() { return *g_char_mk; }
 name const & get_congr_name() { return *g_congr; }
+name const & get_congr_arg_name() { return *g_congr_arg; }
+name const & get_congr_fun_name() { return *g_congr_fun; }
 name const & get_dite_name() { return *g_dite; }
+name const & get_div_name() { return *g_div; }
 name const & get_empty_name() { return *g_empty; }
 name const & get_empty_rec_name() { return *g_empty_rec; }
 name const & get_eq_name() { return *g_eq; }
@@ -455,6 +563,9 @@ name const & get_eq_elim_inv_inv_name() { return *g_eq_elim_inv_inv; }
 name const & get_eq_intro_name() { return *g_eq_intro; }
 name const & get_eq_rec_name() { return *g_eq_rec; }
 name const & get_eq_drec_name() { return *g_eq_drec; }
+name const & get_eq_mp_name() { return *g_eq_mp; }
+name const & get_eq_mpr_name() { return *g_eq_mpr; }
+name const & get_eq_nrec_name() { return *g_eq_nrec; }
 name const & get_eq_rec_eq_name() { return *g_eq_rec_eq; }
 name const & get_eq_refl_name() { return *g_eq_refl; }
 name const & get_eq_symm_name() { return *g_eq_symm; }
@@ -463,12 +574,26 @@ name const & get_eq_subst_name() { return *g_eq_subst; }
 name const & get_exists_elim_name() { return *g_exists_elim; }
 name const & get_false_name() { return *g_false; }
 name const & get_false_rec_name() { return *g_false_rec; }
+name const & get_false_of_true_iff_false_name() { return *g_false_of_true_iff_false; }
 name const & get_funext_name() { return *g_funext; }
+name const & get_has_zero_name() { return *g_has_zero; }
+name const & get_has_one_name() { return *g_has_one; }
+name const & get_has_zero_zero_name() { return *g_has_zero_zero; }
+name const & get_has_one_one_name() { return *g_has_one_one; }
+name const & get_has_add_name() { return *g_has_add; }
+name const & get_has_mul_name() { return *g_has_mul; }
 name const & get_heq_name() { return *g_heq; }
 name const & get_heq_refl_name() { return *g_heq_refl; }
 name const & get_heq_to_eq_name() { return *g_heq_to_eq; }
 name const & get_iff_name() { return *g_iff; }
 name const & get_iff_refl_name() { return *g_iff_refl; }
+name const & get_iff_symm_name() { return *g_iff_symm; }
+name const & get_iff_trans_name() { return *g_iff_trans; }
+name const & get_iff_mp_name() { return *g_iff_mp; }
+name const & get_iff_mpr_name() { return *g_iff_mpr; }
+name const & get_iff_intro_name() { return *g_iff_intro; }
+name const & get_iff_elim_left_name() { return *g_iff_elim_left; }
+name const & get_iff_elim_right_name() { return *g_iff_elim_right; }
 name const & get_iff_false_intro_name() { return *g_iff_false_intro; }
 name const & get_iff_true_intro_name() { return *g_iff_true_intro; }
 name const & get_implies_name() { return *g_implies; }
@@ -479,14 +604,19 @@ name const & get_ite_name() { return *g_ite; }
 name const & get_lift_name() { return *g_lift; }
 name const & get_lift_down_name() { return *g_lift_down; }
 name const & get_lift_up_name() { return *g_lift_up; }
+name const & get_mul_name() { return *g_mul; }
 name const & get_nat_name() { return *g_nat; }
 name const & get_nat_of_num_name() { return *g_nat_of_num; }
 name const & get_nat_succ_name() { return *g_nat_succ; }
 name const & get_nat_zero_name() { return *g_nat_zero; }
+name const & get_neg_name() { return *g_neg; }
 name const & get_not_name() { return *g_not; }
+name const & get_not_of_iff_false_name() { return *g_not_of_iff_false; }
 name const & get_num_name() { return *g_num; }
 name const & get_num_zero_name() { return *g_num_zero; }
 name const & get_num_pos_name() { return *g_num_pos; }
+name const & get_of_iff_true_name() { return *g_of_iff_true; }
+name const & get_one_name() { return *g_one; }
 name const & get_option_name() { return *g_option; }
 name const & get_option_some_name() { return *g_option_some; }
 name const & get_option_none_name() { return *g_option_none; }
@@ -509,6 +639,7 @@ name const & get_rat_divide_name() { return *g_rat_divide; }
 name const & get_rat_of_num_name() { return *g_rat_of_num; }
 name const & get_sigma_name() { return *g_sigma; }
 name const & get_sigma_mk_name() { return *g_sigma_mk; }
+name const & get_sorry_name() { return *g_sorry; }
 name const & get_string_name() { return *g_string; }
 name const & get_string_empty_name() { return *g_string_empty; }
 name const & get_string_str_name() { return *g_string_str; }
@@ -579,4 +710,5 @@ name const & get_true_intro_name() { return *g_true_intro; }
 name const & get_is_trunc_is_hset_name() { return *g_is_trunc_is_hset; }
 name const & get_is_trunc_is_hprop_name() { return *g_is_trunc_is_hprop; }
 name const & get_well_founded_name() { return *g_well_founded; }
+name const & get_zero_name() { return *g_zero; }
 }

@@ -137,7 +137,7 @@ section
       have Hb' : b ≤ 0, from
         calc
           b     = 0 + b : by rewrite zero_add
-            ... ≤ a + b : add_le_add_right Ha
+            ... ≤ a + b : by exact add_le_add_right Ha _
             ... = 0     : Hab,
       have Hbz : b = 0, from le.antisymm Hb' Hb,
       and.intro Haz Hbz)
@@ -210,13 +210,14 @@ theorem ordered_comm_group.lt_of_add_lt_add_left [s : ordered_comm_group A] {a b
 assert H' : -a + (a + b) < -a + (a + c), from ordered_comm_group.add_lt_add_left _ _ H _,
 by rewrite *neg_add_cancel_left at H'; exact H'
 
-definition ordered_comm_group.to_ordered_cancel_comm_monoid [trans-instance] [coercion] [reducible]
+set_option pp.all true
+definition ordered_comm_group.to_ordered_cancel_comm_monoid [trans_instance] [reducible]
     [s : ordered_comm_group A] : ordered_cancel_comm_monoid A :=
 ⦃ ordered_cancel_comm_monoid, s,
-  add_left_cancel       := @add.left_cancel A s,
-  add_right_cancel      := @add.right_cancel A s,
-  le_of_add_le_add_left := @ordered_comm_group.le_of_add_le_add_left A s,
-  lt_of_add_lt_add_left := @ordered_comm_group.lt_of_add_lt_add_left A s⦄
+  add_left_cancel       := @add.left_cancel A _,
+  add_right_cancel      := @add.right_cancel A _,
+  le_of_add_le_add_left := @ordered_comm_group.le_of_add_le_add_left A _,
+  lt_of_add_lt_add_left := @ordered_comm_group.lt_of_add_lt_add_left A _⦄
 
 section
   variables [s : ordered_comm_group A] (a b c d e : A)
@@ -368,7 +369,7 @@ section
 
   theorem le_add_iff_sub_right_le : a ≤ b + c ↔ a - c ≤ b :=
   assert H: a ≤ b + c ↔ a - c ≤ b + c - c, from iff.symm (!add_le_add_right_iff),
-  by rewrite add_neg_cancel_right at H; exact H
+  by rewrite [sub_eq_add_neg (b+c) c at H, add_neg_cancel_right at H]; exact H
 
   theorem le_add_of_sub_right_le {a b c : A} : a - c ≤ b → a ≤ b + c :=
     iff.mpr !le_add_iff_sub_right_le
@@ -448,7 +449,7 @@ section
 
   theorem add_lt_iff_lt_sub_right : a + b < c ↔ a < c - b :=
   assert H: a + b < c ↔ a + b - b < c - b, from iff.symm (!add_lt_add_right_iff),
-  by rewrite add_neg_cancel_right at H; exact H
+  by rewrite [sub_eq_add_neg at H, add_neg_cancel_right at H]; exact H
 
   theorem add_lt_of_lt_sub_right {a b c : A} : a < c - b → a + b < c :=
     iff.mpr !add_lt_iff_lt_sub_right
@@ -582,12 +583,12 @@ structure decidable_linear_ordered_comm_group [class] (A : Type)
     (add_lt_add_left : ∀ a b, lt a b → ∀ c, lt (add c a) (add c b))
 
 definition decidable_linear_ordered_comm_group.to_ordered_comm_group
-      [trans-instance] [reducible] [coercion]
+      [trans_instance] [reducible]
    (A : Type) [s : decidable_linear_ordered_comm_group A] : ordered_comm_group A :=
 ⦃ ordered_comm_group, s,
-  le_of_lt := @le_of_lt A s,
-  lt_of_le_of_lt := @lt_of_le_of_lt A s,
-  lt_of_lt_of_le := @lt_of_lt_of_le A s ⦄
+  le_of_lt := @le_of_lt A _,
+  lt_of_le_of_lt := @lt_of_le_of_lt A _,
+  lt_of_lt_of_le := @lt_of_lt_of_le A _ ⦄
 
 section
   variables [s : decidable_linear_ordered_comm_group A]
@@ -793,8 +794,7 @@ section
 
   theorem abs_sub_le (a b c : A) : abs (a - c) ≤ abs (a - b) + abs (b - c) :=
   calc
-    abs (a - c) = abs (a - b + (b - c))     :
-                    by rewrite [sub_eq_add_neg, add.assoc, neg_add_cancel_left]
+    abs (a - c) = abs (a - b + (b - c)) :  by rewrite [*sub_eq_add_neg, add.assoc, neg_add_cancel_left]
             ... ≤ abs (a - b) + abs (b - c) : abs_add_le_abs_add_abs
 
   theorem abs_add_three (a b c : A) : abs (a + b + c) ≤ abs a + abs b + abs c :=

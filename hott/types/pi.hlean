@@ -77,17 +77,6 @@ namespace pi
     apply eq_of_pathover_idp, apply r
   end
 
-  -- a version where C is uncurried, but where the conclusion of r is still a proper pathover
-  -- instead of a heterogenous equality
-  definition pi_pathover' {C : (Σa, B a) → Type} {f : Πb, C ⟨a, b⟩} {g : Πb', C ⟨a', b'⟩}
-    {p : a = a'} (r : Π(b : B a) (b' : B a') (q : b =[p] b'), f b =[dpair_eq_dpair p q] g b')
-    : f =[p] g :=
-  begin
-    cases p, apply pathover_idp_of_eq,
-    apply eq_of_homotopy, intro b,
-    apply (@eq_of_pathover_idp _ C), exact (r b b (pathover.idpatho b)),
-  end
-
   definition pi_pathover_left {f : Πb, C a b} {g : Πb', C a' b'} {p : a = a'}
     (r : Π(b : B a), f b =[apo011 C p !pathover_tr] g (p ▸ b)) : f =[p] g :=
   begin
@@ -112,6 +101,36 @@ namespace pi
     apply eq_of_homotopy, intro b,
     exact eq_of_pathover_idp (r b),
   end
+
+  -- a version where C is uncurried, but where the conclusion of r is still a proper pathover
+  -- instead of a heterogenous equality
+  definition pi_pathover' {C : (Σa, B a) → Type} {f : Πb, C ⟨a, b⟩} {g : Πb', C ⟨a', b'⟩}
+    {p : a = a'} (r : Π(b : B a) (b' : B a') (q : b =[p] b'), f b =[dpair_eq_dpair p q] g b')
+    : f =[p] g :=
+  begin
+    cases p, apply pathover_idp_of_eq,
+    apply eq_of_homotopy, intro b,
+    apply (@eq_of_pathover_idp _ C), exact (r b b (pathover.idpatho b)),
+  end
+
+  definition pi_pathover_left' {C : (Σa, B a) → Type} {f : Πb, C ⟨a, b⟩} {g : Πb', C ⟨a', b'⟩}
+    {p : a = a'} (r : Π(b : B a), f b =[dpair_eq_dpair p !pathover_tr] g (p ▸ b))
+    : f =[p] g :=
+  begin
+    cases p, apply pathover_idp_of_eq,
+    apply eq_of_homotopy, intro b,
+    apply eq_of_pathover_idp, esimp at r, exact !pathover_ap (r b)
+  end
+
+  definition pi_pathover_right' {C : (Σa, B a) → Type} {f : Πb, C ⟨a, b⟩} {g : Πb', C ⟨a', b'⟩}
+    {p : a = a'} (r : Π(b' : B a'), f (p⁻¹ ▸ b') =[dpair_eq_dpair p !tr_pathover] g b')
+    : f =[p] g :=
+  begin
+    cases p, apply pathover_idp_of_eq,
+    apply eq_of_homotopy, intro b,
+    apply eq_of_pathover_idp, esimp at r, exact !pathover_ap (r b)
+  end
+
 
   /- Maps on paths -/
 
@@ -155,7 +174,7 @@ namespace pi
 
   /- The functoriality of [forall] is slightly subtle: it is contravariant in the domain type and covariant in the codomain, but the codomain is dependent on the domain. -/
 
-  definition pi_functor [unfold-full] : (Π(a:A), B a) → (Π(a':A'), B' a') := λg a', f1 a' (g (f0 a'))
+  definition pi_functor [unfold_full] : (Π(a:A), B a) → (Π(a':A'), B' a') := λg a', f1 a' (g (f0 a'))
 
   definition ap_pi_functor {g g' : Π(a:A), B a} (h : g ~ g')
     : ap (pi_functor f0 f1) (eq_of_homotopy h)

@@ -486,6 +486,13 @@ bool is_iff(expr const & e) {
     expr const & fn = get_app_fn(e);
     return is_constant(fn) && const_name(fn) == get_iff_name();
 }
+bool is_iff(expr const & e, expr & lhs, expr & rhs) {
+    if (!is_iff(e) || !is_app(app_fn(e)))
+        return false;
+    lhs = app_arg(app_fn(e));
+    rhs = app_arg(e);
+    return true;
+}
 expr mk_iff(expr const & lhs, expr const & rhs) {
     return mk_app(mk_constant(get_iff_name()), lhs, rhs);
 }
@@ -568,9 +575,23 @@ expr mk_heq(type_checker & tc, expr const & lhs, expr const & rhs) {
     return mk_app(mk_constant(get_heq_name(), {lvl}), A, lhs, B, rhs);
 }
 
-bool is_eq_rec(expr const & e) {
+bool is_eq_rec_core(expr const & e) {
     expr const & fn = get_app_fn(e);
     return is_constant(fn) && const_name(fn) == get_eq_rec_name();
+}
+
+bool is_eq_rec(environment const & env, expr const & e) {
+    expr const & fn = get_app_fn(e);
+    if (!is_constant(fn))
+        return false;
+    return is_standard(env) ? const_name(fn) == get_eq_rec_name() : const_name(fn) == get_eq_nrec_name();
+}
+
+bool is_eq_drec(environment const & env, expr const & e) {
+    expr const & fn = get_app_fn(e);
+    if (!is_constant(fn))
+        return false;
+    return is_standard(env) ? const_name(fn) == get_eq_drec_name() : const_name(fn) == get_eq_rec_name();
 }
 
 bool is_eq(expr const & e) {

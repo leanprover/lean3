@@ -6,7 +6,7 @@ Author: Jeremy Avigad
 Metric spaces.
 -/
 import data.real.division
-open real eq.ops classical
+open real eq.ops classical algebra
 
 structure metric_space [class] (M : Type) : Type :=
   (dist : M → M → ℝ)
@@ -27,7 +27,7 @@ iff.intro eq_of_dist_eq_zero (suppose x = y, this ▸ !dist_self)
 proposition dist_nonneg (x y : M) : 0 ≤ dist x y :=
 have dist x y + dist y x ≥ 0, by rewrite -(dist_self x); apply dist_triangle,
 have 2 * dist x y ≥ 0, using this,
-  by rewrite [-real.one_add_one, right_distrib, +one_mul, dist_comm at {2}]; apply this,
+  by krewrite [-real.one_add_one, right_distrib, +one_mul, dist_comm at {2}]; apply this,
 nonneg_of_mul_nonneg_left this two_pos
 
 proposition dist_pos_of_ne {x y : M} (H : x ≠ y) : dist x y > 0 :=
@@ -105,7 +105,7 @@ exists.intro N
 
 proposition converges_to_seq_offset_left {X : ℕ → M} {y : M} (k : ℕ) (H : X ⟶ y in ℕ) :
   (λ n, X (k + n)) ⟶ y in ℕ :=
-have aux : (λ n, X (k + n)) = (λ n, X (n + k)), from funext (take n, by rewrite nat.add.comm),
+have aux : (λ n, X (k + n)) = (λ n, X (n + k)), from funext (take n, by rewrite add.comm),
 by+ rewrite aux; exact converges_to_seq_offset k H
 
 proposition converges_to_seq_offset_succ {X : ℕ → M} {y : M} (H : X ⟶ y in ℕ) :
@@ -119,7 +119,7 @@ take ε, suppose ε > 0,
 obtain N HN, from H `ε > 0`,
 exists.intro (N + k)
   (take n : ℕ, assume nge : n ≥ N + k,
-    have n - k ≥ N, from le_sub_of_add_le nge,
+    have n - k ≥ N, from nat.le_sub_of_add_le nge,
     have dist (X (n - k + k)) y < ε, from HN (n - k) this,
     show dist (X n) y < ε, using this,
       by rewrite [(nat.sub_add_cancel (le.trans !le_add_left nge)) at this]; exact this)
@@ -127,7 +127,7 @@ exists.intro (N + k)
 proposition converges_to_seq_of_converges_to_seq_offset_left
     {X : ℕ → M} {y : M} {k : ℕ} (H : (λ n, X (k + n)) ⟶ y in ℕ) :
   X ⟶ y in ℕ :=
-have aux : (λ n, X (k + n)) = (λ n, X (n + k)), from funext (take n, by rewrite nat.add.comm),
+have aux : (λ n, X (k + n)) = (λ n, X (n + k)), from funext (take n, by rewrite add.comm),
 by+ rewrite aux at H; exact converges_to_seq_of_converges_to_seq_offset H
 
 proposition converges_to_seq_of_converges_to_seq_offset_succ

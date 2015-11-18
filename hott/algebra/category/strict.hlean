@@ -4,7 +4,7 @@ Released under Apache 2.0 license as described in the file LICENSE.
 Authors: Floris van Doorn, Jakob von Raumer
 -/
 
-import .precategory .functor
+import .functor.basic
 
 open is_trunc eq
 
@@ -26,55 +26,23 @@ namespace category
 
   definition Strict_precategory.to_Precategory [coercion] [reducible]
     (C : Strict_precategory) : Precategory :=
-  Precategory.mk (Strict_precategory.carrier C) C
+  Precategory.mk (Strict_precategory.carrier C) _
 
   open functor
 
-  definition precat_strict_precat : precategory Strict_precategory :=
-  precategory.mk (λ a b, functor a b)
-                 (λ a b c g f, functor.compose g f)
-                 (λ a, functor.id)
-                 (λ a b c d h g f, !functor.assoc)
-                 (λ a b f, !functor.id_left)
-                 (λ a b f, !functor.id_right)
+  -- TODO: move to constructions.cat?
+  definition precategory_strict_precategory [constructor] : precategory Strict_precategory :=
+  precategory.mk (λ A B, A ⇒ B)
+                 (λ A B C G F, G ∘f F)
+                 (λ A, 1)
+                 (λ A B C D, functor.assoc)
+                 (λ A B, functor.id_left)
+                 (λ A B, functor.id_right)
 
-  definition Precat_of_strict_precats := precategory.Mk precat_strict_precat
+  definition Precategory_strict_precategory [constructor] := precategory.Mk precategory_strict_precategory
 
   namespace ops
-    abbreviation SPreCat := Precat_of_strict_precats
-    --attribute precat_strict_precat [instance]
+    abbreviation Cat := Precategory_strict_precategory
   end ops
 
 end category
-
-  /-section
-  open decidable unit empty
-  variables {A : Type} [H : decidable_eq A]
-  include H
-  definition set_hom (a b : A) := decidable.rec_on (H a b) (λh, unit) (λh, empty)
-  theorem set_hom_subsingleton [instance] (a b : A) : subsingleton (set_hom a b) := _
-  definition set_compose {a b c : A} (g : set_hom b c) (f : set_hom a b) : set_hom a c :=
-  decidable.rec_on
-    (H b c)
-    (λ Hbc g, decidable.rec_on
-      (H a b)
-      (λ Hab f, rec_on_true (trans Hab Hbc) ⋆)
-      (λh f, empty.rec _ f) f)
-    (λh (g : empty), empty.rec _ g) g
-  omit H
-  definition discrete_precategory (A : Type) [H : decidable_eq A] : precategory A :=
-  mk (λa b, set_hom a b)
-     (λ a b c g f, set_compose g f)
-     (λ a, decidable.rec_on_true rfl ⋆)
-     (λ a b c d h g f, @subsingleton.elim (set_hom a d) _ _ _)
-     (λ a b f, @subsingleton.elim (set_hom a b) _ _ _)
-     (λ a b f, @subsingleton.elim (set_hom a b) _ _ _)
-  definition Discrete_category (A : Type) [H : decidable_eq A] := Mk (discrete_category A)
-  end
-  section
-  open unit bool
-  definition category_one := discrete_category unit
-  definition Category_one := Mk category_one
-  definition category_two := discrete_category bool
-  definition Category_two := Mk category_two
-  end-/

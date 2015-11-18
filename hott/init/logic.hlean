@@ -51,6 +51,12 @@ namespace eq
   definition symm [unfold 4] (H : a = b) : b = a :=
   subst H (refl a)
 
+  theorem mp {a b : Type} : (a = b) → a → b :=
+  eq.rec_on
+
+  theorem mpr {a b : Type} : (a = b) → b → a :=
+  assume H₁ H₂, eq.rec_on (eq.symm H₁) H₂
+
   namespace ops
     postfix ⁻¹ := symm --input with \sy or \-1 or \inv
     infixl ⬝ := trans
@@ -58,8 +64,15 @@ namespace eq
   end ops
 end eq
 
+-- Auxiliary definition used by automation. It has the same type of eq.rec in the standard library
+definition eq.nrec.{l₁ l₂} {A : Type.{l₂}} {a : A} {C : A → Type.{l₁}} (H₁ : C a) (b : A) (H₂ : a = b) : C b :=
+eq.rec H₁ H₂
+
 definition congr {A B : Type} {f₁ f₂ : A → B} {a₁ a₂ : A} (H₁ : f₁ = f₂) (H₂ : a₁ = a₂) : f₁ a₁ = f₂ a₂ :=
 eq.subst H₁ (eq.subst H₂ rfl)
+
+theorem congr_fun {A : Type} {B : A → Type} {f g : Π x, B x} (H : f = g) (a : A) : f a = g a :=
+eq.subst H (eq.refl (f a))
 
 theorem congr_arg {A B : Type} (a a' : A) (f : A → B) (Ha : a = a') : f a = f a' :=
 eq.subst Ha rfl
@@ -167,6 +180,9 @@ namespace iff
 
   definition rfl {a : Type} : a ↔ a :=
   refl a
+
+  definition iff_of_eq (a b : Type) (p : a = b) : a ↔ b :=
+  eq.rec rfl p
 
   definition trans (H₁ : a ↔ b) (H₂ : b ↔ c) : a ↔ c :=
   intro

@@ -235,20 +235,20 @@ begin
   exact (iff.mp !sub_pos_iff_lt H2)
 end
 
-definition ordered_ring.to_ordered_semiring [trans-instance] [coercion] [reducible]
+definition ordered_ring.to_ordered_semiring [trans_instance] [reducible]
     [s : ordered_ring A] :
   ordered_semiring A :=
 ⦃ ordered_semiring, s,
   mul_zero                   := mul_zero,
   zero_mul                   := zero_mul,
-  add_left_cancel            := @add.left_cancel A s,
-  add_right_cancel           := @add.right_cancel A s,
-  le_of_add_le_add_left      := @le_of_add_le_add_left A s,
-  mul_le_mul_of_nonneg_left  := @ordered_ring.mul_le_mul_of_nonneg_left A s,
-  mul_le_mul_of_nonneg_right := @ordered_ring.mul_le_mul_of_nonneg_right A s,
-  mul_lt_mul_of_pos_left     := @ordered_ring.mul_lt_mul_of_pos_left A s,
-  mul_lt_mul_of_pos_right    := @ordered_ring.mul_lt_mul_of_pos_right A s,
-  lt_of_add_lt_add_left      := @lt_of_add_lt_add_left A s⦄
+  add_left_cancel            := @add.left_cancel A _,
+  add_right_cancel           := @add.right_cancel A _,
+  le_of_add_le_add_left      := @le_of_add_le_add_left A _,
+  mul_le_mul_of_nonneg_left  := @ordered_ring.mul_le_mul_of_nonneg_left A _,
+  mul_le_mul_of_nonneg_right := @ordered_ring.mul_le_mul_of_nonneg_right A _,
+  mul_lt_mul_of_pos_left     := @ordered_ring.mul_lt_mul_of_pos_left A _,
+  mul_lt_mul_of_pos_right    := @ordered_ring.mul_lt_mul_of_pos_right A _,
+  lt_of_add_lt_add_left      := @lt_of_add_lt_add_left A _⦄
 
 section
   variable [s : ordered_ring A]
@@ -317,21 +317,21 @@ structure linear_ordered_ring [class] (A : Type)
     extends ordered_ring A, linear_strong_order_pair A :=
   (zero_lt_one : lt zero one)
 
-definition linear_ordered_ring.to_linear_ordered_semiring [trans-instance] [coercion] [reducible]
+definition linear_ordered_ring.to_linear_ordered_semiring [trans_instance] [reducible]
     [s : linear_ordered_ring A] :
   linear_ordered_semiring A :=
 ⦃ linear_ordered_semiring, s,
   mul_zero                   := mul_zero,
   zero_mul                   := zero_mul,
-  add_left_cancel            := @add.left_cancel A s,
-  add_right_cancel           := @add.right_cancel A s,
-  le_of_add_le_add_left      := @le_of_add_le_add_left A s,
-  mul_le_mul_of_nonneg_left  := @mul_le_mul_of_nonneg_left A s,
-  mul_le_mul_of_nonneg_right := @mul_le_mul_of_nonneg_right A s,
-  mul_lt_mul_of_pos_left     := @mul_lt_mul_of_pos_left A s,
-  mul_lt_mul_of_pos_right    := @mul_lt_mul_of_pos_right A s,
+  add_left_cancel            := @add.left_cancel A _,
+  add_right_cancel           := @add.right_cancel A _,
+  le_of_add_le_add_left      := @le_of_add_le_add_left A _,
+  mul_le_mul_of_nonneg_left  := @mul_le_mul_of_nonneg_left A _,
+  mul_le_mul_of_nonneg_right := @mul_le_mul_of_nonneg_right A _,
+  mul_lt_mul_of_pos_left     := @mul_lt_mul_of_pos_left A _,
+  mul_lt_mul_of_pos_right    := @mul_lt_mul_of_pos_right A _,
   le_total                   := linear_ordered_ring.le_total,
-  lt_of_add_lt_add_left      := @lt_of_add_lt_add_left A s ⦄
+  lt_of_add_lt_add_left      := @lt_of_add_lt_add_left A _ ⦄
 
 structure linear_ordered_comm_ring [class] (A : Type) extends linear_ordered_ring A, comm_monoid A
 
@@ -371,7 +371,7 @@ lt.by_cases
         end))
 
 -- Linearity implies no zero divisors. Doesn't need commutativity.
-definition linear_ordered_comm_ring.to_integral_domain [trans-instance] [coercion] [reducible]
+definition linear_ordered_comm_ring.to_integral_domain [trans_instance] [reducible]
     [s: linear_ordered_comm_ring A] : integral_domain A :=
 ⦃ integral_domain, s,
   eq_zero_or_eq_zero_of_mul_eq_zero :=
@@ -686,9 +686,13 @@ section
     sub_lt_of_abs_sub_lt_left (!abs_sub ▸ H)
 
   theorem abs_sub_square (a b : A) : abs (a - b) * abs (a - b) = a * a + b * b - (1 + 1) * a * b :=
-    by rewrite [abs_mul_abs_self, *mul_sub_left_distrib, *mul_sub_right_distrib,
-             sub_add_eq_sub_sub, sub_neg_eq_add, *right_distrib, sub_add_eq_sub_sub, *one_mul,
-             *add.assoc, {_ + b * b}add.comm, {_ + (b * b + _)}add.comm, mul.comm b a, *add.assoc]
+    begin
+      rewrite [abs_mul_abs_self, *mul_sub_left_distrib, *mul_sub_right_distrib,
+               sub_eq_add_neg (a*b), sub_add_eq_sub_sub, sub_neg_eq_add, *right_distrib, sub_add_eq_sub_sub, *one_mul,
+               *add.assoc, {_ + b * b}add.comm, *sub_eq_add_neg],
+      rewrite [{a*a + b*b}add.comm],
+      rewrite [mul.comm b a, *add.assoc]
+    end
 
   theorem abs_abs_sub_abs_le_abs_sub (a b : A) : abs (abs a - abs b) ≤ abs (a - b) :=
   begin

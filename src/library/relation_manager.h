@@ -34,6 +34,15 @@ bool is_equivalence(environment const & env, name const & rop);
 relation_info const * get_relation_info(environment const & env, name const & rop);
 inline bool is_relation(environment const & env, name const & rop) { return get_relation_info(env, rop) != nullptr; }
 
+typedef std::function<optional<relation_info>(name const &)>  relation_info_getter;
+relation_info_getter mk_relation_info_getter(environment const & env);
+
+/** \brief Return true iff \c e is of the form (lhs rop rhs) where rop is a registered relation. */
+bool is_relation(environment const & env, expr const & e, name & rop, expr & lhs, expr & rhs);
+typedef std::function<bool(expr const &, name &, expr &, expr &)> is_relation_pred; // NOLINT
+/** \brief Construct an \c is_relation predicate for the given environment. */
+is_relation_pred mk_is_relation_pred(environment const & env);
+
 /** \brief Declare a new binary relation named \c n */
 environment add_relation(environment const & env, name const & n, bool persistent = true);
 
@@ -70,6 +79,14 @@ optional<trans_info> get_trans_extra_info(environment const & env, name const & 
 optional<name> get_refl_info(environment const & env, name const & op);
 optional<name> get_symm_info(environment const & env, name const & op);
 optional<name> get_trans_info(environment const & env, name const & op);
+
+typedef std::function<optional<refl_info>(name const &)>  refl_info_getter;
+typedef std::function<optional<trans_info>(name const &, name const &)> trans_info_getter;
+typedef std::function<optional<symm_info>(name const &)>  symm_info_getter;
+
+refl_info_getter mk_refl_info_getter(environment const & env);
+trans_info_getter mk_trans_info_getter(environment const & env);
+symm_info_getter mk_symm_info_getter(environment const & env);
 
 bool is_subst_relation(environment const & env, name const & op);
 inline bool is_trans_relation(environment const & env, name const & op) { return static_cast<bool>(get_trans_info(env, op)); }

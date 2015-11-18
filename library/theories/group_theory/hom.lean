@@ -52,7 +52,7 @@ variables {A B : Type}
 variable [s1 : group A]
 
 definition id_is_iso [instance] : @is_hom_class A A s1 s1 (@id A) :=
-is_iso_class.mk (take a b, rfl) injective_id
+is_hom_class.mk (take a b, rfl)
 
 variable [s2 : group B]
 include s1
@@ -117,16 +117,15 @@ variable [is_subgH : is_subgroup H]
 include is_subgH
 
 theorem hom_map_subgroup : is_subgroup (f '[H]) :=
-        have Pone : 1 ∈ f '[H], from mem_image subg_has_one (hom_map_one f),
-        have Pclosed : mul_closed_on (f '[H]), from hom_map_mul_closed f H subg_mul_closed,
-        assert Pinv : ∀ b, b ∈ f '[H] → b⁻¹ ∈ f '[H], from
-          assume b, assume Pimg,
-          obtain a (Pa : a ∈ H ∧ f a = b), from Pimg,
-          assert Painv : a⁻¹ ∈ H, from subg_has_inv a (and.left Pa),
-          assert Pfainv : (f a)⁻¹ ∈ f '[H], from mem_image Painv (hom_map_inv f a),
-          and.right Pa ▸ Pfainv,
-        is_subgroup.mk Pone Pclosed Pinv
-
+  have Pone : 1 ∈ f '[H], from mem_image (@subg_has_one _ _ H _) (hom_map_one f),
+  have Pclosed : mul_closed_on (f '[H]), from hom_map_mul_closed f H subg_mul_closed,
+  assert Pinv : ∀ b, b ∈ f '[H] → b⁻¹ ∈ f '[H], from
+  assume b, assume Pimg,
+  obtain a (Pa : a ∈ H ∧ f a = b), from Pimg,
+  assert Painv : a⁻¹ ∈ H, from subg_has_inv a (and.left Pa),
+  assert Pfainv : (f a)⁻¹ ∈ f '[H], from mem_image Painv (hom_map_inv f a),
+    and.right Pa ▸ Pfainv,
+  is_subgroup.mk Pone Pclosed Pinv
 end
 
 section hom_theorem

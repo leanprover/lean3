@@ -107,7 +107,7 @@ namespace finset
   include cmB
 
   theorem mulf_rcomm (f : A → B) : right_commutative (mulf f) :=
-  right_commutative_compose_right (@has_mul.mul B cmB) f (@mul.right_comm B cmB)
+  right_commutative_compose_right (@has_mul.mul B _) f (@mul.right_comm B _)
 
   theorem Prodl_eq_Prodl_of_perm (f : A → B) {l₁ l₂ : list A} :
     perm l₁ l₂ → Prodl l₁ f = Prodl l₂ f :=
@@ -167,7 +167,7 @@ end finset
 section add_monoid
   variable [amB : add_monoid B]
   include amB
-  local attribute add_monoid.to_monoid [trans-instance]
+  local attribute add_monoid.to_monoid [trans_instance]
 
   definition Suml (l : list A) (f : A → B) : B := Prodl l f
 
@@ -196,7 +196,7 @@ end add_monoid
 section add_comm_monoid
   variable [acmB : add_comm_monoid B]
   include acmB
-  local attribute add_comm_monoid.to_comm_monoid [trans-instance]
+  local attribute add_comm_monoid.to_comm_monoid [trans_instance]
 
   theorem Suml_add (l : list A) (f g : A → B) : Suml l (λx, f x + g x) = Suml l f + Suml l g :=
     Prodl_mul l f g
@@ -207,7 +207,7 @@ end add_comm_monoid
 namespace finset
   variable [acmB : add_comm_monoid B]
   include acmB
-  local attribute add_comm_monoid.to_comm_monoid [trans-instance]
+  local attribute add_comm_monoid.to_comm_monoid [trans_instance]
 
   definition Sum (s : finset A) (f : A → B) : B := Prod s f
 

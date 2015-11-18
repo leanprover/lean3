@@ -18,12 +18,16 @@ section semiring
 variable [s : semiring A]
 include s
 
+definition semiring_has_pow_nat [reducible] [instance] : has_pow_nat A :=
+monoid_has_pow_nat
+
 theorem zero_pow {m : ℕ} (mpos : m > 0) : 0^m = (0 : A) :=
-have h₁ : ∀ m, 0^succ m = (0 : A),
-  from take m, nat.induction_on m
-    (show 0^1 = 0, by rewrite pow_one)
-    (take m, suppose 0^(succ m) = 0,
-      show 0^(succ (succ m)) = 0, from !zero_mul),
+have h₁ : ∀ m : nat, (0 : A)^(succ m) = (0 : A),
+  begin
+    intro m, induction m,
+      rewrite pow_one,
+      apply zero_mul
+  end,
 obtain m' (h₂ : m = succ m'), from exists_eq_succ_of_pos mpos,
 show 0^m = 0, by rewrite h₂; apply h₁
 
@@ -32,6 +36,9 @@ end semiring
 section integral_domain
 variable [s : integral_domain A]
 include s
+
+definition integral_domain_has_pow_nat [reducible] [instance] : has_pow_nat A :=
+monoid_has_pow_nat
 
 theorem eq_zero_of_pow_eq_zero {a : A} {m : ℕ} (H : a^m = 0) : a = 0 :=
 or.elim (eq_zero_or_pos m)
@@ -114,9 +121,9 @@ theorem pow_gt_one {x : A} {i : ℕ} (xgt1 : x > 1) (ipos : i > 0) : x^i > 1 :=
 assert xpos : x > 0, from lt.trans zero_lt_one xgt1,
 begin
   induction i with [i, ih],
-    {exfalso, exact !nat.lt.irrefl ipos},
+    {exfalso, exact !lt.irrefl ipos},
   have xige1 : x^i ≥ 1, from pow_ge_one _ (le_of_lt xgt1),
-  rewrite [pow_succ, -mul_one 1, ↑has_lt.gt],
+  rewrite [pow_succ, -mul_one 1],
   apply mul_lt_mul xgt1 xige1 zero_lt_one,
   apply le_of_lt xpos
 end
@@ -126,6 +133,9 @@ end linear_ordered_semiring
 section decidable_linear_ordered_comm_ring
 variable [s : decidable_linear_ordered_comm_ring A]
 include s
+
+definition decidable_linear_ordered_comm_ring_has_pow_nat [reducible] [instance] : has_pow_nat A :=
+monoid_has_pow_nat
 
 theorem abs_pow (a : A) (n : ℕ) : abs (a^n) = abs a^n :=
 begin

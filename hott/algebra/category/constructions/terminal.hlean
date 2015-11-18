@@ -37,19 +37,19 @@ namespace category
               end
 
   definition terminal_functor_op (C : Precategory)
-    : (terminal_functor C)ᵒᵖ = terminal_functor Cᵒᵖ := idp
+    : (terminal_functor C)ᵒᵖᶠ = terminal_functor Cᵒᵖ := idp
 
   definition terminal_functor_comp {C D : Precategory} (F : C ⇒ D)
     : (terminal_functor D) ∘f F = terminal_functor C := idp
 
-  definition point (C : Precategory) (c : C) : 1 ⇒ C :=
+  definition point [constructor] (C : Precategory) (c : C) : 1 ⇒ C :=
   functor.mk (λx, c)
              (λx y f, id)
              (λx, idp)
              (λx y z g f, !id_id⁻¹)
 
   -- we need id_id in the declaration of precategory to make this to hold definitionally
-  definition point_op (C : Precategory) (c : C) : (point C c)ᵒᵖ = point Cᵒᵖ c := idp
+  definition point_op (C : Precategory) (c : C) : (point C c)ᵒᵖᶠ = point Cᵒᵖ c := idp
 
   definition point_comp {C D : Precategory} (F : C ⇒ D) (c : C)
     : F ∘f point C c = point D (F c) := idp

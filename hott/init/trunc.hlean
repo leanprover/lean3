@@ -31,6 +31,7 @@ namespace is_trunc
   notation `-2` := trunc_index.minus_two
   notation `-1` := -2.+1 -- ISSUE: -1 gets printed as -2.+1
   export [coercions] nat
+  notation `ℕ₋₂` := trunc_index
 
   namespace trunc_index
   definition add (n m : trunc_index) : trunc_index :=
@@ -48,6 +49,7 @@ namespace is_trunc
   definition succ_le_succ {n m : trunc_index} (H : n ≤ m) : n.+1 ≤ m.+1 := H
   definition le_of_succ_le_succ {n m : trunc_index} (H : n.+1 ≤ m.+1) : n ≤ m := H
   definition minus_two_le (n : trunc_index) : -2 ≤ n := star
+  definition le.refl (n : trunc_index) : n ≤ n := by induction n with n IH; exact star; exact IH
   definition empty_of_succ_le_minus_two {n : trunc_index} (H : n .+1 ≤ -2) : empty := H
   end trunc_index
   definition trunc_index.of_nat [coercion] [reducible] (n : nat) : trunc_index :=
@@ -153,15 +155,15 @@ namespace is_trunc
                        (λn IH Hn, is_trunc_of_imp_is_trunc)
                        Hn H
 
-  -- the following cannot be instances in their current form, because they are looping
-  theorem is_trunc_of_is_contr (A : Type) (n : trunc_index) [H : is_contr A] : is_trunc n A :=
+  -- these must be definitions, because we need them to compute sometimes
+  definition is_trunc_of_is_contr (A : Type) (n : trunc_index) [H : is_contr A] : is_trunc n A :=
   trunc_index.rec_on n H _
 
-  theorem is_trunc_succ_of_is_hprop (A : Type) (n : trunc_index) [H : is_hprop A]
+  definition is_trunc_succ_of_is_hprop (A : Type) (n : trunc_index) [H : is_hprop A]
       : is_trunc (n.+1) A :=
   is_trunc_of_leq A (show -1 ≤ n.+1, from star)
 
-  theorem is_trunc_succ_succ_of_is_hset (A : Type) (n : trunc_index) [H : is_hset A]
+  definition is_trunc_succ_succ_of_is_hset (A : Type) (n : trunc_index) [H : is_hset A]
       : is_trunc (n.+2) A :=
   is_trunc_of_leq A (show 0 ≤ n.+2, from star)
 
@@ -308,7 +310,7 @@ namespace is_trunc
   structure trunctype (n : trunc_index) :=
   (carrier : Type) (struct : is_trunc n carrier)
   attribute trunctype.carrier [coercion]
-  attribute trunctype.struct [instance]
+  attribute trunctype.struct [instance] [priority 1400]
 
   notation n `-Type` := trunctype n
   abbreviation hprop := -1-Type
@@ -317,7 +319,7 @@ namespace is_trunc
   protected abbreviation hprop.mk := @trunctype.mk -1
   protected abbreviation hset.mk := @trunctype.mk (-1.+1)
 
-  protected abbreviation trunctype.mk' [parsing-only] (n : trunc_index) (A : Type)
+  protected abbreviation trunctype.mk' [parsing_only] (n : trunc_index) (A : Type)
     [H : is_trunc n A] : n-Type :=
   trunctype.mk A H
 

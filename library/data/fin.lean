@@ -7,6 +7,7 @@ Finite ordinal types.
 -/
 import data.list.basic data.finset.basic data.fintype.card algebra.group data.equiv
 open eq.ops nat function list finset fintype
+open algebra
 
 structure fin (n : nat) := (val : nat) (is_lt : val < n)
 
@@ -85,11 +86,19 @@ assume Pex, absurd Pmltn (not_lt_of_ge
 
 end pigeonhole
 
-definition zero (n : nat) : fin (succ n) :=
+protected definition zero (n : nat) : fin (succ n) :=
 mk 0 !zero_lt_succ
 
+definition fin_has_zero [instance] [reducible] (n : nat) : has_zero (fin (succ n)) :=
+has_zero.mk (fin.zero n)
+
+theorem val_zero (n : nat) : val (0 : fin (succ n)) = 0 := rfl
+
 definition mk_mod [reducible] (n i : nat) : fin (succ n) :=
-mk (i mod (succ n)) (mod_lt _ !zero_lt_succ)
+mk (i % (succ n)) (mod_lt _ !zero_lt_succ)
+
+theorem mk_mod_zero_eq (n : nat) : mk_mod n 0 = 0 :=
+rfl
 
 variable {n : nat}
 
@@ -99,11 +108,12 @@ theorem val_lt : ∀ i : fin n, val i < n
 lemma max_lt (i j : fin n) : max i j < n :=
 max_lt (is_lt i) (is_lt j)
 
-definition lift : fin n → Π m, fin (n + m)
+definition lift : fin n → Π m : nat, fin (n + m)
 | (mk v h) m := mk v (lt_add_of_lt_right h m)
 
 definition lift_succ (i : fin n) : fin (nat.succ n) :=
-lift i 1
+have r : fin (n+1), from lift i 1,
+r
 
 definition maxi [reducible] : fin (succ n) :=
 mk n !lt_succ_self
@@ -111,7 +121,7 @@ mk n !lt_succ_self
 theorem val_lift : ∀ (i : fin n) (m : nat), val i = val (lift i m)
 | (mk v h) m := rfl
 
-lemma mk_succ_ne_zero {i : nat} : ∀ {P}, mk (succ i) P ≠ zero n :=
+lemma mk_succ_ne_zero {i : nat} : ∀ {P}, mk (succ i) P ≠ (0 : fin (succ n)) :=
 assume P Pe, absurd (veq_of_eq Pe) !succ_ne_zero
 
 lemma mk_mod_eq {i : fin (succ n)} : i = mk_mod n i :=
@@ -122,7 +132,7 @@ begin esimp [mk_mod], congruence, exact mod_eq_of_lt Plt end
 
 section lift_lower
 
-lemma lift_zero : lift_succ (zero n) = zero (succ n) := rfl
+lemma lift_zero : lift_succ (0 : fin (succ n)) = (0 : fin (succ (succ n))) := rfl
 
 lemma ne_max_of_lt_max {i : fin (succ n)} : i < n → i ≠ maxi :=
 by intro hlt he; substvars; exact absurd hlt (lt.irrefl n)
@@ -149,7 +159,7 @@ take i j, destruct i (destruct j (take iv ilt jv jlt Pmkeq,
   begin congruence, apply fin.no_confusion Pmkeq, intros, assumption end))
 
 lemma lt_of_inj_of_max (f : fin (succ n) → fin (succ n)) :
-  injective f → (f maxi = maxi) → ∀ i, i < n → f i < n :=
+  injective f → (f maxi = maxi) → ∀ i : fin (succ n), i < n → f i < n :=
 assume Pinj Peq, take i, assume Pilt,
 assert P1 : f i = f maxi → i = maxi, from assume Peq, Pinj i maxi Peq,
 have f i ≠ maxi, from
@@ -208,12 +218,12 @@ end lift_lower
 section madd
 
 definition madd (i j : fin (succ n)) : fin (succ n) :=
-mk ((i + j) mod (succ n)) (mod_lt _ !zero_lt_succ)
+mk ((i + j) % (succ n)) (mod_lt _ !zero_lt_succ)
 
 definition minv : ∀ i : fin (succ n), fin (succ n)
-| (mk iv ilt) := mk ((succ n - iv) mod succ n) (mod_lt _ !zero_lt_succ)
+| (mk iv ilt) := mk ((succ n - iv) % succ n) (mod_lt _ !zero_lt_succ)
 
-lemma val_madd : ∀ i j : fin (succ n), val (madd i j) = (i + j) mod (succ n)
+lemma val_madd : ∀ i j : fin (succ n), val (madd i j) = (i + j) % (succ n)
 | (mk iv ilt) (mk jv jlt) := by esimp
 
 lemma madd_inj : ∀ {i : fin (succ n)}, injective (madd i)
@@ -228,29 +238,31 @@ end))
 lemma madd_mk_mod {i j : nat} : madd (mk_mod n i) (mk_mod n j) = mk_mod n (i+j) :=
 eq_of_veq begin esimp [madd, mk_mod], rewrite [ mod_add_mod, add_mod_mod ] end
 
-lemma val_mod : ∀ i : fin (succ n), (val i) mod (succ n) = val i
+lemma val_mod : ∀ i : fin (succ n), (val i) % (succ n) = val i
 | (mk iv ilt) := by esimp; rewrite [(mod_eq_of_lt ilt)]
 
 lemma madd_comm (i j : fin (succ n)) : madd i j = madd j i :=
 by apply eq_of_veq; rewrite [*val_madd, add.comm (val i)]
 
-lemma zero_madd (i : fin (succ n)) : madd (zero n) i = i :=
-by apply eq_of_veq; rewrite [val_madd, ↑zero, nat.zero_add, mod_eq_of_lt (is_lt i)]
+lemma zero_madd (i : fin (succ n)) : madd 0 i = i :=
+have H : madd (fin.zero n) i = i,
+  by apply eq_of_veq; rewrite [val_madd, ↑fin.zero, nat.zero_add, mod_eq_of_lt (is_lt i)],
+H
 
-lemma madd_zero (i : fin (succ n)) : madd i (zero n) = i :=
+lemma madd_zero (i : fin (succ n)) : madd i (fin.zero n) = i :=
 !madd_comm ▸ zero_madd i
 
 lemma madd_assoc (i j k : fin (succ n)) : madd (madd i j) k = madd i (madd j k) :=
 by apply eq_of_veq; rewrite [*val_madd, mod_add_mod, add_mod_mod, add.assoc (val i)]
 
-lemma madd_left_inv : ∀ i : fin (succ n), madd (minv i) i = zero n
+lemma madd_left_inv : ∀ i : fin (succ n), madd (minv i) i = fin.zero n
 | (mk iv ilt) := eq_of_veq (by
-  rewrite [val_madd, ↑minv, ↑zero, mod_add_mod, sub_add_cancel (le_of_lt ilt), mod_self])
+  rewrite [val_madd, ↑minv, ↑fin.zero, mod_add_mod, nat.sub_add_cancel (le_of_lt ilt), mod_self])
 
 open algebra
 
 definition madd_is_comm_group [instance] : add_comm_group (fin (succ n)) :=
-add_comm_group.mk madd madd_assoc (zero n) zero_madd madd_zero minv madd_left_inv madd_comm
+add_comm_group.mk madd madd_assoc (fin.zero n) zero_madd madd_zero minv madd_left_inv madd_comm
 
 end madd
 
@@ -260,7 +272,7 @@ definition pred : fin n → fin n
 lemma val_pred : ∀ (i : fin n), val (pred i) = nat.pred (val i)
 | (mk v h) := rfl
 
-lemma pred_zero : pred (zero n) = zero n :=
+lemma pred_zero : pred (fin.zero n) = fin.zero n :=
 rfl
 
 definition mk_pred (i : nat) (h : succ i < succ n) : fin n :=
@@ -281,7 +293,7 @@ definition elim0 {C : fin 0 → Type} : Π i : fin 0, C i
 | (mk v h) := absurd h !not_lt_zero
 
 definition zero_succ_cases {C : fin (nat.succ n) → Type} :
-  C (zero n) → (Π j : fin n, C (succ j)) → (Π k : fin (nat.succ n), C k) :=
+  C (fin.zero n) → (Π j : fin n, C (succ j)) → (Π k : fin (nat.succ n), C k) :=
 begin
   intros CO CS k,
   induction k with [vk, pk],
@@ -298,7 +310,7 @@ begin
   { show C (mk vk pk), from
     have vk = 0, from
       eq_zero_of_le_zero (le_of_not_gt HF),
-    have zero n = mk vk pk, from
+    have fin.zero n = mk vk pk, from
       val_inj (eq.symm this),
     eq.rec_on this CO }
 end
@@ -322,7 +334,7 @@ begin
 end
 
 definition foldr {A B : Type} (m : A → B → B) (b : B) : ∀ {n : nat}, (fin n → A) → B :=
-  nat.rec (λ f, b) (λ n IH f, m (f (zero n)) (IH (λ i : fin n, f (succ i))))
+  nat.rec (λ f, b) (λ n IH f, m (f (fin.zero n)) (IH (λ i : fin n, f (succ i))))
 
 definition foldl {A B : Type} (m : B → A → B) (b : B) : ∀ {n : nat}, (fin n → A) → B :=
   nat.rec (λ f, b) (λ n IH f, m (IH (λ i : fin n, f (lift_succ i))) (f maxi))
@@ -336,7 +348,7 @@ begin
     apply nonempty.intro,
     exact elim0 },
   { intros C H,
-    fapply nonempty.elim (H (zero n)),
+    fapply nonempty.elim (H (fin.zero n)),
     intro CO,
     fapply nonempty.elim (IH (λ i, C (succ i)) (λ i, H (succ i))),
     intro CS,
@@ -363,10 +375,10 @@ begin
   apply dmap_map_lift, apply @list.lt_of_mem_upto
 end
 
-definition upto_step : ∀ {n : nat}, fin.upto (n +1) = (map succ (upto n))++[zero n]
+definition upto_step : ∀ {n : nat}, fin.upto (n +1) = (map succ (upto n))++[0]
 | 0      := rfl
 | (i +1) := begin rewrite [upto_succ i, map_cons, append_cons, succ_max, upto_succ, -lift_zero],
-  congruence, rewrite [map_map, -lift_succ.comm, -map_map, -(map_singleton _ (zero i)), -map_append, -upto_step] end
+  congruence, rewrite [map_map, -lift_succ.comm, -map_map, -(map_singleton _ 0), -map_append, -upto_step] end
 end
 
 open sum equiv decidable
@@ -399,7 +411,7 @@ definition fin_sum_equiv (n m : nat) : (fin n + fin m) ≃ fin (n+m) :=
 assert aux₁ : ∀ {v}, v < m → (v + n) < (n + m), from
   take v, suppose v < m, calc
      v + n < m + n   : add_lt_add_of_lt_of_le this !le.refl
-       ... = n + m  : add.comm,
+       ... = n + m   : algebra.add.comm,
 ⦃ equiv,
   to_fun := λ s : sum (fin n) (fin m),
     match s with
@@ -408,7 +420,7 @@ assert aux₁ : ∀ {v}, v < m → (v + n) < (n + m), from
     end,
   inv_fun := λ f : fin (n + m),
     match f with
-    | mk v hlt := if h : v < n then sum.inl (mk v h) else sum.inr (mk (v-n) (sub_lt_of_lt_add hlt (le_of_not_gt h)))
+    | mk v hlt := if h : v < n then sum.inl (mk v h) else sum.inr (mk (v-n) (nat.sub_lt_of_lt_add hlt (le_of_not_gt h)))
     end,
   left_inv := begin
     intro s, cases s with f₁ f₂,
@@ -416,15 +428,15 @@ assert aux₁ : ∀ {v}, v < m → (v + n) < (n + m), from
     { cases f₂ with v hlt, esimp,
       have ¬ v + n < n, from
         suppose v + n < n,
-        assert v < n - n, from lt_sub_of_add_lt this !le.refl,
-        have v < 0, by rewrite [sub_self at this]; exact this,
+        assert v < n - n, from nat.lt_sub_of_add_lt this !le.refl,
+        have v < 0, by rewrite [nat.sub_self at this]; exact this,
         absurd this !not_lt_zero,
-      rewrite [dif_neg this], congruence, congruence, rewrite [add_sub_cancel] }
+      rewrite [dif_neg this], congruence, congruence, rewrite [nat.add_sub_cancel] }
   end,
   right_inv := begin
     intro f, cases f with v hlt, esimp, apply @by_cases (v < n),
     { intro h₁, rewrite [dif_pos h₁] },
-    { intro h₁, rewrite [dif_neg h₁], esimp, congruence, rewrite [sub_add_cancel (le_of_not_gt h₁)] }
+    { intro h₁, rewrite [dif_neg h₁], esimp, congruence, rewrite [nat.sub_add_cancel (le_of_not_gt h₁)] }
   end
 ⦄
 
@@ -434,17 +446,17 @@ assert aux₁ : ∀ {v₁ v₂}, v₁ < n → v₂ < m → v₁ + v₂ * n < n*m
   take v₁ v₂, assume h₁ h₂,
     have   nat.succ v₂ ≤ m, from succ_le_of_lt h₂,
     assert nat.succ v₂ * n ≤ m * n,       from mul_le_mul_right _ this,
-    have   v₂ * n + n ≤ n * m,            by rewrite [-add_one at this, mul.right_distrib at this, one_mul at this, mul.comm m n at this]; exact this,
+    have   v₂ * n + n ≤ n * m,            by rewrite [-add_one at this, right_distrib at this, one_mul at this, mul.comm m n at this]; exact this,
     assert v₁ + (v₂ * n + n) < n + n * m, from add_lt_add_of_lt_of_le h₁ this,
     have   v₁ + v₂ * n + n < n * m + n,   by rewrite [add.assoc, add.comm (n*m) n]; exact this,
     lt_of_add_lt_add_right this,
-assert aux₂ : ∀ v, v mod n < n, from
+assert aux₂ : ∀ v, v % n < n, from
   take v, mod_lt _ `n > 0`,
-assert aux₃ : ∀ {v}, v < n * m → v div n < m, from
-  take v, assume h, by rewrite mul.comm at h; exact div_lt_of_lt_mul h,
+assert aux₃ : ∀ {v}, v < n * m → v / n < m, from
+  take v, assume h, by rewrite mul.comm at h; exact nat.div_lt_of_lt_mul h,
 ⦃ equiv,
   to_fun   := λ p : (fin n × fin m), match p with (mk v₁ hlt₁, mk v₂ hlt₂) := mk (v₁ + v₂ * n) (aux₁ hlt₁ hlt₂) end,
-  inv_fun  := λ f : fin (n*m), match f with (mk v hlt) := (mk (v mod n) (aux₂ v), mk (v div n) (aux₃ hlt)) end,
+  inv_fun  := λ f : fin (n*m), match f with (mk v hlt) := (mk (v % n) (aux₂ v), mk (v / n) (aux₃ hlt)) end,
   left_inv := begin
     intro p, cases p with f₁ f₂, cases f₁ with v₁ hlt₁, cases f₂ with v₂ hlt₂, esimp,
     congruence,

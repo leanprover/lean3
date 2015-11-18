@@ -12,25 +12,6 @@ namespace algebra
 
 variable {A : Type}
 
-/- overloaded symbols -/
-
-structure has_le [class] (A : Type) :=
-(le : A → A → Prop)
-
-structure has_lt [class] (A : Type) :=
-(lt : A → A → Prop)
-
-infixl [priority algebra.prio] <=  := has_le.le
-infixl [priority algebra.prio] ≤   := has_le.le
-infixl [priority algebra.prio] <   := has_lt.lt
-
-definition has_le.ge [reducible] {A : Type} [s : has_le A] (a b : A) := b ≤ a
-notation [priority algebra.prio] a ≥ b := has_le.ge a b
-notation [priority algebra.prio] a >= b := has_le.ge a b
-
-definition has_lt.gt [reducible] {A : Type} [s : has_lt A] (a b : A) := b < a
-notation [priority algebra.prio] a > b := has_lt.gt a b
-
 /- weak orders -/
 
 structure weak_order [class] (A : Type) extends has_le A :=
@@ -72,6 +53,9 @@ section
 
   theorem lt.irrefl (a : A) : ¬ a < a := !strict_order.lt_irrefl
   theorem not_lt_self (a : A) : ¬ a < a := !lt.irrefl   -- alternate syntax
+
+  theorem lt_self_iff_false [simp] (a : A) : a < a ↔ false :=
+  iff_false_intro (lt.irrefl a)
 
   theorem lt.trans [trans] {a b c : A} : a < b → b < c → a < c := !strict_order.lt_trans
 
@@ -127,7 +111,7 @@ section
   private theorem lt_trans (s' : order_pair A) (a b c: A) (lt_ab : a < b) (lt_bc : b < c) : a < c :=
     lt_of_lt_of_le lt_ab (le_of_lt lt_bc)
 
-  definition order_pair.to_strict_order [trans-instance] [coercion] [reducible] : strict_order A :=
+  definition order_pair.to_strict_order [trans_instance] [reducible] : strict_order A :=
   ⦃ strict_order, s, lt_irrefl := lt_irrefl s, lt_trans := lt_trans s ⦄
 
   theorem gt_of_gt_of_ge [trans] (H1 : a > b) (H2 : b ≥ c) : a > c := lt_of_le_of_lt H2 H1
@@ -197,7 +181,7 @@ have ne_ac : a ≠ c, from
   show false, from ne_of_lt' lt_bc eq_bc,
 show a < c, from iff.mpr (lt_iff_le_and_ne) (and.intro le_ac ne_ac)
 
-definition strong_order_pair.to_order_pair [trans-instance] [coercion] [reducible]
+definition strong_order_pair.to_order_pair [trans_instance] [reducible]
     [s : strong_order_pair A] : order_pair A :=
 ⦃ order_pair, s,
   lt_irrefl := lt_irrefl',
@@ -212,7 +196,7 @@ structure linear_order_pair [class] (A : Type) extends order_pair A, linear_weak
 structure linear_strong_order_pair [class] (A : Type) extends strong_order_pair A,
     linear_weak_order A
 
-definition linear_strong_order_pair.to_linear_order_pair [trans-instance] [coercion] [reducible]
+definition linear_strong_order_pair.to_linear_order_pair [trans_instance] [reducible]
     [s : linear_strong_order_pair A] : linear_order_pair A :=
 ⦃ linear_order_pair, s, strong_order_pair.to_order_pair ⦄
 
@@ -351,6 +335,12 @@ section
     (assume H : a ≤ b, by rewrite [↑max, if_pos H]; apply H₂)
     (assume H : ¬ a ≤ b, by rewrite [↑max, if_neg H]; apply H₁)
 
+  theorem le_max_left_iff_true [simp] (a b : A) : a ≤ max a b ↔ true :=
+  iff_true_intro (le_max_left a b)
+
+  theorem le_max_right_iff_true [simp] (a b : A) : b ≤ max a b ↔ true :=
+  iff_true_intro (le_max_right a b)
+
   /- these are also proved for lattices, but with inf and sup in place of min and max -/
 
   theorem eq_min {a b c : A} (H₁ : c ≤ a) (H₂ : c ≤ b) (H₃ : ∀{d}, d ≤ a → d ≤ b → d ≤ c) :
@@ -443,18 +433,3 @@ section
 end
 
 end algebra
-
-/-
-For reference, these are all the transitivity rules defined in this file:
-calc_trans le.trans
-calc_trans lt.trans
-
-calc_trans lt_of_lt_of_le
-calc_trans lt_of_le_of_lt
-
-calc_trans ge.trans
-calc_trans gt.trans
-
-calc_trans gt_of_gt_of_ge
-calc_trans gt_of_ge_of_gt
--/

@@ -7,6 +7,7 @@ Binomial coefficients, "n choose k".
 -/
 import data.nat.div data.nat.fact data.finset
 open decidable
+open algebra
 
 namespace nat
 
@@ -57,6 +58,7 @@ theorem choose_one_right (n : ℕ) : choose n 1 = n :=
 begin
   induction n with [n, ih],
     {apply rfl},
+  change choose (succ n) (succ 0) = succ n,
   rewrite [choose_succ_succ, ih, choose_zero_right]
 end
 
@@ -83,12 +85,12 @@ begin
       cases k with k',
         {rewrite [*choose_self, one_mul, mul_one]},
         {have H : 1 < succ (succ k'), from succ_lt_succ !zero_lt_succ,
-          rewrite [one_mul, choose_zero_succ, choose_eq_zero_of_lt H, zero_mul]}},
+         krewrite [one_mul, choose_zero_succ, choose_eq_zero_of_lt H, zero_mul]}},
   intro k,
   cases k with k',
     {rewrite [choose_zero_right, choose_one_right]},
-  rewrite [choose_succ_succ (succ n), mul.right_distrib, -ih (succ k')],
-  rewrite [choose_succ_succ at {1}, mul.left_distrib, *succ_mul (succ n), mul_succ, -ih k'],
+  rewrite [choose_succ_succ (succ n), right_distrib, -ih (succ k')],
+  rewrite [choose_succ_succ at {1}, left_distrib, *succ_mul (succ n), mul_succ, -ih k'],
   rewrite [*add.assoc, add.left_comm (choose n _)]
 end
 
@@ -110,8 +112,8 @@ begin
   end
 end
 
-theorem choose_def_alt {n k : ℕ} (H : k ≤ n) : choose n k = fact n div (fact k * fact (n -k)) :=
-eq.symm (div_eq_of_eq_mul_left (mul_pos !fact_pos !fact_pos)
+theorem choose_def_alt {n k : ℕ} (H : k ≤ n) : choose n k = fact n / (fact k * fact (n -k)) :=
+eq.symm (nat.div_eq_of_eq_mul_left (mul_pos !fact_pos !fact_pos)
     (by rewrite [-mul.assoc, choose_mul_fact_mul_fact H]))
 
 theorem fact_mul_fact_dvd_fact {n k : ℕ} (H : k ≤ n) : fact k * fact (n - k) ∣ fact n :=

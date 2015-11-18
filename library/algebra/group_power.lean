@@ -13,22 +13,36 @@ Note: power adopts the convention that 0^0=1.
 -/
 import data.nat.basic data.int.basic
 
-namespace algebra
-
 variables {A : Type}
 
-/- monoid -/
+structure has_pow_nat [class] (A : Type) :=
+(pow_nat : A → nat → A)
 
+definition pow_nat {A : Type} [s : has_pow_nat A] : A → nat → A :=
+has_pow_nat.pow_nat
+
+infix ` ^ ` := pow_nat
+
+structure has_pow_int [class] (A : Type) :=
+(pow_int : A → int → A)
+
+definition pow_int {A : Type} [s : has_pow_int A] : A → int → A :=
+has_pow_int.pow_int
+
+namespace algebra
+ /- monoid -/
 section monoid
 open nat
+
 variable [s : monoid A]
 include s
 
-definition pow (a : A) : ℕ → A
+definition monoid.pow (a : A) : ℕ → A
 | 0     := 1
-| (n+1) := a * pow n
+| (n+1) := a * monoid.pow n
 
-infix [priority algebra.prio] ` ^ ` := pow
+definition monoid_has_pow_nat [reducible] [instance] : has_pow_nat A :=
+has_pow_nat.mk monoid.pow
 
 theorem pow_zero (a : A) : a^0 = 1 := rfl
 theorem pow_succ (a : A) (n : ℕ) : a^(succ n) = a * a^n := rfl
@@ -67,7 +81,7 @@ theorem pow_mul (a : A) (m : ℕ) : ∀ n, a^(m * n) = (a^m)^n
 | (succ n) := by rewrite [nat.mul_succ, pow_add, pow_succ', pow_mul]
 
 theorem pow_comm (a : A) (m n : ℕ)  : a^m * a^n = a^n * a^m :=
-by rewrite [-*pow_add, nat.add.comm]
+by rewrite [-*pow_add, add.comm]
 
 end monoid
 
@@ -113,31 +127,33 @@ definition gpow (a : A) : ℤ → A
 | (of_nat n) := a^n
 | -[1+n]     := (a^(nat.succ n))⁻¹
 
+open nat
+
 private lemma gpow_add_aux (a : A) (m n : nat) :
   gpow a ((of_nat m) + -[1+n]) = gpow a (of_nat m) * gpow a (-[1+n]) :=
 or.elim (nat.lt_or_ge m (nat.succ n))
-  (assume H : (#nat m < nat.succ n),
+  (assume H : (m < nat.succ n),
     assert H1 : (#nat nat.succ n - m > nat.zero), from nat.sub_pos_of_lt H,
     calc
       gpow a ((of_nat m) + -[1+n]) = gpow a (sub_nat_nat m (nat.succ n))  : rfl
         ... = gpow a (-[1+ nat.pred (nat.sub (nat.succ n) m)])            : {sub_nat_nat_of_lt H}
-        ... = (pow a (nat.succ (nat.pred (nat.sub (nat.succ n) m))))⁻¹    : rfl
-        ... = (pow a (nat.succ n) * (pow a m)⁻¹)⁻¹                        :
-                by rewrite [nat.succ_pred_of_pos H1, pow_sub a (nat.le_of_lt H)]
-        ... = pow a m * (pow a (nat.succ n))⁻¹                            :
+        ... = (a ^ (nat.succ (nat.pred (nat.sub (nat.succ n) m))))⁻¹    : rfl
+        ... = (a ^ (nat.succ n) * (a ^ m)⁻¹)⁻¹                        :
+                by krewrite [succ_pred_of_pos H1, pow_sub a (nat.le_of_lt H)]
+        ... = a ^ m * (a ^ (nat.succ n))⁻¹                            :
                 by rewrite [mul_inv, inv_inv]
         ... = gpow a (of_nat m) * gpow a (-[1+n])                         : rfl)
-  (assume H : (#nat m ≥ nat.succ n),
+  (assume H : (m ≥ nat.succ n),
     calc
       gpow a ((of_nat m) + -[1+n]) = gpow a (sub_nat_nat m (nat.succ n))  : rfl
         ... = gpow a (#nat m - nat.succ n)                                : {sub_nat_nat_of_ge H}
-        ... = pow a m * (pow a (nat.succ n))⁻¹                            : pow_sub a H
+        ... = a ^ m * (a ^ (nat.succ n))⁻¹                                : pow_sub a H
         ... = gpow a (of_nat m) * gpow a (-[1+n])                         : rfl)
 
 theorem gpow_add (a : A) : ∀i j : int, gpow a (i + j) = gpow a i * gpow a j
 | (of_nat m) (of_nat n) := !pow_add
 | (of_nat m) -[1+n]     := !gpow_add_aux
-| -[1+m]     (of_nat n) := by rewrite [int.add.comm, gpow_add_aux, ↑gpow, -*inv_pow, pow_inv_comm]
+| -[1+m]     (of_nat n) := by rewrite [add.comm, gpow_add_aux, ↑gpow, -*inv_pow, pow_inv_comm]
 | -[1+m]     -[1+n]     :=
   calc
     gpow a (-[1+m] + -[1+n]) = (a^(#nat nat.succ m + nat.succ n))⁻¹ : rfl
@@ -145,7 +161,7 @@ theorem gpow_add (a : A) : ∀i j : int, gpow a (i + j) = gpow a i * gpow a j
       ... = gpow a (-[1+m]) * gpow a (-[1+n])       : rfl
 
 theorem gpow_comm (a : A) (i j : ℤ) : gpow a i * gpow a j = gpow a j * gpow a i :=
-by rewrite [-*gpow_add, int.add.comm]
+by rewrite [-*gpow_add, add.comm]
 end group
 
 section ordered_ring
@@ -153,7 +169,7 @@ open nat
 variable [s : linear_ordered_ring A]
 include s
 
-theorem pow_pos {a : A} (H : a > 0) (n : ℕ) : pow a n > 0 :=
+theorem pow_pos {a : A} (H : a > 0) (n : ℕ) : a ^ n > 0 :=
   begin
     induction n,
     rewrite pow_zero,
@@ -163,22 +179,20 @@ theorem pow_pos {a : A} (H : a > 0) (n : ℕ) : pow a n > 0 :=
     apply v_0, apply H
   end
 
-theorem pow_ge_one_of_ge_one {a : A} (H : a ≥ 1) (n : ℕ) : pow a n ≥ 1 :=
+theorem pow_ge_one_of_ge_one {a : A} (H : a ≥ 1) (n : ℕ) : a ^ n ≥ 1 :=
   begin
     induction n,
     rewrite pow_zero,
     apply le.refl,
-    rewrite [pow_succ', -{1}mul_one],
+    rewrite [pow_succ', -mul_one 1],
     apply mul_le_mul v_0 H zero_le_one,
     apply le_of_lt,
     apply pow_pos,
     apply gt_of_ge_of_gt H zero_lt_one
   end
 
-local notation 2 := (1 : A) + 1
-
-theorem pow_two_add (n : ℕ) : pow 2 n + pow 2 n = pow 2 (succ n) :=
-  by rewrite [pow_succ', left_distrib, *mul_one]
+theorem pow_two_add (n : ℕ) : (2:A)^n + 2^n = 2^(succ n) :=
+  by rewrite [pow_succ', -one_add_one_eq_two, left_distrib, *mul_one]
 
 end ordered_ring
 
@@ -187,10 +201,10 @@ end ordered_ring
 section add_monoid
 variable [s : add_monoid A]
 include s
-local attribute add_monoid.to_monoid [trans-instance]
+local attribute add_monoid.to_monoid [trans_instance]
 open nat
 
-definition nmul : ℕ → A → A := λ n a, pow a n
+definition nmul : ℕ → A → A := λ n a, a^n
 
 infix [priority algebra.prio] `⬝` := nmul
 
@@ -205,7 +219,7 @@ theorem one_nmul (a : A) : 1 ⬝ a = a := pow_one a
 
 theorem add_nmul (m n : ℕ) (a : A) : (m + n) ⬝ a = (m ⬝ a) + (n ⬝ a) := pow_add a m n
 
-theorem mul_nmul (m n : ℕ) (a : A) : (m * n) ⬝ a = m ⬝ (n ⬝ a) := eq.subst (nat.mul.comm n m) (pow_mul a n m)
+theorem mul_nmul (m n : ℕ) (a : A) : (m * n) ⬝ a = m ⬝ (n ⬝ a) := eq.subst (mul.comm n m) (pow_mul a n m)
 
 theorem nmul_comm (m n : ℕ) (a : A) : (m ⬝ a) + (n ⬝ a) = (n ⬝ a) + (m ⬝ a) := pow_comm a m n
 
@@ -217,7 +231,7 @@ section add_comm_monoid
 open nat
 variable [s : add_comm_monoid A]
 include s
-local attribute add_comm_monoid.to_comm_monoid [trans-instance]
+local attribute add_comm_monoid.to_comm_monoid [trans_instance]
 
 theorem nmul_add (n : ℕ) (a b : A) : n ⬝ (a + b) = (n ⬝ a) + (n ⬝ b) := mul_pow a b n
 
@@ -226,7 +240,7 @@ end add_comm_monoid
 section add_group
 variable [s : add_group A]
 include s
-local attribute add_group.to_group [trans-instance]
+local attribute add_group.to_group [trans_instance]
 
 section nat
 open nat

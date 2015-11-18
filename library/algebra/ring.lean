@@ -48,6 +48,9 @@ section semiring
   variables [s : semiring A] (a b c : A)
   include s
 
+  theorem one_add_one_eq_two : 1 + 1 = (2:A) :=
+  by unfold bit0
+
   theorem ne_zero_of_mul_ne_zero_right {a b : A} (H : a * b ≠ 0) : a ≠ 0 :=
   suppose a = 0,
   have a * b = 0, from this⁻¹ ▸ zero_mul b,
@@ -72,8 +75,10 @@ section comm_semiring
   variables [s : comm_semiring A] (a b c : A)
   include s
 
-  definition dvd (a b : A) : Prop := ∃c, b = a * c
-  notation [priority algebra.prio] a ∣ b := dvd a b
+  protected definition dvd (a b : A) : Prop := ∃c, b = a * c
+
+  definition comm_semiring_has_dvd [reducible] [instance] [priority algebra.prio] : has_dvd A :=
+  has_dvd.mk algebra.dvd
 
   theorem dvd.intro {a b c : A} (H : a * c = b) : a ∣ b :=
   exists.intro _ H⁻¹
@@ -169,7 +174,7 @@ have 0 * a + 0 = 0 * a + 0 * a, from calc
         ... = 0 * a + 0 * a : by rewrite {_*a}ring.right_distrib,
 show 0 * a = 0, from  (add.left_cancel this)⁻¹
 
-definition ring.to_semiring [trans-instance] [coercion] [reducible] [s : ring A] : semiring A :=
+definition ring.to_semiring [trans_instance] [reducible] [s : ring A] : semiring A :=
 ⦃ semiring, s,
   mul_zero := ring.mul_zero,
   zero_mul := ring.zero_mul ⦄
@@ -254,7 +259,7 @@ end
 
 structure comm_ring [class] (A : Type) extends ring A, comm_semigroup A
 
-definition comm_ring.to_comm_semiring [trans-instance] [coercion] [reducible] [s : comm_ring A] : comm_semiring A :=
+definition comm_ring.to_comm_semiring [trans_instance] [reducible] [s : comm_ring A] : comm_semiring A :=
 ⦃ comm_semiring, s,
   mul_zero := mul_zero,
   zero_mul := zero_mul ⦄

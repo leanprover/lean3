@@ -8,34 +8,39 @@ Author: Leonardo de Moura
 #include "kernel/environment.h"
 
 namespace lean {
-/**
-   \brief Return true iff the environment \c env contains the following declarations
-   in the namespace 'num'
-       one   : pos_num
-       bit0  : pos_num -> pos_num
-       bit1  : pos_num -> pos_num
-       zero  : num
-       pos   : pos_num -> num
-*/
+/** \brief Return true iff the given environment contains the declarations needed to encode numerals:
+    zero, one, bit0, bit1 */
 bool has_num_decls(environment const & env);
 
-/**
-    \brief Return an expression that encodes the given numeral in binary using
-    the declarations one, bit0, bit1, zero, pos.
+bool is_const_app(expr const &, name const &, unsigned);
 
-    \see has_num_decls
+/** \brief Return true iff the given expression encodes a numeral. */
+bool is_num(expr const & e);
 
-    \pre n >= 0
-    \post *to_num(from_num(n)) == n
-*/
-expr from_num(mpz const & n);
+bool is_zero(expr const & e);
+bool is_one(expr const & e);
+optional<expr> is_bit0(expr const & e);
+optional<expr> is_bit1(expr const & e);
 
-/**
-   \brief If the given expression encodes a numeral, then convert it back to mpz numeral.
+/** \brief Return true iff \c n is zero, one, bit0 or bit1 */
+bool is_numeral_const_name(name const & n);
 
-   \see from_num
-*/
+/** Unfold \c e it is is_zero, is_one, is_bit0 or is_bit1 application */
+optional<expr> unfold_num_app(environment const & env, expr const & e);
+
+/** \brief If the given expression encodes a numeral, then convert it back to mpz numeral.
+    \see from_num */
 optional<mpz> to_num(expr const & e);
+
+/** \brief If the given expression is a numeral encode the num and pos_num types, return the encoded numeral */
+optional<mpz> to_num_core(expr const & e);
+
+/** \brief Return true iff n is zero/one/has_zero.zero/has_one.one.
+    These constants are used to encode numerals, and some tactics may have to treat them in a special way.
+
+    \remark This kind of hard-coded solution is not ideal. One alternative solution is to have yet another
+    annotation to let user mark constants that should be treated in a different way by some tactics. */
+bool is_num_leaf_constant(name const & n);
 
 void initialize_num();
 void finalize_num();

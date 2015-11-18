@@ -322,9 +322,9 @@ inline expr cache(expr const & e) {
     return e;
 }
 bool enable_expr_caching(bool f) {
-    bool r1 = enable_level_caching(f);
+    DEBUG_CODE(bool r1 =) enable_level_caching(f);
     bool r2 = g_expr_cache_enabled;
-    lean_verify(r1 == r2);
+    lean_assert(r1 == r2);
     expr_cache new_cache;
     get_expr_cache().swap(new_cache);
     if (f) {
@@ -404,6 +404,12 @@ expr mk_app(expr const & f, unsigned num_args, expr const * args, tag g) {
 expr mk_app(unsigned num_args, expr const * args, tag g) {
     lean_assert(num_args >= 2);
     return mk_app(mk_app(args[0], args[1], g), num_args - 2, args+2, g);
+}
+
+expr mk_app(expr const & f, list<expr> const & args, tag g) {
+    buffer<expr> _args;
+    to_buffer(args, _args);
+    return mk_app(f, _args, g);
 }
 
 expr mk_rev_app(expr const & f, unsigned num_args, expr const * args, tag g) {
@@ -661,7 +667,7 @@ unsigned hash_bi(expr const & e) {
 }
 
 void initialize_expr() {
-    g_dummy        = new expr(mk_var(0));
+    g_dummy        = new expr(mk_constant("__expr_for_default_constructor__"));
     g_default_name = new name("a");
     g_Type1        = new expr(mk_sort(mk_level_one()));
     g_Prop         = new expr(mk_sort(mk_level_zero()));

@@ -1,6 +1,6 @@
 if(${EMSCRIPTEN})
-  add_executable(lean.js lean.cpp emscripten.cpp)
-  target_link_libraries(lean.js leanstatic ${EXTRA_LIBS} "--embed-file library --memory-init-file 0")
+  add_executable(lean.js lean.cpp emscripten.cpp ${LEAN_OBJS})
+  target_link_libraries(lean.js ${EXTRA_LIBS} "--embed-file library --memory-init-file 0")
 else()
   add_executable(lean lean.cpp emscripten.cpp)
   target_link_libraries(lean leanstatic ${EXTRA_LIBS})
@@ -43,9 +43,6 @@ add_test(NAME "lean_eqn_macro"
 add_test(NAME "lean_print_notation"
          WORKING_DIRECTORY "${LEAN_SOURCE_DIR}/../tests/lean/extra"
          COMMAND bash "./test_single.sh" "${CMAKE_CURRENT_BINARY_DIR}/lean" "print_tests.lean")
-add_test(NAME "auto_completion_issue_422"
-         WORKING_DIRECTORY "${LEAN_SOURCE_DIR}/../tests/lean/extra"
-         COMMAND bash "./ac_bug.sh" "${CMAKE_CURRENT_BINARY_DIR}/lean")
 add_test(NAME "issue_597"
          WORKING_DIRECTORY "${LEAN_SOURCE_DIR}/../tests/lean/extra"
          COMMAND bash "./issue_597.sh" "${CMAKE_CURRENT_BINARY_DIR}/lean")

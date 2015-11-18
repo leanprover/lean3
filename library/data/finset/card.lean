@@ -7,6 +7,7 @@ Cardinality calculations for finite sets.
 -/
 import .to_set .bigops data.set.function data.nat.power data.nat.bigops
 open nat nat.finset eq.ops
+open algebra
 
 namespace finset
 
@@ -42,7 +43,7 @@ end
 
 theorem card_union (s₁ s₂ : finset A) : card (s₁ ∪ s₂) = card s₁ + card s₂ - card (s₁ ∩ s₂) :=
 calc
-  card (s₁ ∪ s₂) = card (s₁ ∪ s₂) + card (s₁ ∩ s₂) - card (s₁ ∩ s₂) : add_sub_cancel
+  card (s₁ ∪ s₂) = card (s₁ ∪ s₂) + card (s₁ ∩ s₂) - card (s₁ ∩ s₂) : nat.add_sub_cancel
              ... = card s₁ + card s₂ - card (s₁ ∩ s₂)               : card_add_card
 
 theorem card_union_of_disjoint {s₁ s₂ : finset A} (H : s₁ ∩ s₂ = ∅) :
@@ -130,7 +131,7 @@ finset.induction_on s
         (assume Hnfa : f a ∉ image f s',
            have H2 : card (image f s') + 1 = card s' + 1,
              by rewrite [card_insert_of_not_mem Hnfa at H1]; assumption,
-           have H3 : card (image f s') = card s', from add.cancel_right H2,
+           have H3 : card (image f s') = card s', from add.right_cancel H2,
            have injf : inj_on f (ts s'), from IH H3,
            show inj_on f (set.insert a (ts s')), from
              take x1 x2,
@@ -190,7 +191,7 @@ begin
   induction s with a s' H IH,
     rewrite [Sum_empty, card_empty, zero_mul],
     rewrite [Sum_insert_of_not_mem _ H, IH, card_insert_of_not_mem H, add.comm,
-             mul.right_distrib, one_mul]
+             right_distrib, one_mul]
 end
 
 theorem Sum_one_eq_card (s : finset A) : (∑ x ∈ s, (1 : nat)) = card s :=

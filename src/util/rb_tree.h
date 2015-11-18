@@ -313,6 +313,10 @@ public:
     rb_tree(CMP const & cmp = CMP()):CMP(cmp) {}
     rb_tree(rb_tree const & s):CMP(s), m_root(s.m_root) {}
     rb_tree(rb_tree && s):CMP(s), m_root(s.m_root) {}
+    rb_tree(buffer<T> const & s) {
+        for (auto const & v : s)
+            insert(v);
+    }
 
     rb_tree & operator=(rb_tree const & s) { m_root = s.m_root; return *this; }
     rb_tree & operator=(rb_tree && s) { m_root = s.m_root; return *this; }
@@ -414,5 +418,8 @@ struct unsigned_cmp {
 };
 struct int_cmp {
     int operator()(int i1, int i2) const { return i1 < i2 ? -1 : (i1 == i2 ? 0 : 1); }
+};
+struct double_cmp {
+    int operator()(double i1, double i2) const { return i1 < i2 ? -1 : (i1 > i2 ? 1 : 0); }
 };
 }

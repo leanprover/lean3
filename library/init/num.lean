@@ -12,37 +12,11 @@ definition pos_num.is_inhabited [instance] : inhabited pos_num :=
 inhabited.mk pos_num.one
 
 namespace pos_num
-  definition is_one (a : pos_num) : bool :=
-  pos_num.rec_on a tt (λn r, ff) (λn r, ff)
-
-  definition pred (a : pos_num) : pos_num :=
-  pos_num.rec_on a one (λn r, bit0 n) (λn r, cond (is_one n) one (bit1 r))
-
-  definition size (a : pos_num) : pos_num :=
-  pos_num.rec_on a one (λn r, succ r) (λn r, succ r)
-
-  definition add (a b : pos_num) : pos_num :=
-  pos_num.rec_on a
-    succ
-    (λn f b, pos_num.rec_on b
-      (succ (bit1 n))
-      (λm r, succ (bit1 (f m)))
-      (λm r, bit1 (f m)))
-    (λn f b, pos_num.rec_on b
-      (bit1 n)
-      (λm r, bit1 (f m))
-      (λm r, bit0 (f m)))
-    b
-
-  notation a + b := add a b
-
-  definition mul (a b : pos_num) : pos_num :=
+  protected definition mul (a b : pos_num) : pos_num :=
   pos_num.rec_on a
     b
     (λn r, bit0 r + b)
     (λn r, bit0 r)
-
-  notation a * b := mul a b
 
   definition lt (a b : pos_num) : bool :=
   pos_num.rec_on a
@@ -61,8 +35,11 @@ namespace pos_num
     b
 
   definition le (a b : pos_num) : bool :=
-  lt a (succ b)
+  pos_num.lt a (succ b)
 end pos_num
+
+definition pos_num_has_mul [instance] [reducible] : has_mul pos_num :=
+has_mul.mk pos_num.mul
 
 definition num.is_inhabited [instance] : inhabited num :=
 inhabited.mk num.zero
@@ -76,16 +53,15 @@ namespace num
   definition size (a : num) : num :=
   num.rec_on a (pos one) (λp, pos (size p))
 
-  definition add (a b : num) : num :=
-  num.rec_on a b (λpa, num.rec_on b (pos pa) (λpb, pos (pos_num.add pa pb)))
-
-  definition mul (a b : num) : num :=
+  protected definition mul (a b : num) : num :=
   num.rec_on a zero (λpa, num.rec_on b zero (λpb, pos (pos_num.mul pa pb)))
+end num
 
-  notation a + b := add a b
-  notation a * b := mul a b
+definition num_has_mul [instance] [reducible] : has_mul num :=
+has_mul.mk num.mul
 
-  definition le (a b : num) : bool :=
+namespace num
+  protected definition le (a b : num) : bool :=
   num.rec_on a tt (λpa, num.rec_on b ff (λpb, pos_num.le pa pb))
 
   private definition psub (a b : pos_num) : num :=
@@ -107,24 +83,9 @@ namespace num
            (λm, 2 * f m)))
     b
 
-  definition sub (a b : num) : num :=
+  protected definition sub (a b : num) : num :=
   num.rec_on a zero (λpa, num.rec_on b a (λpb, psub pa pb))
-
-  notation a ≤ b := le a b
-  notation a - b := sub a b
 end num
 
--- the coercion from num to nat is defined here,
--- so that it can already be used in init.tactic
-namespace nat
-
-  definition add (a b : nat) : nat :=
-  nat.rec_on b a (λ b₁ r, succ r)
-
-  notation a + b := add a b
-
-  definition of_num [coercion] (n : num) : nat :=
-  num.rec zero
-    (λ n, pos_num.rec (succ zero) (λ n r, r + r + (succ zero)) (λ n r, r + r) n) n
-end nat
-attribute nat.of_num [reducible] -- of_num is also reducible if namespace "nat" is not opened
+definition num_has_sub [instance] [reducible] : has_sub num :=
+has_sub.mk num.sub

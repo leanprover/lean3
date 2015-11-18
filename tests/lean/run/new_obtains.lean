@@ -1,4 +1,5 @@
 import data.nat
+open algebra
 
 theorem tst2 (A B C D : Type) : (A × B) × (C × D) → C × B × A :=
 assume p : (A × B) × (C × D),
@@ -62,15 +63,5 @@ obtain y (Hy : b = 2*y), from H₂,
 exists.intro
   (x+y)
   (calc a+b = 2*x + 2*y : by rewrite [Hx, Hy]
-        ... = 2*(x+y)   : by rewrite mul.left_distrib)
-
-theorem dvd_of_dvd_add_left {m n₁ n₂ : ℕ} (H₁ : m ∣ n₁ + n₂) (H₂ : m ∣ n₁) : m ∣ n₂ :=
-obtain (c₁ : nat) (Hc₁ : n₁ + n₂ = m * c₁), from H₁,
-obtain (c₂ : nat) (Hc₂ : n₁ = m * c₂), from H₂,
-have   aux : m * (c₁ - c₂) = n₂, from calc
-  m * (c₁ - c₂) = m * c₁  - m * c₂ : by rewrite mul_sub_left_distrib
-           ...  = n₁ + n₂ - m * c₂ : Hc₁
-           ...  = n₁ + n₂ - n₁     : Hc₂
-           ...  = n₂               : add_sub_cancel_left,
-dvd.intro aux
+        ... = 2*(x+y)   : by rewrite left_distrib)
 end hidden

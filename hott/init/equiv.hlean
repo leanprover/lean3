@@ -32,7 +32,7 @@ namespace is_equiv
   /- Some instances and closure properties of equivalences -/
   postfix ⁻¹ := inv
   /- a second notation for the inverse, which is not overloaded -/
-  postfix [parsing-only] `⁻¹ᶠ`:std.prec.max_plus := inv
+  postfix [parsing_only] `⁻¹ᶠ`:std.prec.max_plus := inv
 
   section
   variables {A B C : Type} (f : A → B) (g : B → C) {f' : A → B}
@@ -41,7 +41,7 @@ namespace is_equiv
   protected abbreviation mk [constructor] := @is_equiv.mk' A B f
 
   -- The identity function is an equivalence.
-  definition is_equiv_id (A : Type) : (is_equiv (id : A → A)) :=
+  definition is_equiv_id [instance] (A : Type) : (is_equiv (id : A → A)) :=
   is_equiv.mk id id (λa, idp) (λa, idp) (λa, idp)
 
   -- The composition of two equivalences is, again, an equivalence.
@@ -218,7 +218,7 @@ namespace is_equiv
   end
 
   --Transporting is an equivalence
-  definition is_equiv_tr [instance] [constructor] {A : Type} (P : A → Type) {x y : A}
+  definition is_equiv_tr [constructor] {A : Type} (P : A → Type) {x y : A}
     (p : x = y) : (is_equiv (transport P p)) :=
   is_equiv.mk _ (transport P p⁻¹) (tr_inv_tr p) (inv_tr_tr p) (tr_inv_tr_lemma p)
 
@@ -245,6 +245,8 @@ end is_equiv
 open is_equiv
 
 namespace eq
+  local attribute is_equiv_tr [instance]
+
   definition tr_inv_fn {A : Type} {B : A → Type} {a a' : A} (p : a = a') :
     transport B p⁻¹ = (transport B p)⁻¹ := idp
   definition tr_inv {A : Type} {B : A → Type} {a a' : A} (p : a = a') (b : B a') :
@@ -285,12 +287,12 @@ namespace equiv
   protected definition trans [trans] (f : A ≃ B) (g : B ≃ C) : A ≃ C :=
   equiv.mk (g ∘ f) !is_equiv_compose
 
-  infixl `⬝e`:75 := equiv.trans
-  postfix [parsing-only] `⁻¹ᵉ`:(max + 1) := equiv.symm
+  infixl ` ⬝e `:75 := equiv.trans
+  postfix [parsing_only] `⁻¹ᵉ`:(max + 1) := equiv.symm
     -- notation for inverse which is not overloaded
   abbreviation erfl [constructor] := @equiv.refl
 
-  definition to_inv_trans [reducible] [unfold-full] (f : A ≃ B) (g : B ≃ C)
+  definition to_inv_trans [reducible] [unfold_full] (f : A ≃ B) (g : B ≃ C)
     : to_inv (f ⬝e g) = to_fun (g⁻¹ᵉ ⬝e f⁻¹ᵉ) :=
   idp
 
@@ -371,4 +373,5 @@ namespace is_equiv
 
 end is_equiv
 
-export [unfold-hints] equiv [unfold-hints] is_equiv
+export [unfold_hints] equiv
+export [unfold_hints] is_equiv

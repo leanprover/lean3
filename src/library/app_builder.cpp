@@ -8,300 +8,687 @@ Author: Leonardo de Moura
 #include "util/name_map.h"
 #include "kernel/instantiate.h"
 #include "library/match.h"
+#include "library/constants.h"
 #include "library/app_builder.h"
 #include "library/kernel_bindings.h"
+#include "library/tmp_type_context.h"
+#include "library/relation_manager.h"
 
 namespace lean {
-
 struct app_builder::imp {
-    // For each declaration we associate the number of explicit arguments provided to
-    // it, and which of them are used to infer the implicit arguments.
-    struct decl_info {
-        unsigned       m_nargs; // total number of explicit arguments
-        list<unsigned> m_used_idxs; // which ones are used to infer implicit arguments
-        decl_info(unsigned nargs, list<unsigned> const & used_idxs):
-            m_nargs(nargs), m_used_idxs(used_idxs) {}
-        decl_info() {}
+    tmp_type_context * m_ctx;
+    bool               m_ctx_owner;
+
+    struct entry {
+        unsigned             m_num_umeta;
+        unsigned             m_num_emeta;
+        expr                 m_app;
+        list<optional<expr>> m_inst_args; // "mask" of implicit instance arguments
+        list<expr>           m_expl_args; // metavars for explicit arguments
+
+        /*
+          IMPORTANT: for m_inst_args we store the arguments in reverse order.
+          For example, the first element in the list indicates whether the last argument
+          is an instance implicit argument or not. If it is not none, then the element
+          is the associated metavariable
+
+          m_expl_args are also stored in reverse order
+        */
     };
 
-    struct cache_key {
-        name         m_name;
-        list<expr>   m_arg_types;
-        unsigned     m_hash;
-        cache_key(name const & n, unsigned num_arg_types, expr const * arg_types):
-            m_name(n), m_arg_types(to_list(arg_types, arg_types + num_arg_types)) {
-            m_hash      = m_name.hash();
-            for (unsigned i = 0; i < num_arg_types; i++)
-                m_hash  = hash(m_hash, arg_types[i].hash());
+    struct key {
+        name       m_name;
+        unsigned   m_num_expl;
+        unsigned   m_hash;
+        // If nil, then the mask is composed of the last m_num_expl arguments.
+        // If nonnil, then the mask is NOT of the form [false*, true*]
+        list<bool> m_mask;
+
+        template<typename It>
+        static bool is_simple(It const & begin, It const & end) {
+            bool found_true = false;
+            for (auto it = begin; it != end; ++it) {
+                auto b = *it;
+                if (b) {
+                    found_true = true;
+                } else if (found_true) {
+                    // found (true, false)
+                    return false;
+                }
+            }
+            return true;
+        }
+
+        static bool is_simple(list<bool> const & mask) {
+            return is_simple(mask.begin(), mask.end());
+        }
+
+        key(name const & c, unsigned n):
+            m_name(c), m_num_expl(n),
+            m_hash(::lean::hash(c.hash(), n)) {
+        }
+
+        key(name const & c, list<bool> const & m):
+            m_name(c), m_num_expl(length(m)) {
+            m_hash = ::lean::hash(c.hash(), m_num_expl);
+            if (!is_simple(m)) {
+                m_mask = m;
+                for (bool b : m) {
+                    if (b)
+                        m_hash = ::lean::hash(m_hash, 17u);
+                    else
+                        m_hash = ::lean::hash(m_hash, 31u);
+                }
+            }
+        }
+
+        bool check_invariant() const {
+            lean_assert(empty(m_mask) || length(m_mask) == m_num_expl);
+            lean_assert(empty(m_mask) || !is_simple(m_mask));
+            return true;
+        }
+
+        unsigned hash() const {
+            return m_hash;
+        }
+
+        friend bool operator==(key const & k1, key const & k2) {
+            return k1.m_name == k2.m_name && k1.m_num_expl == k2.m_num_expl && k1.m_mask == k2.m_mask;
         }
     };
-    struct cache_key_hash_fn {
-        unsigned operator()(cache_key const & e) const { return e.m_hash; }
-    };
-    struct cache_key_equal_fn {
-        bool operator()(cache_key const & e1, cache_key const & e2) const {
-            return
-                e1.m_name == e2.m_name &&
-                e1.m_arg_types == e2.m_arg_types;
-        }
+
+    struct key_hash_fn {
+        unsigned operator()(key const & k) const { return k.hash(); }
     };
 
-    // The cache stores a mapping (decl + type of explicit arguments ==> term t).
-    // If t is closed term, then we obtain the final application by using
-    //       mk_app(t, explicit_args)
-    // If t contains free variables, then we obtain the final application by using
-    //       instantiate(t, explicit_args)
-    typedef scoped_map<cache_key, expr, cache_key_hash_fn, cache_key_equal_fn> cache;
+    typedef std::unordered_map<key, entry, key_hash_fn> map;
 
-    type_checker &      m_tc;
-    whnf_match_plugin   m_plugin;
-    name_map<decl_info> m_decl_info;
-    cache               m_cache;
-    buffer<levels>      m_levels;
+    map               m_map;
+    relation_info_getter m_rel_getter;
+    refl_info_getter     m_refl_getter;
+    symm_info_getter     m_symm_getter;
+    trans_info_getter    m_trans_getter;
 
-    imp(type_checker & tc):m_tc(tc), m_plugin(tc) {
-        m_levels.push_back(levels());
+    imp(tmp_type_context & ctx, bool owner):
+        m_ctx(&ctx),
+        m_ctx_owner(owner),
+        m_rel_getter(mk_relation_info_getter(m_ctx->env())),
+        m_refl_getter(mk_refl_info_getter(m_ctx->env())),
+        m_symm_getter(mk_symm_info_getter(m_ctx->env())),
+        m_trans_getter(mk_trans_info_getter(m_ctx->env())) {
     }
 
-    // Make sure m_levels contains at least nlvls metavariable universe levels
-    void ensure_levels(unsigned nlvls) {
-        while (m_levels.size() <= nlvls) {
-            level new_lvl   = mk_idx_metauniv(m_levels.size() - 1);
-            levels new_lvls = append(m_levels.back(), levels(new_lvl));
-            m_levels.push_back(new_lvls);
+    imp(environment const & env, io_state const & ios, reducible_behavior b):
+        imp(*new tmp_type_context(env, ios, b), true) {
+    }
+
+    imp(tmp_type_context & ctx):
+        imp(ctx, false) {
+    }
+
+    ~imp() {
+        lean_assert(m_ctx);
+        if (m_ctx_owner)
+            delete m_ctx;
+    }
+
+    levels mk_metavars(declaration const & d, buffer<expr> & mvars, buffer<optional<expr>> & inst_args) {
+        m_ctx->clear();
+        unsigned num_univ = d.get_num_univ_params();
+        buffer<level> lvls_buffer;
+        for (unsigned i = 0; i < num_univ; i++) {
+            lvls_buffer.push_back(m_ctx->mk_uvar());
+        }
+        levels lvls = to_list(lvls_buffer);
+        expr type   = m_ctx->whnf(instantiate_type_univ_params(d, lvls));
+        while (is_pi(type)) {
+            expr mvar = m_ctx->mk_mvar(binding_domain(type));
+            if (binding_info(type).is_inst_implicit())
+                inst_args.push_back(some_expr(mvar));
+            else
+                inst_args.push_back(none_expr());
+            mvars.push_back(mvar);
+            type = m_ctx->whnf(instantiate(binding_body(type), mvar));
+        }
+        return lvls;
+    }
+
+    optional<entry> get_entry(name const & c, unsigned nargs) {
+        key k(c, nargs);
+        lean_assert(k.check_invariant());
+        auto it = m_map.find(k);
+        if (it == m_map.end()) {
+            if (auto d = m_ctx->env().find(c)) {
+                buffer<expr> mvars;
+                buffer<optional<expr>> inst_args;
+                levels lvls = mk_metavars(*d, mvars, inst_args);
+                if (nargs > mvars.size())
+                    return optional<entry>(); // insufficient number of arguments
+                entry e;
+                e.m_num_umeta = d->get_num_univ_params();
+                e.m_num_emeta = mvars.size();
+                e.m_app       = ::lean::mk_app(mk_constant(c, lvls), mvars);
+                e.m_inst_args = reverse_to_list(inst_args.begin(), inst_args.end());
+                e.m_expl_args = reverse_to_list(mvars.begin() + mvars.size() - nargs, mvars.end());
+                m_map.insert(mk_pair(k, e));
+                return optional<entry>(e);
+            } else {
+                return optional<entry>(); // unknown decl
+            }
+        } else {
+            return optional<entry>(it->second);
         }
     }
 
-    // We say the given mask is simple if it is of the form (false*, true*).
-    // That is, a block of false followed by a blocked of true
-    static bool is_simple_mask(buffer<bool> & explicit_mask) {
-        bool found_true = false;
-        for (bool const & b : explicit_mask) {
-            if (b)
-                found_true = true;
-            else if (found_true)
+    optional<entry> get_entry(name const & c, unsigned mask_sz, bool const * mask) {
+        key k(c, to_list(mask, mask+mask_sz));
+        lean_assert(k.check_invariant());
+        auto it = m_map.find(k);
+        if (it == m_map.end()) {
+            if (auto d = m_ctx->env().find(c)) {
+                buffer<expr> mvars;
+                buffer<optional<expr>> inst_args;
+                levels lvls = mk_metavars(*d, mvars, inst_args);
+                entry e;
+                e.m_num_umeta = d->get_num_univ_params();
+                e.m_num_emeta = mvars.size();
+                e.m_app       = ::lean::mk_app(mk_constant(c, lvls), mvars);
+                e.m_inst_args = reverse_to_list(inst_args.begin(), inst_args.end());
+                list<expr> expl_args;
+                for (unsigned i = 0; i < mask_sz; i++) {
+                    if (mask[i])
+                        expl_args = cons(mvars[i], expl_args);
+                }
+                e.m_expl_args = expl_args;
+                m_map.insert(mk_pair(k, e));
+                return optional<entry>(e);
+            } else {
+                return optional<entry>(); // unknown decl
+            }
+        } else {
+            return optional<entry>(it->second);
+        }
+    }
+
+    bool check_all_assigned(entry const & e) {
+        lean_assert(e.m_num_emeta == length(e.m_inst_args));
+        // recall that the flags at e.m_inst_args are stored in reverse order.
+        // For example, the first flag in the list indicates whether the last argument
+        // is an instance implicit argument or not.
+        unsigned i = e.m_num_emeta;
+        for (optional<expr> const & inst_arg : e.m_inst_args) {
+            lean_assert(i > 0);
+            --i;
+            if (inst_arg) {
+                expr type = m_ctx->instantiate_uvars_mvars(mlocal_type(*inst_arg));
+                if (auto v = m_ctx->mk_class_instance(type)) {
+                    if (!m_ctx->force_assign(*inst_arg, *v))
+                        return false;
+                } else {
+                    return false;
+                }
+            }
+            if (!m_ctx->is_mvar_assigned(i))
+                return false;
+        }
+        for (unsigned i = 0; i < e.m_num_umeta; i++) {
+            if (!m_ctx->is_uvar_assigned(i))
                 return false;
         }
         return true;
     }
 
-    void save_decl_info(declaration const & d, unsigned nargs, buffer<unsigned> const & used_idxs) {
-        if (!m_decl_info.contains(d.get_name())) {
-            m_decl_info.insert(d.get_name(), decl_info(nargs, to_list(used_idxs)));
-        }
+    void init_ctx_for(entry const & e) {
+        m_ctx->clear();
+        m_ctx->set_next_uvar_idx(e.m_num_umeta);
+        m_ctx->set_next_mvar_idx(e.m_num_emeta);
     }
 
-    optional<expr> mk_app_core(declaration const & d, unsigned nargs, expr const * args, bool use_cache) {
-        unsigned num_univs = d.get_num_univ_params();
-        ensure_levels(num_univs);
-        expr type  = instantiate_type_univ_params(d, m_levels[num_univs]);
-        buffer<optional<level>> lsubst;
-        buffer<optional<expr>>  esubst;
-        lsubst.resize(num_univs, none_level());
-        constraint_seq cs;
-        buffer<unsigned> used_idxs;
-        buffer<expr>     used_types;
-        buffer<bool>     explicit_mask;
-        buffer<expr> domain_types;
-        unsigned idx = 0;
-        while (is_pi(type)) {
-            explicit_mask.push_back(is_explicit(binding_info(type)));
-            esubst.push_back(none_expr());
-            domain_types.push_back(binding_domain(type));
-            // TODO(Leo): perhaps, we should cache the result of this while-loop.
-            // The result of this computation can be reused in future calls.
-            expr meta = mk_idx_metavar(idx, binding_domain(type));
-            idx++;
-            type = instantiate(binding_body(type), meta);
-        }
-        unsigned i = domain_types.size();
-        unsigned j = nargs;
-        while (i > 0) {
+    expr mk_app(name const & c, unsigned nargs, expr const * args) {
+        optional<entry> e = get_entry(c, nargs);
+        if (!e)
+            throw app_builder_exception();
+        init_ctx_for(*e);
+        unsigned i = nargs;
+        for (auto m : e->m_expl_args) {
+            if (i == 0)
+                throw app_builder_exception();
             --i;
-            if (explicit_mask[i]) {
-                if (j == 0)
-                    return none_expr();
-                --j;
-                expr arg_type = m_tc.infer(args[j], cs);
-                if (cs)
-                    return none_expr();
-                bool assigned = false;
-                if (!match(domain_types[i], arg_type, lsubst, esubst,
-                           nullptr, nullptr, &m_plugin, &assigned))
-                    return none_expr();
-                if (assigned && use_cache) {
-                    used_idxs.push_back(j);
-                    used_types.push_back(arg_type);
-                }
-                esubst[i] = some_expr(args[j]);
-            } else {
-                if (!esubst[i])
-                    return none_expr();
-                expr arg_type = m_tc.infer(*esubst[i], cs);
-                if (cs)
-                    return none_expr();
-                if (!match(domain_types[i], arg_type, lsubst, esubst,
-                           nullptr, nullptr, &m_plugin))
-                    return none_expr();
-            }
+            if (!m_ctx->assign(m, args[i]))
+                throw app_builder_exception();
         }
-        bool has_unassigned_lvls = std::find(lsubst.begin(), lsubst.end(), none_level()) != lsubst.end();
-        if (j > 0 || has_unassigned_lvls)
-            return none_expr();
-        if (use_cache)
-            save_decl_info(d, nargs, used_idxs);
-        buffer<level> r_lvls;
-        for (optional<level> const & l : lsubst)
-            r_lvls.push_back(*l);
-        buffer<expr> r_args;
-        for (optional<expr> const & o : esubst)
-            r_args.push_back(*o);
-        lean_assert(explicit_mask.size() == r_args.size());
-        if (!use_cache) {
-            return some_expr(::lean::mk_app(mk_constant(d.get_name(), to_list(r_lvls)), r_args.size(), r_args.data()));
-        } else if (is_simple_mask(explicit_mask)) {
-            expr f = ::lean::mk_app(mk_constant(d.get_name(), to_list(r_lvls)), r_args.size() - nargs, r_args.data());
-            if (use_cache) {
-                cache_key k(d.get_name(), used_types.size(), used_types.data());
-                m_cache.insert(k, f);
-            }
-            return some_expr(::lean::mk_app(f, nargs, r_args.end() - nargs));
+        if (!check_all_assigned(*e))
+            throw app_builder_exception();
+        return m_ctx->instantiate_uvars_mvars(e->m_app);
+    }
+
+    expr mk_app(name const & c, std::initializer_list<expr> const & it) {
+        return mk_app(c, it.size(), it.begin());
+    }
+
+    static unsigned get_nargs(unsigned mask_sz, bool const * mask) {
+        unsigned nargs = 0;
+        for (unsigned i = 0; i < mask_sz; i++) {
+            if (mask[i])
+                nargs++;
+        }
+        return nargs;
+    }
+
+    expr mk_app(name const & c, unsigned mask_sz, bool const * mask, expr const * args) {
+        unsigned nargs = get_nargs(mask_sz, mask);
+        if (key::is_simple(mask, mask + mask_sz)) {
+            return mk_app(c, nargs, args);
         } else {
-            buffer<expr> imp_args;
-            buffer<expr> expl_args;
-            for (unsigned i = 0; i < explicit_mask.size(); i++) {
-                if (explicit_mask[i]) {
-                    imp_args.push_back(mk_var(expl_args.size()));
-                    expl_args.push_back(r_args[i]);
-                } else {
-                    imp_args.push_back(r_args[i]);
+            optional<entry> e = get_entry(c, mask_sz, mask);
+            if (!e)
+                throw app_builder_exception();
+            init_ctx_for(*e);
+            unsigned i    = mask_sz;
+            unsigned j    = nargs;
+            list<expr> it = e->m_expl_args;
+            while (i > 0) {
+                --i;
+                if (mask[i]) {
+                    --j;
+                    expr const & m = head(it);
+                    if (!m_ctx->assign(m, args[j]))
+                        throw app_builder_exception();
+                    it = tail(it);
                 }
             }
-            expr f = ::lean::mk_app(mk_constant(d.get_name(), to_list(r_lvls)), imp_args.size(), imp_args.data());
-            if (use_cache) {
-                cache_key k(d.get_name(), used_types.size(), used_types.data());
-                m_cache.insert(k, f);
-            }
-            return some_expr(instantiate(f, expl_args.size(), expl_args.data()));
+            if (!check_all_assigned(*e))
+                throw app_builder_exception();
+            return m_ctx->instantiate_uvars_mvars(e->m_app);
         }
     }
 
-    optional<expr> mk_app(declaration const & d, unsigned nargs, expr const * args, bool use_cache) {
-        if (use_cache) {
-            if (auto info = m_decl_info.find(d.get_name())) {
-                if (info->m_nargs != nargs)
-                    return none_expr();
-                buffer<expr> arg_types;
-                constraint_seq cs;
-                for (unsigned idx : info->m_used_idxs) {
-                    lean_assert(idx < nargs);
-                    expr t = m_tc.infer(args[idx], cs);
-                    if (cs)
-                        return none_expr(); // constraint was generated
-                    arg_types.push_back(t);
-                }
-                cache_key k(d.get_name(), arg_types.size(), arg_types.data());
-                auto it = m_cache.find(k);
-                if (it != m_cache.end()) {
-                    if (closed(it->second))
-                        return some_expr(::lean::mk_app(it->second, nargs, args));
-                    else
-                        return some_expr(instantiate(it->second, nargs, args));
-                } else {
-                    return mk_app_core(d, nargs, args, use_cache);
-                }
+    level get_level(expr const & A) {
+        expr Type = m_ctx->whnf(m_ctx->infer(A));
+        if (!is_sort(Type))
+            throw app_builder_exception();
+        return sort_level(Type);
+    }
+
+    expr mk_eq(expr const & a, expr const & b) {
+        expr A    = m_ctx->infer(a);
+        level lvl = get_level(A);
+        return ::lean::mk_app(mk_constant(get_eq_name(), {lvl}), A, a, b);
+    }
+
+    expr mk_iff(expr const & a, expr const & b) {
+        return ::lean::mk_app(mk_constant(get_iff_name()), a, b);
+    }
+
+    expr mk_eq_refl(expr const & a) {
+        expr A     = m_ctx->infer(a);
+        level lvl  = get_level(A);
+        return ::lean::mk_app(mk_constant(get_eq_refl_name(), {lvl}), A, a);
+    }
+
+    expr mk_iff_refl(expr const & a) {
+        return ::lean::mk_app(mk_constant(get_iff_refl_name()), a);
+    }
+
+    expr mk_eq_symm(expr const & H) {
+        expr p    = m_ctx->whnf(m_ctx->infer(H));
+        expr lhs, rhs;
+        if (!is_eq(p, lhs, rhs))
+            throw app_builder_exception();
+        expr A    = m_ctx->infer(lhs);
+        level lvl = get_level(A);
+        return ::lean::mk_app(mk_constant(get_eq_symm_name(), {lvl}), A, lhs, rhs, H);
+    }
+
+    expr mk_iff_symm(expr const & H) {
+        expr p    = m_ctx->whnf(m_ctx->infer(H));
+        expr lhs, rhs;
+        if (!is_iff(p, lhs, rhs))
+            throw app_builder_exception();
+        return ::lean::mk_app(mk_constant(get_iff_symm_name()), lhs, rhs, H);
+    }
+
+    expr mk_eq_trans(expr const & H1, expr const & H2) {
+        expr p1    = m_ctx->whnf(m_ctx->infer(H1));
+        expr p2    = m_ctx->whnf(m_ctx->infer(H2));
+        expr lhs1, rhs1, lhs2, rhs2;
+        if (!is_eq(p1, lhs1, rhs1) || !is_eq(p2, lhs2, rhs2))
+            throw app_builder_exception();
+        expr A     = m_ctx->infer(lhs1);
+        level lvl  = get_level(A);
+        return ::lean::mk_app({mk_constant(get_eq_trans_name(), {lvl}), A, lhs1, rhs1, rhs2, H1, H2});
+    }
+
+    expr mk_iff_trans(expr const & H1, expr const & H2) {
+        expr p1    = m_ctx->whnf(m_ctx->infer(H1));
+        expr p2    = m_ctx->whnf(m_ctx->infer(H2));
+        expr lhs1, rhs1, lhs2, rhs2;
+        if (!is_iff(p1, lhs1, rhs1) || !is_iff(p2, lhs2, rhs2))
+            throw app_builder_exception();
+        return ::lean::mk_app({mk_constant(get_iff_trans_name()), lhs1, rhs1, rhs2, H1, H2});
+    }
+
+    expr mk_rel(name const & n, expr const & lhs, expr const & rhs) {
+        if (n == get_eq_name()) {
+            return mk_eq(lhs, rhs);
+        } else if (n == get_iff_name()) {
+            return mk_iff(lhs, rhs);
+        } else if (auto info = m_rel_getter(n)) {
+            buffer<bool> mask;
+            for (unsigned i = 0; i < info->get_arity(); i++) {
+                mask.push_back(i == info->get_lhs_pos() || i == info->get_rhs_pos());
             }
+            expr args[2] = {lhs, rhs};
+            return mk_app(n, info->get_arity(), mask.data(), args);
+        } else {
+            // for unregistered relations assume lhs and rhs are the last two arguments.
+            expr args[2] = {lhs, rhs};
+            return mk_app(n, 2, args);
         }
-        return mk_app_core(d, nargs, args, use_cache);
     }
 
-    void push() {
-        m_cache.push();
+    expr mk_refl(name const & relname, expr const & a) {
+        if (relname == get_eq_name()) {
+            return mk_eq_refl(a);
+        } else if (relname == get_iff_name()) {
+            return mk_iff_refl(a);
+        } else if (auto info = m_refl_getter(relname)) {
+            return mk_app(info->m_name, 1, &a);
+        } else {
+            throw app_builder_exception();
+        }
     }
 
-    void pop() {
-        m_cache.pop();
+    expr mk_symm(name const & relname, expr const & H) {
+        if (relname == get_eq_name()) {
+            return mk_eq_symm(H);
+        } else if (relname == get_iff_name()) {
+            return mk_iff_symm(H);
+        } else if (auto info = m_symm_getter(relname)) {
+            return mk_app(info->m_name, 1, &H);
+        } else {
+            throw app_builder_exception();
+        }
+    }
+
+    expr mk_trans(name const & relname, expr const & H1, expr const & H2) {
+        if (relname == get_eq_name()) {
+            return mk_eq_trans(H1, H2);
+        } else if (relname == get_iff_name()) {
+            return mk_iff_trans(H1, H2);
+        } else if (auto info = m_trans_getter(relname, relname)) {
+            expr args[2] = {H1, H2};
+            return mk_app(info->m_name, 2, args);
+        } else {
+            throw app_builder_exception();
+        }
+    }
+
+    expr mk_eq_rec(expr const & motive, expr const & H1, expr const & H2) {
+        expr p       = m_ctx->whnf(m_ctx->infer(H2));
+        expr lhs, rhs;
+        if (!is_eq(p, lhs, rhs))
+            throw app_builder_exception();
+        expr A      = m_ctx->infer(lhs);
+        level A_lvl = get_level(A);
+        expr mtype  = m_ctx->whnf(m_ctx->infer(motive));
+        if (!is_pi(mtype) || !is_sort(binding_body(mtype)))
+            throw app_builder_exception();
+        level l_1    = sort_level(binding_body(mtype));
+        name const & eqrec = is_standard(m_ctx->env()) ? get_eq_rec_name() : get_eq_nrec_name();
+        return ::lean::mk_app({mk_constant(eqrec, {l_1, A_lvl}), A, lhs, motive, H1, rhs, H2});
+    }
+
+    expr mk_eq_drec(expr const & motive, expr const & H1, expr const & H2) {
+        expr p       = m_ctx->whnf(m_ctx->infer(H2));
+        expr lhs, rhs;
+        if (!is_eq(p, lhs, rhs))
+            throw app_builder_exception();
+        expr A      = m_ctx->infer(lhs);
+        level A_lvl = get_level(A);
+        expr mtype  = m_ctx->whnf(m_ctx->infer(motive));
+        if (!is_pi(mtype) || !is_pi(binding_body(mtype)) || !is_sort(binding_body(binding_body(mtype))))
+            throw app_builder_exception();
+        level l_1    = sort_level(binding_body(binding_body(mtype)));
+        name const & eqrec = is_standard(m_ctx->env()) ? get_eq_drec_name() : get_eq_rec_name();
+        return ::lean::mk_app({mk_constant(eqrec, {l_1, A_lvl}), A, lhs, motive, H1, rhs, H2});
+    }
+
+    expr mk_congr_arg(expr const & f, expr const & H) {
+        // TODO(Leo): efficient version
+        return mk_app(get_congr_arg_name(), {f, H});
+    }
+
+    expr mk_congr_fun(expr const & H, expr const & a) {
+        // TODO(Leo): efficient version
+        return mk_app(get_congr_fun_name(), {H, a});
+    }
+
+    expr mk_congr(expr const & H1, expr const & H2) {
+        // TODO(Leo): efficient version
+        return mk_app(get_congr_name(), {H1, H2});
+    }
+
+    expr mk_iff_false_intro(expr const & H) {
+        // TODO(Leo): implement custom version if bottleneck.
+        return mk_app(get_iff_false_intro_name(), {H});
+    }
+
+    expr mk_iff_true_intro(expr const & H) {
+        // TODO(Leo): implement custom version if bottleneck.
+        return mk_app(get_iff_true_intro_name(), {H});
+    }
+
+    expr mk_not_of_iff_false(expr const & H) {
+        // TODO(Leo): implement custom version if bottleneck.
+        return mk_app(get_not_of_iff_false_name(), {H});
+    }
+
+    expr mk_of_iff_true(expr const & H) {
+        // TODO(Leo): implement custom version if bottleneck.
+        return mk_app(get_of_iff_true_name(), {H});
+    }
+
+    expr mk_false_of_true_iff_false(expr const & H) {
+        // TODO(Leo): implement custom version if bottleneck.
+        return mk_app(get_false_of_true_iff_false_name(), {H});
+    }
+
+    expr mk_partial_add(expr const & A) {
+        level lvl = get_level(A);
+        auto A_has_add = m_ctx->mk_class_instance(::lean::mk_app(mk_constant(get_has_add_name(), {lvl}), A));
+        if (!A_has_add) throw app_builder_exception();
+        return ::lean::mk_app(mk_constant(get_add_name(), {lvl}), A, *A_has_add);
+    }
+
+    expr mk_partial_mul(expr const & A) {
+        level lvl = get_level(A);
+        auto A_has_mul = m_ctx->mk_class_instance(::lean::mk_app(mk_constant(get_has_mul_name(), {lvl}), A));
+        if (!A_has_mul) throw app_builder_exception();
+        return ::lean::mk_app(mk_constant(get_mul_name(), {lvl}), A, *A_has_mul);
+    }
+
+    expr mk_zero(expr const & A) {
+        level lvl = get_level(A);
+        auto A_has_zero = m_ctx->mk_class_instance(::lean::mk_app(mk_constant(get_has_zero_name(), {lvl}), A));
+        if (!A_has_zero) throw app_builder_exception();
+        return ::lean::mk_app(mk_constant(get_zero_name(), {lvl}), A, *A_has_zero);
+    }
+
+    expr mk_one(expr const & A) {
+        level lvl = get_level(A);
+        auto A_has_one = m_ctx->mk_class_instance(::lean::mk_app(mk_constant(get_has_one_name(), {lvl}), A));
+        if (!A_has_one) throw app_builder_exception();
+        return ::lean::mk_app(mk_constant(get_one_name(), {lvl}), A, *A_has_one);
+    }
+
+    expr mk_partial_left_distrib(expr const & A) {
+        level lvl = get_level(A);
+        auto A_distrib = m_ctx->mk_class_instance(::lean::mk_app(mk_constant(get_algebra_distrib_name(), {lvl}), A));
+        if (!A_distrib) throw app_builder_exception();
+        return ::lean::mk_app(mk_constant(get_algebra_left_distrib_name(), {lvl}), A, *A_distrib);
+    }
+
+    expr mk_partial_right_distrib(expr const & A) {
+        level lvl = get_level(A);
+        auto A_distrib = m_ctx->mk_class_instance(::lean::mk_app(mk_constant(get_algebra_distrib_name(), {lvl}), A));
+        if (!A_distrib) throw app_builder_exception();
+        return ::lean::mk_app(mk_constant(get_algebra_right_distrib_name(), {lvl}), A, *A_distrib);
+    }
+
+    expr mk_false_rec(expr const & c, expr const & H) {
+        level c_lvl = get_level(c);
+        if (is_standard(m_ctx->env())) {
+            return ::lean::mk_app(mk_constant(get_false_rec_name(), {c_lvl}), c, H);
+        } else {
+            expr H_type = m_ctx->infer(H);
+            return ::lean::mk_app(mk_constant(get_empty_rec_name(), {c_lvl}), mk_lambda("e", H_type, c), H);
+        }
     }
 };
 
-app_builder::app_builder(type_checker & tc):m_ptr(new imp(tc)) {}
+app_builder::app_builder(environment const & env, io_state const & ios, reducible_behavior b):
+    m_ptr(new imp(env, ios, b)) {
+}
+
+app_builder::app_builder(environment const & env, reducible_behavior b):
+    app_builder(env, get_dummy_ios(), b) {
+}
+
+app_builder::app_builder(tmp_type_context & ctx):
+    m_ptr(new imp(ctx)) {
+}
+
 app_builder::~app_builder() {}
-optional<expr> app_builder::mk_app(declaration const & d, unsigned nargs, expr const * args, bool use_cache) {
-    return m_ptr->mk_app(d, nargs, args, use_cache);
-}
-optional<expr> app_builder::mk_app(name const & n, unsigned nargs, expr const * args, bool use_cache) {
-    declaration const & d = m_ptr->m_tc.env().get(n);
-    return mk_app(d, nargs, args, use_cache);
-}
-optional<expr> app_builder::mk_app(name const & n, std::initializer_list<expr> const & args, bool use_cache) {
-    return mk_app(n, args.size(), args.begin(), use_cache);
-}
-optional<expr> app_builder::mk_app(name const & n, expr const & a1, bool use_cache) {
-    return mk_app(n, {a1}, use_cache);
-}
-optional<expr> app_builder::mk_app(name const & n, expr const & a1, expr const & a2, bool use_cache) {
-    return mk_app(n, {a1, a2}, use_cache);
-}
-optional<expr> app_builder::mk_app(name const & n, expr const & a1, expr const & a2, expr const & a3, bool use_cache) {
-    return mk_app(n, {a1, a2, a3}, use_cache);
-}
-void app_builder::push() { m_ptr->push(); }
-void app_builder::pop() { m_ptr->pop(); }
 
-struct lua_app_builder {
-    type_checker_ref m_tc;
-    app_builder      m_builder;
-    lua_app_builder(type_checker_ref const & r):m_tc(r), m_builder(*r.get()) {}
-};
-
-typedef std::shared_ptr<lua_app_builder> app_builder_ref;
-
-DECL_UDATA(app_builder_ref)
-
-static int mk_app_builder(lua_State * L) {
-    return push_app_builder_ref(L, std::make_shared<lua_app_builder>(to_type_checker_ref(L, 1)));
+expr app_builder::mk_app(name const & c, unsigned nargs, expr const * args) {
+    return m_ptr->mk_app(c, nargs, args);
 }
 
-static int app_builder_mk_app(lua_State * L) {
-    int nargs = lua_gettop(L);
-    buffer<expr> args;
-    app_builder & b = to_app_builder_ref(L, 1)->m_builder;
-    bool use_cache  = true;
-    name n          = to_name_ext(L, 2);
-    for (int i = 3; i <= nargs; i++) {
-        if (i < nargs || is_expr(L, i))
-            args.push_back(to_expr(L, i));
-        else
-            use_cache = lua_toboolean(L, i);
-    }
-    return push_optional_expr(L, b.mk_app(n, args.size(), args.data(), use_cache));
+expr app_builder::mk_app(name const & c, unsigned mask_sz, bool const * mask, expr const * args) {
+    return m_ptr->mk_app(c, mask_sz, mask, args);
 }
 
-static int app_builder_push(lua_State * L) {
-    to_app_builder_ref(L, 1)->m_builder.push();
-    return 0;
+expr app_builder::mk_rel(name const & n, expr const & lhs, expr const & rhs) {
+    return m_ptr->mk_rel(n, lhs, rhs);
 }
 
-static int app_builder_pop(lua_State * L) {
-    to_app_builder_ref(L, 1)->m_builder.pop();
-    return 0;
+expr app_builder::mk_eq(expr const & lhs, expr const & rhs) {
+    return m_ptr->mk_eq(lhs, rhs);
 }
 
-static const struct luaL_Reg app_builder_ref_m[] = {
-    {"__gc",    app_builder_ref_gc},
-    {"mk_app",  safe_function<app_builder_mk_app>},
-    {"push",    safe_function<app_builder_push>},
-    {"pop",     safe_function<app_builder_pop>},
-    {0, 0}
-};
+expr app_builder::mk_iff(expr const & lhs, expr const & rhs) {
+    return m_ptr->mk_iff(lhs, rhs);
+}
 
-void open_app_builder(lua_State * L) {
-    luaL_newmetatable(L, app_builder_ref_mt);
-    lua_pushvalue(L, -1);
-    lua_setfield(L, -2, "__index");
-    setfuncs(L, app_builder_ref_m, 0);
+expr app_builder::mk_refl(name const & relname, expr const & a) {
+    return m_ptr->mk_refl(relname, a);
+}
 
-    SET_GLOBAL_FUN(mk_app_builder,       "app_builder");
-    SET_GLOBAL_FUN(app_builder_ref_pred, "is_app_builder");
+expr app_builder::mk_eq_refl(expr const & a) {
+    return m_ptr->mk_eq_refl(a);
+}
+
+expr app_builder::mk_iff_refl(expr const & a) {
+    return m_ptr->mk_iff_refl(a);
+}
+
+expr app_builder::mk_symm(name const & relname, expr const & H) {
+    return m_ptr->mk_symm(relname, H);
+}
+
+expr app_builder::mk_eq_symm(expr const & H) {
+    return m_ptr->mk_eq_symm(H);
+}
+
+expr app_builder::mk_iff_symm(expr const & H) {
+    return m_ptr->mk_iff_symm(H);
+}
+
+expr app_builder::mk_trans(name const & relname, expr const & H1, expr const & H2) {
+    return m_ptr->mk_trans(relname, H1, H2);
+}
+
+expr app_builder::mk_eq_trans(expr const & H1, expr const & H2) {
+    return m_ptr->mk_eq_trans(H1, H2);
+}
+
+expr app_builder::mk_iff_trans(expr const & H1, expr const & H2) {
+    return m_ptr->mk_iff_trans(H1, H2);
+}
+
+expr app_builder::mk_eq_rec(expr const & C, expr const & H1, expr const & H2) {
+    return m_ptr->mk_eq_rec(C, H1, H2);
+}
+
+expr app_builder::mk_eq_drec(expr const & C, expr const & H1, expr const & H2) {
+    return m_ptr->mk_eq_drec(C, H1, H2);
+}
+
+expr app_builder::mk_congr_arg(expr const & f, expr const & H) {
+    return m_ptr->mk_congr_arg(f, H);
+}
+
+expr app_builder::mk_congr_fun(expr const & H, expr const & a) {
+    return m_ptr->mk_congr_fun(H, a);
+}
+
+expr app_builder::mk_congr(expr const & H1, expr const & H2) {
+    return m_ptr->mk_congr(H1, H2);
+}
+
+expr app_builder::mk_iff_false_intro(expr const & H) {
+    return m_ptr->mk_iff_false_intro(H);
+}
+
+expr app_builder::mk_iff_true_intro(expr const & H) {
+    return m_ptr->mk_iff_true_intro(H);
+}
+expr app_builder::mk_not_of_iff_false(expr const & H) {
+    return m_ptr->mk_not_of_iff_false(H);
+}
+
+expr app_builder::mk_of_iff_true(expr const & H) {
+    return m_ptr->mk_of_iff_true(H);
+}
+
+expr app_builder::mk_false_of_true_iff_false(expr const & H) {
+    return m_ptr->mk_false_of_true_iff_false(H);
+}
+
+expr app_builder::mk_partial_add(expr const & A) {
+    return m_ptr->mk_partial_add(A);
+}
+
+expr app_builder::mk_partial_mul(expr const & A) {
+    return m_ptr->mk_partial_mul(A);
+}
+
+expr app_builder::mk_zero(expr const & A) {
+    return m_ptr->mk_zero(A);
+}
+
+expr app_builder::mk_one(expr const & A) {
+    return m_ptr->mk_one(A);
+}
+
+expr app_builder::mk_partial_left_distrib(expr const & A) {
+    return m_ptr->mk_partial_left_distrib(A);
+}
+
+expr app_builder::mk_partial_right_distrib(expr const & A) {
+    return m_ptr->mk_partial_right_distrib(A);
+}
+
+expr app_builder::mk_sorry(expr const & type) {
+    return mk_app(get_sorry_name(), type);
+}
+
+expr app_builder::mk_false_rec(expr const & c, expr const & H) {
+    return m_ptr->mk_false_rec(c, H);
+}
+
+void app_builder::set_local_instances(list<expr> const & insts) {
+    m_ptr->m_ctx->set_local_instances(insts);
 }
 }

@@ -16,33 +16,6 @@ namespace algebra
 
 variable {A : Type}
 
-/- overloaded symbols -/
-
-structure has_mul [class] (A : Type) :=
-(mul : A → A → A)
-
-structure has_add [class] (A : Type) :=
-(add : A → A → A)
-
-structure has_one [class] (A : Type) :=
-(one : A)
-
-structure has_zero [class] (A : Type) :=
-(zero : A)
-
-structure has_inv [class] (A : Type) :=
-(inv : A → A)
-
-structure has_neg [class] (A : Type) :=
-(neg : A → A)
-
-infixl [priority algebra.prio] ` * `   := has_mul.mul
-infixl [priority algebra.prio] ` + `   := has_add.add
-postfix [priority algebra.prio] `⁻¹` := has_inv.inv
-prefix [priority algebra.prio] `-`   := has_neg.neg
-notation 1  := !has_one.one
-notation 0  := !has_zero.zero
-
 /- semigroup -/
 
 structure semigroup [class] (A : Type) extends has_mul A :=
@@ -58,10 +31,10 @@ theorem mul.comm [s : comm_semigroup A] (a b : A) : a * b = b * a :=
 !comm_semigroup.mul_comm
 
 theorem mul.left_comm [s : comm_semigroup A] (a b c : A) : a * (b * c) = b * (a * c) :=
-binary.left_comm (@mul.comm A s) (@mul.assoc A s) a b c
+binary.left_comm (@mul.comm A _) (@mul.assoc A _) a b c
 
 theorem mul.right_comm [s : comm_semigroup A] (a b c : A) : (a * b) * c = (a * c) * b :=
-binary.right_comm (@mul.comm A s) (@mul.assoc A s) a b c
+binary.right_comm (@mul.comm A _) (@mul.assoc A _) a b c
 
 structure left_cancel_semigroup [class] (A : Type) extends semigroup A :=
 (mul_left_cancel : ∀a b c, mul a b = mul a c → b = c)
@@ -97,10 +70,10 @@ theorem add.comm [s : add_comm_semigroup A] (a b : A) : a + b = b + a :=
 
 theorem add.left_comm [s : add_comm_semigroup A] (a b c : A) :
   a + (b + c) = b + (a + c) :=
-binary.left_comm (@add.comm A s) (@add.assoc A s) a b c
+binary.left_comm (@add.comm A _) (@add.assoc A _) a b c
 
 theorem add.right_comm [s : add_comm_semigroup A] (a b c : A) : (a + b) + c = (a + c) + b :=
-binary.right_comm (@add.comm A s) (@add.assoc A s) a b c
+binary.right_comm (@add.comm A _) (@add.assoc A _) a b c
 
 structure add_left_cancel_semigroup [class] (A : Type) extends add_semigroup A :=
 (add_left_cancel : ∀a b c, add a b = add a c → b = c)
@@ -158,10 +131,14 @@ definition add_comm_monoid.to_comm_monoid {A : Type} [s : add_comm_monoid A] : c
 ⦄
 
 section add_comm_monoid
+  variables [s : add_comm_monoid A]
+  include s
 
-  theorem add_comm_three {A : Type} [s : add_comm_monoid A] (a b c : A) : a + b + c = c + b + a :=
+  theorem add_comm_three  (a b c : A) : a + b + c = c + b + a :=
     by rewrite [{a + _}add.comm, {_ + c}add.comm, -*add.assoc]
 
+  theorem add.comm4 : ∀ (n m k l : A), n + m + (k + l) = n + k + (m + l) :=
+  comm4 add.comm add.assoc
 end add_comm_monoid
 
 /- group -/
@@ -332,12 +309,12 @@ section group
       ... = x ∘c b : Py
       ... = a : Px)
 
-  definition group.to_left_cancel_semigroup [trans-instance] [coercion] [reducible] :
+  definition group.to_left_cancel_semigroup [trans_instance] [reducible] :
     left_cancel_semigroup A :=
   ⦃ left_cancel_semigroup, s,
     mul_left_cancel := @mul_left_cancel A s ⦄
 
-  definition group.to_right_cancel_semigroup [trans-instance] [coercion] [reducible] :
+  definition group.to_right_cancel_semigroup [trans_instance] [reducible] :
     right_cancel_semigroup A :=
   ⦃ right_cancel_semigroup, s,
     mul_right_cancel := @mul_right_cancel A s ⦄
@@ -460,12 +437,12 @@ section add_group
      ... = (c + b) + -b : H
      ... = c : add_neg_cancel_right
 
-  definition add_group.to_left_cancel_semigroup [trans-instance] [coercion] [reducible] :
+  definition add_group.to_left_cancel_semigroup [trans_instance] [reducible] :
     add_left_cancel_semigroup A :=
   ⦃ add_left_cancel_semigroup, s,
     add_left_cancel := @add_left_cancel A s ⦄
 
-  definition add_group.to_add_right_cancel_semigroup [trans-instance] [coercion] [reducible] :
+  definition add_group.to_add_right_cancel_semigroup [trans_instance] [reducible] :
     add_right_cancel_semigroup A :=
   ⦃ add_right_cancel_semigroup, s,
     add_right_cancel := @add_right_cancel A s ⦄
@@ -478,7 +455,8 @@ section add_group
   -- TODO: derive corresponding facts for div in a field
   definition sub [reducible] (a b : A) : A := a + -b
 
-  infix [priority algebra.prio] - := sub
+  definition add_group_has_sub [reducible] [instance] : has_sub A :=
+  has_sub.mk algebra.sub
 
   theorem sub_eq_add_neg (a b : A) : a - b = a + -b := rfl
 
@@ -499,7 +477,8 @@ section add_group
 
   theorem zero_sub (a : A) : 0 - a = -a := !zero_add
 
-  theorem sub_zero (a : A) : a - 0 = a := subst (eq.symm neg_zero) !add_zero
+  theorem sub_zero (a : A) : a - 0 = a :=
+  by rewrite [sub_eq_add_neg, neg_zero, add_zero]
 
   theorem sub_neg_eq_add (a b : A) : a - (-b) = a + b :=
   by change a + -(-b) = a + b; rewrite neg_neg
@@ -515,7 +494,7 @@ section add_group
 
   theorem sub_add_eq_sub_sub_swap (a b c : A) : a - (b + c) = a - c - b :=
   calc
-    a - (b + c) = a + (-c - b) : neg_add_rev
+    a - (b + c) = a + (-c - b) : by rewrite [sub_eq_add_neg, neg_add_rev]
             ... = a - c - b    : by krewrite -add.assoc
 
   theorem sub_eq_iff_eq_add (a b c : A) : a - b = c ↔ a = c + b :=

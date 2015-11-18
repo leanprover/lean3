@@ -39,8 +39,8 @@ namespace category
   theorem op_op' {ob : Type} (C : category ob) : opposite (opposite C) = C :=
   category.rec (λ hom comp id assoc idl idr, refl (mk _ _ _ _ _ _)) C
 
-  theorem op_op : Opposite (Opposite C) = C :=
-  (@congr_arg _ _ _ _ (Category.mk C) (op_op' C)) ⬝ !Category.equal
+  definition op_op : Opposite (Opposite C) = C :=
+  (@congr_arg _ _ (@opposite C (@opposite C C)) _ (Category.mk C) (op_op' C)) ⬝ !Category.equal
 
   end
   end opposite
@@ -121,8 +121,6 @@ namespace category
 
   namespace ops
     notation `type`:max := Type_category
-    notation 1 := Category_one
-    notation 2 := Category_two
     postfix `ᵒᵖ`:max := opposite.Opposite
     infixr `×c`:30 := product.Prod_category
     attribute type_category [instance]

@@ -5,27 +5,46 @@ Released under Apache 2.0 license as described in the file LICENSE.
 Author: Leonardo de Moura
 */
 #pragma once
-#include "kernel/type_checker.h"
+#include "library/tmp_type_context.h"
 #include "library/head_map.h"
 #include "library/io_state_stream.h"
+#include <vector>
+
+#ifndef LEAN_SIMP_DEFAULT_PRIORITY
+#define LEAN_SIMP_DEFAULT_PRIORITY 1000
+#endif
 
 namespace lean {
 class simp_rule_sets;
 
 class simp_rule_core {
 protected:
-    name           m_id;
-    levels         m_univ_metas;
-    list<expr>     m_metas;
-    expr           m_lhs;
-    expr           m_rhs;
-    expr           m_proof;
-    simp_rule_core(name const & id, levels const & univ_metas, list<expr> const & metas,
-                   expr const & lhs, expr const & rhs, expr const & proof);
+    name                m_id;
+    levels              m_umetas;
+    list<expr>          m_emetas;
+    list<bool>          m_instances;
+
+    expr                m_lhs;
+    expr                m_rhs;
+    expr                m_proof;
+    unsigned            m_priority;
+    simp_rule_core(name const & id, levels const & umetas, list<expr> const & emetas,
+                   list<bool> const & instances, expr const & lhs, expr const & rhs, expr const & proof,
+                   unsigned priority);
 public:
     name const & get_id() const { return m_id; }
-    levels const & get_univ_metas() const { return m_univ_metas; }
-    list<expr> const & get_metas() const { return m_metas; }
+    unsigned get_num_umeta() const { return length(m_umetas); }
+    unsigned get_num_emeta() const { return length(m_emetas); }
+
+    /** \brief Return a list containing the expression metavariables in reverse order. */
+    list<expr> const & get_emetas() const { return m_emetas; }
+
+    /** \brief Return a list of bools indicating whether or not each expression metavariable
+        in <tt>get_emetas()</tt> is an instance. */
+    list<bool> const & get_instances() const { return m_instances; }
+
+    unsigned get_priority() const { return m_priority; }
+
     expr const & get_lhs() const { return m_lhs; }
     expr const & get_rhs() const { return m_rhs; }
     expr const & get_proof() const { return m_proof; }
@@ -33,10 +52,12 @@ public:
 
 class simp_rule : public simp_rule_core {
     bool           m_is_permutation;
-    simp_rule(name const & id, levels const & univ_metas, list<expr> const & metas,
-              expr const & lhs, expr const & rhs, expr const & proof, bool is_perm);
-    friend simp_rule_sets add_core(type_checker & tc, simp_rule_sets const & s, name const & id,
-                                   levels const & univ_metas, expr const & e, expr const & h);
+    simp_rule(name const & id, levels const & umetas, list<expr> const & emetas,
+              list<bool> const & instances, expr const & lhs, expr const & rhs, expr const & proof,
+              bool is_perm, unsigned priority);
+
+    friend simp_rule_sets add_core(tmp_type_context & tctx, simp_rule_sets const & s, name const & id,
+                                   levels const & univ_metas, expr const & e, expr const & h, unsigned priority);
 public:
     friend bool operator==(simp_rule const & r1, simp_rule const & r2);
     bool is_perm() const { return m_is_permutation; }
@@ -48,21 +69,24 @@ inline bool operator!=(simp_rule const & r1, simp_rule const & r2) { return !ope
 
 class congr_rule : public simp_rule_core {
     list<expr>  m_congr_hyps;
-    congr_rule(name const & id, levels const & univ_metas, list<expr> const & metas,
-               expr const & lhs, expr const & rhs, expr const & proof, list<expr> const & congr_hyps);
-    friend void add_congr_core(environment const & env, simp_rule_sets & s, name const & n);
+    congr_rule(name const & id, levels const & umetas, list<expr> const & emetas,
+               list<bool> const & instances, expr const & lhs, expr const & rhs, expr const & proof,
+               list<expr> const & congr_hyps, unsigned priority);
+    friend void add_congr_core(tmp_type_context & tctx, simp_rule_sets & s, name const & n, unsigned priority);
 public:
     friend bool operator==(congr_rule const & r1, congr_rule const & r2);
     list<expr> const & get_congr_hyps() const { return m_congr_hyps; }
     format pp(formatter const & fmt) const;
 };
 
+struct simp_rule_core_prio_fn { unsigned operator()(simp_rule_core const & s) const { return s.get_priority(); } };
+
 bool operator==(congr_rule const & r1, congr_rule const & r2);
 inline bool operator!=(congr_rule const & r1, congr_rule const & r2) { return !operator==(r1, r2); }
 
 class simp_rule_set {
-    typedef head_map<simp_rule>  simp_set;
-    typedef head_map<congr_rule> congr_set;
+    typedef head_map_prio<simp_rule, simp_rule_core_prio_fn>  simp_set;
+    typedef head_map_prio<congr_rule, simp_rule_core_prio_fn> congr_set;
     name      m_eqv;
     simp_set  m_simp_set;
     congr_set m_congr_set;
@@ -108,11 +132,11 @@ public:
     format pp(formatter const & fmt) const;
 };
 
-simp_rule_sets add(type_checker & tc, simp_rule_sets const & s, name const & id, expr const & e, expr const & h);
+simp_rule_sets add(tmp_type_context & tctx, simp_rule_sets const & s, name const & id, expr const & e, expr const & h, unsigned priority);
 simp_rule_sets join(simp_rule_sets const & s1, simp_rule_sets const & s2);
 
-environment add_simp_rule(environment const & env, name const & n, bool persistent = true);
-environment add_congr_rule(environment const & env, name const & n, bool persistent = true);
+environment add_simp_rule(environment const & env, name const & n, unsigned priority,  bool persistent);
+environment add_congr_rule(environment const & env, name const & n, unsigned priority, bool persistent);
 
 /** \brief Return true if \c n is an active simplification rule in \c env */
 bool is_simp_rule(environment const & env, name const & n);
@@ -121,7 +145,7 @@ bool is_congr_rule(environment const & env, name const & n);
 /** \brief Get current simplification rule sets */
 simp_rule_sets get_simp_rule_sets(environment const & env);
 /** \brief Get simplification rule sets in the given namespace. */
-simp_rule_sets get_simp_rule_sets(environment const & env, name const & ns);
+simp_rule_sets get_simp_rule_sets(environment const & env, io_state const & ios, name const & ns);
 
 io_state_stream const & operator<<(io_state_stream const & out, simp_rule_sets const & s);
 

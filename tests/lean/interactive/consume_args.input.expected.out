@@ -44,12 +44,20 @@ b
 a + c + b = a + (c + b)
 -- ACK
 -- IDENTIFIER|7|33
-nat.add.assoc
+algebra.add.assoc
 -- ACK
 -- TYPE|7|43
 a + c + b = a + (c + b) → a + (c + b) = a + c + b
 -- ACK
+-- OVERLOAD|7|43
+eq.symm #0
+--
+inv #0
+-- ACK
 -- SYMBOL|7|43
 ⁻¹
+-- ACK
+-- IDENTIFIER|7|43
+eq.symm
 -- ACK
 -- ENDINFO

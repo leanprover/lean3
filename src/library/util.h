@@ -159,7 +159,16 @@ expr mk_subst(type_checker & tc, expr const & motive, expr const & x, expr const
 expr mk_subst(type_checker & tc, expr const & motive, expr const & xeqy, expr const & h);
 /** \brief Create an proof for x = y using subsingleton.elim (in standard mode) and is_trunc.is_hprop.elim (in HoTT mode) */
 expr mk_subsingleton_elim(type_checker & tc, expr const & h, expr const & x, expr const & y);
-bool is_eq_rec(expr const & e);
+
+/** \brief Return true iff \c e is a term of the form (eq.rec ....) */
+bool is_eq_rec_core(expr const & e);
+/** \brief Return true iff \c e is a term of the form (eq.rec ....) in the standard library,
+    and (eq.nrec ...) in the HoTT library. */
+bool is_eq_rec(environment const & env, expr const & e);
+/** \brief Return true iff \c e is a term of the form (eq.drec ....) in the standard library,
+    and (eq.rec ...) in the HoTT library. */
+bool is_eq_drec(environment const & env, expr const & e);
+
 bool is_eq(expr const & e);
 bool is_eq(expr const & e, expr & lhs, expr & rhs);
 /** \brief Return true iff \c e is of the form (eq A a a) */
@@ -173,6 +182,7 @@ bool is_heq(expr const & e, expr & A, expr & lhs, expr & B, expr & rhs);
 bool is_ite(expr const & e, expr & c, expr & H, expr & A, expr & t, expr & f);
 
 bool is_iff(expr const & e);
+bool is_iff(expr const & e, expr & lhs, expr & rhs);
 expr mk_iff(expr const & lhs, expr const & rhs);
 expr mk_iff_refl(expr const & a);
 /** \brief Given <tt>iff_pr : iff_term</tt>, where \c iff_term is of the form <tt>l <-> r</tt>,

@@ -7,6 +7,8 @@ myrec.{l_1 l_2} :
 recursor information
   num. parameters:          1
   num. indices:             0
+  num. minors:              3
+  recursive:                0
   universe param pos.:      0 [motive univ]
   motive pos.:              2
   major premise pos.:       3
@@ -15,18 +17,22 @@ recursor information
 recursor information
   num. parameters:          0
   num. indices:             0
+  num. minors:              2
+  recursive:                1
   universe param pos.:     
   motive pos.:              1
   major premise pos.:       2
   dep. elimination:         1
 vector.induction_on.{l_1} :
   ∀ {A : Type.{l_1}} {C : Π (a : ℕ), vector.{l_1} A a → Prop} {a : ℕ} (n : vector.{l_1} A a),
-    C nat.zero (@vector.nil.{l_1} A) →
+    C 0 (@vector.nil.{l_1} A) →
     (∀ {n : ℕ} (a : A) (a_1 : vector.{l_1} A n), C n a_1 → C (nat.succ n) (@vector.cons.{l_1} A n a a_1)) →
     C a n
 recursor information
   num. parameters:          1
   num. indices:             1
+  num. minors:              2
+  recursive:                1
   universe param pos.:      0
   motive pos.:              2
   major premise pos.:       4
@@ -39,6 +45,8 @@ Exists.rec.{l_1} :
 recursor information
   num. parameters:          2
   num. indices:             0
+  num. minors:              1
+  recursive:                0
   universe param pos.:      0
   motive pos.:              3
   major premise pos.:       5

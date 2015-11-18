@@ -7,6 +7,7 @@ Basic properties of lists.
 -/
 import logic tools.helper_tactics data.nat.order
 open eq.ops helper_tactics nat prod function option
+open algebra
 
 inductive list (T : Type) : Type :=
 | nil {} : list T
@@ -70,8 +71,8 @@ theorem length_cons [simp] (x : T) (t : list T) : length (x::t) = length t + 1
 
 theorem length_append [simp] : ∀ (s t : list T), length (s ++ t) = length s + length t
 | []       t := calc
-    length ([] ++ t)  = length t : rfl
-                   ... = length [] + length t : zero_add
+    length ([] ++ t)  = length t             : rfl
+                  ... = length [] + length t : by rewrite [length_nil, zero_add]
 | (a :: s) t := calc
     length (a :: s ++ t) = length (s ++ t) + 1        : rfl
                     ...  = length s + length t + 1    : length_append
@@ -717,7 +718,7 @@ lemma count_gt_zero_of_mem : ∀ {a : A} {l : list A}, a ∈ l → count a l > 0
 
 lemma count_eq_zero_of_not_mem {a : A} {l : list A} (h : a ∉ l) : count a l = 0 :=
 match count a l with
-| 0        := suppose count a l = 0, this
+| zero     := suppose count a l = zero, this
 | (succ n) := suppose count a l = succ n, absurd (mem_of_count_gt_zero (begin rewrite this, exact dec_trivial end)) h
 end rfl
 

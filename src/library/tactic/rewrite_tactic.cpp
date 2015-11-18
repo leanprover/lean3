@@ -32,7 +32,8 @@ Author: Leonardo de Moura
 #include "library/constants.h"
 #include "library/unfold_macros.h"
 #include "library/generic_exception.h"
-#include "library/class_instance_synth.h"
+#include "library/class_instance_resolution.h"
+#include "library/num.h"
 #include "library/tactic/clear_tactic.h"
 #include "library/tactic/trace_tactic.h"
 #include "library/tactic/rewrite_tactic.h"
@@ -1039,13 +1040,11 @@ class rewrite_fn {
     }
 
     pair<expr, constraint> mk_class_instance_elaborator(expr const & type) {
-        unifier_config cfg;
-        cfg.m_kind               = unifier_kind::VeryConservative;
         bool use_local_instances = true;
         bool is_strict           = false;
         return ::lean::mk_class_instance_elaborator(m_env, m_ios, m_ctx, m_ngen.next(), optional<name>(),
                                                     use_local_instances, is_strict,
-                                                    some_expr(type), m_expr_loc.get_tag(), cfg, nullptr);
+                                                    some_expr(type), m_expr_loc.get_tag(), nullptr);
     }
 
     // target, new_target, H  : represents the rewrite (H : target = new_target) for hypothesis
@@ -1587,9 +1586,19 @@ class rewrite_fn {
         } else {
             auto aux_pred = full ? mk_irreducible_pred(m_env) : mk_not_reducible_pred(m_env);
             return mk_simple_type_checker(m_env, m_ngen.mk_child(), [=](name const & n) {
-                    return is_projection(m_env, n) || aux_pred(n);
+                    // Remark: the condition !is_num_leaf_constant(n) is a little bit hackish.
+                    // It is here to allow us to match terms such as (@zero nat nat_has_zero) with nat.zero.
+                    // The idea is to treat zero and has_zero.zero as reducible terms and unfold them here.
+                    return (is_projection(m_env, n) || aux_pred(n)) && !is_num_leaf_constant(n);
                 });
         }
+    }
+
+    type_checker_ptr mk_tc(bool full) {
+        auto aux_pred = full ? mk_irreducible_pred(m_env) : mk_not_quasireducible_pred(m_env);
+        return mk_type_checker(m_env, m_ngen.mk_child(), [=](name const & n) {
+                return aux_pred(n) && !is_numeral_const_name(n);
+            });
     }
 
     void process_failure(expr const & elem, bool type_error, kernel_exception * ex = nullptr) {
@@ -1641,7 +1650,7 @@ public:
     rewrite_fn(environment const & env, io_state const & ios, elaborate_fn const & elab, proof_state const & ps,
                bool full, bool keyed):
         m_env(env), m_ios(ios), m_elab(elab), m_ps(ps), m_ngen(ps.get_ngen()),
-        m_tc(mk_type_checker(m_env, m_ngen.mk_child(), full ? UnfoldSemireducible : UnfoldQuasireducible)),
+        m_tc(mk_tc(full)),
         m_matcher_tc(mk_matcher_tc(full)),
         m_relaxed_tc(mk_type_checker(m_env, m_ngen.mk_child())),
         m_mplugin(m_ios, *m_matcher_tc) {

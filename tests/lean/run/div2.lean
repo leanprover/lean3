@@ -49,7 +49,7 @@ definition rec_measure {dom codom : Type} (default : codom) (measure : dom → �
     (rec_val : dom → (dom → codom) → codom) (x : dom) : codom :=
 rec_measure_aux default measure rec_val (succ (measure x)) x
 
-attribute decidable [multiple-instances]
+attribute decidable [multiple_instances]
 
 theorem rec_measure_aux_spec {dom codom : Type} (default : codom) (measure : dom → ℕ)
     (rec_val : dom → (dom → codom) → codom)
@@ -78,8 +78,8 @@ nat.case_strong_induction_on m
             take z,
               assume Hzx : measure z < measure x,
               calc
-                f' m z = restrict default measure f m z : IH m !le.refl z
-                  ... = f z : !restrict_lt_eq (lt_of_lt_of_le Hzx (le_of_lt_succ H1))
+                f' m z = restrict default measure f m z : IH m !nat.le_refl z
+                  ... = f z : !restrict_lt_eq (nat.lt_of_lt_of_le Hzx (le_of_lt_succ H1))
           ∎,
           have H2 : f' (succ m) x = rec_val x f,
           proof

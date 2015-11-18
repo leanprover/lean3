@@ -54,6 +54,7 @@ Author: Leonardo de Moura
 #include "frontends/lean/local_ref_info.h"
 #include "frontends/lean/opt_cmd.h"
 #include "frontends/lean/builtin_cmds.h"
+#include "frontends/lean/prenum.h"
 
 #ifndef LEAN_DEFAULT_PARSER_SHOW_ERRORS
 #define LEAN_DEFAULT_PARSER_SHOW_ERRORS true
@@ -695,7 +696,9 @@ unsigned parser::parse_small_nat() {
 double parser::parse_double() {
     if (curr() != scanner::token_kind::Decimal)
         throw parser_error("decimal value expected", pos());
-    return get_num_val().get_double();
+    double r =get_num_val().get_double();
+    next();
+    return r;
 }
 
 static level lift(level l, unsigned k) {
@@ -1546,42 +1549,35 @@ expr parser::parse_numeral_expr(bool user_notation) {
     if (user_notation)
         vals = get_mpz_notation(m_env, n);
     if (!*m_has_num && !vals) {
-        throw parser_error("numeral cannot be encoded as expression, environment does not contain the type 'num' "
-                           "nor notation was defined for the given numeral "
-                           "(solution: use 'import data.num', or define notation for the given numeral)", p);
+        throw parser_error("numeral cannot be encoded as expression, environment does not contain "
+                           "the auxiliary declarations zero, one, bit0 and bit1", p);
     }
-    buffer<expr> cs;
-    if (*m_has_num)
-        cs.push_back(save_pos(copy(from_num(n)), p));
-    for (expr const & c : vals)
-        cs.push_back(copy_with_new_pos(c, p));
-    // Remark: choices are processed from right to left.
-    // We want to process user provided notation before the default 'num'.
-    lean_assert(!cs.empty());
-    if (cs.size() == 1)
-        return cs[0];
-    else
-        return save_pos(mk_choice(cs.size(), cs.data()), p);
+    if (!vals) {
+        return save_pos(mk_prenum(n), p);
+    } else {
+        buffer<expr> cs;
+        if (*m_has_num)
+            cs.push_back(save_pos(mk_prenum(n), p));
+        for (expr const & c : vals)
+            cs.push_back(copy_with_new_pos(c, p));
+        if (cs.size() == 1)
+            return cs[0];
+        else
+            return save_pos(mk_choice(cs.size(), cs.data()), p);
+    }
 }
 
 expr parser::parse_decimal_expr() {
     auto p  = pos();
     mpq val = get_num_val();
     next();
-    if (!m_has_rat_of_num) {
-        m_has_rat_of_num = static_cast<bool>(m_env.find(get_rat_of_num_name()));
-    }
-    if (!*m_has_rat_of_num) {
-        throw parser_error("invalid decimal number, environment does not contain 'rat.of_num' "
-                           "(solution: use 'import data.rat')", p);
-    }
-    expr of_num = save_pos(mk_constant(get_rat_of_num_name()), p);
-    expr num    = mk_app(of_num, save_pos(copy(from_num(val.get_numerator())), p), p);
+    expr num = save_pos(mk_prenum(val.get_numerator()), p);
     if (val.get_denominator() == 1) {
         return num;
     } else {
-        expr den    = mk_app(of_num, save_pos(copy(from_num(val.get_denominator())), p), p);
-        return mk_app({save_pos(mk_constant(get_rat_divide_name()), p), num, den}, p);
+        expr den = save_pos(mk_prenum(val.get_denominator()), p);
+        expr div = save_pos(mk_constant(get_div_name()), p);
+        return save_pos(lean::mk_app(div, num, den), p);
     }
 }
 

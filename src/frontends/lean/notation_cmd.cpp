@@ -16,6 +16,8 @@ Author: Leonardo de Moura
 #include "library/num.h"
 #include "library/normalize.h"
 #include "library/aliases.h"
+#include "library/constants.h"
+#include "library/typed_expr.h"
 #include "frontends/lean/parser.h"
 #include "frontends/lean/tokens.h"
 #include "frontends/lean/util.h"
@@ -39,12 +41,20 @@ static unsigned parse_precedence_core(parser & p) {
     if (p.curr_is_numeral()) {
         return p.parse_small_nat();
     } else {
-        environment env = open_prec_aliases(open_num_notation(p.env()));
+        environment env = p.env();
+        if (!is_standard(env)) {
+            // TODO(Leo): remove this if we decide to implement
+            // arithmetical notation using type classes in the HoTT
+            // library.
+            env = open_num_notation(p.env());
+        }
+        env = open_prec_aliases(env);
         parser::local_scope scope(p, env);
-        expr val = p.parse_expr(get_max_prec());
-        val = elim_choice_num(val);
+        expr pre_val = p.parse_expr(get_max_prec());
+        pre_val  = mk_typed_expr(mk_constant(get_num_name()), pre_val);
+        expr val = std::get<0>(p.elaborate(pre_val, list<expr>()));
         val = normalize(p.env(), val);
-        if (optional<mpz> mpz_val = to_num(val)) {
+        if (optional<mpz> mpz_val = to_num_core(val)) {
             if (!mpz_val->is_unsigned_int())
                 throw parser_error("invalid 'precedence', argument does not fit in a machine integer", pos);
             return mpz_val->get_unsigned_int();

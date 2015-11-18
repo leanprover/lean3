@@ -68,10 +68,10 @@ lemma le_inf {a b c : A} : c ≤ a → c ≤ b → c ≤ a ⊓ b :=
 assume h₁ h₂,
 le_Inf (take x, suppose x ∈ '{a, b},
   or.elim (eq_or_mem_of_mem_insert this)
-    (suppose x = a, by subst x; assumption)
+    (suppose x = a, begin subst x, exact h₁ end)
     (suppose x ∈ '{b},
       assert x = b, from !eq_of_mem_singleton this,
-      by subst x; assumption))
+      begin subst x, exact h₂ end))
 
 lemma le_sup_left (a b : A) : a ≤ a ⊔ b :=
 le_Sup !mem_insert
@@ -90,7 +90,7 @@ Sup_le (take x, suppose x ∈ '{a, b},
 end complete_lattice_Inf
 
 -- Every complete_lattice_Inf is a complete_lattice_Sup
-definition complete_lattice_Inf_to_complete_lattice_Sup [instance] [C : complete_lattice_Inf A] : complete_lattice_Sup A :=
+definition complete_lattice_Inf_to_complete_lattice_Sup [C : complete_lattice_Inf A] : complete_lattice_Sup A :=
 ⦃ complete_lattice_Sup, C ⦄
 
 -- Every complete_lattice_Inf is a complete_lattice
@@ -113,12 +113,15 @@ le_Sup h
 end complete_lattice_Sup
 
 -- Every complete_lattice_Sup is a complete_lattice_Inf
-definition complete_lattice_Sup_to_complete_lattice_Inf [instance] [C : complete_lattice_Sup A] : complete_lattice_Inf A :=
+definition complete_lattice_Sup_to_complete_lattice_Inf [C : complete_lattice_Sup A] : complete_lattice_Inf A :=
 ⦃ complete_lattice_Inf, C ⦄
 
 -- Every complete_lattice_Sup is a complete_lattice
+section
+local attribute complete_lattice_Sup_to_complete_lattice_Inf [instance]
 definition complete_lattice_Sup_to_complete_lattice [instance] [C : complete_lattice_Sup A] : complete_lattice A :=
 _
+end
 
 namespace complete_lattice
 variable [C : complete_lattice A]

@@ -29,10 +29,10 @@ namespace sigma
   definition eta3 : Π (u : Σa b c, D a b c), ⟨u.1, u.2.1, u.2.2.1, u.2.2.2⟩ = u
   | eta3 ⟨u₁, u₂, u₃, u₄⟩ := idp
 
-  definition dpair_eq_dpair (p : a = a') (q : b =[p] b') : ⟨a, b⟩ = ⟨a', b'⟩ :=
-  by induction q; reflexivity
+  definition dpair_eq_dpair [unfold 8] (p : a = a') (q : b =[p] b') : ⟨a, b⟩ = ⟨a', b'⟩ :=
+  apo011 sigma.mk p q
 
-  definition sigma_eq (p : u.1 = v.1) (q : u.2 =[p] v.2) : u = v :=
+  definition sigma_eq [unfold 3 4] (p : u.1 = v.1) (q : u.2 =[p] v.2) : u = v :=
   by induction u; induction v; exact (dpair_eq_dpair p q)
 
   definition eq_pr1 [unfold 5] (p : u = v) : u.1 = v.1 :=
@@ -40,7 +40,7 @@ namespace sigma
 
   postfix `..1`:(max+1) := eq_pr1
 
-  definition eq_pr2 (p : u = v) : u.2 =[p..1] v.2 :=
+  definition eq_pr2 [unfold 5] (p : u = v) : u.2 =[p..1] v.2 :=
   by induction p; exact idpo
 
   postfix `..2`:(max+1) := eq_pr2
@@ -58,6 +58,12 @@ namespace sigma
 
   definition sigma_eq_eta (p : u = v) : sigma_eq (p..1) (p..2) = p :=
   by induction p; induction u; reflexivity
+
+  definition eq2_pr1 {p q : u = v} (r : p = q) : p..1 = q..1 :=
+  ap eq_pr1 r
+
+  definition eq2_pr2 {p q : u = v} (r : p = q) : p..2 =[eq2_pr1 r] q..2 :=
+  !pathover_ap (apdo eq_pr2 r)
 
   definition tr_pr1_sigma_eq {B' : A → Type} (p : u.1 = v.1) (q : u.2 =[p] v.2)
     : transport (λx, B' x.1) (sigma_eq p q) = transport B' p :=
@@ -140,9 +146,7 @@ namespace sigma
   definition sigma_eq2 {p q : u = v} (r : p..1 = q..1) (s : p..2 =[r] q..2)
     : p = q :=
   begin
-    revert q r s,
     induction p, induction u with u1 u2,
-    intro q r s,
     transitivity sigma_eq q..1 q..2,
       apply sigma_eq_eq_sigma_eq r s,
       apply sigma_eq_eta,
@@ -150,6 +154,10 @@ namespace sigma
 
   definition sigma_eq2_unc {p q : u = v} (rs : Σ(r : p..1 = q..1), p..2 =[r] q..2) : p = q :=
   destruct rs sigma_eq2
+
+  definition ap_dpair_eq_dpair (f : Πa, B a → A') (p : a = a') (q : b =[p] b')
+    : ap (sigma.rec f) (dpair_eq_dpair p q) = apo011 f p q :=
+  by induction q; reflexivity
 
   /- Transport -/
 
@@ -402,7 +410,7 @@ namespace sigma
 
   definition subtype [reducible] {A : Type} (P : A → Type) [H : Πa, is_hprop (P a)] :=
   Σ(a : A), P a
-  notation [parsing-only] `{` binder `|` r:(scoped:1 P, subtype P) `}` := r
+  notation [parsing_only] `{` binder `|` r:(scoped:1 P, subtype P) `}` := r
 
   /- To prove equality in a subtype, we only need equality of the first component. -/
   definition subtype_eq [H : Πa, is_hprop (B a)] (u v : {a | B a}) : u.1 = v.1 → u = v :=
