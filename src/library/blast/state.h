@@ -10,6 +10,7 @@ Author: Leonardo de Moura
 #include "library/head_map.h"
 #include "library/tactic/goal.h"
 #include "library/simplifier/simp_rule_set.h"
+#include "library/blast/backward/backward_rule_set.h"
 #include "library/blast/action_result.h"
 #include "library/blast/hypothesis.h"
 
@@ -134,6 +135,7 @@ class branch {
     expr                     m_target;
     hypothesis_idx_set       m_target_deps;
     simp_rule_sets           m_simp_rule_sets;
+    backward_rule_set        m_backward_rule_set;
 };
 
 /** \brief Proof state for the blast tactic */
@@ -423,6 +425,16 @@ public:
     }
     simp_rule_sets get_simp_rule_sets() const {
         return m_branch.m_simp_rule_sets;
+    }
+
+    /************************
+       Backward rules
+    *************************/
+    void set_backward_rule_set(backward_rule_set const & brs) {
+        m_branch.m_backward_rule_set = brs;
+    }
+    backward_rule_set get_backward_rule_set() const {
+        return m_branch.m_backward_rule_set;
     }
 
     /************************
