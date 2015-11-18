@@ -11,6 +11,7 @@ Author: Leonardo de Moura
 #include "kernel/replace_fn.h"
 #include "library/replace_visitor.h"
 #include "library/blast/util.h"
+#include "library/blast/blast.h"
 #include "library/blast/state.h"
 
 namespace lean {
@@ -587,12 +588,16 @@ void state::update_indices(hypothesis_idx hidx) {
     /* update m_head_to_hyps */
     if (auto i = to_head_index(*h))
         m_branch.m_head_to_hyps.insert(*i, hidx);
+
+    m_branch.m_backward_rule_set.insert(get_type_context(), h->get_name(), gexpr(mk_href(hidx)),
+                                        h->get_type(), LEAN_BACKWARD_DEFAULT_PRIORITY);
     /* TODO(Leo): update congruence closure indices */
 }
 
 void state::remove_from_indices(hypothesis const & h, hypothesis_idx hidx) {
     if (auto i = to_head_index(h))
         m_branch.m_head_to_hyps.erase(*i, hidx);
+    m_branch.m_backward_rule_set.erase(h.get_name());
 }
 
 optional<unsigned> state::activate_hypothesis() {
