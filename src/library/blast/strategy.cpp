@@ -115,7 +115,6 @@ optional<expr> strategy::invoke_preprocess() {
 optional<expr> strategy::search() {
     scope_choice_points scope1;
     m_init_num_choices = get_num_choice_points();
-    curr_state().set_simp_rule_sets(get_simp_rule_sets(env()));
     if (auto pr = invoke_preprocess())
         return pr;
     if (get_num_choice_points() > m_init_num_choices)
