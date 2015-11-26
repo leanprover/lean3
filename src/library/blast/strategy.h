@@ -7,6 +7,8 @@ Author: Leonardo de Moura
 #pragma once
 #include "library/blast/action_result.h"
 #include "library/blast/options.h"
+#include "library/blast/blast.h"
+#include "util/flet.h"
 
 namespace lean {
 namespace blast {
@@ -17,18 +19,15 @@ namespace blast {
     2- Next action to be performed (next_action method)
  */
 class strategy {
-    config   m_config;
     unsigned m_init_num_choices;
     optional<expr> invoke_preprocess();
 protected:
     virtual optional<expr> preprocess() = 0;
     virtual action_result next_action() = 0;
+    virtual action_result hypothesis_pre_activation(hypothesis_idx hidx) = 0;
+    virtual action_result hypothesis_post_activation(hypothesis_idx hidx) = 0;
 
-    void display_msg(char const * msg);
-    void display_action(char const * name);
-    void display();
-    void display_if(action_result r);
-
+    action_result activate_hypothesis(bool preprocess = false);
     action_result next_branch(expr pr);
     optional<expr> search_upto(unsigned depth);
     optional<expr> search();
@@ -36,4 +35,10 @@ public:
     strategy();
     optional<expr> operator()() { return search(); }
 };
+
+#define TryStrategy(Code) {\
+        flet<state> save_state(curr_state(), curr_state());\
+        curr_state().clear_proof_steps();\
+        if (optional<expr> pf = Code) { return action_result::solved(*pf); }\
+    }
 }}

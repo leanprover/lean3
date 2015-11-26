@@ -4,6 +4,7 @@ Released under Apache 2.0 license as described in the file LICENSE.
 
 Author: Leonardo de Moura
 */
+#include <vector>
 #include <algorithm>
 #include "kernel/instantiate.h"
 #include "kernel/abstract.h"
@@ -11,6 +12,7 @@ Author: Leonardo de Moura
 #include "kernel/replace_fn.h"
 #include "library/replace_visitor.h"
 #include "library/blast/util.h"
+#include "library/blast/blast.h"
 #include "library/blast/state.h"
 
 namespace lean {
@@ -27,6 +29,113 @@ bool metavar_decl::restrict_context_using(metavar_decl const & other) {
     for (unsigned hidx : to_erase)
         m_assumptions.erase(hidx);
     return !to_erase.empty();
+}
+
+class extension_manager {
+    std::vector<branch_extension *> m_exts;
+public:
+    ~extension_manager() {
+        for (auto ext : m_exts)
+            ext->dec_ref();
+        m_exts.clear();
+    }
+
+    unsigned register_extension(branch_extension * ext) {
+        ext->inc_ref();
+        unsigned r = m_exts.size();
+        m_exts.push_back(ext);
+        return r;
+    }
+
+    bool has_ext(unsigned extid) const {
+        return extid < m_exts.size();
+    }
+
+    branch_extension * get_initial(unsigned extid) {
+        return m_exts[extid];
+    }
+
+    unsigned get_num_extensions() const {
+        return m_exts.size();
+    }
+};
+
+static extension_manager * g_extension_manager = nullptr;
+
+static extension_manager & get_extension_manager() {
+    return *g_extension_manager;
+}
+
+unsigned register_branch_extension(branch_extension * initial) {
+    return get_extension_manager().register_extension(initial);
+}
+
+branch::branch() {
+    unsigned n = get_extension_manager().get_num_extensions();
+    m_extensions = new branch_extension*[n];
+    for (unsigned i = 0; i < n; i++)
+        m_extensions[i] = nullptr;
+}
+
+branch::~branch() {
+    unsigned n = get_extension_manager().get_num_extensions();
+    for (unsigned i = 0; i < n; i++) {
+        if (m_extensions[i])
+            m_extensions[i]->dec_ref();
+    }
+    delete m_extensions;
+}
+
+branch::branch(branch const & b):
+    m_hyp_decls(b.m_hyp_decls),
+    m_assumption(b.m_assumption),
+    m_active(b.m_active),
+    m_todo_queue(b.m_todo_queue),
+    m_head_to_hyps(b.m_head_to_hyps),
+    m_forward_deps(b.m_forward_deps),
+    m_target(b.m_target),
+    m_target_deps(b.m_target_deps) {
+    unsigned n = get_extension_manager().get_num_extensions();
+    m_extensions = new branch_extension*[n];
+    for (unsigned i = 0; i < n; i++) {
+        m_extensions[i] = b.m_extensions[i];
+        if (m_extensions[i])
+            m_extensions[i]->inc_ref();
+    }
+}
+
+branch::branch(branch && b):
+    m_hyp_decls(std::move(b.m_hyp_decls)),
+    m_assumption(std::move(b.m_assumption)),
+    m_active(std::move(b.m_active)),
+    m_todo_queue(std::move(b.m_todo_queue)),
+    m_head_to_hyps(std::move(b.m_head_to_hyps)),
+    m_forward_deps(std::move(b.m_forward_deps)),
+    m_target(std::move(b.m_target)),
+    m_target_deps(std::move(b.m_target_deps)) {
+    unsigned n = get_extension_manager().get_num_extensions();
+    m_extensions = new branch_extension*[n];
+    for (unsigned i = 0; i < n; i++) {
+        m_extensions[i]   = b.m_extensions[i];
+        b.m_extensions[i] = nullptr;
+    }
+}
+
+void branch::swap(branch & b) {
+    std::swap(m_hyp_decls, b.m_hyp_decls);
+    std::swap(m_assumption, b.m_assumption);
+    std::swap(m_active, b.m_active);
+    std::swap(m_todo_queue, b.m_todo_queue);
+    std::swap(m_head_to_hyps, b.m_head_to_hyps);
+    std::swap(m_forward_deps, b.m_forward_deps);
+    std::swap(m_target, b.m_target);
+    std::swap(m_target_deps, b.m_target_deps);
+    std::swap(m_extensions, b.m_extensions);
+}
+
+branch & branch::operator=(branch s) {
+    swap(s);
+    return *this;
 }
 
 state::state() {}
@@ -58,54 +167,74 @@ void state::restrict_mref_context_using(expr const & mref1, expr const & mref2) 
         m_metavar_decls.insert(mref_index(mref1), new_d1);
 }
 
+expr state::to_kernel_expr(expr const & e, hypothesis_idx_map<expr> & hidx2local, metavar_idx_map<expr> & midx2meta) const {
+    return lean::replace(e, [&](expr const & e) {
+            if (is_href(e)) {
+                unsigned hidx = href_index(e);
+                if (auto r = hidx2local.find(hidx)) {
+                    return some_expr(*r);
+                } else {
+                    hypothesis const & h = get_hypothesis_decl(hidx);
+                    // after we add support for let-decls in goals, we must convert back h->get_value() if it is available
+                    expr new_h = lean::mk_local(name(name("H"), hidx),
+                                                h.get_name(),
+                                                to_kernel_expr(h.get_type(), hidx2local, midx2meta),
+                                                binder_info());
+                    hidx2local.insert(hidx, new_h);
+                    return some_expr(new_h);
+                }
+            } else if (is_mref(e)) {
+                unsigned midx = mref_index(e);
+                if (auto r = midx2meta.find(midx)) {
+                    return some_expr(*r);
+                } else {
+                    metavar_decl const * decl = m_metavar_decls.find(midx);
+                    lean_assert(decl);
+                    buffer<expr> ctx;
+                    decl->get_assumptions().for_each([&](unsigned hidx) {
+                            if (auto h = hidx2local.find(hidx))
+                                ctx.push_back(*h);
+                            else
+                                ctx.push_back(to_kernel_expr(mk_href(hidx), hidx2local, midx2meta));
+                        });
+                    expr type     = to_kernel_expr(decl->get_type(), hidx2local, midx2meta);
+                    expr new_type = Pi(ctx, type);
+                    expr new_mvar = lean::mk_metavar(name(name("M"), mref_index(e)), new_type);
+                    expr new_meta = mk_app(new_mvar, ctx);
+                    midx2meta.insert(mref_index(e), new_meta);
+                    return some_expr(new_meta);
+                }
+            } else {
+                return none_expr();
+            }
+        });
+}
+
+expr state::to_kernel_expr(expr const & e) const {
+    hypothesis_idx_map<expr> hidx2local;
+    metavar_idx_map<expr>    midx2meta;
+    return to_kernel_expr(e, hidx2local, midx2meta);
+}
+
 goal state::to_goal() const {
     hypothesis_idx_map<expr> hidx2local;
     metavar_idx_map<expr>    midx2meta;
-    name M("M");
-    std::function<expr(expr const &)> convert = [&](expr const & e) {
-        return lean::replace(e, [&](expr const & e) {
-                if (is_href(e)) {
-                    auto r = hidx2local.find(href_index(e));
-                    lean_assert(r);
-                    return some_expr(*r);
-                } else if (is_mref(e)) {
-                    auto r = midx2meta.find(mref_index(e));
-                    if (r) {
-                        return some_expr(*r);
-                    } else {
-                        metavar_decl const * decl = m_metavar_decls.find(mref_index(e));
-                        lean_assert(decl);
-                        buffer<expr> ctx;
-                        decl->get_assumptions().for_each([&](unsigned hidx) {
-                                ctx.push_back(*hidx2local.find(hidx));
-                            });
-                        expr type     = convert(decl->get_type());
-                        expr new_type = Pi(ctx, type);
-                        expr new_mvar = lean::mk_metavar(name(M, mref_index(e)), new_type);
-                        expr new_meta = mk_app(new_mvar, ctx);
-                        midx2meta.insert(mref_index(e), new_meta);
-                        return some_expr(new_meta);
-                    }
-                } else {
-                    return none_expr();
-                }
-            });
-    };
-    name H("H");
     hypothesis_idx_buffer hidxs;
     get_sorted_hypotheses(hidxs);
     buffer<expr> hyps;
     for (unsigned hidx : hidxs) {
-        hypothesis const * h = get_hypothesis_decl(hidx);
-        lean_assert(h);
+        hypothesis const & h = get_hypothesis_decl(hidx);
         // after we add support for let-decls in goals, we must convert back h->get_value() if it is available
-        expr new_h = lean::mk_local(name(H, hidx), h->get_name(), convert(h->get_type()), binder_info());
+        expr new_h = lean::mk_local(name(name("H"), hidx),
+                                    h.get_name(),
+                                    to_kernel_expr(h.get_type(), hidx2local, midx2meta),
+                                    binder_info());
         hidx2local.insert(hidx, new_h);
         hyps.push_back(new_h);
     }
-    expr new_target    = convert(get_target());
+    expr new_target    = to_kernel_expr(get_target(), hidx2local, midx2meta);
     expr new_mvar_type = Pi(hyps, new_target);
-    expr new_mvar      = lean::mk_metavar(M, new_mvar_type);
+    expr new_mvar      = lean::mk_metavar(name("M"), new_mvar_type);
     expr new_meta      = mk_app(new_mvar, hyps);
     return goal(new_meta, new_target);
 }
@@ -115,7 +244,7 @@ void state::display_active(output_channel & out) const {
     bool first = true;
     m_branch.m_active.for_each([&](hypothesis_idx hidx) {
             if (first) first = false; else out << ", ";
-            out << get_hypothesis_decl(hidx)->get_name();
+            out << get_hypothesis_decl(hidx).get_name();
         });
     out << "}\n";
 }
@@ -343,11 +472,11 @@ struct hypothesis_dep_depth_lt {
 
     hypothesis_dep_depth_lt(state const & s): m_state(s) {}
     bool operator()(unsigned hidx1, unsigned hidx2) const {
-        hypothesis const * h1 = m_state.get_hypothesis_decl(hidx1);
-        hypothesis const * h2 = m_state.get_hypothesis_decl(hidx2);
+        hypothesis const & h1 = m_state.get_hypothesis_decl(hidx1);
+        hypothesis const & h2 = m_state.get_hypothesis_decl(hidx2);
         return
-            h1 && h2 && h1->get_dep_depth() < h2->get_dep_depth() &&
-            (h1->get_dep_depth() == h2->get_dep_depth() && hidx1 < hidx2);
+            h1.get_dep_depth() < h2.get_dep_depth() &&
+            (h1.get_dep_depth() == h2.get_dep_depth() && hidx1 < hidx2);
     }
 };
 
@@ -369,7 +498,7 @@ void state::sort_hypotheses(hypothesis_idx_buffer_set & r) const {
 
 void state::to_hrefs(hypothesis_idx_buffer const & hidxs, buffer<expr> & r) const {
     for (hypothesis_idx hidx : hidxs)
-        r.push_back(get_hypothesis_decl(hidx)->get_self());
+        r.push_back(get_hypothesis_decl(hidx).get_self());
 }
 
 void state::add_forward_dep(unsigned hidx_user, unsigned hidx_provider) {
@@ -404,10 +533,9 @@ void state::add_deps(expr const & e, hypothesis & h_user, unsigned hidx_user) {
                 return false;
             } else if (is_href(l)) {
                 unsigned hidx_provider = href_index(l);
-                hypothesis const * h_provider = get_hypothesis_decl(hidx_provider);
-                lean_assert(h_provider);
-                if (h_user.m_dep_depth <= h_provider->m_dep_depth)
-                    h_user.m_dep_depth = h_provider->m_dep_depth + 1;
+                hypothesis const & h_provider = get_hypothesis_decl(hidx_provider);
+                if (h_user.m_dep_depth <= h_provider.m_dep_depth)
+                    h_user.m_dep_depth = h_provider.m_dep_depth + 1;
                 if (!h_user.m_deps.contains(hidx_provider)) {
                     h_user.m_deps.insert(hidx_provider);
                     add_forward_dep(hidx_user, hidx_provider);
@@ -466,7 +594,7 @@ expr state::mk_hypothesis(expr const & type) {
 
 void state::del_hypotheses(buffer<hypothesis_idx> const & to_delete, hypothesis_idx_set const & to_delete_set) {
     for (hypothesis_idx h : to_delete) {
-        hypothesis h_decl = *get_hypothesis_decl(h);
+        hypothesis h_decl = get_hypothesis_decl(h);
         if (m_branch.m_active.contains(h)) {
             m_branch.m_active.erase(h);
             remove_from_indices(h_decl, h);
@@ -565,10 +693,9 @@ list<hypothesis_idx> state::get_occurrences_of(head_index const & h) const {
 }
 
 list<hypothesis_idx> state::get_head_related(hypothesis_idx hidx) const {
-    hypothesis const * h = get_hypothesis_decl(hidx);
-    lean_assert(h);
+    hypothesis const & h = get_hypothesis_decl(hidx);
     /* update m_head_to_hyps */
-    if (auto i = to_head_index(*h))
+    if (auto i = to_head_index(h))
         return get_occurrences_of(*i);
     else
         return list<hypothesis_idx>();
@@ -581,47 +708,78 @@ list<hypothesis_idx> state::get_head_related() const {
         return list<hypothesis_idx>();
 }
 
+branch_extension * state::get_extension_core(unsigned i) {
+    branch_extension * ext = m_branch.m_extensions[i];
+    if (ext && ext->get_rc() > 1) {
+        branch_extension * new_ext = ext->clone();
+        new_ext->inc_ref();
+        ext->dec_ref();
+        m_branch.m_extensions[i] = new_ext;
+        return new_ext;
+    }
+    return ext;
+}
+
+branch_extension & state::get_extension(unsigned extid) {
+    lean_assert(extid < get_extension_manager().get_num_extensions());
+    if (!m_branch.m_extensions[extid]) {
+        /* lazy initialization */
+        branch_extension * ext = get_extension_manager().get_initial(extid)->clone();
+        ext->inc_ref();
+        m_branch.m_extensions[extid] = ext;
+        lean_assert(ext->get_rc() == 1);
+        ext->initialized();
+        ext->target_updated();
+        m_branch.m_active.for_each([&](hypothesis_idx hidx) {
+                hypothesis const & h = get_hypothesis_decl(hidx);
+                ext->hypothesis_activated(h, hidx);
+            });
+        return *ext;
+    } else {
+        branch_extension * ext = get_extension_core(extid);
+        lean_assert(ext);
+        return *ext;
+    }
+}
+
 void state::update_indices(hypothesis_idx hidx) {
-    hypothesis const * h = get_hypothesis_decl(hidx);
-    lean_assert(h);
+    hypothesis const & h = get_hypothesis_decl(hidx);
     /* update m_head_to_hyps */
-    if (auto i = to_head_index(*h))
+    if (auto i = to_head_index(h))
         m_branch.m_head_to_hyps.insert(*i, hidx);
+    unsigned n = get_extension_manager().get_num_extensions();
+    for (unsigned i = 0; i < n; i++) {
+        branch_extension * ext = get_extension_core(i);
+        if (ext) ext->hypothesis_activated(h, hidx);
+    }
     /* TODO(Leo): update congruence closure indices */
 }
 
 void state::remove_from_indices(hypothesis const & h, hypothesis_idx hidx) {
+    unsigned n = get_extension_manager().get_num_extensions();
+    for (unsigned i = 0; i < n; i++) {
+        branch_extension * ext = get_extension_core(i);
+        if (ext) ext->hypothesis_deleted(h, hidx);
+    }
     if (auto i = to_head_index(h))
         m_branch.m_head_to_hyps.erase(*i, hidx);
 }
 
-optional<unsigned> state::activate_hypothesis() {
+optional<unsigned> state::select_hypothesis_to_activate() {
     while (true) {
         if (m_branch.m_todo_queue.empty())
             return optional<unsigned>();
         unsigned hidx             = m_branch.m_todo_queue.erase_min();
-        hypothesis const * h_decl = get_hypothesis_decl(hidx);
-        if (!h_decl->is_dead()) {
-            m_branch.m_active.insert(hidx);
-            update_indices(hidx);
+        hypothesis const & h_decl = get_hypothesis_decl(hidx);
+        if (!h_decl.is_dead()) {
             return optional<unsigned>(hidx);
         }
     }
 }
 
-optional<unsigned> state::select_rec_hypothesis() {
-    while (true) {
-        if (m_branch.m_rec_queue.empty())
-            return optional<unsigned>();
-        unsigned hidx             = m_branch.m_rec_queue.erase_min();
-        hypothesis const * h_decl = get_hypothesis_decl(hidx);
-        if (!h_decl->is_dead())
-            return optional<unsigned>(hidx);
-    }
-}
-
-void state::add_to_rec_queue(hypothesis_idx hidx, double w) {
-    m_branch.m_rec_queue.insert(w, hidx);
+void state::activate_hypothesis(hypothesis_idx hidx) {
+    m_branch.m_active.insert(hidx);
+    update_indices(hidx);
 }
 
 bool state::hidx_depends_on(unsigned hidx_user, unsigned hidx_provider) const {
@@ -647,6 +805,11 @@ void state::set_target(expr const & t) {
                 }
             });
     }
+    unsigned n = get_extension_manager().get_num_extensions();
+    for (unsigned i = 0; i < n; i++) {
+        branch_extension * ext = get_extension_core(i);
+        if (ext) ext->target_updated();
+    }
 }
 
 struct expand_hrefs_fn : public replace_visitor {
@@ -658,9 +821,9 @@ struct expand_hrefs_fn : public replace_visitor {
 
     virtual expr visit_local(expr const & e) {
         if (is_href(e) && std::find(m_hrefs.begin(), m_hrefs.end(), e) != m_hrefs.end()) {
-            hypothesis const * h = m_state.get_hypothesis_decl(e);
-            if (h->get_value()) {
-                return visit(*h->get_value());
+            hypothesis const & h = m_state.get_hypothesis_decl(e);
+            if (h.get_value()) {
+                return visit(*h.get_value());
             }
         }
         return replace_visitor::visit_local(e);
@@ -686,13 +849,12 @@ expr state::mk_binding(bool is_lambda, unsigned num, expr const * hrefs, expr co
         --i;
         expr const & h = hrefs[i];
         lean_assert(is_href(h));
-        hypothesis const * hdecl = get_hypothesis_decl(h);
-        lean_assert(hdecl);
-        expr t = abstract_locals(hdecl->get_type(), i, hrefs);
+        hypothesis const & hdecl = get_hypothesis_decl(h);
+        expr t = abstract_locals(hdecl.get_type(), i, hrefs);
         if (is_lambda)
-            r = ::lean::mk_lambda(hdecl->get_name(), t, r);
+            r = ::lean::mk_lambda(hdecl.get_name(), t, r);
         else
-            r = ::lean::mk_pi(hdecl->get_name(), t, r);
+            r = ::lean::mk_pi(hdecl.get_name(), t, r);
     }
     return r;
 }
@@ -710,12 +872,14 @@ expr state::mk_pi(list<expr> const & hrefs, expr const & b) const {
 }
 
 void initialize_state() {
-    g_prefix     = new name(name::mk_internal_unique_name());
-    g_H          = new name("H");
+    g_extension_manager = new extension_manager();
+    g_prefix            = new name(name::mk_internal_unique_name());
+    g_H                 = new name("H");
 }
 
 void finalize_state() {
     delete g_prefix;
     delete g_H;
+    delete g_extension_manager;
 }
 }}

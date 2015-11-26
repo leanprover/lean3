@@ -1,7 +1,7 @@
 /-
 Copyright (c) 2014 Microsoft Corporation. All rights reserved.
 Released under Apache 2.0 license as described in the file LICENSE.
-Authors: Leonardo de Moura
+Authors: Leonardo de Moura, Floris van Doorn
 -/
 prelude
 import init.datatypes
@@ -145,9 +145,11 @@ reserve infix ` ∈ `:50
 reserve infix ` ∉ `:50
 reserve infixl ` ∩ `:70
 reserve infixl ` ∪ `:65
+reserve infix ` ⊆ `:50
+reserve infix ` ⊇ `:50
 
 /- other symbols -/
 
 reserve infix ` ∣ `:50
 reserve infixl ` ++ `:65
-reserve infixr ` :: `:65
+reserve infixr ` :: `:67

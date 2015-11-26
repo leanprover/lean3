@@ -7,22 +7,43 @@ Author: Leonardo de Moura
 #include "kernel/instantiate.h"
 #include "kernel/inductive/inductive.h"
 #include "library/user_recursors.h"
-#include "library/blast/revert_action.h"
+#include "library/blast/revert.h"
 #include "library/blast/blast.h"
+#include "library/blast/trace.h"
+#include "library/blast/options.h"
 
 namespace lean {
 namespace blast {
+static unsigned g_ext_id = 0;
+struct recursor_branch_extension : public branch_extension {
+    hypothesis_priority_queue m_rec_queue;
+    recursor_branch_extension() {}
+    recursor_branch_extension(recursor_branch_extension const & b):m_rec_queue(b.m_rec_queue) {}
+    virtual ~recursor_branch_extension() {}
+    virtual branch_extension * clone() { return new recursor_branch_extension(*this); }
+};
+
+void initialize_recursor_action() {
+    g_ext_id = register_branch_extension(new recursor_branch_extension());
+}
+
+void finalize_recursor_action() {
+}
+
+static recursor_branch_extension & get_extension() {
+    return static_cast<recursor_branch_extension&>(curr_state().get_extension(g_ext_id));
+}
+
 optional<name> is_recursor_action_target(hypothesis_idx hidx) {
     state & s = curr_state();
-    hypothesis const * h = s.get_hypothesis_decl(hidx);
-    lean_assert(h);
-    expr const & type = h->get_type();
+    hypothesis const & h = s.get_hypothesis_decl(hidx);
+    expr const & type = h.get_type();
     if (!is_app(type) && !is_constant(type))
         return optional<name>();
     if (is_relation_app(type))
         return optional<name>(); // we don't apply recursors to equivalence relations: =, ~, <->, etc.
-    if (!h->is_assumption())
-        return optional<name>(); // we only consider assumptions
+    if (!h.is_assumption() && !is_prop(type))
+        return optional<name>(); // we only consider assumptions or propositions
     if (get_type_context().is_class(type)) {
         // we don't eliminate type classes instances
         // TODO(Leo): we may revise that in the future... some type classes instances may be worth eliminating (e.g., decidable).
@@ -118,9 +139,8 @@ struct recursor_proof_step_cell : public proof_step_cell {
 
 action_result recursor_action(hypothesis_idx hidx, name const & R) {
     state & s = curr_state();
-    hypothesis const * h = s.get_hypothesis_decl(hidx);
-    lean_assert(h);
-    expr const & type = h->get_type();
+    hypothesis const & h = s.get_hypothesis_decl(hidx);
+    expr const & type    = h.get_type();
     lean_assert(is_constant(get_app_fn(type)));
 
     recursor_info rec_info = get_recursor_info(env(), R);
@@ -174,7 +194,7 @@ action_result recursor_action(hypothesis_idx hidx, name const & R) {
     s.collect_direct_forward_deps(hidx, to_revert);
     for (auto i : indices)
         s.collect_direct_forward_deps(href_index(i), to_revert);
-    revert_action(to_revert);
+    revert(to_revert);
 
     expr target       = s.get_target();
     auto target_level = get_type_context().get_level_core(target);
@@ -221,7 +241,7 @@ action_result recursor_action(hypothesis_idx hidx, name const & R) {
 
     expr motive = target;
     if (rec_info.has_dep_elim())
-        motive  = s.mk_lambda(h->get_self(), motive);
+        motive  = s.mk_lambda(h.get_self(), motive);
     motive = s.mk_lambda(indices, motive);
     rec      = mk_app(rec, motive);
 
@@ -240,8 +260,8 @@ action_result recursor_action(hypothesis_idx hidx, name const & R) {
                     return action_result::failed(); // ill-formed type
                 curr_pos++;
             }
-            rec      = mk_app(rec, h->get_self());
-            rec_type = relaxed_whnf(instantiate(binding_body(rec_type), h->get_self()));
+            rec      = mk_app(rec, h.get_self());
+            rec_type = relaxed_whnf(instantiate(binding_body(rec_type), h.get_self()));
             consumed_major = true;
             curr_pos++;
         } else {
@@ -265,9 +285,10 @@ action_result recursor_action(hypothesis_idx hidx, name const & R) {
         return action_result::failed(); // ill-formed recursor
 
     save_state.commit();
-
-    if (new_goals.empty())
+    trace_action("recursor");
+    if (new_goals.empty()) {
         return action_result::solved(rec);
+    }
     s.del_hypothesis(hidx);
     s.push_proof_step(new recursor_proof_step_cell(rec_info.has_dep_elim(), s.get_branch(), rec, to_list(new_goals), list<expr>()));
     s.set_target(mlocal_type(new_goals[0]));
@@ -276,9 +297,8 @@ action_result recursor_action(hypothesis_idx hidx, name const & R) {
 
 action_result recursor_action(hypothesis_idx hidx) {
     state & s = curr_state();
-    hypothesis const * h = s.get_hypothesis_decl(hidx);
-    lean_assert(h);
-    expr const & type = h->get_type();
+    hypothesis const & h = s.get_hypothesis_decl(hidx);
+    expr const & type = h.get_type();
     expr const & I    = get_app_fn(type);
     if (!is_constant(I))
         return action_result::failed();
@@ -289,5 +309,52 @@ action_result recursor_action(hypothesis_idx hidx) {
             return r;
     }
     return action_result::failed();
+}
+
+action_result recursor_preprocess_action(hypothesis_idx hidx) {
+    if (!get_config().m_recursor)
+        return action_result::failed();
+    if (optional<name> R = is_recursor_action_target(hidx)) {
+        unsigned num_minor = get_num_minor_premises(*R);
+        if (num_minor == 1) {
+            action_result r = recursor_action(hidx, *R);
+            if (!failed(r)) {
+                // if (!preprocess) display_action("recursor");
+                return r;
+            }
+        } else {
+            // If the hypothesis recursor has more than 1 minor premise, we
+            // put it in a priority queue.
+            // TODO(Leo): refine
+
+            // TODO(Leo): the following weight computation is too simple...
+            double w = 1.0 / (static_cast<double>(hidx) + 1.0);
+            if (!is_recursive_recursor(*R)) {
+                // TODO(Leo): we need a better strategy for handling recursive recursors...
+                w += static_cast<double>(num_minor);
+                recursor_branch_extension & ext = get_extension();
+                ext.m_rec_queue.insert(w, hidx);
+                return action_result::new_branch();
+            }
+        }
+    }
+    return action_result::failed();
+}
+
+action_result recursor_action() {
+    if (!get_config().m_recursor)
+        return action_result::failed();
+    recursor_branch_extension & ext = get_extension();
+    while (true) {
+        if (ext.m_rec_queue.empty())
+            return action_result::failed();
+        unsigned hidx             = ext.m_rec_queue.erase_min();
+        hypothesis const & h_decl = curr_state().get_hypothesis_decl(hidx);
+        if (h_decl.is_dead())
+            continue;
+        if (optional<name> R = is_recursor_action_target(hidx)) {
+            Try(recursor_action(hidx, *R));
+        }
+    }
 }
 }}

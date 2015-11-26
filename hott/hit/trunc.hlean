@@ -24,11 +24,6 @@ namespace trunc
     [Pt : is_trunc n P] (H : A → P) : P :=
   trunc.elim H aa
 
-  /-
-    there are no theorems to eliminate to the universe here,
-    because the universe is not a set
-  -/
-
 end trunc
 
 attribute trunc.elim_on [unfold 4]
@@ -104,13 +99,13 @@ namespace trunc
   /- Propositional truncation -/
 
   -- should this live in hprop?
-  definition merely [reducible] (A : Type) : Type := trunc -1 A
+  definition merely [reducible] [constructor] (A : Type) : hprop := trunctype.mk (trunc -1 A) _
 
   notation `||`:max A `||`:0 := merely A
   notation `∥`:max A `∥`:0   := merely A
 
-  definition Exists [reducible] (P : X → Type) : Type := ∥ sigma P ∥
-  definition or [reducible] (A B : Type) : Type := ∥ A ⊎ B ∥
+  definition Exists [reducible] [constructor] (P : X → Type) : hprop := ∥ sigma P ∥
+  definition or [reducible] [constructor] (A B : Type) : hprop := ∥ A ⊎ B ∥
 
   notation `exists` binders `,` r:(scoped P, Exists P) := r
   notation `∃` binders `,` r:(scoped P, Exists P) := r

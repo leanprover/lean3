@@ -60,6 +60,9 @@ namespace pointed
   definition Bool [constructor] : Type* :=
   pointed.mk' bool
 
+  definition Unit [constructor] : Type* :=
+  Pointed.mk unit.star
+
   definition pointed_fun_closed [constructor] (f : A → B) [H : pointed A] : pointed B :=
   pointed.mk (f pt)
 
@@ -243,6 +246,18 @@ namespace pointed
   idp
 
   variable {A}
+
+  /- the equality [loop_space_succ_eq_in] preserves concatenation -/
+  theorem loop_space_succ_eq_in_concat {n : ℕ} (p q : Ω[succ (succ n)] A) :
+           transport carrier (ap Loop_space (loop_space_succ_eq_in A n)) (p ⬝ q)
+         = transport carrier (ap Loop_space (loop_space_succ_eq_in A n)) p
+         ⬝ transport carrier (ap Loop_space (loop_space_succ_eq_in A n)) q :=
+  begin
+    rewrite [-+tr_compose, ↑function.compose],
+    rewrite [+@transport_eq_FlFr_D _ _ _ _ Point Point, +con.assoc], apply whisker_left,
+    rewrite [-+con.assoc], apply whisker_right, rewrite [con_inv_cancel_right, ▸*, -ap_con]
+  end
+
   definition loop_space_loop_irrel (p : point A = point A) : Ω(Pointed.mk p) = Ω[2] A :=
   begin
     intros, fapply Pointed_eq,
@@ -336,5 +351,9 @@ namespace pointed
 
   definition equiv_of_pequiv [constructor] (f : A ≃* B) : A ≃ B :=
   equiv.mk f _
+
+  definition pua {A B : Type*} (f : A ≃* B) : A = B :=
+  Pointed_eq (equiv_of_pequiv f) !respect_pt
+
 
 end pointed

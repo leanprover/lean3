@@ -45,9 +45,11 @@ Author: Leonardo de Moura
 #include "library/congr_lemma_manager.h"
 #include "library/abstract_expr_manager.h"
 #include "library/definitional/projection.h"
-#include "library/simplifier/simp_rule_set.h"
+#include "library/blast/simplifier/simp_rule_set.h"
 #include "library/blast/blast.h"
-#include "library/blast/simplifier.h"
+#include "library/blast/simplifier/simplifier.h"
+#include "library/blast/backward/backward_rule_set.h"
+#include "library/blast/forward/pattern.h"
 #include "compiler/preprocess_rec.h"
 #include "frontends/lean/util.h"
 #include "frontends/lean/parser.h"
@@ -242,6 +244,20 @@ static void print_definition(parser const & p, name const & n, pos_info const & 
     if (!d.is_definition())
         throw parser_error(sstream() << "invalid 'print definition', '" << n << "' is not a definition", pos);
     new_out << d.get_value() << endl;
+    if (auto lemma = get_hi_lemma(env, n)) {
+        if (lemma->m_multi_patterns) {
+            new_out << "(multi-)patterns:\n";
+            for (multi_pattern const & mp : lemma->m_multi_patterns) {
+                new_out << "{";
+                bool first = true;
+                for (expr const & p : mp) {
+                    if (first) first = false; else new_out << ", ";
+                    new_out << p;
+                }
+                new_out << "}\n";
+            }
+        }
+    }
 }
 
 static void print_attributes(parser const & p, name const & n) {
@@ -257,6 +273,12 @@ static void print_attributes(parser const & p, name const & n) {
         out << " [simp]";
     if (is_congr_rule(env, n))
         out << " [congr]";
+    if (is_backward_rule(env, n))
+        out << " [backward]";
+    if (is_no_pattern(env, n))
+        out << " [no_pattern]";
+    if (get_hi_lemma(env, n))
+        out << " [forward]";
     switch (get_reducible_status(env, n)) {
     case reducible_status::Reducible:      out << " [reducible]"; break;
     case reducible_status::Irreducible:    out << " [irreducible]"; break;
@@ -496,6 +518,25 @@ static void print_congr_rules(parser & p) {
     out << s.pp_congr(out.get_formatter());
 }
 
+static void print_backward_rules(parser & p) {
+    io_state_stream out = p.regular_stream();
+    blast::backward_rule_set brs = get_backward_rule_set(p.env());
+    out << brs;
+}
+
+static void print_no_patterns(parser & p) {
+    io_state_stream out = p.regular_stream();
+    auto s = get_no_patterns(p.env());
+    buffer<name> ns;
+    s.to_buffer(ns);
+    std::sort(ns.begin(), ns.end());
+    for (unsigned i = 0; i < ns.size(); i++) {
+        if (i > 0) out << ", ";
+        out << ns[i];
+    }
+    out << "\n";
+}
+
 environment print_cmd(parser & p) {
     flycheck_information info(p.regular_stream());
     if (info.enabled()) {
@@ -512,6 +553,9 @@ environment print_cmd(parser & p) {
         options opts = out.get_options();
         opts = opts.update(get_pp_notation_option_name(), false);
         out.update_options(opts) << e << endl;
+    } else if (p.curr_is_token_or_id(get_no_pattern_attr_tk())) {
+        p.next();
+        print_no_patterns(p);
     } else if (p.curr_is_token_or_id(get_reducible_tk())) {
         p.next();
         print_reducible_info(p, reducible_status::Reducible);
@@ -609,6 +653,9 @@ environment print_cmd(parser & p) {
     } else if (p.curr_is_token(get_congr_attr_tk())) {
         p.next();
         print_congr_rules(p);
+    } else if (p.curr_is_token(get_backward_attr_tk())) {
+        p.next();
+        print_backward_rules(p);
     } else if (print_polymorphic(p)) {
     } else {
         throw parser_error("invalid print command", p.pos());

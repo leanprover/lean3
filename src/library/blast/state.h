@@ -9,7 +9,6 @@ Author: Leonardo de Moura
 #include "kernel/expr.h"
 #include "library/head_map.h"
 #include "library/tactic/goal.h"
-#include "library/simplifier/simp_rule_set.h"
 #include "library/blast/action_result.h"
 #include "library/blast/hypothesis.h"
 
@@ -44,6 +43,7 @@ class proof_step_cell {
     MK_LEAN_RC(); // Declare m_rc counter
     void dealloc() { delete this; }
 public:
+    proof_step_cell():m_rc(0) {}
     virtual ~proof_step_cell() {}
     /** \brief When an action updates the main branch of the proof state,
         it adds a proof_step object to the proof step stack.
@@ -96,18 +96,41 @@ public:
     }
 };
 
+/** \brief Actions that require additional indexing data-structures may store them
+    at a branch_extension */
+class branch_extension {
+    MK_LEAN_RC();
+    void dealloc() { delete this; }
+public:
+    branch_extension():m_rc(0) {}
+    virtual ~branch_extension() {}
+    /** \brief Return a copy of this object */
+    virtual branch_extension * clone() = 0;
+    /** \brief This method is invoked the first time an extension is used in a branch
+        The system guarantees this object is not shared, and destructive updates are allowed. */
+    virtual void initialized() {}
+    /** \brief This method is invoked whenever the target type in the current branch is updated. */
+    virtual void target_updated() {}
+    /** \brief This method is invoked when the given hypothesis is initialized in the current branch.
+        The system guarantees this object is not shared, and destructive updates are allowed. */
+    virtual void hypothesis_activated(hypothesis const &, hypothesis_idx) {}
+    /** \brief This method is invoked when the given hypothesis is deleted from the current branch.
+        The system guarantees this object is not shared, and destructive updates are allowed. */
+    virtual void hypothesis_deleted(hypothesis const &, hypothesis_idx) {}
+};
+
+/** \brief This procedure must be invoke at Lean initialization time for each branch extension.
+    The unique id returned should be used to retrieve the branch extension associated with the current state */
+unsigned register_branch_extension(branch_extension * initial);
+
 /** \brief Information associated with the current branch of the proof state.
     This is essentially a mechanism for creating snapshots of the current branch. */
 class branch {
     friend class state;
+
     typedef hypothesis_idx_map<hypothesis_idx_set> forward_deps;
-    /* trick to make sure the rb_map::erase_min removes the hypothesis with biggest weight */
-    struct inv_double_cmp {
-        int operator()(double const & d1, double const & d2) const { return d1 > d2 ? -1 : (d1 < d2 ? 1 : 0); }
-    };
-    typedef rb_map<double, hypothesis_idx, inv_double_cmp>   priority_queue;
-    typedef priority_queue                                   todo_queue;
-    typedef priority_queue                                   rec_queue;
+    typedef hypothesis_priority_queue              todo_queue;
+
     // Hypothesis/facts in the current state
     hypothesis_decls   m_hyp_decls;
     // We break the set of hypotheses in m_hyp_decls in 4 sets that are not necessarily disjoint:
@@ -128,12 +151,18 @@ class branch {
     hypothesis_idx_set       m_assumption;
     hypothesis_idx_set       m_active;
     todo_queue               m_todo_queue;
-    rec_queue                m_rec_queue;    // priority queue for hypothesis we want to eliminate/recurse
     head_map<hypothesis_idx> m_head_to_hyps;
     forward_deps             m_forward_deps; // given an entry (h -> {h_1, ..., h_n}), we have that each h_i uses h.
     expr                     m_target;
     hypothesis_idx_set       m_target_deps;
-    simp_rule_sets           m_simp_rule_sets;
+    branch_extension **      m_extensions;
+public:
+    branch();
+    branch(branch const & b);
+    branch(branch && b);
+    ~branch();
+    void swap(branch & b);
+    branch & operator=(branch s);
 };
 
 /** \brief Proof state for the blast tactic */
@@ -176,6 +205,10 @@ class state {
     bool safe_to_delete(buffer<hypothesis_idx> const & to_delete);
 
     void display_active(output_channel & out) const;
+
+    branch_extension * get_extension_core(unsigned i);
+
+    expr to_kernel_expr(expr const & e, hypothesis_idx_map<expr> & hidx2local, metavar_idx_map<expr> & midx2meta) const;
 
     #ifdef LEAN_DEBUG
     bool check_hypothesis(expr const & e, hypothesis_idx hidx, hypothesis const & h) const;
@@ -250,22 +283,19 @@ public:
         \c hidx_provider. */
     bool hidx_depends_on(hypothesis_idx hidx_user, hypothesis_idx hidx_provider) const;
 
-    hypothesis const * get_hypothesis_decl(hypothesis_idx hidx) const { return m_branch.m_hyp_decls.find(hidx); }
-    hypothesis const * get_hypothesis_decl(expr const & h) const { return get_hypothesis_decl(href_index(h)); }
+    hypothesis const & get_hypothesis_decl(hypothesis_idx hidx) const { auto h = m_branch.m_hyp_decls.find(hidx); lean_assert(h); return *h; }
+    hypothesis const & get_hypothesis_decl(expr const & h) const { return get_hypothesis_decl(href_index(h)); }
 
     void for_each_hypothesis(std::function<void(hypothesis_idx, hypothesis const &)> const & fn) const { m_branch.m_hyp_decls.for_each(fn); }
     optional<hypothesis_idx> find_active_hypothesis(std::function<bool(hypothesis_idx, hypothesis const &)> const & fn) const { // NOLINT
         return m_branch.m_active.find_if([&](hypothesis_idx hidx) {
-                return fn(hidx, *get_hypothesis_decl(hidx));
+                return fn(hidx, get_hypothesis_decl(hidx));
             });
     }
 
-    /** \brief Activate the next hypothesis in the TODO queue, return none if the TODO queue is empty. */
-    optional<hypothesis_idx> activate_hypothesis();
-
-    /** \brief Pick next hypothesis from the rec queue */
-    optional<hypothesis_idx> select_rec_hypothesis();
-    void add_to_rec_queue(hypothesis_idx hidx, double w);
+    /** \brief Select next hypothesis in the TODO queue, return none if the TODO queue is empty. */
+    optional<hypothesis_idx> select_hypothesis_to_activate();
+    void activate_hypothesis(hypothesis_idx hidx);
 
     /** \brief Store in \c r the hypotheses in this branch sorted by dependency depth */
     void get_sorted_hypotheses(hypothesis_idx_buffer & r) const;
@@ -356,6 +386,11 @@ public:
         return m_proof_depth;
     }
 
+    void clear_proof_steps() {
+        m_proof_steps = list<proof_step>();
+        m_proof_depth = 0;
+    }
+
     /************************
        Assignment management
     *************************/
@@ -411,14 +446,10 @@ public:
     void restore_assignment(assignment_snapshot const & s);
 
     /************************
-       Simplification rules
+       Branch extensions
     *************************/
-    void set_simp_rule_sets(simp_rule_sets const & s) {
-        m_branch.m_simp_rule_sets = s;
-    }
-    simp_rule_sets get_simp_rule_sets() const {
-        return m_branch.m_simp_rule_sets;
-    }
+
+    branch_extension & get_extension(unsigned extid);
 
     /************************
        Debugging support
@@ -428,6 +459,10 @@ public:
         This is mainly used for pretty printing. However, in the future, we may use this capability
         to invoke the tactic framework from the blast tactic. */
     goal to_goal() const;
+
+    /** \brief Convert expression into a kernel expression that can be pretty printed using better names,
+        and types can be inferred by pretty printer. */
+    expr to_kernel_expr(expr const & e) const;
 
     void display(environment const & env, io_state const & ios) const;
 

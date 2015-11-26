@@ -6,6 +6,7 @@ Author: Leonardo de Moura
 */
 #include "kernel/inductive/inductive.h"
 #include "library/blast/blast.h"
+#include "library/blast/trace.h"
 
 namespace lean {
 namespace blast {
@@ -35,9 +36,8 @@ struct no_confusion_proof_step_cell : public proof_step_cell {
             }
             state & s = curr_state();
             app_builder & b = get_app_builder();
-            hypothesis const * h = s.get_hypothesis_decl(href_index(m_eq_href));
-            lean_assert(h);
-            expr type = h->get_type();
+            hypothesis const & h = s.get_hypothesis_decl(href_index(m_eq_href));
+            expr type = h.get_type();
             expr lhs, rhs;
             lean_verify(is_eq(type, lhs, rhs));
             name nc_name(m_I_name, "no_confusion");
@@ -53,9 +53,8 @@ action_result no_confusion_action(hypothesis_idx hidx) {
     try {
         state & s       = curr_state();
         app_builder & b = get_app_builder();
-        hypothesis const * h = s.get_hypothesis_decl(hidx);
-        lean_assert(h);
-        expr type = h->get_type();
+        hypothesis const & h = s.get_hypothesis_decl(hidx);
+        expr type = h.get_type();
         expr lhs, rhs;
         if (!is_eq(type, lhs, rhs))
             return action_result::failed();
@@ -89,13 +88,15 @@ action_result no_confusion_action(hypothesis_idx hidx) {
             unsigned cnstr_arity = get_arity(env().get(*c1).get_type());
             lean_assert(cnstr_arity >= num_params);
             unsigned num_new_eqs = cnstr_arity - num_params;
-            s.push_proof_step(new no_confusion_proof_step_cell(const_name(I), target, h->get_self(), num_new_eqs));
+            s.push_proof_step(new no_confusion_proof_step_cell(const_name(I), target, h.get_self(), num_new_eqs));
             s.set_target(binding_domain(nct));
             s.del_hypothesis(hidx);
+            trace_action("no_confusion");
             return action_result::new_branch();
         } else {
             name nc_name(const_name(I), "no_confusion");
-            expr pr = b.mk_app(nc_name, {target, lhs, rhs, h->get_self()});
+            expr pr = b.mk_app(nc_name, {target, lhs, rhs, h.get_self()});
+            trace_action("no_confusion");
             return action_result::solved(pr);
         }
     } catch (app_builder_exception &) {

@@ -37,7 +37,7 @@
     "→" "∃" "∀" "∘" "×" "Σ" "Π" "~" "||" "&&" "≃" "≡" "≅"
     "ℕ" "ℤ" "ℚ" "ℝ" "ℂ" "𝔸"
     ;; HoTT notation
-    "Ω" "∥" "map₊" "₊" "π₁" "S¹" "⇒" "⟹" "⟶"
+    "Ω" "∥" "map₊" "₊" "π₁" "S¹" "T²" "⇒" "⟹" "⟶"
     "⁻¹ᵉ" "⁻¹ᶠ" "⁻¹ᵍ" "⁻¹ʰ" "⁻¹ⁱ" "⁻¹ᵐ" "⁻¹ᵒ" "⁻¹ᵖ" "⁻¹ʳ" "⁻¹ᵛ" "⁻¹ˢ" "⁻²" "⁻²ᵒ"
     "⬝e" "⬝i" "⬝o" "⬝op" "⬝po" "⬝h" "⬝v" "⬝hp" "⬝vp" "⬝ph" "⬝pv" "⬝r" "◾" "◾o"
     "∘n" "∘f" "∘fi" "∘nf" "∘fn" "∘n1f" "∘1nf" "∘f1n" "∘fn1"
@@ -46,8 +46,8 @@
 (defconst lean-constants-regexp (regexp-opt lean-constants))
 (defconst lean-numerals-regexp
   (eval `(rx word-start
-	     (one-or-more digit) (optional (and "." (zero-or-more digit)))
-	     word-end)))
+             (one-or-more digit) (optional (and "." (zero-or-more digit)))
+             word-end)))
 
 (defconst lean-modifiers
   (--map (s-concat "[" it "]")
@@ -55,8 +55,8 @@
            "class" "parsing_only" "coercion" "unfold_full" "constructor"
            "reducible" "irreducible" "semireducible" "quasireducible" "wf"
            "whnf" "multiple_instances" "none" "decls" "declarations"
-           "coercions" "classes" "symm" "subst" "refl" "trans" "simp" "congr"
-           "notations" "abbreviations" "begin_end_hints" "tactic_hints"
+           "coercions" "classes" "symm" "subst" "refl" "trans" "simp" "congr" "backward"
+           "forward" "no_pattern" "notations" "abbreviations" "begin_end_hints" "tactic_hints"
            "reduce_hints" "unfold_hints" "aliases" "eqv"
            "localrefinfo" "recursor"))
   "lean modifiers")

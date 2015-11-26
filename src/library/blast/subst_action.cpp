@@ -6,9 +6,11 @@ Author: Leonardo de Moura
 */
 #include "kernel/abstract.h"
 #include "kernel/instantiate.h"
-#include "library/blast/revert_action.h"
+#include "library/blast/revert.h"
 #include "library/blast/intros_action.h"
 #include "library/blast/blast.h"
+#include "library/blast/trace.h"
+#include "library/blast/options.h"
 
 namespace lean {
 namespace blast {
@@ -45,11 +47,12 @@ bool subst_core(hypothesis_idx hidx) {
     state & s       = curr_state();
     state saved     = s;
     app_builder & b = get_app_builder();
-    hypothesis const * h = s.get_hypothesis_decl(hidx);
-    lean_assert(h);
-    expr type = h->get_type();
+    hypothesis const & h = s.get_hypothesis_decl(hidx);
+    expr type = h.get_type();
     expr lhs, rhs;
     lean_verify(is_eq(type, lhs, rhs));
+    if (is_def_eq(lhs, rhs))
+        return false;
     lean_assert(is_href(rhs));
     try {
         hypothesis_idx_buffer_set to_revert;
@@ -57,9 +60,9 @@ bool subst_core(hypothesis_idx hidx) {
                                       to_revert,
                                       [&](hypothesis_idx d) { return d != hidx; });
         s.collect_direct_forward_deps(hidx, to_revert);
-        unsigned num = revert_action(to_revert);
+        unsigned num = revert(to_revert);
         expr target  = s.get_target();
-        expr new_target = abstract(target, h->get_self());
+        expr new_target = abstract(target, h.get_self());
         bool dep        = !closed(new_target);
         bool skip       = to_revert.empty();
         if (dep) {
@@ -71,12 +74,13 @@ bool subst_core(hypothesis_idx hidx) {
             skip       = false;
         if (!skip) {
             new_target = instantiate(new_target, lhs);
-            s.push_proof_step(new subst_proof_step_cell(target, h->get_self(), rhs, dep));
+            s.push_proof_step(new subst_proof_step_cell(target, h.get_self(), rhs, dep));
             s.set_target(new_target);
-            lean_verify(intros_action(num));
+            intros_action(num);
         }
         lean_verify(s.del_hypothesis(hidx));
         lean_verify(s.del_hypothesis(href_index(rhs)));
+        trace_action("subst");
         return true;
     } catch (app_builder_exception &) {
         s = saved;
@@ -84,40 +88,41 @@ bool subst_core(hypothesis_idx hidx) {
     }
 }
 
-bool subst_action(hypothesis_idx hidx) {
+action_result subst_action(hypothesis_idx hidx) {
+    if (!get_config().m_subst)
+        return action_result::failed();
     state & s       = curr_state();
     app_builder & b = get_app_builder();
-    hypothesis const * h = s.get_hypothesis_decl(hidx);
-    lean_assert(h);
-    expr type = h->get_type();
+    hypothesis const & h = s.get_hypothesis_decl(hidx);
+    expr type = h.get_type();
     expr lhs, rhs;
     if (!is_eq(type, lhs, rhs))
-        return false;
+        return action_result::failed();
     if (is_href(rhs)) {
-        return subst_core(hidx);
+        return action_result(subst_core(hidx));
     } else if (is_href(lhs)) {
         if (s.has_forward_deps(href_index(lhs))) {
             // TODO(Leo): we don't handle this case yet.
             // Other hypotheses depend on this equality.
-            return false;
+            return action_result::failed();
         }
         state saved   = s;
         try {
             expr new_eq   = b.mk_eq(rhs, lhs);
-            expr new_pr   = b.mk_eq_symm(h->get_self());
+            expr new_pr   = b.mk_eq_symm(h.get_self());
             expr new_href = s.mk_hypothesis(new_eq, new_pr);
             if (subst_core(href_index(new_href))) {
-                return true;
+                return action_result::new_branch();
             } else {
                 s = saved;
-                return false;
+                return action_result::failed();
             }
         } catch (app_builder_exception &) {
             s = saved;
-            return false;
+            return action_result::failed();
         }
     } else {
-        return false;
+        return action_result::failed();
     }
 }
 }}

@@ -7,11 +7,11 @@ Author: Leonardo de Moura
 #include <vector>
 #include "util/sstream.h"
 #include "kernel/for_each_fn.h"
+#include "kernel/find_fn.h"
 #include "kernel/type_checker.h"
 #include "library/replace_visitor.h"
 #include "library/util.h"
 #include "library/reducible.h"
-#include "library/normalize.h"
 #include "library/class.h"
 #include "library/type_context.h"
 #include "library/relation_manager.h"
@@ -27,6 +27,8 @@ Author: Leonardo de Moura
 #include "library/blast/simple_strategy.h"
 #include "library/blast/choice_point.h"
 #include "library/blast/congruence_closure.h"
+#include "library/blast/trace.h"
+#include "library/blast/options.h"
 
 namespace lean {
 namespace blast {
@@ -61,6 +63,7 @@ class blastenv {
     abstract_expr_manager      m_abstract_expr_manager;
     relation_info_getter       m_rel_getter;
     refl_info_getter           m_refl_getter;
+    symm_info_getter           m_symm_getter;
 
     class tctx : public type_context {
         blastenv &                              m_benv;
@@ -105,6 +108,29 @@ class blastenv {
             m_benv.m_curr_state.assign_mref(m, v);
         }
 
+        bool check_href_core(metavar_decl const & d, expr const & h, hypothesis_idx_set & visited) {
+            lean_assert(is_href(h));
+            lean_assert(!d.contains_href(h));
+            if (visited.contains(href_index(h)))
+                return true;
+            visited.insert(href_index(h));
+            state & s = m_benv.m_curr_state;
+            hypothesis const & h_decl = s.get_hypothesis_decl(h);
+            if (h_decl.is_assumption())
+                return false;
+            return !find(*h_decl.get_value(), [&](expr const & e, unsigned) {
+                    return is_href(e) && !d.contains_href(e) && !check_href_core(d, e, visited);
+                });
+        }
+
+        bool check_href(metavar_decl const & d, expr const & h) {
+            lean_assert(is_href(h));
+            if (d.contains_href(h))
+                return true;
+            hypothesis_idx_set visited;
+            return check_href_core(d, h, visited);
+        }
+
         virtual bool validate_assignment(expr const & m, buffer<expr> const & locals, expr const & v) {
             // We must check
             //   1. All href in new_v are in the context of m.
@@ -120,7 +146,7 @@ class blastenv {
                     if (!ok)
                         return false; // stop search
                     if (is_href(e)) {
-                        if (!d->contains_href(e)) {
+                        if (!check_href(*d, e)) {
                             ok = false; // failed 1
                             return false;
                         }
@@ -149,9 +175,8 @@ class blastenv {
         virtual expr infer_local(expr const & e) const {
             if (is_href(e)) {
                 state const & s = m_benv.m_curr_state;
-                hypothesis const * h = s.get_hypothesis_decl(e);
-                lean_assert(h);
-                return h->get_type();
+                hypothesis const & h = s.get_hypothesis_decl(e);
+                return h.get_type();
             } else {
                 return mlocal_type(e);
             }
@@ -353,26 +378,21 @@ class blastenv {
             m_tc(env), m_state(s), m_uvar2uref(uvar2uref), m_mvar2meta_mref(mvar2meta_mref), m_local2href(local2href) {}
     };
 
-    state to_state(goal const & g) {
-        state s;
-        type_checker_ptr norm_tc = mk_type_checker(m_env, name_generator(*g_prefix), UnfoldReducible);
+    void init_curr_state(goal const & g) {
+        state & s = curr_state();
         name_map<expr>             local2href;
         to_blast_expr_fn to_blast_expr(m_env, s, m_uvar2uref, m_mvar2meta_mref, local2href);
         buffer<expr> hs;
         g.get_hyps(hs);
         for (expr const & h : hs) {
             lean_assert(is_local(h));
-            // TODO(Leo): cleanup this stuff... we don't have to use this normalizer anymore...
-            expr type     = ::lean::normalize(*norm_tc, mlocal_type(h));
-            expr new_type = to_blast_expr(type);
+            expr new_type = normalize(to_blast_expr(mlocal_type(h)));
             expr href     = s.mk_hypothesis(local_pp_name(h), new_type, h);
             local2href.insert(mlocal_name(h), href);
         }
-        expr target     = ::lean::normalize(*norm_tc, g.get_type());
-        expr new_target = to_blast_expr(target);
+        expr new_target = normalize(to_blast_expr(g.get_type()));
         s.set_target(new_target);
         lean_assert(s.check_invariant());
-        return s;
     }
 
     tctx                       m_tctx;
@@ -418,6 +438,7 @@ public:
         m_abstract_expr_manager(m_fun_info_manager),
         m_rel_getter(mk_relation_info_getter(env)),
         m_refl_getter(mk_refl_info_getter(env)),
+        m_symm_getter(mk_symm_info_getter(env)),
         m_tctx(*this),
         m_normalizer(m_tctx) {
         init_uref_mref_href_idxs();
@@ -430,7 +451,7 @@ public:
     }
 
     void init_state(goal const & g) {
-        m_curr_state = to_state(g);
+        init_curr_state(g);
         save_initial_context();
         m_tctx.set_local_instances(m_initial_context);
         m_tmp_ctx->set_local_instances(m_initial_context);
@@ -556,6 +577,10 @@ public:
         return static_cast<bool>(m_refl_getter(rop));
     }
 
+    bool is_symmetric(name const & rop) const {
+        return static_cast<bool>(m_symm_getter(rop));
+    }
+
     optional<relation_info> get_relation_info(name const & rop) const {
         return m_rel_getter(rop);
     }
@@ -617,6 +642,11 @@ bool is_relation_app(expr const & e) {
 bool is_reflexive(name const & rop) {
     lean_assert(g_blastenv);
     return g_blastenv->is_reflexive(rop);
+}
+
+bool is_symmetric(name const & rop) {
+    lean_assert(g_blastenv);
+    return g_blastenv->is_symmetric(rop);
 }
 
 optional<relation_info> get_relation_info(name const & rop) {
@@ -757,10 +787,13 @@ struct scope_debug::imp {
     blastenv                 m_benv;
     scope_blastenv           m_scope2;
     scope_congruence_closure m_scope3;
+    scope_config             m_scope4;
+    scope_trace              m_scope5;
     imp(environment const & env, io_state const & ios):
         m_scope1(true),
         m_benv(env, ios, list<name>(), list<name>()),
-        m_scope2(m_benv) {
+        m_scope2(m_benv),
+        m_scope4(ios.get_options()) {
         expr aux_mvar = mk_metavar("dummy_mvar", mk_true());
         goal aux_g(aux_mvar, mlocal_type(aux_mvar));
         m_benv.init_state(aux_g);
@@ -786,9 +819,8 @@ public:
     virtual expr infer_local(expr const & e) const {
         state const & s = curr_state();
         if (is_href(e)) {
-            hypothesis const * h = s.get_hypothesis_decl(e);
-            lean_assert(h);
-            return h->get_type();
+            hypothesis const & h = s.get_hypothesis_decl(e);
+            return h.get_type();
         } else {
             return mlocal_type(e);
         }
@@ -854,6 +886,8 @@ optional<expr> blast_goal(environment const & env, io_state const & ios, list<na
     blast::blastenv                 b(env, ios, ls, ds);
     blast::scope_blastenv           scope2(b);
     blast::scope_congruence_closure scope3;
+    blast::scope_config             scope4(ios.get_options());
+    blast::scope_trace              scope5;
     return b(g);
 }
 void initialize_blast() {

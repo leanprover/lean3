@@ -1,7 +1,7 @@
 /-
 Copyright (c) 2014 Parikshit Khanna. All rights reserved.
 Released under Apache 2.0 license as described in the file LICENSE.
-Authors: Parikshit Khanna, Jeremy Avigad, Leonardo de Moura
+Authors: Parikshit Khanna, Jeremy Avigad, Leonardo de Moura, Floris van Doorn
 
 Basic properties of lists.
 -/
@@ -111,6 +111,14 @@ by intro l; induction l; repeat contradiction
 theorem length_concat [simp] (a : T) : ∀ (l : list T), length (concat a l) = length l + 1
 | []      := rfl
 | (x::xs) := by rewrite [concat_cons, *length_cons, length_concat]
+
+theorem concat_append (a : T) : ∀ (l₁ l₂ : list T), concat a l₁ ++ l₂ = l₁ ++ a :: l₂
+| []      := λl₂, rfl
+| (x::xs) := λl₂, begin rewrite [concat_cons,append_cons, concat_append] end
+
+theorem append_concat (a : T)  : ∀(l₁ l₂ : list T), l₁ ++ concat a l₂ = concat a (l₁ ++ l₂)
+| []      := λl₂, rfl
+| (x::xs) := λl₂, begin rewrite [+append_cons, concat_cons, append_concat] end
 
 /- last -/
 
@@ -331,7 +339,7 @@ list.rec_on l
             have ¬(x = h ∨ x ∈ l), from
               suppose x = h ∨ x ∈ l, or.elim this
                 (suppose x = h, by contradiction)
-                (suppose x ∈ l,  by contradiction),
+                (suppose x ∈ l, by contradiction),
             have ¬x ∈ h::l, from
               iff.elim_right (not_iff_not_of_iff !mem_cons_iff) this,
             decidable.inr this)))
