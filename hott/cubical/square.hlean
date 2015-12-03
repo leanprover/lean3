@@ -266,7 +266,7 @@ namespace eq
   /-
     the following two equivalences have as underlying inverse function the functions
     hdeg_square and vdeg_square, respectively.
-    See example below the definition
+    See examples below the definition
   -/
   definition hdeg_square_equiv [constructor] (p q : a = a') :
     square idp idp p q ≃ p = q :=
