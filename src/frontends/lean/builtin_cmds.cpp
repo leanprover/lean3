@@ -53,6 +53,8 @@ Author: Leonardo de Moura
 #include "library/blast/forward/pattern.h"
 #include "library/blast/forward/forward_lemma_set.h"
 #include "library/blast/grinder/intro_elim_lemmas.h"
+#include "library/blast/arith/simplify.h"
+#include "library/blast/arith/num.h"
 #include "compiler/preprocess_rec.h"
 #include "frontends/lean/util.h"
 #include "frontends/lean/parser.h"
@@ -1413,7 +1415,7 @@ static environment replace_cmd(parser & p) {
     fun_info_manager infom(ctx);
     auto r = replace(infom, e, from, to);
     if (!r)
-        throw parser_error("#replace commad failed", pos);
+        throw parser_error("#replace command failed", pos);
     p.regular_stream() << *r << "\n";
     return env;
 }
@@ -1509,6 +1511,55 @@ static environment simplify_cmd(parser & p) {
     return p.env();
 }
 
+static environment arith_simplify_cmd(parser & p) {
+    expr e; level_param_names ls;
+    std::tie(e, ls) = parse_local_expr(p);
+
+    blast::scope_debug scope(p.env(), p.ios());
+    auto poly = blast::arith::simplify(e);
+
+    flycheck_information info(p.regular_stream());
+    if (info.enabled()) {
+        p.display_information_pos(p.cmd_pos());
+        p.regular_stream() << "arith_simplify result:\n";
+    }
+
+    p.regular_stream().get_stream() << poly << "\n";
+    return p.env();
+}
+
+static environment num_simplify_cmd(parser & p) {
+    expr e; level_param_names ls;
+    std::tie(e, ls) = parse_local_expr(p);
+
+    blast::scope_debug scope(p.env(), p.ios());
+    auto r = blast::simplify_numeral_expr(e);
+
+    flycheck_information info(p.regular_stream());
+    if (info.enabled()) {
+        p.display_information_pos(p.cmd_pos());
+        p.regular_stream() << "num_simplify result:\n";
+    }
+    if (!r.has_proof()) {
+        p.regular_stream() << r.get_new() << "\n";
+    } else {
+        auto tc = mk_type_checker(p.env(), p.mk_ngen());
+        expr thm = tc->check(r.get_proof(), ls).first;
+        expr old_num, new_num;
+        lean_verify(is_eq(thm, old_num, new_num));
+        if (!tc->is_def_eq(old_num, e).first) {
+            p.regular_stream() << "old num wrong: " << old_num << " != " << e << "\n";
+            throw parser_error("incorrect proof", p.pos());
+        } else if (!tc->is_def_eq(new_num, r.get_new()).first) {
+            p.regular_stream() << "new num wrong: " << new_num << " != " << r.get_new() << "\n";
+            throw parser_error("incorrect proof", p.pos());
+        } else {
+            p.regular_stream() << thm << "\n";
+        }
+    }
+    return p.env();
+}
+
 static environment normalizer_cmd(parser & p) {
     environment const & env = p.env();
     expr e; level_param_names ls;
@@ -1585,6 +1636,8 @@ void init_cmd_table(cmd_table & r) {
     add_cmd(r, cmd_info("#decl_stats",       "(for debugging purposes) display declaration statistics", decl_stats_cmd));
     add_cmd(r, cmd_info("#relevant_thms",    "(for debugging purposes) select relevant theorems using Meng&Paulson heuristic", relevant_thms_cmd));
     add_cmd(r, cmd_info("#simplify",         "(for debugging purposes) simplify given expression", simplify_cmd));
+    add_cmd(r, cmd_info("#arith_simplify",   "(for debugging purposes) simplify given expression using arith module", arith_simplify_cmd));
+    add_cmd(r, cmd_info("#num_simplify",     "(for debugging purposes) simplify given expression using num module", num_simplify_cmd));
     add_cmd(r, cmd_info("#abstract_expr",    "(for debugging purposes) call abstract expr methods", abstract_expr_cmd));
 
     register_decl_cmds(r);

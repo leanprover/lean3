@@ -73,6 +73,12 @@ binary.left_comm (@add.comm A _) (@add.assoc A _) a b c
 theorem add.right_comm [add_comm_semigroup A] (a b c : A) : (a + b) + c = (a + c) + b :=
 binary.right_comm (@add.comm A _) (@add.assoc A _) a b c
 
+theorem add_comm_four [add_comm_semigroup A] (a b : A) : a + a + (b + b) = (a + b) + (a + b) :=
+  by rewrite [-add.assoc at {1}, add.comm, {a + b}add.comm at {1}, *add.assoc]
+
+theorem add_comm_middle [add_comm_semigroup A] (a b c : A) : a + b + c = a + c + b :=
+  by rewrite [add.assoc, add.comm b, -add.assoc]
+
 structure add_left_cancel_semigroup [class] (A : Type) extends add_semigroup A :=
 (add_left_cancel : ∀a b c, add a b = add a c → b = c)
 
@@ -572,122 +578,68 @@ definition group_of_add_group (A : Type) [G : add_group A] : group A :=
   inv             := has_neg.neg,
   mul_left_inv    := add.left_inv⦄
 
-namespace norm_num
-reveal add.assoc
-
-definition add1 [has_add A] [has_one A] (a : A) : A := add a one
-
-theorem add_comm_four [add_comm_semigroup A] (a b : A) : a + a + (b + b) = (a + b) + (a + b) :=
-  by rewrite [-add.assoc at {1}, add.comm, {a + b}add.comm at {1}, *add.assoc]
-
-theorem add_comm_middle [add_comm_semigroup A] (a b c : A) : a + b + c = a + c + b :=
-  by rewrite [add.assoc, add.comm b, -add.assoc]
-
-theorem bit0_add_bit0 [add_comm_semigroup A] (a b : A) : bit0 a + bit0 b = bit0 (a + b) :=
-  !add_comm_four
-
-theorem bit0_add_bit0_helper [add_comm_semigroup A] (a b t : A) (H : a + b = t) :
-        bit0 a + bit0 b = bit0 t :=
-  by rewrite -H; apply bit0_add_bit0
-
-theorem bit1_add_bit0 [add_comm_semigroup A] [has_one A] (a b : A) :
-        bit1 a + bit0 b = bit1 (a + b) :=
-  begin
-    rewrite [↑bit0, ↑bit1, add_comm_middle], congruence, apply add_comm_four
-  end
-
-theorem bit1_add_bit0_helper [add_comm_semigroup A] [has_one A] (a b t : A)
-        (H : a + b = t) : bit1 a + bit0 b = bit1 t :=
-  by rewrite -H; apply bit1_add_bit0
-
-theorem bit0_add_bit1 [add_comm_semigroup A] [has_one A] (a b : A) :
-        bit0 a + bit1 b = bit1 (a + b) :=
-  by rewrite [{bit0 a + bit1 b}add.comm,{a + b}add.comm]; exact bit1_add_bit0 b a
-
-theorem bit0_add_bit1_helper [add_comm_semigroup A] [has_one A] (a b t : A)
-        (H : a + b = t) : bit0 a + bit1 b = bit1 t :=
-  by rewrite -H; apply bit0_add_bit1
-
-theorem bit1_add_bit1 [add_comm_semigroup A] [has_one A] (a b : A) :
-        bit1 a + bit1 b = bit0 (add1 (a + b)) :=
-  begin
-    rewrite ↑[bit0, bit1, add1, add.assoc],
-    rewrite [*add.assoc, {_ + (b + 1)}add.comm, {_ + (b + 1 + _)}add.comm,
-      {_ + (b + 1 + _ + _)}add.comm, *add.assoc, {1 + a}add.comm, -{b + (a + 1)}add.assoc,
-      {b + a}add.comm, *add.assoc]
-  end
-
-theorem bit1_add_bit1_helper [add_comm_semigroup A] [has_one A] (a b t s: A)
-        (H : (a + b) = t) (H2 : add1 t = s) : bit1 a + bit1 b = bit0 s :=
-  begin rewrite [-H2, -H], apply bit1_add_bit1 end
-
-theorem bin_add_zero [add_monoid A] (a : A) : a + zero = a := !add_zero
-
-theorem bin_zero_add [add_monoid A] (a : A) : zero + a = a := !zero_add
-
-theorem one_add_bit0 [add_comm_semigroup A] [has_one A] (a : A) : one + bit0 a = bit1 a :=
-  begin rewrite ↑[bit0, bit1], rewrite add.comm end
-
-theorem bit0_add_one [has_add A] [has_one A] (a : A) : bit0 a + one = bit1 a :=
-  rfl
-
-theorem bit1_add_one [has_add A] [has_one A] (a : A) : bit1 a + one = add1 (bit1 a) :=
-  rfl
-
-theorem bit1_add_one_helper [has_add A] [has_one A] (a t : A) (H : add1 (bit1 a) = t) :
-        bit1 a + one = t :=
-  by rewrite -H
-
-theorem one_add_bit1 [add_comm_semigroup A] [has_one A] (a : A) :
-        one + bit1 a = add1 (bit1 a) := !add.comm
-
-theorem one_add_bit1_helper [add_comm_semigroup A] [has_one A] (a t : A)
-        (H : add1 (bit1 a) = t) : one + bit1 a = t :=
-  by rewrite -H; apply one_add_bit1
-
-theorem add1_bit0 [has_add A] [has_one A] (a : A) : add1 (bit0 a) = bit1 a :=
-  rfl
-
-theorem add1_bit1 [add_comm_semigroup A] [has_one A] (a : A) :
-        add1 (bit1 a) = bit0 (add1 a) :=
-  begin
-    rewrite ↑[add1, bit1, bit0],
-    rewrite [add.assoc, add_comm_four]
-  end
-
-theorem add1_bit1_helper [add_comm_semigroup A] [has_one A] (a t : A) (H : add1 a = t) :
-        add1 (bit1 a) = bit0 t :=
-  by rewrite -H; apply add1_bit1
-
-theorem add1_one [has_add A] [has_one A] : add1 (one : A) = bit0 one :=
-  rfl
-
-theorem add1_zero [add_monoid A] [has_one A] : add1 (zero : A) = one :=
-  begin
-    rewrite [↑add1, zero_add]
-  end
-
-theorem one_add_one [has_add A] [has_one A] : (one : A) + one = bit0 one :=
-  rfl
-
-theorem subst_into_sum [has_add A] (l r tl tr t : A) (prl : l = tl) (prr : r = tr)
-        (prt : tl + tr = t) : l + r = t :=
-   by rewrite [prl, prr, prt]
-
-theorem neg_zero_helper [add_group A] (a : A) (H : a = 0) : - a = 0 :=
-  by rewrite [H, neg_zero]
-
-end norm_num
-
 attribute [simp]
   zero_add add_zero one_mul mul_one
   at simplifier.unit
 
 attribute [simp]
-  neg_neg sub_eq_add_neg
+  neg_neg neg_add add.right_inv add_neg_cancel_left neg_zero sub_eq_add_neg
   at simplifier.neg
+
+attribute [light 2] neg at simplifier.neg
 
 attribute [simp]
   add.assoc add.comm add.left_comm
   mul.left_comm mul.comm mul.assoc
   at simplifier.ac
+
+attribute [simp]
+  inv_inv mul.right_inv mul_inv_cancel_left
+  at simplifier.inv
+
+attribute [light 2] inv at simplifier.inv
+
+namespace numeral
+open simplifier.ac simplifier.neg
+attribute bit0 [reducible]
+attribute bit1 [reducible]
+
+lemma add_congr [has_add A] (a1 a2 b1 b2 c : A) : a1 = a2 →  b1 = b2 → a2 + b2 = c → a1 + b1 = c := by simp
+lemma mul_congr [A_has_mul : has_mul A] (a1 a2 b1 b2 c : A) : a1 = a2 → b1 = b2 → a2 * b2 = c →  a1 * b1 = c := by simp
+lemma bit0_add_bit0 [add_comm_semigroup A] (a b c : A) : a + b = c → bit0 a + bit0 b = bit0 c := by simp
+
+section add_comm_semigroup__has_one
+
+variables [A_add_comm_semigroup : add_comm_semigroup A] [A_has_one : has_one A]
+include A_add_comm_semigroup A_has_one
+
+lemma one_add_one : (1:A) + 1 = 2 := rfl
+
+lemma one_add_bit0 (a b : A) : a = b →  1 + bit0 a = bit1 b := by simp
+lemma bit0_add_one (a b : A) : a = b → bit0 a + 1 = bit1 b := by simp
+
+lemma one_add_bit1 (a b : A) : 1 + a = b → 1 + bit1 a = bit0 b := by simp
+lemma bit1_add_one (a b : A) : a + 1 = b → (bit1 a) + 1 = bit0 b := by simp
+
+lemma bit0_add_bit1 (a b c : A) : a + b = c → bit0 a + bit1 b = bit1 c := by simp
+lemma bit1_add_bit0 (a b c : A) : a + b = c → bit1 a + bit0 b = bit1 c := by simp
+lemma bit1_add_bit1 (a b c d : A) : a + b = c → c + 1 = d → bit1 a + bit1 b = bit0 d := by simp
+
+end add_comm_semigroup__has_one
+
+lemma neg_eq_zero [add_group A] (a : A) : a = 0 → -a = 0 := by simp
+lemma neg_eq_pos [add_group A] (a b : A) : a = -b → -a = b := by simp
+lemma neg_eq_neg [add_group A] (a b : A) : a = b → -a = -b := by simp
+
+section comm_group
+variable [A_add_comm_group : add_comm_group A]
+include A_add_comm_group
+
+lemma neg_add_neg (a b c : A) : a + b = c → -a + -b = -c := by simp
+lemma neg_add_pos_eq_neg (a b c : A) : b + c = a → -a + b = -c := by simp
+lemma neg_add_pos_eq_pos (a b c : A) : a + c = b → -a + b = c := by simp
+lemma pos_add_neg_eq_neg (a b c : A) : a + c = b → a + -b = -c := by simp
+lemma pos_add_neg_eq_pos (a b c : A) : b + c = a → a + -b = c := by simp
+
+end comm_group
+end numeral

@@ -5,6 +5,9 @@ open real
 variable {A : Type}
 variable [s : linear_ordered_field A]
 include s-/
+
+-- TODO(dhs): port this tactic to the refactored numeral library
+/-
 notation `A` := real
 
 example : (-1 :A) * 1 = -1 := by norm_num
@@ -158,3 +161,4 @@ example : (- 19 * - - (75 * - - 41)) = (-58425 : A) := by norm_num
 example : ((3 / ((- 28 * 45) * (19 + ((- (- 88 - (- (- 1 + 90) + 8)) + 87) * 48)))) + 1) = (1903019/1903020 : A) := by norm_num
 example : ((- - (28 + 48) / 75) + ((- 59 - 14) - 0)) = (-5399/75 : A) := by norm_num
 example : (- ((- (((66 - 86) - 36) / 94) - 3) / - - (77 / (56 - - - 79))) + 87) = (312254/3619 : A) := by norm_num
+-/

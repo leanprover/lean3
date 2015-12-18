@@ -742,6 +742,14 @@ public:
         return r;
     }
 
+    level get_level(expr const & A) {
+        // TODO(dhs): I am copying this from the app-builder, but I am not sure how
+        // best to error-handle.
+        expr Type = m_tmp_ctx->relaxed_whnf(m_tmp_ctx->infer(A));
+        lean_assert(is_sort(Type));
+        return sort_level(Type);
+    }
+
     unsigned mk_choice_point_idx() {
         unsigned r = m_next_choice_idx;
         m_next_choice_idx++;
@@ -1007,6 +1015,11 @@ bool is_light_lt(expr const & e1, expr const & e2) {
 bool classical() {
     lean_assert(g_blastenv);
     return g_blastenv->classical();
+}
+
+level get_level(expr const & A) {
+    lean_assert(g_blastenv);
+    return g_blastenv->get_level(A);
 }
 
 unsigned mk_choice_point_idx() {
