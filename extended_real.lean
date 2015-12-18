@@ -157,16 +157,16 @@ lemma zero_mul_neginf : 0 * -∞ = 0 := by rewrite[*ereal.mul_def, ↑ereal.mul,
 
 lemma neginf_mul_zero : -∞ * 0 = 0 := by rewrite[ereal.mul_comm, zero_mul_neginf]
 
-protected lemma mul1 : ∀ x y : ℝ, x * y * ∞ = x * (y * ∞) := sorry
-protected lemma mul2 : ∀ x y : ℝ, x * y * -∞ = x * (y * -∞) := sorry
-protected lemma mul3 : ∀ x y : ℝ, ∞ * x * y = ∞ * (x * y) := sorry
-protected lemma mul4 : ∀ x y : ℝ, -∞ * x * y = -∞ * (x * y) := sorry
-protected lemma mul5 : ∀ x : ℝ, x * ∞ * ∞ = x * (∞ * ∞) := sorry
-protected lemma mul6 : ∀ x : ℝ, x * -∞ * -∞ = x * (-∞ * -∞) := sorry
-protected lemma mul7 : ∀ x : ℝ, x * ∞ * -∞ = x * (∞ * -∞) := sorry
-protected lemma mul8 : ∀ x : ℝ, ∞ * x * -∞ = ∞ * (x * -∞) := sorry
-protected lemma mul9 : ∀ x : ℝ, ∞ * x * ∞ = ∞ * (x * ∞) := sorry
-protected lemma mul10 : ∀ x : ℝ, -∞ * x * -∞ = -∞ * (x * -∞) := sorry
+private lemma mul1 : ∀ x y : ℝ, x * y * ∞ = x * (y * ∞) := sorry
+private lemma mul2 : ∀ x y : ℝ, x * y * -∞ = x * (y * -∞) := sorry
+private lemma mul3 : ∀ x y : ℝ, ∞ * x * y = ∞ * (x * y) := sorry
+private lemma mul4 : ∀ x y : ℝ, -∞ * x * y = -∞ * (x * y) := sorry
+private lemma mul5 : ∀ x : ℝ, x * ∞ * ∞ = x * (∞ * ∞) := sorry
+private lemma mul6 : ∀ x : ℝ, x * -∞ * -∞ = x * (-∞ * -∞) := sorry
+private lemma mul7 : ∀ x : ℝ, x * ∞ * -∞ = x * (∞ * -∞) := sorry
+private lemma mul8 : ∀ x : ℝ, ∞ * x * -∞ = ∞ * (x * -∞) := sorry
+private lemma mul9 : ∀ x : ℝ, ∞ * x * ∞ = ∞ * (x * ∞) := sorry
+private lemma mul10 : ∀ x : ℝ, -∞ * x * -∞ = -∞ * (x * -∞) := sorry
 
 protected theorem mul_assoc : ∀ u v w : ereal, (u * v) * w = u * (v * w) 
 | (of_real x) (of_real y) (of_real z) := congr_arg of_real !mul.assoc
