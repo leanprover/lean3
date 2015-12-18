@@ -4,6 +4,7 @@ Released under Apache 2.0 license as described in the file LICENSE.
 Author: Robert Y. Lewis
 */
 #include "library/norm_num.h"
+#include "library/util.h"
 #include "library/constants.h"
 
 namespace lean {

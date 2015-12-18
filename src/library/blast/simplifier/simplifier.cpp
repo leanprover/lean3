@@ -18,7 +18,7 @@ Author: Daniel Selsam
 #include "library/normalize.h"
 #include "library/expr_lt.h"
 #include "library/num.h"
-#include "library/norm_num.h"
+#include "library/blast/arith/num.h"
 #include "library/class_instance_resolution.h"
 #include "library/relation_manager.h"
 #include "library/app_builder.h"
@@ -30,7 +30,7 @@ Author: Daniel Selsam
 #include "library/blast/simplifier/ceqv.h"
 
 #ifndef LEAN_DEFAULT_SIMPLIFY_MAX_STEPS
-#define LEAN_DEFAULT_SIMPLIFY_MAX_STEPS 1000
+#define LEAN_DEFAULT_SIMPLIFY_MAX_STEPS 10000
 #endif
 #ifndef LEAN_DEFAULT_SIMPLIFY_TOP_DOWN
 #define LEAN_DEFAULT_SIMPLIFY_TOP_DOWN false
@@ -125,6 +125,11 @@ static bool is_neg_app(expr const & e) {
     return is_const_app(e, get_neg_name(), 3);
 }
 
+static bool is_extended_num(expr const & e) {
+    // TODO(dhs): Do we need to cover operations on numerals here?
+    return is_num(e) || (is_inv(e) && is_extended_num(app_arg(e)));
+}
+
 /* Main simplifier class */
 
 class simplifier {
@@ -210,17 +215,14 @@ class simplifier {
     result finalize(result const & r);
 
     /* Simplification */
-    result simplify(expr const & e, simp_rule_sets const & srss);
     result simplify(expr const & e, bool is_root);
     result simplify_lambda(expr const & e);
     result simplify_pi(expr const & e);
     result simplify_app(expr const & e);
     result simplify_fun(expr const & e);
-    optional<result> simplify_numeral(expr const & e);
 
     /* Proving */
     optional<expr> prove(expr const & thm);
-    optional<expr> prove(expr const & thm, simp_rule_sets const & srss);
 
     /* Rewriting */
     result rewrite(expr const & e);
@@ -253,7 +255,10 @@ class simplifier {
 
 public:
     simplifier(name const & rel, expr_predicate const & simp_pred): m_rel(rel), m_simp_pred(simp_pred) { }
-    result operator()(expr const & e, simp_rule_sets const & srss)  { return simplify(e, srss); }
+    optional<expr> prove(expr const & thm, simp_rule_sets const & srss);
+    result simplify(expr const & e, simp_rule_sets const & srss);
+
+    void set_fuse(bool fuse) { m_fuse = fuse; }
 };
 
 /* Cache */
@@ -386,9 +391,7 @@ result simplifier::simplify(expr const & e, bool is_root) {
     if (!m_simp_pred(e)) return result(e);
 
     if (m_numerals && using_eq()) {
-        if (auto r = simplify_numeral(e)) {
-            return *r;
-        }
+        if (is_numeral_expr(e)) return simplify_numeral_expr(e);
     }
 
     result r(e);
@@ -526,17 +529,6 @@ result simplifier::simplify_fun(expr const & e) {
     return congr_funs(r_f, args);
 }
 
-optional<result> simplifier::simplify_numeral(expr const & e) {
-    if (is_num(e)) { return optional<result>(result(e)); }
-
-    try {
-        expr_pair r = mk_norm_num(*m_tmp_tctx, e);
-        return optional<result>(result(r.first, r.second));
-    } catch (exception e) {
-        return optional<result>();
-    }
-}
-
 /* Proving */
 
 optional<expr> simplifier::prove(expr const & thm) {
@@ -614,8 +606,10 @@ result simplifier::rewrite(expr const & e, simp_rule const & sr) {
     expr new_rhs = tmp_tctx->instantiate_uvars_mvars(sr.get_rhs());
 
     if (sr.is_perm()) {
-        if (!is_light_lt(new_rhs, new_lhs))
+        if (!is_light_lt(new_rhs, new_lhs)) {
+            lean_trace(name({"simplifier", "perm"}), tout() << "(rejected)\n";);
             return result(e);
+        }
     }
 
     expr pf = tmp_tctx->instantiate_uvars_mvars(sr.get_proof());
@@ -1031,7 +1025,7 @@ expr_pair simplifier::split_summand(expr const & e, expr const & f_mul, expr con
         buffer<expr> args;
         get_app_args(s, args);
         expr const & multiplicand = args[2];
-        if (is_num(multiplicand)) {
+        if (is_extended_num(multiplicand)) {
             numeral = mk_app(f_mul, multiplicand, numeral);
         } else {
             if (variable == one) variable = multiplicand;
@@ -1039,7 +1033,8 @@ expr_pair simplifier::split_summand(expr const & e, expr const & f_mul, expr con
         }
         s = args[3];
     }
-    if (is_num(s)) {
+    expr num_inv;
+    if (is_extended_num(s)) {
         numeral = mk_app(f_mul, s, numeral);
     } else {
         if (variable == one) variable = s;
@@ -1055,6 +1050,7 @@ void initialize_simplifier() {
     register_trace_class(name({"simplifier", "rewrite"}));
     register_trace_class(name({"simplifier", "congruence"}));
     register_trace_class(name({"simplifier", "failure"}));
+    register_trace_class(name({"simplifier", "perm"}));
 
     g_simplify_prove_namespace     = new name{"simplifier", "prove"};
     g_simplify_neg_namespace       = new name{"simplifier", "neg"};
@@ -1112,11 +1108,38 @@ void finalize_simplifier() {
 static bool simplify_all_pred(expr const &) { return true; }
 
 result simplify(name const & rel, expr const & e, simp_rule_sets const & srss) {
-    return simplifier(rel, simplify_all_pred)(e, srss);
+    return simplifier(rel, simplify_all_pred).simplify(e, srss);
 }
 
 result simplify(name const & rel, expr const & e, simp_rule_sets const & srss, expr_predicate const & simp_pred) {
-    return simplifier(rel, simp_pred)(e, srss);
+    return simplifier(rel, simp_pred).simplify(e, srss);
 }
+
+result som_fuse(expr const & e) {
+    simp_rule_sets srss = get_simp_rule_sets(env(), ios().get_options(),
+                                             {*g_simplify_prove_namespace, *g_simplify_unit_namespace,
+                                                     *g_simplify_neg_namespace, *g_simplify_ac_namespace,
+                                                     *g_simplify_distrib_namespace});
+    // TODO(dhs): we don't want to recurse inside the unknowns
+    simplifier s = simplifier(get_eq_name(), simplify_all_pred);
+    s.set_fuse(true);
+    return s.simplify(e, srss);
+}
+
+optional<expr> prove_eq_som_fuse(expr const & lhs, expr const & rhs) {
+    simp_rule_sets srss = get_simp_rule_sets(env(), ios().get_options(),
+                                             {*g_simplify_prove_namespace, *g_simplify_unit_namespace,
+                                                     *g_simplify_neg_namespace, *g_simplify_ac_namespace,
+                                                     *g_simplify_distrib_namespace});
+    // TODO(dhs): we don't want to recurse inside the unknowns
+    // TODO(dhs): [rel] is ignored
+    expr thm = get_app_builder().mk_eq(lhs, rhs);
+    simplifier s = simplifier(get_iff_name(), simplify_all_pred);
+    s.set_fuse(true);
+    // TODO(dhs): we really only need to simplify over 'eq', and then just rewrite once with
+    // forall x, (x = x -> true) at the end
+    return s.prove(thm, srss);
+}
+
 
 }}

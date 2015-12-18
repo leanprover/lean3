@@ -43,6 +43,9 @@ typedef std::function<bool(expr const &)> expr_predicate; // NOLINT
 simp::result simplify(name const & rel, expr const & e, simp_rule_sets const & srss);
 simp::result simplify(name const & rel, expr const & e, simp_rule_sets const & srss, expr_predicate const & simp_pred);
 
+simp::result som_fuse(expr const & e);
+optional<expr> prove_eq_som_fuse(expr const & lhs, expr const & rhs);
+
 void initialize_simplifier();
 void finalize_simplifier();
 
