@@ -9,5 +9,5 @@ A → B → C → D
 (A → B) ∧ (¬A → C)
 ((A → B) → (¬A → C) → B) ∧ ((A → B) → (¬A → C) → C)
 A → B
-(A → B → D → F → G) ∧ (A → B → D → G → F) ∧ (A → B → E → F → G) ∧ (A →
- B → E → G → F)
+(A → B → E → F → G) ∧ (A → B → E → G → F) ∧ (A → B → D → G → F) ∧ (A →
+ B → D → F → G)

@@ -738,3 +738,108 @@ theorem nonzero_of_neg_helper [s : linear_ordered_ring A] (a : A) (H : a ≠ 0) 
   begin intro Ha, apply H, apply eq_of_neg_eq_neg, rewrite neg_zero, exact Ha end
 
 end norm_num
+
+namespace ordered_arith
+
+-- Proving positive numbers are positive
+theorem pos_bit0 [s : linear_ordered_semiring A] (a : A) (H : 0 < a) : 0 < bit0 a :=
+  by rewrite ↑bit0; apply add_pos H H
+
+theorem pos_bit1 [s : linear_ordered_semiring A] (a : A) (H : 0 < a) : 0 < bit1 a :=
+  begin
+    rewrite ↑bit1,
+    apply add_pos_of_nonneg_of_pos,
+    apply le_of_lt,
+    apply pos_bit0 _ H,
+    apply zero_lt_one
+  end
+
+-- Shuffling an inequality
+theorem lt_of_zero_lt [s : linear_ordered_comm_ring A] (a b : A) : a < b → 0 < b + - a :=
+assume Hab,
+assert H : a - a < b - a, from sub_lt_sub_of_lt_of_le Hab (le_of_eq (eq.refl a)),
+begin rewrite sub_self at H, exact H end
+
+theorem le_of_zero_le [s : linear_ordered_comm_ring A] (a b : A) : a ≤ b → 0 ≤ b + - a :=
+assume Hab,
+assert H : a - a ≤ b - a, from sub_le_sub Hab (le_of_eq (eq.refl a)),
+begin rewrite sub_self at H, exact H end
+
+theorem eq_of_zero_le1 [s : linear_ordered_comm_ring A] (a b : A) : a = b → 0 ≤ b + - a :=
+assume Hab,
+begin rewrite [Hab, -sub_eq_add_neg, sub_self], apply weak_order.le_refl end
+
+theorem eq_of_zero_le2 [s : linear_ordered_comm_ring A] (a b : A) : a = b → 0 ≤ a + - b :=
+assume Hab : a = b, eq_of_zero_le1 b a (eq.symm Hab)
+
+-- Positive/non-zero
+
+theorem nonzero_of_pos [s : linear_ordered_semiring A] (a : A) (H : 0 < a) : a ≠ 0 :=
+  ne_of_gt H
+
+theorem nonzero_of_neg [s : linear_ordered_ring A] (a : A) (H : a ≠ 0) : -a ≠ 0 :=
+  begin intro Ha, apply H, apply eq_of_neg_eq_neg, rewrite neg_zero, exact Ha end
+
+-- Proving negative numbers are not positive
+
+theorem zero_not_lt_zero [s : linear_ordered_semiring A] : (0:A) < 0 → false := by apply strict_order.lt_irrefl
+
+theorem zero_not_le_neg [s : linear_ordered_ring A] (c : A) : 0 < c → 0 ≤ - c → false :=
+assume zero_lt_c zero_lt_neg_c,
+begin
+  have c_le_zero : - - c ≤ - 0, from neg_le_neg zero_lt_neg_c,
+  rewrite neg_neg at c_le_zero,
+  rewrite neg_zero at c_le_zero,
+  exact zero_not_lt_zero (lt_of_lt_of_le zero_lt_c c_le_zero)
+end
+
+theorem zero_not_lt_neg [s : linear_ordered_ring A] (c : A) : 0 < c → 0 < - c → false :=
+assume zero_lt_c zero_lt_neg_c,
+begin
+  have c_lt_zero : - - c < - 0, from neg_lt_neg zero_lt_neg_c,
+  rewrite neg_neg at c_lt_zero,
+  rewrite neg_zero at c_lt_zero,
+  exact zero_not_lt_zero (strict_order.lt_trans _ _ _ zero_lt_c c_lt_zero)
+end
+
+-- Resolution
+lemma resolve_lt_lt [s : linear_ordered_comm_ring A] {p₁ p₂ c₁ c₂ : A}
+  : 0 < p₁ → 0 < p₂ → 0 < c₁ → 0 < c₂ → 0 < c₁ * p₁ + c₂ * p₂ :=
+assume p1_pos p2_pos c1_pos c2_pos,
+begin
+  have cp1 : c₁ * 0 < c₁ * p₁, from mul_lt_mul_of_pos_left p1_pos c1_pos,
+  rewrite mul_zero at cp1,
+  have cp2 : c₂ * 0 < c₂ * p₂, from mul_lt_mul_of_pos_left p2_pos c2_pos,
+  rewrite mul_zero at cp2,
+  exact add_pos cp1 cp2
+end
+
+lemma resolve_lt_le [s : linear_ordered_comm_ring A] {p₁ p₂ c₁ c₂ : A}
+  : 0 < p₁ → 0 ≤ p₂ → 0 < c₁ → 0 < c₂ → 0 < c₁ * p₁ + c₂ * p₂ :=
+assume p1_pos p2_nonneg c1_pos c2_pos,
+begin
+  have cp1 : c₁ * 0 < c₁ * p₁, from mul_lt_mul_of_pos_left p1_pos c1_pos,
+  rewrite mul_zero at cp1,
+  have cp2 : c₂ * 0 ≤ c₂ * p₂, from mul_le_mul_of_nonneg_left p2_nonneg (le_of_lt c2_pos),
+  rewrite mul_zero at cp2,
+  exact add_pos_of_pos_of_nonneg cp1 cp2
+end
+
+lemma resolve_le_lt [s : linear_ordered_comm_ring A] {p₁ p₂ c₁ c₂ : A}
+  : 0 ≤ p₁ → 0 < p₂ → 0 < c₁ → 0 < c₂ → 0 < c₁ * p₁ + c₂ * p₂ :=
+assume (p1_nonneg : 0 ≤ p₁) (p2_pos : 0 < p₂) (c1_pos : 0 < c₁) (c2_pos : 0 < c₂),
+have H : 0 < c₂ * p₂ + c₁ * p₁, from resolve_lt_le p2_pos p1_nonneg c2_pos c1_pos,
+!add.comm ▸ H
+
+lemma resolve_le_le [s : linear_ordered_comm_ring A] {p₁ p₂ c₁ c₂ : A}
+  : 0 ≤ p₁ → 0 ≤ p₂ → 0 < c₁ → 0 < c₂ → 0 ≤ c₁ * p₁ + c₂ * p₂ :=
+assume p1_nonneg p2_nonneg c1_pos c2_pos,
+begin
+  have cp1 : c₁ * 0 ≤ c₁ * p₁, from mul_le_mul_of_nonneg_left p1_nonneg (le_of_lt c1_pos),
+  rewrite mul_zero at cp1,
+  have cp2 : c₂ * 0 ≤ c₂ * p₂, from mul_le_mul_of_nonneg_left p2_nonneg (le_of_lt c2_pos),
+  rewrite mul_zero at cp2,
+  exact add_nonneg cp1 cp2
+end
+
+end ordered_arith

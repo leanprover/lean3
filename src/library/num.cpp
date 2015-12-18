@@ -18,37 +18,6 @@ bool has_num_decls(environment const & env) {
         env.find(get_bit1_name());
 }
 
-bool is_const_app(expr const & e, name const & n, unsigned nargs) {
-    expr const & f = get_app_fn(e);
-    return is_constant(f) && const_name(f) == n && get_app_num_args(e) == nargs;
-}
-
-bool is_zero(expr const & e) {
-    return is_const_app(e, get_zero_name(), 2);
-}
-
-bool is_one(expr const & e) {
-    return is_const_app(e, get_one_name(), 2);
-}
-
-optional<expr> is_bit0(expr const & e) {
-    if (!is_const_app(e, get_bit0_name(), 3))
-        return none_expr();
-    return some_expr(app_arg(e));
-}
-
-optional<expr> is_bit1(expr const & e) {
-    if (!is_const_app(e, get_bit1_name(), 4))
-        return none_expr();
-    return some_expr(app_arg(e));
-}
-
-optional<expr> is_neg(expr const & e) {
-    if (!is_const_app(e, get_neg_name(), 3))
-        return none_expr();
-    return some_expr(app_arg(e));
-}
-
 optional<expr> unfold_num_app(environment const & env, expr const & e) {
     if (is_zero(e) || is_one(e) || is_bit0(e) || is_bit1(e)) {
         return unfold_app(env, e);
@@ -62,14 +31,15 @@ bool is_numeral_const_name(name const & n) {
 }
 
 static bool is_num(expr const & e, bool first) {
+    expr arg;
     if (is_zero(e))
         return first;
     else if (is_one(e))
         return true;
-    else if (auto a = is_bit0(e))
-        return is_num(*a, false);
-    else if (auto a = is_bit1(e))
-        return is_num(*a, false);
+    else if (is_bit0(e, arg))
+        return is_num(arg, false);
+    else if (is_bit1(e, arg))
+        return is_num(arg, false);
     else
         return false;
 }
@@ -79,18 +49,19 @@ bool is_num(expr const & e) {
 }
 
 static optional<mpz> to_num(expr const & e, bool first) {
+    expr arg;
     if (is_zero(e)) {
         return first ? some(mpz(0)) : optional<mpz>();
     } else if (is_one(e)) {
         return some(mpz(1));
-    } else if (auto a = is_bit0(e)) {
-        if (auto r = to_num(*a, false))
+    } else if (is_bit0(e, arg)) {
+        if (auto r = to_num(arg, false))
             return some(2*(*r));
-    } else if (auto a = is_bit1(e)) {
-        if (auto r = to_num(*a, false))
+    } else if (is_bit1(e, arg)) {
+        if (auto r = to_num(arg, false))
             return some(2*(*r)+1);
-    } else if (auto a = is_neg(e)) {
-        if (auto r = to_num(*a, false))
+    } else if (is_neg(e, arg)) {
+        if (auto r = to_num(arg, false))
             return some(neg(*r));
     }
     return optional<mpz>();

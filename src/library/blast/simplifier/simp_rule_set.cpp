@@ -14,6 +14,8 @@ Author: Leonardo de Moura
 #include "library/expr_pair.h"
 #include "library/attribute_manager.h"
 #include "library/relation_manager.h"
+#include "library/blast/blast.h"
+#include "library/trace.h"
 #include "library/blast/simplifier/ceqv.h"
 #include "library/blast/simplifier/simp_rule_set.h"
 
@@ -261,18 +263,18 @@ format simp_rule_sets::pp(formatter const & fmt) const {
     return pp(fmt, format(), true, true);
 }
 
-static name * g_prefix = nullptr;
-
 simp_rule_sets add_core(tmp_type_context & tctx, simp_rule_sets const & s,
-                        name const & id, levels const & univ_metas, expr const & e, expr const & h,
+                        name const & id, levels const & univ_metas, expr const & _e, expr const & _h,
                         unsigned priority) {
+    expr e = blast::normalize(_e);
+    expr h = blast::normalize(_h);
     list<expr_pair> ceqvs   = to_ceqvs(tctx, e, h);
-    if (is_nil(ceqvs)) throw exception("[simp] rule invalid");
+    if (is_nil(ceqvs)) throw exception(sstream() << "[simp] rule (" << id << ") invalid");
     environment const & env = tctx.env();
     simp_rule_sets new_s = s;
     for (expr_pair const & p : ceqvs) {
-        expr rule = tctx.whnf(p.first);
-        expr proof = tctx.whnf(p.second);
+        expr rule = p.first;
+        expr proof = p.second;
         bool is_perm = is_permutation_ceqv(env, rule);
         buffer<expr> emetas;
         buffer<bool> instances;
@@ -364,7 +366,7 @@ static bool is_valid_congr_hyp_rhs(expr const & rhs, name_set & found_mvars) {
     return true;
 }
 
-void add_congr_core(tmp_type_context & tctx, simp_rule_sets & s, name const & n, unsigned prio) {
+simp_rule_sets add_congr_core(tmp_type_context & tctx, simp_rule_sets const & s, name const & n, unsigned prio) {
     declaration const & d = tctx.env().get(n);
     buffer<level> us;
     unsigned num_univs = d.get_num_univ_params();
@@ -372,9 +374,9 @@ void add_congr_core(tmp_type_context & tctx, simp_rule_sets & s, name const & n,
         us.push_back(tctx.mk_uvar());
     }
     levels ls = to_list(us);
-    expr rule    = instantiate_type_univ_params(d, ls);
-    expr proof   = mk_constant(n, ls);
-
+    expr rule = blast::normalize(instantiate_type_univ_params(d, ls));
+    expr proof = blast::normalize(mk_constant(n, ls));
+    simp_rule_sets new_s = s;
     buffer<expr> emetas;
     buffer<bool> instances, explicits;
 
@@ -466,25 +468,24 @@ void add_congr_core(tmp_type_context & tctx, simp_rule_sets & s, name const & n,
             congr_hyps.push_back(mvar);
         }
     }
-    s.insert(const_name(rel), congr_rule(n, ls, reverse_to_list(emetas),
-                                         reverse_to_list(instances), lhs, rhs, proof, to_list(congr_hyps), prio));
+    new_s.insert(const_name(rel), congr_rule(n, ls, reverse_to_list(emetas),
+                                             reverse_to_list(instances), lhs, rhs, proof, to_list(congr_hyps), prio));
+    return new_s;
 }
 
 struct rrs_state {
-    simp_rule_sets           m_sets;
-    name_set                 m_simp_names;
-    name_set                 m_congr_names;
+    typedef rb_map<name, unsigned, name_quick_cmp> simp_lemma_set;
+    typedef rb_map<name, unsigned, name_quick_cmp> congr_lemma_set;
 
-    void add_simp(environment const & env, io_state const & ios, name const & cname, unsigned prio) {
-        tmp_type_context tctx(env, ios.get_options());
-        m_sets = add_core(tctx, m_sets, cname, prio);
-        m_simp_names.insert(cname);
+    simp_lemma_set  m_simp_lemmas;
+    congr_lemma_set m_congr_lemmas;
+
+    void add_simp(environment const &, io_state const &, name const & cname, unsigned prio) {
+        m_simp_lemmas.insert(cname, prio);
     }
 
-    void add_congr(environment const & env, io_state const & ios, name const & n, unsigned prio) {
-        tmp_type_context tctx(env, ios.get_options());
-        add_congr_core(tctx, m_sets, n, prio);
-        m_congr_names.insert(n);
+    void add_congr(environment const &, io_state const &, name const & cname, unsigned prio) {
+        m_congr_lemmas.insert(cname, prio);
     }
 };
 
@@ -500,10 +501,17 @@ struct rrs_config {
     typedef rrs_entry  entry;
     typedef rrs_state  state;
     static void add_entry(environment const & env, io_state const & ios, state & s, entry const & e) {
-        if (e.m_is_simp)
+        /* Note: We try to construct the simp/congr rule in the current environment so that we can detect some errors immediately. */
+        blast::scope_debug scope(env, ios);
+        tmp_type_context tctx(env, ios.get_options());
+        simp_rule_sets srss;
+        if (e.m_is_simp) {
+            add_core(tctx, srss, e.m_name, e.m_priority);
             s.add_simp(env, ios, e.m_name, e.m_priority);
-        else
+        } else {
+            add_congr_core(tctx, srss, e.m_name, e.m_priority);
             s.add_congr(env, ios, e.m_name, e.m_priority);
+        }
     }
     static name const & get_class_name() {
         return *g_class_name;
@@ -534,37 +542,55 @@ environment add_congr_rule(environment const & env, name const & n, unsigned pri
 }
 
 bool is_simp_rule(environment const & env, name const & n) {
-    return rrs_ext::get_state(env).m_simp_names.contains(n);
+    return rrs_ext::get_state(env).m_simp_lemmas.contains(n);
 }
 
 bool is_congr_rule(environment const & env, name const & n) {
-    return rrs_ext::get_state(env).m_congr_names.contains(n);
+    return rrs_ext::get_state(env).m_congr_lemmas.contains(n);
 }
 
-simp_rule_sets get_simp_rule_sets(environment const & env) {
-    return rrs_ext::get_state(env).m_sets;
+void try_add(tmp_type_context & tctx, simp_rule_sets & srss, name const & n, unsigned prio, bool is_simp) {
+    try {
+        if (is_simp) srss = add_core(tctx, srss, n, prio);
+        else srss = add_congr_core(tctx, srss, n, prio);
+    } catch (exception ex) {
+        lean_trace(name({"simplifier", "rules"}), tout() << ex.what() << "\n";);
+    }
 }
 
-simp_rule_sets get_simp_rule_sets(environment const & env, options const & o, name const & ns) {
+simp_rule_sets mk_simp_rule_sets(environment const & env) {
+    simp_rule_sets set;
+    rrs_ext::get_state(env).m_simp_lemmas.for_each([&](name const & n, unsigned prio) {
+            tmp_type_context tctx(env, get_dummy_ios().get_options());
+            try_add(tctx, set, n, prio, true);
+        });
+    rrs_ext::get_state(env).m_congr_lemmas.for_each([&](name const & n, unsigned prio) {
+            tmp_type_context tctx(env, get_dummy_ios().get_options());
+            try_add(tctx, set, n, prio, false);
+        });
+    return set;
+}
+
+simp_rule_sets mk_simp_rule_sets(environment const & env, options const & o, name const & ns) {
     simp_rule_sets set;
     list<rrs_entry> const * entries = rrs_ext::get_entries(env, ns);
     if (entries) {
-        for (auto const & e : *entries) {
+        for (rrs_entry const & e : *entries) {
             tmp_type_context tctx(env, o);
-            set = add_core(tctx, set, e.m_name, e.m_priority);
+            try_add(tctx, set, e.m_name, e.m_priority, e.m_is_simp);
         }
     }
     return set;
 }
 
-simp_rule_sets get_simp_rule_sets(environment const & env, options const & o, std::initializer_list<name> const & nss) {
+simp_rule_sets mk_simp_rule_sets(environment const & env, options const & o, std::initializer_list<name> const & nss) {
     simp_rule_sets set;
     for (name const & ns : nss) {
         list<rrs_entry> const * entries = rrs_ext::get_entries(env, ns);
         if (entries) {
-            for (auto const & e : *entries) {
+            for (rrs_entry const & e : *entries) {
                 tmp_type_context tctx(env, o);
-                set = add_core(tctx, set, e.m_name, e.m_priority);
+                try_add(tctx, set, e.m_name, e.m_priority, e.m_is_simp);
             }
         }
     }
@@ -578,7 +604,6 @@ io_state_stream const & operator<<(io_state_stream const & out, simp_rule_sets c
 }
 
 void initialize_simplifier_rule_set() {
-    g_prefix     = new name(name::mk_internal_unique_name());
     g_class_name = new name("simps");
     g_key        = new std::string("simp");
     rrs_ext::initialize();
@@ -607,6 +632,5 @@ void finalize_simplifier_rule_set() {
     rrs_ext::finalize();
     delete g_key;
     delete g_class_name;
-    delete g_prefix;
 }
 }

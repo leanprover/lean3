@@ -56,6 +56,9 @@ section division_ring
     have C1 : 0 = (1:A), from symm (by rewrite [-(mul_one_div_cancel H), H2, mul_zero]),
     absurd C1 zero_ne_one
 
+  theorem inv_ne_zero (H : a ≠ 0) : a⁻¹ ≠ 0 :=
+    by rewrite [-one_mul, -division.def]; apply (one_div_ne_zero H)
+
   theorem one_inv_eq : 1⁻¹ = (1:A) :=
   by rewrite [-mul_one, inv_mul_cancel (ne.symm (@zero_ne_one A _))]
 
@@ -237,6 +240,9 @@ section field
 
   theorem mul_div_cancel_left (Ha : a ≠ 0) : a * b / a = b :=
     by rewrite [mul.comm a, (!mul_div_cancel Ha)]
+
+  theorem field.mul_inv_cancel_left (Ha : a ≠ 0) : a * (a⁻¹ * b) = b :=
+    by rewrite [-mul.assoc, mul_inv_cancel Ha, one_mul]
 
   theorem mul_div_cancel' (Hb : b ≠ 0) : b * (a / b) = a :=
     by rewrite [mul.comm, (!div_mul_cancel Hb)]
@@ -521,5 +527,23 @@ theorem div_eq_div_helper [s : field A] (a b c d v : A) (H1 : a * d = v) (H2 : c
 theorem subst_into_div [s : has_div A] (a₁ b₁ a₂ b₂ v : A) (H : a₁ / b₁ = v) (H1 : a₂ = a₁)
         (H2 : b₂ = b₁) : a₂ / b₂ = v :=
   by rewrite [H1, H2, H]
+
+theorem inv_of_div_helper [s : field A] (a  b : A) (H : 1 / a = b) : a⁻¹ = b :=
+  by rewrite [division.def at H, one_mul at H]; assumption
+
+theorem eq_inv_of_eq_div_helper [s : field A] (a b : A) (H : a = 1 / b) : a = b⁻¹ :=
+  by rewrite [-{b⁻¹}one_mul, -division.def]; assumption
+
+theorem eq_mulinv_of_eq_div_helper [s : field A] (a b c : A) (H : a = b / c) : a = b * c⁻¹ :=
+  by rewrite -division.def; assumption
+
+theorem mulinv_ne_zero_of_ne_zero_ne_zero [s : field A] (a b : A) : a ≠ 0 →  b ≠ 0 → a * b⁻¹ ≠ 0 :=
+assume a_nz b_nz,
+begin
+  apply division_ring.mul_ne_zero,
+  assumption,
+  apply inv_ne_zero,
+  assumption
+end
 
 end norm_num

@@ -7,21 +7,21 @@ axiom H1 : a = b
 axiom H2 : a = c
 
 attribute H1 [simp]
-attribute H2 [simp]
+attribute H2 [simp] [priority std.priority.default+1]
 
 #simplify eq env 0 a -- c
 
-attribute H1 [simp]
+attribute H1 [simp] [priority std.priority.default+2]
 
 #simplify eq env 0 a -- b
 
-attribute H1 [simp] [priority std.priority.default+1]
+attribute H1 [simp] [priority std.priority.default+3]
 attribute H2 [simp]
 
 #simplify eq env 0 a -- b
 
-attribute H2 [simp] [priority std.priority.default+2]
-attribute H1 [simp] [priority std.priority.default+1]
+attribute H2 [simp] [priority std.priority.default+4]
+attribute H1 [simp] [priority std.priority.default+3]
 
 #simplify eq env 0 a -- c
 

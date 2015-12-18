@@ -3,7 +3,7 @@ import data.list
 constant f {A : Type} : A → A → A
 constant g : nat → nat
 set_option blast.strategy "cc"
-
+set_option trace.blast true
 example (a b c : nat) : a = b → g a == g b :=
 by blast
 

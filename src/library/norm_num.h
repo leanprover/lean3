@@ -75,7 +75,6 @@ public:
 
     bool is_numeral(expr const & e) const;
     bool is_neg_app(expr const &) const;
-    bool is_div(expr const &) const;
     pair<expr, expr> mk_norm(expr const & e);
     expr mk_norm_eq(expr const &, expr const &);
     mpz num_of_expr(expr const & e);

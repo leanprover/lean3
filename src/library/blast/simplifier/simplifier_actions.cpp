@@ -22,7 +22,7 @@ struct simplifier_branch_extension : public branch_extension {
         m_srss(b.m_srss) {}
     virtual ~simplifier_branch_extension() {}
     virtual branch_extension * clone() override { return new simplifier_branch_extension(*this); }
-    virtual void initialized() override { m_srss = ::lean::get_simp_rule_sets(env()); }
+    virtual void initialized() override { m_srss = mk_simp_rule_sets(env()); }
     virtual void target_updated() override { m_simp_target = true; }
     virtual void hypothesis_activated(hypothesis const &, hypothesis_idx) override { }
     virtual void hypothesis_deleted(hypothesis const &, hypothesis_idx) override { }

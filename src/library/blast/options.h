@@ -19,6 +19,7 @@ struct config {
     bool                       m_recursor;
     bool                       m_ematch;
     bool                       m_cc;
+    bool                       m_acl;
     bool                       m_backward;
     bool                       m_show_failure;
     char const *               m_strategy;

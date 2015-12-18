@@ -11,4 +11,4 @@ Prop → (∀ (x : T), P x ↔ Q x) → Prop → Q x
 ∀ (a : T), T → (∀ (x : T), P x ↔ Q x) → Q a
 ∀ (a a_1 : T), a = a_1 → P a_1
 ∀ (a a_1 a_2 : T), a = a_1 → a_1 = a_2 → P a_2
-∀ (a a_1 : T), a = a_1 → (∀ (w : T), P w ↔ Q w) → Q a_1
+∀ (a a_1 : T), a = a_1 → (∀ (w : T), P w ↔ Q w) → Q a

@@ -280,7 +280,8 @@ static optional<ext_congr_lemma> to_ext_congr_lemma(name const & R, expr const &
 }
 
 static optional<ext_congr_lemma> mk_ext_congr_lemma_core(name const & R, expr const & fn, unsigned nargs) {
-    simp_rule_set const * sr = get_simp_rule_sets(env()).find(R);
+    simp_rule_sets srss = mk_simp_rule_sets(env());
+    simp_rule_set const * sr = srss.find(R);
     if (sr) {
         list<congr_rule> const * crs = sr->find_congr(fn);
         if (crs) {
