@@ -1,0 +1,31 @@
+-- BEGINWAIT
+-- ENDWAIT
+-- BEGININFO
+-- PROOF_STATE|5|17
+a b c : Prop,
+Ha : a,
+Hb : b
+⊢ a ∧ b
+-- ACK
+-- ENDINFO
+-- BEGININFO
+-- PROOF_STATE|6|17
+a b c : Prop,
+Ha : a,
+Hb : b
+⊢ a
+--
+a b c : Prop,
+Ha : a,
+Hb : b
+⊢ b
+-- ACK
+-- ENDINFO
+-- BEGININFO
+-- PROOF_STATE|7|10
+a b c : Prop,
+Ha : a,
+Hb : b
+⊢ b
+-- ACK
+-- ENDINFO

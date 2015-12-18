@@ -1,0 +1,3 @@
+id : ?A → ?A
+refl : (?A → ?A → Prop) → Prop
+symm : (?A → ?A → Prop) → Prop

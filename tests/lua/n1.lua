@@ -1,0 +1,13 @@
+n = name("foo", 1, 2)
+print(n)
+print(name(n, "bla"))
+assert(name("foo", 1) ~= name("foo", 2))
+assert(name("foo", 1) == name("foo", 1))
+assert(name(name("foo", 1), 2) == name("foo", 1, 2))
+assert(n ~= name("foo", 1))
+assert(n ~= name("foo", 2))
+assert(n < name("foo", 2))
+assert(not (n < name("foo", 0)))
+assert(n > name("foo", 0))
+assert(name(nil) == name())
+

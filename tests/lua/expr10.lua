@@ -1,0 +1,8 @@
+local env = environment()
+local f = Local("f", mk_arrow(Prop, Prop, Prop))
+local a = Local("a", Prop)
+local b = Local("b", Prop)
+local x = Local("x", Prop)
+local t = Fun(f, a, b, f(Fun(x, x)(b), a))
+print(env:normalize(t))
+assert(env:normalize(t) == Fun(f, a, b, f(b, a)))

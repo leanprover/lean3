@@ -1,0 +1,8 @@
+mismatch.lean:4:7: error: type mismatch at application
+  @id ℕ o
+term
+  o
+has type
+  num
+but is expected to have type
+  ℕ

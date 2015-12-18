@@ -1,0 +1,2 @@
+f x a = f x c
+f x = g x

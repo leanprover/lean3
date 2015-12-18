@@ -1,0 +1,10 @@
+place_eqn.lean:4:18: error: don't know how to synthesize placeholder
+foo : ℕ → ℕ
+⊢ ℕ
+place_eqn.lean:5:18: error: don't know how to synthesize placeholder
+foo : ℕ → ℕ,
+a : ℕ
+⊢ ℕ
+place_eqn.lean:3:11: error: failed to synthesize placeholder
+
+⊢ ℕ → ℕ

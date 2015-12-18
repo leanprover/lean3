@@ -1,0 +1,12 @@
+if p ∧ q then f x else y : N
+t10.lean:14:6: error: type mismatch at application
+  ite (p ∧ q) q
+term
+  q
+has type
+  B
+but is expected to have type
+  N
+[x, y, z, x, y, y] : list
+[x] : list
+[] : list

@@ -1,0 +1,5 @@
+f a b : A
+f a b : A
+nat ↣ bool : foo
+10 : ?M_1
+local_notation_bug.lean:22:8: error: invalid expression

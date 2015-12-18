@@ -1,0 +1,5 @@
+g : N → N
+h : N
+q : N
+foo.h : N
+t5.lean:13:6: error: unknown identifier 'q'
