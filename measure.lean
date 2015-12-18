@@ -16,11 +16,10 @@ structure sigma_algebra (X : Type) :=
   (unions : ∀ U : ℕ → set X, (∀ i : ℕ, (U i ∈ sets)) → Union U ∈ sets)
 
 attribute sigma_algebra [class]
+attribute sigma_algebra.sets [coercion]
 
 abbreviation space := @sigma_algebra.space
 abbreviation sets := @sigma_algebra.sets
-
-attribute sigma_algebra.sets [coercion]
 
 definition measurable [M : sigma_algebra X] (S : set X) : Prop := S ∈ M
 
@@ -219,6 +218,8 @@ structure measure [class] (M : sigma_algebra X) :=
   (measure_empty : measure ∅ = 0)
   (countable_additive : ∀ U : ℕ → set X, disjoint_seq U ∧ (∀ i, measurable (U i)) → (measure (Union U) = (set.Sum (@univ ℕ) (λi, measure (U i)))))
 
+attribute measure.measure [coercion]
+
 -- Need infinite series for all of this --
 
 /- definition fin_measure {X : Type} [M : 𝔐 X] : Prop := μ (space X) < ∞ -/
@@ -298,8 +299,6 @@ take i, take j, suppose neq : i ≠ j,
               rewrite[if_neg `¬(i ≤ 1)`]
             end,
           !empty_inter ▸ (this ▸ rfl))
-
-definition to_measure [coercion] {M : sigma_algebra X} (μ : measure M) : set X → ℝ := @measure.measure X M μ
 
 theorem bin_additive {M : sigma_algebra X} {μ : measure M} (A B : set X) (s₁ : measurable A) (s₂ : measurable B) (dsjt : A ∩ B = ∅) : 
   μ (A ∪ B) = μ A + μ B := 
