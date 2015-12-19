@@ -27,19 +27,26 @@ definition measurable_collection [M : sigma_algebra X] (S : set (set X)) : Prop 
 
 definition measurable_sequence [M : sigma_algebra X] (A : ℕ → set X) : Prop := ∀ i, measurable (A i)
 
-lemma space_closed {M : sigma_algebra X} (S : set X) (MS : measurable S) : ∀ x : X, x ∈ S → x ∈ (space M) := 
-  take x, 
-  suppose x ∈ S,
-  have S ⊆ space M, from sigma_algebra.subs M S MS,
-  show x ∈ space M, from mem_of_subset_of_mem this `x ∈ S`
+lemma space_closed {M : sigma_algebra X} (S : set X) (MS : measurable S) :
+  ∀ x : X, x ∈ S → x ∈ (space M) := 
+take x, 
+suppose x ∈ S,
+have S ⊆ space M, from sigma_algebra.subs M S MS,
+show x ∈ space M, from mem_of_subset_of_mem this `x ∈ S`
 
-theorem sigma_empty {M : sigma_algebra X} : ∅ ∈ M :=
- (eq_empty_of_forall_not_mem 
-    (take x,
-    not.intro(λ H,
-      (not_mem_of_mem_comp H) 
-      ((space_closed (-(space M)) ((sigma_algebra.complements M (space M)) (sigma_algebra.entire M)) x) H))))
-        ▸ (sigma_algebra.complements M (space M)) (sigma_algebra.entire M)
+theorem empty_measurable {M : sigma_algebra X} :
+  ∅ ∈ M :=
+have ∀ x, x ∉ -(space M), from 
+ take x,
+  not.intro(
+    suppose x ∈ -(space M),
+    have ¬(x ∈ space M), from not_mem_of_mem_comp this,
+    have measurable (-(space M)), from (sigma_algebra.complements M (space M)) (sigma_algebra.entire M),
+    have x ∈ space M, from ((space_closed (-(space M)) this) x) `x ∈ -(space M)`, 
+    show false, from absurd this `¬(x ∈ space M)`),
+have -(space M) = ∅, from eq_empty_of_forall_not_mem this,
+have -(space M) ∈ sets M, from (sigma_algebra.complements M (space M)) (sigma_algebra.entire M),
+show _, from `-(space M) = ∅` ▸ this
 
 lemma countable_com  {M : sigma_algebra X} (U : ℕ → set X) : (∀ i, U i ∈ M) → (∀ j, -(U j) ∈ M) := 
   suppose ∀ i, U i ∈ M, 
@@ -54,14 +61,21 @@ section
 
   open classical
 
-  lemma Inter_eq (U : ℕ → set X) : Inter U = -(Union (-U)) := 
-    ext(take x, iff.intro
-      (suppose x ∈ Inter U,
-       show x ∈ -(Union (-U)), from not.intro(λ t, obtain i (Hi : x ∉ (U i)), from t, Hi (this i)))        
-      (suppose x ∈ -(Union (-U)),
-        show x ∈ Inter U, from 
-          take i,
-          not_not_elim (((iff.elim_left !forall_iff_not_exists) this) i)))
+lemma Inter_eq (U : ℕ → set X) :
+  Inter U = -(Union (-U)) := 
+ext(take x, iff.intro
+  (suppose x ∈ Inter U,
+   show x ∈ -(Union (-U)), from 
+     not.intro(
+       suppose x ∈ Union (- U),
+       obtain i (Hi : x ∉ (U i)), from this,
+       show false, from Hi (`x ∈ Inter U` i)))        
+  (suppose x ∈ -(Union (-U)),
+    have ∀ i, ¬¬(x ∈ U i), from (iff.elim_left !forall_iff_not_exists) this,
+    show x ∈ Inter U, from 
+      take i,
+      have ¬¬(x ∈ U i), from this i,
+      show _, from not_not_elim this))
 
 end 
 
@@ -93,7 +107,7 @@ definition bin_extension [reducible] [M : sigma_algebra X] (U₀ U₁ : set X) :
     begin
       unfold bin_extension,
       rewrite[if_neg this],
-      exact sigma_empty
+      exact empty_measurable
     end)
 
 
@@ -169,7 +183,7 @@ theorem fin_union {M : sigma_algebra X} (S : set (set X)) (fin : finite S) :
             obtain c [(hc : c ∈ ∅) (xc : x ∈ c)], from this,
             show _, from !not.elim !not_mem_empty hc)
           (suppose x ∈ ∅, !not.elim !not_mem_empty this)),
-     show measurable (sUnion ∅), from this⁻¹ ▸ !sigma_empty) 
+     show measurable (sUnion ∅), from this⁻¹ ▸ !empty_measurable) 
     (begin
       intro a s' fins,
       λ s₁, λ s₂, λ s₃,
@@ -187,7 +201,7 @@ show _, from !induction_on_finite
         have ∀ c, c ∈ ∅ → ¬(x ∈ c), from sorry, -- stuck here --
         show x ∈ ∅, from sorry)
       (suppose x ∈ ∅, !not.elim !not_mem_empty this)),
-      show measurable (sInter ∅), from this⁻¹ ▸ !sigma_empty)
+      show measurable (sInter ∅), from this⁻¹ ▸ !empty_measurable)
      (begin
        intro a s' fins,
        λ s₁, λ s₂, λ H,
