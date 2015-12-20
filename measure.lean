@@ -2,6 +2,7 @@ import data.real data.set data.nat algebra.group_bigops algebra.group_set_bigops
 open real eq.ops set nat 
 
 variable {X : Type}
+variables A B : set X
 
 namespace measure
 
@@ -12,7 +13,7 @@ structure sigma_algebra (X : Type) :=
   (sets : set (set X))
   (subs : (∀ S : set X, S ∈ sets → S ⊆ space))
   (entire : space ∈ sets)
-  (complements : ∀A, A ∈ sets → (-A ∈ sets))
+  (complements : ∀ S, S ∈ sets → (-S ∈ sets))
   (unions : ∀ U : ℕ → set X, (∀ i : ℕ, (U i ∈ sets)) → Union U ∈ sets)
 
 attribute sigma_algebra [class]
@@ -25,7 +26,7 @@ definition measurable [M : sigma_algebra X] (S : set X) : Prop := S ∈ M
 
 definition measurable_collection [M : sigma_algebra X] (S : set (set X)) : Prop :=  ∀ s, s ∈ S → measurable s
 
-definition measurable_sequence [M : sigma_algebra X] (A : ℕ → set X) : Prop := ∀ i, measurable (A i)
+definition measurable_sequence [M : sigma_algebra X] (S : ℕ → set X) : Prop := ∀ i, measurable (S i)
 
 lemma space_closed {M : sigma_algebra X} (S : set X) (MS : measurable S) :
   ∀ x : X, x ∈ S → x ∈ (space M) := 
@@ -59,7 +60,7 @@ prefix `-` := comp_family
 
 section 
 
-  open classical
+open classical
 
 lemma Inter_eq (U : ℕ → set X) :
   Inter U = -(Union (-U)) := 
@@ -79,100 +80,94 @@ ext(take x, iff.intro
 
 end 
 
-theorem Inter_in_sets {M : sigma_algebra X} (U : ℕ → set X) (Um : ∀ i, measurable (U i)) :
+theorem Inter_measurable {M : sigma_algebra X} (U : ℕ → set X) (Um : ∀ i, measurable (U i)) :
   measurable (Inter U) := 
-!Inter_eq⁻¹ ▸ (!sigma_algebra.complements (!sigma_algebra.unions (!countable_com Um)))
-
-definition bin_extension [reducible] [M : sigma_algebra X] (U₀ U₁ : set X) : ℕ → set X := λ i, (if i ≤ 1 then (if i = 0 then U₀ else U₁) else ∅)
-
- lemma extension_measurable {M : sigma_algebra X} (U₀ U₁ : set X) (s₁ : measurable U₀) (s₂ : measurable U₁) :
-   ∀ i : ℕ, measurable (bin_extension U₀ U₁ i) :=
+have ∀ i, measurable (-(U i)), from
   take i,
-  decidable.by_cases
-  (suppose leq : i ≤ 1, 
-    decidable.by_cases
-      (suppose i = 0, 
-        begin
-          unfold bin_extension,
-          rewrite[if_pos leq, if_pos this],
-          exact s₁
-        end)
-      (suppose ¬(i = 0), 
-        begin
-          unfold bin_extension,
-          rewrite[if_pos leq, if_neg this],
-          exact s₂
-        end))
-  (suppose ¬(i ≤ 1), 
-    begin
-      unfold bin_extension,
-      rewrite[if_neg this],
-      exact empty_measurable
-    end)
+  have measurable (U i), from Um i,
+  show _, from !sigma_algebra.complements this,
+have measurable (Union (-U)), from !sigma_algebra.unions this,
+have measurable (-(Union (-U))), from !sigma_algebra.complements this,
+show _, from !Inter_eq⁻¹ ▸ this
 
+definition bin_extension [reducible] [M : sigma_algebra X] : ℕ → set X := 
+  λ i, (if i ≤ 1 then (if i = 0 then A else B) else ∅)
 
-lemma bin_union {M : sigma_algebra X} (U₀ U₁ : set X) (s₁ : measurable U₀) (s₂ : measurable U₁) : 
-  measurable (U₀ ∪ U₁) :=
-(ext(λx, iff.intro 
-  (λ H, obtain i (Hi : x ∈ (bin_extension U₀ U₁) i), from H,
-   assert H : (i ≤ 1), from not_not_elim
-     (not.intro(suppose ¬(i ≤ 1),
-       have H₁ : (bin_extension U₀ U₁) i = ∅, 
-         begin
-           unfold bin_extension,
-           rewrite[if_neg this]
-         end,
-       !mem_empty_eq ▸ H₁ ▸ Hi)),
-   decidable.by_cases
-     (suppose i = 0, !mem_union_left (this ▸ Hi)) 
-     (λ s, !mem_union_right
-         ((begin
-           unfold bin_extension,
-           rewrite[if_pos H, if_neg s]
-          end)
-        ▸ Hi)))
-  (λ H, assert A : U₀ ∪ U₁ ⊆ Union (bin_extension U₀ U₁), from
-     take x,
-     assume t,
-       or.elim (mem_or_mem_of_mem_union t) 
-         (λ y, exists.intro 0 y)
-         (λ z, exists.intro 1 z),
-   (!mem_of_subset_of_mem A) H))) ▸ ((sigma_algebra.unions M (bin_extension U₀ U₁)) (extension_measurable U₀ U₁ s₁ s₂))
-
-definition bin_extension' [M : sigma_algebra X] (U₀ U₁ : set X) : ℕ → set X := λ i, if i = 0 then U₀ else U₁
-
-lemma extension'_in_sets {M : sigma_algebra X} (U₀ U₁ : set X) (s₁ : measurable U₀) (s₂ : measurable U₁) :
-  ∀ i : ℕ, (bin_extension' U₀ U₁) i ∈ M :=
+lemma extension_measurable {M : sigma_algebra X} (HA : measurable A) (HB : measurable B) :
+   ∀ i : ℕ, measurable (bin_extension A B i) :=
 take i,
- if H : i = 0 then
-     begin
-       unfold bin_extension',
-       rewrite[if_pos H],
-       exact s₁
-     end
-  else
-     begin
-       unfold bin_extension',
-       rewrite[if_neg H],
-       exact s₂
-     end
+if H : i ≤ 1 then 
+  if H1 : i = 0 then 
+    by rewrite[↑bin_extension, if_pos H, if_pos H1]; exact HA
+  else 
+    by rewrite[↑bin_extension, if_pos H, if_neg H1]; exact HB
+else 
+  by rewrite[↑bin_extension, if_neg H]; exact empty_measurable
 
-theorem bin_inter {M : sigma_algebra X} (U₀ U₁ : set X) (s₀ : measurable U₀) (s₁ : measurable U₁) :
-  measurable (U₀ ∩ U₁) := 
-have U₀ ∩ U₁ =  Inter (bin_extension' U₀ U₁), from ext(λx, iff.intro 
-    (suppose S : x ∈ U₀ ∩ U₁, take i,
-          decidable.by_cases
-            (suppose i = 0, 
-              (this⁻¹ ▸ rfl)⁻¹ ▸ and.elim_left (rfl ▸ S))
-            (suppose ¬(i = 0),
-             have (bin_extension' U₀ U₁) i = U₁, 
-               begin
-                 unfold bin_extension',
-                 rewrite[if_neg this]
-               end,
-              this⁻¹ ▸ and.elim_right (rfl ▸ S)))
-    (suppose x ∈ Inter (bin_extension' U₀ U₁) , and.intro (this 0) (this 1))), 
-  this⁻¹ ▸ ((Inter_in_sets (bin_extension' U₀ U₁)) (extension'_in_sets U₀ U₁ s₀ s₁))
+lemma bin_union {M : sigma_algebra X} (HA : measurable A) (HB : measurable B) : 
+  measurable (A ∪ B) :=
+have H : Union (bin_extension A B) =  A ∪ B, from (ext(take x, iff.intro 
+  (suppose x ∈ Union (bin_extension A B), 
+   obtain i (Hi : x ∈ (bin_extension A B) i), from this,
+   assert (i ≤ 1), from not_not_elim
+     (not.intro(
+       suppose ¬(i ≤ 1),
+       have (bin_extension A B) i = ∅, by rewrite[↑bin_extension, if_neg this],
+       have x ∈ ∅, from this ▸ Hi,
+       show false, from absurd this !not_mem_empty)),
+   show x ∈ A ∪ B, from 
+     if Hp : i ≤ 1 then
+         if Hpp : i = 0 then
+           have (bin_extension A B) i = A, by rewrite[↑bin_extension, if_pos Hp, if_pos Hpp],
+           have x ∈ A, from this ▸ Hi,
+           show x ∈ A ∪ B, from !mem_union_left this
+         else 
+           have (bin_extension A B) i = B, by rewrite[↑bin_extension, if_pos Hp, if_neg Hpp],
+           have x ∈ B, from this ▸ Hi,
+           show x ∈ A ∪ B, from !mem_union_right this 
+      else
+         have (bin_extension A B) i = ∅, by rewrite[↑bin_extension, if_neg Hp],
+         have x ∈ ∅, from this ▸ Hi,
+         show x ∈ A ∪ B, from !not.elim !not_mem_empty this)
+   (suppose x ∈ A ∪ B,
+     assert A ∪ B ⊆ Union (bin_extension A B), from
+     take x,
+     suppose x ∈ A ∪ B,
+       or.elim 
+         (mem_or_mem_of_mem_union `x ∈ A ∪ B`) 
+         (suppose x ∈ A, exists.intro 0 this)
+         (suppose x ∈ B, exists.intro 1 this),
+    show x ∈ Union (bin_extension A B), from (!mem_of_subset_of_mem this) `x ∈ A ∪ B`))),
+have ∀ i, measurable ((bin_extension A B) i), from !extension_measurable HA HB,
+have measurable (Union (bin_extension A B)), from !sigma_algebra.unions this,
+show measurable (A ∪ B), from H ▸ this 
+
+definition bin_extension' : ℕ → set X := λ i, if i = 0 then A else B
+
+lemma extension'_measurable {M : sigma_algebra X} (HA : measurable A) (HB : measurable B) :
+  ∀ i : ℕ, (bin_extension' A B) i ∈ M :=
+take i,
+if H : i = 0 then
+  by rewrite[↑bin_extension', if_pos H]; exact HA
+else
+  by rewrite[↑bin_extension', if_neg H]; exact HB
+
+theorem bin_inter {M : sigma_algebra X} (HA : measurable A) (HB : measurable B) :
+  measurable (A ∩ B) := 
+have H : A ∩ B =  Inter (bin_extension' A B), from ext(λx, iff.intro 
+    (suppose x ∈ A ∩ B,
+        take i,
+        if Hp : i = 0 then
+          have x ∈ A, from and.elim_left `x ∈ A ∩ B`, 
+          have bin_extension' A B i = A, by rewrite[↑bin_extension', if_pos Hp],
+          show x ∈ bin_extension' A B i, from this⁻¹ ▸ `x ∈ A`
+        else 
+          have x ∈ B, from and.elim_right `x ∈ A ∩ B`,
+          have bin_extension' A B i = B, by rewrite[↑bin_extension', if_neg Hp],
+          show x ∈ bin_extension' A B i, from this⁻¹ ▸ `x ∈ B`)
+    (suppose x ∈ Inter (bin_extension' A B) , and.intro (this 0) (this 1))), 
+have measurable (Inter (bin_extension' A B)), from !Inter_measurable (!extension'_measurable HA HB),
+show measurable (A ∩ B), from H⁻¹ ▸ this
 
 theorem fin_union {M : sigma_algebra X} (S : set (set X)) (fin : finite S) : 
   measurable_collection S → measurable (sUnion S) := 
@@ -198,8 +193,7 @@ show _, from !induction_on_finite
      have sInter ∅ = ∅, from ext(λx, iff.intro 
       (suppose x ∈ sInter ∅, 
         have ∀ c, c ∈ ∅ → x ∈ c, from this, 
-        have ∀ c, c ∈ ∅ → ¬(x ∈ c), from sorry, -- stuck here --
-        show x ∈ ∅, from sorry)
+        show x ∈ ∅, from sorry) -- need to show ∅ ∈ ∅ ?
       (suppose x ∈ ∅, !not.elim !not_mem_empty this)),
       show measurable (sInter ∅), from this⁻¹ ▸ !empty_measurable)
      (begin
@@ -212,7 +206,9 @@ show _, from !induction_on_finite
 theorem measurable_diff_measurable {A B : set X} {M : sigma_algebra X} (Am : measurable A) (Bm : measurable B) :
   measurable (A \ B) := 
 have A \ B = A ∩ -B, from !diff_eq,
-this ▸ (!bin_inter Am (!sigma_algebra.complements Bm))
+have measurable (-B), from !sigma_algebra.complements Bm,
+have measurable (A ∩ (-B)), from !bin_inter Am this,
+show  measurable (A \ B), from `A \ B = A ∩ (-B)` ▸ this
 
 lemma measurable_insert_measurable {M : sigma_algebra X} (a : set X) (S : set (set X)) (Hm : measurable_collection (insert a S)) : 
   measurable_collection S := sorry
