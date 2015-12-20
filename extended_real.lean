@@ -155,9 +155,9 @@ lemma zero_mul_neginf [simp] : 0 * -∞ = 0 := by rewrite[*ereal.mul_def, ↑ere
 
 lemma neginf_mul_zero [simp] : -∞ * 0 = 0 := by rewrite[ereal.mul_comm, zero_mul_neginf]
 
--- Preliminary facts
+-- Preliminary facts --
 
-private lemma mul1 : ∀ x y : ℝ, x * y * ∞ = x * (y * ∞) := 
+private lemma mul1 : ∀ x y : ℝ, x * y * ∞ = x * (y * ∞) :=  
 take x y,
 if X : x = 0 then
    if Y : y = 0 then 
@@ -492,29 +492,37 @@ namespace ereal_order
 
 open ereal
  
-noncomputable protected definition leq : ereal → ereal → Prop
-| (of_real x) (of_real y) := if x ≤ y then true else false
+noncomputable protected definition le : ereal → ereal → Prop
+| (of_real x) (of_real y) := if x < y then true else false
 | (of_real x) ∞           := true
 | (of_real x) -∞          := false
 | ∞ (of_real y)           := false
-| ∞ ∞                     := true
+| ∞ ∞                     := false
 | ∞ -∞                    := false
 | -∞ (of_real y)          := true
 | -∞ ∞                    := true
-| -∞ -∞                   := true
+| -∞ -∞                   := false
 
-infix `≤`:= ereal_order.leq
+infix `<`:= ereal_order.le
 
-noncomputable protected definition geq : ereal → ereal → Prop
-| (of_real x) (of_real y) := if x ≥ y then true else false
+noncomputable protected definition leq : ereal → ereal → Prop := λ x, λ y, x < y ∨ x = y
+
+infix `≤` := ereal_order.leq
+
+noncomputable protected definition ge : ereal → ereal → Prop
+| (of_real x) (of_real y) := if x > y then true else false
 | (of_real x) ∞           := false
 | (of_real x) -∞          := true
 | ∞ (of_real y)           := true
-| ∞ ∞                     := true
+| ∞ ∞                     := false
 | ∞ -∞                    := true
 | -∞ (of_real y)          := false
 | -∞ ∞                    := false
-| -∞ -∞                   := true
+| -∞ -∞                   := false
+
+infix `>` := ereal_order.ge
+
+noncomputable protected definition geq : ereal → ereal → Prop := λ x, λ y, x > y ∨ x = y
 
 infix `≥` := ereal_order.geq
 
