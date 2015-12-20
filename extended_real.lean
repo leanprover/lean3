@@ -157,7 +157,71 @@ lemma zero_mul_neginf : 0 * -∞ = 0 := by rewrite[*ereal.mul_def, ↑ereal.mul,
 
 lemma neginf_mul_zero : -∞ * 0 = 0 := by rewrite[ereal.mul_comm, zero_mul_neginf]
 
-private lemma mul1 : ∀ x y : ℝ, x * y * ∞ = x * (y * ∞) := sorry
+private lemma mul1 : ∀ x y : ℝ, x * y * ∞ = x * (y * ∞) := 
+take x y,
+if X : x = 0 then
+   if Y : y = 0 then 
+     proof
+       have x * y = 0, from X⁻¹ ▸ !zero_mul,
+       have of_real x * of_real y = of_real 0, from this ▸ rfl,
+       have H : (of_real x * of_real y) * ∞ = of_real 0, from this⁻¹ ▸ zero_mul_inf,
+       have H1 : of_real y * ∞ = of_real 0, from Y⁻¹ ▸ zero_mul_inf,
+       have of_real x * of_real 0 = of_real 0, from !mul_zero ▸ rfl,
+       have of_real x * (of_real y * ∞) = of_real 0, from H1⁻¹ ▸ this,
+       show _, from this⁻¹ ▸ H
+     qed
+   else if Y1 : y > 0 then 
+     proof
+       have x * y = 0, from X⁻¹ ▸ !zero_mul,
+       have of_real x * of_real y = of_real 0, from this ▸ rfl,
+       have H : (of_real x * of_real y) * ∞ = of_real 0, from this⁻¹ ▸ zero_mul_inf,
+       have H1 : of_real y * ∞ = ∞, by rewrite[*ereal.mul_def, ↑ereal.mul, if_neg Y, if_pos Y1],
+       have of_real x * (of_real y * ∞) = of_real 0 * ∞, from X ▸ (H1 ▸ rfl),
+       have of_real x * (of_real y * ∞) = of_real 0, from this⁻¹ ▸ zero_mul_inf,
+       show _, from this⁻¹ ▸ H
+     qed
+   else 
+     proof
+       have x * y = 0, from X⁻¹ ▸ !zero_mul,
+       have of_real x * of_real y = of_real 0, from this ▸ rfl,
+       have H : (of_real x * of_real y) * ∞ = of_real 0, from this⁻¹ ▸ zero_mul_inf,
+       have of_real y * ∞ = -∞, by rewrite[*ereal.mul_def, ↑ereal.mul, if_neg Y, if_neg Y1],
+       have of_real x * (of_real y * ∞) = of_real 0 * -∞, from X ▸ (this ▸ rfl),
+       have of_real x * (of_real y * ∞) = of_real 0, from this⁻¹ ▸ zero_mul_neginf,
+       show _, from this⁻¹ ▸ H
+     qed
+   else if X1 : x > 0 then 
+     if Y : y = 0 then
+       proof
+         have x * y = 0, from Y⁻¹ ▸ !mul_zero,
+         have of_real x * of_real y = of_real 0, from this ▸ rfl,
+         have H : (of_real x * of_real y) * ∞ = of_real 0, from this⁻¹ ▸ zero_mul_inf,
+         have H1 : of_real y * ∞ = of_real 0, from Y⁻¹ ▸ zero_mul_inf,
+         have of_real x * of_real 0 = of_real (x * 0), by rewrite[*ereal.mul_def, ↑ereal.mul],
+         have of_real x * of_real 0 = of_real 0, from !mul_zero ▸ this,
+         have of_real x * (of_real y * ∞) = of_real 0, from (H1 ▸ rfl) ▸ this,
+         show _, from this⁻¹ ▸ H
+       qed
+     else if Y1 : y > 0 then 
+       sorry
+     else 
+       sorry
+   else 
+     if Y : y = 0 then
+       proof
+         have x * y = 0, from Y⁻¹ ▸ !mul_zero,
+         have of_real x * of_real y = of_real 0, from this ▸ rfl,
+         have H : (of_real x * of_real y) * ∞ = of_real 0, from this⁻¹ ▸ zero_mul_inf,
+         have H1 : of_real y * ∞ = of_real 0, from Y⁻¹ ▸ zero_mul_inf,
+         have of_real x * of_real 0 = of_real (x * 0), by rewrite[*ereal.mul_def, ↑ereal.mul],
+         have of_real x * of_real 0 = of_real 0, from !mul_zero ▸ this,
+         have of_real x * (of_real y * ∞) = of_real 0, from (H1 ▸ rfl) ▸ this,
+         show _, from this⁻¹ ▸ H
+       qed
+     else if Y1 : y > 0 then 
+       sorry
+     else 
+       sorry
 private lemma mul2 : ∀ x y : ℝ, x * y * -∞ = x * (y * -∞) := sorry
 private lemma mul3 : ∀ x y : ℝ, ∞ * x * y = ∞ * (x * y) := sorry
 private lemma mul4 : ∀ x y : ℝ, -∞ * x * y = -∞ * (x * y) := sorry
@@ -170,30 +234,30 @@ private lemma mul10 : ∀ x : ℝ, -∞ * x * -∞ = -∞ * (x * -∞) := sorry
 
 protected theorem mul_assoc : ∀ u v w : ereal, (u * v) * w = u * (v * w) 
 | (of_real x) (of_real y) (of_real z) := congr_arg of_real !mul.assoc
-| (of_real x) (of_real y) ∞           := !ereal.mul1
-| (of_real x) (of_real y) -∞          := !ereal.mul2
-| (of_real x) ∞ (of_real z)           := by rewrite[ereal.mul_comm x, ereal.mul3, ereal.mul_comm, ereal.mul1]
-| (of_real x) ∞ ∞                     := !ereal.mul5
-| (of_real x) ∞ -∞                    := !ereal.mul7
-| (of_real x) -∞ (of_real z)          := by rewrite[ereal.mul_comm, -ereal.mul2, ereal.mul_comm z, ereal.mul2]
-| (of_real x) -∞ ∞                    := by rewrite[ereal.mul_comm, -ereal.mul8, ereal.mul_comm ∞, ereal.mul7]
-| (of_real x) -∞ -∞                   := !ereal.mul6
-| ∞ (of_real y) (of_real z)           := !ereal.mul3
-| ∞ (of_real y) ∞                     := !ereal.mul9
-| ∞ (of_real y) -∞                    := !ereal.mul8
-| ∞ ∞ (of_real z)                     := by rewrite[ereal.mul_comm, -ereal.mul5]
+| (of_real x) (of_real y) ∞           := !mul1
+| (of_real x) (of_real y) -∞          := !mul2
+| (of_real x) ∞ (of_real z)           := by rewrite[ereal.mul_comm x, mul3, ereal.mul_comm, mul1]
+| (of_real x) ∞ ∞                     := !mul5
+| (of_real x) ∞ -∞                    := !mul7
+| (of_real x) -∞ (of_real z)          := by rewrite[ereal.mul_comm, -!mul2, ereal.mul_comm z, mul2]
+| (of_real x) -∞ ∞                    := by rewrite[ereal.mul_comm, -!mul8, ereal.mul_comm ∞, mul7]
+| (of_real x) -∞ -∞                   := !mul6
+| ∞ (of_real y) (of_real z)           := !mul3
+| ∞ (of_real y) ∞                     := !mul9
+| ∞ (of_real y) -∞                    := !mul8
+| ∞ ∞ (of_real z)                     := by rewrite[ereal.mul_comm, -!mul5]
 | ∞ ∞ ∞                               := rfl
 | ∞ ∞ -∞                              := rfl
-| ∞ -∞ (of_real z)                    := by rewrite[ereal.mul_comm, -ereal.mul7, ereal.mul_comm z, ereal.mul8]
+| ∞ -∞ (of_real z)                    := by rewrite[ereal.mul_comm, -mul7, ereal.mul_comm z, mul8]
 | ∞ -∞ ∞                              := by rewrite[*ereal.mul_def, ↑ereal.mul]  
 | ∞ -∞ -∞                             := by rewrite[*ereal.mul_def, ↑ereal.mul] 
-| -∞ (of_real y) (of_real z)          := !ereal.mul4
-| -∞ (of_real y) ∞                    := by rewrite[ereal.mul_comm -∞, ereal.mul_comm, -ereal.mul8]
-| -∞ (of_real y) -∞                   := !ereal.mul10
-| -∞ ∞ (of_real z)                    := by rewrite[ereal.mul_comm, ereal.mul_comm -∞, -ereal.mul7]
+| -∞ (of_real y) (of_real z)          := !mul4
+| -∞ (of_real y) ∞                    := by rewrite[ereal.mul_comm -∞, ereal.mul_comm, -mul8]
+| -∞ (of_real y) -∞                   := !mul10
+| -∞ ∞ (of_real z)                    := by rewrite[ereal.mul_comm, ereal.mul_comm -∞, -mul7]
 | -∞ ∞ ∞                              := rfl
 | -∞ ∞ -∞                             := rfl
-| -∞ -∞ (of_real z)                   := by rewrite[ereal.mul_comm, -ereal.mul6]
+| -∞ -∞ (of_real z)                   := by rewrite[ereal.mul_comm, -mul6]
 | -∞ -∞ ∞                             := by rewrite[*ereal.mul_def, ↑ereal.mul]  
 | -∞ -∞ -∞                            := by rewrite[*ereal.mul_def, ↑ereal.mul]  
 
