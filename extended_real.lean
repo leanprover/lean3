@@ -147,15 +147,15 @@ protected theorem mul_comm : ∀ u v : ereal, u * v = v * u
 | -∞ ∞                    := by rewrite[*ereal.mul_def, ↑ereal.mul]
 | -∞ -∞                   := rfl
 
--- preliminay facts --
+lemma zero_mul_inf [simp] : 0 * ∞ = 0 := by rewrite[*ereal.mul_def, ↑ereal.mul, if_pos rfl]
 
-lemma zero_mul_inf : 0 * ∞ = 0 := by rewrite[*ereal.mul_def, ↑ereal.mul, if_pos rfl]
+lemma inf_mul_zero [simp] : ∞ * 0 = 0 := by rewrite[ereal.mul_comm, zero_mul_inf]
 
-lemma inf_mul_zero : ∞ * 0 = 0 := by rewrite[ereal.mul_comm, zero_mul_inf]
+lemma zero_mul_neginf [simp] : 0 * -∞ = 0 := by rewrite[*ereal.mul_def, ↑ereal.mul, if_pos rfl]
 
-lemma zero_mul_neginf : 0 * -∞ = 0 := by rewrite[*ereal.mul_def, ↑ereal.mul, if_pos rfl]
+lemma neginf_mul_zero [simp] : -∞ * 0 = 0 := by rewrite[ereal.mul_comm, zero_mul_neginf]
 
-lemma neginf_mul_zero : -∞ * 0 = 0 := by rewrite[ereal.mul_comm, zero_mul_neginf]
+-- Preliminary facts
 
 private lemma mul1 : ∀ x y : ℝ, x * y * ∞ = x * (y * ∞) := 
 take x y,
@@ -337,114 +337,140 @@ else
       show _, from this⁻¹ ▸ H
     qed
 
-private lemma mul3 : ∀ x y : ℝ, ∞ * x * y = ∞ * (x * y) := 
-take x y,
+private lemma mul3 : ∀ x : ℝ, x * ∞ * ∞ = x * (∞ * ∞) := 
+take x,
 if X : x = 0 then 
-  if Y : y = 0 then
-    sorry
-  else if Y1 : y > 0 then 
-    sorry
-  else 
-    sorry
-else if X1: x > 0 then
-  if Y : y = 0 then 
-    sorry
-  else if Y1 : y > 0 then 
-    sorry
-  else sorry
+  have of_real x * ∞ = of_real 0, from X⁻¹ ▸ zero_mul_inf,
+  have H : of_real x * ∞ * ∞ = of_real 0, from this⁻¹ ▸ zero_mul_inf,
+  have of_real x * (∞ * ∞) = of_real 0, by rewrite[*ereal.mul_def, ↑ereal.mul, if_pos X],
+  show _, from this⁻¹ ▸ H
+else if X1 : x > 0 then 
+   by rewrite[*ereal.mul_def, ↑ereal.mul, if_neg X, if_pos X1]
 else 
-  if Y : y = 0 then 
-    sorry
-  else if Y1 : y > 0 then 
-    sorry
-  else 
-    sorry
+   by rewrite[*ereal.mul_def, ↑ereal.mul, if_neg X, if_neg X1]
 
-private lemma mul4 : ∀ x y : ℝ, -∞ * x * y = -∞ * (x * y) := 
-take x y,
+private lemma mul4 : ∀ x : ℝ, x * -∞ * -∞ = x * (-∞ * -∞) := 
+take x,
+if X : x = 0 then
+  have of_real x * -∞ = of_real 0, from X⁻¹ ▸ zero_mul_neginf,
+  have H : of_real x * -∞ * -∞ = of_real 0, from this⁻¹ ▸ zero_mul_neginf,
+  have of_real x * (-∞ * -∞) = of_real 0, by rewrite[*ereal.mul_def, ↑ereal.mul, if_pos X],
+  show _, from this⁻¹ ▸ H
+else if X1 : x > 0 then 
+  have H : (of_real x * -∞) * -∞ = ∞, by rewrite[*ereal.mul_def, ↑ereal.mul, if_neg X, if_pos X1],
+  have of_real x * (-∞ * -∞) = ∞, by rewrite[*ereal.mul_def, ↑ereal.mul, if_neg X, if_pos X1],
+  show _, from this⁻¹ ▸ H
+else 
+  have H : (of_real x * -∞) * -∞ = -∞, by rewrite[*ereal.mul_def, ↑ereal.mul, if_neg X, if_neg X1],
+  have of_real x * (-∞ * -∞) = -∞, by rewrite[*ereal.mul_def, ↑ereal.mul, if_neg X, if_neg X1],
+  show _, from this⁻¹ ▸ H 
+
+private lemma mul5 : ∀ x : ℝ, x * ∞ * -∞ = x * (∞ * -∞) := 
+take x,
 if X : x = 0 then 
-  if Y : y = 0 then
-    sorry
-  else if Y1 : y > 0 then 
-    sorry
-  else 
-    sorry
-else if X1: x > 0 then
-  if Y : y = 0 then 
-    sorry
-  else if Y1 : y > 0 then 
-    sorry
-  else sorry
+  have of_real x * ∞ = of_real 0, from X⁻¹ ▸ zero_mul_inf,
+  have H : of_real x * ∞ * -∞ = of_real 0, from this⁻¹ ▸ zero_mul_neginf,
+  have of_real x * (∞ * -∞) = of_real 0, by rewrite[*ereal.mul_def, ↑ereal.mul, if_pos X],
+  show _, from this⁻¹ ▸ H
+else if X1 : x > 0 then 
+  have H : (of_real x * ∞) * -∞ = -∞, by rewrite[*ereal.mul_def, ↑ereal.mul, if_neg X, if_pos X1],
+  have of_real x * (∞ * -∞) = -∞, by rewrite[*ereal.mul_def, ↑ereal.mul, if_neg X, if_pos X1],
+  show _, from this⁻¹ ▸ H
 else 
-  if Y : y = 0 then 
-    sorry
-  else if Y1 : y > 0 then 
-    sorry
-  else 
-    sorry
+  have H : (of_real x * ∞) * -∞ = ∞, by rewrite[*ereal.mul_def, ↑ereal.mul, if_neg X, if_neg X1],
+  have of_real x * (∞ * -∞) = ∞, by rewrite[*ereal.mul_def, ↑ereal.mul, if_neg X, if_neg X1],
+  show _, from this⁻¹ ▸ H
 
-private lemma mul5 : ∀ x : ℝ, x * ∞ * ∞ = x * (∞ * ∞) := 
+private lemma mul6 : ∀ x : ℝ, ∞ * x * -∞ = ∞ * (x * -∞) := 
 take x,
-if X : x = 0 then sorry
-else if X1 : x > 0 then sorry
-else sorry
+if X : x = 0 then 
+  have ∞ * of_real x = of_real 0, by rewrite[*ereal.mul_def, ↑ereal.mul, if_pos X],
+  have H : ∞ * of_real x * -∞ = of_real 0, from this⁻¹ ▸ zero_mul_neginf,
+  have of_real x * -∞ = of_real 0, from X⁻¹ ▸ zero_mul_neginf,
+  have ∞ * (of_real x * -∞) = of_real 0, from this⁻¹ ▸ inf_mul_zero,
+  show _, from this⁻¹ ▸ H
+else if X1 : x > 0 then 
+  have ∞ * of_real x = ∞, by rewrite[*ereal.mul_def, ↑ereal.mul, if_neg X, if_pos X1],
+  have H : ∞ * of_real x * -∞ = -∞, from this⁻¹ ▸ rfl,
+  have of_real x * -∞ = -∞, by rewrite[*ereal.mul_def, ↑ereal.mul, if_neg X, if_pos X1],
+  have ∞ * (of_real x * -∞) = -∞, from this⁻¹ ▸ rfl,
+  show _, from this⁻¹ ▸ H
+else 
+  have ∞ * of_real x = -∞, by rewrite[*ereal.mul_def, ↑ereal.mul, if_neg X, if_neg X1],
+  have H : ∞ * of_real x * -∞ = ∞, from this⁻¹ ▸ rfl,
+  have of_real x * -∞ = ∞, by rewrite[*ereal.mul_def, ↑ereal.mul, if_neg X, if_neg X1],
+  have ∞ * (of_real x * -∞) = ∞, from this⁻¹ ▸ rfl,
+  show _, from this⁻¹ ▸ H
 
-private lemma mul6 : ∀ x : ℝ, x * -∞ * -∞ = x * (-∞ * -∞) := 
+private lemma mul7 : ∀ x : ℝ, ∞ * x * ∞ = ∞ * (x * ∞) := 
 take x,
-if X : x = 0 then sorry
-else if X1 : x > 0 then sorry
-else sorry
+if X : x = 0 then
+  have ∞ * of_real x = of_real 0, by rewrite[*ereal.mul_def, ↑ereal.mul, if_pos X],
+  have H : ∞ * of_real x * ∞ = of_real 0, from this⁻¹ ▸ zero_mul_inf,
+  have of_real x * ∞ = of_real 0, by rewrite[*ereal.mul_def, ↑ereal.mul, if_pos X],
+  have ∞ * (of_real x * ∞) = of_real 0, from this⁻¹ ▸ inf_mul_zero,
+  show _, from this⁻¹ ▸ H
+else if X1 : x > 0 then 
+  have ∞ * of_real x = ∞, by rewrite[*ereal.mul_def, ↑ereal.mul, if_neg X, if_pos X1],
+  have H : ∞ * of_real x * ∞ = ∞, from this⁻¹ ▸ rfl,
+  have of_real x * ∞ = ∞, by rewrite[*ereal.mul_def, ↑ereal.mul, if_neg X, if_pos X1],
+  have ∞ * (of_real x * ∞) = ∞, from this⁻¹ ▸ rfl,
+  show _, from this⁻¹ ▸ H
+else 
+  have ∞ * of_real x = -∞, by rewrite[*ereal.mul_def, ↑ereal.mul, if_neg X, if_neg X1],
+  have H : ∞ * of_real x * ∞ = -∞, from this⁻¹ ▸ rfl,
+  have of_real x * ∞ = -∞, by rewrite[*ereal.mul_def, ↑ereal.mul, if_neg X, if_neg X1],
+  have ∞ * (of_real x * ∞) = -∞, from this⁻¹ ▸ rfl,
+  show _, from this⁻¹ ▸ H
 
-private lemma mul7 : ∀ x : ℝ, x * ∞ * -∞ = x * (∞ * -∞) := 
+private lemma mul8 : ∀ x : ℝ, -∞ * x * -∞ = -∞ * (x * -∞) := 
 take x,
-if X : x = 0 then sorry
-else if X1 : x > 0 then sorry
-else sorry
-
-private lemma mul8 : ∀ x : ℝ, ∞ * x * -∞ = ∞ * (x * -∞) := 
-take x,
-if X : x = 0 then sorry
-else if X1 : x > 0 then sorry
-else sorry
-
-private lemma mul9 : ∀ x : ℝ, ∞ * x * ∞ = ∞ * (x * ∞) := 
-take x,
-if X : x = 0 then sorry
-else if X1 : x > 0 then sorry
-else sorry
-
-private lemma mul10 : ∀ x : ℝ, -∞ * x * -∞ = -∞ * (x * -∞) := 
-take x,
-if X : x = 0 then sorry
-else if X1 : x > 0 then sorry
-else sorry
+if X : x = 0 then 
+  have -∞ * of_real x = of_real 0, by rewrite[*ereal.mul_def, ↑ereal.mul, if_pos X],
+  have H : -∞ * of_real x * -∞ = of_real 0, from this⁻¹ ▸ zero_mul_neginf,
+  have of_real x * -∞ = of_real 0, by rewrite[*ereal.mul_def, ↑ereal.mul, if_pos X],
+  have -∞ * (of_real x * -∞) = of_real 0, from this⁻¹ ▸ neginf_mul_zero,
+  show _, from this⁻¹ ▸ H
+else if X1 : x > 0 then 
+  have -∞ * of_real x = -∞, by rewrite[*ereal.mul_def, ↑ereal.mul, if_neg X, if_pos X1],
+  have H : -∞ * of_real x * -∞ = ∞, from this⁻¹ ▸ rfl,
+  have of_real x * -∞ = -∞, by rewrite[*ereal.mul_def, ↑ereal.mul, if_neg X, if_pos X1],
+  have -∞ * (of_real x * -∞) = ∞, from this⁻¹ ▸ rfl,
+  show _, from this⁻¹ ▸ H
+else 
+  have -∞ * of_real x = ∞, by rewrite[*ereal.mul_def, ↑ereal.mul, if_neg X, if_neg X1],
+  have H : -∞ * of_real x * -∞ = -∞, from this⁻¹ ▸ rfl,
+  have of_real x * -∞ = ∞, by rewrite[*ereal.mul_def, ↑ereal.mul, if_neg X, if_neg X1],
+  have -∞ * (of_real x * -∞) = -∞, from this⁻¹ ▸ rfl,
+  show _, from this⁻¹ ▸ H
 
 protected theorem mul_assoc : ∀ u v w : ereal, (u * v) * w = u * (v * w) 
 | (of_real x) (of_real y) (of_real z) := congr_arg of_real !mul.assoc
 | (of_real x) (of_real y) ∞           := !mul1
 | (of_real x) (of_real y) -∞          := !mul2
-| (of_real x) ∞ (of_real z)           := by rewrite[ereal.mul_comm x, mul3, ereal.mul_comm, mul1]
-| (of_real x) ∞ ∞                     := !mul5
-| (of_real x) ∞ -∞                    := !mul7
+| (of_real x) ∞ (of_real z)           := by rewrite[ereal.mul_comm x, ereal.mul_comm, ereal.mul_comm ∞, -mul1, ereal.mul_comm,
+                                            ereal.mul_comm z, ereal.mul_comm, mul1]
+| (of_real x) ∞ ∞                     := !mul3
+| (of_real x) ∞ -∞                    := !mul5
 | (of_real x) -∞ (of_real z)          := by rewrite[ereal.mul_comm, -!mul2, ereal.mul_comm z, mul2]
-| (of_real x) -∞ ∞                    := by rewrite[ereal.mul_comm, -!mul8, ereal.mul_comm ∞, mul7]
-| (of_real x) -∞ -∞                   := !mul6
-| ∞ (of_real y) (of_real z)           := !mul3
-| ∞ (of_real y) ∞                     := !mul9
-| ∞ (of_real y) -∞                    := !mul8
-| ∞ ∞ (of_real z)                     := by rewrite[ereal.mul_comm, -!mul5]
+| (of_real x) -∞ ∞                    := by rewrite[ereal.mul_comm, -!mul6, ereal.mul_comm ∞, mul5]
+| (of_real x) -∞ -∞                   := !mul4
+| ∞ (of_real y) (of_real z)           := by rewrite[ereal.mul_comm, ereal.mul_comm ∞, -mul1, ereal.mul_comm, ereal.mul_comm y]
+| ∞ (of_real y) ∞                     := !mul7
+| ∞ (of_real y) -∞                    := !mul6
+| ∞ ∞ (of_real z)                     := by rewrite[ereal.mul_comm, -!mul3]
 | ∞ ∞ ∞                               := rfl
 | ∞ ∞ -∞                              := rfl
-| ∞ -∞ (of_real z)                    := by rewrite[ereal.mul_comm, -mul7, ereal.mul_comm z, mul8]
+| ∞ -∞ (of_real z)                    := by rewrite[ereal.mul_comm, -mul5, ereal.mul_comm z, mul6]
 | ∞ -∞ ∞                              := by rewrite[*ereal.mul_def, ↑ereal.mul]  
 | ∞ -∞ -∞                             := by rewrite[*ereal.mul_def, ↑ereal.mul] 
-| -∞ (of_real y) (of_real z)          := !mul4
-| -∞ (of_real y) ∞                    := by rewrite[ereal.mul_comm -∞, ereal.mul_comm, -mul8]
-| -∞ (of_real y) -∞                   := !mul10
-| -∞ ∞ (of_real z)                    := by rewrite[ereal.mul_comm, ereal.mul_comm -∞, -mul7]
+| -∞ (of_real y) (of_real z)          := by rewrite[ereal.mul_comm, ereal.mul_comm -∞, -mul2, ereal.mul_comm, ereal.mul_comm y]
+| -∞ (of_real y) ∞                    := by rewrite[ereal.mul_comm -∞, ereal.mul_comm, -mul6]
+| -∞ (of_real y) -∞                   := !mul8
+| -∞ ∞ (of_real z)                    := by rewrite[ereal.mul_comm, ereal.mul_comm -∞, -mul5]
 | -∞ ∞ ∞                              := rfl
 | -∞ ∞ -∞                             := rfl
-| -∞ -∞ (of_real z)                   := by rewrite[ereal.mul_comm, -mul6]
+| -∞ -∞ (of_real z)                   := by rewrite[ereal.mul_comm, -mul4]
 | -∞ -∞ ∞                             := by rewrite[*ereal.mul_def, ↑ereal.mul]  
 | -∞ -∞ -∞                            := by rewrite[*ereal.mul_def, ↑ereal.mul]  
 
@@ -458,41 +484,6 @@ protected theorem mul_one : ∀ u : ereal, u * 1 = u :=
     intro u,
     rewrite[ereal.mul_comm],
     exact !ereal.one_mul
-  end
-
-protected theorem left_distrib : ∀ u v w : ereal, u * (v + w) = u * v + u * w 
-| (of_real x) (of_real y) (of_real z) := sorry
-| (of_real x) (of_real y) ∞           := sorry
-| (of_real x) (of_real y) -∞          := sorry
-| (of_real x) ∞ (of_real z)           := sorry
-| (of_real x) ∞ ∞                     := sorry
-| (of_real x) ∞ -∞                    := sorry
-| (of_real x) -∞ (of_real z)          := sorry
-| (of_real x) -∞ ∞                    := sorry
-| (of_real x) -∞ -∞                   := sorry
-| ∞ (of_real y) (of_real z)           := sorry
-| ∞ (of_real y) ∞                     := sorry
-| ∞ (of_real y) -∞                    := sorry
-| ∞ ∞ (of_real z)                     := sorry
-| ∞ ∞ ∞                               := rfl
-| ∞ ∞ -∞                              := sorry
-| ∞ -∞ (of_real z)                    := sorry
-| ∞ -∞ ∞                              := sorry
-| ∞ -∞ -∞                             := rfl
-| -∞ (of_real y) (of_real z)          := sorry
-| -∞ (of_real y) ∞                    := sorry
-| -∞ (of_real y) -∞                   := sorry 
-| -∞ ∞ (of_real z)                    := sorry 
-| -∞ ∞ ∞                              := rfl
-| -∞ ∞ -∞                             := sorry
-| -∞ -∞ (of_real z)                   := sorry
-| -∞ -∞ ∞                             := sorry
-| -∞ -∞ -∞                            := rfl
-
-protected theorem right_distrib : ∀ u v w : ereal, (u + v) * w = u * w + v * w := 
-  begin
-    intro u v w,
-    rewrite[ereal.mul_comm, ereal.left_distrib, *ereal.mul_comm w]
   end
 
 end ereal
