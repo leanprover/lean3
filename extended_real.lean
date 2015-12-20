@@ -476,7 +476,7 @@ protected theorem mul_assoc : ∀ u v w : ereal, (u * v) * w = u * (v * w)
 
 protected theorem one_mul : ∀ u : ereal, of_real 1 * u = u
 | (of_real x) := !real.one_mul ▸ rfl
-| ∞           := sorry 
+| ∞           := sorry -- Prove ¬(1 = 0) and 1 > 0 --
 | -∞          := sorry
 
 protected theorem mul_one : ∀ u : ereal, u * 1 = u := 
