@@ -203,9 +203,21 @@ if X : x = 0 then
          show _, from this⁻¹ ▸ H
        qed
      else if Y1 : y > 0 then 
-       sorry
+       proof
+         have H : of_real (x * y) * ∞ = ∞, by rewrite[*ereal.mul_def, ↑ereal.mul, if_neg sorry, if_pos sorry],
+         have H1 : of_real y * ∞ = ∞, by rewrite[*ereal.mul_def, ↑ereal.mul, if_neg Y, if_pos Y1],
+         have of_real x * ∞ = ∞, by rewrite[*ereal.mul_def, ↑ereal.mul, if_neg X, if_pos X1],
+         have of_real x * (of_real y * ∞) = ∞, from this ▸ (H1 ▸ rfl),
+         show _, from this⁻¹ ▸ H
+       qed
      else 
-       sorry
+       proof
+         have H : of_real (x * y) * ∞ = -∞, by rewrite[*ereal.mul_def, ↑ereal.mul, if_neg sorry, if_neg sorry],
+         have H1 : of_real y * ∞ = -∞, by rewrite[*ereal.mul_def, ↑ereal.mul, if_neg Y, if_neg Y1],
+         have of_real x * -∞ = -∞, by rewrite[*ereal.mul_def, ↑ereal.mul, if_neg X, if_pos X1],
+         have of_real x * (of_real y * ∞) = -∞, from this ▸ (H1 ▸ rfl),
+         show _, from this⁻¹ ▸ H
+       qed
    else 
      if Y : y = 0 then
        proof
@@ -219,18 +231,193 @@ if X : x = 0 then
          show _, from this⁻¹ ▸ H
        qed
      else if Y1 : y > 0 then 
-       sorry
+       proof
+         have H : of_real (x * y) * ∞ = -∞, by rewrite[*ereal.mul_def, ↑ereal.mul, if_neg sorry, if_neg sorry],
+         have H1 : of_real y * ∞ = ∞, by rewrite[*ereal.mul_def, ↑ereal.mul, if_neg Y, if_pos Y1],
+         have of_real x * ∞ = -∞, by rewrite[*ereal.mul_def, ↑ereal.mul, if_neg X, if_neg X1],
+         have of_real x * (of_real y * ∞) = -∞, from this ▸ (H1 ▸ rfl),
+         show _, from this⁻¹ ▸ H
+       qed
      else 
-       sorry
-private lemma mul2 : ∀ x y : ℝ, x * y * -∞ = x * (y * -∞) := sorry
-private lemma mul3 : ∀ x y : ℝ, ∞ * x * y = ∞ * (x * y) := sorry
-private lemma mul4 : ∀ x y : ℝ, -∞ * x * y = -∞ * (x * y) := sorry
-private lemma mul5 : ∀ x : ℝ, x * ∞ * ∞ = x * (∞ * ∞) := sorry
-private lemma mul6 : ∀ x : ℝ, x * -∞ * -∞ = x * (-∞ * -∞) := sorry
-private lemma mul7 : ∀ x : ℝ, x * ∞ * -∞ = x * (∞ * -∞) := sorry
-private lemma mul8 : ∀ x : ℝ, ∞ * x * -∞ = ∞ * (x * -∞) := sorry
-private lemma mul9 : ∀ x : ℝ, ∞ * x * ∞ = ∞ * (x * ∞) := sorry
-private lemma mul10 : ∀ x : ℝ, -∞ * x * -∞ = -∞ * (x * -∞) := sorry
+       proof
+         have H : of_real (x * y) * ∞ = ∞, by rewrite[*ereal.mul_def, ↑ereal.mul, if_neg sorry, if_pos sorry],
+         have H1 : of_real y * ∞ = -∞, by rewrite[*ereal.mul_def, ↑ereal.mul, if_neg Y, if_neg Y1],
+         have of_real x * -∞ = ∞, by rewrite[*ereal.mul_def, ↑ereal.mul, if_neg X, if_neg X1],
+         have of_real x * (of_real y * ∞) = ∞, from this ▸ (H1 ▸ rfl),
+         show _, from this⁻¹ ▸ H
+       qed
+
+private lemma mul2 : ∀ x y : ℝ, x * y * -∞ = x * (y * -∞) := 
+take x y,
+if X : x = 0 then 
+  if Y : y = 0 then
+    proof
+       have x * y = 0, from X⁻¹ ▸ !zero_mul,
+       have of_real x * of_real y = of_real 0, from this ▸ rfl,
+       have H : (of_real x * of_real y) * -∞ = of_real 0, from this⁻¹ ▸ zero_mul_neginf,
+       have H1 : of_real y * -∞ = of_real 0, from Y⁻¹ ▸ zero_mul_neginf,
+       have of_real x * of_real 0 = of_real 0, from !mul_zero ▸ rfl,
+       have of_real x * (of_real y * -∞) = of_real 0, from H1⁻¹ ▸ this,
+       show _, from this⁻¹ ▸ H
+     qed
+  else if Y1 : y > 0 then 
+    proof
+       have x * y = 0, from X⁻¹ ▸ !zero_mul,
+       have of_real x * of_real y = of_real 0, from this ▸ rfl,
+       have H : (of_real x * of_real y) * -∞ = of_real 0, from this⁻¹ ▸ zero_mul_neginf,
+       have H1 : of_real y * -∞ = -∞, by rewrite[*ereal.mul_def, ↑ereal.mul, if_neg Y, if_pos Y1],
+       have of_real x * (of_real y * -∞) = of_real 0 * -∞, from X ▸ (H1 ▸ rfl),
+       have of_real x * (of_real y * -∞) = of_real 0, from this⁻¹ ▸ zero_mul_neginf,
+       show _, from this⁻¹ ▸ H
+     qed
+  else 
+    proof
+       have x * y = 0, from X⁻¹ ▸ !zero_mul,
+       have of_real x * of_real y = of_real 0, from this ▸ rfl,
+       have H : (of_real x * of_real y) * -∞ = of_real 0, from this⁻¹ ▸ zero_mul_neginf,
+       have of_real y * -∞ = ∞, by rewrite[*ereal.mul_def, ↑ereal.mul, if_neg Y, if_neg Y1],
+       have of_real x * (of_real y * -∞) = of_real 0 * ∞, from X ▸ (this ▸ rfl),
+       have of_real x * (of_real y * -∞) = of_real 0, from this⁻¹ ▸ zero_mul_inf,
+       show _, from this⁻¹ ▸ H
+     qed
+else if X1: x > 0 then
+  if Y : y = 0 then 
+    proof
+      have x * y = 0, from Y⁻¹ ▸ !mul_zero,
+      have of_real x * of_real y = of_real 0, from this ▸ rfl,
+      have H : (of_real x * of_real y) * -∞ = of_real 0, from this⁻¹ ▸ zero_mul_neginf,
+      have H1 : of_real y * -∞ = of_real 0, from Y⁻¹ ▸ zero_mul_neginf,
+      have of_real x * of_real 0 = of_real (x * 0), by rewrite[*ereal.mul_def, ↑ereal.mul],
+      have of_real x * of_real 0 = of_real 0, from !mul_zero ▸ this,
+      have of_real x * (of_real y * -∞) = of_real 0, from (H1 ▸ rfl) ▸ this,
+      show _, from this⁻¹ ▸ H
+    qed    
+  else if Y1 : y > 0 then 
+    proof
+      have H : of_real (x * y) * -∞ = -∞, by rewrite[*ereal.mul_def, ↑ereal.mul, if_neg sorry, if_pos sorry],
+      have H1 : of_real y * -∞ = -∞, by rewrite[*ereal.mul_def, ↑ereal.mul, if_neg Y, if_pos Y1],
+      have of_real x * -∞ = -∞, by rewrite[*ereal.mul_def, ↑ereal.mul, if_neg X, if_pos X1],
+      have of_real x * (of_real y * -∞) = -∞, from this ▸ (H1 ▸ rfl),
+      show _, from this⁻¹ ▸ H
+    qed
+  else 
+    proof
+      have H : of_real (x * y) * -∞ = ∞, by rewrite[*ereal.mul_def, ↑ereal.mul, if_neg sorry, if_neg sorry],
+      have H1 : of_real y * -∞ = ∞, by rewrite[*ereal.mul_def, ↑ereal.mul, if_neg Y, if_neg Y1],
+      have of_real x * ∞ = ∞, by rewrite[*ereal.mul_def, ↑ereal.mul, if_neg X, if_pos X1],
+      have of_real x * (of_real y * -∞) = ∞, from this ▸ (H1 ▸ rfl),
+      show _, from this⁻¹ ▸ H
+    qed
+else 
+  if Y : y = 0 then
+    proof
+      have x * y = 0, from Y⁻¹ ▸ !mul_zero,
+      have of_real x * of_real y = of_real 0, from this ▸ rfl,
+      have H : (of_real x * of_real y) * -∞ = of_real 0, from this⁻¹ ▸ zero_mul_neginf,
+      have H1 : of_real y * -∞ = of_real 0, from Y⁻¹ ▸ zero_mul_neginf,
+      have of_real x * of_real 0 = of_real (x * 0), by rewrite[*ereal.mul_def, ↑ereal.mul],
+      have of_real x * of_real 0 = of_real 0, from !mul_zero ▸ this,
+      have of_real x * (of_real y * -∞) = of_real 0, from (H1 ▸ rfl) ▸ this,
+      show _, from this⁻¹ ▸ H
+    qed
+  else if Y1 : y > 0 then 
+    proof
+      have H : of_real (x * y) * -∞ = ∞, by rewrite[*ereal.mul_def, ↑ereal.mul, if_neg sorry, if_neg sorry],
+      have H1 : of_real y * -∞ = -∞, by rewrite[*ereal.mul_def, ↑ereal.mul, if_neg Y, if_pos Y1],
+      have of_real x * -∞ = ∞, by rewrite[*ereal.mul_def, ↑ereal.mul, if_neg X, if_neg X1],
+      have of_real x * (of_real y * -∞) = ∞, from this ▸ (H1 ▸ rfl),
+      show _, from this⁻¹ ▸ H
+    qed
+  else 
+    proof
+      have H : of_real (x * y) * -∞ = -∞, by rewrite[*ereal.mul_def, ↑ereal.mul, if_neg sorry, if_pos sorry],
+      have H1 : of_real y * -∞ = ∞, by rewrite[*ereal.mul_def, ↑ereal.mul, if_neg Y, if_neg Y1],
+      have of_real x * ∞ = -∞, by rewrite[*ereal.mul_def, ↑ereal.mul, if_neg X, if_neg X1],
+      have of_real x * (of_real y * -∞) = -∞, from this ▸ (H1 ▸ rfl),
+      show _, from this⁻¹ ▸ H
+    qed
+
+private lemma mul3 : ∀ x y : ℝ, ∞ * x * y = ∞ * (x * y) := 
+take x y,
+if X : x = 0 then 
+  if Y : y = 0 then
+    sorry
+  else if Y1 : y > 0 then 
+    sorry
+  else 
+    sorry
+else if X1: x > 0 then
+  if Y : y = 0 then 
+    sorry
+  else if Y1 : y > 0 then 
+    sorry
+  else sorry
+else 
+  if Y : y = 0 then 
+    sorry
+  else if Y1 : y > 0 then 
+    sorry
+  else 
+    sorry
+
+private lemma mul4 : ∀ x y : ℝ, -∞ * x * y = -∞ * (x * y) := 
+take x y,
+if X : x = 0 then 
+  if Y : y = 0 then
+    sorry
+  else if Y1 : y > 0 then 
+    sorry
+  else 
+    sorry
+else if X1: x > 0 then
+  if Y : y = 0 then 
+    sorry
+  else if Y1 : y > 0 then 
+    sorry
+  else sorry
+else 
+  if Y : y = 0 then 
+    sorry
+  else if Y1 : y > 0 then 
+    sorry
+  else 
+    sorry
+
+private lemma mul5 : ∀ x : ℝ, x * ∞ * ∞ = x * (∞ * ∞) := 
+take x,
+if X : x = 0 then sorry
+else if X1 : x > 0 then sorry
+else sorry
+
+private lemma mul6 : ∀ x : ℝ, x * -∞ * -∞ = x * (-∞ * -∞) := 
+take x,
+if X : x = 0 then sorry
+else if X1 : x > 0 then sorry
+else sorry
+
+private lemma mul7 : ∀ x : ℝ, x * ∞ * -∞ = x * (∞ * -∞) := 
+take x,
+if X : x = 0 then sorry
+else if X1 : x > 0 then sorry
+else sorry
+
+private lemma mul8 : ∀ x : ℝ, ∞ * x * -∞ = ∞ * (x * -∞) := 
+take x,
+if X : x = 0 then sorry
+else if X1 : x > 0 then sorry
+else sorry
+
+private lemma mul9 : ∀ x : ℝ, ∞ * x * ∞ = ∞ * (x * ∞) := 
+take x,
+if X : x = 0 then sorry
+else if X1 : x > 0 then sorry
+else sorry
+
+private lemma mul10 : ∀ x : ℝ, -∞ * x * -∞ = -∞ * (x * -∞) := 
+take x,
+if X : x = 0 then sorry
+else if X1 : x > 0 then sorry
+else sorry
 
 protected theorem mul_assoc : ∀ u v w : ereal, (u * v) * w = u * (v * w) 
 | (of_real x) (of_real y) (of_real z) := congr_arg of_real !mul.assoc
@@ -313,7 +500,7 @@ end ereal
 namespace ereal_order
 
 open ereal
-
+ 
 noncomputable protected definition leq : ereal → ereal → Prop
 | (of_real x) (of_real y) := if x ≤ y then true else false
 | (of_real x) ∞           := true
