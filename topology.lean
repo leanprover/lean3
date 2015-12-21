@@ -19,14 +19,12 @@ local abbreviation space := @topology.space
 
 namespace top
 
--- elementary definitions and properties --
-
 definition openset [τ : topology X] (s : set X) : Prop := s ∈ τ
 
 private definition bin_ext (A B : set X)  : ℕ → set X := 
   λ i, if i ≤ 1 then (if i = 0 then A else B) else ∅
 
-theorem bin_union_open {τ : topology X} (A B : set X) (OpA : A ∈ τ) (OpB : B ∈ τ) :
+theorem bin_union_open {τ : topology X} {A B : set X} (OpA : A ∈ τ) (OpB : B ∈ τ) :
   A ∪ B ∈ τ := 
 have H : Union (bin_ext A B) = A ∪ B, from ext(
   take x,
@@ -115,17 +113,32 @@ theorem fin_inter_open {τ : topology X} (S : set (set X)) {fin : finite S} :
             show _, from !not.elim !not_mem_empty hc)
           (suppose x ∈ ∅, !not.elim !not_mem_empty this)),
    show openset (sUnion ∅), from this⁻¹ ▸ !topology.empt)
-  (sorry)
+  (begin
+   intro a s fins,
+   λ H₁, λ H₂, λ H₃,
+   !sUnion_insert⁻¹ ▸ (!bin_union_open (H₃ a !mem_insert) (H₂(
+     λ s, λ s', H₃ s (!mem_insert_of_mem s'))))
+   end)
 
 definition closedset [τ : topology X] (s : set X) : Prop := (space τ)\s ∈ τ
 
-theorem empty_closed (τ : topology X) : ((space τ)\∅) ∈ τ := 
-have (space τ)\∅ = space τ, from sorry,
-show _, from this⁻¹ ▸ !topology.entire
-
-theorem space_closed {τ : topology X} : closedset (space τ) := 
-have (space τ)\(space τ) = ∅, from sorry,
+theorem space_closed {τ : topology X} :
+  closedset (space τ) := 
+have (space τ)\(space τ) = ∅, from ext(
+  take x,
+  iff.intro
+    (suppose x ∈ (space τ)\(space τ), !not.elim (and.elim_right this) (and.elim_left this))
+    (suppose x ∈ ∅, !not.elim !not_mem_empty this)),
 show (space τ)\(space τ) ∈ τ, from this⁻¹ ▸ !topology.empt
+
+theorem empty_closed (τ : topology X) : -- Can't write closedset ∅... type class inference can't find τ?
+   (space τ)\∅ ∈ τ := 
+have (space τ)\∅ = space τ, from ext(
+  take x,
+  iff.intro
+    (suppose x ∈ (space τ)\∅, sorry)
+    (suppose x ∈ space τ, sorry)),
+show _, from this⁻¹ ▸ !topology.entire
 
 theorem bin_union_closed {τ : topology X} (A B : set X) (CloA : closedset A) (CloB : closedset B) :
   closedset (A ∪ B) := sorry
@@ -144,7 +157,7 @@ theorem cinter_closed (τ : topology X) (S : ℕ → set X) :
 
 definition clopen [τ : topology X] (s : set X) : Prop := openset s ∧ closedset s
 
-definition connected (τ : topology X) := ∀ s, clopen s → (s = (topology.space τ) ∨ s = ∅)
+definition connected (τ : topology X) := ∀ s, clopen s → (s = (space τ) ∨ s = ∅) 
 
 end top
 
