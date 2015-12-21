@@ -136,8 +136,8 @@ theorem empty_closed (τ : topology X) : -- Can't write closedset ∅... type cl
 have (space τ)\∅ = space τ, from ext(
   take x,
   iff.intro
-    (suppose x ∈ (space τ)\∅, sorry)
-    (suppose x ∈ space τ, sorry)),
+    (suppose x ∈ (space τ)\∅, and.elim_left this)
+    (suppose x ∈ space τ, and.intro this !not_mem_empty)),
 show _, from this⁻¹ ▸ !topology.entire
 
 theorem bin_union_closed {τ : topology X} (A B : set X) (CloA : closedset A) (CloB : closedset B) :
