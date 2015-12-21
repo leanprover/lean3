@@ -402,13 +402,34 @@ theorem fin_additive {M : sigma_algebra X} {μ : measure M} (S : set (set X)) [f
     (dsjt_insert_dsjt_inter s' a (and.elim_right s₃) s₁))  ▸ (!sUnion_insert ▸ rfl))) 
    end)
 
-theorem measure_mon {M : sigma_algebra X} (μ : measure M) (A B : set X) (s₁ : measurable A) (s₂ : measurable B) (sub : A ⊆ B) :
+theorem measure_mon {M : sigma_algebra X} (μ : measure M) (A B : set X) (HA : measurable A) (HB : measurable B) (sub : A ⊆ B) :
   μ A ≤ μ B := sorry 
 
 theorem sub_additive {M : sigma_algebra X} {μ : measure M} (S : set (set X)) (Ms : measurable_collection S) : 
   μ (sUnion S) ≤ set.Sum S μ := sorry
 
 end measure_space
+
+-- Put this in a seperate file --
+
+namespace measurable_functions
+
+open sigma_algebra  
+
+/- First pass at a definition of measurable functions...
+   
+  * We could do this in terms of pre-images of open sets rather than measurable ones, although we do not yet have topology
+(maybe use the open sets in metric space for now?)
+
+  * Johannes Holzl suggested doing this order theoretically -- f : M(A,B) <-> f[A] ≤ B,
+where f[A] is the least measure space such that f is A-measurable
+
+-/
+
+definition measurablefun (f : X → X) {M : sigma_algebra X} : Prop := 
+  ∀ Y : set X , Y ⊆ (@univ X) → (measurable (image f Y) → measurable Y)
+
+end measurable_functions
 
 end measure
 
