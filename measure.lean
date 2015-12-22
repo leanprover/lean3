@@ -91,7 +91,7 @@ have measurable (-(Union (-U))), from !sigma_algebra.complements this,
 show _, from !Inter_eq⁻¹ ▸ this
 
 definition bin_extension [reducible] [M : sigma_algebra X] : ℕ → set X := 
-  λ i, (if i ≤ 1 then (if i = 0 then A else B) else ∅)
+  λ i, if i ≤ 1 then (if i = 0 then A else B) else ∅
 
 lemma extension_measurable {M : sigma_algebra X} (HA : measurable A) (HB : measurable B) :
    ∀ i : ℕ, measurable (bin_extension A B i) :=
@@ -109,7 +109,7 @@ lemma bin_union {M : sigma_algebra X} (HA : measurable A) (HB : measurable B) :
 have H : Union (bin_extension A B) =  A ∪ B, from (ext(take x, iff.intro 
   (suppose x ∈ Union (bin_extension A B), 
    obtain i (Hi : x ∈ (bin_extension A B) i), from this,
-   assert (i ≤ 1), from not_not_elim
+   assert i ≤ 1, from not_not_elim
      (not.intro(
        suppose ¬(i ≤ 1),
        have (bin_extension A B) i = ∅, by rewrite[↑bin_extension, if_neg this],
