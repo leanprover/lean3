@@ -4,18 +4,15 @@ open algebra eq.ops set nat
 variable {X : Type}
 
 structure topology (X : Type) :=
-  (space : set X)
   (top : set (set X))
   (empt : ∅ ∈ top)
-  (entire : space ∈ top)
+  (subs : ∀ s, s ∈ top → s ⊆ @univ X)
+  (entire : @univ X ∈ top)
   (union : ∀ s : ℕ → set X, (∀ i, s i ∈ top) → (Union s) ∈ top)
   (fin_inter : ∀ s, s ⊆ top → (sInter s ∈ top))
 
 attribute topology [class]
 attribute topology.top [coercion]
-attribute topology.space [coercion]
-
-local abbreviation space := @topology.space 
 
 namespace top
 
@@ -72,8 +69,8 @@ have ∀ i, openset ((bin_ext A B) i), from
 have Union (bin_ext A B) ∈ τ, from !topology.union this,
 show  A ∪ B ∈ τ, from H ▸ this
 
-theorem bin_inter_open {τ : topology X} (A B : set X) (OpA : A ∈ τ) (OpB : B ∈ τ) 
-  : A ∩ B ∈ τ :=
+theorem bin_inter_open {τ : topology X} {A B : set X} (OpA : A ∈ τ) (OpB : B ∈ τ) :
+  A ∩ B ∈ τ :=
 have {x | x = A ∨ x = B} ⊆ τ, from
   take y,
   suppose y ∈ {x | x = A ∨ x = B},
@@ -120,34 +117,116 @@ theorem fin_inter_open {τ : topology X} (S : set (set X)) {fin : finite S} :
      λ s, λ s', H₃ s (!mem_insert_of_mem s'))))
    end)
 
-definition closedset [τ : topology X] (s : set X) : Prop := (space τ)\s ∈ τ
+definition closedset [τ : topology X] (s : set X) : Prop := (@univ X) \ s ∈ τ
 
 theorem space_closed {τ : topology X} :
-  closedset (space τ) := 
-have (space τ)\(space τ) = ∅, from ext(
+  closedset (@univ X) := 
+have (@univ X)\(@univ X) = ∅, from ext(
   take x,
   iff.intro
-    (suppose x ∈ (space τ)\(space τ), !not.elim (and.elim_right this) (and.elim_left this))
+    (suppose x ∈ (@univ X)\(@univ X), !not.elim (and.elim_right this) (and.elim_left this))
     (suppose x ∈ ∅, !not.elim !not_mem_empty this)),
-show (space τ)\(space τ) ∈ τ, from this⁻¹ ▸ !topology.empt
+show (@univ X)\(@univ X) ∈ τ, from this⁻¹ ▸ !topology.empt
 
 theorem empty_closed (τ : topology X) : -- Can't write closedset ∅... type class inference can't find τ?
-   (space τ)\∅ ∈ τ := 
-have (space τ)\∅ = space τ, from ext(
+   (@univ X) \ ∅ ∈ τ := 
+have (@univ X) \ ∅ = @univ X, from ext(
   take x,
   iff.intro
-    (suppose x ∈ (space τ)\∅, and.elim_left this)
-    (suppose x ∈ space τ, and.intro this !not_mem_empty)),
+    (suppose x ∈ (@univ X) \ ∅, and.elim_left this)
+    (suppose x ∈ @univ X, and.intro this !not_mem_empty)),
 show _, from this⁻¹ ▸ !topology.entire
 
 theorem bin_union_closed {τ : topology X} (A B : set X) (CloA : closedset A) (CloB : closedset B) :
-  closedset (A ∪ B) := sorry
+  closedset (A ∪ B) := 
+have H : (@univ X) \ (A ∪ B) = ((@univ X) \ A) ∩ ((@univ X) \ B), from ext(
+  take x,
+  iff.intro
+    (suppose x ∈ (@univ X) \ (A ∪ B),
+      have ¬(x ∈ A ∨ x ∈ B), from and.elim_right this,
+      have x ∉ A ∧ x ∉ B, from (and.elim_left !not_or_iff_not_and_not) this,
+      have x ∈ ((@univ X) \ A), from and.intro !mem_univ (and.elim_left this),
+      have x ∈ ((@univ X) \ B), from and.intro !mem_univ (and.elim_right `x ∉ A ∧ x ∉ B`),
+      show _, from and.intro `x ∈ ((@univ X) \ A)` this)
+    (suppose x ∈ ((@univ X) \ A) ∩ ((@univ X) \ B),
+      have x ∉ A, from and.elim_right (and.elim_left this),
+      have x ∉ B, from and.elim_right (and.elim_right `x ∈ ((@univ X) \ A) ∩ ((@univ X) \ B)`),
+      have ¬(x ∈ A ∨ x ∈ B), from  (and.elim_right !not_or_iff_not_and_not) (and.intro `x ∉ A` this), 
+      show _, from and.intro !mem_univ this)),
+have openset (((@univ X) \ A) ∩ ((@univ X) \ B)), from !bin_inter_open CloA CloB, 
+show openset ((@univ X) \ (A ∪ B)), from H⁻¹ ▸ this
 
 theorem fin_union_closed {τ : topology X} (S : set (set X)) {fin : finite S} :
-  (∀ s, s ∈ S → closedset s) → closedset (sUnion S) := sorry
+  (∀ s, s ∈ S → closedset s) → closedset (sUnion S) := 
+!induction_on_finite
+  (suppose ∀ s, s ∈ ∅ → closedset s, 
+        have sUnion ∅ = ∅, from ext (λx, iff.intro
+          (suppose x ∈ sUnion ∅,
+            obtain c [(hc : c ∈ ∅) (xc : x ∈ c)], from this,
+            show _, from !not.elim !not_mem_empty hc)
+          (suppose x ∈ ∅, !not.elim !not_mem_empty this)),
+   show closedset (sUnion ∅), from this⁻¹ ▸ !empty_closed)
+  (begin
+    intro a s fins,
+    λ H₁, λ H₂, λ H₃,
+    !sUnion_insert⁻¹ ▸ (!bin_union_closed (H₃ a !mem_insert) (H₂(
+      λ s, λ s', H₃ s (!mem_insert_of_mem s'))))
+   end)
+
+section
+
+open classical
+
+lemma diff_diff_univ (A : set X) :
+  (@univ X) \ ((@univ X) \ A ) = A := 
+ext(
+  take x,
+  iff.intro
+    (suppose x ∈ (@univ X) \ ( (@univ X) \ A ), 
+      have ¬(x ∈ (@univ X) ∧ x ∉ A), from and.elim_right this,
+      have ¬(x ∈ (@univ X)) ∨ ¬(x ∉ A), from (and.elim_left !not_and_iff_not_or_not) this,
+      have ¬¬(x ∈ (@univ X)), from (and.elim_right not_not_iff) (and.elim_left `x ∈ (@univ X) \ ( (@univ X) \ A )`),
+      have ¬(x ∉ A), from or_resolve_right `¬(x ∈ (@univ X)) ∨ ¬(x ∉ A)` this,
+      show _, from not_not_elim this)
+    (suppose x ∈ A, 
+      have ¬¬(x ∈ A), from (and.elim_right !not_not_iff) this,
+      have ¬(x ∈ (@univ X)) ∨ ¬¬(x ∈ A), from or.inr this,
+      have ¬(x ∈ (@univ X) ∧ x ∉ A), from (and.elim_right !not_and_iff_not_or_not) this,
+      show _, from and.intro !mem_univ this))
 
 theorem bin_inter_closed {τ : topology X} (A B : set X) (CloA : closedset A) (CloB: closedset B) :
-  closedset (A ∩ B) := sorry
+  closedset (A ∩ B) :=
+ have H : closedset ((@univ X)\((@univ X)\A ∪ (@univ X) \ B)), from
+   begin
+     rewrite[↑closedset, diff_diff_univ],
+     exact !bin_union_open CloA CloB,
+   end,
+ have A ∩ B = (@univ X) \ ((@univ X) \ A ∪ (@univ X) \ B), from ext(
+ take x,
+ iff.intro
+   (suppose x ∈ A ∩ B,
+     have x ∈ @univ X, from !mem_univ,
+     have x ∉ ((@univ X) \ A ∪ (@univ X) \ B), from not.intro(
+       suppose x ∈ ((@univ X) \ A ∪ (@univ X) \ B),
+       show false, from or.elim this
+         (suppose x ∈ @univ X ∧ x ∉ A, absurd (and.elim_left `x ∈ A ∩ B`) (and.elim_right this))
+         (suppose x ∈ @univ X ∧ x ∉ B, absurd (and.elim_right `x ∈ A ∩ B`) (and.elim_right this))),
+     show _, from and.intro `x ∈ @univ X` this)
+   (suppose x ∈ (@univ X)\((@univ X) \ A ∪ (@univ X) \ B),
+     have H : x ∈ @univ X ∧ x ∉ ((@univ X) \ A ∪ (@univ X) \ B), from this,
+     have ¬(x ∈ ((@univ X) \ A ∪ (@univ X) \ B)), from and.elim_right this,
+     have H1 : ¬(x ∈ ((@univ X) \ A)) ∧ ¬(x ∈ ((@univ X) \ B)), from (iff.elim_left !not_or_iff_not_and_not this),
+     have ¬(x ∈ (@univ X) ∧ x ∉ A), from and.elim_left H1,
+     have ¬(x ∈ (@univ X)) ∨ ¬(x ∉ A), from (iff.elim_left !not_and_iff_not_or_not) this, 
+     have ¬¬(x ∈ @univ X), from (iff.elim_right not_not_iff) (and.elim_left H),
+     have x ∈ A, from not_not_elim (or_resolve_right `¬(x ∈ (@univ X)) ∨ ¬(x ∉ A)` this),
+     have ¬(x ∈ (@univ X) ∧ x ∉ B), from and.elim_right H1,
+     have ¬(x ∈ (@univ X)) ∨ ¬(x ∉ B), from (iff.elim_left !not_and_iff_not_or_not) this, 
+     have x ∈ B, from not_not_elim (or_resolve_right this `¬¬(x ∈ (@univ X))`),
+     show _, from and.intro `x ∈ A` `x ∈ B`)),
+ show _, from this⁻¹ ▸ H
+
+end 
 
 theorem fin_inter_closed {τ : topology X} (S : set (set X)) {fin : finite S} :
   (∀ s, s ∈ S → closedset s) → closedset (sUnion S) := sorry
@@ -155,15 +234,57 @@ theorem fin_inter_closed {τ : topology X} (S : set (set X)) {fin : finite S} :
 theorem cinter_closed (τ : topology X) (S : ℕ → set X) :
   (∀ i, closedset (S i)) → closedset (Inter S) := sorry
 
-definition clopen [τ : topology X] (s : set X) : Prop := openset s ∧ closedset s
+theorem open_diff {τ : topology X} (A B : set X) (OpA : openset A) (CloB : closedset B) :
+  openset (A \ B) := 
+have H : A \ B = A ∩ ((@univ X)\B), from ext(
+  take x,
+  iff.intro
+    (suppose x ∈ A \ B, and.intro (and.elim_left `x ∈ A \ B`) ( and.intro !mem_univ (and.elim_right this)))
+    (suppose x ∈ A ∩ ((@univ X)\B), and.intro (and.elim_left this) (and.elim_right (and.elim_right this)))),
+have openset ((@univ X)\B), from CloB,
+have openset (A ∩ ((@univ X)\B)), from !bin_inter_open OpA this,
+show _, from H⁻¹ ▸ this
 
-definition connected (τ : topology X) := ∀ s, clopen s → (s = (space τ) ∨ s = ∅) 
+theorem closed_diff {τ : topology X} (A B : set X) (CloA : closedset A) (OpB : openset B) :
+  openset (A \ B) := sorry
+
+/- Kologorov, Frechet and Hausdorff spaces  -/
+
+structure Kolmogorov_space [class] (X : Type) extends topology X :=
+ (Kolmogorov : ∀ x y, x ≠ y → ∃ U, U ∈ top ∧ ¬(x ∈ U ↔ y ∈ U))
+
+attribute Kolmogorov_space.top [coercion]
+
+theorem seperation_Kolmogorov {K : Kolmogorov_space X} :
+  ∀ x y, x ≠ y ↔ ∃ U, U ∈ K ∧ ¬(x ∈ U ↔ y ∈ U) := sorry
+
+structure Frechet_space [class] (X : Type) extends topology X := 
+  (Frechet : ∀ x y, x ≠ y → ∃ U, U ∈ top ∧ x ∈ U ∧ y ∉ U)
+
+attribute Frechet_space.top [coercion]
+
+theorem seperation_Frechet {F : Frechet_space X} :
+  ∀ x y, x ≠ y ↔ ∃ U, U ∈ F ∧ x ∈ U ∧ y ∉ U := sorry
+
+theorem closed_singleton {F : Frechet_space X} :
+  ∀ a, (@univ X)\'{a} ∈ F := sorry 
+
+theorem closed_insert {F : Frechet_space X} (S : set X):
+  ∀ a, closedset S → closedset (insert a S) := sorry
+
+structure Hausdorff_space [class] (X : Type) extends topology X :=
+  (Hausdorff : ∀ x y, x ≠ y → ∃ U V, U ∈ top ∧ V ∈ top ∧ x ∈ U ∧ y ∈ V ∧ (U ∩ V = ∅))
+
+attribute Hausdorff_space.top [coercion]
+
+theorem seperation_Hausdorff {H : Hausdorff_space X} : 
+  ∀ x y, x ≠ y ↔ ∃ U V, U ∈ H ∧ V ∈ H ∧ x ∈ U ∧ y ∈ V ∧ (U ∩ V = ∅) := sorry 
+
+structure perfect_space [class] (X : Type) extends topology X :=
+  (perfect : ∀ x, ¬('{x} ∈ top))
 
 end top
 
-namespace subspaces
+/-  Do continuity next -/
 
--- Show the subspace topology is an instance of a topology --
-
-end subspaces
 
