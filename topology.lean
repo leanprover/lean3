@@ -416,11 +416,35 @@ structure perfect_space [class] (X : Type) extends topology X :=
 
 /- Generators for Topologies -/
 
+
 inductive generate_topology (B : set (set X))  : (X → Prop) → Prop :=
-| UNIV : ∀ x : X, (generate_topology B) (λ x, true)
+| UNIV : ∀ x : X, (generate_topology B) (λ x, true) 
 | Int :  ∀ a b : X → Prop, generate_topology B a → generate_topology B b → (generate_topology B (λ x, a x ∧ b x))
-| UN : ∀ U : ℕ → X → Prop, (∀ n, generate_topology B (U n)) → generate_topology B (λ x, ∃ n, U n x)
-| Basis : ∀ s : X → Prop,  (B s) → generate_topology B s
+| UN : ∀ I : Type, ∀ U : I → X → Prop, (∀ i, generate_topology B (U i)) → generate_topology B (λ x, ∃ i, U i x)
+| Basis : ∀ s : X → Prop,  B s → generate_topology B s
+
+inductive to_type {B : Type} : B → Type :=
+mk : Π (b : B), to_type b
+
+theorem generate_topology_Union {I : Type} {b : I → set X} (B : set (set X)) : 
+  ∀ i, b i ∈ generate_topology B → Union b ∈ generate_topology B := sorry
+
+theorem empty_in_gen {B : set (set X)} : 
+  ∅ ∈ generate_topology B := 
+have ∅ ⊆ (generate_topology B), from empty_subset (generate_topology B), 
+sorry
+
+variable {B : set (set X)}
+
+definition generate_topology.to_topology [trans_instance] [reducible] [τ : to_type (generate_topology B)] :
+  topology X :=
+⦃ topology, 
+  top       := generate_topology B,
+  empt      := empty_in_gen,
+  subs      := sorry,
+  entire    := sorry,
+  union     := sorry,
+  fin_inter := sorry  ⦄
 
 end top
 
