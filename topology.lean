@@ -6,9 +6,8 @@ variable {X : Type}
 structure topology (X : Type) :=
   (top : set (set X))
   (empt : ∅ ∈ top)
-  (subs : ∀ s, s ∈ top → s ⊆ univ)
   (entire : univ ∈ top)
-  (union : ∀ s : ℕ → set X, (∀ i, s i ∈ top) → (Union s) ∈ top)
+  (union : ∀ I : Type.{1}, ∀ s : I → set X, (∀ i, s i ∈ top) → (Union s) ∈ top)
   (fin_inter : ∀ s, s ⊆ top → (sInter s ∈ top))
 
 attribute topology [class]
@@ -57,7 +56,7 @@ have H : Union (bin_ext A B) = A ∪ B, from ext(
          (suppose x ∈ A, exists.intro 0 this)
          (suppose x ∈ B, exists.intro 1 this),
     show x ∈ Union (bin_ext A B), from (!mem_of_subset_of_mem this) `x ∈ A ∪ B`)),
-have ∀ i, openset ((bin_ext A B) i), from 
+have ∀ i, (bin_ext A B) i ∈ τ, from 
    take i,
    if Hp : i ≤ 1 then
      if Hpp : i = 0 then
@@ -357,7 +356,6 @@ T0_space X :=
 ⦃ T0_space, 
   top       := T1_space.top X,
   empt      := T1_space.empt X,
-  subs      := T1_space.subs,
   entire    := T1_space.entire X,
   union     := T1_space.union,
   fin_inter := T1_space.fin_inter,
@@ -387,7 +385,6 @@ T1_space X :=
 ⦃ T1_space, 
   top       := T2_space.top X,
   empt      := T2_space.empt X,
-  subs      := T2_space.subs,
   entire    := T2_space.entire X,
   union     := T2_space.union,
   fin_inter := T2_space.fin_inter,
@@ -416,34 +413,33 @@ structure perfect_space [class] (X : Type) extends topology X :=
 
 /- Generators for Topologies -/
 
-
 inductive generate_topology (B : set (set X))  : (X → Prop) → Prop :=
 | UNIV : ∀ x : X, (generate_topology B) (λ x, true) 
 | Int :  ∀ a b : X → Prop, generate_topology B a → generate_topology B b → (generate_topology B (λ x, a x ∧ b x))
 | UN : ∀ I : Type, ∀ U : I → X → Prop, (∀ i, generate_topology B (U i)) → generate_topology B (λ x, ∃ i, U i x)
 | Basis : ∀ s : X → Prop,  B s → generate_topology B s
 
-inductive to_type {B : Type} : B → Type :=
-mk : Π (b : B), to_type b
-
-theorem generate_topology_Union {I : Type} {b : I → set X} (B : set (set X)) : 
-  ∀ i, b i ∈ generate_topology B → Union b ∈ generate_topology B := sorry
+theorem generate_topology_Union (B : set (set X)) : 
+  ∀ I : Type.{1}, ∀ U : I → set X, (∀ i, U i ∈ generate_topology B) → Union U ∈ generate_topology B := sorry
 
 theorem empty_in_gen {B : set (set X)} : 
   ∅ ∈ generate_topology B := 
 have ∅ ⊆ (generate_topology B), from empty_subset (generate_topology B), 
 sorry
 
-variable {B : set (set X)}
+variable B : set (set X)
+variable x : X
+
+inductive to_type {B : Type} : B → Type :=
+mk : Π (b : B), to_type b
 
 definition generate_topology.to_topology [trans_instance] [reducible] [τ : to_type (generate_topology B)] :
   topology X :=
 ⦃ topology, 
   top       := generate_topology B,
   empt      := empty_in_gen,
-  subs      := sorry,
-  entire    := sorry,
-  union     := sorry,
+  entire    := generate_topology.UNIV B x,
+  union     := generate_topology_Union B,
   fin_inter := sorry  ⦄
 
 end top
