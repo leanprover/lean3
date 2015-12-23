@@ -415,17 +415,29 @@ structure perfect_space [class] (X : Type) extends topology X :=
 
 inductive generate_topology (B : set (set X))  : (X → Prop) → Prop :=
 | UNIV : ∀ x : X, (generate_topology B) (λ x, true) 
+| EMPTY : ∀ x : X, (generate_topology B) (λ x, false)
 | Int :  ∀ a b : X → Prop, generate_topology B a → generate_topology B b → (generate_topology B (λ x, a x ∧ b x))
-| UN : ∀ I : Type, ∀ U : I → X → Prop, (∀ i, generate_topology B (U i)) → generate_topology B (λ x, ∃ i, U i x)
-| Basis : ∀ s : X → Prop,  B s → generate_topology B s
+| UN : ∀ I : Type.{1}, ∀ U : I → set X, (∀ i, U i ∈ generate_topology B) → generate_topology B (Union U)
+| Basis : ∀ s : X → Prop, B s → generate_topology B s
 
-theorem generate_topology_Union (B : set (set X)) : 
-  ∀ I : Type.{1}, ∀ U : I → set X, (∀ i, U i ∈ generate_topology B) → Union U ∈ generate_topology B := sorry
+lemma generate_topology_Union (B : set (set X)) : 
+  ∀ I : Type.{1}, ∀ U : I → set X, (∀ i, U i ∈ generate_topology B) → Union U ∈ generate_topology B := 
+take I,
+take U : I → set X,
+suppose ∀ i, U i ∈ generate_topology B,
+!generate_topology.UN this
 
-theorem empty_in_gen {B : set (set X)} : 
-  ∅ ∈ generate_topology B := 
-have ∅ ⊆ (generate_topology B), from empty_subset (generate_topology B), 
-sorry
+open classical
+
+lemma generate_topology_fin_Inter {B : set (set X)} :
+  ∀ s, s ⊆ (generate_topology B) → (sInter s ∈ (generate_topology B)) := 
+take s,
+if fin : finite s then 
+  !induction_on_finite
+    (sorry)
+    (sorry)
+else 
+  sorry
 
 variable B : set (set X)
 variable x : X
@@ -437,10 +449,10 @@ definition generate_topology.to_topology [trans_instance] [reducible] [τ : to_t
   topology X :=
 ⦃ topology, 
   top       := generate_topology B,
-  empt      := empty_in_gen,
+  empt      := generate_topology.EMPTY B x,
   entire    := generate_topology.UNIV B x,
   union     := generate_topology_Union B,
-  fin_inter := sorry  ⦄
+  fin_inter := generate_topology_fin_Inter ⦄
 
 end top
 
