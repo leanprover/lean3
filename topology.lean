@@ -414,6 +414,14 @@ iff.intro
 structure perfect_space [class] (X : Type) extends topology X :=
   (perfect : ∀ x, ¬('{x} ∈ top))
 
+/- Generators for Topologies -/
+
+inductive generate_topology (B : set (set X))  : (X → Prop) → Prop :=
+| UNIV : ∀ x : X, (generate_topology B) (λ x, true)
+| Int :  ∀ a b : X → Prop, generate_topology B a → generate_topology B b → (generate_topology B (λ x, a x ∧ b x))
+| UN : ∀ U : ℕ → X → Prop, (∀ n, generate_topology B (U n)) → generate_topology B (λ x, ∃ n, U n x)
+| Basis : ∀ s : X → Prop,  (B s) → generate_topology B s
+
 end top
 
 
