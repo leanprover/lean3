@@ -130,31 +130,31 @@ show univ\univ ∈ τ, from this⁻¹ ▸ !topology.empt
 
 theorem empty_closed (τ : topology X) : -- Can't write closedset ∅... type class inference can't find τ?
    univ \ ∅ ∈ τ := 
-have (@univ X) \ ∅ = @univ X, from ext(
+have univ \ ∅ = univ, from ext(
   take x,
   iff.intro
-    (suppose x ∈ (@univ X) \ ∅, and.elim_left this)
-    (suppose x ∈ @univ X, and.intro this !not_mem_empty)),
+    (suppose x ∈ univ \ ∅, and.elim_left this)
+    (suppose x ∈ univ, and.intro this !not_mem_empty)),
 show _, from this⁻¹ ▸ !topology.entire
 
 theorem bin_union_closed {τ : topology X} (A B : set X) (CloA : closedset A) (CloB : closedset B) :
   closedset (A ∪ B) := 
-have H : (@univ X) \ (A ∪ B) = ((@univ X) \ A) ∩ ((@univ X) \ B), from ext(
+have H : univ \ (A ∪ B) = (univ \ A) ∩ (univ \ B), from ext(
   take x,
   iff.intro
-    (suppose x ∈ (@univ X) \ (A ∪ B),
+    (suppose x ∈ univ \ (A ∪ B),
       have ¬(x ∈ A ∨ x ∈ B), from and.elim_right this,
       have x ∉ A ∧ x ∉ B, from (and.elim_left !not_or_iff_not_and_not) this,
-      have x ∈ ((@univ X) \ A), from and.intro !mem_univ (and.elim_left this),
-      have x ∈ ((@univ X) \ B), from and.intro !mem_univ (and.elim_right `x ∉ A ∧ x ∉ B`),
-      show _, from and.intro `x ∈ ((@univ X) \ A)` this)
-    (suppose x ∈ ((@univ X) \ A) ∩ ((@univ X) \ B),
+      have x ∈ (univ \ A), from and.intro !mem_univ (and.elim_left this),
+      have x ∈ (univ \ B), from and.intro !mem_univ (and.elim_right `x ∉ A ∧ x ∉ B`),
+      show _, from and.intro `x ∈ (univ \ A)` this)
+    (suppose x ∈ (univ \ A) ∩ (univ \ B),
       have x ∉ A, from and.elim_right (and.elim_left this),
-      have x ∉ B, from and.elim_right (and.elim_right `x ∈ ((@univ X) \ A) ∩ ((@univ X) \ B)`),
+      have x ∉ B, from and.elim_right (and.elim_right `x ∈ (univ \ A) ∩ (univ \ B)`),
       have ¬(x ∈ A ∨ x ∈ B), from  (and.elim_right !not_or_iff_not_and_not) (and.intro `x ∉ A` this), 
       show _, from and.intro !mem_univ this)),
-have openset (((@univ X) \ A) ∩ ((@univ X) \ B)), from !bin_inter_open CloA CloB, 
-show openset ((@univ X) \ (A ∪ B)), from H⁻¹ ▸ this
+have openset ((univ \ A) ∩ (univ \ B)), from !bin_inter_open CloA CloB, 
+show openset (univ \ (A ∪ B)), from H⁻¹ ▸ this
 
 theorem fin_union_closed {τ : topology X} (S : set (set X)) {fin : finite S} :
   (∀ s, s ∈ S → closedset s) → closedset (sUnion S) := 
@@ -178,76 +178,93 @@ section
 open classical
 
 lemma diff_diff_univ (A : set X) :
-  (@univ X) \ ((@univ X) \ A ) = A := 
+  univ \ (univ \ A ) = A := 
 ext(
   take x,
   iff.intro
-    (suppose x ∈ (@univ X) \ ( (@univ X) \ A ), 
-      have ¬(x ∈ (@univ X) ∧ x ∉ A), from and.elim_right this,
-      have ¬(x ∈ (@univ X)) ∨ ¬(x ∉ A), from (and.elim_left !not_and_iff_not_or_not) this,
-      have ¬¬(x ∈ (@univ X)), from (and.elim_right not_not_iff) (and.elim_left `x ∈ (@univ X) \ ( (@univ X) \ A )`),
-      have ¬(x ∉ A), from or_resolve_right `¬(x ∈ (@univ X)) ∨ ¬(x ∉ A)` this,
+    (suppose x ∈ univ \ (univ \ A ), 
+      have ¬(x ∈ univ ∧ x ∉ A), from and.elim_right this,
+      have ¬(x ∈ univ) ∨ ¬(x ∉ A), from (and.elim_left !not_and_iff_not_or_not) this,
+      have ¬¬(x ∈ univ), from (and.elim_right not_not_iff) (and.elim_left `x ∈ (@univ X) \ ( (@univ X) \ A )`),
+      have ¬(x ∉ A), from or_resolve_right `¬(x ∈ univ) ∨ ¬(x ∉ A)` this,
       show _, from not_not_elim this)
     (suppose x ∈ A, 
       have ¬¬(x ∈ A), from (and.elim_right !not_not_iff) this,
-      have ¬(x ∈ (@univ X)) ∨ ¬¬(x ∈ A), from or.inr this,
-      have ¬(x ∈ (@univ X) ∧ x ∉ A), from (and.elim_right !not_and_iff_not_or_not) this,
+      have ¬(x ∈ univ) ∨ ¬¬(x ∈ A), from or.inr this,
+      have ¬(x ∈ univ ∧ x ∉ A), from (and.elim_right !not_and_iff_not_or_not) this,
       show _, from and.intro !mem_univ this))
 
 theorem bin_inter_closed {τ : topology X} (A B : set X) (CloA : closedset A) (CloB: closedset B) :
   closedset (A ∩ B) :=
- have H : closedset ((@univ X)\((@univ X)\A ∪ (@univ X) \ B)), from
+ have H : closedset (univ \ (univ \ A ∪ univ \ B)), from
    begin
      rewrite[↑closedset, diff_diff_univ],
      exact !bin_union_open CloA CloB,
    end,
- have A ∩ B = (@univ X) \ ((@univ X) \ A ∪ (@univ X) \ B), from ext(
+ have A ∩ B = univ \ (univ \ A ∪ univ \ B), from ext(
  take x,
  iff.intro
    (suppose x ∈ A ∩ B,
-     have x ∈ @univ X, from !mem_univ,
-     have x ∉ ((@univ X) \ A ∪ (@univ X) \ B), from not.intro(
-       suppose x ∈ ((@univ X) \ A ∪ (@univ X) \ B),
+     have x ∈ univ, from !mem_univ,
+     have x ∉ (univ \ A ∪ univ \ B), from not.intro(
+       suppose x ∈ (univ \ A ∪ univ \ B),
        show false, from or.elim this
-         (suppose x ∈ @univ X ∧ x ∉ A, absurd (and.elim_left `x ∈ A ∩ B`) (and.elim_right this))
-         (suppose x ∈ @univ X ∧ x ∉ B, absurd (and.elim_right `x ∈ A ∩ B`) (and.elim_right this))),
-     show _, from and.intro `x ∈ @univ X` this)
-   (suppose x ∈ (@univ X)\((@univ X) \ A ∪ (@univ X) \ B),
-     have H : x ∈ @univ X ∧ x ∉ ((@univ X) \ A ∪ (@univ X) \ B), from this,
-     have ¬(x ∈ ((@univ X) \ A ∪ (@univ X) \ B)), from and.elim_right this,
-     have H1 : ¬(x ∈ ((@univ X) \ A)) ∧ ¬(x ∈ ((@univ X) \ B)), from (iff.elim_left !not_or_iff_not_and_not this),
-     have ¬(x ∈ (@univ X) ∧ x ∉ A), from and.elim_left H1,
-     have ¬(x ∈ (@univ X)) ∨ ¬(x ∉ A), from (iff.elim_left !not_and_iff_not_or_not) this, 
-     have ¬¬(x ∈ @univ X), from (iff.elim_right not_not_iff) (and.elim_left H),
-     have x ∈ A, from not_not_elim (or_resolve_right `¬(x ∈ (@univ X)) ∨ ¬(x ∉ A)` this),
-     have ¬(x ∈ (@univ X) ∧ x ∉ B), from and.elim_right H1,
-     have ¬(x ∈ (@univ X)) ∨ ¬(x ∉ B), from (iff.elim_left !not_and_iff_not_or_not) this, 
-     have x ∈ B, from not_not_elim (or_resolve_right this `¬¬(x ∈ (@univ X))`),
+         (suppose x ∈ univ ∧ x ∉ A, absurd (and.elim_left `x ∈ A ∩ B`) (and.elim_right this))
+         (suppose x ∈ univ ∧ x ∉ B, absurd (and.elim_right `x ∈ A ∩ B`) (and.elim_right this))),
+     show _, from and.intro `x ∈ univ` this)
+   (suppose x ∈ univ \ (univ \ A ∪ univ \ B),
+     have H : x ∈ univ ∧ x ∉ (univ \ A ∪ univ \ B), from this,
+     have ¬(x ∈ (univ \ A ∪ univ \ B)), from and.elim_right this,
+     have H1 : ¬(x ∈ (univ \ A)) ∧ ¬(x ∈ (univ \ B)), from (iff.elim_left !not_or_iff_not_and_not this),
+     have ¬(x ∈ univ ∧ x ∉ A), from and.elim_left H1,
+     have ¬(x ∈ univ) ∨ ¬(x ∉ A), from (iff.elim_left !not_and_iff_not_or_not) this, 
+     have ¬¬(x ∈ univ), from (iff.elim_right not_not_iff) (and.elim_left H),
+     have x ∈ A, from not_not_elim (or_resolve_right `¬(x ∈ univ) ∨ ¬(x ∉ A)` this),
+     have ¬(x ∈ univ ∧ x ∉ B), from and.elim_right H1,
+     have ¬(x ∈ univ) ∨ ¬(x ∉ B), from (iff.elim_left !not_and_iff_not_or_not) this, 
+     have x ∈ B, from not_not_elim (or_resolve_right this `¬¬(x ∈ univ)`),
      show _, from and.intro `x ∈ A` `x ∈ B`)),
  show _, from this⁻¹ ▸ H
 
 theorem closed_diff {τ : topology X} (A B : set X) (CloA : closedset A) (OpB : openset B) :
   closedset (A \ B) :=
-have H : A \ B = A ∩ ((@univ X)\B), from ext(
+have H : A \ B = A ∩ (univ\B), from ext(
   take x,
   iff.intro
     (suppose x ∈ A \ B, and.intro (and.elim_left `x ∈ A \ B`) ( and.intro !mem_univ (and.elim_right this)))
-    (suppose x ∈ A ∩ ((@univ X)\B), and.intro (and.elim_left this) (and.elim_right (and.elim_right this)))),
-have closedset ((@univ X)\B), by rewrite[↑closedset]; exact (!diff_diff_univ⁻¹ ▸ OpB),
-have closedset (A ∩ ((@univ X)\B)), from !bin_inter_closed CloA this,
+    (suppose x ∈ A ∩ (univ\B), and.intro (and.elim_left this) (and.elim_right (and.elim_right this)))),
+have closedset (univ\B), by rewrite[↑closedset]; exact (!diff_diff_univ⁻¹ ▸ OpB),
+have closedset (A ∩ (univ\B)), from !bin_inter_closed CloA this,
 show _, from H⁻¹ ▸ this
 
 theorem cinter_closed (τ : topology X) (S : ℕ → set X) :
   (∀ i, closedset (S i)) → closedset (Inter S) := 
 suppose ∀ i, closedset (S i),
-have ∀ i, openset (univ\(S i)), from take i, this i,
-have openset (Union (λ i, univ\(S i))), from sorry,
-have H : closedset (univ\(Union (λ i, univ\(S i)))), from sorry,
+have openset (Union (λ i, univ\(S i))), from !topology.union (take i, this i),
+have H : openset (univ\(univ\(Union (λ i, univ\(S i))))), from !diff_diff_univ⁻¹ ▸ this,
 have Inter S = univ\(Union (λ i, univ\(S i))), from ext(
   take x,
   iff.intro
-    (suppose x ∈ Inter S, sorry)
-    (suppose x ∈ univ\(Union (λ i, univ\(S i))), sorry)),
+    (suppose x ∈ Inter S,
+      have x ∉ (Union (λ i, univ\(S i))), from not.intro(
+        suppose x ∈ (Union (λ i, univ\(S i))),
+        obtain i (Hi : x ∈ univ\(S i)), from this,
+        have x ∉ S i, from and.elim_right Hi,
+        have ∀ i, x ∈ S i, from `x ∈ Inter S`,
+        absurd  (this i) `x ∉ S i`),
+      show _, from and.intro !mem_univ this)
+    (suppose x ∈ univ\(Union (λ i, univ\(S i))),
+      have ¬ ∃ i, x ∈ univ\(S i), from and.elim_right this,
+      have ∀ i, x ∉ (univ\(S i)), from iff.elim_left !forall_iff_not_exists this,
+      have ∀ i, x ∈ S i, from 
+        take i,
+        have ¬(x ∈ univ ∧ x ∉ S i), from `∀ i, x ∉ (univ\(S i))` i,
+        have x ∉ univ ∨ ¬(x ∉ S i), from iff.elim_left !not_and_iff_not_or_not this,
+        or.elim
+          this
+          (suppose x ∉ univ, !not.elim this !mem_univ)
+          (suppose ¬(x ∉ S i), not_not_elim this),
+      show _, from this)),
 show _, from this⁻¹ ▸ H
 
 end 
@@ -256,11 +273,11 @@ theorem fin_inter_closed {τ : topology X} (S : set (set X)) {fin : finite S} :
   (∀ s, s ∈ S → closedset s) → closedset (sInter S) := 
 !induction_on_finite
   (suppose ∀ s, s ∈ ∅ → closedset s,
-   have sInter ∅ = @univ X, from ext(
+   have sInter ∅ = univ, from ext(
      take x,
      iff.intro
        (suppose x ∈ sInter ∅, !mem_univ)
-       (suppose x ∈ @univ X, 
+       (suppose x ∈ univ, 
            take c,
            suppose c ∈ ∅,
            !not.elim !not_mem_empty this)),
@@ -274,13 +291,13 @@ theorem fin_inter_closed {τ : topology X} (S : set (set X)) {fin : finite S} :
 
 theorem open_diff {τ : topology X} (A B : set X) (OpA : openset A) (CloB : closedset B) :
   openset (A \ B) := 
-have H : A \ B = A ∩ ((@univ X)\B), from ext(
+have H : A \ B = A ∩ (univ\B), from ext(
   take x,
   iff.intro
     (suppose x ∈ A \ B, and.intro (and.elim_left `x ∈ A \ B`) ( and.intro !mem_univ (and.elim_right this)))
-    (suppose x ∈ A ∩ ((@univ X)\B), and.intro (and.elim_left this) (and.elim_right (and.elim_right this)))),
-have openset ((@univ X)\B), from CloB,
-have openset (A ∩ ((@univ X)\B)), from !bin_inter_open OpA this,
+    (suppose x ∈ A ∩ (univ\B), and.intro (and.elim_left this) (and.elim_right (and.elim_right this)))),
+have openset (univ\B), from CloB,
+have openset (A ∩ (univ\B)), from !bin_inter_open OpA this,
 show _, from H⁻¹ ▸ this
 
 /- Seperation  -/
@@ -346,29 +363,24 @@ T0_space X :=
   fin_inter := T1_space.fin_inter,
   T0        := T1_implies_T0 ⦄
 
-theorem closed_singleton {τ : T1_space X} :
-  ∀ a, (@univ X) \ '{a} ∈ τ := 
-take a,
-have H : openset (sUnion {s | openset s ∧ a ∉ s}), from sorry,
-have univ \ '{a} = sUnion {s | openset s ∧ a ∉ s}, from sorry,
-show _, from this⁻¹ ▸ H 
-
-theorem closed_insert {τ : T1_space X} (S : set X):
-  ∀ a, closedset S → closedset (insert a S) := 
-take a,
-suppose closedset S,
-have H : insert a S = '{a} ∪ S, from sorry,
-have closedset '{a}, from !closed_singleton,
-have closedset ('{a} ∪ S), from !bin_union_closed this `closedset S`,
-show closedset (insert a S), from H⁻¹ ▸ this
-
 structure T2_space [class] (X : Type) extends topology X :=
   (T2 : ∀ x y, x ≠ y → ∃ U V, U ∈ top ∧ V ∈ top ∧ x ∈ U ∧ y ∈ V ∧ (U ∩ V = ∅))
 
 attribute T2_space.top [coercion]
 
 lemma T2_implies_T1 {τ : T2_space X} : 
-  ∀ x y, x ≠ y → ∃ U, U ∈ τ ∧ x ∈ U ∧ y ∉ U := sorry
+  ∀ x y, x ≠ y → ∃ U, U ∈ τ ∧ x ∈ U ∧ y ∉ U := 
+take x y,
+suppose x ≠ y,
+obtain U V (HUV : U ∈ τ ∧ V ∈ τ ∧ x ∈ U ∧ y ∈ V ∧ (U ∩ V = ∅)), from !T2_space.T2 this,
+have y ∉ U, from not.intro(
+ suppose y ∈ U,
+ have y ∈ V, from and.elim_left (and.elim_right (and.elim_right (and.elim_right HUV))),
+ have y ∈ U ∩ V, from and.intro `y ∈ U` this,
+ have y ∈ ∅, from (and.elim_right (and.elim_right (and.elim_right (and.elim_right HUV)))) ▸ this,
+ absurd this !not_mem_empty),
+have U ∈ τ ∧ x ∈ U ∧ y ∉ U, from and.intro (and.elim_left HUV) (and.intro (and.elim_left (and.elim_right (and.elim_right HUV))) this),
+show _, from exists.intro U this
 
 definition T2_space.to_T1_space [trans_instance] [reducible] [τ : T2_space X] :
 T1_space X :=
