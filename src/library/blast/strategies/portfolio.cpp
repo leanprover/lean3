@@ -10,7 +10,7 @@ Author: Leonardo de Moura
 #include "library/blast/simplifier/simplifier_strategies.h"
 #include "library/blast/unit/unit_actions.h"
 #include "library/blast/forward/ematch.h"
-#include "library/blast/arith/acl.h"
+#include "library/blast/arith/heuristic.h"
 #include "library/blast/backward/backward_action.h"
 #include "library/blast/backward/backward_strategy.h"
 #include "library/blast/grinder/grinder_strategy.h"
@@ -50,9 +50,9 @@ static optional<expr> apply_ematch() {
                                     ematch_action)();
 }
 
-static optional<expr> apply_acl() {
-    flet<bool> set(get_config().m_acl, true);
-    return mk_debug_pre_action_strategy(assert_acl_action)();
+static optional<expr> apply_arith_heuristic() {
+    flet<bool> set(get_config().m_arith_heuristic, true);
+    return mk_debug_pre_action_strategy(assert_arith_heuristic_action)();
 }
 
 static optional<expr> apply_constructor() {
@@ -98,8 +98,8 @@ optional<expr> apply_strategy() {
         return apply_core_grind();
     } else if (s_name == "ematch") {
         return apply_ematch();
-    } else if (s_name == "acl") {
-        return apply_acl();
+    } else if (s_name == "arith_heuristic") {
+        return apply_arith_heuristic();
     } else if (s_name == "constructor") {
         return apply_constructor();
     } else if (s_name == "unit") {

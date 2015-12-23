@@ -35,6 +35,9 @@ bool is_mulinv(expr const & e, expr & n, expr & d);
 
 bool is_numeral_expr(expr const & e);
 
+/* Note: this method does not check if the numerator and denominator are relatively prime. */
+bool is_normalized_numeral(expr const & e);
+
 /* Simplify */
 simp::result normalize_numeral_expr(expr const & e);
 

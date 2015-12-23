@@ -5,6 +5,7 @@ Released under Apache 2.0 license as described in the file LICENSE.
 Author: Leonardo de Moura
 */
 #include <utility>
+#include <iostream>
 #include <vector>
 #include "util/interrupt.h"
 #include "util/lbool.h"
@@ -445,8 +446,10 @@ void check_no_metavar(environment const & env, name const & n, expr const & e, b
 }
 
 static void check_no_local(environment const & env, expr const & e) {
-    if (has_local(e))
+    if (has_local(e)) {
+        std::cout << "has locals: " << e << std::endl;
         throw_kernel_exception(env, "failed to add declaration to environment, it contains local constants", e);
+    }
 }
 
 void check_no_mlocal(environment const & env, name const & n, expr const & e, bool is_type) {

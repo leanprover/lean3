@@ -1,1 +1,1 @@
-add_library(arith OBJECT init_module.cpp acl.cpp num.cpp simplify.cpp polynomial.cpp)
+add_library(arith OBJECT init_module.cpp heuristic.cpp num.cpp normalize_poly.cpp normalize.cpp polynomial.cpp)

@@ -5,8 +5,10 @@ Author: Daniel Selsam
 */
 #include <algorithm>
 #include <vector>
-#include "library/blast/arith/polynomial.h"
 #include "library/blast/trace.h"
+#include "library/blast/blast.h"
+#include "library/blast/arith/polynomial.h"
+#include "library/blast/arith/num.h"
 
 namespace lean {
 namespace blast {
@@ -78,6 +80,36 @@ void polynomial::fuse_monomials() {
     }
     m_monomials = new_monomials;
 }
+
+/* Converting to an expression */
+static expr atom_to_expr_core(expr const & type, expr const & e, int pow) {
+    if (pow == 0) {
+        return get_app_builder().mk_one(type);
+    } else if (pow < 0) {
+        return get_app_builder().mk_inv(type, atom_to_expr_core(type, e, -pow));
+    } else {
+        return get_app_builder().mk_mul(type, e, atom_to_expr_core(type, e, pow-1));
+    }
+}
+
+expr atom_to_expr(atom const & a, expr const & type) { return atom_to_expr_core(type, a.get_expr(), a.get_power()); }
+
+expr monomial_to_expr(monomial const & m, expr const & type) {
+    expr e = mpq_to_expr(m.get_coefficient(), type);
+    for (atom const & a : m.get_atoms()) {
+        e = get_app_builder().mk_mul(type, e, atom_to_expr(a, type));
+    }
+    return e;
+}
+
+expr polynomial_to_expr(polynomial const & p, expr const & type) {
+    expr e = mpq_to_expr(p.get_offset(), type);
+    for (monomial const & m : p.get_monomials()) {
+        e = get_app_builder().mk_add(type, e, monomial_to_expr(m, type));
+    }
+    return e;
+}
+
 
 /* Printing */
 // TODO(dhs): use [io_state_stream] so that we can pretty-print

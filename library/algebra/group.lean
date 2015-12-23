@@ -143,6 +143,8 @@ end add_comm_monoid
 structure group [class] (A : Type) extends monoid A, has_inv A :=
 (mul_left_inv : ∀a, mul (inv a) a = one)
 
+attribute inv [light 3]
+
 -- Note: with more work, we could derive the axiom one_mul
 
 section group
@@ -677,6 +679,7 @@ theorem subst_into_sum [has_add A] (l r tl tr t : A) (prl : l = tl) (prr : r = t
 theorem neg_zero_helper [add_group A] (a : A) (H : a = 0) : - a = 0 :=
   by rewrite [H, neg_zero]
 
+theorem neg_congr [add_group A] (a b : A) (H : a = b) : -a = -b := by rewrite H
 end norm_num
 
 attribute [simp]

@@ -6,31 +6,64 @@ Author: Daniel Selsam
 #include <vector>
 #include <algorithm>
 #include <memory>
+#include "kernel/abstract.h"
 #include "util/sexpr/option_declarations.h"
 #include "util/numerics/mpq.h"
 #include "library/constants.h"
-#include "library/blast/arith/acl.h"
+#include "library/blast/proof_expr.h"
+#include "library/blast/arith/heuristic.h"
 #include "library/blast/arith/num.h"
 #include "library/blast/arith/polynomial.h"
-#include "library/blast/arith/simplify.h"
+#include "library/blast/arith/normalize.h"
+#include "library/blast/arith/normalize_poly.h"
+#include "library/blast/backward/backward_strategy.h"
 #include "library/blast/blast.h"
 #include "library/blast/trace.h"
 #include "library/blast/options.h"
 #include "library/blast/simplifier/simplifier.h"
 #include "library/num.h"
 
-#ifndef LEAN_DEFAULT_ACL_MAX_STEPS_PER_ACTION
-#define LEAN_DEFAULT_ACL_MAX_STEPS_PER_ACTION 10
+#ifndef LEAN_DEFAULT_HEURISTIC_MAX_STEPS_PER_ACTION
+#define LEAN_DEFAULT_HEURISTIC_MAX_STEPS_PER_ACTION 10
 #endif
 
 namespace lean {
 namespace blast {
 
 /** Globals */
-static name * g_acl_trace_name           = nullptr;
-static name * g_acl_max_steps_per_action = nullptr;
+static name * g_heuristic_trace_name           = nullptr;
+static name * g_heuristic_max_steps_per_action = nullptr;
 
 static unsigned g_ext_id = 0;
+
+struct arith_heuristic_proof_step_cell : public proof_step_cell {
+    list<expr>     m_placeholders;     // placeholders for non-zero proofs
+
+    virtual ~arith_heuristic_proof_step_cell() {}
+    arith_heuristic_proof_step_cell(list<expr> const & placeholders):
+        m_placeholders(placeholders) {}
+
+    virtual action_result resolve(expr const & pf) const override {
+        buffer<expr> proofs;
+        for (expr const & placeholder : m_placeholders) {
+            optional<expr> pf;
+            {
+                flet<state> save_state(curr_state(), curr_state());
+                curr_state().set_target(mlocal_type(placeholder));
+                pf = mk_backward_strategy()();
+            }
+            if (pf) {
+                proofs.push_back(*pf);
+            } else {
+                lean_trace(*g_heuristic_trace_name, tout() << "failed to prove: " << ppb(mlocal_type(placeholder)) << "\n";);
+                return action_result::failed();
+            }
+        }
+        buffer<expr> placeholders;
+        to_buffer(m_placeholders, placeholders);
+        return action_result::solved(mk_app(Fun(placeholders, pf), proofs));
+    }
+};
 
 void addmul(mpq & q, mpq const & c, mpq const & x) {
     mpq tmp = c;
@@ -39,17 +72,17 @@ void addmul(mpq & q, mpq const & c, mpq const & x) {
 }
 
 /** Option getters */
-unsigned get_acl_max_steps_per_action() {
-    return ios().get_options().get_unsigned(*g_acl_max_steps_per_action, LEAN_DEFAULT_ACL_MAX_STEPS_PER_ACTION);
+unsigned get_heuristic_max_steps_per_action() {
+    return ios().get_options().get_unsigned(*g_heuristic_max_steps_per_action, LEAN_DEFAULT_HEURISTIC_MAX_STEPS_PER_ACTION);
 }
 
 /* Description:
 
-This module performs linear and some non-linear arithmetic, as described in the paper [ACL2].
+This module performs linear and some non-linear arithmetic, as described in the paper [HEURISTIC2].
 
 The architecture is as follows:
 
-When the action [assert_acl_action(hypothesis_idx)] is called, we
+When the action [assert_heuristic_action(hypothesis_idx)] is called, we
 call the [linearizer] to construct a list of polynomial inequalities, of the form
 
 <<
@@ -202,42 +235,36 @@ class linearizer {
     bool type_ok(expr const & A) {
         blast_tmp_type_context m_tmp_tctx;
         bool ok = static_cast<bool>(m_tmp_tctx->mk_class_instance(get_app_builder().mk_linear_ordered_comm_ring(A)));
-        if (!ok) lean_trace(*g_acl_trace_name, tout() << "bad type: " << ppb(A) << "\n";);
+        if (!ok) lean_trace(*g_heuristic_trace_name, tout() << "bad type: " << ppb(A) << "\n";);
         return ok;
     }
-    poly linearize(expr const & A, expr const & rhs, bool strict, hypothesis_idx hidx, lazy_proof const & lproof) {
-        /* TODO(dhs): we are temporarily assuming the input comes in the form of
-           [0 [<,<=] Sum_i (<numeral_i> * <unknown_i>)], pre-fused and everything.
-           We will implement the downstream processing, test, and then implement the
-           linearization in earnest. */
-        polynomial p = arith::simplify(rhs);
+    poly linearize(expr const & A, expr const & rhs, bool strict, lazy_proof const & lproof) {
+        polynomial p = arith::normalize_poly(rhs);
         return poly(A, to_list(p.get_monomials().begin(), p.get_monomials().end()), p.get_offset(), strict, lproof);
     }
 public:
     list<poly> linearize(hypothesis_idx hidx) {
         hypothesis const & h = curr_state().get_hypothesis_decl(hidx);
-        /* TODO(dhs): as a pre-process step, put 0 on the LHS of the inequality.
-           For now we assume it is already in this form. */
+        /* TODO(dhs): as a pre-process step, put 0 on the LHS of the inequality. */
         expr A, lhs, rhs;
-        // TODO(dhs): handle equality
         if (is_lt(h.get_type(), A, lhs, rhs) && type_ok(A)) {
             expr new_rhs = get_app_builder().mk_add(A, rhs, get_app_builder().mk_neg(A, lhs));
-            return list<poly>(linearize(A, new_rhs, true, hidx, [=]() {
-                        return get_app_builder().mk_app(get_ordered_arith_lt_of_zero_lt_name(), h.get_self());
+            return list<poly>(linearize(A, new_rhs, true, [=]() {
+                        return get_app_builder().mk_app(get_ordered_arith_zero_lt_of_lt_name(), h.get_self());
                     }));
         } else if (is_le(h.get_type(), A, lhs, rhs) && type_ok(A)) {
             expr new_rhs = get_app_builder().mk_add(A, rhs, get_app_builder().mk_neg(A, lhs));
-            return list<poly>(linearize(A, new_rhs, false, hidx, [=]() {
-                        return get_app_builder().mk_app(get_ordered_arith_le_of_zero_le_name(), h.get_self());
+            return list<poly>(linearize(A, new_rhs, false, [=]() {
+                        return get_app_builder().mk_app(get_ordered_arith_zero_le_of_le_name(), h.get_self());
                     }));
         } else if (is_eq(h.get_type(), A, lhs, rhs) && type_ok(A)) {
             expr new_rhs1 = get_app_builder().mk_add(A, rhs, get_app_builder().mk_neg(A, lhs));
             expr new_rhs2 = get_app_builder().mk_add(A, lhs, get_app_builder().mk_neg(A, rhs));
-            poly p1 = linearize(A, new_rhs1, false, hidx, [=]() {
-                    return get_app_builder().mk_app(get_ordered_arith_eq_of_zero_le1_name(), h.get_self());
+            poly p1 = linearize(A, new_rhs1, false, [=]() {
+                    return get_app_builder().mk_app(get_ordered_arith_zero_le_of_eq1_name(), h.get_self());
                 });
-            poly p2 = linearize(A, new_rhs2, false, hidx, [=]() {
-                    return get_app_builder().mk_app(get_ordered_arith_eq_of_zero_le2_name(), h.get_self());
+            poly p2 = linearize(A, new_rhs2, false, [=]() {
+                    return get_app_builder().mk_app(get_ordered_arith_zero_le_of_eq2_name(), h.get_self());
                 });
             return list<poly>({p1, p2});
         } else {
@@ -262,7 +289,7 @@ public:
     list<poly> get_negatives() { return m_negatives; }
 };
 
-struct acl_branch_extension : public branch_extension {
+struct heuristic_branch_extension : public branch_extension {
 private:
     // TODO(dhs): will this cause problems during rebalancing?
     // Should I wrap this class and make a cheap copy?
@@ -271,10 +298,10 @@ private:
     poly_pot_map      m_poly_pot_map;
     list<poly>        m_todo;
 public:
-    acl_branch_extension() {}
-    acl_branch_extension(acl_branch_extension const & ext):
+    heuristic_branch_extension() {}
+    heuristic_branch_extension(heuristic_branch_extension const & ext):
         m_linearizer(ext.m_linearizer), m_poly_pot_map(ext.m_poly_pot_map), m_todo(ext.m_todo) {}
-    virtual branch_extension * clone() override { return new acl_branch_extension(*this); }
+    virtual branch_extension * clone() override { return new heuristic_branch_extension(*this); }
 
     void put_todo(buffer<poly> const & todo) { m_todo = to_list(todo); }
     void get_todo(buffer<poly> & todo) {
@@ -293,33 +320,33 @@ public:
     }
 };
 
-static acl_branch_extension & get_acl_extension() {
-    return static_cast<acl_branch_extension&>(curr_state().get_extension(g_ext_id));
+static heuristic_branch_extension & get_heuristic_extension() {
+    return static_cast<heuristic_branch_extension&>(curr_state().get_extension(g_ext_id));
 }
 
-/* ACL function */
-class acl_fn {
-    acl_branch_extension &        m_ext;
+/* HEURISTIC function */
+class heuristic_fn {
+    heuristic_branch_extension &        m_ext;
     buffer<poly>                  m_todo;
     unsigned                      m_num_steps{0};
 
     optional<poly>                m_contradiction;
 
     /* Options */
-    unsigned                      m_max_steps{get_acl_max_steps_per_action()};
+    unsigned                      m_max_steps{get_heuristic_max_steps_per_action()};
 
     void register_todo(poly const & p) {
         switch (p.kind()) {
         case poly_kind::Normal:
             m_todo.push_back(p);
-            lean_trace(*g_acl_trace_name, ios().get_diagnostic_channel() << "todo: " << p << "\n";);
+            lean_trace(*g_heuristic_trace_name, ios().get_diagnostic_channel() << "todo: " << p << "\n";);
             break;
         case poly_kind::Contradiction:
-            lean_trace(*g_acl_trace_name, ios().get_diagnostic_channel() << "contradiction: " << p << "\n";);
+            lean_trace(*g_heuristic_trace_name, ios().get_diagnostic_channel() << "contradiction: " << p << "\n";);
             m_contradiction = p;
             break;
         case poly_kind::Trivial:
-            lean_trace(*g_acl_trace_name, ios().get_diagnostic_channel() << "trivial: " << p << "\n";);
+            lean_trace(*g_heuristic_trace_name, ios().get_diagnostic_channel() << "trivial: " << p << "\n";);
             break;
         }
     }
@@ -336,11 +363,11 @@ class acl_fn {
         }
     }
 
-    void resolve_polys(poly const & p, poly const & q) {
+    pair<mpq, mpq> compute_scaling_coefficients(mpq const & _p_coefficient, mpq const & _q_coefficient) {
         mpq p_scale, q_scale;
 
-        mpq p_coefficient{p.get_major_coefficient()};
-        mpq q_coefficient{q.get_major_coefficient()};
+        mpq p_coefficient = _p_coefficient;
+        mpq q_coefficient = _q_coefficient;
         if (p_coefficient.is_integer() && q_coefficient.is_integer()) {
             p_coefficient.abs();
             q_coefficient.abs();
@@ -350,14 +377,24 @@ class acl_fn {
             q_scale /= q_coefficient;
         } else {
             p_scale = p_coefficient;
-            p_scale.inv(); p_scale.neg();
+            p_scale.inv();
             q_scale = q_coefficient;
             q_scale.inv();
+            if (p_scale < 0) {
+                p_scale.neg(); lean_assert(q_scale > 0);
+            } else {
+                q_scale.neg(); lean_assert(p_scale > 0);
+            }
         }
-        lean_trace(*g_acl_trace_name, ios().get_diagnostic_channel() << p << " |***| " << q
-                   << " -- (" << p_scale << ", " << q_scale << ")\n";);
+        return mk_pair(p_scale, q_scale);
+    }
 
-        // TODO(dhs): clean this up! This is ridiculous.
+    void resolve_polys(poly const & p, poly const & q) {
+        mpq p_scale, q_scale;
+        std::tie(p_scale, q_scale) = compute_scaling_coefficients(p.get_major_coefficient(), q.get_major_coefficient());
+
+        lean_trace(*g_heuristic_trace_name, ios().get_diagnostic_channel() << "resolve(" << p_scale << ", " << q_scale << "): "
+                   << p << " WITH " << q << "\n";);
 
         list<monomial> p_monomials = p.get_monomials();
         list<monomial> q_monomials = q.get_monomials();
@@ -372,7 +409,6 @@ class acl_fn {
         monomial q_major = head(p_monomials);
 
         lean_assert(p_major.get_atoms() == q_major.get_atoms());
-        if (p_major.get_atoms() != q_major.get_atoms()) throw exception("ACL::resolving wrong polys");
 
         p_monomials = tail(p_monomials);
         q_monomials = tail(q_monomials);
@@ -427,7 +463,7 @@ class acl_fn {
     }
 
 public:
-    acl_fn(): m_ext(get_acl_extension()) {}
+    heuristic_fn(): m_ext(get_heuristic_extension()) {}
 
     action_result operator()(hypothesis_idx hidx) {
         /* There may me some TODO items remaining from the previous invocation. */
@@ -463,47 +499,54 @@ public:
             expr type_messy = infer_type(pf_messy);
 
             expr type_clean = p.get_clean_thm();
-            optional<expr> pf_messy_eq_clean = prove_eq_som_fuse(type_messy, type_clean);
-            lean_assert(pf_messy_eq_clean);
-            expr id_motive = mk_app(mk_constant(get_id_name(), mk_level_one()), mk_Prop());
-            expr pf_clean = get_app_builder().mk_eq_rec(id_motive, pf_messy, *pf_messy_eq_clean);
+            expr pf_messy_eq_clean; list<expr> placeholders;
+            std::tie(pf_messy_eq_clean, placeholders) = arith::normalize_prove_eq(app_arg(type_messy), app_arg(type_clean), A);
+            expr id_motive = get_app_builder().mk_app(get_lt_name(), 3, get_app_builder().mk_zero(A));
+            expr pf_clean = get_app_builder().mk_eq_rec(id_motive, pf_messy, pf_messy_eq_clean);
 
-            expr pf_clean_of_false;
+            expr pf_false_of_clean;
 
             if (p.is_strict()) {
-                if (p.get_offset().is_zero()) pf_clean_of_false = prove_zero_not_lt_zero(A);
-                else pf_clean_of_false = prove_zero_not_lt_neg(A, p.get_offset());
+                if (p.get_offset().is_zero()) pf_false_of_clean = prove_zero_not_lt_zero(A);
+                else pf_false_of_clean = prove_zero_not_lt_neg(A, p.get_offset());
             } else {
-                pf_clean_of_false = prove_zero_not_le_neg(A, p.get_offset());
+                pf_false_of_clean = prove_zero_not_le_neg(A, p.get_offset());
             }
 
-            return action_result::solved(mk_app(pf_clean_of_false, pf_clean));
+            state & s = curr_state();
+            expr pf_of_target = get_app_builder().mk_false_rec(s.get_target(), mk_app(pf_false_of_clean, pf_clean));
+            if (is_nil(placeholders)) {
+                return action_result::solved(pf_of_target);
+            } else {
+                s.push_proof_step(new arith_heuristic_proof_step_cell(placeholders));
+                return action_result::solved(pf_of_target);
+            }
         }
     }
 };
 
 /* Setup and teardown */
-void initialize_acl() {
-    g_acl_trace_name           = new name{"blast", "acl"};
-    g_acl_max_steps_per_action = new name{"blast", "acl", "max_steps_per_action"};
+void initialize_heuristic() {
+    g_heuristic_trace_name           = new name{"blast", "arith", "heuristic"};
+    g_heuristic_max_steps_per_action = new name{"blast", "heuristic", "max_steps_per_action"};
 
-    register_unsigned_option(*g_acl_max_steps_per_action, LEAN_DEFAULT_ACL_MAX_STEPS_PER_ACTION,
-                             "(blast::acl) max steps of acl per action");
+    register_unsigned_option(*g_heuristic_max_steps_per_action, LEAN_DEFAULT_HEURISTIC_MAX_STEPS_PER_ACTION,
+                             "(blast::heuristic) max steps of heuristic per action");
 
-    g_ext_id = register_branch_extension(new acl_branch_extension());
-    register_trace_class(*g_acl_trace_name);
+    g_ext_id = register_branch_extension(new heuristic_branch_extension());
+    register_trace_class(*g_heuristic_trace_name);
 }
 
-void finalize_acl() {
-    delete g_acl_max_steps_per_action;
-    delete g_acl_trace_name;
+void finalize_heuristic() {
+    delete g_heuristic_max_steps_per_action;
+    delete g_heuristic_trace_name;
 }
 
 /* Entry points */
-action_result assert_acl_action(hypothesis_idx hidx) {
-    if (!get_config().m_acl) return action_result::failed();
-    lean_trace(*g_acl_trace_name, ios().get_diagnostic_channel() << "assert\n";);
-    return acl_fn()(hidx);
+action_result assert_arith_heuristic_action(hypothesis_idx hidx) {
+    if (!get_config().m_arith_heuristic) return action_result::failed();
+    lean_trace(*g_heuristic_trace_name, ios().get_diagnostic_channel() << "assert_arith_heuristic\n";);
+    return heuristic_fn()(hidx);
 }
 
 }}

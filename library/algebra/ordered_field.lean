@@ -525,4 +525,11 @@ assume a_pos b_pos,
 assert b_inv_pos : 0 < 1 / b, from one_div_pos_of_pos b_pos,
 begin rewrite -inv_eq_one_div at b_inv_pos, exact mul_pos a_pos b_inv_pos end
 
+theorem inv_pos_of_pos {A : Type} [s : linear_ordered_field A] (a : A) : 0 < a →  0 < a⁻¹ :=
+assume a_pos,
+assert a_inv_pos : 0 < 1 / a, from one_div_pos_of_pos a_pos,
+begin
+  rewrite [-inv_eq_one_div at a_inv_pos, -{a⁻¹}one_mul],
+  exact mul_pos zero_lt_one a_inv_pos
+end
 end ordered_arith

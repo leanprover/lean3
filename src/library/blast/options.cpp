@@ -38,6 +38,9 @@ Author: Leonardo de Moura
 #ifndef LEAN_DEFAULT_BLAST_BACKWARD
 #define LEAN_DEFAULT_BLAST_BACKWARD true
 #endif
+#ifndef LEAN_DEFAULT_BLAST_ARITH_HEURISTIC
+#define LEAN_DEFAULT_BLAST_ARITH_HEURISTIC false
+#endif
 #ifndef LEAN_DEFAULT_BLAST_STRATEGY
 #define LEAN_DEFAULT_BLAST_STRATEGY "all"
 #endif
@@ -48,18 +51,19 @@ Author: Leonardo de Moura
 namespace lean {
 namespace blast {
 /* Options */
-static name * g_blast_max_depth    = nullptr;
-static name * g_blast_init_depth   = nullptr;
-static name * g_blast_inc_depth    = nullptr;
-static name * g_blast_subst        = nullptr;
-static name * g_blast_simp         = nullptr;
-static name * g_blast_cc           = nullptr;
-static name * g_blast_recursor     = nullptr;
-static name * g_blast_ematch       = nullptr;
-static name * g_blast_backward     = nullptr;
-static name * g_blast_show_failure = nullptr;
-static name * g_blast_strategy     = nullptr;
-static name * g_pattern_max_steps  = nullptr;
+static name * g_blast_max_depth       = nullptr;
+static name * g_blast_init_depth      = nullptr;
+static name * g_blast_inc_depth       = nullptr;
+static name * g_blast_subst           = nullptr;
+static name * g_blast_simp            = nullptr;
+static name * g_blast_cc              = nullptr;
+static name * g_blast_recursor        = nullptr;
+static name * g_blast_ematch          = nullptr;
+static name * g_blast_backward        = nullptr;
+static name * g_blast_arith_heuristic = nullptr;
+static name * g_blast_show_failure    = nullptr;
+static name * g_blast_strategy        = nullptr;
+static name * g_pattern_max_steps     = nullptr;
 
 unsigned get_blast_max_depth(options const & o) {
     return o.get_unsigned(*g_blast_max_depth, LEAN_DEFAULT_BLAST_MAX_DEPTH);
@@ -88,6 +92,9 @@ bool get_blast_ematch(options const & o) {
 bool get_blast_backward(options const & o) {
     return o.get_bool(*g_blast_backward, LEAN_DEFAULT_BLAST_BACKWARD);
 }
+bool get_blast_arith_heuristic(options const & o) {
+    return o.get_bool(*g_blast_arith_heuristic, LEAN_DEFAULT_BLAST_ARITH_HEURISTIC);
+}
 char const * get_blast_strategy(options const & o) {
     return o.get_string(*g_blast_strategy, LEAN_DEFAULT_BLAST_STRATEGY);
 }
@@ -108,6 +115,7 @@ config::config(options const & o) {
     m_recursor          = get_blast_recursor(o);
     m_ematch            = get_blast_ematch(o);
     m_backward          = get_blast_backward(o);
+    m_arith_heuristic   = get_blast_arith_heuristic(o);
     m_show_failure      = get_blast_show_failure(o);
     m_strategy          = get_blast_strategy(o);
     m_pattern_max_steps = get_pattern_max_steps(o);
@@ -131,18 +139,19 @@ config & get_config() {
 }
 
 void initialize_options() {
-    g_blast_max_depth    = new name{"blast", "max_depth"};
-    g_blast_init_depth   = new name{"blast", "init_depth"};
-    g_blast_inc_depth    = new name{"blast", "inc_depth"};
-    g_blast_subst        = new name{"blast", "subst"};
-    g_blast_simp         = new name{"blast", "simp"};
-    g_blast_cc           = new name{"blast", "cc"};
-    g_blast_recursor     = new name{"blast", "recursor"};
-    g_blast_ematch       = new name{"blast", "ematch"};
-    g_blast_backward     = new name{"blast", "backward"};
-    g_blast_show_failure = new name{"blast", "show_failure"};
-    g_blast_strategy     = new name{"blast", "strategy"};
-    g_pattern_max_steps  = new name{"pattern", "max_steps"};
+    g_blast_max_depth       = new name{"blast", "max_depth"};
+    g_blast_init_depth      = new name{"blast", "init_depth"};
+    g_blast_inc_depth       = new name{"blast", "inc_depth"};
+    g_blast_subst           = new name{"blast", "subst"};
+    g_blast_simp            = new name{"blast", "simp"};
+    g_blast_cc              = new name{"blast", "cc"};
+    g_blast_recursor        = new name{"blast", "recursor"};
+    g_blast_ematch          = new name{"blast", "ematch"};
+    g_blast_backward        = new name{"blast", "backward"};
+    g_blast_arith_heuristic = new name{"blast", "arith", "heuristic"};
+    g_blast_show_failure    = new name{"blast", "show_failure"};
+    g_blast_strategy        = new name{"blast", "strategy"};
+    g_pattern_max_steps     = new name{"pattern", "max_steps"};
 
     register_unsigned_option(*blast::g_blast_max_depth, LEAN_DEFAULT_BLAST_MAX_DEPTH,
                              "(blast) max search depth for blast");
@@ -162,6 +171,8 @@ void initialize_options() {
                          "(blast) enable heuristic instantiation based on e-matching");
     register_bool_option(*blast::g_blast_backward, LEAN_DEFAULT_BLAST_BACKWARD,
                          "(blast) enable backward chaining");
+    register_bool_option(*blast::g_blast_arith_heuristic, LEAN_DEFAULT_BLAST_ARITH_HEURISTIC,
+                         "(blast) enable heuristic arithmetic");
     register_bool_option(*blast::g_blast_show_failure, LEAN_DEFAULT_BLAST_SHOW_FAILURE,
                          "(blast) show failure state");
     register_string_option(*blast::g_blast_strategy, LEAN_DEFAULT_BLAST_STRATEGY,
@@ -180,6 +191,7 @@ void finalize_options() {
     delete g_blast_cc;
     delete g_blast_recursor;
     delete g_blast_ematch;
+    delete g_blast_arith_heuristic;
     delete g_blast_backward;
     delete g_blast_show_failure;
     delete g_blast_strategy;

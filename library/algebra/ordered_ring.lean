@@ -755,29 +755,29 @@ theorem pos_bit1 [s : linear_ordered_semiring A] (a : A) (H : 0 < a) : 0 < bit1 
   end
 
 -- Shuffling an inequality
-theorem lt_of_zero_lt [s : linear_ordered_comm_ring A] (a b : A) : a < b → 0 < b + - a :=
+theorem zero_lt_of_lt [s : linear_ordered_comm_ring A] (a b : A) : a < b → 0 < b + - a :=
 assume Hab,
 assert H : a - a < b - a, from sub_lt_sub_of_lt_of_le Hab (le_of_eq (eq.refl a)),
 begin rewrite sub_self at H, exact H end
 
-theorem le_of_zero_le [s : linear_ordered_comm_ring A] (a b : A) : a ≤ b → 0 ≤ b + - a :=
+theorem zero_le_of_le [s : linear_ordered_comm_ring A] (a b : A) : a ≤ b → 0 ≤ b + - a :=
 assume Hab,
 assert H : a - a ≤ b - a, from sub_le_sub Hab (le_of_eq (eq.refl a)),
 begin rewrite sub_self at H, exact H end
 
-theorem eq_of_zero_le1 [s : linear_ordered_comm_ring A] (a b : A) : a = b → 0 ≤ b + - a :=
+theorem zero_le_of_eq1 [s : linear_ordered_comm_ring A] (a b : A) : a = b → 0 ≤ b + - a :=
 assume Hab,
 begin rewrite [Hab, -sub_eq_add_neg, sub_self], apply weak_order.le_refl end
 
-theorem eq_of_zero_le2 [s : linear_ordered_comm_ring A] (a b : A) : a = b → 0 ≤ a + - b :=
-assume Hab : a = b, eq_of_zero_le1 b a (eq.symm Hab)
+theorem zero_le_of_eq2 [s : linear_ordered_comm_ring A] (a b : A) : a = b → 0 ≤ a + - b :=
+assume Hab : a = b, zero_le_of_eq1 b a (eq.symm Hab)
 
 -- Positive/non-zero
 
 theorem nonzero_of_pos [s : linear_ordered_semiring A] (a : A) (H : 0 < a) : a ≠ 0 :=
   ne_of_gt H
 
-theorem nonzero_of_neg [s : linear_ordered_ring A] (a : A) (H : a ≠ 0) : -a ≠ 0 :=
+theorem neg_nonzero_of_nonzero [s : linear_ordered_ring A] (a : A) (H : a ≠ 0) : -a ≠ 0 :=
   begin intro Ha, apply H, apply eq_of_neg_eq_neg, rewrite neg_zero, exact Ha end
 
 -- Proving negative numbers are not positive

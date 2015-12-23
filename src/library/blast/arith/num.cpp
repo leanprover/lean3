@@ -100,6 +100,9 @@ expr prove_positive(mpz const & n, expr const & A) {
 expr prove_positive(mpq const & n, expr const & A) {
     if (n.is_integer()) {
         return prove_positive(n.get_numerator(), A);
+    } else if (n.get_numerator() == 1) {
+        expr pf_b = prove_positive(n.get_denominator(), A);
+        return get_app_builder().mk_app(get_ordered_arith_inv_pos_of_pos_name(), {pf_b});
     } else {
         expr pf_a = prove_positive(n.get_numerator(), A);
         expr pf_b = prove_positive(n.get_denominator(), A);
@@ -109,12 +112,11 @@ expr prove_positive(mpq const & n, expr const & A) {
 
 /* Prove a contradiction */
 /*
-  theorem zero_not_lt_zero [s : linear_ordered_comm_ring A] : 0 < 0 → false := sorry
-  theorem pos_not_neg [s : linear_ordered_comm_ring A] (c : A) : 0 < c → 0 < - c → false := sorry
-  theorem pos_not_nonpos [s : linear_ordered_comm_ring A] (c : A) : 0 < c → 0 ≤ - c → false := sorry
+  theorem zero_not_lt_zero [s : linear_ordered_comm_ring A] : 0 < 0 → false
+  theorem pos_not_neg [s : linear_ordered_comm_ring A] (c : A) : 0 < c → 0 < - c → false
+  theorem pos_not_nonpos [s : linear_ordered_comm_ring A] (c : A) : 0 < c → 0 ≤ - c → false
 */
 
-// TODO(dhs): clean this up, stop synthesizing and checking everywhere
 expr prove_zero_not_lt_zero(expr const & A) {
     return get_app_builder().mk_zero_not_lt_zero(A);
 }
@@ -146,7 +148,7 @@ expr prove_num_positive(expr const & e, expr const & type) {
 expr prove_ne_zero(expr const & e, expr const & type) {
     expr neg_e, inv_e, num, den;
     if (is_neg(e, neg_e)) {
-        return get_app_builder().mk_app(get_ordered_arith_nonzero_of_neg_name(), 4, {prove_ne_zero(neg_e, type)});
+        return get_app_builder().mk_app(get_ordered_arith_neg_nonzero_of_nonzero_name(), 4, {prove_ne_zero(neg_e, type)});
     } else if (is_inv(e, inv_e)) {
         return get_app_builder().mk_app(get_inv_ne_zero_name(), 4, {prove_ne_zero(inv_e, type)});
     } else if (is_mulinv(e, num, den)) {
@@ -185,37 +187,68 @@ bool is_numeral_expr(expr const & e) {
     else return false;
 }
 
+bool is_normalized_numeral_core(expr const & e, bool in_neg) {
+    if (is_num(e)) return true;
+    expr arg, arg1, arg2;
+    if (is_neg(e, arg)) {
+        if (in_neg) return false;
+        else return is_normalized_numeral_core(arg, true);
+    } else if (is_inv(e, arg)) {
+        return is_num(arg);
+    } else if (is_mul(e, arg1, arg2)) {
+        return is_num(arg1) && is_inv(arg2, arg) && is_num(arg);
+    } else {
+        return false;
+    }
+}
+
+bool is_normalized_numeral(expr const & e) { return is_normalized_numeral_core(e, false); }
+
 /* Normalization */
+
+optional<expr_pair> div_to_inv(expr const & e, bool in_neg) {
+    if (is_num(e)) return optional<expr_pair>();
+    buffer<expr> args;
+    expr f = get_app_args(e, args);
+    if (is_constant(f) && const_name(f) == get_neg_name()) {
+        if (in_neg) {
+            return optional<expr_pair>();
+        } else {
+            if (auto r = div_to_inv(args[2], true)) {
+                return optional<expr_pair>(get_app_builder().mk_neg(args[0], r->first),
+                                           get_app_builder().mk_app(get_norm_num_neg_congr_name(), {r->second}));
+            } else {
+                return optional<expr_pair>();
+            }
+        }
+    } else if (is_constant(f) && const_name(f) == get_div_name() && is_one(args[2])) {
+        // theorem one_div_eq_inv (a : A) : 1 / a = a⁻¹
+        return optional<expr_pair>(get_app_builder().mk_inv(args[0], args[3]),
+                                   get_app_builder().mk_app(get_one_div_eq_inv_name(), {args[3]}));
+    } else if (is_constant(f) && const_name(f) == get_div_name()) {
+        // lemma division.def (a b : A) : a / b = a * b⁻¹
+        return optional<expr_pair>(get_app_builder().mk_mul(args[0], args[2], get_app_builder().mk_inv(args[0], args[3])),
+                                   get_app_builder().mk_app(get_division_def_name(), {args[2], args[3]}));
+    } else {
+        return optional<expr_pair>();
+    }
+}
 
 simp::result normalize_numeral_expr(expr const & e) {
     /* We need to wrap the result of `mk_norm_num` to return `inv` instead of `div` */
     blast_tmp_type_context tmp_tctx;
     expr_pair r = mk_norm_num(*tmp_tctx, e);
-    buffer<expr> args;
-    expr f = get_app_args(r.first, args);
-    expr val, pf;
-    if (is_constant(f) && const_name(f) == get_div_name()) {
-        lean_assert(args.size() == 4);
-        if (is_one(args[2])) {
-            // lemma eq_inv_of_eq_div_helper [s : field A] (a b : A) (H : a = 1 / b) : a = b⁻¹
-            val = get_app_builder().mk_inv(args[0], args[3]);
-            pf = get_app_builder().mk_app(get_norm_num_eq_inv_of_eq_div_helper_name(), {r.second});
-        } else {
-            // lemma eq_mulinv_of_eq_div_helper [s : field A] (a b c : A) (H : a = b / c) : a = b * c⁻¹
-            val = get_app_builder().mk_mul(args[0], args[2], get_app_builder().mk_inv(args[0], args[3]));
-            pf = get_app_builder().mk_app(get_norm_num_eq_mulinv_of_eq_div_helper_name(), {r.second});
-        }
-    } else {
-        val = r.first;
-        pf = r.second;
+    if (optional<expr_pair> r_inv = div_to_inv(r.first, false)) {
+        r.first = r_inv->first;
+        r.second = get_app_builder().mk_eq_trans(r.second, r_inv->second);
     }
     // TODO(dhs): avoid the equality check
-    if (val == e) {
+    if (r.first == e) {
         lean_trace(*g_num_trace_name, tout() << "normalize_numeral_expr: " << ppb(e) << " ==> (refl)\n";);
-        return simp::result(e);
+        return simp::result(r.first);
     } else {
-        lean_trace(*g_num_trace_name, tout() << "normalize_numeral_expr: " << ppb(e) << " ==> " << ppb(val) << "\n";);
-        return simp::result(val, pf);
+        lean_trace(*g_num_trace_name, tout() << "normalize_numeral_expr: " << ppb(e) << " ==> " << ppb(r.first) << "\n";);
+        return simp::result(r.first, r.second);
     }
 }
 

@@ -98,6 +98,12 @@ class polynomial {
     void fuse_monomials();
 };
 
+/* Note: these expressions are not necessarily normalized.
+   There may be extraneous 0s and 1s. This would be easy to address. */
+expr atom_to_expr(atom const & a, expr const & type);
+expr monomial_to_expr(monomial const & m, expr const & type);
+expr polynomial_to_expr(polynomial const & p, expr const & type);
+
 std::ostream & operator<<(std::ostream & out, atom const & a);
 std::ostream & operator<<(std::ostream & out, monomial const & m);
 std::ostream & operator<<(std::ostream & out, polynomial const & p);

@@ -36,6 +36,8 @@ section division_ring
 
   theorem inv_eq_one_div (a : A) : a⁻¹ = 1 / a := !one_mul⁻¹
 
+  theorem one_div_eq_inv (a : A) : 1 / a = a⁻¹ := !inv_eq_one_div⁻¹
+
   theorem div_eq_mul_one_div (a b : A) : a / b = a * (1 / b) :=
     by rewrite [*division.def, one_mul]
 
@@ -56,7 +58,7 @@ section division_ring
     have C1 : 0 = (1:A), from symm (by rewrite [-(mul_one_div_cancel H), H2, mul_zero]),
     absurd C1 zero_ne_one
 
-  theorem inv_ne_zero (H : a ≠ 0) : a⁻¹ ≠ 0 :=
+  theorem inv_ne_zero [intro] (H : a ≠ 0) : a⁻¹ ≠ 0 :=
     by rewrite [-one_mul, -division.def]; apply (one_div_ne_zero H)
 
   theorem one_inv_eq : 1⁻¹ = (1:A) :=
@@ -69,7 +71,7 @@ section division_ring
 
   -- note: integral domain has a "mul_ne_zero". A commutative division ring is an integral
   -- domain, but let's not define that class for now.
-  theorem division_ring.mul_ne_zero (Ha : a ≠ 0) (Hb : b ≠ 0) : a * b ≠ 0 :=
+  theorem division_ring.mul_ne_zero [intro] (Ha : a ≠ 0) (Hb : b ≠ 0) : a * b ≠ 0 :=
     assume H : a * b = 0,
     have C1 : a = 0, by rewrite [-mul_one, -(mul_one_div_cancel Hb), -mul.assoc, H, zero_mul],
       absurd C1 Ha
@@ -104,6 +106,12 @@ section division_ring
         ... = b * (a * (1 / a)) : mul.assoc
         ... = b * 1             : mul_one_div_cancel this
         ... = b                 : mul_one)
+
+ theorem division_ring.inv_inv (H : a ≠ 0) : (a⁻¹)⁻¹ = a :=
+    have H1 : a * a⁻¹ = 1, from mul_inv_cancel H,
+    have H2 : a = 1 / (inv a), from eq_one_div_of_mul_eq_one_left H1,
+    have H3 : a = inv (inv a), from (inv_eq_one_div (inv a))⁻¹ ▸ H2,
+    H3⁻¹
 
   theorem division_ring.one_div_mul_one_div (Ha : a ≠ 0) (Hb : b ≠ 0) :
       (1 / a) * (1 / b) = 1 / (b * a) :=
