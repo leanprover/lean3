@@ -1,13 +1,16 @@
 import data.real
 open real
 
-/-
+set_option simplify.numerals true
+
 variable {A : Type}
 variable [s : linear_ordered_field A]
-include s-/
+include s
+
 notation `A` := real
 
 example : (-1 :A) * 1 = -1 := by norm_num
+
 example : (-2 :A) * 1 = -2 := by norm_num
 example : (-2 :A) * -1 = 2 := by norm_num
 example : (-2 :A) * -2 = 4 := by norm_num
@@ -35,6 +38,7 @@ example : (7 : A) = 1 + 6 := by norm_num
 example : (7 : A) = 6 + 1 := by norm_num
 example : 33 = 5 + (28 : A) := by norm_num
 
+
 example : (12 : A) = 0 + (2 + 3) + 7 := by norm_num
 example : (105 : A) = 70 + (33 + 2) := by norm_num
 theorem name : (45000000000 : A) = 23000000000 + 22000000000 := by norm_num
@@ -48,6 +52,7 @@ example : (0 : A) - 3 = -3 := by norm_num
 
 example : (12 : A) - 4 - (5 + -2) = 5 := by norm_num
 example : (12 : A) - 4 - (5 + -2) - 20 = -15 := by norm_num
+
 
 example : (0 : A) * 0 = 0 := by norm_num
 example : (0 : A) * 1 = 0 := by norm_num
@@ -69,6 +74,7 @@ example : (11 : A) * 2 = 22 := by norm_num
 example : (15 : A) * 6 = 90 := by norm_num
 example : (123456 : A) * 123456 = 15241383936 := by norm_num
 
+
 example : (4 : A) / 2 = 2 := by norm_num
 example : (4 : A) / 1 = 4 := by norm_num
 example : (4 : A) / 3 = 4 / 3 := by norm_num
@@ -81,7 +87,9 @@ example : (9 * 9 * 9) * (12 : A) / 27 = 81 * (2 + 2) := by norm_num
 example : (-2 : A) * 4 / 3 = -8 / 3 := by norm_num
 example : - (-4 / 3) = 1 / (3 / (4 : A)) := by norm_num
 
+
 -- auto gen tests
+
 example : ((25 * (1 / 1)) + (30 - 16)) = (39 : A) := by norm_num
 example : ((19 * (- 2 - 3)) / 6) = (-95/6 : A) := by norm_num
 example : - (3 * 28) = (-84 : A) := by norm_num
@@ -102,6 +110,7 @@ example : (((- (8 / 7) / 14) + 20) + 22) = (2054/49 : A) := by norm_num
 example : ((21 / 20) - 29) = (-559/20 : A) := by norm_num
 example : - - 20 = (20 : A) := by norm_num
 example : (24 - (- 9 / 4)) = (105/4 : A) := by norm_num
+
 example : (((7 / ((23 * 19) + (27 * 10))) - ((28 - - 15) * 24)) + (9 / - (10 * - 3))) = (-1042007/1010 : A) := by norm_num
 example : (26 - (- 29 + (12 / 25))) = (1363/25 : A) := by norm_num
 example : ((11 * 27) / (4 - 5)) = (-297 : A) := by norm_num
@@ -113,6 +122,7 @@ example : ((- - 2 * (9 * - 3)) + (22 / 30)) = (-799/15 : A) := by norm_num
 example : - (26 / ((3 + 7) / - (27 * (12 / - 16)))) = (-1053/20 : A) := by norm_num
 example : ((- 29 / 1) + 28) = (-1 : A) := by norm_num
 example : ((21 * ((10 - (((17 + 28) - - 0) + 20)) + 26)) + ((17 + - 16) * 7)) = (-602 : A) := by norm_num
+
 example : (((- 5 - ((24 + - - 8) + 3)) + 20) + - 23) = (-43 : A) := by norm_num
 example : ((- ((14 - 15) * (14 + 8)) + ((- (18 - 27) - 0) + 12)) - 11) = (32 : A) := by norm_num
 example : (((15 / 17) * (26 / 27)) + 28) = (4414/153 : A) := by norm_num
@@ -124,6 +134,8 @@ example : (29 * - 8) = (-232 : A) := by norm_num
 example : ((22 / 9) - 29) = (-239/9 : A) := by norm_num
 example : (3 + (19 / 12)) = (55/12 : A) := by norm_num
 example : - (13 + 30) = (-43 : A) := by norm_num
+
+
 example : - - - (((21 * - - ((- 25 - (- (30 - 5) / (- 5 - 5))) / (((6 + ((25 * - 13) + 22)) - 3) / 2))) / (- 3 / 10)) * (- 8 - 0)) = (-308/3 : A) := by norm_num
 example : - (2 * - (- 24 * 22)) = (-1056 : A) := by norm_num
 example : - - (((28 / - ((- 13 * - 5) / - (((7 - 30) / 16) + 6))) * 0) - 24) = (-24 : A) := by norm_num
@@ -132,6 +144,7 @@ example : ((3 / - 21) * 25) = (-25/7 : A) := by norm_num
 example : (17 - (29 - 18)) = (6 : A) := by norm_num
 example : ((28 / 20) * 15) = (21 : A) := by norm_num
 example : ((((26 * (- (23 - 13) - 3)) / 20) / (14 - (10 + 20))) / ((16 / 6) / (16 * - (3 / 28)))) = (-1521/2240 : A) := by norm_num
+
 
 example : (46 / (- ((- 17 * 28) - 77) + 87)) = (23/320 : A) := by norm_num
 example : (73 * - (67 - (74 * - - 11))) = (54531 : A) := by norm_num

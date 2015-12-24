@@ -71,7 +71,7 @@ class congr_rule : public simp_rule_core {
     congr_rule(name const & id, levels const & umetas, list<expr> const & emetas,
                list<bool> const & instances, expr const & lhs, expr const & rhs, expr const & proof,
                list<expr> const & congr_hyps, unsigned priority);
-    friend void add_congr_core(tmp_type_context & tctx, simp_rule_sets & s, name const & n, unsigned priority);
+    friend simp_rule_sets add_congr_core(tmp_type_context & tctx, simp_rule_sets const & s, name const & n, unsigned priority);
 public:
     friend bool operator==(congr_rule const & r1, congr_rule const & r2);
     list<expr> const & get_congr_hyps() const { return m_congr_hyps; }
@@ -141,12 +141,12 @@ environment add_congr_rule(environment const & env, name const & n, unsigned pri
 bool is_simp_rule(environment const & env, name const & n);
 /** \brief Return true if \c n is an active congruence rule in \c env */
 bool is_congr_rule(environment const & env, name const & n);
-/** \brief Get current simplification rule sets */
-simp_rule_sets get_simp_rule_sets(environment const & env);
-/** \brief Get simplification rule sets in the given namespace. */
-simp_rule_sets get_simp_rule_sets(environment const & env, options const & o, name const & ns);
-/** \brief Get simplification rule sets in the given namespaces. */
-simp_rule_sets get_simp_rule_sets(environment const & env, options const & o, std::initializer_list<name> const & nss);
+/** \brief Make current simplification rule sets */
+simp_rule_sets mk_simp_rule_sets(environment const & env);
+/** \brief Make simplification rule sets in the given namespace. */
+simp_rule_sets mk_simp_rule_sets(environment const & env, options const & o, name const & ns);
+/** \brief Make simplification rule sets in the given namespaces. */
+simp_rule_sets mk_simp_rule_sets(environment const & env, options const & o, std::initializer_list<name> const & nss);
 
 io_state_stream const & operator<<(io_state_stream const & out, simp_rule_sets const & s);
 

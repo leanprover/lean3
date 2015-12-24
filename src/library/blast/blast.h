@@ -167,6 +167,9 @@ unsigned register_imp_extension(ext_state_maker & state_maker);
     the current blast state. */
 imp_extension_state & get_imp_extension_state(unsigned state_id);
 
+/** \brief Returns the universe of a given expression. */
+level get_level(expr const & A);
+
 /** \brief Helper procedure for creating unique choice point ids.
     This is only used for tracing. */
 unsigned mk_choice_point_idx();

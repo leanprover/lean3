@@ -109,6 +109,8 @@ level get_datatype_level(expr ind_type);
 
 expr instantiate_univ_param (expr const & e, name const & p, level const & l);
 
+bool is_const_app(expr const &, name const &, unsigned);
+
 expr mk_true();
 expr mk_true_intro();
 
@@ -178,6 +180,8 @@ bool is_eq_drec(environment const & env, expr const & e);
 
 bool is_eq(expr const & e);
 bool is_eq(expr const & e, expr & lhs, expr & rhs);
+bool is_eq(expr const & e, expr & A, expr & lhs, expr & rhs);
+
 /** \brief Return true iff \c e is of the form (eq A a a) */
 bool is_eq_a_a(expr const & e);
 /** \brief Return true iff \c e is of the form (eq A a a') where \c a and \c a' are definitionally equal */
@@ -193,6 +197,36 @@ bool is_iff(expr const & e);
 bool is_iff(expr const & e, expr & lhs, expr & rhs);
 expr mk_iff(expr const & lhs, expr const & rhs);
 expr mk_iff_refl(expr const & a);
+
+bool is_add(expr const & e);
+bool is_add(expr const & e, expr & e1, expr & e2);
+bool is_mul(expr const & e);
+bool is_mul(expr const & e, expr & e1, expr & e2);
+
+bool is_lt(expr const & e);
+bool is_lt(expr const & e, expr & lhs, expr & rhs);
+bool is_lt(expr const & e, expr & A, expr & lhs, expr & rhs);
+
+bool is_le(expr const & e);
+bool is_le(expr const & e, expr & lhs, expr & rhs);
+bool is_le(expr const & e, expr & A, expr & lhs, expr & rhs);
+
+bool is_zero(expr const & e);
+bool is_one(expr const & e);
+bool is_bit0(expr const & e);
+bool is_bit0(expr const & e, expr & arg);
+bool is_bit1(expr const & e);
+bool is_bit1(expr const & e, expr & arg);
+
+bool is_inv(expr const & e);
+bool is_inv(expr const & e, expr & inv_e);
+
+bool is_neg(expr const & e);
+bool is_neg(expr const & e, expr & neg_e);
+
+bool is_div(expr const & e);
+bool is_div(expr const & e, expr & n, expr & d);
+
 /** \brief Given <tt>iff_pr : iff_term</tt>, where \c iff_term is of the form <tt>l <-> r</tt>,
     return the term <tt>propext l r iff_pr</tt>
 */

@@ -5,16 +5,60 @@
 namespace lean{
 name const * g_absurd = nullptr;
 name const * g_add = nullptr;
+name const * g_add_assoc = nullptr;
+name const * g_add_comm = nullptr;
 name const * g_add_comm_group = nullptr;
 name const * g_add_comm_semigroup = nullptr;
 name const * g_add_group = nullptr;
 name const * g_add_monoid = nullptr;
+name const * g_add_zero = nullptr;
 name const * g_and = nullptr;
+name const * g_and_congr = nullptr;
 name const * g_and_elim_left = nullptr;
 name const * g_and_elim_right = nullptr;
 name const * g_and_intro = nullptr;
 name const * g_bit0 = nullptr;
 name const * g_bit1 = nullptr;
+name const * g_blast_arith_cheat_nonzero = nullptr;
+name const * g_blast_arith_neg_congr = nullptr;
+name const * g_blast_arith_neg_num_mul = nullptr;
+name const * g_blast_arith_neg_mul_one = nullptr;
+name const * g_blast_arith_neg_add = nullptr;
+name const * g_blast_arith_inv_inv = nullptr;
+name const * g_blast_arith_inv_mul = nullptr;
+name const * g_blast_arith_inv_mul_one = nullptr;
+name const * g_blast_arith_inv_congr = nullptr;
+name const * g_blast_arith_mul_inv_cancel = nullptr;
+name const * g_blast_arith_mul_congr = nullptr;
+name const * g_blast_arith_mul_congr_right = nullptr;
+name const * g_blast_arith_mul_congr_right_rec = nullptr;
+name const * g_blast_arith_mul_congr_rec = nullptr;
+name const * g_blast_arith_mul_assoc = nullptr;
+name const * g_blast_arith_mul_insert_flat = nullptr;
+name const * g_blast_arith_mul_insertion_sort = nullptr;
+name const * g_blast_arith_mul_cancel_one_right = nullptr;
+name const * g_blast_arith_mul_fuse_left = nullptr;
+name const * g_blast_arith_mul_cancel_left = nullptr;
+name const * g_blast_arith_mul_distrib_right = nullptr;
+name const * g_blast_arith_mul_distrib_left = nullptr;
+name const * g_blast_arith_mul_distrib_both = nullptr;
+name const * g_blast_arith_one_mul_rev = nullptr;
+name const * g_blast_arith_add_congr = nullptr;
+name const * g_blast_arith_add_congr_right = nullptr;
+name const * g_blast_arith_add_congr_right_rec = nullptr;
+name const * g_blast_arith_add_assoc = nullptr;
+name const * g_blast_arith_add_assoc_rev = nullptr;
+name const * g_blast_arith_add_sort_right = nullptr;
+name const * g_blast_arith_add_insertion_sort = nullptr;
+name const * g_blast_arith_add_insert_flat = nullptr;
+name const * g_blast_arith_add_cancel_zero_right = nullptr;
+name const * g_blast_arith_add_fuse = nullptr;
+name const * g_blast_arith_add_fuse_left = nullptr;
+name const * g_blast_arith_add_fuse_num = nullptr;
+name const * g_blast_arith_add_fuse_num_left = nullptr;
+name const * g_blast_arith_add_fuse_zero = nullptr;
+name const * g_blast_arith_add_fuse_num_zero_left = nullptr;
+name const * g_blast_arith_add_fuse_zero_left = nullptr;
 name const * g_bool = nullptr;
 name const * g_bool_ff = nullptr;
 name const * g_bool_tt = nullptr;
@@ -29,6 +73,8 @@ name const * g_decidable_by_contradiction = nullptr;
 name const * g_distrib = nullptr;
 name const * g_dite = nullptr;
 name const * g_div = nullptr;
+name const * g_division_def = nullptr;
+name const * g_division_ring_inv_inv = nullptr;
 name const * g_empty = nullptr;
 name const * g_empty_rec = nullptr;
 name const * g_eq = nullptr;
@@ -52,6 +98,9 @@ name const * g_field = nullptr;
 name const * g_funext = nullptr;
 name const * g_has_add = nullptr;
 name const * g_has_div = nullptr;
+name const * g_has_inv = nullptr;
+name const * g_has_le = nullptr;
+name const * g_has_lt = nullptr;
 name const * g_has_mul = nullptr;
 name const * g_has_neg = nullptr;
 name const * g_has_one = nullptr;
@@ -62,6 +111,7 @@ name const * g_has_zero_zero = nullptr;
 name const * g_heq = nullptr;
 name const * g_heq_refl = nullptr;
 name const * g_heq_to_eq = nullptr;
+name const * g_id = nullptr;
 name const * g_iff = nullptr;
 name const * g_iff_elim_left = nullptr;
 name const * g_iff_elim_right = nullptr;
@@ -77,20 +127,30 @@ name const * g_implies = nullptr;
 name const * g_implies_of_if_neg = nullptr;
 name const * g_implies_of_if_pos = nullptr;
 name const * g_implies_resolve = nullptr;
+name const * g_inv = nullptr;
+name const * g_inv_ne_zero = nullptr;
 name const * g_is_trunc_is_hprop = nullptr;
 name const * g_is_trunc_is_hprop_elim = nullptr;
 name const * g_is_trunc_is_hset = nullptr;
 name const * g_ite = nullptr;
 name const * g_left_distrib = nullptr;
 name const * g_le_refl = nullptr;
+name const * g_le = nullptr;
 name const * g_lift = nullptr;
 name const * g_lift_down = nullptr;
 name const * g_lift_up = nullptr;
+name const * g_linear_ordered_comm_ring = nullptr;
+name const * g_linear_ordered_field = nullptr;
 name const * g_linear_ordered_ring = nullptr;
 name const * g_linear_ordered_semiring = nullptr;
+name const * g_lt = nullptr;
 name const * g_monoid = nullptr;
 name const * g_mul = nullptr;
+name const * g_mul_assoc = nullptr;
 name const * g_mul_one = nullptr;
+name const * g_mul_comm = nullptr;
+name const * g_mul_inv_cancel = nullptr;
+name const * g_mul_right_inv = nullptr;
 name const * g_mul_zero = nullptr;
 name const * g_mul_zero_class = nullptr;
 name const * g_nat = nullptr;
@@ -146,6 +206,11 @@ name const * g_norm_num_subst_into_div = nullptr;
 name const * g_norm_num_subst_into_prod = nullptr;
 name const * g_norm_num_subst_into_subtr = nullptr;
 name const * g_norm_num_subst_into_sum = nullptr;
+name const * g_norm_num_inv_of_div_helper = nullptr;
+name const * g_norm_num_eq_inv_of_eq_div_helper = nullptr;
+name const * g_norm_num_eq_mulinv_of_eq_div_helper = nullptr;
+name const * g_norm_num_mulinv_ne_zero_of_ne_zero_ne_zero = nullptr;
+name const * g_norm_num_neg_congr = nullptr;
 name const * g_not = nullptr;
 name const * g_not_of_iff_false = nullptr;
 name const * g_not_of_not_not_not = nullptr;
@@ -155,6 +220,7 @@ name const * g_num_zero = nullptr;
 name const * g_of_iff_true = nullptr;
 name const * g_one = nullptr;
 name const * g_one_mul = nullptr;
+name const * g_one_div_eq_inv = nullptr;
 name const * g_option = nullptr;
 name const * g_option_none = nullptr;
 name const * g_option_some = nullptr;
@@ -167,6 +233,25 @@ name const * g_or_neg_resolve_right = nullptr;
 name const * g_or_rec = nullptr;
 name const * g_or_resolve_left = nullptr;
 name const * g_or_resolve_right = nullptr;
+name const * g_ordered_ring = nullptr;
+name const * g_ordered_semiring = nullptr;
+name const * g_ordered_arith_pos_bit0 = nullptr;
+name const * g_ordered_arith_pos_bit1 = nullptr;
+name const * g_ordered_arith_nonzero_of_pos = nullptr;
+name const * g_ordered_arith_neg_nonzero_of_nonzero = nullptr;
+name const * g_ordered_arith_zero_not_lt_zero = nullptr;
+name const * g_ordered_arith_zero_not_le_neg = nullptr;
+name const * g_ordered_arith_zero_not_lt_neg = nullptr;
+name const * g_ordered_arith_zero_lt_of_lt = nullptr;
+name const * g_ordered_arith_zero_le_of_le = nullptr;
+name const * g_ordered_arith_zero_le_of_eq1 = nullptr;
+name const * g_ordered_arith_zero_le_of_eq2 = nullptr;
+name const * g_ordered_arith_mulinv_pos_of_pos_pos = nullptr;
+name const * g_ordered_arith_inv_pos_of_pos = nullptr;
+name const * g_ordered_arith_resolve_lt_lt = nullptr;
+name const * g_ordered_arith_resolve_lt_le = nullptr;
+name const * g_ordered_arith_resolve_le_lt = nullptr;
+name const * g_ordered_arith_resolve_le_le = nullptr;
 name const * g_poly_unit = nullptr;
 name const * g_poly_unit_star = nullptr;
 name const * g_pos_num = nullptr;
@@ -259,22 +344,68 @@ name const * g_true_intro = nullptr;
 name const * g_weak_order = nullptr;
 name const * g_well_founded = nullptr;
 name const * g_zero = nullptr;
+name const * g_zero_add = nullptr;
 name const * g_zero_le_one = nullptr;
 name const * g_zero_lt_one = nullptr;
 name const * g_zero_mul = nullptr;
+name const * g_zero_not_lt_zero = nullptr;
 void initialize_constants() {
     g_absurd = new name{"absurd"};
     g_add = new name{"add"};
+    g_add_assoc = new name{"add", "assoc"};
+    g_add_comm = new name{"add", "comm"};
     g_add_comm_group = new name{"add_comm_group"};
     g_add_comm_semigroup = new name{"add_comm_semigroup"};
     g_add_group = new name{"add_group"};
     g_add_monoid = new name{"add_monoid"};
+    g_add_zero = new name{"add_zero"};
     g_and = new name{"and"};
+    g_and_congr = new name{"and_congr"};
     g_and_elim_left = new name{"and", "elim_left"};
     g_and_elim_right = new name{"and", "elim_right"};
     g_and_intro = new name{"and", "intro"};
     g_bit0 = new name{"bit0"};
     g_bit1 = new name{"bit1"};
+    g_blast_arith_cheat_nonzero = new name{"blast", "arith", "cheat_nonzero"};
+    g_blast_arith_neg_congr = new name{"blast", "arith", "neg_congr"};
+    g_blast_arith_neg_num_mul = new name{"blast", "arith", "neg_num_mul"};
+    g_blast_arith_neg_mul_one = new name{"blast", "arith", "neg_mul_one"};
+    g_blast_arith_neg_add = new name{"blast", "arith", "neg_add"};
+    g_blast_arith_inv_inv = new name{"blast", "arith", "inv_inv"};
+    g_blast_arith_inv_mul = new name{"blast", "arith", "inv_mul"};
+    g_blast_arith_inv_mul_one = new name{"blast", "arith", "inv_mul_one"};
+    g_blast_arith_inv_congr = new name{"blast", "arith", "inv_congr"};
+    g_blast_arith_mul_inv_cancel = new name{"blast", "arith", "mul_inv_cancel"};
+    g_blast_arith_mul_congr = new name{"blast", "arith", "mul_congr"};
+    g_blast_arith_mul_congr_right = new name{"blast", "arith", "mul_congr_right"};
+    g_blast_arith_mul_congr_right_rec = new name{"blast", "arith", "mul_congr_right_rec"};
+    g_blast_arith_mul_congr_rec = new name{"blast", "arith", "mul_congr_rec"};
+    g_blast_arith_mul_assoc = new name{"blast", "arith", "mul_assoc"};
+    g_blast_arith_mul_insert_flat = new name{"blast", "arith", "mul_insert_flat"};
+    g_blast_arith_mul_insertion_sort = new name{"blast", "arith", "mul_insertion_sort"};
+    g_blast_arith_mul_cancel_one_right = new name{"blast", "arith", "mul_cancel_one_right"};
+    g_blast_arith_mul_fuse_left = new name{"blast", "arith", "mul_fuse_left"};
+    g_blast_arith_mul_cancel_left = new name{"blast", "arith", "mul_cancel_left"};
+    g_blast_arith_mul_distrib_right = new name{"blast", "arith", "mul_distrib_right"};
+    g_blast_arith_mul_distrib_left = new name{"blast", "arith", "mul_distrib_left"};
+    g_blast_arith_mul_distrib_both = new name{"blast", "arith", "mul_distrib_both"};
+    g_blast_arith_one_mul_rev = new name{"blast", "arith", "one_mul_rev"};
+    g_blast_arith_add_congr = new name{"blast", "arith", "add_congr"};
+    g_blast_arith_add_congr_right = new name{"blast", "arith", "add_congr_right"};
+    g_blast_arith_add_congr_right_rec = new name{"blast", "arith", "add_congr_right_rec"};
+    g_blast_arith_add_assoc = new name{"blast", "arith", "add_assoc"};
+    g_blast_arith_add_assoc_rev = new name{"blast", "arith", "add_assoc_rev"};
+    g_blast_arith_add_sort_right = new name{"blast", "arith", "add_sort_right"};
+    g_blast_arith_add_insertion_sort = new name{"blast", "arith", "add_insertion_sort"};
+    g_blast_arith_add_insert_flat = new name{"blast", "arith", "add_insert_flat"};
+    g_blast_arith_add_cancel_zero_right = new name{"blast", "arith", "add_cancel_zero_right"};
+    g_blast_arith_add_fuse = new name{"blast", "arith", "add_fuse"};
+    g_blast_arith_add_fuse_left = new name{"blast", "arith", "add_fuse_left"};
+    g_blast_arith_add_fuse_num = new name{"blast", "arith", "add_fuse_num"};
+    g_blast_arith_add_fuse_num_left = new name{"blast", "arith", "add_fuse_num_left"};
+    g_blast_arith_add_fuse_zero = new name{"blast", "arith", "add_fuse_zero"};
+    g_blast_arith_add_fuse_num_zero_left = new name{"blast", "arith", "add_fuse_num_zero_left"};
+    g_blast_arith_add_fuse_zero_left = new name{"blast", "arith", "add_fuse_zero_left"};
     g_bool = new name{"bool"};
     g_bool_ff = new name{"bool", "ff"};
     g_bool_tt = new name{"bool", "tt"};
@@ -289,6 +420,8 @@ void initialize_constants() {
     g_distrib = new name{"distrib"};
     g_dite = new name{"dite"};
     g_div = new name{"div"};
+    g_division_def = new name{"division", "def"};
+    g_division_ring_inv_inv = new name{"division_ring", "inv_inv"};
     g_empty = new name{"empty"};
     g_empty_rec = new name{"empty", "rec"};
     g_eq = new name{"eq"};
@@ -312,6 +445,9 @@ void initialize_constants() {
     g_funext = new name{"funext"};
     g_has_add = new name{"has_add"};
     g_has_div = new name{"has_div"};
+    g_has_inv = new name{"has_inv"};
+    g_has_le = new name{"has_le"};
+    g_has_lt = new name{"has_lt"};
     g_has_mul = new name{"has_mul"};
     g_has_neg = new name{"has_neg"};
     g_has_one = new name{"has_one"};
@@ -322,6 +458,7 @@ void initialize_constants() {
     g_heq = new name{"heq"};
     g_heq_refl = new name{"heq", "refl"};
     g_heq_to_eq = new name{"heq", "to_eq"};
+    g_id = new name{"id"};
     g_iff = new name{"iff"};
     g_iff_elim_left = new name{"iff", "elim_left"};
     g_iff_elim_right = new name{"iff", "elim_right"};
@@ -337,20 +474,30 @@ void initialize_constants() {
     g_implies_of_if_neg = new name{"implies_of_if_neg"};
     g_implies_of_if_pos = new name{"implies_of_if_pos"};
     g_implies_resolve = new name{"implies", "resolve"};
+    g_inv = new name{"inv"};
+    g_inv_ne_zero = new name{"inv_ne_zero"};
     g_is_trunc_is_hprop = new name{"is_trunc", "is_hprop"};
     g_is_trunc_is_hprop_elim = new name{"is_trunc", "is_hprop", "elim"};
     g_is_trunc_is_hset = new name{"is_trunc", "is_hset"};
     g_ite = new name{"ite"};
     g_left_distrib = new name{"left_distrib"};
     g_le_refl = new name{"le", "refl"};
+    g_le = new name{"le"};
     g_lift = new name{"lift"};
     g_lift_down = new name{"lift", "down"};
     g_lift_up = new name{"lift", "up"};
+    g_linear_ordered_comm_ring = new name{"linear_ordered_comm_ring"};
+    g_linear_ordered_field = new name{"linear_ordered_field"};
     g_linear_ordered_ring = new name{"linear_ordered_ring"};
     g_linear_ordered_semiring = new name{"linear_ordered_semiring"};
+    g_lt = new name{"lt"};
     g_monoid = new name{"monoid"};
     g_mul = new name{"mul"};
+    g_mul_assoc = new name{"mul", "assoc"};
     g_mul_one = new name{"mul_one"};
+    g_mul_comm = new name{"mul", "comm"};
+    g_mul_inv_cancel = new name{"mul_inv_cancel"};
+    g_mul_right_inv = new name{"mul", "right_inv"};
     g_mul_zero = new name{"mul_zero"};
     g_mul_zero_class = new name{"mul_zero_class"};
     g_nat = new name{"nat"};
@@ -406,6 +553,11 @@ void initialize_constants() {
     g_norm_num_subst_into_prod = new name{"norm_num", "subst_into_prod"};
     g_norm_num_subst_into_subtr = new name{"norm_num", "subst_into_subtr"};
     g_norm_num_subst_into_sum = new name{"norm_num", "subst_into_sum"};
+    g_norm_num_inv_of_div_helper = new name{"norm_num", "inv_of_div_helper"};
+    g_norm_num_eq_inv_of_eq_div_helper = new name{"norm_num", "eq_inv_of_eq_div_helper"};
+    g_norm_num_eq_mulinv_of_eq_div_helper = new name{"norm_num", "eq_mulinv_of_eq_div_helper"};
+    g_norm_num_mulinv_ne_zero_of_ne_zero_ne_zero = new name{"norm_num", "mulinv_ne_zero_of_ne_zero_ne_zero"};
+    g_norm_num_neg_congr = new name{"norm_num", "neg_congr"};
     g_not = new name{"not"};
     g_not_of_iff_false = new name{"not_of_iff_false"};
     g_not_of_not_not_not = new name{"not_of_not_not_not"};
@@ -415,6 +567,7 @@ void initialize_constants() {
     g_of_iff_true = new name{"of_iff_true"};
     g_one = new name{"one"};
     g_one_mul = new name{"one_mul"};
+    g_one_div_eq_inv = new name{"one_div_eq_inv"};
     g_option = new name{"option"};
     g_option_none = new name{"option", "none"};
     g_option_some = new name{"option", "some"};
@@ -427,6 +580,25 @@ void initialize_constants() {
     g_or_rec = new name{"or", "rec"};
     g_or_resolve_left = new name{"or", "resolve_left"};
     g_or_resolve_right = new name{"or", "resolve_right"};
+    g_ordered_ring = new name{"ordered_ring"};
+    g_ordered_semiring = new name{"ordered_semiring"};
+    g_ordered_arith_pos_bit0 = new name{"ordered_arith", "pos_bit0"};
+    g_ordered_arith_pos_bit1 = new name{"ordered_arith", "pos_bit1"};
+    g_ordered_arith_nonzero_of_pos = new name{"ordered_arith", "nonzero_of_pos"};
+    g_ordered_arith_neg_nonzero_of_nonzero = new name{"ordered_arith", "neg_nonzero_of_nonzero"};
+    g_ordered_arith_zero_not_lt_zero = new name{"ordered_arith", "zero_not_lt_zero"};
+    g_ordered_arith_zero_not_le_neg = new name{"ordered_arith", "zero_not_le_neg"};
+    g_ordered_arith_zero_not_lt_neg = new name{"ordered_arith", "zero_not_lt_neg"};
+    g_ordered_arith_zero_lt_of_lt = new name{"ordered_arith", "zero_lt_of_lt"};
+    g_ordered_arith_zero_le_of_le = new name{"ordered_arith", "zero_le_of_le"};
+    g_ordered_arith_zero_le_of_eq1 = new name{"ordered_arith", "zero_le_of_eq1"};
+    g_ordered_arith_zero_le_of_eq2 = new name{"ordered_arith", "zero_le_of_eq2"};
+    g_ordered_arith_mulinv_pos_of_pos_pos = new name{"ordered_arith", "mulinv_pos_of_pos_pos"};
+    g_ordered_arith_inv_pos_of_pos = new name{"ordered_arith", "inv_pos_of_pos"};
+    g_ordered_arith_resolve_lt_lt = new name{"ordered_arith", "resolve_lt_lt"};
+    g_ordered_arith_resolve_lt_le = new name{"ordered_arith", "resolve_lt_le"};
+    g_ordered_arith_resolve_le_lt = new name{"ordered_arith", "resolve_le_lt"};
+    g_ordered_arith_resolve_le_le = new name{"ordered_arith", "resolve_le_le"};
     g_poly_unit = new name{"poly_unit"};
     g_poly_unit_star = new name{"poly_unit", "star"};
     g_pos_num = new name{"pos_num"};
@@ -519,23 +691,69 @@ void initialize_constants() {
     g_weak_order = new name{"weak_order"};
     g_well_founded = new name{"well_founded"};
     g_zero = new name{"zero"};
+    g_zero_add = new name{"zero_add"};
     g_zero_le_one = new name{"zero_le_one"};
     g_zero_lt_one = new name{"zero_lt_one"};
     g_zero_mul = new name{"zero_mul"};
+    g_zero_not_lt_zero = new name{"zero_not_lt_zero"};
 }
 void finalize_constants() {
     delete g_absurd;
     delete g_add;
+    delete g_add_assoc;
+    delete g_add_comm;
     delete g_add_comm_group;
     delete g_add_comm_semigroup;
     delete g_add_group;
     delete g_add_monoid;
+    delete g_add_zero;
     delete g_and;
+    delete g_and_congr;
     delete g_and_elim_left;
     delete g_and_elim_right;
     delete g_and_intro;
     delete g_bit0;
     delete g_bit1;
+    delete g_blast_arith_cheat_nonzero;
+    delete g_blast_arith_neg_congr;
+    delete g_blast_arith_neg_num_mul;
+    delete g_blast_arith_neg_mul_one;
+    delete g_blast_arith_neg_add;
+    delete g_blast_arith_inv_inv;
+    delete g_blast_arith_inv_mul;
+    delete g_blast_arith_inv_mul_one;
+    delete g_blast_arith_inv_congr;
+    delete g_blast_arith_mul_inv_cancel;
+    delete g_blast_arith_mul_congr;
+    delete g_blast_arith_mul_congr_right;
+    delete g_blast_arith_mul_congr_right_rec;
+    delete g_blast_arith_mul_congr_rec;
+    delete g_blast_arith_mul_assoc;
+    delete g_blast_arith_mul_insert_flat;
+    delete g_blast_arith_mul_insertion_sort;
+    delete g_blast_arith_mul_cancel_one_right;
+    delete g_blast_arith_mul_fuse_left;
+    delete g_blast_arith_mul_cancel_left;
+    delete g_blast_arith_mul_distrib_right;
+    delete g_blast_arith_mul_distrib_left;
+    delete g_blast_arith_mul_distrib_both;
+    delete g_blast_arith_one_mul_rev;
+    delete g_blast_arith_add_congr;
+    delete g_blast_arith_add_congr_right;
+    delete g_blast_arith_add_congr_right_rec;
+    delete g_blast_arith_add_assoc;
+    delete g_blast_arith_add_assoc_rev;
+    delete g_blast_arith_add_sort_right;
+    delete g_blast_arith_add_insertion_sort;
+    delete g_blast_arith_add_insert_flat;
+    delete g_blast_arith_add_cancel_zero_right;
+    delete g_blast_arith_add_fuse;
+    delete g_blast_arith_add_fuse_left;
+    delete g_blast_arith_add_fuse_num;
+    delete g_blast_arith_add_fuse_num_left;
+    delete g_blast_arith_add_fuse_zero;
+    delete g_blast_arith_add_fuse_num_zero_left;
+    delete g_blast_arith_add_fuse_zero_left;
     delete g_bool;
     delete g_bool_ff;
     delete g_bool_tt;
@@ -550,6 +768,8 @@ void finalize_constants() {
     delete g_distrib;
     delete g_dite;
     delete g_div;
+    delete g_division_def;
+    delete g_division_ring_inv_inv;
     delete g_empty;
     delete g_empty_rec;
     delete g_eq;
@@ -573,6 +793,9 @@ void finalize_constants() {
     delete g_funext;
     delete g_has_add;
     delete g_has_div;
+    delete g_has_inv;
+    delete g_has_le;
+    delete g_has_lt;
     delete g_has_mul;
     delete g_has_neg;
     delete g_has_one;
@@ -583,6 +806,7 @@ void finalize_constants() {
     delete g_heq;
     delete g_heq_refl;
     delete g_heq_to_eq;
+    delete g_id;
     delete g_iff;
     delete g_iff_elim_left;
     delete g_iff_elim_right;
@@ -598,20 +822,30 @@ void finalize_constants() {
     delete g_implies_of_if_neg;
     delete g_implies_of_if_pos;
     delete g_implies_resolve;
+    delete g_inv;
+    delete g_inv_ne_zero;
     delete g_is_trunc_is_hprop;
     delete g_is_trunc_is_hprop_elim;
     delete g_is_trunc_is_hset;
     delete g_ite;
     delete g_left_distrib;
     delete g_le_refl;
+    delete g_le;
     delete g_lift;
     delete g_lift_down;
     delete g_lift_up;
+    delete g_linear_ordered_comm_ring;
+    delete g_linear_ordered_field;
     delete g_linear_ordered_ring;
     delete g_linear_ordered_semiring;
+    delete g_lt;
     delete g_monoid;
     delete g_mul;
+    delete g_mul_assoc;
     delete g_mul_one;
+    delete g_mul_comm;
+    delete g_mul_inv_cancel;
+    delete g_mul_right_inv;
     delete g_mul_zero;
     delete g_mul_zero_class;
     delete g_nat;
@@ -667,6 +901,11 @@ void finalize_constants() {
     delete g_norm_num_subst_into_prod;
     delete g_norm_num_subst_into_subtr;
     delete g_norm_num_subst_into_sum;
+    delete g_norm_num_inv_of_div_helper;
+    delete g_norm_num_eq_inv_of_eq_div_helper;
+    delete g_norm_num_eq_mulinv_of_eq_div_helper;
+    delete g_norm_num_mulinv_ne_zero_of_ne_zero_ne_zero;
+    delete g_norm_num_neg_congr;
     delete g_not;
     delete g_not_of_iff_false;
     delete g_not_of_not_not_not;
@@ -676,6 +915,7 @@ void finalize_constants() {
     delete g_of_iff_true;
     delete g_one;
     delete g_one_mul;
+    delete g_one_div_eq_inv;
     delete g_option;
     delete g_option_none;
     delete g_option_some;
@@ -688,6 +928,25 @@ void finalize_constants() {
     delete g_or_rec;
     delete g_or_resolve_left;
     delete g_or_resolve_right;
+    delete g_ordered_ring;
+    delete g_ordered_semiring;
+    delete g_ordered_arith_pos_bit0;
+    delete g_ordered_arith_pos_bit1;
+    delete g_ordered_arith_nonzero_of_pos;
+    delete g_ordered_arith_neg_nonzero_of_nonzero;
+    delete g_ordered_arith_zero_not_lt_zero;
+    delete g_ordered_arith_zero_not_le_neg;
+    delete g_ordered_arith_zero_not_lt_neg;
+    delete g_ordered_arith_zero_lt_of_lt;
+    delete g_ordered_arith_zero_le_of_le;
+    delete g_ordered_arith_zero_le_of_eq1;
+    delete g_ordered_arith_zero_le_of_eq2;
+    delete g_ordered_arith_mulinv_pos_of_pos_pos;
+    delete g_ordered_arith_inv_pos_of_pos;
+    delete g_ordered_arith_resolve_lt_lt;
+    delete g_ordered_arith_resolve_lt_le;
+    delete g_ordered_arith_resolve_le_lt;
+    delete g_ordered_arith_resolve_le_le;
     delete g_poly_unit;
     delete g_poly_unit_star;
     delete g_pos_num;
@@ -780,22 +1039,68 @@ void finalize_constants() {
     delete g_weak_order;
     delete g_well_founded;
     delete g_zero;
+    delete g_zero_add;
     delete g_zero_le_one;
     delete g_zero_lt_one;
     delete g_zero_mul;
+    delete g_zero_not_lt_zero;
 }
 name const & get_absurd_name() { return *g_absurd; }
 name const & get_add_name() { return *g_add; }
+name const & get_add_assoc_name() { return *g_add_assoc; }
+name const & get_add_comm_name() { return *g_add_comm; }
 name const & get_add_comm_group_name() { return *g_add_comm_group; }
 name const & get_add_comm_semigroup_name() { return *g_add_comm_semigroup; }
 name const & get_add_group_name() { return *g_add_group; }
 name const & get_add_monoid_name() { return *g_add_monoid; }
+name const & get_add_zero_name() { return *g_add_zero; }
 name const & get_and_name() { return *g_and; }
+name const & get_and_congr_name() { return *g_and_congr; }
 name const & get_and_elim_left_name() { return *g_and_elim_left; }
 name const & get_and_elim_right_name() { return *g_and_elim_right; }
 name const & get_and_intro_name() { return *g_and_intro; }
 name const & get_bit0_name() { return *g_bit0; }
 name const & get_bit1_name() { return *g_bit1; }
+name const & get_blast_arith_cheat_nonzero_name() { return *g_blast_arith_cheat_nonzero; }
+name const & get_blast_arith_neg_congr_name() { return *g_blast_arith_neg_congr; }
+name const & get_blast_arith_neg_num_mul_name() { return *g_blast_arith_neg_num_mul; }
+name const & get_blast_arith_neg_mul_one_name() { return *g_blast_arith_neg_mul_one; }
+name const & get_blast_arith_neg_add_name() { return *g_blast_arith_neg_add; }
+name const & get_blast_arith_inv_inv_name() { return *g_blast_arith_inv_inv; }
+name const & get_blast_arith_inv_mul_name() { return *g_blast_arith_inv_mul; }
+name const & get_blast_arith_inv_mul_one_name() { return *g_blast_arith_inv_mul_one; }
+name const & get_blast_arith_inv_congr_name() { return *g_blast_arith_inv_congr; }
+name const & get_blast_arith_mul_inv_cancel_name() { return *g_blast_arith_mul_inv_cancel; }
+name const & get_blast_arith_mul_congr_name() { return *g_blast_arith_mul_congr; }
+name const & get_blast_arith_mul_congr_right_name() { return *g_blast_arith_mul_congr_right; }
+name const & get_blast_arith_mul_congr_right_rec_name() { return *g_blast_arith_mul_congr_right_rec; }
+name const & get_blast_arith_mul_congr_rec_name() { return *g_blast_arith_mul_congr_rec; }
+name const & get_blast_arith_mul_assoc_name() { return *g_blast_arith_mul_assoc; }
+name const & get_blast_arith_mul_insert_flat_name() { return *g_blast_arith_mul_insert_flat; }
+name const & get_blast_arith_mul_insertion_sort_name() { return *g_blast_arith_mul_insertion_sort; }
+name const & get_blast_arith_mul_cancel_one_right_name() { return *g_blast_arith_mul_cancel_one_right; }
+name const & get_blast_arith_mul_fuse_left_name() { return *g_blast_arith_mul_fuse_left; }
+name const & get_blast_arith_mul_cancel_left_name() { return *g_blast_arith_mul_cancel_left; }
+name const & get_blast_arith_mul_distrib_right_name() { return *g_blast_arith_mul_distrib_right; }
+name const & get_blast_arith_mul_distrib_left_name() { return *g_blast_arith_mul_distrib_left; }
+name const & get_blast_arith_mul_distrib_both_name() { return *g_blast_arith_mul_distrib_both; }
+name const & get_blast_arith_one_mul_rev_name() { return *g_blast_arith_one_mul_rev; }
+name const & get_blast_arith_add_congr_name() { return *g_blast_arith_add_congr; }
+name const & get_blast_arith_add_congr_right_name() { return *g_blast_arith_add_congr_right; }
+name const & get_blast_arith_add_congr_right_rec_name() { return *g_blast_arith_add_congr_right_rec; }
+name const & get_blast_arith_add_assoc_name() { return *g_blast_arith_add_assoc; }
+name const & get_blast_arith_add_assoc_rev_name() { return *g_blast_arith_add_assoc_rev; }
+name const & get_blast_arith_add_sort_right_name() { return *g_blast_arith_add_sort_right; }
+name const & get_blast_arith_add_insertion_sort_name() { return *g_blast_arith_add_insertion_sort; }
+name const & get_blast_arith_add_insert_flat_name() { return *g_blast_arith_add_insert_flat; }
+name const & get_blast_arith_add_cancel_zero_right_name() { return *g_blast_arith_add_cancel_zero_right; }
+name const & get_blast_arith_add_fuse_name() { return *g_blast_arith_add_fuse; }
+name const & get_blast_arith_add_fuse_left_name() { return *g_blast_arith_add_fuse_left; }
+name const & get_blast_arith_add_fuse_num_name() { return *g_blast_arith_add_fuse_num; }
+name const & get_blast_arith_add_fuse_num_left_name() { return *g_blast_arith_add_fuse_num_left; }
+name const & get_blast_arith_add_fuse_zero_name() { return *g_blast_arith_add_fuse_zero; }
+name const & get_blast_arith_add_fuse_num_zero_left_name() { return *g_blast_arith_add_fuse_num_zero_left; }
+name const & get_blast_arith_add_fuse_zero_left_name() { return *g_blast_arith_add_fuse_zero_left; }
 name const & get_bool_name() { return *g_bool; }
 name const & get_bool_ff_name() { return *g_bool_ff; }
 name const & get_bool_tt_name() { return *g_bool_tt; }
@@ -810,6 +1115,8 @@ name const & get_decidable_by_contradiction_name() { return *g_decidable_by_cont
 name const & get_distrib_name() { return *g_distrib; }
 name const & get_dite_name() { return *g_dite; }
 name const & get_div_name() { return *g_div; }
+name const & get_division_def_name() { return *g_division_def; }
+name const & get_division_ring_inv_inv_name() { return *g_division_ring_inv_inv; }
 name const & get_empty_name() { return *g_empty; }
 name const & get_empty_rec_name() { return *g_empty_rec; }
 name const & get_eq_name() { return *g_eq; }
@@ -833,6 +1140,9 @@ name const & get_field_name() { return *g_field; }
 name const & get_funext_name() { return *g_funext; }
 name const & get_has_add_name() { return *g_has_add; }
 name const & get_has_div_name() { return *g_has_div; }
+name const & get_has_inv_name() { return *g_has_inv; }
+name const & get_has_le_name() { return *g_has_le; }
+name const & get_has_lt_name() { return *g_has_lt; }
 name const & get_has_mul_name() { return *g_has_mul; }
 name const & get_has_neg_name() { return *g_has_neg; }
 name const & get_has_one_name() { return *g_has_one; }
@@ -843,6 +1153,7 @@ name const & get_has_zero_zero_name() { return *g_has_zero_zero; }
 name const & get_heq_name() { return *g_heq; }
 name const & get_heq_refl_name() { return *g_heq_refl; }
 name const & get_heq_to_eq_name() { return *g_heq_to_eq; }
+name const & get_id_name() { return *g_id; }
 name const & get_iff_name() { return *g_iff; }
 name const & get_iff_elim_left_name() { return *g_iff_elim_left; }
 name const & get_iff_elim_right_name() { return *g_iff_elim_right; }
@@ -858,20 +1169,30 @@ name const & get_implies_name() { return *g_implies; }
 name const & get_implies_of_if_neg_name() { return *g_implies_of_if_neg; }
 name const & get_implies_of_if_pos_name() { return *g_implies_of_if_pos; }
 name const & get_implies_resolve_name() { return *g_implies_resolve; }
+name const & get_inv_name() { return *g_inv; }
+name const & get_inv_ne_zero_name() { return *g_inv_ne_zero; }
 name const & get_is_trunc_is_hprop_name() { return *g_is_trunc_is_hprop; }
 name const & get_is_trunc_is_hprop_elim_name() { return *g_is_trunc_is_hprop_elim; }
 name const & get_is_trunc_is_hset_name() { return *g_is_trunc_is_hset; }
 name const & get_ite_name() { return *g_ite; }
 name const & get_left_distrib_name() { return *g_left_distrib; }
 name const & get_le_refl_name() { return *g_le_refl; }
+name const & get_le_name() { return *g_le; }
 name const & get_lift_name() { return *g_lift; }
 name const & get_lift_down_name() { return *g_lift_down; }
 name const & get_lift_up_name() { return *g_lift_up; }
+name const & get_linear_ordered_comm_ring_name() { return *g_linear_ordered_comm_ring; }
+name const & get_linear_ordered_field_name() { return *g_linear_ordered_field; }
 name const & get_linear_ordered_ring_name() { return *g_linear_ordered_ring; }
 name const & get_linear_ordered_semiring_name() { return *g_linear_ordered_semiring; }
+name const & get_lt_name() { return *g_lt; }
 name const & get_monoid_name() { return *g_monoid; }
 name const & get_mul_name() { return *g_mul; }
+name const & get_mul_assoc_name() { return *g_mul_assoc; }
 name const & get_mul_one_name() { return *g_mul_one; }
+name const & get_mul_comm_name() { return *g_mul_comm; }
+name const & get_mul_inv_cancel_name() { return *g_mul_inv_cancel; }
+name const & get_mul_right_inv_name() { return *g_mul_right_inv; }
 name const & get_mul_zero_name() { return *g_mul_zero; }
 name const & get_mul_zero_class_name() { return *g_mul_zero_class; }
 name const & get_nat_name() { return *g_nat; }
@@ -927,6 +1248,11 @@ name const & get_norm_num_subst_into_div_name() { return *g_norm_num_subst_into_
 name const & get_norm_num_subst_into_prod_name() { return *g_norm_num_subst_into_prod; }
 name const & get_norm_num_subst_into_subtr_name() { return *g_norm_num_subst_into_subtr; }
 name const & get_norm_num_subst_into_sum_name() { return *g_norm_num_subst_into_sum; }
+name const & get_norm_num_inv_of_div_helper_name() { return *g_norm_num_inv_of_div_helper; }
+name const & get_norm_num_eq_inv_of_eq_div_helper_name() { return *g_norm_num_eq_inv_of_eq_div_helper; }
+name const & get_norm_num_eq_mulinv_of_eq_div_helper_name() { return *g_norm_num_eq_mulinv_of_eq_div_helper; }
+name const & get_norm_num_mulinv_ne_zero_of_ne_zero_ne_zero_name() { return *g_norm_num_mulinv_ne_zero_of_ne_zero_ne_zero; }
+name const & get_norm_num_neg_congr_name() { return *g_norm_num_neg_congr; }
 name const & get_not_name() { return *g_not; }
 name const & get_not_of_iff_false_name() { return *g_not_of_iff_false; }
 name const & get_not_of_not_not_not_name() { return *g_not_of_not_not_not; }
@@ -936,6 +1262,7 @@ name const & get_num_zero_name() { return *g_num_zero; }
 name const & get_of_iff_true_name() { return *g_of_iff_true; }
 name const & get_one_name() { return *g_one; }
 name const & get_one_mul_name() { return *g_one_mul; }
+name const & get_one_div_eq_inv_name() { return *g_one_div_eq_inv; }
 name const & get_option_name() { return *g_option; }
 name const & get_option_none_name() { return *g_option_none; }
 name const & get_option_some_name() { return *g_option_some; }
@@ -948,6 +1275,25 @@ name const & get_or_neg_resolve_right_name() { return *g_or_neg_resolve_right; }
 name const & get_or_rec_name() { return *g_or_rec; }
 name const & get_or_resolve_left_name() { return *g_or_resolve_left; }
 name const & get_or_resolve_right_name() { return *g_or_resolve_right; }
+name const & get_ordered_ring_name() { return *g_ordered_ring; }
+name const & get_ordered_semiring_name() { return *g_ordered_semiring; }
+name const & get_ordered_arith_pos_bit0_name() { return *g_ordered_arith_pos_bit0; }
+name const & get_ordered_arith_pos_bit1_name() { return *g_ordered_arith_pos_bit1; }
+name const & get_ordered_arith_nonzero_of_pos_name() { return *g_ordered_arith_nonzero_of_pos; }
+name const & get_ordered_arith_neg_nonzero_of_nonzero_name() { return *g_ordered_arith_neg_nonzero_of_nonzero; }
+name const & get_ordered_arith_zero_not_lt_zero_name() { return *g_ordered_arith_zero_not_lt_zero; }
+name const & get_ordered_arith_zero_not_le_neg_name() { return *g_ordered_arith_zero_not_le_neg; }
+name const & get_ordered_arith_zero_not_lt_neg_name() { return *g_ordered_arith_zero_not_lt_neg; }
+name const & get_ordered_arith_zero_lt_of_lt_name() { return *g_ordered_arith_zero_lt_of_lt; }
+name const & get_ordered_arith_zero_le_of_le_name() { return *g_ordered_arith_zero_le_of_le; }
+name const & get_ordered_arith_zero_le_of_eq1_name() { return *g_ordered_arith_zero_le_of_eq1; }
+name const & get_ordered_arith_zero_le_of_eq2_name() { return *g_ordered_arith_zero_le_of_eq2; }
+name const & get_ordered_arith_mulinv_pos_of_pos_pos_name() { return *g_ordered_arith_mulinv_pos_of_pos_pos; }
+name const & get_ordered_arith_inv_pos_of_pos_name() { return *g_ordered_arith_inv_pos_of_pos; }
+name const & get_ordered_arith_resolve_lt_lt_name() { return *g_ordered_arith_resolve_lt_lt; }
+name const & get_ordered_arith_resolve_lt_le_name() { return *g_ordered_arith_resolve_lt_le; }
+name const & get_ordered_arith_resolve_le_lt_name() { return *g_ordered_arith_resolve_le_lt; }
+name const & get_ordered_arith_resolve_le_le_name() { return *g_ordered_arith_resolve_le_le; }
 name const & get_poly_unit_name() { return *g_poly_unit; }
 name const & get_poly_unit_star_name() { return *g_poly_unit_star; }
 name const & get_pos_num_name() { return *g_pos_num; }
@@ -1040,7 +1386,9 @@ name const & get_true_intro_name() { return *g_true_intro; }
 name const & get_weak_order_name() { return *g_weak_order; }
 name const & get_well_founded_name() { return *g_well_founded; }
 name const & get_zero_name() { return *g_zero; }
+name const & get_zero_add_name() { return *g_zero_add; }
 name const & get_zero_le_one_name() { return *g_zero_le_one; }
 name const & get_zero_lt_one_name() { return *g_zero_lt_one; }
 name const & get_zero_mul_name() { return *g_zero_mul; }
+name const & get_zero_not_lt_zero_name() { return *g_zero_not_lt_zero; }
 }

@@ -14,6 +14,9 @@ section linear_ordered_field
   variables [s : linear_ordered_field A] {a b c d : A}
   include s
 
+  definition linear_ordered_field.to_linear_ordered_comm_ring [reducible] [instance] : linear_ordered_comm_ring A :=
+  ⦃ linear_ordered_comm_ring, s ⦄
+
   -- helpers for following
   theorem mul_zero_lt_mul_inv_of_pos (H : 0 < a) : a * 0 < a * (1 / a) :=
    calc
@@ -514,3 +517,19 @@ section discrete_linear_ordered_field
       !eq_div_of_mul_eq this !eq_sign_mul_abs⁻¹)
 
 end discrete_linear_ordered_field
+
+namespace ordered_arith
+
+theorem mulinv_pos_of_pos_pos {A : Type} [s : linear_ordered_field A] (a b : A) : 0 < a →  0 < b → 0 < a * b⁻¹ :=
+assume a_pos b_pos,
+assert b_inv_pos : 0 < 1 / b, from one_div_pos_of_pos b_pos,
+begin rewrite -inv_eq_one_div at b_inv_pos, exact mul_pos a_pos b_inv_pos end
+
+theorem inv_pos_of_pos {A : Type} [s : linear_ordered_field A] (a : A) : 0 < a →  0 < a⁻¹ :=
+assume a_pos,
+assert a_inv_pos : 0 < 1 / a, from one_div_pos_of_pos a_pos,
+begin
+  rewrite [-inv_eq_one_div at a_inv_pos, -{a⁻¹}one_mul],
+  exact mul_pos zero_lt_one a_inv_pos
+end
+end ordered_arith

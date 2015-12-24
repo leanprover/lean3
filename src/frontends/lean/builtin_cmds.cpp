@@ -51,6 +51,9 @@ Author: Leonardo de Moura
 #include "library/blast/forward/pattern.h"
 #include "library/blast/forward/forward_lemma_set.h"
 #include "library/blast/grinder/intro_elim_lemmas.h"
+#include "library/blast/arith/normalize_poly.h"
+#include "library/blast/arith/normalize.h"
+#include "library/blast/arith/num.h"
 #include "compiler/preprocess_rec.h"
 #include "frontends/lean/util.h"
 #include "frontends/lean/parser.h"
@@ -537,12 +540,13 @@ static void print_simp_rules(parser & p) {
     io_state_stream out = p.regular_stream();
     simp_rule_sets s;
     name ns;
+    blast::scope_debug scope(p.env(), p.ios());
     if (p.curr_is_identifier()) {
         ns = p.get_name_val();
         p.next();
-        s = get_simp_rule_sets(p.env(), p.get_options(), ns);
+        s = mk_simp_rule_sets(p.env(), p.get_options(), ns);
     } else {
-        s = get_simp_rule_sets(p.env());
+        s = mk_simp_rule_sets(p.env());
     }
     format header;
     if (!ns.is_anonymous())
@@ -552,7 +556,8 @@ static void print_simp_rules(parser & p) {
 
 static void print_congr_rules(parser & p) {
     io_state_stream out = p.regular_stream();
-    simp_rule_sets s = get_simp_rule_sets(p.env());
+    blast::scope_debug scope(p.env(), p.ios());
+    simp_rule_sets s = mk_simp_rule_sets(p.env());
     out << s.pp_congr(out.get_formatter());
 }
 
@@ -1413,7 +1418,7 @@ static environment replace_cmd(parser & p) {
     fun_info_manager infom(ctx);
     auto r = replace(infom, e, from, to);
     if (!r)
-        throw parser_error("#replace commad failed", pos);
+        throw parser_error("#replace command failed", pos);
     p.regular_stream() << *r << "\n";
     return env;
 }
@@ -1481,9 +1486,9 @@ static environment simplify_cmd(parser & p) {
     simp_rule_sets srss;
     if (ns == name("null")) {
     } else if (ns == name("env")) {
-        srss = get_simp_rule_sets(p.env());
+        srss = mk_simp_rule_sets(p.env());
     } else {
-        srss = get_simp_rule_sets(p.env(), p.get_options(), ns);
+        srss = mk_simp_rule_sets(p.env(), p.get_options(), ns);
     }
 
     blast::simp::result r = blast::simplify(rel, e, srss);
@@ -1506,6 +1511,116 @@ static environment simplify_cmd(parser & p) {
         else p.regular_stream() << pf_type << endl;
     }
 
+    return p.env();
+}
+
+static environment arith_normalize_poly_cmd(parser & p) {
+    expr e; level_param_names ls;
+    std::tie(e, ls) = parse_local_expr(p);
+
+    blast::scope_debug scope(p.env(), p.ios());
+    auto poly = blast::arith::normalize_poly(e);
+
+    flycheck_information info(p.regular_stream());
+    if (info.enabled()) {
+        p.display_information_pos(p.cmd_pos());
+        p.regular_stream() << "arith_normalize_poly result:\n";
+    }
+
+    p.regular_stream().get_stream() << poly << "\n";
+    return p.env();
+}
+
+static environment arith_normalize_cmd(parser & p) {
+    // 0: normalize, 1: prove equal to its normalized poly (for testing)
+    unsigned o = p.parse_small_nat();
+
+    expr e; level_param_names ls;
+    std::tie(e, ls) = parse_local_expr(p);
+
+    flycheck_information info(p.regular_stream());
+    if (info.enabled()) {
+        p.display_information_pos(p.cmd_pos());
+        p.regular_stream() << "arith_normalize result:\n";
+    }
+
+    auto tc = mk_type_checker(p.env(), p.mk_ngen());
+    expr type = tc->infer(e).first;
+
+    blast::scope_debug scope(p.env(), p.ios());
+    if (o == 0) {
+        blast::simp::result r; list<expr> placeholders;
+        std::tie(r, placeholders) = blast::arith::normalize(e, type);
+        buffer<expr> locals; to_buffer(placeholders, locals);
+        if (!r.has_proof()) {
+            p.regular_stream() << r.get_new() << "\n";
+        } else {
+            expr thm = tc->check(Fun(locals, r.get_proof()), ls).first;
+            // Ignore the non-zero assumptions
+            while (is_pi(thm)) { thm = binding_body(thm); }
+            expr old_expr, new_expr;
+            lean_verify(is_eq(thm, old_expr, new_expr));
+            if (!tc->is_def_eq(new_expr, r.get_new()).first) {
+                p.regular_stream() << "new expr wrong: " << new_expr << " != " << r.get_new() << "\n";
+                throw parser_error("incorrect proof", p.pos());
+            } else if (!tc->is_def_eq(old_expr, e).first) {
+                p.regular_stream() << "old expr wrong: " << old_expr << " != " << e << "\n";
+                throw parser_error("incorrect proof", p.pos());
+            } else {
+                p.regular_stream() << thm << "\n";
+            }
+        }
+    } else {
+        auto poly = blast::arith::normalize_poly(e);
+        expr e_poly = blast::polynomial_to_expr(poly, type);
+        expr pf; list<expr> placeholders;
+        std::tie(pf, placeholders) = blast::arith::normalize_prove_eq(e, e_poly, type);
+        buffer<expr> locals; to_buffer(placeholders, locals);
+        expr thm = tc->check(Fun(locals, pf), ls).first;
+        expr e_alt, e_poly_alt;
+        // Ignore the non-zero assumptions
+        while (is_pi(thm)) { thm = binding_body(thm); }
+        lean_verify(is_eq(thm, e_alt, e_poly_alt));
+        if (!tc->is_def_eq(e, e_alt).first || !tc->is_def_eq(e_poly, e_poly_alt).first) {
+            p.regular_stream() << "proof of incorrect theorem, "
+                               << "expected:\n" << e << " == " << e_poly << "\n"
+                               << "actual:\n" << e_alt << " ==" << e_poly_alt << "\n";
+            throw parser_error("incorrect proof", p.pos());
+        }
+    }
+
+    return p.env();
+}
+
+static environment num_simplify_cmd(parser & p) {
+    expr e; level_param_names ls;
+    std::tie(e, ls) = parse_local_expr(p);
+
+    blast::scope_debug scope(p.env(), p.ios());
+    auto r = blast::normalize_numeral_expr(e);
+
+    flycheck_information info(p.regular_stream());
+    if (info.enabled()) {
+        p.display_information_pos(p.cmd_pos());
+        p.regular_stream() << "num_simplify result:\n";
+    }
+    if (!r.has_proof()) {
+        p.regular_stream() << r.get_new() << "\n";
+    } else {
+        auto tc = mk_type_checker(p.env(), p.mk_ngen());
+        expr thm = tc->check(r.get_proof(), ls).first;
+        expr old_num, new_num;
+        lean_verify(is_eq(thm, old_num, new_num));
+        if (!tc->is_def_eq(old_num, e).first) {
+            p.regular_stream() << "old num wrong: " << old_num << " != " << e << "\n";
+            throw parser_error("incorrect proof", p.pos());
+        } else if (!tc->is_def_eq(new_num, r.get_new()).first) {
+            p.regular_stream() << "new num wrong: " << new_num << " != " << r.get_new() << "\n";
+            throw parser_error("incorrect proof", p.pos());
+        } else {
+            p.regular_stream() << thm << "\n";
+        }
+    }
     return p.env();
 }
 
@@ -1585,6 +1700,9 @@ void init_cmd_table(cmd_table & r) {
     add_cmd(r, cmd_info("#decl_stats",       "(for debugging purposes) display declaration statistics", decl_stats_cmd));
     add_cmd(r, cmd_info("#relevant_thms",    "(for debugging purposes) select relevant theorems using Meng&Paulson heuristic", relevant_thms_cmd));
     add_cmd(r, cmd_info("#simplify",         "(for debugging purposes) simplify given expression", simplify_cmd));
+    add_cmd(r, cmd_info("#arith_normalize_poly", "(for debugging purposes) compute polynomial normal-form using arith module", arith_normalize_poly_cmd));
+    add_cmd(r, cmd_info("#arith_normalize",  "(for debugging purposes) compute normal-form using arith module", arith_normalize_cmd));
+    add_cmd(r, cmd_info("#num_simplify",     "(for debugging purposes) simplify given expression using num module", num_simplify_cmd));
     add_cmd(r, cmd_info("#abstract_expr",    "(for debugging purposes) call abstract expr methods", abstract_expr_cmd));
 
     register_decl_cmds(r);

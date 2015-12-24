@@ -264,11 +264,14 @@ struct app_builder::imp {
         m_ctx->set_next_mvar_idx(e.m_num_emeta);
     }
 
-    void trace_unify_failure(name const & n, unsigned i, expr const & m, expr const & v) {
+    void trace_unify_failure(entry const & e, name const & n, unsigned i, expr const & m, expr const & v) {
         lean_trace("app_builder",
                    trace_fun(n);
-                   tout () << ", failed to solve unification constraint for #" << (i+1)
-                   << "argument (" << m_ctx->infer(m) << " =?= " << m_ctx->infer(v) << ")\n";);
+                   tout () << ", failed to solve unification constraint for argument #" << (i+1)
+                   << " (" << m_ctx->infer(m) << " =?= " << m_ctx->infer(v) << ")\n";
+                   for (auto meta : e.m_expl_args) {
+                       tout() << meta << " : " << m_ctx->infer(meta) << "\n";
+                   };);
     }
 
     expr mk_app(name const & c, unsigned nargs, expr const * args) {
@@ -286,7 +289,7 @@ struct app_builder::imp {
             }
             --i;
             if (!m_ctx->relaxed_assign(m, args[i])) {
-                trace_unify_failure(c, i, m, args[i]);
+                trace_unify_failure(*e, c, i, m, args[i]);
                 throw app_builder_exception();
             }
         }
@@ -327,7 +330,7 @@ struct app_builder::imp {
                 --j;
                 expr const & m = head(it);
                 if (!m_ctx->relaxed_assign(m, args[j])) {
-                    trace_unify_failure(c, j, m, args[j]);
+                    trace_unify_failure(*e, c, j, m, args[j]);
                     throw app_builder_exception();
                 }
                 it = tail(it);
@@ -605,6 +608,26 @@ struct app_builder::imp {
                    tout() << "failed to build instance of '" << n << "' for " << A << "\n";);
     }
 
+    expr mk_add(expr const & A, expr const & e1, expr const & e2) {
+        level lvl = get_level(A);
+        auto A_has_add = m_ctx->mk_class_instance(::lean::mk_app(mk_constant(get_has_add_name(), {lvl}), A));
+        if (!A_has_add) {
+            trace_inst_failure(A, "has_add");
+            throw app_builder_exception();
+        }
+        return ::lean::mk_app(mk_constant(get_add_name(), {lvl}), {A, *A_has_add, e1, e2});
+    }
+
+    expr mk_mul(expr const & A, expr const & e1, expr const & e2) {
+        level lvl = get_level(A);
+        auto A_has_mul = m_ctx->mk_class_instance(::lean::mk_app(mk_constant(get_has_mul_name(), {lvl}), A));
+        if (!A_has_mul) {
+            trace_inst_failure(A, "has_mul");
+            throw app_builder_exception();
+        }
+        return ::lean::mk_app(mk_constant(get_mul_name(), {lvl}), {A, *A_has_mul, e1, e2});
+    }
+
     expr mk_partial_add(expr const & A) {
         level lvl = get_level(A);
         auto A_has_add = m_ctx->mk_class_instance(::lean::mk_app(mk_constant(get_has_add_name(), {lvl}), A));
@@ -663,6 +686,111 @@ struct app_builder::imp {
             throw app_builder_exception();
         }
         return ::lean::mk_app(mk_constant(get_right_distrib_name(), {lvl}), A, *A_distrib);
+    }
+
+    expr mk_bit0(expr const & A, expr const & n) {
+        level lvl = get_level(A);
+        auto A_has_add = m_ctx->mk_class_instance(::lean::mk_app(mk_constant(get_has_add_name(), {lvl}), A));
+        if (!A_has_add) {
+            trace_inst_failure(A, "has_add");
+            throw app_builder_exception();
+        }
+        return ::lean::mk_app(mk_constant(get_bit0_name(), {lvl}), {A, *A_has_add, n});
+    }
+
+    expr mk_bit1(expr const & A, expr const & n) {
+        level lvl = get_level(A);
+        auto A_has_one = m_ctx->mk_class_instance(::lean::mk_app(mk_constant(get_has_one_name(), {lvl}), A));
+        if (!A_has_one) {
+            trace_inst_failure(A, "has_one");
+            throw app_builder_exception();
+        }
+        auto A_has_add = m_ctx->mk_class_instance(::lean::mk_app(mk_constant(get_has_add_name(), {lvl}), A));
+        if (!A_has_add) {
+            trace_inst_failure(A, "has_add");
+            throw app_builder_exception();
+        }
+        return ::lean::mk_app(mk_constant(get_bit1_name(), {lvl}), {A, *A_has_one, *A_has_add, n});
+    }
+
+    expr mk_neg(expr const & A, expr const & e) {
+        level lvl = get_level(A);
+        auto A_has_neg = m_ctx->mk_class_instance(::lean::mk_app(mk_constant(get_has_neg_name(), {lvl}), A));
+        if (!A_has_neg) {
+            trace_inst_failure(A, "has_neg");
+            throw app_builder_exception();
+        }
+        return ::lean::mk_app(mk_constant(get_neg_name(), {lvl}), {A, *A_has_neg, e});
+    }
+
+    expr mk_inv(expr const & A, expr const & e) {
+        level lvl = get_level(A);
+        auto A_has_inv = m_ctx->mk_class_instance(::lean::mk_app(mk_constant(get_has_inv_name(), {lvl}), A));
+        if (!A_has_inv) {
+            trace_inst_failure(A, "has_inv");
+            throw app_builder_exception();
+        }
+        return ::lean::mk_app(mk_constant(get_inv_name(), {lvl}), {A, *A_has_inv, e});
+    }
+
+    expr mk_le(expr const & A, expr const & lhs, expr const & rhs) {
+        level lvl = get_level(A);
+        auto A_has_le = m_ctx->mk_class_instance(::lean::mk_app(mk_constant(get_has_le_name(), {lvl}), A));
+        if (!A_has_le) {
+            trace_inst_failure(A, "has_le");
+            throw app_builder_exception();
+        }
+        return ::lean::mk_app(mk_constant(get_le_name(), {lvl}), {A, *A_has_le, lhs, rhs});
+    }
+
+    expr mk_lt(expr const & A, expr const & lhs, expr const & rhs) {
+        level lvl = get_level(A);
+        auto A_has_lt = m_ctx->mk_class_instance(::lean::mk_app(mk_constant(get_has_lt_name(), {lvl}), A));
+        if (!A_has_lt) {
+            trace_inst_failure(A, "has_lt");
+            throw app_builder_exception();
+        }
+        return ::lean::mk_app(mk_constant(get_lt_name(), {lvl}), {A, *A_has_lt, lhs, rhs});
+    }
+
+    expr mk_zero_lt_one(expr const & A) {
+        level lvl = get_level(A);
+        auto A_linear_ordered_semiring = m_ctx->mk_class_instance(::lean::mk_app(mk_constant(get_linear_ordered_semiring_name(), {lvl}), A));
+        if (!A_linear_ordered_semiring) {
+            trace_inst_failure(A, "linear_ordered_semiring");
+            throw app_builder_exception();
+        }
+        return ::lean::mk_app(mk_constant(get_zero_lt_one_name(), {lvl}), {A, *A_linear_ordered_semiring});
+    }
+
+    expr mk_zero_not_lt_zero(expr const & A) {
+        level lvl = get_level(A);
+        auto A_linear_ordered_semiring = m_ctx->mk_class_instance(::lean::mk_app(mk_constant(get_linear_ordered_semiring_name(), {lvl}), A));
+        if (!A_linear_ordered_semiring) {
+            trace_inst_failure(A, "linear_ordered_semiring");
+            throw app_builder_exception();
+        }
+        return ::lean::mk_app(mk_constant(get_ordered_arith_zero_not_lt_zero_name(), {lvl}), {A, *A_linear_ordered_semiring});
+    }
+
+    expr mk_ordered_semiring(expr const & A) {
+        level lvl = get_level(A);
+        return ::lean::mk_app(mk_constant(get_ordered_semiring_name(), {lvl}), A);
+    }
+
+    expr mk_ordered_ring(expr const & A) {
+        level lvl = get_level(A);
+        return ::lean::mk_app(mk_constant(get_ordered_ring_name(), {lvl}), A);
+    }
+
+    expr mk_linear_ordered_comm_ring(expr const & A) {
+        level lvl = get_level(A);
+        return ::lean::mk_app(mk_constant(get_linear_ordered_comm_ring_name(), {lvl}), A);
+    }
+
+    expr mk_linear_ordered_field(expr const & A) {
+        level lvl = get_level(A);
+        return ::lean::mk_app(mk_constant(get_linear_ordered_field_name(), {lvl}), A);
     }
 
     expr mk_false_rec(expr const & c, expr const & H) {
@@ -797,6 +925,14 @@ expr app_builder::mk_not(expr const & H) {
     return m_ptr->mk_not(H);
 }
 
+expr app_builder::mk_add(expr const & A, expr const & e1, expr const & e2) {
+    return m_ptr->mk_add(A, e1, e2);
+}
+
+expr app_builder::mk_mul(expr const & A, expr const & e1, expr const & e2) {
+    return m_ptr->mk_mul(A, e1, e2);
+}
+
 expr app_builder::mk_partial_add(expr const & A) {
     return m_ptr->mk_partial_add(A);
 }
@@ -819,6 +955,54 @@ expr app_builder::mk_partial_left_distrib(expr const & A) {
 
 expr app_builder::mk_partial_right_distrib(expr const & A) {
     return m_ptr->mk_partial_right_distrib(A);
+}
+
+expr app_builder::mk_bit0(expr const & A, expr const & n) {
+    return m_ptr->mk_bit0(A, n);
+}
+
+expr app_builder::mk_bit1(expr const & A, expr const & n) {
+    return m_ptr->mk_bit1(A, n);
+}
+
+expr app_builder::mk_neg(expr const & A, expr const & e) {
+    return m_ptr->mk_neg(A, e);
+}
+
+expr app_builder::mk_inv(expr const & A, expr const & e) {
+    return m_ptr->mk_inv(A, e);
+}
+
+expr app_builder::mk_le(expr const & A, expr const & lhs, expr const & rhs) {
+    return m_ptr->mk_le(A, lhs, rhs);
+}
+
+expr app_builder::mk_lt(expr const & A, expr const & lhs, expr const & rhs) {
+    return m_ptr->mk_lt(A, lhs, rhs);
+}
+
+expr app_builder::mk_zero_lt_one(expr const & A) {
+    return m_ptr->mk_zero_lt_one(A);
+}
+
+expr app_builder::mk_zero_not_lt_zero(expr const & A) {
+    return m_ptr->mk_zero_not_lt_zero(A);
+}
+
+expr app_builder::mk_ordered_semiring(expr const & A) {
+    return m_ptr->mk_ordered_semiring(A);
+}
+
+expr app_builder::mk_ordered_ring(expr const & A) {
+    return m_ptr->mk_ordered_ring(A);
+}
+
+expr app_builder::mk_linear_ordered_comm_ring(expr const & A) {
+    return m_ptr->mk_linear_ordered_comm_ring(A);
+}
+
+expr app_builder::mk_linear_ordered_field(expr const & A) {
+    return m_ptr->mk_linear_ordered_field(A);
 }
 
 expr app_builder::mk_sorry(expr const & type) {

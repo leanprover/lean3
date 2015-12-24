@@ -4,6 +4,7 @@ Released under Apache 2.0 license as described in the file LICENSE.
 Author: Robert Y. Lewis
 */
 #include "library/norm_num.h"
+#include "library/util.h"
 #include "library/constants.h"
 
 namespace lean {
@@ -31,10 +32,6 @@ bool norm_num_context::is_numeral(expr const & e) const {
 
 bool norm_num_context::is_neg_app(expr const & e) const {
     return is_const_app(e, get_neg_name(), 3);
-}
-
-bool norm_num_context::is_div(expr const & e) const {
-    return is_const_app(e, get_div_name(), 4);
 }
 
 /*
@@ -502,6 +499,12 @@ mpq norm_num_context:: mpq_of_expr(expr const & e){
         return mpq_of_expr(args[2]) * mpq_of_expr(args[3]);
     } else if (const_name(f) == get_sub_name() && args.size() == 4) {
         return mpq_of_expr(args[2]) - mpq_of_expr(args[3]);
+    } else if (const_name(f) == get_inv_name() && args.size() == 3) {
+        mpq arg = mpq_of_expr(args[2]);
+        if (arg != 0)
+            return inv(arg);
+        else
+            throw exception("inverse of 0");
     } else if (const_name(f) == get_div_name() && args.size() == 4) {
         mpq num = mpq_of_expr(args[2]), den = mpq_of_expr(args[3]);
         if (den != 0)
@@ -825,6 +828,14 @@ pair<expr, expr> norm_num_context::mk_norm(expr const & e) {
     if (is_numeral(e)) {
         expr prf = mk_app({mk_const(get_eq_refl_name()), type, e});
         return pair<expr, expr>(e, prf);
+    }
+    if (const_name(f) == get_inv_name() && args.size() == 3) {
+        // theorem inv_of_div_helper [s : field A] (a  b : A) (H : 1 / a = b) : a⁻¹ = b
+        expr one = mk_app({mk_const(get_one_name()), type, mk_has_one(type)});
+        expr div_expr = mk_div(type, one, args[2]);
+        pair<expr, expr> div_norm = mk_norm(div_expr);
+        return pair<expr, expr>(div_norm.first, mk_app({mk_const(get_norm_num_inv_of_div_helper_name()),
+                        type, mk_field(type), args[2], div_norm.first, div_norm.second}));
     }
     mpq val = mpq_of_expr(e);
     expr nval; // e = nval

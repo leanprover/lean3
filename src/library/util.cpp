@@ -413,6 +413,11 @@ void finalize_library_util() {
     delete g_and_elim_right;
 }
 
+bool is_const_app(expr const & e, name const & n, unsigned nargs) {
+    expr const & f = get_app_fn(e);
+    return is_constant(f) && const_name(f) == n && get_app_num_args(e) == nargs;
+}
+
 expr mk_true() {
     return *g_true;
 }
@@ -554,6 +559,107 @@ expr mk_iff(expr const & lhs, expr const & rhs) {
 expr mk_iff_refl(expr const & a) {
     return mk_app(mk_constant(get_iff_refl_name()), a);
 }
+
+bool is_add(expr const & e) { return is_const_app(e, get_add_name(), 4); }
+bool is_add(expr const & e, expr & e1, expr & e2) {
+    if (!is_add(e)) return false;
+    buffer<expr> args;
+    get_app_args(e, args);
+    e1 = args[2];
+    e2 = args[3];
+    return true;
+}
+
+bool is_mul(expr const & e) { return is_const_app(e, get_mul_name(), 4); }
+bool is_mul(expr const & e, expr & e1, expr & e2) {
+    if (!is_mul(e)) return false;
+    buffer<expr> args;
+    get_app_args(e, args);
+    e1 = args[2];
+    e2 = args[3];
+    return true;
+}
+
+bool is_lt(expr const & e) {
+    return is_const_app(e, get_lt_name(), 4);
+}
+bool is_lt(expr const & e, expr & lhs, expr & rhs) {
+    if (!is_lt(e)) return false;
+    buffer<expr> args;
+    get_app_args(e, args);
+    lhs = args[2];
+    rhs = args[3];
+    return true;
+}
+bool is_lt(expr const & e, expr & A, expr & lhs, expr & rhs) {
+    if (!is_lt(e)) return false;
+    buffer<expr> args;
+    get_app_args(e, args);
+    A = args[0];
+    lhs = args[2];
+    rhs = args[3];
+    return true;
+}
+
+bool is_le(expr const & e) {
+    return is_const_app(e, get_le_name(), 4);
+}
+bool is_le(expr const & e, expr & lhs, expr & rhs) {
+    if (!is_le(e)) return false;
+    buffer<expr> args;
+    get_app_args(e, args);
+    lhs = args[2];
+    rhs = args[3];
+    return true;
+}
+bool is_le(expr const & e, expr & A, expr & lhs, expr & rhs) {
+    if (!is_le(e)) return false;
+    buffer<expr> args;
+    get_app_args(e, args);
+    A = args[0];
+    lhs = args[2];
+    rhs = args[3];
+    return true;
+}
+
+
+bool is_zero(expr const & e) { return is_const_app(e, get_zero_name(), 2); }
+bool is_one(expr const & e) { return is_const_app(e, get_one_name(), 2); }
+bool is_bit0(expr const & e) { return is_const_app(e, get_bit0_name(), 3); }
+bool is_bit0(expr const & e, expr & arg) {
+    if (!is_bit0(e)) return false;
+    arg = app_arg(e);
+    return true;
+}
+bool is_bit1(expr const & e) { return is_const_app(e, get_bit1_name(), 4); }
+bool is_bit1(expr const & e, expr & arg) {
+    if (!is_bit1(e)) return false;
+    arg = app_arg(e);
+    return true;
+}
+
+bool is_inv(expr const & e) { return is_const_app(e, get_inv_name(), 3); }
+bool is_inv(expr const & e, expr & inv_e) {
+    if (!is_inv(e)) return false;
+    inv_e = app_arg(e);
+    return true;
+}
+
+bool is_neg(expr const & e) { return is_const_app(e, get_neg_name(), 3); }
+bool is_neg(expr const & e, expr & neg_e) {
+    if (!is_neg(e)) return false;
+    neg_e = app_arg(e);
+    return true;
+}
+
+bool is_div(expr const & e) { return is_const_app(e, get_div_name(), 4); }
+bool is_div(expr const & e, expr & n, expr & d) {
+    if (!is_div(e)) return false;
+    n = app_arg(app_fn(e));
+    d = app_arg(e);
+    return true;
+}
+
 expr apply_propext(expr const & iff_pr, expr const & iff_term) {
     lean_assert(is_iff(iff_term));
     return mk_app(mk_constant(get_propext_name()), app_arg(app_fn(iff_term)), app_arg(iff_term), iff_pr);
@@ -659,6 +765,17 @@ bool is_eq(expr const & e, expr & lhs, expr & rhs) {
         return false;
     lhs = app_arg(app_fn(e));
     rhs = app_arg(e);
+    return true;
+}
+
+bool is_eq(expr const & e, expr & A, expr & lhs, expr & rhs) {
+    if (!is_eq(e) || !is_app(app_fn(e)))
+        return false;
+    buffer<expr> args;
+    get_app_args(e, args);
+    A = args[0];
+    lhs = args[1];
+    rhs = args[2];
     return true;
 }
 

@@ -7,7 +7,7 @@ axiom H1 : a = b
 axiom H2 : a = c
 
 attribute H1 [simp]
-attribute H2 [simp]
+attribute H2 [simp] [priority 1001]
 
 #simplify eq env 0 a -- c
 

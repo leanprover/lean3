@@ -145,7 +145,7 @@ nat.induction_on k
                      ... = n + succ (m + l)    : add_succ
                      ... = n + (m + succ l)    : add_succ)
 
-protected theorem add_left_comm : Π (n m k : ℕ), n + (m + k) = m + (n + k) :=
+protected theorem add_left_comm [simp] : Π (n m k : ℕ), n + (m + k) = m + (n + k) :=
 left_comm nat.add_comm nat.add_assoc
 
 protected theorem add_right_comm : Π (n m k : ℕ), n + m + k = n + k + m :=

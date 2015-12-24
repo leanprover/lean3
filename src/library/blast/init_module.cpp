@@ -13,6 +13,7 @@ Author: Leonardo de Moura
 #include "library/blast/backward/init_module.h"
 #include "library/blast/forward/init_module.h"
 #include "library/blast/unit/init_module.h"
+#include "library/blast/arith/init_module.h"
 #include "library/blast/actions/init_module.h"
 #include "library/blast/grinder/init_module.h"
 
@@ -25,6 +26,7 @@ void initialize_blast_module() {
     blast::initialize_backward_module();
     blast::initialize_forward_module();
     blast::initialize_unit_module();
+    blast::initialize_arith_module();
     initialize_blast_tactic();
     blast::initialize_actions_module();
     blast::initialize_congruence_closure();
@@ -35,6 +37,7 @@ void finalize_blast_module() {
     blast::finalize_congruence_closure();
     blast::finalize_actions_module();
     finalize_blast_tactic();
+    blast::finalize_arith_module();
     blast::finalize_unit_module();
     blast::finalize_forward_module();
     blast::finalize_backward_module();
