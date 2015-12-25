@@ -6,15 +6,15 @@ Authors: Jacob Gross
 Open/Closed sets, seperation axioms and generator topologies
 -/
 
-import data.set data.nat
-open algebra eq.ops set nat
+import data.set data.nat data.real
+open algebra eq.ops set nat real
 
 variable {X : Type}
 
 structure topology (X : Type) :=
   (top : set (set X))
-  (empt : ∅ ∈ top)
-  (entire : univ ∈ top)
+  (empty : ∅ ∈ top)
+  (univ : univ ∈ top)
   (union : ∀ I : Type.{1}, ∀ s : I → set X, (∀ i, s i ∈ top) → (Union s) ∈ top)
   (fin_inter : ∀ s, finite s → s ⊆ top → (sInter s ∈ top))
 
@@ -72,7 +72,7 @@ have ∀ i, (bin_ext A B) i ∈ τ, from
      else
        by rewrite[↑bin_ext, if_pos Hp, if_neg Hpp]; exact OpB
      else 
-       by rewrite[↑bin_ext, if_neg Hp]; exact !topology.empt,
+       by rewrite[↑bin_ext, if_neg Hp]; exact !topology.empty,
 have Union (bin_ext A B) ∈ τ, from !topology.union this,
 show  A ∪ B ∈ τ, from H ▸ this
 
@@ -85,7 +85,7 @@ theorem fin_union_open {τ : topology X} (S : set (set X)) {fin : finite S} :
             obtain c [(hc : c ∈ ∅) (xc : x ∈ c)], from this,
             show _, from !not.elim !not_mem_empty hc)
           (suppose x ∈ ∅, !not.elim !not_mem_empty this)),
-   show openset (sUnion ∅), from this⁻¹ ▸ !topology.empt)
+   show openset (sUnion ∅), from this⁻¹ ▸ !topology.empty)
   (begin
    intro a s fins,
    λ H₁, λ H₂, λ H₃,
@@ -153,7 +153,7 @@ have univ\univ = ∅, from ext(
   iff.intro
     (suppose x ∈ univ\univ, !not.elim (and.elim_right this) (and.elim_left this))
     (suppose x ∈ ∅, !not.elim !not_mem_empty this)),
-show univ\univ ∈ τ, from this⁻¹ ▸ !topology.empt
+show univ\univ ∈ τ, from this⁻¹ ▸ !topology.empty
 
 theorem empty_closed (τ : topology X) :
    univ \ ∅ ∈ τ := 
@@ -162,7 +162,7 @@ have univ \ ∅ = univ, from ext(
   iff.intro
     (suppose x ∈ univ \ ∅, and.elim_left this)
     (suppose x ∈ univ, and.intro this !not_mem_empty)),
-show _, from this⁻¹ ▸ !topology.entire
+show _, from this⁻¹ ▸ !topology.univ
 
 section
 
@@ -383,8 +383,8 @@ definition T1_space.to_T0_space [trans_instance] [reducible] [τ : T1_space X] :
 T0_space X :=
 ⦃ T0_space, 
   top       := T1_space.top X,
-  empt      := T1_space.empt X,
-  entire    := T1_space.entire X,
+  empty      := T1_space.empty X,
+  univ    := T1_space.univ X,
   union     := T1_space.union,
   fin_inter := T1_space.fin_inter,
   T0        := T1_implies_T0 ⦄
@@ -412,8 +412,8 @@ definition T2_space.to_T1_space [trans_instance] [reducible] [τ : T2_space X] :
 T1_space X :=
 ⦃ T1_space, 
   top       := T2_space.top X,
-  empt      := T2_space.empt X,
-  entire    := T2_space.entire X,
+  empty      := T2_space.empty X,
+  univ    := T2_space.univ X,
   union     := T2_space.union,
   fin_inter := T2_space.fin_inter,
   T1        := T2_implies_T1 ⦄
@@ -448,10 +448,10 @@ inductive generate_topology (B : set (set X))  : (X → Prop) → Prop :=
 | UN : ∀ I : Type.{1}, ∀ U : I → set X, (∀ i, U i ∈ generate_topology B) → generate_topology B (Union U)
 | Basis : ∀ s : X → Prop, B s → generate_topology B s
 
-lemma generate_topology_Union (B : set (set X)) : 
-  ∀ I : Type.{1}, ∀ U : I → set X, (∀ i, U i ∈ generate_topology B) → Union U ∈ generate_topology B := 
+lemma generate_topology_Union (A : Type) (B : set (set A)) : 
+  ∀ I : Type.{1}, ∀ U : I → set A, (∀ i, U i ∈ generate_topology B) → Union U ∈ generate_topology B := 
 take I,
-take U : I → set X,
+take U : I → set A,
 suppose ∀ i, U i ∈ generate_topology B,
 !generate_topology.UN this
 
@@ -490,20 +490,33 @@ else
   suppose s ⊆ (generate_topology B),
   show sInter s ∈ (generate_topology B), from !not.elim fin `finite s`
 
-variable B : set (set X)
-
-inductive to_type {B : Type} : B → Type :=
-mk : Π (b : B), to_type b
-
-definition generate_topology.to_topology [trans_instance] [reducible] [τ : to_type (generate_topology B)] :
+definition generate_topology.to_topology [trans_instance] [reducible] (B : set (set X)) :
   topology X :=
 ⦃ topology, 
   top       := generate_topology B,
-  empt      := generate_topology.EMPTY B,
-  entire    := generate_topology.UNIV B,
-  union     := generate_topology_Union B,
+  empty      := generate_topology.EMPTY B,
+  univ   := generate_topology.UNIV B,
+  union     := generate_topology_Union X B,
   fin_inter := generate_topology_fin_Inter ⦄
 
 end top
+
+namespace order_topology
+
+open top
+
+definition open_ray_le (L : lattice X) (a : X) : set X := {x | le a x}
+
+definition open_ray_ge (L : lattice X) (a : X) : set X := {x | le a x}
+
+variable L : lattice X
+
+definition open_ray_le_collection : set (set X) := {x | ∃ a, x = open_ray_le L a}
+
+definition open_ray_ge_collection : set (set X) := {x | ∃ a, x = open_ray_ge L a}
+
+definition order_topology : topology X := generate_topology.to_topology (open_ray_le_collection L ∪ open_ray_ge_collection L)
+
+end order_topology
 
 
