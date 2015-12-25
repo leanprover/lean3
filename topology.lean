@@ -1,3 +1,11 @@
+/-
+Copyright (c) 2015 Jacob Gross. All rights reserved.
+Released under Apache 2.0 license as described in the file LICENSE.
+Authors: Jacob Gross
+
+Open/Closed sets, seperation axioms and generator topologies
+-/
+
 import data.set data.nat
 open algebra eq.ops set nat
 
@@ -8,7 +16,7 @@ structure topology (X : Type) :=
   (empt : ∅ ∈ top)
   (entire : univ ∈ top)
   (union : ∀ I : Type.{1}, ∀ s : I → set X, (∀ i, s i ∈ top) → (Union s) ∈ top)
-  (fin_inter : ∀ s, s ⊆ top → (sInter s ∈ top))
+  (fin_inter : ∀ s, finite s → s ⊆ top → (sInter s ∈ top))
 
 attribute topology [class]
 attribute topology.top [coercion]
@@ -68,8 +76,45 @@ have ∀ i, (bin_ext A B) i ∈ τ, from
 have Union (bin_ext A B) ∈ τ, from !topology.union this,
 show  A ∪ B ∈ τ, from H ▸ this
 
+theorem fin_union_open {τ : topology X} (S : set (set X)) {fin : finite S} :
+  (∀ s, s ∈ S → openset s) → openset (sUnion S) := 
+!induction_on_finite
+  (suppose ∀ s, s ∈ ∅ → openset s,
+     have sUnion ∅ = ∅, from ext (λx, iff.intro
+          (suppose x ∈ sUnion ∅,
+            obtain c [(hc : c ∈ ∅) (xc : x ∈ c)], from this,
+            show _, from !not.elim !not_mem_empty hc)
+          (suppose x ∈ ∅, !not.elim !not_mem_empty this)),
+   show openset (sUnion ∅), from this⁻¹ ▸ !topology.empt)
+  (begin
+   intro a s fins,
+   λ H₁, λ H₂, λ H₃,
+   !sUnion_insert⁻¹ ▸ (!bin_union_open (H₃ a !mem_insert) (H₂(
+     λ s, λ s', H₃ s (!mem_insert_of_mem s'))))
+   end)
+
 theorem bin_inter_open {τ : topology X} {A B : set X} (OpA : A ∈ τ) (OpB : B ∈ τ) :
   A ∩ B ∈ τ :=
+have finite (∅ : set X), from !finite_empty,
+have '{A} = insert A ∅, from ext(
+  take x,
+  iff.intro
+    (assume xA, ((iff.elim_left !mem_singleton_iff) xA)⁻¹ ▸ !mem_insert)
+    (suppose x ∈ insert A ∅, or.elim 
+      (!eq_or_mem_of_mem_insert this)
+      (suppose x = A, this⁻¹ ▸ !mem_singleton)
+      (suppose x ∈ ∅, !not.elim !not_mem_empty this))),
+have finite '{A}, from finite_insert A ∅,
+have {x | x = A ∨ x = B} = insert B '{A}, from ext(
+  take x,
+  iff.intro
+    (suppose x ∈ {x | x = A ∨ x = B}, or.elim this
+        (suppose x = A, !mem_insert_of_mem (this⁻¹ ▸ !mem_singleton))
+        (suppose x = B, this⁻¹ ▸ !mem_insert))
+    (suppose x ∈ insert B '{A}, or.elim (!eq_or_mem_of_mem_insert this)
+        (suppose x = B, or.inr this)
+        (suppose x ∈ '{A}, or.inl ((iff.elim_left !mem_singleton_iff) this)))),
+have finite {x | x = A ∨ x = B}, from this⁻¹ ▸ (finite_insert B '{A}),
 have {x | x = A ∨ x = B} ⊆ τ, from
   take y,
   suppose y ∈ {x | x = A ∨ x = B},
@@ -77,7 +122,7 @@ have {x | x = A ∨ x = B} ⊆ τ, from
     (this)
     (suppose y = A, this⁻¹ ▸ OpA)
     (suppose y = B, this⁻¹ ▸ OpB),
-have H : sInter {x | x = A ∨ x = B} ∈ τ, from !topology.fin_inter this,
+have H : sInter {x | x = A ∨ x = B} ∈ τ, from !topology.fin_inter `finite {x | x = A ∨ x = B}` this,
 have A ∩ B = sInter {x | x = A ∨ x = B}, from ext(
   take x,
   iff.intro
@@ -99,23 +144,6 @@ have A ∩ B = sInter {x | x = A ∨ x = B}, from ext(
       show x ∈ A ∩ B, from and.intro `x ∈ A` `x ∈ B`)),
 show _, from this⁻¹ ▸ H
 
-theorem fin_union_open {τ : topology X} (S : set (set X)) {fin : finite S} :
-  (∀ s, s ∈ S → openset s) → openset (sUnion S) := 
-!induction_on_finite
-  (suppose ∀ s, s ∈ ∅ → openset s,
-     have sUnion ∅ = ∅, from ext (λx, iff.intro
-          (suppose x ∈ sUnion ∅,
-            obtain c [(hc : c ∈ ∅) (xc : x ∈ c)], from this,
-            show _, from !not.elim !not_mem_empty hc)
-          (suppose x ∈ ∅, !not.elim !not_mem_empty this)),
-   show openset (sUnion ∅), from this⁻¹ ▸ !topology.empt)
-  (begin
-   intro a s fins,
-   λ H₁, λ H₂, λ H₃,
-   !sUnion_insert⁻¹ ▸ (!bin_union_open (H₃ a !mem_insert) (H₂(
-     λ s, λ s', H₃ s (!mem_insert_of_mem s'))))
-   end)
-
 definition closedset [τ : topology X] (s : set X) : Prop := univ \ s ∈ τ
 
 theorem space_closed {τ : topology X} :
@@ -127,7 +155,7 @@ have univ\univ = ∅, from ext(
     (suppose x ∈ ∅, !not.elim !not_mem_empty this)),
 show univ\univ ∈ τ, from this⁻¹ ▸ !topology.empt
 
-theorem empty_closed (τ : topology X) : -- Can't write closedset ∅... type class inference can't find τ?
+theorem empty_closed (τ : topology X) :
    univ \ ∅ ∈ τ := 
 have univ \ ∅ = univ, from ext(
   take x,
@@ -135,42 +163,6 @@ have univ \ ∅ = univ, from ext(
     (suppose x ∈ univ \ ∅, and.elim_left this)
     (suppose x ∈ univ, and.intro this !not_mem_empty)),
 show _, from this⁻¹ ▸ !topology.entire
-
-theorem bin_union_closed {τ : topology X} (A B : set X) (CloA : closedset A) (CloB : closedset B) :
-  closedset (A ∪ B) := 
-have H : univ \ (A ∪ B) = (univ \ A) ∩ (univ \ B), from ext(
-  take x,
-  iff.intro
-    (suppose x ∈ univ \ (A ∪ B),
-      have ¬(x ∈ A ∨ x ∈ B), from and.elim_right this,
-      have x ∉ A ∧ x ∉ B, from (and.elim_left !not_or_iff_not_and_not) this,
-      have x ∈ (univ \ A), from and.intro !mem_univ (and.elim_left this),
-      have x ∈ (univ \ B), from and.intro !mem_univ (and.elim_right `x ∉ A ∧ x ∉ B`),
-      show _, from and.intro `x ∈ (univ \ A)` this)
-    (suppose x ∈ (univ \ A) ∩ (univ \ B),
-      have x ∉ A, from and.elim_right (and.elim_left this),
-      have x ∉ B, from and.elim_right (and.elim_right `x ∈ (univ \ A) ∩ (univ \ B)`),
-      have ¬(x ∈ A ∨ x ∈ B), from  (and.elim_right !not_or_iff_not_and_not) (and.intro `x ∉ A` this), 
-      show _, from and.intro !mem_univ this)),
-have openset ((univ \ A) ∩ (univ \ B)), from !bin_inter_open CloA CloB, 
-show openset (univ \ (A ∪ B)), from H⁻¹ ▸ this
-
-theorem fin_union_closed {τ : topology X} (S : set (set X)) {fin : finite S} :
-  (∀ s, s ∈ S → closedset s) → closedset (sUnion S) := 
-!induction_on_finite
-  (suppose ∀ s, s ∈ ∅ → closedset s, 
-        have sUnion ∅ = ∅, from ext (λx, iff.intro
-          (suppose x ∈ sUnion ∅,
-            obtain c [(hc : c ∈ ∅) (xc : x ∈ c)], from this,
-            show _, from !not.elim !not_mem_empty hc)
-          (suppose x ∈ ∅, !not.elim !not_mem_empty this)),
-   show closedset (sUnion ∅), from this⁻¹ ▸ !empty_closed)
-  (begin
-    intro a s fins,
-    λ H₁, λ H₂, λ H₃,
-    !sUnion_insert⁻¹ ▸ (!bin_union_closed (H₃ a !mem_insert) (H₂(
-      λ s, λ s', H₃ s (!mem_insert_of_mem s'))))
-   end)
 
 section
 
@@ -267,6 +259,42 @@ have Inter S = univ\(Union (λ i, univ\(S i))), from ext(
 show _, from this⁻¹ ▸ H
 
 end 
+
+theorem bin_union_closed {τ : topology X} (A B : set X) (CloA : closedset A) (CloB : closedset B) :
+  closedset (A ∪ B) := 
+have H : univ \ (A ∪ B) = (univ \ A) ∩ (univ \ B), from ext(
+  take x,
+  iff.intro
+    (suppose x ∈ univ \ (A ∪ B),
+      have ¬(x ∈ A ∨ x ∈ B), from and.elim_right this,
+      have x ∉ A ∧ x ∉ B, from (and.elim_left !not_or_iff_not_and_not) this,
+      have x ∈ (univ \ A), from and.intro !mem_univ (and.elim_left this),
+      have x ∈ (univ \ B), from and.intro !mem_univ (and.elim_right `x ∉ A ∧ x ∉ B`),
+      show _, from and.intro `x ∈ (univ \ A)` this)
+    (suppose x ∈ (univ \ A) ∩ (univ \ B),
+      have x ∉ A, from and.elim_right (and.elim_left this),
+      have x ∉ B, from and.elim_right (and.elim_right `x ∈ (univ \ A) ∩ (univ \ B)`),
+      have ¬(x ∈ A ∨ x ∈ B), from  (and.elim_right !not_or_iff_not_and_not) (and.intro `x ∉ A` this), 
+      show _, from and.intro !mem_univ this)),
+have openset ((univ \ A) ∩ (univ \ B)), from !bin_inter_open CloA CloB, 
+show openset (univ \ (A ∪ B)), from H⁻¹ ▸ this
+
+theorem fin_union_closed {τ : topology X} (S : set (set X)) {fin : finite S} :
+  (∀ s, s ∈ S → closedset s) → closedset (sUnion S) := 
+!induction_on_finite
+  (suppose ∀ s, s ∈ ∅ → closedset s, 
+        have sUnion ∅ = ∅, from ext (λx, iff.intro
+          (suppose x ∈ sUnion ∅,
+            obtain c [(hc : c ∈ ∅) (xc : x ∈ c)], from this,
+            show _, from !not.elim !not_mem_empty hc)
+          (suppose x ∈ ∅, !not.elim !not_mem_empty this)),
+   show closedset (sUnion ∅), from this⁻¹ ▸ !empty_closed)
+  (begin
+    intro a s fins,
+    λ H₁, λ H₂, λ H₃,
+    !sUnion_insert⁻¹ ▸ (!bin_union_closed (H₃ a !mem_insert) (H₂(
+      λ s, λ s', H₃ s (!mem_insert_of_mem s'))))
+   end)
 
 theorem fin_inter_closed {τ : topology X} (S : set (set X)) {fin : finite S} :
   (∀ s, s ∈ S → closedset s) → closedset (sInter S) := 
@@ -414,9 +442,9 @@ structure perfect_space [class] (X : Type) extends topology X :=
 /- Generators for Topologies -/
 
 inductive generate_topology (B : set (set X))  : (X → Prop) → Prop :=
-| UNIV : ∀ x : X, (generate_topology B) (λ x, true) 
-| EMPTY : ∀ x : X, (generate_topology B) (λ x, false)
-| Int :  ∀ a b : X → Prop, generate_topology B a → generate_topology B b → (generate_topology B (λ x, a x ∧ b x))
+| UNIV : (generate_topology B) (λ x, true) 
+| EMPTY : (generate_topology B) (λ x, false)
+| Int :  ∀ a b : X → Prop, generate_topology B a → generate_topology B b → (generate_topology B (a ∩ b))
 | UN : ∀ I : Type.{1}, ∀ U : I → set X, (∀ i, U i ∈ generate_topology B) → generate_topology B (Union U)
 | Basis : ∀ s : X → Prop, B s → generate_topology B s
 
@@ -429,18 +457,40 @@ suppose ∀ i, U i ∈ generate_topology B,
 
 open classical
 
+private lemma fin_inter_ind_step (B : set (set X)) (a : set X) : 
+  ∀ s, a ∉ s → (finite s → s ⊆ (generate_topology B) →  (sInter s ∈ (generate_topology B))) → 
+(finite (insert a s) → (insert a s) ⊆ generate_topology B →  (sInter (insert a s) ∈ generate_topology B)) := 
+take s,
+λ H₁, λ H₂, λ H₃, λ H₄,
+!sInter_insert⁻¹ ▸ (!generate_topology.Int ((H₄ a) !mem_insert)(H₂ (!finite_of_finite_insert H₃) (subset.trans (subset_insert a s) H₄)))
+
 lemma generate_topology_fin_Inter {B : set (set X)} :
-  ∀ s, s ⊆ (generate_topology B) → (sInter s ∈ (generate_topology B)) := 
+  ∀ s, finite s → s ⊆ (generate_topology B) → (sInter s ∈ (generate_topology B)) := 
 take s,
 if fin : finite s then 
   !induction_on_finite
-    (sorry)
-    (sorry)
+    (suppose finite ∅,
+     suppose ∅ ⊆ (generate_topology B),
+     have (sInter (∅ : set (set X))) = univ, from ext(
+     take x,
+     iff.intro
+       (suppose x ∈ sInter ∅, !mem_univ)
+       (suppose x ∈ univ, 
+           take c,
+           suppose c ∈ ∅,
+           !not.elim !not_mem_empty this)),
+     have univ ∈ (generate_topology B), from generate_topology.UNIV B,
+     show sInter ∅ ∈ (generate_topology B), from `sInter ∅ = univ`⁻¹ ▸ this)
+    (begin
+      intro a s fins,
+      apply !fin_inter_ind_step
+     end)
 else 
-  sorry
+  suppose finite s,
+  suppose s ⊆ (generate_topology B),
+  show sInter s ∈ (generate_topology B), from !not.elim fin `finite s`
 
 variable B : set (set X)
-variable x : X
 
 inductive to_type {B : Type} : B → Type :=
 mk : Π (b : B), to_type b
@@ -449,8 +499,8 @@ definition generate_topology.to_topology [trans_instance] [reducible] [τ : to_t
   topology X :=
 ⦃ topology, 
   top       := generate_topology B,
-  empt      := generate_topology.EMPTY B x,
-  entire    := generate_topology.UNIV B x,
+  empt      := generate_topology.EMPTY B,
+  entire    := generate_topology.UNIV B,
   union     := generate_topology_Union B,
   fin_inter := generate_topology_fin_Inter ⦄
 
