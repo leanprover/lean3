@@ -394,30 +394,6 @@ structure T2_space [class] (X : Type) extends topology X :=
 
 attribute T2_space.top [coercion]
 
-lemma T2_implies_T1 {τ : T2_space X} : 
-  ∀ x y, x ≠ y → ∃ U, U ∈ τ ∧ x ∈ U ∧ y ∉ U := 
-take x y,
-suppose x ≠ y,
-obtain U V (HUV : U ∈ τ ∧ V ∈ τ ∧ x ∈ U ∧ y ∈ V ∧ (U ∩ V = ∅)), from !T2_space.T2 this,
-have y ∉ U, from not.intro(
- suppose y ∈ U,
- have y ∈ V, from and.elim_left (and.elim_right (and.elim_right (and.elim_right HUV))),
- have y ∈ U ∩ V, from and.intro `y ∈ U` this,
- have y ∈ ∅, from (and.elim_right (and.elim_right (and.elim_right (and.elim_right HUV)))) ▸ this,
- absurd this !not_mem_empty),
-have U ∈ τ ∧ x ∈ U ∧ y ∉ U, from and.intro (and.elim_left HUV) (and.intro (and.elim_left (and.elim_right (and.elim_right HUV))) this),
-show _, from exists.intro U this
-
-definition T2_space.to_T1_space [trans_instance] [reducible] [τ : T2_space X] :
-T1_space X :=
-⦃ T1_space, 
-  top       := T2_space.top X,
-  empty      := T2_space.empty X,
-  univ    := T2_space.univ X,
-  union     := T2_space.union,
-  fin_inter := T2_space.fin_inter,
-  T1        := T2_implies_T1 ⦄
-
 theorem seperation_T2 {τ : T2_space X} : 
   ∀ x y, x ≠ y ↔ ∃ U V, U ∈ τ ∧ V ∈ τ ∧ x ∈ U ∧ y ∈ V ∧ (U ∩ V = ∅) := 
 take x y,
@@ -436,6 +412,30 @@ iff.intro
         have x ∈ ∅, from `U ∩ V = ∅` ▸ this,
         absurd this !not_mem_empty))
 
+lemma T2_implies_T1 {τ : T2_space X} : 
+  ∀ x y, x ≠ y → ∃ U, U ∈ τ ∧ x ∈ U ∧ y ∉ U := 
+take x y,
+suppose x ≠ y,
+obtain U V (HUV : U ∈ τ ∧ V ∈ τ ∧ x ∈ U ∧ y ∈ V ∧ (U ∩ V = ∅)), from !T2_space.T2 this,
+have y ∉ U, from not.intro(
+ suppose y ∈ U,
+ have y ∈ V, from and.elim_left (and.elim_right (and.elim_right (and.elim_right HUV))),
+ have y ∈ U ∩ V, from and.intro `y ∈ U` this,
+ have y ∈ ∅, from (and.elim_right (and.elim_right (and.elim_right (and.elim_right HUV)))) ▸ this,
+ absurd this !not_mem_empty),
+have U ∈ τ ∧ x ∈ U ∧ y ∉ U, from and.intro (and.elim_left HUV) (and.intro (and.elim_left (and.elim_right (and.elim_right HUV))) this),
+show _, from exists.intro U this
+
+definition T2_space.to_T1_space [trans_instance] [reducible] [τ : T2_space X] :
+T1_space X :=
+⦃ T1_space, 
+  top       := T2_space.top X,
+  empty     := T2_space.empty X,
+  univ      := T2_space.univ X,
+  union     := T2_space.union,
+  fin_inter := T2_space.fin_inter,
+  T1        := T2_implies_T1 ⦄
+
 structure perfect_space [class] (X : Type) extends topology X :=
   (perfect : ∀ x, ¬('{x} ∈ top))
 
@@ -444,9 +444,9 @@ structure perfect_space [class] (X : Type) extends topology X :=
 inductive generate_topology (B : set (set X))  : (X → Prop) → Prop :=
 | UNIV : (generate_topology B) (λ x, true) 
 | EMPTY : (generate_topology B) (λ x, false)
-| Int :  ∀ a b : X → Prop, generate_topology B a → generate_topology B b → (generate_topology B (a ∩ b))
+| Int :  ∀ a b, generate_topology B a → generate_topology B b → (generate_topology B (a ∩ b))
 | UN : ∀ I : Type.{1}, ∀ U : I → set X, (∀ i, U i ∈ generate_topology B) → generate_topology B (Union U)
-| Basis : ∀ s : X → Prop, B s → generate_topology B s
+| Basis : ∀ s, B s → generate_topology B s
 
 lemma generate_topology_Union (A : Type) (B : set (set A)) : 
   ∀ I : Type.{1}, ∀ U : I → set A, (∀ i, U i ∈ generate_topology B) → Union U ∈ generate_topology B := 
@@ -499,33 +499,102 @@ definition generate_topology.to_topology [trans_instance] [reducible] (B : set (
   union      := generate_topology_Union X B,
   fin_inter  := generate_topology_fin_Inter ⦄
 
+lemma basis_in_topology {B : set (set X)} : B ⊆ (generate_topology.to_topology B) := 
+take s, 
+suppose s ∈ B,
+have s ∈ generate_topology B → s ∈ generate_topology.to_topology B, from 
+  suppose s ∈ generate_topology B,
+  have generate_topology B = topology.top (generate_topology.to_topology B), by rewrite[↑generate_topology.to_topology],
+  show _, from this ▸ (generate_topology.Basis s `s ∈ B`),
+show _, from this (generate_topology.Basis s `s ∈ B`)
+
 end top
 
-/- Linear Order Topologies -/
+/- Linear Order Topologies  -- Move to a different file? -/
 
 namespace order_topology
 
 open top
 
-variable L : linear_weak_order X
+section
 
-definition open_ray_le (L : linear_weak_order X) (a : X) : set X := {x | le a x}
+  variable [L : linear_strong_order_pair X]
+  include L
 
-definition open_ray_ge (L : linear_weak_order X) (a : X) : set X := {x | le a x}
+  definition linorder_topology : topology X :=
+    generate_topology.to_topology ({y | ∃ a, y = {x | a < x} } ∪ {y | ∃ a, y = {x | a > x}})
 
-definition open_ray_le_collection : set (set X) := {x | ∃ a, x = open_ray_le L a}
+  theorem open_lt {a : X} : {x | a < x} ∈ linorder_topology := 
+    !basis_in_topology (!mem_unionl (exists.intro a rfl))
 
-definition open_ray_ge_collection : set (set X) := {x | ∃ a, x = open_ray_ge L a}
+  theorem open_gt {a : X} : {x | a > x} ∈ linorder_topology := 
+     !basis_in_topology (!mem_unionr (exists.intro a rfl))
 
-definition linorder_topology (L : linear_weak_order X) : topology X := generate_topology.to_topology (open_ray_le_collection L ∪ open_ray_ge_collection L)
+  theorem closed_le {a : X} : univ \ {x | a ≤ x} ∈ linorder_topology := 
+    have univ \ {x | a ≤ x} = {x | a > x}, from ext(
+      take y,
+      iff.intro
+        (suppose y ∈ univ \ {x | a ≤ x}, lt_of_not_ge (and.elim_right this))
+        (suppose y ∈ {x | a > x}, 
+          have a > y, from this,
+          have ¬ a ≤ y, from not.intro(
+            suppose a ≤ y,
+            have a < y ∨ a = y, from (iff.elim_left le_iff_lt_or_eq) this,
+            have a < y → false, from assume H, absurd H (lt.asymm `a > y`),
+            have a = y → false, from assume H, absurd H (ne_of_gt `a > y`),
+            or.elim `a < y ∨ a = y` `a < y → false` `a = y → false`),
+          and.intro !mem_univ this)),
+    this⁻¹ ▸ !open_gt
 
-lemma open_le : ∀ a, {x | le a x} ∈ linorder_topology L := sorry
+  theorem closed_ge {a : X} : univ \ {x | a ≥ x} ∈ linorder_topology := 
+    have univ \ {x | a ≥ x} = {x | a < x}, from ext(
+      take y,
+      iff.intro
+        (suppose y ∈ univ \ {x | a ≥ x}, lt_of_not_ge (and.elim_right this))
+        (suppose y ∈ {x | a < x},
+          have a < y, from this,
+          have ¬ a ≥ y, from not.intro(
+            suppose a ≥ y,
+            have a > y ∨ y = a, from (iff.elim_left le_iff_lt_or_eq) this,
+            have a > y → false, from assume H, absurd H (lt.asymm `a < y`),
+            have y = a → false, from assume H, absurd H (ne_of_gt `a < y`),
+            or.elim `a > y ∨ y = a` `a > y → false` `y = a → false`),
+          and.intro !mem_univ this)), 
+    this⁻¹ ▸ open_lt
 
-lemma open_ge : ∀ a, {x | ge a x} ∈ linorder_topology L := sorry
+section
 
-lemma open_leq : ∀ a, {x | a ≤ x} ∈ linorder_topology L := sorry
+  open classical
 
-lemma open_geq : ∀ a, {x | a ≥ x} ∈ linorder_topology L := sorry
+  theorem seperation_linorder {x y : X} : 
+    x < y → ∃ a, ∃ b, x < a ∧ b < y ∧ {x | x < a} ∩ {x | b < x} = ∅ :=
+    suppose x < y,
+    if ∃ z, x < z ∧ z < y then
+      sorry 
+    else 
+      sorry
+
+end
+
+  definition linorder_topology.to_T2_space [trans_instance] [reducible] :
+    T2_space X :=
+  ⦃ T2_space, 
+  top       := topology.top linorder_topology,
+  empty     := topology.empty linorder_topology,
+  univ      := topology.univ linorder_topology,
+  union     := topology.union linorder_topology,
+  fin_inter := topology.fin_inter linorder_topology,
+  T2        := sorry ⦄
+
+  theorem open_right {S : set X} {x y : X} :
+    (S ∈ linorder_topology ∧ x ∈ S ∧ x < y) → ∃ b, b > x ∧ {x | x < b} ⊆ S := 
+  sorry
+
+  theorem open_left {S : set X} {x y : X} :
+    (S ∈ linorder_topology ∧ x ∈ S ∧ y < x) → ∃ b, b < x ∧ {x | x > b} ⊆ S :=
+  sorry
+
+end
 
 end order_topology
 
