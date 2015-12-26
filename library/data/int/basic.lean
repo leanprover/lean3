@@ -25,12 +25,10 @@ following:
   padd_congr (p p' q q' : ℕ × ℕ) (H1 : p ≡ p') (H2 : q ≡ q') : padd p q ≡ p' q'
 
 -/
-import data.nat.basic data.nat.order data.nat.sub data.prod
-import algebra.relation algebra.binary algebra.ordered_ring
+import data.nat.sub algebra.relation data.prod
 open eq.ops
 open prod relation nat
 open decidable binary
-open algebra
 
 /- the type of integers -/
 
@@ -149,7 +147,7 @@ have H1 : n - m = succ (pred (n - m)), from eq.symm (succ_pred_of_pos (nat.sub_p
 show sub_nat_nat m n = nat.cases_on (succ (nat.pred (n - m))) (m -[nat] n) _, from H1 ▸ rfl
 end
 
-definition nat_abs (a : ℤ) : ℕ := int.cases_on a function.id succ
+definition nat_abs (a : ℤ) : ℕ := int.cases_on a id succ
 
 theorem nat_abs_of_nat (n : ℕ) : nat_abs n = n := rfl
 
@@ -386,12 +384,12 @@ show pr1 p + pr2 p + 0 = pr2 p + pr1 p + 0, from !nat.add_comm ▸ rfl
 
 theorem padd_padd_pneg (p q : ℕ × ℕ) : padd (padd p q) (pneg q) ≡ p :=
 calc      pr1 p + pr1 q + pr2 q + pr2 p
-        = pr1 p + (pr1 q + pr2 q) + pr2 p : algebra.add.assoc
-    ... = pr1 p + (pr1 q + pr2 q + pr2 p) : algebra.add.assoc
-    ... = pr1 p + (pr2 q + pr1 q + pr2 p) : algebra.add.comm
-    ... = pr1 p + (pr2 q + pr2 p + pr1 q) : algebra.add.right_comm
-    ... = pr1 p + (pr2 p + pr2 q + pr1 q) : algebra.add.comm
-    ... = pr2 p + pr2 q + pr1 q + pr1 p   : algebra.add.comm
+        = pr1 p + (pr1 q + pr2 q) + pr2 p : add.assoc
+    ... = pr1 p + (pr1 q + pr2 q + pr2 p) : add.assoc
+    ... = pr1 p + (pr2 q + pr1 q + pr2 p) : add.comm
+    ... = pr1 p + (pr2 q + pr2 p + pr1 q) : add.right_comm
+    ... = pr1 p + (pr2 p + pr2 q + pr1 q) : add.comm
+    ... = pr2 p + pr2 q + pr1 q + pr1 p   : add.comm
 
 protected theorem add_left_inv (a : ℤ) : -a + a = 0 :=
 have H : repr (-a + a) ≡ repr 0, from
@@ -482,7 +480,7 @@ show (_,_) = (_,_),
 begin
   congruence,
     { congruence, repeat rewrite mul.comm },
-    { rewrite algebra.add.comm, congruence, repeat rewrite mul.comm }
+    { rewrite add.comm, congruence, repeat rewrite mul.comm }
 end
 
 protected theorem mul_comm (a b : ℤ) : a * b = b * a :=
@@ -496,9 +494,11 @@ private theorem pmul_assoc_prep {p1 p2 q1 q2 r1 r2 : ℕ} :
   ((p1*q1+p2*q2)*r1+(p1*q2+p2*q1)*r2, (p1*q1+p2*q2)*r2+(p1*q2+p2*q1)*r1) =
    (p1*(q1*r1+q2*r2)+p2*(q1*r2+q2*r1), p1*(q1*r2+q2*r1)+p2*(q1*r1+q2*r2)) :=
 begin
-  rewrite[+left_distrib,+right_distrib,*algebra.mul.assoc],
-  exact (congr_arg2 pair (!add.comm4 ⬝ (!congr_arg !nat.add_comm))
-                         (!add.comm4 ⬝ (!congr_arg !nat.add_comm)))
+   rewrite [+left_distrib, +right_distrib, *mul.assoc],
+   rewrite (add.comm4 (p1 * (q1 * r1)) (p2 * (q2 * r1)) (p1 * (q2 * r2)) (p2 * (q1 * r2))),
+   rewrite (add.comm (p2 * (q2 * r1)) (p2 * (q1 * r2))),
+   rewrite (add.comm4 (p1 * (q1 * r2)) (p2 * (q2 * r2)) (p1 * (q2 * r1)) (p2 * (q1 * r1))),
+   rewrite (add.comm (p2 * (q2 * r2)) (p2 * (q1 * r1)))
 end
 
 theorem pmul_assoc (p q r: ℕ × ℕ) : pmul (pmul p q) r = pmul p (pmul q r) := pmul_assoc_prep
@@ -552,8 +552,8 @@ protected theorem eq_zero_or_eq_zero_of_mul_eq_zero {a b : ℤ} (H : a * b = 0) 
 or.imp eq_zero_of_nat_abs_eq_zero eq_zero_of_nat_abs_eq_zero
   (eq_zero_or_eq_zero_of_mul_eq_zero (by rewrite [-nat_abs_mul, H]))
 
-protected definition integral_domain [reducible] [trans_instance] : algebra.integral_domain int :=
-⦃algebra.integral_domain,
+protected definition integral_domain [reducible] [trans_instance] : integral_domain int :=
+⦃integral_domain,
   add            := int.add,
   add_assoc      := int.add_assoc,
   zero           := 0,
@@ -584,7 +584,7 @@ theorem of_nat_sub {m n : ℕ} (H : m ≥ n) : of_nat (m - n) = of_nat m - of_na
 assert m - n + n = m,     from nat.sub_add_cancel H,
 begin
   symmetry,
-  apply algebra.sub_eq_of_eq_add,
+  apply sub_eq_of_eq_add,
   rewrite [-of_nat_add, this]
 end
 
@@ -593,6 +593,7 @@ by rewrite [neg_succ_of_nat_eq, neg_add]
 
 definition succ (a : ℤ) := a + (succ zero)
 definition pred (a : ℤ) := a - (succ zero)
+definition nat_succ_eq_int_succ (n : ℕ) : nat.succ n = int.succ n := rfl
 theorem pred_succ (a : ℤ) : pred (succ a) = a := !sub_add_cancel
 theorem succ_pred (a : ℤ) : succ (pred a) = a := !add_sub_cancel
 

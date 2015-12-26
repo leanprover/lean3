@@ -7,6 +7,7 @@ Author: Leonardo de Moura
 #include <limits>
 #include <utility>
 #include "util/pair.h"
+#include "library/attribute_manager.h"
 #include "frontends/lean/token_table.h"
 
 namespace lean {
@@ -92,11 +93,12 @@ void init_token_table(token_table & t) {
          {"if", 0}, {"then", 0}, {"else", 0}, {"by", 0}, {"by+", 0}, {"hiding", 0}, {"replacing", 0}, {"renaming", 0},
          {"from", 0}, {"(", g_max_prec}, {")", 0}, {"{", g_max_prec}, {"}", 0}, {"_", g_max_prec},
          {"[", g_max_prec}, {"]", 0}, {"⦃", g_max_prec}, {"⦄", 0}, {".{", 0}, {"Type", g_max_prec},
-         {"{|", g_max_prec}, {"|}", 0}, {"⊢", 0}, {"⟨", g_max_prec}, {"⟩", 0}, {"^", 0}, {"↑", 0}, {"▸", 0},
+         {"{|", g_max_prec}, {"|}", 0}, {"(:", g_max_prec}, {":)", 0},
+         {"⊢", 0}, {"⟨", g_max_prec}, {"⟩", 0}, {"^", 0}, {"↑", 0}, {"▸", 0},
          {"using", 0}, {"|", 0}, {"!", g_max_prec}, {"?", 0},  {"with", 0}, {"...", 0}, {",", 0},
          {".", 0}, {":", 0}, {"::", 0}, {"calc", 0}, {"rewrite", 0}, {"xrewrite", 0}, {"krewrite", 0},
-         {"esimp", 0}, {"fold", 0}, {"unfold", 0}, {"with_options", 0}, {"simp", 0},
-         {"generalize", 0}, {"as", 0}, {":=", 0}, {"--", 0}, {"#", 0},
+         {"esimp", 0}, {"fold", 0}, {"unfold", 0}, {"note", 0}, {"with_options", 0}, {"with_attributes", 0}, {"with_attrs", 0},
+         {"generalize", 0}, {"as", 0}, {":=", 0}, {"--", 0}, {"#", 0}, {"#tactic", 0},
          {"(*", 0}, {"/-", 0}, {"begin", g_max_prec}, {"begin+", g_max_prec}, {"abstract", g_max_prec},
          {"proof", g_max_prec}, {"qed", 0}, {"@@", g_max_prec}, {"@", g_max_prec},
          {"sorry", g_max_prec}, {"+", g_plus_prec}, {g_cup, g_cup_prec}, {"->", g_arrow_prec},
@@ -107,12 +109,9 @@ void init_token_table(token_table & t) {
         {"theorem", "axiom", "axioms", "variable", "protected", "private", "reveal",
          "definition", "example", "coercion", "abbreviation", "noncomputable",
          "variables", "parameter", "parameters", "constant", "constants",
-         "[persistent]", "[visible]", "[instance]", "[trans_instance]",
-         "[none]", "[class]", "[coercion]", "[reducible]", "[irreducible]", "[semireducible]", "[quasireducible]",
-         "[simp]", "[congr]", "[parsing_only]", "[multiple_instances]", "[symm]", "[trans]", "[refl]", "[subst]", "[recursor",
-         "evaluate", "check", "eval", "[wf]", "[whnf]", "[priority", "[unfold_full]", "[unfold_hints]",
-         "[constructor]", "[unfold", "print",
-         "end", "namespace", "section", "prelude", "help",
+         "[visible]", "[none]", "[parsing_only]",
+         "evaluate", "check", "eval", "[wf]", "[whnf]", "[priority", "[unfold_hints]",
+         "print", "end", "namespace", "section", "prelude", "help",
          "import", "inductive", "record", "structure", "module", "universe", "universes", "local",
          "precedence", "reserve", "infixl", "infixr", "infix", "postfix", "prefix", "notation",
          "tactic_infixl", "tactic_infixr", "tactic_infix", "tactic_postfix", "tactic_prefix", "tactic_notation",
@@ -143,6 +142,11 @@ void init_token_table(token_table & t) {
         t = add_command_token(t, *it2);
         ++it2;
     }
+
+    buffer<char const *> attrs;
+    get_attribute_tokens(attrs);
+    for (char const * attr : attrs)
+        t = add_command_token(t, attr);
 
     auto it3 = aliases;
     while (it3->first) {

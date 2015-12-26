@@ -493,29 +493,39 @@ else
 definition generate_topology.to_topology [trans_instance] [reducible] (B : set (set X)) :
   topology X :=
 ⦃ topology, 
-  top       := generate_topology B,
+  top        := generate_topology B,
   empty      := generate_topology.EMPTY B,
-  univ   := generate_topology.UNIV B,
-  union     := generate_topology_Union X B,
-  fin_inter := generate_topology_fin_Inter ⦄
+  univ       := generate_topology.UNIV B,
+  union      := generate_topology_Union X B,
+  fin_inter  := generate_topology_fin_Inter ⦄
 
 end top
+
+/- Linear Order Topologies -/
 
 namespace order_topology
 
 open top
 
-definition open_ray_le (L : lattice X) (a : X) : set X := {x | le a x}
+variable L : linear_weak_order X
 
-definition open_ray_ge (L : lattice X) (a : X) : set X := {x | le a x}
+definition open_ray_le (L : linear_weak_order X) (a : X) : set X := {x | le a x}
 
-variable L : lattice X
+definition open_ray_ge (L : linear_weak_order X) (a : X) : set X := {x | le a x}
 
 definition open_ray_le_collection : set (set X) := {x | ∃ a, x = open_ray_le L a}
 
 definition open_ray_ge_collection : set (set X) := {x | ∃ a, x = open_ray_ge L a}
 
-definition order_topology : topology X := generate_topology.to_topology (open_ray_le_collection L ∪ open_ray_ge_collection L)
+definition linorder_topology (L : linear_weak_order X) : topology X := generate_topology.to_topology (open_ray_le_collection L ∪ open_ray_ge_collection L)
+
+lemma open_le : ∀ a, {x | le a x} ∈ linorder_topology L := sorry
+
+lemma open_ge : ∀ a, {x | ge a x} ∈ linorder_topology L := sorry
+
+lemma open_leq : ∀ a, {x | a ≤ x} ∈ linorder_topology L := sorry
+
+lemma open_geq : ∀ a, {x | a ≥ x} ∈ linorder_topology L := sorry
 
 end order_topology
 

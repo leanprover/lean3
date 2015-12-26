@@ -13,10 +13,17 @@ Author: Leonardo de Moura
 #include "library/projection.h"
 
 namespace lean {
-bool get_class_trace_instances(options const & o);
 unsigned get_class_instance_max_depth(options const & o);
 bool get_class_trans_instances(options const & o);
 
+/** \brief Many procedures need to create temporary local constants.
+    So, in the type_context class we provide this capability.
+    It is just a convenience, and allows many procedures to have a simpler
+    interface. Example: no need to take a type_context AND a name_generator.
+    However, in some procedures (e.g., simplifier) use multiple type_context
+    objects, and they want to make sure the local constants created by them
+    are distinct. So, we can accomplish that by providing the same
+    tmp_local_generator to different type_context objects. */
 class tmp_local_generator {
     unsigned m_next_local_idx;
     name mk_fresh_name();
@@ -107,19 +114,26 @@ public:
 
     So, type_context provides a more liberal approach. It allows "customers" of this
     class to provide their own validation mechanism for meta-variable assignments.
-    In the simplifier and type class resolution, we use very basic validation,
-    where we just check whether ?m occurs in the value being assigned to it.
+    In the simplifier and type class resolution, we use very basic validation.
+    Given `?m x_1 ... x_n =?= t`, before assigning `?m := fun x_1 ... x_n, t`,
+    we check whether ?m does not occurs in t, and whether all internal local constants
+    in t occur in `x_1 ... x_n`.
 
     In blast, we have our own mechanism for tracking hypotheses (i.e., the representation
     of local constants in the blast search branches). This is a more efficient
     representation that doesn't require us to create N-nested Pi expressions
     whenever we want to create a meta-variable in a branch that has N hypotheses.
+
+    In blast, the full local context is a telescope of the form
+
+        1- (all hypotheses in the current state)
+        2- (all temporary local constants created by auxiliary procedure)    Example: simplifier goes inside of a lambda.
+        3- (all internal local constants created by type_context)            Example: when processing is_def_eq.
 */
 class type_context {
     struct ext_ctx;
     friend struct ext_ctx;
     environment                     m_env;
-    io_state                        m_ios;
     name_generator                  m_ngen;
     std::unique_ptr<ext_ctx>        m_ext_ctx;
     tmp_local_generator *           m_local_gen;
@@ -271,12 +285,17 @@ class type_context {
     bool                          m_ci_trans_instances;
     bool                          m_ci_trace_instances;
 
-    io_state_stream diagnostic();
     optional<name> constant_is_class(expr const & e);
     optional<name> is_full_class(expr type);
     lbool is_quick_class(expr const & type, name & result);
 
     optional<pair<expr, expr>> find_unsynth_metavar(expr const & e);
+
+    expr mk_internal_local(name const & n, expr const & type, binder_info const & bi = binder_info());
+    expr mk_internal_local(expr const & type, binder_info const & bi = binder_info());
+    expr mk_internal_local_from_binding(expr const & b) {
+        return mk_internal_local(binding_name(b), binding_domain(b), binding_info(b));
+    }
 
     void trace(unsigned depth, expr const & mvar, expr const & mvar_type, expr const & r);
     bool try_instance(ci_stack_entry const & e, expr const & inst, expr const & inst_type, bool trans_inst);
@@ -299,14 +318,14 @@ class type_context {
     optional<expr> mk_class_instance_core(expr const & type);
     optional<expr> check_ci_cache(expr const & type) const;
     void cache_ci_result(expr const & type, expr const & inst);
-    type_context(environment const & env, io_state const & ios, tmp_local_generator * gen,
+    type_context(environment const & env, options const & o, tmp_local_generator * gen,
                  bool gen_owner, bool multiple_instances);
 public:
-    type_context(environment const & env, io_state const & ios, bool multiple_instances = false):
-        type_context(env, ios, new tmp_local_generator(), true, multiple_instances) {}
-    type_context(environment const & env, io_state const & ios, tmp_local_generator & gen,
+    type_context(environment const & env, options const & o, bool multiple_instances = false):
+        type_context(env, o, new tmp_local_generator(), true, multiple_instances) {}
+    type_context(environment const & env, options const & o, tmp_local_generator & gen,
                  bool multiple_instances = false):
-        type_context(env, ios, &gen, false, multiple_instances) {}
+        type_context(env, o, &gen, false, multiple_instances) {}
     virtual ~type_context();
 
     void set_local_instances(list<expr> const & insts);
@@ -318,6 +337,13 @@ public:
 
         \remark This class always treats projections and theorems as opaque. */
     virtual bool is_extra_opaque(name const & n) const = 0;
+
+    /** \brief This method is invoked when a term is being put in weak-head-normal-form.
+        It is used to decide whether a macro should be unfolded or not. */
+    virtual bool should_unfold_macro(expr const &) const { return true; }
+
+    /** \brief Return true iff \c e is an internal local constant created by this object */
+    bool is_internal_local(expr const & e) const;
 
     /** \brief Create a temporary local constant */
     expr mk_tmp_local(expr const & type, binder_info const & bi = binder_info()) {
@@ -376,7 +402,8 @@ public:
     /** \brief Given a metavariable m that takes locals as arguments, this method
         should return true if m can be assigned to an abstraction of \c v.
 
-        \remark This method should check at least if m does not occur in v.
+        \remark This method should check at least if m does not occur in v, and
+        whether all internal local constants in v occur in locals.
         The default implementation only checks that. */
     virtual bool validate_assignment(expr const & m, buffer<expr> const & locals, expr const & v);
 
@@ -435,6 +462,11 @@ public:
     /** \brief Infer the type of \c e. */
     expr infer(expr const & e);
 
+    /** \brief Put \c e in whnf, it is a Pi, then return whnf, otherwise return e */
+    expr try_to_pi(expr const & e);
+    /** \brief Put \c e in relaxed_whnf, it is a Pi, then return whnf, otherwise return e */
+    expr relaxed_try_to_pi(expr const & e);
+
     /** \brief Return true if \c e1 and \c e2 are definitionally equal.
         When \c e1 and \c e2, this method is not as complete as the one in the kernel.
         That is, it may return false even when \c e1 and \c e2 may be definitionally equal.
@@ -442,6 +474,8 @@ public:
         It is precise if \c e1 and \c e2 do not contain metavariables.
      */
     bool is_def_eq(expr const & e1, expr const & e2);
+    /** \brief Similar to \c is_def_eq, but sets m_relax_is_opaque */
+    bool relaxed_is_def_eq(expr const & e1, expr const & e2);
 
     /** \brief Return the universe level for type A. If A is not a type return none. */
     optional<level> get_level_core(expr const & A);
@@ -465,6 +499,9 @@ public:
         \remark If ?m is already assigned, we just check if ma and v are definitionally
         equal. */
     bool assign(expr const & ma, expr const & v);
+    /** \brief Similar to \c assign but sets m_relax_is_opaque */
+    bool relaxed_assign(expr const & ma, expr const & v);
+
 
     /** \brief Similar to \c assign, but it replaces the existing assignment
         if the metavariable is already assigned.
@@ -472,6 +509,8 @@ public:
         Application: for implicit instance arguments, we want the term to be the one
         generated by type class resolution even when it can be inferred by type inference. */
     bool force_assign(expr const & ma, expr const & v);
+    /** \brief Similar to \c force_assign but sets m_relax_is_opaque */
+    bool relaxed_force_assign(expr const & ma, expr const & v);
 
     /** \brief Clear internal caches used to speedup computation */
     void clear_cache();
@@ -538,7 +577,7 @@ class default_type_context : public type_context {
     unsigned mvar_idx(expr const & m) const;
 
 public:
-    default_type_context(environment const & env, io_state const & ios,
+    default_type_context(environment const & env, options const & o,
                            list<expr> const & insts = list<expr>(), bool multiple_instances = false);
     virtual ~default_type_context();
     virtual bool is_extra_opaque(name const & n) const { return m_not_reducible_pred(n); }
@@ -572,6 +611,7 @@ class normalizer {
                                         buffer<unsigned> const & idxs, buffer<expr> & args, bool is_rec);
     optional<expr> unfold_recursor_major(expr const & f, unsigned idx, buffer<expr> & args);
     expr normalize_app(expr const & e);
+    expr normalize_macro(expr const & e);
     expr normalize(expr e);
 
 public:

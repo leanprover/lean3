@@ -23,7 +23,7 @@ Author: Leonardo de Moura
 #include "library/locals.h"
 #include "library/coercion.h"
 #include "library/constants.h"
-#include "library/reducible.h"
+#include "library/light_lt_manager.h"
 #include "library/normalize.h"
 #include "library/print.h"
 #include "library/noncomputable.h"
@@ -35,8 +35,8 @@ Author: Leonardo de Moura
 #include "library/pp_options.h"
 #include "library/composition_manager.h"
 #include "library/aux_recursors.h"
-#include "library/relation_manager.h"
 #include "library/projection.h"
+#include "library/attribute_manager.h"
 #include "library/private.h"
 #include "library/decl_stats.h"
 #include "library/app_builder.h"
@@ -45,9 +45,12 @@ Author: Leonardo de Moura
 #include "library/congr_lemma_manager.h"
 #include "library/abstract_expr_manager.h"
 #include "library/definitional/projection.h"
-#include "library/simplifier/simp_rule_set.h"
 #include "library/blast/blast.h"
-#include "library/blast/simplifier.h"
+#include "library/blast/simplifier/simplifier.h"
+#include "library/blast/backward/backward_rule_set.h"
+#include "library/blast/forward/pattern.h"
+#include "library/blast/forward/forward_lemma_set.h"
+#include "library/blast/grinder/intro_elim_lemmas.h"
 #include "compiler/preprocess_rec.h"
 #include "frontends/lean/util.h"
 #include "frontends/lean/parser.h"
@@ -55,7 +58,6 @@ Author: Leonardo de Moura
 #include "frontends/lean/notation_cmd.h"
 #include "frontends/lean/inductive_cmd.h"
 #include "frontends/lean/structure_cmd.h"
-#include "frontends/lean/migrate_cmd.h"
 #include "frontends/lean/find_cmd.h"
 #include "frontends/lean/begin_end_ext.h"
 #include "frontends/lean/decl_cmds.h"
@@ -67,7 +69,7 @@ namespace lean {
 static void print_coercions(parser & p, optional<name> const & C) {
     environment const & env = p.env();
     options opts = p.regular_stream().get_options();
-    opts = opts.update(get_pp_coercions_option_name(), true);
+    opts = opts.update(get_pp_coercions_name(), true);
     io_state_stream out = p.regular_stream().update_options(opts);
     char const * arrow = get_pp_unicode(opts) ? "↣" : ">->";
     for_each_coercion_user(env, [&](name const & C1, name const & c, name const & D) {
@@ -190,8 +192,8 @@ static bool print_parse_table(parser const & p, parse_table const & t, bool nud,
     bool found = false;
     io_state ios = p.ios();
     options os   = ios.get_options();
-    os = os.update_if_undef(get_pp_full_names_option_name(), true);
-    os = os.update(get_pp_notation_option_name(), false);
+    os = os.update_if_undef(get_pp_full_names_name(), true);
+    os = os.update(get_pp_notation_name(), false);
     os = os.update(get_pp_preterm_name(), true);
     ios.set_options(os);
     optional<token_table> tt(get_token_table(p.env()));
@@ -229,6 +231,49 @@ static void print_metaclasses(parser const & p) {
         p.regular_stream() << "[" << n << "]" << endl;
 }
 
+static void print_patterns(parser & p, name const & n) {
+    if (is_forward_lemma(p.env(), n)) {
+        // we regenerate the patterns to make sure they reflect the current set of reducible constants
+        try {
+            blast::scope_debug scope(p.env(), p.ios());
+            auto hi = blast::mk_hi_lemma(n, LEAN_FORWARD_DEFAULT_PRIORITY);
+            if (hi.m_multi_patterns) {
+                io_state_stream _out = p.regular_stream();
+                options opts         = _out.get_options();
+                opts                 = opts.update_if_undef(get_pp_metavar_args_name(), true);
+                io_state_stream out  = _out.update_options(opts);
+                out << "(multi-)patterns:\n";
+                if (!is_nil(hi.m_mvars)) {
+                    expr m = head(hi.m_mvars);
+                    out << m << " : " << mlocal_type(m);
+                    for (expr const & m : tail(hi.m_mvars)) {
+                        out << ", " << m << " : " << mlocal_type(m);
+                    }
+                }
+                out << "\n";
+                for (multi_pattern const & mp : hi.m_multi_patterns) {
+                    out << "{";
+                    bool first = true;
+                    for (expr const & p : mp) {
+                        if (first) first = false; else out << ", ";
+                        out << p;
+                    }
+                    out << "}\n";
+                }
+            }
+        } catch (exception & ex) {
+            p.display_error(ex);
+        }
+    }
+}
+
+static name to_user_name(environment const & env, name const & n) {
+    if (auto r = hidden_to_user_name(env, n))
+        return *r;
+    else
+        return n;
+}
+
 static void print_definition(parser const & p, name const & n, pos_info const & pos) {
     environment const & env = p.env();
     declaration d = env.get(n);
@@ -237,31 +282,45 @@ static void print_definition(parser const & p, name const & n, pos_info const & 
     opts                = opts.update_if_undef(get_pp_beta_name(), false);
     io_state_stream new_out = out.update_options(opts);
     if (d.is_axiom())
-        throw parser_error(sstream() << "invalid 'print definition', theorem '" << n
-                           << "' is not available (suggestion: use command 'reveal " << n << "')", pos);
+        throw parser_error(sstream() << "invalid 'print definition', theorem '" << to_user_name(env, n)
+                           << "' is not available (suggestion: use command 'reveal " << to_user_name(env, n) << "')", pos);
     if (!d.is_definition())
-        throw parser_error(sstream() << "invalid 'print definition', '" << n << "' is not a definition", pos);
+        throw parser_error(sstream() << "invalid 'print definition', '" << to_user_name(env, n) << "' is not a definition", pos);
     new_out << d.get_value() << endl;
 }
 
 static void print_attributes(parser const & p, name const & n) {
     environment const & env = p.env();
     io_state_stream out = p.regular_stream();
-    if (is_coercion(env, n))
-        out << " [coercion]";
-    if (is_class(env, n))
-        out << " [class]";
-    if (is_instance(env, n))
-        out << " [instance]";
-    if (is_simp_rule(env, n))
-        out << " [simp]";
-    if (is_congr_rule(env, n))
-        out << " [congr]";
-    switch (get_reducible_status(env, n)) {
-    case reducible_status::Reducible:      out << " [reducible]"; break;
-    case reducible_status::Irreducible:    out << " [irreducible]"; break;
-    case reducible_status::Quasireducible: out << " [quasireducible]"; break;
-    case reducible_status::Semireducible:  break;
+    buffer<char const *> attrs;
+    get_attributes(attrs);
+    for (char const * attr : attrs) {
+        if (strcmp(attr, "semireducible") == 0)
+            continue;
+        if (has_attribute(env, attr, n)) {
+            out << " " << get_attribute_token(attr);
+            switch (get_attribute_kind(attr)) {
+            case attribute_kind::Default:
+                break;
+            case attribute_kind::Prioritized: {
+                unsigned prio = get_attribute_prio(env, attr, n);
+                if (prio != LEAN_DEFAULT_PRIORITY)
+                    out << " [priority " << prio << "]";
+                break;
+            }
+            case attribute_kind::Parametric:
+            case attribute_kind::OptParametric:
+                out << " " << get_attribute_param(env, attr, n) << "]";
+                break;
+            case attribute_kind::MultiParametric: {
+                list<unsigned> ps = get_attribute_params(env, attr, n);
+                for (auto p : ps) {
+                    out << " " << p;
+                }
+                out << "]";
+                break;
+            }}
+        }
     }
 }
 
@@ -339,7 +398,7 @@ static bool print_constant(parser const & p, char const * kind, declaration cons
         out << "noncomputable ";
     if (is_protected(p.env(), d.get_name()))
         out << "protected ";
-    out << kind << " " << d.get_name();
+    out << kind << " " << to_user_name(p.env(), d.get_name());
     print_attributes(p, d.get_name());
     out << " : " << d.get_type();
     if (is_def)
@@ -348,7 +407,7 @@ static bool print_constant(parser const & p, char const * kind, declaration cons
     return true;
 }
 
-bool print_id_info(parser const & p, name const & id, bool show_value, pos_info const & pos) {
+bool print_id_info(parser & p, name const & id, bool show_value, pos_info const & pos) {
     // declarations
     try {
         environment const & env = p.env();
@@ -378,8 +437,8 @@ bool print_id_info(parser const & p, name const & id, bool show_value, pos_info 
                         if (p.in_theorem_queue(d.get_name())) {
                             print_constant(p, "theorem", d);
                             if (show_value) {
-                                out << "'" << d.get_name() << "' is still in the theorem queue, use command 'reveal "
-                                    << d.get_name() << "' to access its definition.\n";
+                                out << "'" << to_user_name(env, d.get_name()) << "' is still in the theorem queue, use command 'reveal "
+                                    << to_user_name(env, d.get_name()) << "' to access its definition.\n";
                             }
                         } else {
                             print_constant(p, "axiom", d);
@@ -392,6 +451,7 @@ bool print_id_info(parser const & p, name const & id, bool show_value, pos_info 
                     if (show_value)
                         print_definition(p, c, pos);
                 }
+                print_patterns(p, c);
             }
             return true;
         } catch (exception & ex) {}
@@ -480,7 +540,7 @@ static void print_simp_rules(parser & p) {
     if (p.curr_is_identifier()) {
         ns = p.get_name_val();
         p.next();
-        s = get_simp_rule_sets(p.env(), p.ios(), ns);
+        s = get_simp_rule_sets(p.env(), p.get_options(), ns);
     } else {
         s = get_simp_rule_sets(p.env());
     }
@@ -494,6 +554,58 @@ static void print_congr_rules(parser & p) {
     io_state_stream out = p.regular_stream();
     simp_rule_sets s = get_simp_rule_sets(p.env());
     out << s.pp_congr(out.get_formatter());
+}
+
+static void print_light_rules(parser & p) {
+    io_state_stream out = p.regular_stream();
+    light_rule_set lrs = get_light_rule_set(p.env());
+    out << lrs;
+}
+
+static void print_elim_lemmas(parser & p) {
+    buffer<name> lemmas;
+    get_elim_lemmas(p.env(), lemmas);
+    for (auto n : lemmas)
+        p.regular_stream() << n << "\n";
+}
+
+static void print_intro_lemmas(parser & p) {
+    buffer<name> lemmas;
+    get_intro_lemmas(p.env(), lemmas);
+    for (auto n : lemmas)
+        p.regular_stream() << n << "\n";
+}
+
+static void print_backward_rules(parser & p) {
+    io_state_stream out = p.regular_stream();
+    blast::backward_rule_set brs = get_backward_rule_set(p.env());
+    out << brs;
+}
+
+static void print_no_patterns(parser & p) {
+    io_state_stream out = p.regular_stream();
+    auto s = get_no_patterns(p.env());
+    buffer<name> ns;
+    s.to_buffer(ns);
+    std::sort(ns.begin(), ns.end());
+    for (unsigned i = 0; i < ns.size(); i++) {
+        if (i > 0) out << ", ";
+        out << ns[i];
+    }
+    out << "\n";
+}
+
+static void print_aliases(parser const & p) {
+    io_state_stream out = p.regular_stream();
+    for_each_expr_alias(p.env(), [&](name const & n, list<name> const & as) {
+            out << n << " -> {";
+            bool first = true;
+            for (name const & a : as) {
+                if (first) first = false; else out << ", ";
+                out << a;
+            }
+            out << "}\n";
+        });
 }
 
 environment print_cmd(parser & p) {
@@ -510,8 +622,11 @@ environment print_cmd(parser & p) {
         expr e = p.parse_expr();
         io_state_stream out = p.regular_stream();
         options opts = out.get_options();
-        opts = opts.update(get_pp_notation_option_name(), false);
+        opts = opts.update(get_pp_notation_name(), false);
         out.update_options(opts) << e << endl;
+    } else if (p.curr_is_token_or_id(get_no_pattern_attr_tk())) {
+        p.next();
+        print_no_patterns(p);
     } else if (p.curr_is_token_or_id(get_reducible_tk())) {
         p.next();
         print_reducible_info(p, reducible_status::Reducible);
@@ -546,7 +661,7 @@ environment print_cmd(parser & p) {
                 print_constant(p, "definition", d);
                 print_definition(p, c, pos);
             } else {
-                throw parser_error(sstream() << "invalid 'print definition', '" << c << "' is not a definition", pos);
+                throw parser_error(sstream() << "invalid 'print definition', '" << to_user_name(p.env(), c) << "' is not a definition", pos);
             }
         }
     } else if (p.curr_is_token_or_id(get_instances_tk())) {
@@ -574,6 +689,9 @@ environment print_cmd(parser & p) {
     } else if (p.curr_is_token_or_id(get_prefix_tk())) {
         p.next();
         print_prefix(p);
+    } else if (p.curr_is_token_or_id(get_aliases_tk())) {
+        p.next();
+        print_aliases(p);
     } else if (p.curr_is_token_or_id(get_coercions_tk())) {
         p.next();
         optional<name> C;
@@ -606,9 +724,22 @@ environment print_cmd(parser & p) {
     } else if (p.curr_is_token(get_simp_attr_tk())) {
         p.next();
         print_simp_rules(p);
+    } else if (p.curr_is_token(get_intro_bang_attr_tk())) {
+        p.next();
+        print_intro_lemmas(p);
+    } else if (p.curr_is_token(get_elim_attr_tk())) {
+        p.next();
+        print_elim_lemmas(p);
     } else if (p.curr_is_token(get_congr_attr_tk())) {
         p.next();
         print_congr_rules(p);
+    } else if (p.curr_is_token(get_light_attr_tk())) {
+        p.next();
+        p.check_token_next(get_rbracket_tk(), "invalid 'print [light]', ']' expected");
+        print_light_rules(p);
+    } else if (p.curr_is_token(get_intro_attr_tk())) {
+        p.next();
+        print_backward_rules(p);
     } else if (print_polymorphic(p)) {
     } else {
         throw parser_error("invalid print command", p.pos());
@@ -1278,7 +1409,7 @@ static environment replace_cmd(parser & p) {
     parse_expr_vector(p, to);
     if (from.size() != to.size())
         throw parser_error("invalid #replace command, from/to vectors have different size", pos);
-    tmp_type_context ctx(env, p.ios());
+    tmp_type_context ctx(env, p.get_options());
     fun_info_manager infom(ctx);
     auto r = replace(infom, e, from, to);
     if (!r)
@@ -1294,7 +1425,7 @@ static environment congr_cmd_core(parser & p, congr_kind kind) {
     auto pos = p.pos();
     expr e; level_param_names ls;
     std::tie(e, ls) = parse_local_expr(p);
-    tmp_type_context    ctx(env, p.ios());
+    tmp_type_context    ctx(env, p.get_options());
     app_builder         b(ctx);
     fun_info_manager    infom(ctx);
     congr_lemma_manager cm(b, infom);
@@ -1352,7 +1483,7 @@ static environment simplify_cmd(parser & p) {
     } else if (ns == name("env")) {
         srss = get_simp_rule_sets(p.env());
     } else {
-        srss = get_simp_rule_sets(p.env(), p.ios(), ns);
+        srss = get_simp_rule_sets(p.env(), p.get_options(), ns);
     }
 
     blast::simp::result r = blast::simplify(rel, e, srss);
@@ -1390,9 +1521,11 @@ static environment normalizer_cmd(parser & p) {
 
 static environment abstract_expr_cmd(parser & p) {
     unsigned o = p.parse_small_nat();
-    default_type_context ctx(p.env(), p.ios());
+    default_type_context ctx(p.env(), p.get_options());
+    app_builder builder(p.env(), p.get_options());
     fun_info_manager fun_info(ctx);
-    abstract_expr_manager ae_manager(fun_info);
+    congr_lemma_manager congr_lemma(builder, fun_info);
+    abstract_expr_manager ae_manager(congr_lemma);
 
     flycheck_information info(p.regular_stream());
     if (info.enabled()) p.display_information_pos(p.cmd_pos());
@@ -1457,7 +1590,6 @@ void init_cmd_table(cmd_table & r) {
     register_decl_cmds(r);
     register_inductive_cmd(r);
     register_structure_cmd(r);
-    register_migrate_cmd(r);
     register_notation_cmds(r);
     register_begin_end_cmds(r);
     register_tactic_hint_cmd(r);

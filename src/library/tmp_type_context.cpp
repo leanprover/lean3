@@ -16,13 +16,14 @@ void tmp_type_context::init(environment const & env, reducible_behavior b) {
     }
 }
 
-tmp_type_context::tmp_type_context(environment const & env, io_state const & ios, reducible_behavior b):
-    type_context(env, ios) {
+tmp_type_context::tmp_type_context(environment const & env, options const & o, reducible_behavior b):
+    type_context(env, o) {
     init(env, b);
 }
 
-tmp_type_context::tmp_type_context(environment const & env, io_state const & ios, tmp_local_generator & gen, reducible_behavior b):
-    type_context(env, ios, gen) {
+tmp_type_context::tmp_type_context(environment const & env, options const & o, tmp_local_generator & gen,
+                                   reducible_behavior b):
+    type_context(env, o, gen) {
     init(env, b);
 }
 
@@ -135,6 +136,7 @@ void tmp_type_context::pop() {
     lean_assert(m_trail.size() == old_sz);
     m_uassignment.resize(s.m_uassignment_sz);
     m_eassignment.resize(s.m_eassignment_sz);
+    m_scopes.pop_back();
 }
 
 void tmp_type_context::commit() {

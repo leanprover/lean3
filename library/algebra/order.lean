@@ -8,8 +8,6 @@ Weak orders "≤", strict orders "<", and structures that include both.
 import logic.eq logic.connectives algebra.binary algebra.priority
 open eq eq.ops
 
-namespace algebra
-
 variable {A : Type}
 
 /- weak orders -/
@@ -24,6 +22,8 @@ section
   include s
 
   theorem le.refl (a : A) : a ≤ a := !weak_order.le_refl
+
+  theorem le_of_eq {a b : A} (H : a = b) : a ≤ b := H ▸ le.refl a
 
   theorem le.trans [trans] {a b c : A} : a ≤ b → b ≤ c → a ≤ c := !weak_order.le_trans
 
@@ -54,7 +54,7 @@ section
   theorem lt.irrefl (a : A) : ¬ a < a := !strict_order.lt_irrefl
   theorem not_lt_self (a : A) : ¬ a < a := !lt.irrefl   -- alternate syntax
 
-  theorem lt_self_iff_false [simp] (a : A) : a < a ↔ false :=
+  theorem lt_self_iff_false (a : A) : a < a ↔ false :=
   iff_false_intro (lt.irrefl a)
 
   theorem lt.trans [trans] {a b c : A} : a < b → b < c → a < c := !strict_order.lt_trans
@@ -220,6 +220,9 @@ section
     (assume H, H1 H)
     (assume H, or.elim H (assume H', H2 H') (assume H', H3 H'))
 
+  definition lt_ge_by_cases {a b : A} {P : Prop} (H1 : a < b → P) (H2 : a ≥ b → P) : P :=
+  lt.by_cases H1 (λH, H2 (H ▸ le.refl a)) (λH, H2 (le_of_lt H))
+
   theorem le_of_not_gt {a b : A} (H : ¬ a > b) : a ≤ b :=
   lt.by_cases (assume H', absurd H' H) (assume H', H' ▸ !le.refl) (assume H', le_of_lt H')
 
@@ -335,10 +338,10 @@ section
     (assume H : a ≤ b, by rewrite [↑max, if_pos H]; apply H₂)
     (assume H : ¬ a ≤ b, by rewrite [↑max, if_neg H]; apply H₁)
 
-  theorem le_max_left_iff_true [simp] (a b : A) : a ≤ max a b ↔ true :=
+  theorem le_max_left_iff_true (a b : A) : a ≤ max a b ↔ true :=
   iff_true_intro (le_max_left a b)
 
-  theorem le_max_right_iff_true [simp] (a b : A) : b ≤ max a b ↔ true :=
+  theorem le_max_right_iff_true (a b : A) : b ≤ max a b ↔ true :=
   iff_true_intro (le_max_right a b)
 
   /- these are also proved for lattices, but with inf and sup in place of min and max -/
@@ -431,5 +434,3 @@ section
     (assume H : a ≤ b, by rewrite (max_eq_right H); apply H₂)
     (assume H : a > b, by rewrite (max_eq_left_of_lt H); apply H₁)
 end
-
-end algebra

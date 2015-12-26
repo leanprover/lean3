@@ -4,6 +4,8 @@ Released under Apache 2.0 license as described in the file LICENSE.
 
 Author: Leonardo de Moura
 */
+#include "util/interrupt.h"
+#include "library/trace.h"
 #include "library/blast/strategy.h"
 #include "library/blast/choice_point.h"
 #include "library/blast/blast.h"
@@ -12,17 +14,28 @@ Author: Leonardo de Moura
 
 namespace lean {
 namespace blast {
-strategy::strategy():
-    m_config(ios().get_options()) {
+strategy_fn::strategy_fn() {}
+
+action_result strategy_fn::activate_hypothesis() {
+    auto hidx = curr_state().select_hypothesis_to_activate();
+    if (!hidx) return action_result::failed();
+    auto r    = hypothesis_pre_activation(*hidx);
+    // The pre-activation may delete the hypothesis (e.g., subsumption)
+    if (!solved(r) && !failed(r) && !curr_state().get_hypothesis_decl(*hidx).is_dead()) {
+        curr_state().activate_hypothesis(*hidx);
+        return hypothesis_post_activation(*hidx);
+    } else {
+        return r;
+    }
 }
 
-action_result strategy::next_branch(expr pr) {
-    while (curr_state().has_proof_steps()) {
+action_result strategy_fn::next_branch(expr pr) {
+    while (m_ps_check_point.has_new_proof_steps(curr_state())) {
         proof_step s     = curr_state().top_proof_step();
         action_result r  = s.resolve(unfold_hypotheses_ge(curr_state(), pr));
         switch (r.get_kind()) {
         case action_result::Failed:
-            trace(">>> next-branch FAILED <<<");
+            trace_search(">>> next-branch FAILED <<<");
             return r;
         case action_result::Solved:
             pr = r.get_proof();
@@ -35,80 +48,64 @@ action_result strategy::next_branch(expr pr) {
     return action_result::solved(pr);
 }
 
-optional<expr> strategy::search_upto(unsigned depth) {
-    if (is_trace_enabled()) {
-        ios().get_diagnostic_channel() << "* Search upto depth " << depth << "\n\n";
-    }
-    trace_curre_state();
+bool strategy_fn::show_failure() const {
+    return get_config().m_show_failure;
+}
+
+optional<expr> strategy_fn::search() {
+    scope_choice_points scope1;
+    m_ps_check_point          = curr_state().mk_proof_steps_check_point();
+    m_init_num_choices        = get_num_choice_points();
+    unsigned init_proof_depth = curr_state().get_proof_depth();
+    unsigned max_depth        = get_config().m_max_depth;
+    lean_trace_search(tout() << "begin '" << get_name() << "' strategy (max-depth: " << max_depth << ")\n";);
+    trace_curr_state();
+    trace_target();
     action_result r = next_action();
-    trace_curre_state_if(r);
+    trace_curr_state_if(r);
     while (true) {
+        check_system("blast");
         lean_assert(curr_state().check_invariant());
-        if (curr_state().get_proof_depth() > depth) {
-            trace(">>> maximum search depth reached <<<");
+        if (curr_state().get_proof_depth() > max_depth) {
+            trace_search(">>> maximum search depth reached <<<");
             r = action_result::failed();
         }
         switch (r.get_kind()) {
         case action_result::Failed:
+            lean_trace_deadend(tout() << "strategy '" << get_name() << "'\n"; curr_state().display(tout()););
             r = next_choice_point(m_init_num_choices);
             if (failed(r)) {
                 // all choice points failed...
-                trace(">>> proof not found, no choice points left <<<");
+                lean_trace_search(tout() << "strategy '" << get_name() << "' failed, no proof found\n";);
+                if (show_failure())
+                    display_curr_state();
                 return none_expr();
             }
-            trace("* next choice point");
             break;
         case action_result::Solved:
             r = next_branch(r.get_proof());
             if (r.get_kind() == action_result::Solved) {
                 // all branches have been solved
-                trace("* found proof");
-                return some_expr(r.get_proof());
+                lean_trace_search(tout() << "strategy '" << get_name() << "' succeeded, proof found\n";);
+                return some_expr(unfold_hypotheses_ge(curr_state(), r.get_proof(), init_proof_depth));
             }
-            trace("* next branch");
             break;
         case action_result::NewBranch:
             r = next_action();
             break;
         }
-        trace_curre_state_if(r);
+        trace_depth_nchoices();
+        trace_curr_state_if(r);
+        trace_target();
     }
 }
 
-optional<expr> strategy::invoke_preprocess() {
-    if (auto pr = preprocess()) {
-        auto r = next_branch(*pr);
-        if (!solved(r)) {
-            throw exception("invalid blast preprocessing action, preprocessing actions should not create branches");
-        } else {
-                return r.to_opt_expr();
-        }
-    } else {
-        return none_expr();
-    }
-}
-
-optional<expr> strategy::search() {
-    scope_choice_points scope1;
-    curr_state().clear_proof_steps();
-    m_init_num_choices = get_num_choice_points();
-    curr_state().set_simp_rule_sets(get_simp_rule_sets(env()));
-    if (auto pr = invoke_preprocess())
-        return pr;
-    if (get_num_choice_points() > m_init_num_choices)
-        throw exception("invalid blast preprocessing action, preprocessing actions should not create choice points");
-    state s    = curr_state();
-    unsigned d = m_config.m_init_depth;
-    while (true) {
-        if (auto r = search_upto(d))
+strategy operator||(strategy const & s1, strategy const & s2) {
+    return [=]() { // NOLINT
+        if (auto r = s1())
             return r;
-        d += m_config.m_inc_depth;
-        if (d > m_config.m_max_depth) {
-            display_curr_state();
-            return none_expr();
-        }
-        curr_state() = s;
-        shrink_choice_points(m_init_num_choices);
-    }
+        else
+            return s2();
+    };
 }
 }}

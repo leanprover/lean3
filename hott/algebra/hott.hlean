@@ -6,11 +6,20 @@ Author: Floris van Doorn
 Theorems about algebra specific to HoTT
 -/
 
-import .group arity types.pi hprop_trunc
+import .group arity types.pi hprop_trunc types.unit .bundled
 
-open equiv eq equiv.ops is_trunc
+open equiv eq equiv.ops is_trunc unit
 
 namespace algebra
+
+  definition trivial_group [constructor] : group unit :=
+  group.mk (λx y, star) _ (λx y z, idp) star (unit.rec idp) (unit.rec idp) (λx, star) (λx, idp)
+
+  definition Trivial_group [constructor] : Group :=
+  Group.mk _ trivial_group
+
+  notation `G0` := Trivial_group
+
   open Group has_mul has_inv
   -- we prove under which conditions two groups are equal
 
@@ -30,7 +39,7 @@ namespace algebra
       from λg, !mul_inv_cancel_right⁻¹,
     cases G with Gm Gs Gh1 G1 Gh2 Gh3 Gi Gh4,
     cases H with Hm Hs Hh1 H1 Hh2 Hh3 Hi Hh4,
-    rewrite [↑[semigroup.to_has_mul,group.to_has_inv] at (same_mul,foo)] ,
+    rewrite [↑[semigroup.to_has_mul,group.to_has_inv] at (same_mul,foo)],
     have same_mul : Gm = Hm, from eq_of_homotopy2 same_mul',
     cases same_mul,
     have same_one : G1 = H1, from calc
@@ -49,7 +58,8 @@ namespace algebra
     cases ps, cases ph1, cases ph2, cases ph3, cases ph4, reflexivity
   end
 
-  definition group_pathover {G : group A} {H : group B} {f : A ≃ B} : (Π(g h : A), f (g * h) = f g * f h) → G =[ua f] H :=
+  definition group_pathover {G : group A} {H : group B} {f : A ≃ B}
+    : (Π(g h : A), f (g * h) = f g * f h) → G =[ua f] H :=
   begin
     revert H,
     eapply (rec_on_ua_idp' f),
@@ -65,6 +75,13 @@ namespace algebra
     cases G with Gc G, cases H with Hc H,
     apply (apo011 mk (ua f)),
     apply group_pathover, exact resp_mul
+  end
+
+  definition trivial_group_of_is_contr (G : Group) [H : is_contr G] : G = G0 :=
+  begin
+    fapply Group_eq,
+    { apply equiv_unit_of_is_contr},
+    { intros, reflexivity}
   end
 
 end algebra

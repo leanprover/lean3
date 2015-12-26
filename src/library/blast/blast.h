@@ -13,12 +13,50 @@ Author: Leonardo de Moura
 #include "library/congr_lemma_manager.h"
 #include "library/fun_info_manager.h"
 #include "library/blast/state.h"
+#include "library/blast/imp_extension.h"
 
 namespace lean {
 struct projection_info;
 class goal;
 typedef std::unique_ptr<tmp_type_context> tmp_type_context_ptr;
 namespace blast {
+/** \brief Create a blast-state universe meta-variable */
+level mk_uref(unsigned idx);
+/** \brief Return true iff \c l is a blast-state universe meta-variable */
+bool is_uref(level const & l);
+/** \brief Return the index of the given blast-state universe meta-variable */
+unsigned uref_index(level const & l);
+
+/** \brief Create a blast-state hypothesis (reference).
+    \remark these references are local constants, but they do **not** store their types */
+expr mk_href(unsigned idx);
+/** \brief Create a blast-state meta-variable (reference).
+    \remark these references are local constants, but they do **not** store their types */
+expr mk_mref(unsigned idx);
+
+/** \brief Return true iff \c e is a hypothesis reference */
+bool is_href(expr const & e);
+/** \brief Return the index of the given hypothesis reference */
+unsigned href_index(expr const & e);
+/** \brief Return true iff \c e is a blast-state meta-variable (reference) */
+bool is_mref(expr const & e);
+/** \brief Return the index of the given blast-state meta-variable (reference) */
+unsigned mref_index(expr const & e);
+/** \brief Return true iff \c e contain href's */
+bool has_href(expr const & e);
+/** \brief Return true iff \c e contain mref's */
+bool has_mref(expr const & e);
+/** \brief Return true if \c is a local constant, but it is not a hypothesis reference */
+inline bool is_local_non_href(expr const & e) { return is_local(e) && !is_href(e); }
+
+/** \brief Return the a fresh index for uref/mref/href.
+    \remark It is implemented using thread local storage. */
+unsigned mk_uref_idx();
+unsigned mk_mref_idx();
+unsigned mk_href_idx();
+
+inline level mk_fresh_uref() { return mk_uref(mk_uref_idx()); }
+
 /** \brief Return the thread local environment being used by the blast tactic. */
 environment const & env();
 /** \brief Return the thread local io_state being used by the blast tactic. */
@@ -45,6 +83,9 @@ inline optional<relation_info> is_relation(expr const & R) {
     return is_constant(R) ? get_relation_info(const_name(R)) : optional<relation_info>();
 }
 bool is_reflexive(name const & rop);
+bool is_symmetric(name const & rop);
+bool is_transitive(name const & rop);
+bool is_equivalence_relation_app(expr const & e, name & rop, expr & lhs, expr & rhs);
 
 /** \brief Put the given expression in weak-head-normal-form with respect to the
     current state being processed by the blast tactic. */
@@ -112,6 +153,27 @@ fun_info get_fun_info(expr const & fn, unsigned nargs);
 unsigned abstract_hash(expr const & e);
 bool abstract_is_equal(expr const & e1, expr const & e2);
 
+/** \brief Order on expressions that supports the "light" annotation */
+bool is_light_lt(expr const & e1, expr const & e2);
+
+/** \brief Whether [classical] namespace is open. */
+bool classical();
+/** \brief This procedure must be invoked at Lean initialization time for each imperative branch extension.
+    The unique id returned should be used to retrieve the extension state associated with the current state. */
+unsigned register_imp_extension(ext_state_maker & state_maker);
+
+/** \brief This procedure returns a reference to the extension state associated with the current state.
+    It handles all the bookeeping so that the returned extension state is guaranteed to be in synch with
+    the current blast state. */
+imp_extension_state & get_imp_extension_state(unsigned state_id);
+
+/** \brief Helper procedure for creating unique choice point ids.
+    This is only used for tracing. */
+unsigned mk_choice_point_idx();
+/** \brief Helper procedure for creating unique case-split point ids.
+    This is only used for tracing. */
+unsigned mk_split_idx();
+
 /** \brief Display the current state of the blast tactic in the diagnostic channel. */
 void display_curr_state();
 /** \brief Display the given expression in the diagnostic channel. */
@@ -119,8 +181,7 @@ void display_expr(expr const & e);
 /** \brief Display message in the blast tactic diagnostic channel. */
 void display(char const * msg);
 void display(sstream const & msg);
-/**
-    \brief Create a local scope for saving the assignment and
+/** \brief Create a local scope for saving the assignment and
     metavariable declarations at curr_state() */
 class scope_assignment {
     bool m_keep;
@@ -130,8 +191,17 @@ public:
     void commit();
 };
 
-/** \brief Auxiliary object for setting thread local storage associated with blast tactic.
+typedef std::function<bool(expr const &)> unfold_macro_pred; // NOLINT
+/** \brief Auxiliary object used to temporarily set predicate used to decide
+    whether macros will be unfolded or not. */
+class scope_unfold_macro_pred {
+    unfold_macro_pred m_old_pred;
+public:
+    scope_unfold_macro_pred(unfold_macro_pred const & pred);
+    ~scope_unfold_macro_pred();
+};
 
+/** \brief Auxiliary object for setting thread local storage associated with blast tactic.
     This is for debugging purposes only. It allow us to debug/test procedures that can
     only be invoked from blast. */
 class scope_debug {

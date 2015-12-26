@@ -6,18 +6,14 @@ Author : Haitao Zhang
 -/
 import algebra.group data data.fintype.function
 
-open nat list algebra function
+open nat list function
 
-namespace group
+namespace group_theory
 open fintype
 
 section perm
-variable {A : Type}
-variable [finA : fintype A]
-include finA
-variable [deceqA : decidable_eq A]
-include deceqA
-variable {f : A → A}
+variables {A : Type} [fintype A] [decidable_eq A]
+variable  {f : A → A}
 
 lemma perm_surj : injective f → surjective f :=
       surj_of_inj_eq_card (eq.refl (card A))
@@ -44,9 +40,7 @@ structure perm (A : Type) [h : fintype A] : Type :=
 local attribute perm.f [coercion]
 
 section perm
-variable {A : Type}
-variable [finA : fintype A]
-include finA
+variables {A : Type} [fintype A]
 
 lemma eq_of_feq : ∀ {p₁ p₂ : perm A}, (perm.f p₁) = p₂ → p₁ = p₂
 | (perm.mk f₁ P₁) (perm.mk f₂ P₂) := assume (feq : f₁ = f₂), by congruence; assumption
@@ -62,8 +56,7 @@ lemma perm.f_mk {f : A → A} {Pinj : injective f} : perm.f (perm.mk f Pinj) = f
 
 definition move_by [reducible] (a : A) (f : perm A) : A := f a
 
-variable [deceqA : decidable_eq A]
-include deceqA
+variable [decidable_eq A]
 
 lemma perm.has_decidable_eq [instance] : decidable_eq (perm A) :=
       take f g,
@@ -117,4 +110,4 @@ lemma perm_one : (1 : perm A) = perm.one := rfl
 
 end perm
 
-end group
+end group_theory

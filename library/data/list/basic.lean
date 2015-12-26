@@ -1,13 +1,12 @@
 /-
 Copyright (c) 2014 Parikshit Khanna. All rights reserved.
 Released under Apache 2.0 license as described in the file LICENSE.
-Authors: Parikshit Khanna, Jeremy Avigad, Leonardo de Moura
+Authors: Parikshit Khanna, Jeremy Avigad, Leonardo de Moura, Floris van Doorn
 
 Basic properties of lists.
 -/
-import logic tools.helper_tactics data.nat.order
+import logic tools.helper_tactics data.nat.order data.nat.sub
 open eq.ops helper_tactics nat prod function option
-open algebra
 
 inductive list (T : Type) : Type :=
 | nil {} : list T
@@ -111,6 +110,14 @@ by intro l; induction l; repeat contradiction
 theorem length_concat [simp] (a : T) : ∀ (l : list T), length (concat a l) = length l + 1
 | []      := rfl
 | (x::xs) := by rewrite [concat_cons, *length_cons, length_concat]
+
+theorem concat_append (a : T) : ∀ (l₁ l₂ : list T), concat a l₁ ++ l₂ = l₁ ++ a :: l₂
+| []      := λl₂, rfl
+| (x::xs) := λl₂, begin rewrite [concat_cons,append_cons, concat_append] end
+
+theorem append_concat (a : T)  : ∀(l₁ l₂ : list T), l₁ ++ concat a l₂ = concat a (l₁ ++ l₂)
+| []      := λl₂, rfl
+| (x::xs) := λl₂, begin rewrite [+append_cons, concat_cons, append_concat] end
 
 /- last -/
 
@@ -331,7 +338,7 @@ list.rec_on l
             have ¬(x = h ∨ x ∈ l), from
               suppose x = h ∨ x ∈ l, or.elim this
                 (suppose x = h, by contradiction)
-                (suppose x ∈ l,  by contradiction),
+                (suppose x ∈ l, by contradiction),
             have ¬x ∈ h::l, from
               iff.elim_right (not_iff_not_of_iff !mem_cons_iff) this,
             decidable.inr this)))
@@ -489,7 +496,7 @@ theorem nth_eq_some : ∀ {l : list T} {n : nat}, n < length l → Σ a : T, nth
   ⟨r, by rewrite [nth_succ, req]⟩
 
 open decidable
-theorem find_nth [h : decidable_eq T] {a : T} : ∀ {l}, a ∈ l → nth l (find a l) = some a
+theorem find_nth [decidable_eq T] {a : T} : ∀ {l}, a ∈ l → nth l (find a l) = some a
 | []     ain   := absurd ain !not_mem_nil
 | (b::l) ainbl := by_cases
   (λ aeqb : a = b, by rewrite [find_cons_of_eq _ aeqb, nth_zero, aeqb])
@@ -503,9 +510,9 @@ match nth l n with
 | none   := arbitrary T
 end
 
-theorem inth_zero [h : inhabited T] (a : T) (l : list T) : inth (a :: l) 0 = a
+theorem inth_zero [inhabited T] (a : T) (l : list T) : inth (a :: l) 0 = a
 
-theorem inth_succ [h : inhabited T] (a : T) (l : list T) (n : nat) : inth (a::l) (n+1) = inth l n
+theorem inth_succ [inhabited T] (a : T) (l : list T) (n : nat) : inth (a::l) (n+1) = inth l n
 end nth
 
 section ith
@@ -660,6 +667,26 @@ lemma length_firstn_eq : ∀ (n) (l : list A), length (firstn n l) = min n (leng
 | (succ n) (a::l) := by rewrite [firstn_cons, *length_cons, *add_one, min_succ_succ, length_firstn_eq]
 | (succ n) []     := by rewrite [firstn_nil]
 end firstn
+
+section dropn
+variables {A : Type}
+-- 'dropn n l' drops the first 'n' elements of 'l'
+definition dropn : ℕ → list A → list A
+| 0 a := a
+| (succ n) [] := []
+| (succ n) (x::r) := dropn n r
+
+theorem length_dropn
+: ∀ (i : ℕ) (l : list A), length (dropn i l) = length l - i
+| 0 l := rfl
+| (succ i) [] := calc
+  length (dropn (succ i) []) = 0 - succ i : nat.zero_sub (succ i)
+| (succ i) (x::l) := calc
+  length (dropn (succ i) (x::l))
+          = length (dropn i l)       : rfl
+      ... = length l - i             : length_dropn i l
+      ... = succ (length l) - succ i : succ_sub_succ (length l) i
+end dropn
 
 section count
 variable {A : Type}

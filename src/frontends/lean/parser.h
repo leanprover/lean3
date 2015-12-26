@@ -52,14 +52,15 @@ struct parser_scope_stack_elem {
     name_set           m_variables;
     name_set           m_include_vars;
     unsigned           m_num_undef_ids;
+    unsigned           m_next_inst_idx;
     bool               m_has_params;
     local_level_decls  m_local_level_decls;
     local_expr_decls   m_local_decls;
     parser_scope_stack_elem(optional<options> const & o, name_set const & lvs, name_set const & vs, name_set const & ivs,
-                            unsigned num_undef_ids, bool has_params,
+                            unsigned num_undef_ids, unsigned next_inst_idx, bool has_params,
                             local_level_decls const & lld, local_expr_decls const & led):
         m_options(o), m_level_variables(lvs), m_variables(vs), m_include_vars(ivs),
-        m_num_undef_ids(num_undef_ids), m_has_params(has_params), m_local_level_decls(lld), m_local_decls(led) {}
+        m_num_undef_ids(num_undef_ids), m_next_inst_idx(next_inst_idx), m_has_params(has_params), m_local_level_decls(lld), m_local_decls(led) {}
 };
 typedef list<parser_scope_stack_elem> parser_scope_stack;
 
@@ -100,6 +101,7 @@ class parser {
     unsigned                m_num_threads;
     scanner                 m_scanner;
     scanner::token_kind     m_curr;
+    optional<std::string>   m_base_dir;
     local_level_decls       m_local_level_decls;
     local_expr_decls        m_local_decls;
     bool                    m_has_params; // true context context contains parameters
@@ -110,6 +112,7 @@ class parser {
     pos_info                m_last_cmd_pos;
     pos_info                m_last_script_pos;
     unsigned                m_next_tag_idx;
+    unsigned                m_next_inst_idx;
     bool                    m_found_errors;
     bool                    m_used_sorry;
     pos_info_table          m_pos_table;
@@ -163,7 +166,6 @@ class parser {
     void display_error_pos(pos_info p);
     void display_error(char const * msg, unsigned line, unsigned pos);
     void display_error(char const * msg, pos_info p);
-    void display_error(throwable const & ex);
     void display_error(script_exception const & ex);
     void throw_parser_exception(char const * msg, pos_info p);
     void throw_nested_exception(throwable const & ex, pos_info p);
@@ -217,6 +219,8 @@ class parser {
     expr parse_numeral_expr(bool user_notation = true);
     expr parse_decimal_expr();
     expr parse_string_expr();
+    expr parse_inst_implicit_decl();
+    void parse_inst_implicit_decl(buffer<expr> & r);
     expr parse_binder_core(binder_info const & bi, unsigned rbp);
     void parse_binder_block(buffer<expr> & r, binder_info const & bi, unsigned rbp);
     void parse_binders_core(buffer<expr> & r, buffer<notation_entry> * nentries, bool & last_block_delimited, unsigned rbp, bool simple_only);
@@ -231,7 +235,7 @@ class parser {
     friend environment namespace_cmd(parser & p);
     friend environment end_scoped_cmd(parser & p);
 
-    void push_local_scope(bool save_options = false);
+    void push_local_scope(bool save_options = true);
     void pop_local_scope();
 
     void save_snapshot();
@@ -270,14 +274,19 @@ class parser {
 
 public:
     parser(environment const & env, io_state const & ios,
-           std::istream & strm, char const * str_name,
+           std::istream & strm, char const * str_name, optional<std::string> const & base_dir,
            bool use_exceptions = false, unsigned num_threads = 1,
            snapshot const * s = nullptr, snapshot_vector * sv = nullptr,
            info_manager * im = nullptr, keep_theorem_mode tmode = keep_theorem_mode::All);
     ~parser();
 
+    void display_error(throwable const & ex);
+
     bool ignore_noncomputable() const { return m_ignore_noncomputable; }
     void set_ignore_noncomputable() { m_ignore_noncomputable = true; }
+
+    name mk_anonymous_inst_name();
+    bool is_anonymous_inst_name(name const & n) const;
 
     unsigned curr_expr_lbp() const { return curr_lbp_core(false); }
     unsigned curr_tactic_lbp() const { return curr_lbp_core(true); }
@@ -348,6 +357,7 @@ public:
     bool curr_is_identifier() const { return curr() == scanner::token_kind::Identifier; }
     /** \brief Return true iff the current token is a numeral */
     bool curr_is_numeral() const { return curr() == scanner::token_kind::Numeral; }
+    bool curr_is_decimal() const { return curr() == scanner::token_kind::Decimal; }
     /** \brief Return true iff the current token is a string */
     bool curr_is_string() const { return curr() == scanner::token_kind::String; }
     /** \brief Return true iff the current token is a keyword */
@@ -376,9 +386,12 @@ public:
     /** \brief Check if the current token is an identifier, if it is return it and move to next token,
         otherwise throw an exception. */
     name check_id_next(char const * msg);
+    /** \brief Similar to check_id_next, but also ensures the identifier is *not* an internal/reserved name. */
+    name check_decl_id_next(char const * msg);
     /** \brief Check if the current token is an atomic identifier, if it is, return it and move to next token,
         otherwise throw an exception. */
     name check_atomic_id_next(char const * msg);
+    name check_atomic_decl_id_next(char const * msg);
     list<name> to_constants(name const & id, char const * msg, pos_info const & p) const;
     name to_constant(name const & id, char const * msg, pos_info const & p);
     /** \brief Check if the current token is a constant, if it is, return it and move to next token, otherwise throw an exception. */
@@ -468,6 +481,7 @@ public:
     void add_local_level(name const & n, level const & l, bool is_variable = false);
     void add_local_expr(name const & n, expr const & p, bool is_variable = false);
     environment add_local_ref(environment const & env, name const & n, expr const & ref);
+    void add_variable(name const & n, expr const & p);
     void add_parameter(name const & n, expr const & p);
     void add_local(expr const & p) { return add_local_expr(local_pp_name(p), p); }
     bool has_params() const { return m_has_params; }
@@ -550,10 +564,11 @@ public:
     };
 };
 
-bool parse_commands(environment & env, io_state & ios, std::istream & in, char const * strm_name,
+bool parse_commands(environment & env, io_state & ios, std::istream & in, char const * strm_name, optional<std::string> const & base_dir,
                     bool use_exceptions, unsigned num_threads, definition_cache * cache = nullptr,
                     declaration_index * index = nullptr, keep_theorem_mode tmode = keep_theorem_mode::All);
-bool parse_commands(environment & env, io_state & ios, char const * fname, bool use_exceptions, unsigned num_threads,
+bool parse_commands(environment & env, io_state & ios, char const * fname, optional<std::string> const & base,
+                    bool use_exceptions, unsigned num_threads,
                     definition_cache * cache = nullptr, declaration_index * index = nullptr,
                     keep_theorem_mode tmode = keep_theorem_mode::All);
 

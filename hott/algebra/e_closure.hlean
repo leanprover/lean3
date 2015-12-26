@@ -8,7 +8,7 @@ A more appropriate intuition is the type of words formed from the relation,
   and inverses, concatenations and reflexivity
 -/
 
-import .relation eq2 arity
+import algebra.relation eq2 arity cubical.pathover2
 
 open eq equiv
 
@@ -22,9 +22,10 @@ namespace e_closure
   infix ` ⬝r `:75 := e_closure.trans
   postfix `⁻¹ʳ`:(max+10) := e_closure.symm
   notation `[`:max a `]`:0 := e_closure.of_rel a
+  notation `<`:max p `>`:0 := e_closure.of_path _ p
   abbreviation rfl {A : Type} {R : A → A → Type} {a : A} := of_path R (idpath a)
 end e_closure
-
+open e_closure
 namespace relation
 
 section
@@ -58,9 +59,20 @@ section
   end
 
   definition ap_e_closure_elim [unfold 10] {B C : Type} {f : A → B} (g : B → C)
- (e : Π⦃a a' : A⦄, R a a' → f a = f a') (t : T a a')
+    (e : Π⦃a a' : A⦄, R a a' → f a = f a') (t : T a a')
     : ap g (e_closure.elim e t) = e_closure.elim (λa a' r, ap g (e r)) t :=
   ap_e_closure_elim_h e (λa a' s, idp) t
+
+  definition ap_e_closure_elim_inv [unfold_full] {B C : Type} {f : A → B} (g : B → C)
+    (e : Π⦃a a' : A⦄, R a a' → f a = f a') (t : T a a')
+    : ap_e_closure_elim g e t⁻¹ʳ = ap_inv g (e_closure.elim e t) ⬝ (ap_e_closure_elim g e t)⁻² :=
+  by reflexivity
+
+  definition ap_e_closure_elim_con [unfold_full] {B C : Type} {f : A → B} (g : B → C)
+    (e : Π⦃a a' : A⦄, R a a' → f a = f a') (t : T a a') (t' : T a' a'')
+    : ap_e_closure_elim g e (t ⬝r t') = ap_con g (e_closure.elim e t) (e_closure.elim e t') ⬝
+      (ap_e_closure_elim g e t ◾ ap_e_closure_elim g e t') :=
+  by reflexivity
 
   definition ap_e_closure_elim_h_eq {B C : Type} {f : A → B} {g : B → C}
     (e : Π⦃a a' : A⦄, R a a' → f a = f a')
@@ -107,7 +119,6 @@ section
              (ap_e_closure_elim h (λa a' r, ap g (e r)) t) :=
   !ap_ap_e_closure_elim_h
 
-  open e_closure
   definition is_equivalence_e_closure : is_equivalence T :=
   begin
     constructor,
@@ -116,6 +127,7 @@ section
       intro a a' a'' t t', exact t ⬝r t',
   end
 
+/-
   definition e_closure.transport_left {f : A → B} (e : Π⦃a a' : A⦄, R a a' → f a = f a')
     (t : e_closure R a a') (p : a = a'')
     : e_closure.elim e (p ▸ t) = (ap f p)⁻¹ ⬝ e_closure.elim e t :=
@@ -130,14 +142,14 @@ section
     (t : e_closure R a a) (p : a = a')
     : e_closure.elim e (p ▸ t) = (ap f p)⁻¹ ⬝ e_closure.elim e t ⬝ (ap f p) :=
   by induction p; esimp; exact !idp_con⁻¹
+-/
 
-  --dependent elimination:
+  /- dependent elimination -/
 
   variables {P : B → Type} {Q : C → Type} {f : A → B} {g : B → C} {f' : Π(a : A), P (f a)}
-  protected definition e_closure.elimo [unfold 11]
-    (p : Π⦃a a' : A⦄, R a a' → f a = f a')
-    (po : Π⦃a a' : A⦄ (s : R a a'), f' a =[p s] f' a')
-    (t : T a a') : f' a =[e_closure.elim p t] f' a' :=
+  protected definition e_closure.elimo [unfold 11] (p : Π⦃a a' : A⦄, R a a' → f a = f a')
+    (po : Π⦃a a' : A⦄ (s : R a a'), f' a =[p s] f' a') (t : T a a')
+    : f' a =[e_closure.elim p t] f' a' :=
   begin
     induction t with a a' r a a' pp a a' r IH a a' a'' r r' IH₁ IH₂,
       exact po r,
@@ -145,6 +157,16 @@ section
       exact IH⁻¹ᵒ,
       exact IH₁ ⬝o IH₂
   end
+
+  definition elimo_inv [unfold_full] (p : Π⦃a a' : A⦄, R a a' → f a = f a')
+    (po : Π⦃a a' : A⦄ (s : R a a'), f' a =[p s] f' a') (t : T a a')
+    : e_closure.elimo p po t⁻¹ʳ = (e_closure.elimo p po t)⁻¹ᵒ :=
+  by reflexivity
+
+  definition elimo_con [unfold_full] (p : Π⦃a a' : A⦄, R a a' → f a = f a')
+    (po : Π⦃a a' : A⦄ (s : R a a'), f' a =[p s] f' a') (t : T a a') (t' : T a' a'')
+    : e_closure.elimo p po (t ⬝r t') = e_closure.elimo p po t ⬝o e_closure.elimo p po t' :=
+  by reflexivity
 
   definition ap_e_closure_elimo_h [unfold 12]  {g' : Πb, Q (g b)}
     (p : Π⦃a a' : A⦄, R a a' → f a = f a')
@@ -160,29 +182,21 @@ section
       exact apdo_con g' (e_closure.elim p r) (e_closure.elim p r') ⬝ (IH₁ ◾o IH₂)
   end
 
-/-
-  definition e_closure_elimo_ap {g' : Π(a : A), Q (g (f a))}
+  theorem e_closure_elimo_ap {g' : Π(a : A), Q (g (f a))}
     (p : Π⦃a a' : A⦄, R a a' → f a = f a')
     (po : Π⦃a a' : A⦄ (s : R a a'), g' a =[ap g (p s)] g' a')
-    (t : T a a') : e_closure.elimo (λa a' r, ap g (p r)) po t =
-    change_path (ap_e_closure_elim g p t)
-      (pathover_ap Q g (e_closure.elimo p (λa a' s, pathover_of_pathover_ap Q g (po s)) t)) :=
+    (t : T a a') : e_closure.elimo p (λa a' s, pathover_of_pathover_ap Q g (po s)) t =
+      pathover_of_pathover_ap Q g (change_path (ap_e_closure_elim g p t)⁻¹
+        (e_closure.elimo (λa a' r, ap g (p r)) po t)) :=
   begin
     induction t with a a' r a a' pp a a' r IH a a' a'' r r' IH₁ IH₂,
-    { esimp, exact (to_right_inv !pathover_compose (po r))⁻¹},
-    { induction pp, reflexivity},
-    { exact sorry},
-    { exact sorry},
+    { reflexivity},
+    { induction pp; reflexivity},
+    { rewrite [+elimo_inv, ap_e_closure_elim_inv, IH, con_inv, change_path_con, ▸*, -inv2_inv,
+               change_path_invo, pathover_of_pathover_ap_invo]},
+    { rewrite [+elimo_con, ap_e_closure_elim_con, IH₁, IH₂, con_inv, change_path_con, ▸*, con2_inv,
+               change_path_cono, pathover_of_pathover_ap_cono]},
   end
-
-  definition e_closure_elimo_ap' {g' : Π(a : A), Q (g (f a))}
-    (p : Π⦃a a' : A⦄, R a a' → f a = f a')
-    (po : Π⦃a a' : A⦄ (s : R a a'), g' a =[ap g (p s)] g' a')
-    (t : T a a') :
-      pathover_of_pathover_ap Q g (change_path (ap_e_closure_elim g p t)⁻¹ (e_closure.elimo (λa a' r, ap g (p r)) po t)) =
-      e_closure.elimo p (λa a' s, pathover_of_pathover_ap Q g (po s)) t :=
-  sorry
--/
 
 end
 end relation

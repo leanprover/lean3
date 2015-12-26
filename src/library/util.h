@@ -111,7 +111,10 @@ expr instantiate_univ_param (expr const & e, name const & p, level const & l);
 
 expr mk_true();
 expr mk_true_intro();
+
 bool is_and(expr const & e, expr & arg1, expr & arg2);
+bool is_and(expr const & e);
+
 expr mk_and(expr const & a, expr const & b);
 expr mk_and_intro(type_checker & tc, expr const & Ha, expr const & Hb);
 expr mk_and_elim_left(type_checker & tc, expr const & H);
@@ -143,9 +146,13 @@ bool is_false(environment const & env, expr const & e);
 /** \brief Return an element of type t given an element \c f : false (in standard mode) and empty (in HoTT) mode */
 expr mk_false_rec(type_checker & tc, expr const & f, expr const & t);
 
+bool is_or(expr const & e);
+bool is_or(expr const & e, expr & A, expr & B);
+
 /** \brief Return true if \c e is of the form <tt>(not arg)</tt>, and store \c arg in \c a.
      Return false otherwise */
 bool is_not(environment const & env, expr const & e, expr & a);
+bool is_not(environment const & env, expr const & e);
 expr mk_not(type_checker & tc, expr const & e);
 
 /** \brief Create the term <tt>absurd e not_e : t</tt>. */
@@ -180,6 +187,7 @@ bool is_heq(expr const & e);
 bool is_heq(expr const & e, expr & A, expr & lhs, expr & B, expr & rhs);
 
 bool is_ite(expr const & e, expr & c, expr & H, expr & A, expr & t, expr & f);
+bool is_ite(expr const & e);
 
 bool is_iff(expr const & e);
 bool is_iff(expr const & e, expr & lhs, expr & rhs);
@@ -273,6 +281,9 @@ expr instantiate_meta(expr const & meta, substitution & subst);
 /** \brief Return a 'failed to synthesize placholder' justification for the given
     metavariable application \c m of the form (?m l_1 ... l_k) */
 justification mk_failed_to_synthesize_jst(environment const & env, expr const & m);
+
+/** \brief Return true if it is a lean internal name, i.e., the name starts with a `_` */
+bool is_internal_name(name const & n);
 
 void initialize_library_util();
 void finalize_library_util();

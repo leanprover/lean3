@@ -14,10 +14,28 @@ struct config {
     unsigned                   m_max_depth;
     unsigned                   m_init_depth;
     unsigned                   m_inc_depth;
-    bool                       m_trace;
+    bool                       m_subst;
+    bool                       m_simp;
+    bool                       m_recursor;
+    bool                       m_ematch;
+    bool                       m_cc;
+    bool                       m_backward;
+    bool                       m_show_failure;
+    char const *               m_strategy;
+    unsigned                   m_pattern_max_steps;
     config(options const & o);
 };
-bool get_blast_trace(options const & o);
+
+struct scope_config {
+    config * m_old;
+    config m_config;
+public:
+    scope_config(options const & o);
+    ~scope_config();
+};
+
+config & get_config();
+
 void initialize_options();
 void finalize_options();
 }}

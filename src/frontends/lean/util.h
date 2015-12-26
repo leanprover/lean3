@@ -9,6 +9,7 @@ Author: Leonardo de Moura
 #include "kernel/expr_sets.h"
 #include "kernel/type_checker.h"
 #include "library/util.h"
+#include "library/locals.h"
 #include "library/tactic/util.h"
 #include "frontends/lean/local_decls.h"
 
@@ -16,11 +17,6 @@ namespace lean {
 class parser;
 /** \brief Consume tokes until 'end' token is consumed */
 void consume_until_end(parser & p);
-
-/** \brief Parse optional '[persistent]' modifier.
-    return true if it is was found, and paremeter \c persistent to true.
-*/
-bool parse_persistent(parser & p, bool & persistent);
 
 /** \brief Throw and error if the current token is not a command, nor a '.', nor an end-of-file. */
 void check_command_period_or_eof(parser const & p);
@@ -36,6 +32,7 @@ name remove_root_prefix(name const & n);
 levels collect_local_nonvar_levels(parser & p, level_param_names const & ls);
 /** \brief Collect local constants occurring in \c type and \c value, sort them, and store in ctx_ps */
 void collect_locals(expr const & type, expr const & value, parser const & p, buffer<expr> & ctx_ps);
+void collect_annonymous_inst_implicit(parser const & p, collected_locals & ls);
 name_set collect_univ_params_ignoring_tactics(expr const & e, name_set const & ls = name_set());
 /** \brief Copy the local names to \c ps, then sort \c ps (using the order in which they were declared). */
 void sort_locals(buffer<expr> const & locals, parser const & p, buffer<expr> & ps);
@@ -78,8 +75,6 @@ expr Fun_as_is(buffer<expr> const & locals, expr const & e, parser & p);
 expr Pi_as_is(buffer<expr> const & locals, expr const & e, parser & p);
 /** \brief Create the resultant universe level using the levels computed during introduction rule elaboration */
 level mk_result_level(environment const & env, buffer<level> const & r_lvls);
-/** \brief Return true if \c u occurs in \c l */
-bool occurs(level const & u, level const & l);
 
 /** \brief Convert the universe metavariables in \c e in new universe parameters.
     The substitution \c s is updated with the mapping metavar -> new param.

@@ -21,6 +21,7 @@ Author: Leonardo de Moura
 #include "library/constants.h"
 #include "library/definitional/equations.h"
 #include "library/tactic/assert_tactic.h"
+#include "library/blast/forward/pattern.h"
 #include "frontends/lean/builtin_exprs.h"
 #include "frontends/lean/decl_cmds.h"
 #include "frontends/lean/token_table.h"
@@ -317,6 +318,10 @@ static expr parse_begin_end(parser & p, unsigned, expr const *, pos_info const &
 
 static expr parse_begin_end_plus(parser & p, unsigned, expr const *, pos_info const & pos) {
     return parse_begin_end_core(p, pos, get_end_tk(), true);
+}
+
+static expr parse_tactic_expr(parser & p, unsigned, expr const *, pos_info const &) {
+    return p.parse_tactic();
 }
 
 static expr parse_proof_qed_core(parser & p, pos_info const & pos) {
@@ -737,6 +742,10 @@ static expr parse_typed_expr(parser & p, unsigned, expr const * args, pos_info c
     return mk_typed_expr_distrib_choice(p, args[1], args[0], pos);
 }
 
+static expr parse_pattern(parser & p, unsigned, expr const * args, pos_info const & pos) {
+    return p.save_pos(mk_pattern_hint(args[0]), pos);
+}
+
 parse_table init_nud_table() {
     action Expr(mk_expr_action());
     action Skip(mk_skip_action());
@@ -758,12 +767,14 @@ parse_table init_nud_table() {
     r = r.add({transition("(", Expr), transition(":", Expr), transition(")", mk_ext_action(parse_typed_expr))}, x0);
     r = r.add({transition("?(", Expr), transition(")", mk_ext_action(parse_inaccessible))}, x0);
     r = r.add({transition("⌞", Expr), transition("⌟", mk_ext_action(parse_inaccessible))}, x0);
+    r = r.add({transition("(:", Expr), transition(":)", mk_ext_action(parse_pattern))}, x0);
     r = r.add({transition("fun", Binders), transition(",", mk_scoped_expr_action(x0))}, x0);
     r = r.add({transition("Pi", Binders), transition(",", mk_scoped_expr_action(x0, 0, false))}, x0);
     r = r.add({transition("Type", mk_ext_action(parse_Type))}, x0);
     r = r.add({transition("let", mk_ext_action(parse_let_expr))}, x0);
     r = r.add({transition("calc", mk_ext_action(parse_calc_expr))}, x0);
     r = r.add({transition("#", mk_ext_action(parse_override_notation))}, x0);
+    r = r.add({transition("#tactic", mk_ext_action(parse_tactic_expr))}, x0);
     r = r.add({transition("@", mk_ext_action(parse_explicit_expr))}, x0);
     r = r.add({transition("@@", mk_ext_action(parse_partial_explicit_expr))}, x0);
     r = r.add({transition("!", mk_ext_action(parse_consume_args_expr))}, x0);

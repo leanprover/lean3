@@ -1,4 +1,5 @@
-set_option blast.init_depth 10
+-- TODO(Leo): use better strategy
+set_option blast.strategy "constructor"
 
 example (a b c : Prop) : b → c → b ∧ c :=
 by blast

@@ -8,6 +8,7 @@ Author: Leonardo de Moura
 #include "util/rb_map.h"
 #include "util/list.h"
 #include "kernel/expr.h"
+#include "library/io_state_stream.h"
 
 namespace lean {
 struct head_index {
@@ -20,7 +21,11 @@ struct head_index {
     struct cmp {
         int operator()(head_index const & i1, head_index const & i2) const;
     };
+
+    friend std::ostream & operator<<(std::ostream & out, head_index const & head_idx);
 };
+
+io_state_stream const & operator<<(io_state_stream const & out, head_index const & head_idx);
 
 /**
     \brief Very simple indexing data-structure that allow us to map the head symbol of an expression to

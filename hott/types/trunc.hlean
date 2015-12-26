@@ -145,20 +145,20 @@ namespace is_trunc
   theorem is_trunc_succ_iff_is_trunc_loop (A : Type) (Hn : -1 ≤ n) :
     is_trunc (n.+1) A ↔ Π(a : A), is_trunc n (a = a) :=
   iff.intro _ (is_trunc_succ_of_is_trunc_loop Hn)
---set_option pp.all true
+
   theorem is_trunc_iff_is_contr_loop_succ (n : ℕ) (A : Type)
     : is_trunc n A ↔ Π(a : A), is_contr (Ω[succ n](Pointed.mk a)) :=
   begin
     revert A, induction n with n IH,
     { intro A, esimp [Iterated_loop_space], transitivity _,
       { apply is_trunc_succ_iff_is_trunc_loop, apply le.refl},
-      { apply iff.pi_iff_pi, intro a, esimp, apply is_hprop_iff_is_contr, reflexivity}},
+      { apply pi_iff_pi, intro a, esimp, apply is_hprop_iff_is_contr, reflexivity}},
     { intro A, esimp [Iterated_loop_space],
       transitivity _, apply @is_trunc_succ_iff_is_trunc_loop @n, esimp, constructor,
-      apply iff.pi_iff_pi, intro a, transitivity _, apply IH,
-      transitivity _, apply iff.pi_iff_pi, intro p,
+      apply pi_iff_pi, intro a, transitivity _, apply IH,
+      transitivity _, apply pi_iff_pi, intro p,
       rewrite [iterated_loop_space_loop_irrel n p], apply iff.refl, esimp,
-      apply iff.imp_iff, reflexivity}
+      apply imp_iff, reflexivity}
   end
 
   theorem is_trunc_iff_is_contr_loop (n : ℕ) (A : Type)
@@ -171,6 +171,11 @@ namespace is_trunc
     { apply is_trunc_iff_is_contr_loop_succ},
   end
 
+  theorem is_contr_loop_of_is_trunc (n : ℕ) (A : Type*) [H : is_trunc (n.-2.+1) A] :
+    is_contr (Ω[n] A) :=
+  by induction A; exact iff.mp !is_trunc_iff_is_contr_loop _ _
+
+
 end is_trunc open is_trunc
 
 namespace trunc
@@ -181,15 +186,14 @@ namespace trunc
 
   protected definition encode (n : trunc_index) (aa aa' : trunc n.+1 A) : aa = aa' → trunc.code n aa aa' :=
   begin
-    intro p, induction p, apply (trunc.rec_on aa),
-    intro a, esimp [trunc.code,trunc.rec_on], exact (tr idp)
+    intro p, induction p, induction aa with a, esimp [trunc.code,trunc.rec_on], exact (tr idp)
   end
 
   protected definition decode (n : trunc_index) (aa aa' : trunc n.+1 A) : trunc.code n aa aa' → aa = aa' :=
   begin
-    eapply (trunc.rec_on aa'), eapply (trunc.rec_on aa),
-    intro a a' x, esimp [trunc.code, trunc.rec_on] at x,
-    apply (trunc.rec_on x), intro p, exact (ap tr p)
+    induction aa' with a', induction aa with a,
+    esimp [trunc.code, trunc.rec_on], intro x,
+    induction x with p, exact ap tr p,
   end
 
   definition trunc_eq_equiv [constructor] (n : trunc_index) (aa aa' : trunc n.+1 A)
@@ -231,6 +235,12 @@ namespace trunc
     : P a :=
   !trunc_equiv (f a)
 
+  /- transport over a truncated family -/
+  definition trunc_transport {a a' : A} {P : A → Type} (p : a = a') (n : trunc_index) (x : P a)
+    : transport (λa, trunc n (P a)) p (tr x) = tr (p ▸ x) :=
+  by induction p; reflexivity
+
+  definition image {A B : Type} (f : A → B) (b : B) : hprop := ∃(a : A), f a = b
 
 end trunc open trunc
 
