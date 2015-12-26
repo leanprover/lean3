@@ -4,7 +4,10 @@ Released under Apache 2.0 license as described in the file LICENSE.
 Authors: Leonardo de Moura, Jeremy Avigad, Floris van Doorn
 -/
 prelude
-import init.datatypes init.reserved_notation
+import init.datatypes init.reserved_notation init.tactic
+
+definition id [reducible] [unfold_full] {A : Type} (a : A) : A :=
+a
 
 /- implication -/
 
@@ -21,8 +24,13 @@ prefix `¬` := not
 definition absurd {a : Prop} {b : Type} (H1 : a) (H2 : ¬a) : b :=
 false.rec b (H2 H1)
 
+lemma not.intro [intro!] {a : Prop} (H : a → false) : ¬ a :=
+H
+
 theorem mt {a b : Prop} (H1 : a → b) (H2 : ¬b) : ¬a :=
 assume Ha : a, absurd (H1 Ha) H2
+
+definition implies.resolve {a b : Prop} (H : a → b) (nb : ¬ b) : ¬ a := assume Ha, nb (H Ha)
 
 /- not -/
 
@@ -234,13 +242,21 @@ notation a ∧ b  := and a b
 
 variables {a b c d : Prop}
 
+attribute and.rec [elim]
+attribute and.intro [intro!]
+
 theorem and.elim (H₁ : a ∧ b) (H₂ : a → b → c) : c :=
 and.rec H₂ H₁
+
+theorem and.swap : a ∧ b → b ∧ a :=
+and.rec (λHa Hb, and.intro Hb Ha)
 
 /- or -/
 
 notation a \/ b := or a b
 notation a ∨ b := or a b
+
+attribute or.rec [elim]
 
 namespace or
   theorem elim (H₁ : a ∨ b) (H₂ : a → c) (H₃ : b → c) : c :=
@@ -253,6 +269,8 @@ assume not_em : ¬(a ∨ ¬a),
     assume pos_a : a, absurd (or.inl pos_a) not_em,
   absurd (or.inr neg_a) not_em
 
+theorem or.swap : a ∨ b → b ∨ a := or.rec or.inr or.inl
+
 /- iff -/
 
 definition iff (a b : Prop) := (a → b) ∧ (b → a)
@@ -260,40 +278,41 @@ definition iff (a b : Prop) := (a → b) ∧ (b → a)
 notation a <-> b := iff a b
 notation a ↔ b := iff a b
 
-namespace iff
-  theorem intro : (a → b) → (b → a) → (a ↔ b) := and.intro
+theorem iff.intro : (a → b) → (b → a) → (a ↔ b) := and.intro
 
-  theorem elim : ((a → b) → (b → a) → c) → (a ↔ b) → c := and.rec
+attribute iff.intro [intro!]
 
-  theorem elim_left : (a ↔ b) → a → b := and.left
+theorem iff.elim : ((a → b) → (b → a) → c) → (a ↔ b) → c := and.rec
 
-  definition mp := @elim_left
+attribute iff.elim [recursor 5] [elim]
 
-  theorem elim_right : (a ↔ b) → b → a := and.right
+theorem iff.elim_left : (a ↔ b) → a → b := and.left
 
-  definition mpr := @elim_right
+definition iff.mp := @iff.elim_left
 
-  theorem refl (a : Prop) : a ↔ a :=
-  intro (assume H, H) (assume H, H)
+theorem iff.elim_right : (a ↔ b) → b → a := and.right
 
-  theorem rfl {a : Prop} : a ↔ a :=
-  refl a
+definition iff.mpr := @iff.elim_right
 
-  theorem trans (H₁ : a ↔ b) (H₂ : b ↔ c) : a ↔ c :=
-  intro
-    (assume Ha, mp H₂ (mp H₁ Ha))
-    (assume Hc, mpr H₁ (mpr H₂ Hc))
+theorem iff.refl [refl] (a : Prop) : a ↔ a :=
+iff.intro (assume H, H) (assume H, H)
 
-  theorem symm (H : a ↔ b) : b ↔ a :=
-  intro (elim_right H) (elim_left H)
+theorem iff.rfl {a : Prop} : a ↔ a :=
+iff.refl a
 
-  theorem comm : (a ↔ b) ↔ (b ↔ a) :=
-  intro symm symm
+theorem iff.trans [trans] (H₁ : a ↔ b) (H₂ : b ↔ c) : a ↔ c :=
+iff.intro
+  (assume Ha, iff.mp H₂ (iff.mp H₁ Ha))
+  (assume Hc, iff.mpr H₁ (iff.mpr H₂ Hc))
 
-  open eq.ops
-  theorem of_eq {a b : Prop} (H : a = b) : a ↔ b :=
-  H ▸ rfl
-end iff
+theorem iff.symm [symm] (H : a ↔ b) : b ↔ a :=
+iff.intro (iff.elim_right H) (iff.elim_left H)
+
+theorem iff.comm : (a ↔ b) ↔ (b ↔ a) :=
+iff.intro iff.symm iff.symm
+
+theorem iff.of_eq {a b : Prop} (H : a = b) : a ↔ b :=
+eq.rec_on H iff.rfl
 
 theorem not_iff_not_of_iff (H₁ : a ↔ b) : ¬a ↔ ¬b :=
 iff.intro
@@ -318,53 +337,237 @@ iff.intro
   (λ (Hl : ¬¬¬a) (Ha : a), Hl (non_contradictory_intro Ha))
   absurd
 
-attribute iff.refl [refl]
-attribute iff.symm [symm]
-attribute iff.trans [trans]
+theorem imp_congr [congr] (H1 : a ↔ c) (H2 : b ↔ d) : (a → b) ↔ (c → d) :=
+iff.intro
+  (λHab Hc, iff.mp H2 (Hab (iff.mpr H1 Hc)))
+  (λHcd Ha, iff.mpr H2 (Hcd (iff.mp H1 Ha)))
 
 theorem not_not_intro (Ha : a) : ¬¬a :=
 assume Hna : ¬a, Hna Ha
 
-theorem not_true : (¬ true) ↔ false :=
+theorem not_of_not_not_not (H : ¬¬¬a) : ¬a :=
+λ Ha, absurd (not_not_intro Ha) H
+
+theorem not_true [simp] : (¬ true) ↔ false :=
 iff_false_intro (not_not_intro trivial)
 
-theorem not_false_iff : (¬ false) ↔ true :=
+theorem not_false_iff [simp] : (¬ false) ↔ true :=
 iff_true_intro not_false
 
-theorem ne_self_iff_false {A : Type} (a : A) : (a ≠ a) ↔ false :=
+theorem not_congr [congr] (H : a ↔ b) : ¬a ↔ ¬b :=
+iff.intro (λ H₁ H₂, H₁ (iff.mpr H H₂)) (λ H₁ H₂, H₁ (iff.mp H H₂))
+
+theorem ne_self_iff_false [simp] {A : Type} (a : A) : (not (a = a)) ↔ false :=
 iff.intro false_of_ne false.elim
 
-theorem eq_self_iff_true {A : Type} (a : A) : (a = a) ↔ true :=
+theorem eq_self_iff_true [simp] {A : Type} (a : A) : (a = a) ↔ true :=
 iff_true_intro rfl
 
-theorem heq_self_iff_true {A : Type} (a : A) : (a == a) ↔ true :=
+theorem heq_self_iff_true [simp] {A : Type} (a : A) : (a == a) ↔ true :=
 iff_true_intro (heq.refl a)
 
-theorem iff_not_self (a : Prop) : (a ↔ ¬a) ↔ false :=
+theorem iff_not_self [simp] (a : Prop) : (a ↔ ¬a) ↔ false :=
 iff_false_intro (λ H,
    have H' : ¬a, from (λ Ha, (iff.mp H Ha) Ha),
    H' (iff.mpr H H'))
 
-theorem true_iff_false : (true ↔ false) ↔ false :=
+theorem not_iff_self [simp] (a : Prop) : (¬a ↔ a) ↔ false :=
+iff_false_intro (λ H,
+   have H' : ¬a, from (λ Ha, (iff.mpr H Ha) Ha),
+   H' (iff.mp H H'))
+
+theorem true_iff_false [simp] : (true ↔ false) ↔ false :=
 iff_false_intro (λ H, iff.mp H trivial)
 
-theorem false_iff_true : (false ↔ true) ↔ false :=
+theorem false_iff_true [simp] : (false ↔ true) ↔ false :=
 iff_false_intro (λ H, iff.mpr H trivial)
 
 theorem false_of_true_iff_false : (true ↔ false) → false :=
 assume H, iff.mp H trivial
 
+/- and simp rules -/
+theorem and.imp (H₂ : a → c) (H₃ : b → d) : a ∧ b → c ∧ d :=
+and.rec (λHa Hb, and.intro (H₂ Ha) (H₃ Hb))
+
+theorem and_congr [congr] (H1 : a ↔ c) (H2 : b ↔ d) : (a ∧ b) ↔ (c ∧ d) :=
+iff.intro (and.imp (iff.mp H1) (iff.mp H2)) (and.imp (iff.mpr H1) (iff.mpr H2))
+
+theorem and.comm [simp] : a ∧ b ↔ b ∧ a :=
+iff.intro and.swap and.swap
+
+theorem and.assoc [simp] : (a ∧ b) ∧ c ↔ a ∧ (b ∧ c) :=
+iff.intro
+  (and.rec (λ H' Hc, and.rec (λ Ha Hb, and.intro Ha (and.intro Hb Hc)) H'))
+  (and.rec (λ Ha, and.rec (λ Hb Hc, and.intro (and.intro Ha Hb) Hc)))
+
+theorem and.left_comm [simp] : a ∧ (b ∧ c) ↔ b ∧ (a ∧ c) :=
+iff.trans (iff.symm !and.assoc) (iff.trans (and_congr !and.comm !iff.refl) !and.assoc)
+
+theorem and_iff_left {a b : Prop} (Hb : b) : (a ∧ b) ↔ a :=
+iff.intro and.left (λHa, and.intro Ha Hb)
+
+theorem and_iff_right {a b : Prop} (Ha : a) : (a ∧ b) ↔ b :=
+iff.intro and.right (and.intro Ha)
+
+theorem and_true [simp] (a : Prop) : a ∧ true ↔ a :=
+and_iff_left trivial
+
+theorem true_and [simp] (a : Prop) : true ∧ a ↔ a :=
+and_iff_right trivial
+
+theorem and_false [simp] (a : Prop) : a ∧ false ↔ false :=
+iff_false_intro and.right
+
+theorem false_and [simp] (a : Prop) : false ∧ a ↔ false :=
+iff_false_intro and.left
+
+theorem not_and_self [simp] (a : Prop) : (¬a ∧ a) ↔ false :=
+iff_false_intro (λ H, and.elim H (λ H₁ H₂, absurd H₂ H₁))
+
+theorem and_not_self [simp] (a : Prop) : (a ∧ ¬a) ↔ false :=
+iff_false_intro (λ H, and.elim H (λ H₁ H₂, absurd H₁ H₂))
+
+theorem and_self [simp] (a : Prop) : a ∧ a ↔ a :=
+iff.intro and.left (assume H, and.intro H H)
+
+/- or simp rules -/
+
+theorem or.imp (H₂ : a → c) (H₃ : b → d) : a ∨ b → c ∨ d :=
+or.rec (λ H, or.inl (H₂ H)) (λ H, or.inr (H₃ H))
+
+theorem or.imp_left (H : a → b) : a ∨ c → b ∨ c :=
+or.imp H id
+
+theorem or.imp_right (H : a → b) : c ∨ a → c ∨ b :=
+or.imp id H
+
+theorem or_congr [congr] (H1 : a ↔ c) (H2 : b ↔ d) : (a ∨ b) ↔ (c ∨ d) :=
+iff.intro (or.imp (iff.mp H1) (iff.mp H2)) (or.imp (iff.mpr H1) (iff.mpr H2))
+
+theorem or.comm [simp] : a ∨ b ↔ b ∨ a := iff.intro or.swap or.swap
+
+theorem or.assoc [simp] : (a ∨ b) ∨ c ↔ a ∨ (b ∨ c) :=
+iff.intro
+  (or.rec (or.imp_right or.inl) (λ H, or.inr (or.inr H)))
+  (or.rec (λ H, or.inl (or.inl H)) (or.imp_left or.inr))
+
+theorem or.left_comm [simp] : a ∨ (b ∨ c) ↔ b ∨ (a ∨ c) :=
+iff.trans (iff.symm !or.assoc) (iff.trans (or_congr !or.comm !iff.refl) !or.assoc)
+
+theorem or_true [simp] (a : Prop) : a ∨ true ↔ true :=
+iff_true_intro (or.inr trivial)
+
+theorem true_or [simp] (a : Prop) : true ∨ a ↔ true :=
+iff_true_intro (or.inl trivial)
+
+theorem or_false [simp] (a : Prop) : a ∨ false ↔ a :=
+iff.intro (or.rec id false.elim) or.inl
+
+theorem false_or [simp] (a : Prop) : false ∨ a ↔ a :=
+iff.trans or.comm !or_false
+
+theorem or_self [simp] (a : Prop) : a ∨ a ↔ a :=
+iff.intro (or.rec id id) or.inl
+
+/- or resolution rulse -/
+
+definition or.resolve_left {a b : Prop} (H : a ∨ b) (na : ¬ a) : b :=
+  or.elim H (λ Ha, absurd Ha na) id
+
+definition or.neg_resolve_left {a b : Prop} (H : ¬ a ∨ b) (Ha : a) : b :=
+  or.elim H (λ na, absurd Ha na) id
+
+definition or.resolve_right {a b : Prop} (H : a ∨ b) (nb : ¬ b) : a :=
+  or.elim H id (λ Hb, absurd Hb nb)
+
+definition or.neg_resolve_right {a b : Prop} (H : a ∨ ¬ b) (Hb : b) : a :=
+  or.elim H id (λ nb, absurd Hb nb)
+
+/- iff simp rules -/
+
+theorem iff_true [simp] (a : Prop) : (a ↔ true) ↔ a :=
+iff.intro (assume H, iff.mpr H trivial) iff_true_intro
+
+theorem true_iff [simp] (a : Prop) : (true ↔ a) ↔ a :=
+iff.trans iff.comm !iff_true
+
+theorem iff_false [simp] (a : Prop) : (a ↔ false) ↔ ¬ a :=
+iff.intro and.left iff_false_intro
+
+theorem false_iff [simp] (a : Prop) : (false ↔ a) ↔ ¬ a :=
+iff.trans iff.comm !iff_false
+
+theorem iff_self [simp] (a : Prop) : (a ↔ a) ↔ true :=
+iff_true_intro iff.rfl
+
+theorem iff_congr [congr] (H1 : a ↔ c) (H2 : b ↔ d) : (a ↔ b) ↔ (c ↔ d) :=
+and_congr (imp_congr H1 H2) (imp_congr H2 H1)
+
+/- exists -/
+
 inductive Exists {A : Type} (P : A → Prop) : Prop :=
 intro : ∀ (a : A), P a → Exists P
+
+attribute Exists.intro [intro]
 
 definition exists.intro := @Exists.intro
 
 notation `exists` binders `, ` r:(scoped P, Exists P) := r
 notation `∃` binders `, ` r:(scoped P, Exists P) := r
 
+attribute Exists.rec [elim]
+
 theorem exists.elim {A : Type} {p : A → Prop} {B : Prop}
   (H1 : ∃x, p x) (H2 : ∀ (a : A), p a → B) : B :=
 Exists.rec H2 H1
+
+/- exists unique -/
+
+definition exists_unique {A : Type} (p : A → Prop) :=
+∃x, p x ∧ ∀y, p y → y = x
+
+notation `∃!` binders `, ` r:(scoped P, exists_unique P) := r
+
+theorem exists_unique.intro [intro] {A : Type} {p : A → Prop} (w : A) (H1 : p w) (H2 : ∀y, p y → y = w) :
+  ∃!x, p x :=
+exists.intro w (and.intro H1 H2)
+
+theorem exists_unique.elim [recursor 4] [elim] {A : Type} {p : A → Prop} {b : Prop}
+    (H2 : ∃!x, p x) (H1 : ∀x, p x → (∀y, p y → y = x) → b) : b :=
+exists.elim H2 (λ w Hw, H1 w (and.left Hw) (and.right Hw))
+
+theorem exists_unique_of_exists_of_unique {A : Type} {p : A → Prop}
+    (Hex : ∃ x, p x) (Hunique : ∀ y₁ y₂, p y₁ → p y₂ → y₁ = y₂) :  ∃! x, p x :=
+exists.elim Hex (λ x px, exists_unique.intro x px (take y, suppose p y, Hunique y x this px))
+
+theorem exists_of_exists_unique {A : Type} {p : A → Prop} (H : ∃! x, p x) : ∃ x, p x :=
+exists.elim H (λ x Hx, exists.intro x (and.left Hx))
+
+theorem unique_of_exists_unique {A : Type} {p : A → Prop}
+    (H : ∃! x, p x) {y₁ y₂ : A} (py₁ : p y₁) (py₂ : p y₂) : y₁ = y₂ :=
+exists_unique.elim H
+  (take x, suppose p x,
+    assume unique : ∀ y, p y → y = x,
+    show y₁ = y₂, from eq.trans (unique _ py₁) (eq.symm (unique _ py₂)))
+
+/- exists, forall, exists unique congruences -/
+section
+variables {A : Type} {p₁ p₂ : A → Prop}
+
+theorem forall_congr [congr] {A : Type} {P Q : A → Prop} (H : ∀a, (P a ↔ Q a)) : (∀a, P a) ↔ ∀a, Q a :=
+iff.intro (λp a, iff.mp (H a) (p a)) (λq a, iff.mpr (H a) (q a))
+
+theorem exists_imp_exists {A : Type} {P Q : A → Prop} (H : ∀a, (P a → Q a)) (p : ∃a, P a) : ∃a, Q a :=
+exists.elim p (λa Hp, exists.intro a (H a Hp))
+
+theorem exists_congr [congr] {A : Type} {P Q : A → Prop} (H : ∀a, (P a ↔ Q a)) : (∃a, P a) ↔ ∃a, Q a :=
+iff.intro
+  (exists_imp_exists (λa, iff.mp (H a)))
+  (exists_imp_exists (λa, iff.mpr (H a)))
+
+theorem exists_unique_congr [congr] (H : ∀ x, p₁ x ↔ p₂ x) : (∃! x, p₁ x) ↔ (∃! x, p₂ x) :=
+exists_congr (λx, and_congr (H x) (forall_congr (λy, imp_congr (H y) iff.rfl)))
+end
 
 /- decidable -/
 
@@ -401,9 +604,9 @@ namespace decidable
 
   definition by_cases {q : Type} [C : decidable p] : (p → q) → (¬p → q) → q := !dite
 
-  theorem em (p : Prop) [H : decidable p] : p ∨ ¬p := by_cases or.inl or.inr
+  theorem em (p : Prop) [decidable p] : p ∨ ¬p := by_cases or.inl or.inr
 
-  theorem by_contradiction [Hp : decidable p] (H : ¬p → false) : p :=
+  theorem by_contradiction [decidable p] (H : ¬p → false) : p :=
   if H1 : p then H1 else false.rec _ (H H1)
 end decidable
 
@@ -417,7 +620,7 @@ section
   definition  decidable_of_decidable_of_eq (Hp : decidable p) (H : p = q) : decidable q :=
   decidable_of_decidable_of_iff Hp (iff.of_eq H)
 
-  protected definition or.by_cases [Hp : decidable p] [Hq : decidable q] {A : Type}
+  protected definition or.by_cases [decidable p] [decidable q] {A : Type}
                                    (h : p ∨ q) (h₁ : p → A) (h₂ : q → A) : A :=
   if hp : p then h₁ hp else
     if hq : q then h₂ hq else
@@ -428,27 +631,27 @@ section
   variables {p q : Prop}
   open decidable (rec_on inl inr)
 
-  definition decidable_and [instance] [Hp : decidable p] [Hq : decidable q] : decidable (p ∧ q) :=
+  definition decidable_and [instance] [decidable p] [decidable q] : decidable (p ∧ q) :=
   if hp : p then
     if hq : q then inl (and.intro hp hq)
     else inr (assume H : p ∧ q, hq (and.right H))
   else inr (assume H : p ∧ q, hp (and.left H))
 
-  definition decidable_or [instance] [Hp : decidable p] [Hq : decidable q] : decidable (p ∨ q) :=
+  definition decidable_or [instance] [decidable p] [decidable q] : decidable (p ∨ q) :=
   if hp : p then inl (or.inl hp) else
     if hq : q then inl (or.inr hq) else
       inr (or.rec hp hq)
 
-  definition decidable_not [instance] [Hp : decidable p] : decidable (¬p) :=
+  definition decidable_not [instance] [decidable p] : decidable (¬p) :=
   if hp : p then inr (absurd hp) else inl hp
 
-  definition decidable_implies [instance] [Hp : decidable p] [Hq : decidable q] : decidable (p → q) :=
+  definition decidable_implies [instance] [decidable p] [decidable q] : decidable (p → q) :=
   if hp : p then
     if hq : q then inl (assume H, hq)
     else inr (assume H : p → q, absurd (H hp) hq)
   else inl (assume Hp, absurd Hp hp)
 
-  definition decidable_iff [instance] [Hp : decidable p] [Hq : decidable q] : decidable (p ↔ q) :=
+  definition decidable_iff [instance] [decidable p] [decidable q] : decidable (p ↔ q) :=
   decidable_and
 
 end
@@ -456,7 +659,7 @@ end
 definition decidable_pred [reducible] {A : Type} (R : A   →   Prop) := Π (a   : A), decidable (R a)
 definition decidable_rel  [reducible] {A : Type} (R : A → A → Prop) := Π (a b : A), decidable (R a b)
 definition decidable_eq   [reducible] (A : Type) := decidable_rel (@eq A)
-definition decidable_ne [instance] {A : Type} [H : decidable_eq A] (a b : A) : decidable (a ≠ b) :=
+definition decidable_ne [instance] {A : Type} [decidable_eq A] (a b : A) : decidable (a ≠ b) :=
 decidable_implies
 
 namespace bool
@@ -516,12 +719,18 @@ inhabited.mk true
 definition inhabited_fun [instance] (A : Type) {B : Type} [H : inhabited B] : inhabited (A → B) :=
 inhabited.rec_on H (λb, inhabited.mk (λa, b))
 
-definition inhabited_Pi [instance] (A : Type) {B : A → Type} [H : Πx, inhabited (B x)] :
+definition inhabited_Pi [instance] (A : Type) {B : A → Type} [Πx, inhabited (B x)] :
   inhabited (Πx, B x) :=
 inhabited.mk (λa, !default)
 
 protected definition bool.is_inhabited [instance] : inhabited bool :=
 inhabited.mk ff
+
+protected definition pos_num.is_inhabited [instance] : inhabited pos_num :=
+inhabited.mk pos_num.one
+
+protected definition num.is_inhabited [instance] : inhabited num :=
+inhabited.mk num.zero
 
 inductive nonempty [class] (A : Type) : Prop :=
 intro : A → nonempty A
@@ -529,7 +738,7 @@ intro : A → nonempty A
 protected definition nonempty.elim {A : Type} {B : Prop} (H1 : nonempty A) (H2 : A → B) : B :=
 nonempty.rec H2 H1
 
-theorem nonempty_of_inhabited [instance] {A : Type} [H : inhabited A] : nonempty A :=
+theorem nonempty_of_inhabited [instance] {A : Type} [inhabited A] : nonempty A :=
 nonempty.intro !default
 
 theorem nonempty_of_exists {A : Type} {P : A → Prop} : (∃x, P x) → nonempty A :=
@@ -585,10 +794,10 @@ decidable.rec
   (λ Hnc : ¬c, eq.refl (@ite c (decidable.inr Hnc) A t t))
   H
 
-theorem implies_of_if_pos {c t e : Prop} [H : decidable c] (h : ite c t e) : c → t :=
+theorem implies_of_if_pos {c t e : Prop} [decidable c] (h : ite c t e) : c → t :=
 assume Hc, eq.rec_on (if_pos Hc) h
 
-theorem implies_of_if_neg {c t e : Prop} [H : decidable c] (h : ite c t e) : ¬c → e :=
+theorem implies_of_if_neg {c t e : Prop} [decidable c] (h : ite c t e) : ¬c → e :=
 assume Hnc, eq.rec_on (if_neg Hnc) h
 
 theorem if_ctx_congr {A : Type} {b c : Prop} [dec_b : decidable b] [dec_c : decidable c]
@@ -605,7 +814,7 @@ decidable.rec_on dec_b
          ...  = v         : h_e (iff.mp (not_iff_not_of_iff h_c) hn)
          ...  = ite c u v : if_neg (iff.mp (not_iff_not_of_iff h_c) hn))
 
-theorem if_congr {A : Type} {b c : Prop} [dec_b : decidable b] [dec_c : decidable c]
+theorem if_congr [congr] {A : Type} {b c : Prop} [dec_b : decidable b] [dec_c : decidable c]
                  {x y u v : A}
                  (h_c : b ↔ c) (h_t : x = u) (h_e : y = v) :
         ite b x y = ite c u v :=
@@ -621,7 +830,13 @@ theorem if_simp_congr [congr] {A : Type} {b c : Prop} [dec_b : decidable b] {x y
         ite b x y = (@ite c (decidable_of_decidable_of_iff dec_b h_c) A u v) :=
 @if_ctx_simp_congr A b c dec_b x y u v h_c (λ h, h_t) (λ h, h_e)
 
-theorem if_congr_prop {b c x y u v : Prop} [dec_b : decidable b] [dec_c : decidable c]
+definition if_true [simp] {A : Type} (t e : A) : (if true then t else e) = t :=
+if_pos trivial
+
+definition if_false [simp] {A : Type} (t e : A) : (if false then t else e) = e :=
+if_neg not_false
+
+theorem if_ctx_congr_prop {b c x y u v : Prop} [dec_b : decidable b] [dec_c : decidable c]
                       (h_c : b ↔ c) (h_t : c → (x ↔ u)) (h_e : ¬c → (y ↔ v)) :
         ite b x y ↔ ite c u v :=
 decidable.rec_on dec_b
@@ -634,10 +849,15 @@ decidable.rec_on dec_b
          ...  ↔ v         : h_e (iff.mp (not_iff_not_of_iff h_c) hn)
          ...  ↔ ite c u v : iff.of_eq (if_neg (iff.mp (not_iff_not_of_iff h_c) hn)))
 
+theorem if_congr_prop [congr] {b c x y u v : Prop} [dec_b : decidable b] [dec_c : decidable c]
+                      (h_c : b ↔ c) (h_t : x ↔ u) (h_e : y ↔ v) :
+        ite b x y ↔ ite c u v :=
+if_ctx_congr_prop h_c (λ h, h_t) (λ h, h_e)
+
 theorem if_ctx_simp_congr_prop {b c x y u v : Prop} [dec_b : decidable b]
                                (h_c : b ↔ c) (h_t : c → (x ↔ u)) (h_e : ¬c → (y ↔ v)) :
         ite b x y ↔ (@ite c (decidable_of_decidable_of_iff dec_b h_c) Prop u v) :=
-@if_congr_prop b c x y u v dec_b (decidable_of_decidable_of_iff dec_b h_c) h_c h_t h_e
+@if_ctx_congr_prop b c x y u v dec_b (decidable_of_decidable_of_iff dec_b h_c) h_c h_t h_e
 
 theorem if_simp_congr_prop [congr] {b c x y u v : Prop} [dec_b : decidable b]
                            (h_c : b ↔ c) (h_t : x ↔ u) (h_e : y ↔ v) :
@@ -683,13 +903,13 @@ theorem dif_ctx_simp_congr {A : Type} {b c : Prop} [dec_b : decidable b]
 @dif_ctx_congr A b c dec_b (decidable_of_decidable_of_iff dec_b h_c) x u y v h_c h_t h_e
 
 -- Remark: dite and ite are "definitionally equal" when we ignore the proofs.
-theorem dite_ite_eq (c : Prop) [H : decidable c] {A : Type} (t : A) (e : A) : dite c (λh, t) (λh, e) = ite c t e :=
+theorem dite_ite_eq (c : Prop) [decidable c] {A : Type} (t : A) (e : A) : dite c (λh, t) (λh, e) = ite c t e :=
 rfl
 
-definition is_true (c : Prop) [H : decidable c] : Prop :=
+definition is_true (c : Prop) [decidable c] : Prop :=
 if c then true else false
 
-definition is_false (c : Prop) [H : decidable c] : Prop :=
+definition is_false (c : Prop) [decidable c] : Prop :=
 if c then false else true
 
 definition of_is_true {c : Prop} [H₁ : decidable c] (H₂ : is_true c) : c :=
@@ -697,14 +917,18 @@ decidable.rec_on H₁ (λ Hc, Hc) (λ Hnc, !false.rec (if_neg Hnc ▸ H₂))
 
 notation `dec_trivial` := of_is_true trivial
 
-theorem not_of_not_is_true {c : Prop} [H₁ : decidable c] (H₂ : ¬ is_true c) : ¬ c :=
-if Hc : c then absurd trivial (if_pos Hc ▸ H₂) else Hc
+theorem not_of_not_is_true {c : Prop} [decidable c] (H : ¬ is_true c) : ¬ c :=
+if Hc : c then absurd trivial (if_pos Hc ▸ H) else Hc
 
-theorem not_of_is_false {c : Prop} [H₁ : decidable c] (H₂ : is_false c) : ¬ c :=
-if Hc : c then !false.rec (if_pos Hc ▸ H₂) else Hc
+theorem not_of_is_false {c : Prop} [decidable c] (H : is_false c) : ¬ c :=
+if Hc : c then !false.rec (if_pos Hc ▸ H) else Hc
 
-theorem of_not_is_false {c : Prop} [H₁ : decidable c] (H₂ : ¬ is_false c) : c :=
-if Hc : c then Hc else absurd trivial (if_neg Hc ▸ H₂)
+theorem of_not_is_false {c : Prop} [decidable c] (H : ¬ is_false c) : c :=
+if Hc : c then Hc else absurd trivial (if_neg Hc ▸ H)
+
+-- The following symbols should not be considered in the pattern inference procedure used by
+-- heuristic instantiation.
+attribute and or not iff ite dite eq ne heq [no_pattern]
 
 -- namespace used to collect congruence rules for "contextual simplification"
 namespace contextual

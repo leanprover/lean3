@@ -5,234 +5,173 @@ Released under Apache 2.0 license as described in the file LICENSE.
 Author: Leonardo de Moura
 */
 #include "library/replace_visitor.h"
-#include "library/normalize.h"
-#include "library/reducible.h"
-#include "library/class.h"
-#include "library/relation_manager.h"
-#include "library/user_recursors.h"
-#include "library/coercion.h"
-#include "library/simplifier/simp_rule_set.h"
+#include "library/attribute_manager.h"
+#include "library/blast/forward/pattern.h"
 #include "frontends/lean/decl_attributes.h"
 #include "frontends/lean/parser.h"
 #include "frontends/lean/tokens.h"
 #include "frontends/lean/util.h"
 
 namespace lean {
-decl_attributes::decl_attributes(bool is_abbrev, bool persistent):
-    m_priority() {
+decl_attributes::decl_attributes(bool is_abbrev, bool persistent) {
     m_is_abbrev              = is_abbrev;
     m_persistent             = persistent;
-    m_is_instance            = false;
-    m_is_trans_instance      = false;
-    m_is_coercion            = false;
-    m_is_reducible           = is_abbrev;
-    m_is_irreducible         = false;
-    m_is_semireducible       = false;
-    m_is_quasireducible      = false;
-    m_is_class               = false;
-    m_is_parsing_only        = false;
-    m_has_multiple_instances = false;
-    m_unfold_full_hint       = false;
-    m_constructor_hint       = false;
-    m_symm                   = false;
-    m_trans                  = false;
-    m_refl                   = false;
-    m_subst                  = false;
-    m_recursor               = false;
-    m_simp                   = false;
-    m_congr                  = false;
+    m_parsing_only           = false;
+    if (is_abbrev)
+        m_entries = to_list(entry("reducible"));
 }
 
 void decl_attributes::parse(parser & p) {
+    buffer<char const *> attr_tokens;
+    get_attribute_tokens(attr_tokens);
     while (true) {
-        auto pos = p.pos();
-        if (p.curr_is_token(get_instance_tk())) {
-            m_is_instance = true;
-            if (m_is_trans_instance)
-                throw parser_error("invalid '[instance]' attribute, '[trans_instance]' was already provided", pos);
-            p.next();
-        } else if (p.curr_is_token(get_trans_inst_tk())) {
-            m_is_trans_instance = true;
-            if (m_is_instance)
-                throw parser_error("invalid '[trans_instance]' attribute, '[instance]' was already provided", pos);
-            p.next();
-        } else if (p.curr_is_token(get_coercion_tk())) {
-            p.next();
-            m_is_coercion = true;
-        } else if (p.curr_is_token(get_reducible_tk())) {
-            if (m_is_irreducible || m_is_semireducible || m_is_quasireducible)
-                throw parser_error("invalid '[reducible]' attribute, '[irreducible]', '[quasireducible]' or '[semireducible]' was already provided", pos);
-            m_is_reducible = true;
-            p.next();
-        } else if (p.curr_is_token(get_irreducible_tk())) {
-            if (m_is_reducible || m_is_semireducible || m_is_quasireducible)
-                throw parser_error("invalid '[irreducible]' attribute, '[reducible]', '[quasireducible]' or '[semireducible]' was already provided", pos);
-            m_is_irreducible = true;
-            p.next();
-        } else if (p.curr_is_token(get_semireducible_tk())) {
-            if (m_is_reducible || m_is_irreducible || m_is_quasireducible)
-                throw parser_error("invalid '[irreducible]' attribute, '[reducible]', '[quasireducible]' or '[irreducible]' was already provided", pos);
-            m_is_semireducible = true;
-            p.next();
-        } else if (p.curr_is_token(get_quasireducible_tk())) {
-            if (m_is_reducible || m_is_irreducible || m_is_semireducible)
-                throw parser_error("invalid '[quasireducible]' attribute, '[reducible]', '[semireducible]' or '[irreducible]' was already provided", pos);
-            m_is_quasireducible = true;
-            p.next();
-        } else if (p.curr_is_token(get_class_tk())) {
-            m_is_class = true;
-            p.next();
-        } else if (p.curr_is_token(get_multiple_instances_tk())) {
-            m_has_multiple_instances = true;
-            p.next();
-        } else if (auto it = parse_priority(p)) {
-            m_priority = *it;
-            if (!m_is_instance && !m_simp && !m_congr) {
-                throw parser_error("invalid '[priority]' attribute, declaration must be marked as an '[instance]', '[simp]' or '[congr]'", pos);
+        auto pos   = p.pos();
+        if (auto it = parse_priority(p)) {
+            m_prio = *it;
+            bool has_prio_attr = false;
+            for (auto const & entry : m_entries) {
+                if (get_attribute_kind(entry.m_attr.c_str()) == attribute_kind::Prioritized) {
+                    has_prio_attr = true;
+                    break;
+                }
+            }
+            if (!has_prio_attr) {
+                throw parser_error("invalid '[priority]' attribute, declaration has not been marked with a prioritized attribute", pos);
             }
         } else if (p.curr_is_token(get_parsing_only_tk())) {
             if (!m_is_abbrev)
                 throw parser_error("invalid '[parsing_only]' attribute, only abbreviations can be "
                                    "marked as '[parsing_only]'", pos);
-            m_is_parsing_only = true;
+            m_parsing_only = true;
             p.next();
-        } else if (p.curr_is_token(get_unfold_full_tk())) {
-            p.next();
-            m_unfold_full_hint = true;
-        } else if (p.curr_is_token(get_constructor_tk())) {
-            p.next();
-            m_constructor_hint = true;
-        } else if (p.curr_is_token(get_unfold_tk())) {
-            p.next();
-            buffer<unsigned> idxs;
-            while (true) {
-                unsigned r = p.parse_small_nat();
-                if (r == 0)
-                    throw parser_error("invalid '[unfold]' attribute, value must be greater than 0", pos);
-                idxs.push_back(r-1);
-                if (p.curr_is_token(get_rbracket_tk()))
-                    break;
-            }
-            p.next();
-            m_unfold_hint = to_list(idxs);
-        } else if (p.curr_is_token(get_symm_tk())) {
-            p.next();
-            m_symm = true;
-        } else if (p.curr_is_token(get_refl_tk())) {
-            p.next();
-            m_refl = true;
-        } else if (p.curr_is_token(get_trans_tk())) {
-            p.next();
-            m_trans = true;
-        } else if (p.curr_is_token(get_subst_tk())) {
-            p.next();
-            m_subst = true;
-        } else if (p.curr_is_token(get_simp_attr_tk())) {
-            p.next();
-            m_simp = true;
-        } else if (p.curr_is_token(get_congr_attr_tk())) {
-            p.next();
-            m_congr = true;
-        } else if (p.curr_is_token(get_recursor_tk())) {
-            p.next();
-            if (!p.curr_is_token(get_rbracket_tk())) {
-                unsigned r = p.parse_small_nat();
-                if (r == 0)
-                    throw parser_error("invalid '[recursor]' attribute, value must be greater than 0", pos);
-                m_recursor_major_pos = r - 1;
-            }
-            p.check_token_next(get_rbracket_tk(), "invalid 'recursor', ']' expected");
-            m_recursor = true;
         } else {
+            bool found = false;
+            for (char const * tk : attr_tokens) {
+                if (p.curr_is_token(tk)) {
+                    p.next();
+                    char const * attr = get_attribute_from_token(tk);
+                    for (auto const & entry : m_entries) {
+                        if (are_incompatible(entry.m_attr.c_str(), attr)) {
+                            throw parser_error(sstream() << "invalid attribute [" << attr
+                                               << "], declaration was already marked with [" << entry.m_attr << "]", pos);
+                        }
+                    }
+                    switch (get_attribute_kind(attr)) {
+                    case attribute_kind::Default:
+                    case attribute_kind::Prioritized:
+                        m_entries = cons(entry(attr), m_entries);
+                        break;
+                    case attribute_kind::Parametric: {
+                        unsigned v = p.parse_small_nat();
+                        if (v == 0)
+                            throw parser_error("invalid attribute parameter, value must be positive", pos);
+                        p.check_token_next(get_rbracket_tk(), "invalid attribute, ']' expected");
+                        m_entries = cons(entry(attr, v-1), m_entries);
+                        break;
+                    }
+                    case attribute_kind::OptParametric:
+                        if (!p.curr_is_token(get_rbracket_tk())) {
+                            unsigned v = p.parse_small_nat();
+                            if (v == 0)
+                                throw parser_error("invalid attribute parameter, value must be positive", pos);
+                            p.check_token_next(get_rbracket_tk(), "invalid attribute, ']' expected");
+                            m_entries = cons(entry(attr, v-1), m_entries);
+                        } else {
+                            p.check_token_next(get_rbracket_tk(), "invalid attribute, ']' expected");
+                            m_entries = cons(entry(attr), m_entries);
+                        }
+                        break;
+                    case attribute_kind::MultiParametric: {
+                        buffer<unsigned> vs;
+                        while (true) {
+                            unsigned v = p.parse_small_nat();
+                            if (v == 0)
+                                throw parser_error("invalid attribute parameter, value must be positive", pos);
+                            vs.push_back(v-1);
+                            if (p.curr_is_token(get_rbracket_tk()))
+                                break;
+                        }
+                        p.next();
+                        m_entries = cons(entry(attr, to_list(vs)), m_entries);
+                        break;
+                    }}
+                    found = true;
+                    break;
+                }
+            }
+            if (!found)
+                break;
+        }
+    }
+}
+
+environment decl_attributes::apply(environment env, io_state const & ios, name const & d, name const & ns) const {
+    buffer<entry> entries;
+    to_buffer(m_entries, entries);
+    if (has_pattern_hints(env.get(d).get_type())) {
+        // turn on [forward] if patterns hints have been used in the type.
+        entries.push_back(entry("forward"));
+    }
+    unsigned i = entries.size();
+    while (i > 0) {
+        --i;
+        auto const & entry = entries[i];
+        char const * attr = entry.m_attr.c_str();
+        switch (get_attribute_kind(attr)) {
+        case attribute_kind::Default:
+            env = set_attribute(env, ios, attr, d, ns, m_persistent);
+            break;
+        case attribute_kind::Prioritized:
+            if (m_prio)
+                env = set_prio_attribute(env, ios, attr, d, *m_prio, ns, m_persistent);
+            else
+                env = set_prio_attribute(env, ios, attr, d, LEAN_DEFAULT_PRIORITY, ns, m_persistent);
+            break;
+        case attribute_kind::Parametric:
+            env = set_param_attribute(env, ios, attr, d, head(entry.m_params), ns, m_persistent);
+            break;
+        case attribute_kind::OptParametric:
+            if (entry.m_params)
+                env = set_opt_param_attribute(env, ios, attr, d, optional<unsigned>(head(entry.m_params)), ns, m_persistent);
+            else
+                env = set_opt_param_attribute(env, ios, attr, d, optional<unsigned>(), ns, m_persistent);
+            break;
+        case attribute_kind::MultiParametric:
+            env = set_params_attribute(env, ios, attr, d, entry.m_params, ns, m_persistent);
             break;
         }
     }
-}
-
-environment decl_attributes::apply(environment env, io_state const & ios, name const & d) const {
-    if (m_is_instance) {
-        if (m_priority) {
-            #if defined(__GNUC__) && !defined(__CLANG__)
-            #pragma GCC diagnostic ignored "-Wmaybe-uninitialized"
-            #endif
-            env = add_instance(env, d, *m_priority, m_persistent);
-        } else {
-            env = add_instance(env, d, m_persistent);
-        }
-    }
-    if (m_is_trans_instance) {
-        if (m_priority) {
-            #if defined(__GNUC__) && !defined(__CLANG__)
-            #pragma GCC diagnostic ignored "-Wmaybe-uninitialized"
-            #endif
-            env = add_trans_instance(env, d, *m_priority, m_persistent);
-        } else {
-            env = add_trans_instance(env, d, m_persistent);
-        }
-    }
-    if (m_is_coercion)
-        env = add_coercion(env, ios, d, m_persistent);
-    auto decl = env.find(d);
-    if (decl && decl->is_definition()) {
-        if (m_is_reducible)
-            env = set_reducible(env, d, reducible_status::Reducible, m_persistent);
-        if (m_is_irreducible)
-            env = set_reducible(env, d, reducible_status::Irreducible, m_persistent);
-        if (m_is_semireducible)
-            env = set_reducible(env, d, reducible_status::Semireducible, m_persistent);
-        if (m_is_quasireducible)
-            env = set_reducible(env, d, reducible_status::Quasireducible, m_persistent);
-        if (m_unfold_hint)
-            env = add_unfold_hint(env, d, m_unfold_hint, m_persistent);
-        if (m_unfold_full_hint)
-            env = add_unfold_full_hint(env, d, m_persistent);
-    }
-    if (m_constructor_hint)
-        env = add_constructor_hint(env, d, m_persistent);
-    if (m_symm)
-        env = add_symm(env, d, m_persistent);
-    if (m_refl)
-        env = add_refl(env, d, m_persistent);
-    if (m_trans)
-        env = add_trans(env, d, m_persistent);
-    if (m_subst)
-        env = add_subst(env, d, m_persistent);
-    if (m_recursor)
-        env = add_user_recursor(env, d, m_recursor_major_pos, m_persistent);
-    if (m_is_class)
-        env = add_class(env, d, m_persistent);
-    if (m_simp) {
-        if (m_priority)
-            env = add_simp_rule(env, d, *m_priority, m_persistent);
-        else
-            env = add_simp_rule(env, d, LEAN_SIMP_DEFAULT_PRIORITY, m_persistent);
-    }
-    if (m_congr) {
-        if (m_priority)
-            env = add_congr_rule(env, d, *m_priority, m_persistent);
-        else
-            env = add_congr_rule(env, d, LEAN_SIMP_DEFAULT_PRIORITY, m_persistent);
-    }
-    if (m_has_multiple_instances)
-        env = mark_multiple_instances(env, d, m_persistent);
     return env;
 }
 
+serializer & operator<<(serializer & s, decl_attributes::entry const & e) {
+    s << e.m_attr;
+    write_list(s, e.m_params);
+    return s;
+}
+
+deserializer & operator>>(deserializer & d, decl_attributes::entry & e) {
+    d >> e.m_attr;
+    e.m_params = read_list<unsigned>(d);
+    return d;
+}
+
 void decl_attributes::write(serializer & s) const {
-    s << m_is_abbrev << m_persistent << m_is_instance << m_is_trans_instance << m_is_coercion
-      << m_is_reducible << m_is_irreducible << m_is_semireducible << m_is_quasireducible
-      << m_is_class << m_is_parsing_only << m_has_multiple_instances << m_unfold_full_hint
-      << m_constructor_hint << m_symm << m_trans << m_refl << m_subst << m_recursor
-      << m_simp << m_congr << m_recursor_major_pos << m_priority;
-    write_list(s, m_unfold_hint);
+    s << m_is_abbrev << m_persistent << m_prio << m_parsing_only;
+    write_list(s, m_entries);
 }
 
 void decl_attributes::read(deserializer & d) {
-    d >> m_is_abbrev >> m_persistent >> m_is_instance >> m_is_trans_instance >> m_is_coercion
-      >> m_is_reducible >> m_is_irreducible >> m_is_semireducible >> m_is_quasireducible
-      >> m_is_class >> m_is_parsing_only >> m_has_multiple_instances >> m_unfold_full_hint
-      >> m_constructor_hint >> m_symm >> m_trans >> m_refl >> m_subst >> m_recursor
-      >> m_simp >> m_congr >> m_recursor_major_pos >> m_priority;
-    m_unfold_hint = read_list<unsigned>(d);
+    d >> m_is_abbrev >> m_persistent >> m_prio >> m_parsing_only;
+    m_entries = read_list<decl_attributes::entry>(d);
+}
+
+bool operator==(decl_attributes const & d1, decl_attributes const & d2) {
+    return
+        d1.m_is_abbrev    == d2.m_is_abbrev ||
+        d1.m_persistent   == d2.m_persistent ||
+        d1.m_parsing_only == d2.m_parsing_only ||
+        d1.m_entries      == d2.m_entries ||
+        d1.m_prio         == d2.m_prio;
 }
 }

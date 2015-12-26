@@ -10,7 +10,7 @@ import .sphere
 import types.bool types.int.hott types.equiv
 import algebra.homotopy_group algebra.hott
 
-open eq susp bool sphere_index is_equiv equiv equiv.ops is_trunc pi
+open eq susp bool sphere_index is_equiv equiv equiv.ops is_trunc pi algebra
 
 definition circle : Type₀ := sphere 1
 
@@ -186,20 +186,19 @@ namespace circle
 
   open int
 
-  protected definition code (x : circle) : Type₀ :=
+  protected definition code [unfold 1] (x : circle) : Type₀ :=
   circle.elim_type_on x ℤ equiv_succ
 
   definition transport_code_loop (a : ℤ) : transport circle.code loop a = succ a :=
   ap10 !elim_type_loop a
 
-  definition transport_code_loop_inv (a : ℤ)
-    : transport circle.code loop⁻¹ a = pred a :=
+  definition transport_code_loop_inv (a : ℤ) : transport circle.code loop⁻¹ a = pred a :=
   ap10 !elim_type_loop_inv a
 
-  protected definition encode {x : circle} (p : base = x) : circle.code x :=
-  transport circle.code p (of_num 0) -- why is the explicit coercion needed here?
+  protected definition encode [unfold 2] {x : circle} (p : base = x) : circle.code x :=
+  transport circle.code p (of_num 0)
 
-  protected definition decode {x : circle} : circle.code x → base = x :=
+  protected definition decode [unfold 1] {x : circle} : circle.code x → base = x :=
   begin
     induction x,
     { exact power loop},
@@ -207,48 +206,39 @@ namespace circle
       rewrite [power_con,transport_code_loop]}
   end
 
-  --remove this theorem after #484
-  theorem encode_decode {x : circle} : Π(a : circle.code x), circle.encode (circle.decode a) = a :=
-  begin
-    unfold circle.decode, induction x,
-    { intro a, esimp [base,base1], --simplify after #587
-      apply rec_nat_on a,
-      { exact idp},
-      { intros n p,
-        apply transport (λ(y : base = base), transport circle.code y _ = _), apply power_con,
-        rewrite [▸*,con_tr, transport_code_loop, ↑[circle.encode,circle.code] at p], krewrite p},
-      { intros n p,
-        apply transport (λ(y : base = base), transport circle.code y _ = _),
-        { exact !power_con_inv ⬝ ap (power loop) !neg_succ⁻¹},
-        rewrite [▸*,@con_tr _ circle.code,transport_code_loop_inv, ↑[circle.encode] at p, p, -neg_succ]}},
-    { apply pathover_of_tr_eq, apply eq_of_homotopy, intro a, apply @is_hset.elim,
-      esimp [circle.code,base,base1], exact _}
-      --simplify after #587
-  end
-
   definition circle_eq_equiv [constructor] (x : circle) : (base = x) ≃ circle.code x :=
   begin
     fapply equiv.MK,
     { exact circle.encode},
     { exact circle.decode},
-    { exact circle.encode_decode},
+    { exact abstract [irreducible] begin
+      induction x,
+      { intro a, esimp, apply rec_nat_on a,
+        { exact idp},
+        { intros n p, rewrite [↑circle.encode, -power_con, con_tr, transport_code_loop],
+          exact ap succ p},
+        { intros n p, rewrite [↑circle.encode, nat_succ_eq_int_succ, neg_succ, -power_con_inv,
+            @con_tr _ circle.code, transport_code_loop_inv, ↑[circle.encode] at p, p, -neg_succ] }},
+      { apply pathover_of_tr_eq, apply eq_of_homotopy, intro a, apply @is_hset.elim,
+        esimp, exact _} end end},
     { intro p, cases p, exact idp},
   end
 
   definition base_eq_base_equiv [constructor] : base = base ≃ ℤ :=
   circle_eq_equiv base
 
-  definition decode_add (a b : ℤ) :
-    base_eq_base_equiv⁻¹ a ⬝ base_eq_base_equiv⁻¹ b = base_eq_base_equiv⁻¹ (a + b) :=
+  definition decode_add (a b : ℤ) : circle.decode a ⬝ circle.decode b = circle.decode (a +[ℤ] b) :=
   !power_con_power
 
-  definition encode_con (p q : base = base) : circle.encode (p ⬝ q) = circle.encode p + circle.encode q :=
-  preserve_binary_of_inv_preserve base_eq_base_equiv concat add decode_add p q
+  definition encode_con (p q : base = base)
+    : circle.encode (p ⬝ q) = circle.encode p +[ℤ] circle.encode q :=
+  preserve_binary_of_inv_preserve base_eq_base_equiv concat (@add ℤ _) decode_add p q
 
   --the carrier of π₁(S¹) is the set-truncation of base = base.
-  open core algebra trunc equiv.ops
+  open algebra trunc equiv.ops
+
   definition fg_carrier_equiv_int : π[1](S¹.) ≃ ℤ :=
-  trunc_equiv_trunc 0 base_eq_base_equiv ⬝e !trunc_equiv
+  trunc_equiv_trunc 0 base_eq_base_equiv ⬝e @(trunc_equiv ℤ _) proof _ qed
 
   definition con_comm_base (p q : base = base) : p ⬝ q = q ⬝ p :=
   eq_of_fn_eq_fn base_eq_base_equiv (by esimp;rewrite [+encode_con,add.comm])
@@ -261,12 +251,19 @@ namespace circle
     apply encode_con,
   end
 
+  open nat
+  definition homotopy_group_of_circle (n : ℕ) : πG[n+1 +1] S¹. = G0 :=
+  begin
+    refine @trivial_homotopy_of_is_hset_loop_space S¹. 1 n _,
+    apply is_trunc_equiv_closed_rev, apply base_eq_base_equiv
+  end
+
   definition eq_equiv_Z (x : S¹) : x = x ≃ ℤ :=
   begin
     induction x,
     { apply base_eq_base_equiv},
     { apply equiv_pathover, intro p p' q, apply pathover_of_eq,
-      let H := eq_of_square (square_of_pathover q),
+      note H := eq_of_square (square_of_pathover q),
       rewrite con_comm_base at H,
       let H' := cancel_left H,
       induction H', reflexivity}

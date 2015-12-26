@@ -243,6 +243,11 @@ class induction_tac {
                                                << pos+1 << " of major premise '" << h << "' type is an index, "
                                                << "but it occurs more than once");
                     }
+                    if (i < pos && depends_on(h_type_args[i], idx)) {
+                        throw tactic_exception(sstream() << "invalid 'induction' tactic, argument #"
+                                               << pos+1 << " of major premise '" << h << "' type is an index, "
+                                               << "but it occurs in previous arguments");
+                    }
                     if (i > pos && // occurs after idx
                         std::find(idx_pos.begin(), idx_pos.end(), i) != idx_pos.end() && // it is also an index
                         is_local(h_type_args[i]) && // if it is not an index, it will fail anyway.
@@ -293,15 +298,16 @@ public:
 
     expr normalize_H_type(expr const & H) {
         lean_assert(is_local(H));
+        expr H_type = m_subst.instantiate_all(mlocal_type(H));
         if (m_rec_name) {
             recursor_info info      = get_recursor_info(m_env, *m_rec_name);
             name tname              = info.get_type_name();
             type_checker_ptr aux_tc = mk_type_checker(m_env, m_ngen.mk_child(), [=](name const & n) { return n == tname; });
-            return aux_tc->whnf(mlocal_type(H)).first;
+            return aux_tc->whnf(H_type).first;
         } else {
             has_recursors_pred pred(m_env);
             type_checker_ptr aux_tc = mk_type_checker(m_env, m_ngen.mk_child(), pred);
-            return aux_tc->whnf(mlocal_type(H)).first;
+            return aux_tc->whnf(H_type).first;
         }
     }
 
@@ -326,11 +332,16 @@ public:
                             // last one
                             return execute(g, H, H_type, r);
                         } else {
+                            list<name>     saved_ids   = m_ids;
+                            constraint_seq saved_cs    = m_cs;
+                            substitution   saved_subst = m_subst;
                             try {
-                                flet<list<name>>     save_ids(m_ids, m_ids);
-                                flet<constraint_seq> save_cs(m_cs, m_cs);
                                 return execute(g, H, H_type, r);
-                            } catch (exception &) {}
+                            } catch (exception &) {
+                                m_ids   = saved_ids;
+                                m_cs    = saved_cs;
+                                m_subst = saved_subst;
+                            }
                         }
                     }
                 }

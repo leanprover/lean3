@@ -22,7 +22,7 @@
     "instances" "coercions" "metaclasses" "raw" "migrate" "replacing"
     "calc" "have" "show" "suffices" "by" "in" "at" "let" "forall" "Pi" "fun"
     "exists" "if" "dif" "then" "else" "assume" "assert" "take"
-    "obtain" "from")
+    "obtain" "from" "aliases")
   "lean keywords ending with 'word' (not symbol)")
 (defconst lean-keywords1-regexp
   (eval `(rx word-start (or ,@lean-keywords1) word-end)))
@@ -37,17 +37,17 @@
     "→" "∃" "∀" "∘" "×" "Σ" "Π" "~" "||" "&&" "≃" "≡" "≅"
     "ℕ" "ℤ" "ℚ" "ℝ" "ℂ" "𝔸"
     ;; HoTT notation
-    "Ω" "∥" "map₊" "₊" "π₁" "S¹" "⇒" "⟹" "⟶"
+    "Ω" "∥" "map₊" "₊" "π₁" "S¹" "T²" "⇒" "⟹" "⟶"
     "⁻¹ᵉ" "⁻¹ᶠ" "⁻¹ᵍ" "⁻¹ʰ" "⁻¹ⁱ" "⁻¹ᵐ" "⁻¹ᵒ" "⁻¹ᵖ" "⁻¹ʳ" "⁻¹ᵛ" "⁻¹ˢ" "⁻²" "⁻²ᵒ"
     "⬝e" "⬝i" "⬝o" "⬝op" "⬝po" "⬝h" "⬝v" "⬝hp" "⬝vp" "⬝ph" "⬝pv" "⬝r" "◾" "◾o"
     "∘n" "∘f" "∘fi" "∘nf" "∘fn" "∘n1f" "∘1nf" "∘f1n" "∘fn1"
-    "^c" "≃c" "≅c" "×c" "×f" "×n" "+c" "+f" "+n")
+    "^c" "≃c" "≅c" "×c" "×f" "×n" "+c" "+f" "+n" "ℕ₋₂")
   "lean constants")
 (defconst lean-constants-regexp (regexp-opt lean-constants))
 (defconst lean-numerals-regexp
   (eval `(rx word-start
-	     (one-or-more digit) (optional (and "." (zero-or-more digit)))
-	     word-end)))
+             (one-or-more digit) (optional (and "." (zero-or-more digit)))
+             word-end)))
 
 (defconst lean-modifiers
   (--map (s-concat "[" it "]")
@@ -55,9 +55,9 @@
            "class" "parsing_only" "coercion" "unfold_full" "constructor"
            "reducible" "irreducible" "semireducible" "quasireducible" "wf"
            "whnf" "multiple_instances" "none" "decls" "declarations"
-           "coercions" "classes" "symm" "subst" "refl" "trans" "simp" "congr"
-           "notations" "abbreviations" "begin_end_hints" "tactic_hints"
-           "reduce_hints" "unfold_hints" "aliases" "eqv"
+           "coercions" "classes" "symm" "subst" "refl" "trans" "simp" "simps" "congr"
+           "forward" "no_pattern" "notations" "abbreviations" "begin_end_hints" "tactic_hints"
+           "reduce_hints" "unfold_hints" "aliases" "eqv" "intro" "intro!" "elim"
            "localrefinfo" "recursor"))
   "lean modifiers")
 (defconst lean-modifiers-regexp
@@ -72,7 +72,7 @@
     "xrewrite" "krewrite" "blast" "simp" "esimp" "unfold" "change" "check_expr" "contradiction"
     "exfalso" "split" "existsi" "constructor" "fconstructor" "left" "right" "injection" "congruence" "reflexivity"
     "symmetry" "transitivity" "state" "induction" "induction_using" "fail" "append"
-    "substvars" "now" "with_options")
+    "substvars" "now" "with_options" "with_attributes" "with_attrs" "note")
   "lean tactics")
 (defconst lean-tactics-regexp
   (eval `(rx word-start (or ,@lean-tactics) word-end)))
@@ -164,6 +164,7 @@
      (,(rx "\[priority " (one-or-more (not (any "\]"))) "\]") . font-lock-doc-face)
      (,(rx "\[recursor " (one-or-more (not (any "\]"))) "\]") . font-lock-doc-face)
      (,(rx "\[unfold " (one-or-more (not (any "\]"))) "\]") . font-lock-doc-face)
+     (,(rx "\[light " (one-or-more (not (any "\]"))) "\]") . font-lock-doc-face)
      ;; Constants which have a keyword as subterm
      (,(rx (or "∘if")) . 'font-lock-constant-face)
      ;; Keywords

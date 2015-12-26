@@ -36,7 +36,7 @@ class app_builder {
     struct imp;
     std::unique_ptr<imp> m_ptr;
 public:
-    app_builder(environment const & env, io_state const & ios, reducible_behavior b = UnfoldReducible);
+    app_builder(environment const & env, options const & o, reducible_behavior b = UnfoldReducible);
     app_builder(environment const & env, reducible_behavior b = UnfoldReducible);
     app_builder(tmp_type_context & ctx);
     ~app_builder();
@@ -68,6 +68,27 @@ public:
     }
 
     expr mk_app(name const & c, unsigned mask_sz, bool const * mask, expr const * args);
+
+    /** \brief Shortcut for mk_app(c, total_nargs, mask, expl_nargs), where
+        \c mask starts with total_nargs - expl_nargs false's followed by expl_nargs true's
+        \pre total_nargs >= expl_nargs */
+    expr mk_app(name const & c, unsigned total_nargs, unsigned expl_nargs, expr const * expl_args);
+
+    expr mk_app(name const & c, unsigned total_nargs, std::initializer_list<expr> const & args) {
+        return mk_app(c, total_nargs, args.size(), args.begin());
+    }
+
+    expr mk_app(name const & c, unsigned total_nargs, expr const & a1) {
+        return mk_app(c, total_nargs, {a1});
+    }
+
+    expr mk_app(name const & c, unsigned total_nargs, expr const & a1, expr const & a2) {
+        return mk_app(c, total_nargs, {a1, a2});
+    }
+
+    expr mk_app(name const & c, unsigned total_nargs, expr const & a1, expr const & a2, expr const & a3) {
+        return mk_app(c, total_nargs, {a1, a2, a3});
+    }
 
     /** \brief Similar to mk_app(n, lhs, rhs), but handles eq and iff more efficiently. */
     expr mk_rel(name const & n, expr const & lhs, expr const & rhs);
@@ -115,6 +136,10 @@ public:
     expr mk_congr_fun(expr const & H, expr const & a);
     expr mk_congr(expr const & H1, expr const & H2);
 
+    /** \brief Given a reflexive relation R, and a proof H : a = b,
+        build a proof for (R a b) */
+    expr lift_from_eq(name const & R, expr const & H);
+
     /** \brief not p -> (p <-> false) */
     expr mk_iff_false_intro(expr const & H);
     /** \brief p -> (p <-> true) */
@@ -125,6 +150,8 @@ public:
     expr mk_of_iff_true(expr const & H);
     /** \brief (true <-> false) -> false */
     expr mk_false_of_true_iff_false(expr const & H);
+
+    expr mk_not(expr const & H);
 
     expr mk_partial_add(expr const & A);
     expr mk_partial_mul(expr const & A);
@@ -146,4 +173,6 @@ public:
         the initialization can be performed outside. */
     void set_local_instances(list<expr> const & insts);
 };
+void initialize_app_builder();
+void finalize_app_builder();
 }

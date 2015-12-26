@@ -20,6 +20,7 @@ Author: Leonardo de Moura
 #include "util/thread.h"
 #include "util/thread_script_state.h"
 #include "util/lean_path.h"
+#include "util/file_lock.h"
 #include "util/sexpr/options.h"
 #include "util/sexpr/option_declarations.h"
 #include "kernel/environment.h"
@@ -65,6 +66,8 @@ using lean::declaration_index;
 using lean::keep_theorem_mode;
 using lean::module_name;
 using lean::simple_pos_info_provider;
+using lean::shared_file_lock;
+using lean::exclusive_file_lock;
 
 enum class input_kind { Unspecified, Lean, HLean, Lua, Trace };
 
@@ -125,7 +128,11 @@ static void display_help(std::ostream & out) {
 #if defined(LEAN_USE_BOOST)
     std::cout << "  --tstack=num -s   thread stack size in Kb\n";
 #endif
+    DEBUG_CODE(
+    std::cout << "  --debug=tag       enable assertions with the given tag\n";
+        )
     std::cout << "  -D name=value     set a configuration option (see set_option command)\n";
+    std::cout << "  --dir=directory   display information about identifier or token in the given posivition\n";
     std::cout << "Frontend query interface:\n";
     std::cout << "  --line=value      line number for query\n";
     std::cout << "  --col=value       column number for query\n";
@@ -186,10 +193,15 @@ static struct option g_long_options[] = {
     {"goal",         no_argument,       0, 'G'},
     {"hole",         no_argument,       0, 'Z'},
     {"info",         no_argument,       0, 'I'},
+    {"dir",          required_argument, 0, 'T'},
+#ifdef LEAN_DEBUG
+    {"debug",        required_argument, 0, 'B'},
+#endif
+    {"dir",          required_argument, 0, 'T'},
     {0, 0, 0, 0}
 };
 
-#define OPT_STR "PHRXFdD:qrlupgvhk:012t:012o:E:c:i:L:012O:012GZAI"
+#define OPT_STR "PHRXFdD:qrlupgvhk:012t:012o:E:c:i:L:012O:012GZAIT:B:"
 
 #if defined(LEAN_TRACK_MEMORY)
 #define OPT_STR2 OPT_STR "M:012"
@@ -267,6 +279,7 @@ int main(int argc, char ** argv) {
     optional<unsigned> column;
     optional<std::string> export_txt;
     optional<std::string> export_all_txt;
+    optional<std::string> base_dir;
     bool show_goal = false;
     bool show_hole = false;
     bool show_info = false;
@@ -378,8 +391,16 @@ int main(int argc, char ** argv) {
         case 'E':
             export_txt = std::string(optarg);
             break;
+#ifdef LEAN_DEBUG
+        case 'B':
+            lean::enable_debug(optarg);
+            break;
+#endif
         case 'A':
             export_all_txt = std::string(optarg);
+            break;
+        case 'T':
+            base_dir = std::string(optarg);
             break;
         default:
             std::cerr << "Unknown command line option\n";
@@ -445,6 +466,7 @@ int main(int argc, char ** argv) {
     if (read_cache) {
         try {
             cache_ptr = &cache;
+            shared_file_lock cache_lock(cache_name);
             std::ifstream in(cache_name, std::ifstream::binary);
             if (!in.bad() && !in.fail())
                 cache.load(in);
@@ -488,7 +510,7 @@ int main(int argc, char ** argv) {
                     if (only_deps) {
                         if (!display_deps(env, std::cout, std::cerr, argv[i]))
                             ok = false;
-                    } else if (!parse_commands(env, ios, argv[i], false, num_threads,
+                    } else if (!parse_commands(env, ios, argv[i], base_dir, false, num_threads,
                                                cache_ptr, index_ptr, tmode)) {
                         ok = false;
                     }
@@ -497,7 +519,7 @@ int main(int argc, char ** argv) {
                     lean::system_import(argv[i]);
                     break;
                 case input_kind::Trace:
-                    ok = lean::parse_server_trace(env, ios, argv[i]);
+                    ok = lean::parse_server_trace(env, ios, argv[i], base_dir);
                     break;
                 default:
                     lean_unreachable();
@@ -512,28 +534,33 @@ int main(int argc, char ** argv) {
         if (ok && server && (default_k == input_kind::Lean || default_k == input_kind::HLean)) {
             signal(SIGINT, on_ctrl_c);
             ios.set_option(lean::name("pp", "beta"), true);
-            lean::server Sv(env, ios, num_threads);
+            lean::server Sv(env, ios, base_dir, num_threads);
             if (!Sv(std::cin))
                 ok = false;
         }
         if (save_cache) {
+            exclusive_file_lock cache_lock(cache_name);
             std::ofstream out(cache_name, std::ofstream::binary);
             cache.save(out);
         }
         if (gen_index) {
+            exclusive_file_lock index_lock(index_name);
             std::shared_ptr<lean::file_output_channel> out(new lean::file_output_channel(index_name.c_str()));
             ios.set_regular_channel(out);
             index.save(regular(env, ios));
         }
         if (export_objects && ok) {
+            exclusive_file_lock output_lock(output);
             std::ofstream out(output, std::ofstream::binary);
             export_module(out, env);
         }
         if (export_txt) {
+            exclusive_file_lock expor_lock(*export_txt);
             std::ofstream out(*export_txt);
             export_module_as_lowtext(out, env);
         }
         if (export_all_txt) {
+            exclusive_file_lock export_lock(*export_all_txt);
             std::ofstream out(*export_all_txt);
             export_all_as_lowtext(out, env);
         }

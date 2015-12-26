@@ -721,7 +721,8 @@ expr elaborator::visit_app(expr const & e, constraint_seq & cs) {
     constraint_seq a_cs;
     expr d_type = binding_domain(f_type);
     if (d_type == get_tactic_expr_type() || d_type == get_tactic_identifier_type() ||
-        d_type == get_tactic_using_expr_type()) {
+        d_type == get_tactic_using_expr_type() || d_type == get_tactic_location_type() ||
+        d_type == get_tactic_with_expr_type()) {
         expr const & a = app_arg(e);
         expr r;
         if (is_local(a) &&
@@ -1155,7 +1156,7 @@ static expr assign_equation_lhs_metas(type_checker & tc, expr const & eqns) {
                         lean_assert(r.first == Inaccessible);
                         throw_elaborator_exception(eqns, [=](formatter const & fmt) {
                                 options o = fmt.get_options().update_if_undef(get_pp_implicit_name(), true);
-                                o = o.update_if_undef(get_pp_notation_option_name(), false);
+                                o = o.update_if_undef(get_pp_notation_name(), false);
                                 formatter new_fmt = fmt.update_options(o);
                                 expr const & f = get_app_fn(lhs);
                                 format r;
@@ -1607,14 +1608,7 @@ expr elaborator::visit_prenum(expr const & e, constraint_seq & cs) {
     lean_assert(is_prenum(e));
     mpz const & v  = prenum_value(e);
     tag e_tag      = e.get_tag();
-    // Remark: In HoTT mode, we only partially support the new encoding for numerals.
-    // We fix A to num, and we rely on coercions to cast them to other types.
-    // This is quite different from the approach used in the standard library
-    expr A;
-    if (is_standard(env()))
-        A = m_full_context.mk_meta(m_ngen, none_expr(), e_tag);
-    else
-        A = mk_constant(get_num_name()).set_tag(e_tag);
+    expr A = m_full_context.mk_meta(m_ngen, none_expr(), e_tag);
     level A_lvl = sort_level(m_tc->ensure_type(A, cs));
     levels ls(A_lvl);
     bool is_strict = true;
@@ -2205,7 +2199,7 @@ void elaborator::check_sort_assignments(substitution const & s) {
                         substitution saved_s(s);
                         throw_kernel_exception(env(), pre, [=](formatter const & fmt) {
                                 options o = fmt.get_options();
-                                o  = o.update(get_pp_universes_option_name(), true);
+                                o  = o.update(get_pp_universes_name(), true);
                                 format r("solution computed by the elaborator forces a universe placeholder"
                                          " to be a fixed value, computed sort is");
                                 r += pp_indent_expr(fmt.update_options(o), substitution(saved_s).instantiate(post));

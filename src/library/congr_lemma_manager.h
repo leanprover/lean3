@@ -33,6 +33,8 @@ public:
     ~congr_lemma_manager();
     typedef congr_lemma result;
 
+    type_context & ctx();
+
     optional<result> mk_congr_simp(expr const & fn);
     optional<result> mk_congr_simp(expr const & fn, unsigned nargs);
 
@@ -50,4 +52,7 @@ public:
           R a1 a2 -> R b1 b2 -> (R a1 b1) = (R a2 b2) */
     optional<result> mk_rel_eq_congr(expr const & R);
 };
+
+void initialize_congr_lemma_manager();
+void finalize_congr_lemma_manager();
 }

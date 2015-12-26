@@ -11,8 +11,6 @@ of "linear_ordered_comm_ring". This development is modeled after Isabelle's libr
 import algebra.ordered_group algebra.ring
 open eq eq.ops
 
-namespace algebra
-
 variable {A : Type}
 
 private definition absurd_a_lt_a {B : Type} {a : A} [s : strict_order A] (H : a < a) : B :=
@@ -442,8 +440,8 @@ section
     begin
       apply le_of_not_gt,
       intro Hab,
-      let Hposa := lt_of_le_of_lt Hb Hab,
-      let H' := calc
+      note Hposa := lt_of_le_of_lt Hb Hab,
+      note H' := calc
         b * b ≤ a * b : mul_le_mul_of_nonneg_right (le_of_lt Hab) Hb
         ... < a * a : mul_lt_mul_of_pos_left Hab Hposa,
       apply (not_le_of_gt H') H
@@ -714,4 +712,29 @@ end
 
 /- TODO: Multiplication and one, starting with mult_right_le_one_le. -/
 
-end algebra
+namespace norm_num
+
+theorem pos_bit0_helper [s : linear_ordered_semiring A] (a : A) (H : a > 0) : bit0 a > 0 :=
+  by rewrite ↑bit0; apply add_pos H H
+
+theorem nonneg_bit0_helper [s : linear_ordered_semiring A] (a : A) (H : a ≥ 0) : bit0 a ≥ 0 :=
+  by rewrite ↑bit0; apply add_nonneg H H
+
+theorem pos_bit1_helper [s : linear_ordered_semiring A] (a : A) (H : a ≥ 0) : bit1 a > 0 :=
+  begin
+    rewrite ↑bit1,
+    apply add_pos_of_nonneg_of_pos,
+    apply nonneg_bit0_helper _ H,
+    apply zero_lt_one
+  end
+
+theorem nonneg_bit1_helper [s : linear_ordered_semiring A] (a : A) (H : a ≥ 0) : bit1 a ≥ 0 :=
+  by apply le_of_lt; apply pos_bit1_helper _ H
+
+theorem nonzero_of_pos_helper [s : linear_ordered_semiring A] (a : A) (H : a > 0) : a ≠ 0 :=
+  ne_of_gt H
+
+theorem nonzero_of_neg_helper [s : linear_ordered_ring A] (a : A) (H : a ≠ 0) : -a ≠ 0 :=
+  begin intro Ha, apply H, apply eq_of_neg_eq_neg, rewrite neg_zero, exact Ha end
+
+end norm_num

@@ -10,8 +10,6 @@ import logic.eq data.unit data.sigma data.prod
 import algebra.binary algebra.group algebra.order
 open eq eq.ops   -- note: ⁻¹ will be overloaded
 
-namespace algebra
-
 variable {A : Type}
 
 /- partially ordered monoids, such as the natural numbers -/
@@ -200,17 +198,16 @@ structure ordered_comm_group [class] (A : Type) extends add_comm_group A, order_
 (add_le_add_left : ∀a b, le a b → ∀c, le (add c a) (add c b))
 (add_lt_add_left : ∀a b, lt a b → ∀ c, lt (add c a) (add c b))
 
-theorem ordered_comm_group.le_of_add_le_add_left [s : ordered_comm_group A] {a b c : A}
+theorem ordered_comm_group.le_of_add_le_add_left [ordered_comm_group A] {a b c : A}
   (H : a + b ≤ a + c) : b ≤ c :=
 assert H' : -a + (a + b) ≤ -a + (a + c), from ordered_comm_group.add_le_add_left _ _ H _,
 by rewrite *neg_add_cancel_left at H'; exact H'
 
-theorem ordered_comm_group.lt_of_add_lt_add_left [s : ordered_comm_group A] {a b c : A}
+theorem ordered_comm_group.lt_of_add_lt_add_left [ordered_comm_group A] {a b c : A}
   (H : a + b < a + c) : b < c :=
 assert H' : -a + (a + b) < -a + (a + c), from ordered_comm_group.add_lt_add_left _ _ H _,
 by rewrite *neg_add_cancel_left at H'; exact H'
 
-set_option pp.all true
 definition ordered_comm_group.to_ordered_cancel_comm_monoid [trans_instance] [reducible]
     [s : ordered_comm_group A] : ordered_cancel_comm_monoid A :=
 ⦃ ordered_cancel_comm_monoid, s,
@@ -790,7 +787,7 @@ section
       abs a - abs b + abs b = abs a : by rewrite sub_add_cancel
         ... = abs (a - b + b)       : by rewrite sub_add_cancel
         ... ≤ abs (a - b) + abs b   : abs_add_le_abs_add_abs,
-  algebra.le_of_add_le_add_right H1
+  le_of_add_le_add_right H1
 
   theorem abs_sub_le (a b c : A) : abs (a - c) ≤ abs (a - b) + abs (b - c) :=
   calc
@@ -823,5 +820,3 @@ section
 
   end
 end
-
-end algebra

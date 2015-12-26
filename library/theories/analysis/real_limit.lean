@@ -20,8 +20,8 @@ The definitions here are noncomputable, for various reasons:
 These could be avoided in a constructive theory of analysis, but here we will not
 follow that route.
 -/
-import .metric_space data.real.complete
-open real classical algebra
+import .metric_space data.real.complete data.set
+open real classical
 noncomputable theory
 
 namespace real
@@ -32,7 +32,7 @@ protected definition to_metric_space [instance] : metric_space ℝ :=
 ⦃ metric_space,
   dist               := λ x y, abs (x - y),
   dist_self          := λ x, abstract by rewrite [sub_self, abs_zero] end,
-  eq_of_dist_eq_zero := λ x y, algebra.eq_of_abs_sub_eq_zero,
+  eq_of_dist_eq_zero := λ x y, eq_of_abs_sub_eq_zero,
   dist_comm          := abs_sub,
   dist_triangle      := abs_sub_le
 ⦄
@@ -130,8 +130,8 @@ section
     (take m n : ℕ+,
       assume Hm : m ≥ (pnat.succ N),
       assume Hn : n ≥ (pnat.succ N),
-      have Hm' : elt_of m ≥ N, begin apply algebra.le.trans, apply le_succ, apply Hm end,
-      have Hn' : elt_of n ≥ N, begin apply algebra.le.trans, apply le_succ, apply Hn end,
+      have Hm' : elt_of m ≥ N, begin apply le.trans, apply le_succ, apply Hm end,
+      have Hn' : elt_of n ≥ N, begin apply le.trans, apply le_succ, apply Hn end,
       show abs (X (elt_of m) - X (elt_of n)) ≤ of_rat k⁻¹, from le_of_lt (H _ _ Hm' Hn'))
 
   private definition rate_of_cauchy {X : ℕ → ℝ} (H : cauchy X) (k : ℕ+) : ℕ+ :=
@@ -544,7 +544,7 @@ theorem pos_on_nbhd_of_cts_of_pos {f : ℝ → ℝ} (Hf : continuous f) {b : ℝ
     exact and.left Hδ,
     intro y Hy,
     let Hy' := and.right Hδ y Hy,
-    let Hlt := sub_lt_of_abs_sub_lt_right Hy',
+    note Hlt := sub_lt_of_abs_sub_lt_right Hy',
     rewrite sub_self at Hlt,
     assumption
   end
@@ -560,7 +560,7 @@ theorem neg_on_nbhd_of_cts_of_neg {f : ℝ → ℝ} (Hf : continuous f) {b : ℝ
     intro y Hy,
     let Hy' := and.right Hδ y Hy,
     let Hlt := sub_lt_of_abs_sub_lt_left Hy',
-    let Hlt' := lt_add_of_sub_lt_right Hlt,
+    note Hlt' := lt_add_of_sub_lt_right Hlt,
     rewrite [-sub_eq_add_neg at Hlt', sub_self at Hlt'],
     assumption
   end
@@ -589,7 +589,7 @@ theorem translate_continuous_of_continuous {f : ℝ → ℝ} (Hcon : continuous 
     split,
     assumption,
     intros x' Hx',
-    rewrite [add_sub_comm, sub_self, algebra.add_zero],
+    rewrite [add_sub_comm, sub_self, add_zero],
     apply Hδ₂,
     assumption
   end
@@ -780,7 +780,7 @@ theorem intermediate_value_incr_zero : ∃ c, a < c ∧ c < b ∧ f c = 0 :=
     intro Hxgt,
     have Hxgt' : b - x < δ, from sub_lt_of_sub_lt Hxgt,
     krewrite -(abs_of_pos (sub_pos_of_lt (and.left Hx))) at Hxgt',
-    let Hxgt'' := and.right Hδ _ Hxgt',
+    note Hxgt'' := and.right Hδ _ Hxgt',
     exact not_lt_of_ge (le_of_lt Hxgt'') (and.right Hx)},
     {exact sup_fn_interval}
   end

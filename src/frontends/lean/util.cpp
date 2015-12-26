@@ -39,16 +39,6 @@ void consume_until_end(parser & p) {
     p.next();
 }
 
-bool parse_persistent(parser & p, bool & persistent) {
-    if (p.curr_is_token_or_id(get_persistent_tk())) {
-        p.next();
-        persistent = true;
-        return true;
-    } else {
-        return false;
-    }
-}
-
 void check_command_period_or_eof(parser const & p) {
     if (!p.curr_is_command() && !p.curr_is_eof() && !p.curr_is_token(get_period_tk()) &&
         !p.curr_is_script_block())
@@ -128,6 +118,24 @@ static void collect_locals_ignoring_tactics(expr const & e, collected_locals & l
         });
 }
 
+void collect_annonymous_inst_implicit(parser const & p, collected_locals & ls) {
+    for (auto const & entry : p.get_local_entries()) {
+        if (is_local(entry.second) && !ls.contains(entry.second) && local_info(entry.second).is_inst_implicit() &&
+            // remark: remove the following condition condition, if we want to auto inclusion also for non anonymous ones.
+            p.is_anonymous_inst_name(entry.first)) {
+            bool ok = true;
+            for_each(mlocal_type(entry.second), [&](expr const & e, unsigned) {
+                    if (!ok) return false; // stop
+                    if (is_local(e) && !ls.contains(e))
+                        ok = false;
+                    return true;
+                });
+            if (ok)
+                ls.insert(entry.second);
+        }
+    }
+}
+
 // Collect local constants occurring in type and value, sort them, and store in ctx_ps
 void collect_locals(expr const & type, expr const & value, parser const & p, buffer<expr> & ctx_ps) {
     collected_locals ls;
@@ -141,6 +149,7 @@ void collect_locals(expr const & type, expr const & value, parser const & p, buf
     }
     collect_locals_ignoring_tactics(type, ls);
     collect_locals_ignoring_tactics(value, ls);
+    collect_annonymous_inst_implicit(p, ls);
     sort_locals(ls.get_collected(), p, ctx_ps);
 }
 
@@ -187,6 +196,7 @@ levels remove_local_vars(parser const & p, levels const & ls) {
 list<expr> locals_to_context(expr const & e, parser const & p) {
     collected_locals ls;
     collect_locals_ignoring_tactics(e, ls);
+    collect_annonymous_inst_implicit(p, ls);
     buffer<expr> locals;
     sort_locals(ls.get_collected(), p, locals);
     std::reverse(locals.begin(), locals.end());
@@ -303,16 +313,6 @@ level mk_result_level(environment const & env, buffer<level> const & r_lvls) {
         else
             return impredicative ? normalize(mk_max(r, mk_level_one())) : normalize(r);
     }
-}
-
-bool occurs(level const & u, level const & l) {
-    bool found = false;
-    for_each(l, [&](level const & l) {
-            if (found) return false;
-            if (l == u) { found = true; return false; }
-            return true;
-        });
-    return found;
 }
 
 /** \brief Functional object for converting the universe metavariables in an expression in new universe parameters.

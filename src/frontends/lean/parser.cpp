@@ -20,6 +20,7 @@ Author: Leonardo de Moura
 #include "kernel/abstract.h"
 #include "kernel/instantiate.h"
 #include "kernel/error_msgs.h"
+#include "library/trace.h"
 #include "library/parser_nested_exception.h"
 #include "library/aliases.h"
 #include "library/constants.h"
@@ -42,6 +43,7 @@ Author: Leonardo de Moura
 #include "library/noncomputable.h"
 #include "library/error_handling/error_handling.h"
 #include "library/tactic/expr_to_tactic.h"
+#include "library/tactic/location.h"
 #include "frontends/lean/tokens.h"
 #include "frontends/lean/parser.h"
 #include "frontends/lean/util.h"
@@ -50,6 +52,7 @@ Author: Leonardo de Moura
 #include "frontends/lean/elaborator.h"
 #include "frontends/lean/info_annotation.h"
 #include "frontends/lean/parse_rewrite_tactic.h"
+#include "frontends/lean/parse_tactic_location.h"
 #include "frontends/lean/update_environment_exception.h"
 #include "frontends/lean/local_ref_info.h"
 #include "frontends/lean/opt_cmd.h"
@@ -78,6 +81,8 @@ bool get_parser_parallel_import(options const & opts) {
     return opts.get_bool(*g_parser_parallel_import, LEAN_DEFAULT_PARSER_PARALLEL_IMPORT);
 }
 // ==========================================
+
+static name * g_anonymous_inst_name_prefix = nullptr;
 
 parser::local_scope::local_scope(parser & p, bool save_options):
     m_p(p), m_env(p.env()) {
@@ -122,13 +127,14 @@ void parser::init_stop_at(options const & opts) {
 }
 
 parser::parser(environment const & env, io_state const & ios,
-               std::istream & strm, char const * strm_name,
+               std::istream & strm, char const * strm_name, optional<std::string> const & base_dir,
                bool use_exceptions, unsigned num_threads,
                snapshot const * s, snapshot_vector * sv, info_manager * im,
                keep_theorem_mode tmode):
     m_env(env), m_ios(ios), m_ngen(*g_tmp_prefix),
     m_verbose(true), m_use_exceptions(use_exceptions),
     m_scanner(strm, strm_name, s ? s->m_line : 1),
+    m_base_dir(base_dir),
     m_theorem_queue(*this, num_threads > 1 ? num_threads - 1 : 0),
     m_snapshot_vector(sv), m_info_manager(im), m_cache(nullptr), m_index(nullptr) {
     m_local_decls_size_at_beg_cmd = 0;
@@ -154,7 +160,8 @@ parser::parser(environment const & env, io_state const & ios,
     m_found_errors = false;
     m_used_sorry = false;
     updt_options();
-    m_next_tag_idx = 0;
+    m_next_tag_idx  = 0;
+    m_next_inst_idx = 1;
     m_curr = scanner::token_kind::Identifier;
     protected_call([&]() { scan(); },
                    [&]() { sync_command(); });
@@ -414,6 +421,20 @@ tag parser::get_tag(expr e) {
     return t;
 }
 
+name parser::mk_anonymous_inst_name() {
+    name n = g_anonymous_inst_name_prefix->append_after(m_next_inst_idx);
+    m_next_inst_idx++;
+    return n;
+}
+
+bool parser::is_anonymous_inst_name(name const & n) const {
+    return
+        n.is_atomic() &&
+        n.is_string() &&
+        strlen(n.get_string()) >= strlen(g_anonymous_inst_name_prefix->get_string()) &&
+        memcmp(n.get_string(), g_anonymous_inst_name_prefix->get_string(), strlen(g_anonymous_inst_name_prefix->get_string())) == 0;
+}
+
 expr parser::save_pos(expr e, pos_info p) {
     auto t = get_tag(e);
     if (!m_pos_table.contains(t))
@@ -512,11 +533,30 @@ name parser::check_id_next(char const * msg) {
     return r;
 }
 
+static void check_not_internal(name const & id, pos_info const & p) {
+    if (is_internal_name(id))
+        throw parser_error(sstream() << "invalid declaration name '" << id << "', identifiers starting with '_' are reserved to the system", p);
+}
+
+name parser::check_decl_id_next(char const * msg) {
+    auto p  = pos();
+    name id = check_id_next(msg);
+    check_not_internal(id, p);
+    return id;
+}
+
 name parser::check_atomic_id_next(char const * msg) {
     auto p  = pos();
     name id = check_id_next(msg);
     if (!id.is_atomic())
         throw parser_error(msg, p);
+    return id;
+}
+
+name parser::check_atomic_decl_id_next(char const * msg) {
+    auto p  = pos();
+    name id = check_atomic_id_next(msg);
+    check_not_internal(id, p);
     return id;
 }
 
@@ -539,7 +579,7 @@ void parser::push_local_scope(bool save_options) {
     if (save_options)
         opts = m_ios.get_options();
     m_parser_scope_stack = cons(parser_scope_stack_elem(opts, m_level_variables, m_variables, m_include_vars,
-                                                        m_undef_ids.size(), m_has_params, m_local_level_decls,
+                                                        m_undef_ids.size(), m_next_inst_idx, m_has_params, m_local_level_decls,
                                                         m_local_decls),
                                 m_parser_scope_stack);
 }
@@ -559,6 +599,7 @@ void parser::pop_local_scope() {
     m_variables          = s.m_variables;
     m_include_vars       = s.m_include_vars;
     m_has_params         = s.m_has_params;
+    m_next_inst_idx      = s.m_next_inst_idx;
     m_undef_ids.shrink(s.m_num_undef_ids);
     m_parser_scope_stack = tail(m_parser_scope_stack);
 }
@@ -602,8 +643,28 @@ environment parser::add_local_ref(environment const & env, name const & n, expr 
     }
 }
 
+static void check_no_metavars(name const & n, expr const & e) {
+    lean_assert(is_local(e));
+    if (has_metavar(e)) {
+        throw_generic_exception(none_expr(), [=](formatter const & fmt) {
+                format r("failed to add declaration '");
+                r += format(n);
+                r += format("' to local context, type has metavariables");
+                r += pp_until_meta_visible(fmt, mlocal_type(e));
+                return r;
+            });
+    }
+}
+
+void parser::add_variable(name const & n, expr const & v) {
+    lean_assert(is_local(v));
+    check_no_metavars(n, v);
+    add_local_expr(n, v, true);
+}
+
 void parser::add_parameter(name const & n, expr const & p) {
     lean_assert(is_local(p));
+    check_no_metavars(n, p);
     add_local_expr(n, p, false);
     m_has_params = true;
 }
@@ -1016,6 +1077,42 @@ void parser::parse_binder_block(buffer<expr> & r, binder_info const & bi, unsign
     }
 }
 
+expr parser::parse_inst_implicit_decl() {
+    binder_info bi = mk_inst_implicit_binder_info();
+    auto id_pos = pos();
+    name id;
+    expr type;
+    if (curr_is_identifier()) {
+        id = get_name_val();
+        next();
+        if (curr_is_token(get_colon_tk())) {
+            next();
+            type = parse_expr();
+        } else {
+            expr left    = id_to_expr(id, id_pos);
+            id           = mk_anonymous_inst_name();
+            unsigned rbp = 0;
+            while (rbp < curr_expr_lbp()) {
+                left = parse_led(left);
+            }
+            type = left;
+        }
+    } else {
+        id   = mk_anonymous_inst_name();
+        type = parse_expr();
+    }
+    save_identifier_info(id_pos, id);
+    expr local = save_pos(mk_local(id, type, bi), id_pos);
+    add_local(local);
+    return local;
+}
+
+
+void parser::parse_inst_implicit_decl(buffer<expr> & r) {
+    expr local = parse_inst_implicit_decl();
+    r.push_back(local);
+}
+
 void parser::parse_binders_core(buffer<expr> & r, buffer<notation_entry> * nentries,
                                 bool & last_block_delimited, unsigned rbp, bool simple_only) {
     while (true) {
@@ -1034,8 +1131,12 @@ void parser::parse_binders_core(buffer<expr> & r, buffer<notation_entry> * nentr
             if (bi) {
                 rbp = 0;
                 last_block_delimited = true;
-                if (simple_only || !parse_local_notation_decl(nentries))
-                    parse_binder_block(r, *bi, rbp);
+                if (bi->is_inst_implicit()) {
+                    parse_inst_implicit_decl(r);
+                } else {
+                    if (simple_only || !parse_local_notation_decl(nentries))
+                        parse_binder_block(r, *bi, rbp);
+                }
                 parse_close_binder_info(bi);
             } else {
                 return;
@@ -1748,6 +1849,14 @@ static bool is_option_num(expr const & e) {
         is_constant(app_arg(e)) && const_name(app_arg(e)) == get_num_name();
 }
 
+static bool is_tactic_location_type(expr const & e) {
+    return is_constant(e) && const_name(e) == get_tactic_location_name();
+}
+
+static bool is_tactic_with_expr_type(expr const & e) {
+    return is_constant(e) && const_name(e) == get_tactic_with_expr_name();
+}
+
 static bool is_tactic_command_type(expr e) {
     while (is_pi(e))
         e = binding_body(e);
@@ -1803,16 +1912,29 @@ expr parser::parse_tactic_expr_list() {
 expr parser::parse_tactic_id_list() {
     auto p = pos();
     buffer<expr> args;
-    if (curr_is_identifier()) {
-        while (curr_is_identifier()) {
-            name id = get_name_val();
+    if (curr_is_identifier() || curr_is_token(get_placeholder_tk())) {
+        while (curr_is_identifier() || curr_is_token(get_placeholder_tk())) {
+            name id;
+            if (curr_is_identifier())
+                id = get_name_val();
+            else
+                id = name("_");
             args.push_back(mk_local(id, mk_expr_placeholder()));
             next();
         }
     } else {
-        check_token_next(get_lbracket_tk(), "invalid tactic, '[' or identifier expected");
+        check_token_next(get_lbracket_tk(), "invalid tactic, '[', identifier or '_' expected");
         while (true) {
-            args.push_back(mk_local(check_id_next("invalid tactic, identifier expected"), mk_expr_placeholder()));
+            auto id_pos = pos();
+            name id;
+            if (curr_is_identifier())
+                id = get_name_val();
+            else if (curr_is_token(get_placeholder_tk()))
+                id = name("_");
+            else
+                throw parser_error("invalid tactic, identifier or '_' expected", id_pos);
+            next();
+            args.push_back(mk_local(id, mk_expr_placeholder()));
             if (!curr_is_token(get_comma_tk()))
                 break;
             next();
@@ -1834,7 +1956,7 @@ expr parser::parse_tactic_opt_expr_list() {
 }
 
 expr parser::parse_tactic_opt_id_list() {
-    if (curr_is_token(get_lbracket_tk()) || curr_is_identifier()) {
+    if (curr_is_token(get_lbracket_tk()) || curr_is_identifier() || curr_is_token(get_placeholder_tk())) {
         return parse_tactic_id_list();
     } else if (curr_is_token(get_with_tk())) {
         next();
@@ -1897,13 +2019,22 @@ expr parser::parse_tactic_nud() {
                     r = mk_app(r, parse_tactic_using_expr(), id_pos);
                 } else if (arity == 1 && is_option_num(d)) {
                     r = mk_app(r, parse_tactic_option_num(), id_pos);
+                } else if (is_tactic_with_expr_type(d)) {
+                    check_token_next(get_with_tk(), "invalid tactic expression, 'with' expected");
+                    expr e = parse_expr();
+                    r = mk_app(r, e, id_pos);
+                } else if (is_tactic_location_type(d)) {
+                    location l = parse_tactic_location(*this);
+                    r = mk_app(r, mk_location_expr(l), id_pos);
                 } else {
                     unsigned rbp;
                     if ((arity == 1) ||
-                        (arity >= 2 && i == 0 && (is_tactic_opt_identifier_list_type(ds[1]) || is_tactic_using_expr(ds[1]))))
+                        (arity > i+1 && (is_tactic_opt_identifier_list_type(ds[i+1]) || is_tactic_using_expr(ds[i+1]) ||
+                                         is_tactic_with_expr_type(ds[i+1]) || is_tactic_location_type(ds[i+1])))) {
                         rbp = 0;
-                    else
+                    } else {
                         rbp = get_max_prec();
+                    }
                     r = mk_app(r, parse_tactic_expr_arg(rbp), id_pos);
                 }
             }
@@ -1913,6 +2044,8 @@ expr parser::parse_tactic_nud() {
         }
     } else if (curr_is_keyword()) {
         return parse_tactic_notation(tactic_nud(), nullptr);
+    } else if (curr_is_numeral() || curr_is_decimal()) {
+        return parse_expr();
     } else {
         throw parser_error("invalid tactic expression", pos());
     }
@@ -1940,6 +2073,7 @@ void parser::parse_command() {
     name const & cmd_name = get_token_info().value();
     m_cmd_token = get_token_info().token();
     if (auto it = cmds().find(cmd_name)) {
+        scope_trace_env scope(m_env, m_ios);
         if (is_notation_cmd(cmd_name)) {
             in_notation_ctx ctx(*this);
             next();
@@ -2001,7 +2135,7 @@ void parser::parse_imports() {
     buffer<module_name> olean_files;
     buffer<name>        lua_files;
     bool prelude     = false;
-    std::string base = dirname(get_stream_name().c_str());
+    std::string base = m_base_dir ? *m_base_dir : dirname(get_stream_name().c_str());
     bool imported    = false;
     unsigned fingerprint = 0;
     if (curr_is_token(get_prelude_tk())) {
@@ -2289,10 +2423,11 @@ void parser::save_type_info(expr const & e) {
     }
 }
 
-bool parse_commands(environment & env, io_state & ios, std::istream & in, char const * strm_name, bool use_exceptions,
+bool parse_commands(environment & env, io_state & ios, std::istream & in, char const * strm_name,
+                    optional<std::string> const & base_dir, bool use_exceptions,
                     unsigned num_threads, definition_cache * cache, declaration_index * index,
                     keep_theorem_mode tmode) {
-    parser p(env, ios, in, strm_name, use_exceptions, num_threads, nullptr, nullptr, nullptr, tmode);
+    parser p(env, ios, in, strm_name, base_dir, use_exceptions, num_threads, nullptr, nullptr, nullptr, tmode);
     p.set_cache(cache);
     p.set_index(index);
     bool r = p();
@@ -2301,12 +2436,13 @@ bool parse_commands(environment & env, io_state & ios, std::istream & in, char c
     return r;
 }
 
-bool parse_commands(environment & env, io_state & ios, char const * fname, bool use_exceptions, unsigned num_threads,
+bool parse_commands(environment & env, io_state & ios, char const * fname, optional<std::string> const & base_dir,
+                    bool use_exceptions, unsigned num_threads,
                     definition_cache * cache, declaration_index * index, keep_theorem_mode tmode) {
     std::ifstream in(fname);
     if (in.bad() || in.fail())
         throw exception(sstream() << "failed to open file '" << fname << "'");
-    return parse_commands(env, ios, in, fname, use_exceptions, num_threads, cache, index, tmode);
+    return parse_commands(env, ios, in, fname, base_dir, use_exceptions, num_threads, cache, index, tmode);
 }
 
 void initialize_parser() {
@@ -2319,9 +2455,11 @@ void initialize_parser() {
     g_tmp_prefix = new name(name::mk_internal_unique_name());
     g_lua_module_key = new std::string("lua_module");
     register_module_object_reader(*g_lua_module_key, lua_module_reader);
+    g_anonymous_inst_name_prefix = new name("_inst");
 }
 
 void finalize_parser() {
+    delete g_anonymous_inst_name_prefix;
     delete g_lua_module_key;
     delete g_tmp_prefix;
     delete g_parser_show_errors;

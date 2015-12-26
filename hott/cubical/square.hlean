@@ -1,12 +1,12 @@
 /-
 Copyright (c) 2015 Floris van Doorn. All rights reserved.
 Released under Apache 2.0 license as described in the file LICENSE.
-Author: Floris van Doorn
+Authors: Floris van Doorn, Jakob von Raumer
 
 Squares in a type
 -/
 import types.eq
-open eq equiv is_equiv
+open eq equiv is_equiv sigma
 
 namespace eq
 
@@ -46,6 +46,12 @@ namespace eq
   definition vdeg_square [unfold 6] {p q : a = a'} (r : p = q) : square p q idp idp :=
   by induction r;apply vrefl
 
+  definition hdeg_square_idp (p : a = a') : hdeg_square (refl p) = hrfl :=
+  by cases p; reflexivity
+  
+  definition vdeg_square_idp (p : a = a') : vdeg_square (refl p) = vrfl :=
+  by cases p; reflexivity
+
   definition hconcat [unfold 16] (s₁₁ : square p₁₀ p₁₂ p₀₁ p₂₁) (s₃₁ : square p₃₀ p₃₂ p₂₁ p₄₁)
     : square (p₁₀ ⬝ p₃₀) (p₁₂ ⬝ p₃₂) p₀₁ p₄₁ :=
   by induction s₃₁; exact s₁₁
@@ -76,19 +82,19 @@ namespace eq
     square p₁₀ p₁₂ p₀₁ p :=
   by induction r; exact s₁₁
 
-  infix ` ⬝h `:75 := hconcat
-  infix ` ⬝v `:75 := vconcat
-  infix ` ⬝hp `:75 := hconcat_eq
-  infix ` ⬝vp `:75 := vconcat_eq
-  infix ` ⬝ph `:75 := eq_hconcat
-  infix ` ⬝pv `:75 := eq_vconcat
-  postfix `⁻¹ʰ`:(max+1) := hinverse
-  postfix `⁻¹ᵛ`:(max+1) := vinverse
+  infix ` ⬝h `:75 := hconcat --type using \tr
+  infix ` ⬝v `:75 := vconcat --type using \tr
+  infix ` ⬝hp `:75 := hconcat_eq --type using \tr
+  infix ` ⬝vp `:75 := vconcat_eq --type using \tr
+  infix ` ⬝ph `:75 := eq_hconcat --type using \tr
+  infix ` ⬝pv `:75 := eq_vconcat --type using \tr
+  postfix `⁻¹ʰ`:(max+1) := hinverse --type using \-1h
+  postfix `⁻¹ᵛ`:(max+1) := vinverse --type using \-1v
 
   definition transpose [unfold 10] (s₁₁ : square p₁₀ p₁₂ p₀₁ p₂₁) : square p₀₁ p₂₁ p₁₀ p₁₂ :=
   by induction s₁₁;exact ids
 
-  definition aps {B : Type} (f : A → B) (s₁₁ : square p₁₀ p₁₂ p₀₁ p₂₁)
+  definition aps [unfold 12] {B : Type} (f : A → B) (s₁₁ : square p₁₀ p₁₂ p₀₁ p₂₁)
     : square (ap f p₁₀) (ap f p₁₂) (ap f p₀₁) (ap f p₂₁) :=
   by induction s₁₁;exact ids
 
@@ -262,7 +268,8 @@ namespace eq
     hdeg_square and vdeg_square, respectively.
     See example below the definition
   -/
-  definition hdeg_square_equiv [constructor] (p q : a = a') : square idp idp p q ≃ p = q :=
+  definition hdeg_square_equiv [constructor] (p q : a = a') :
+    square idp idp p q ≃ p = q :=
   begin
     fapply equiv_change_fun,
     { fapply equiv_change_inv, apply hdeg_square_equiv', exact hdeg_square,
@@ -271,7 +278,8 @@ namespace eq
     { reflexivity}
   end
 
-  definition vdeg_square_equiv [constructor] (p q : a = a') : square p q idp idp ≃ p = q :=
+  definition vdeg_square_equiv [constructor] (p q : a = a') :
+    square p q idp idp ≃ p = q :=
   begin
     fapply equiv_change_fun,
     { fapply equiv_change_inv, apply vdeg_square_equiv',exact vdeg_square,
@@ -480,5 +488,62 @@ namespace eq
   --   (s : square (con_inv_eq_idp t) (con_inv_eq_idp b) (l ◾ r⁻²) idp)
   --     : square t b l r :=
   -- sorry --by induction s
+
+  /- Square fillers -/
+  -- TODO replace by "more algebraic" fillers?
+
+  variables (p₁₀ p₁₂ p₀₁ p₂₁)
+  definition square_fill_t : Σ (p : a₀₀ = a₂₀), square p p₁₂ p₀₁ p₂₁ :=
+  by induction p₀₁; induction p₂₁; exact ⟨_, !vrefl⟩
+
+  definition square_fill_b : Σ (p : a₀₂ = a₂₂), square p₁₀ p p₀₁ p₂₁ :=
+  by induction p₀₁; induction p₂₁; exact ⟨_, !vrefl⟩
+
+  definition square_fill_l : Σ (p : a₀₀ = a₀₂), square p₁₀ p₁₂ p p₂₁ :=
+  by induction p₁₀; induction p₁₂; exact ⟨_, !hrefl⟩
+
+  definition square_fill_r : Σ (p : a₂₀ = a₂₂) , square p₁₀ p₁₂ p₀₁ p :=
+  by induction p₁₀; induction p₁₂; exact ⟨_, !hrefl⟩
+
+  /- Squares having an 'ap' term on one face -/
+  --TODO find better names
+  definition square_Flr_ap_idp {A B : Type} {c : B} {f : A → B} (p : Π a, f a = c)
+    {a b : A} (q : a = b) : square (p a) (p b) (ap f q) idp  :=
+  by induction q; apply vrfl
+
+  definition square_Flr_idp_ap {A B : Type} {c : B} {f : A → B} (p : Π a, c = f a)
+    {a b : A} (q : a = b) : square (p a) (p b) idp (ap f q) :=
+  by induction q; apply vrfl
+
+  definition square_ap_idp_Flr {A B : Type} {b : B} {f : A → B} (p : Π a, f a = b)
+    {a b : A} (q : a = b) : square (ap f q) idp (p a) (p b) :=
+  by induction q; apply hrfl
+
+  /- Matching eq_hconcat with hconcat etc. -/
+  -- TODO maybe rename hconcat_eq and the like?
+  variable (s₁₁)
+  definition ph_eq_pv_h_vp {p : a₀₀ = a₀₂} (r : p = p₀₁) : 
+    r ⬝ph s₁₁ =  !idp_con⁻¹ ⬝pv ((hdeg_square r) ⬝h s₁₁) ⬝vp !idp_con :=
+  by cases r; cases s₁₁; esimp
+
+  definition hdeg_h_eq_pv_ph_vp {p : a₀₀ = a₀₂} (r : p = p₀₁) : 
+    hdeg_square r ⬝h s₁₁ = !idp_con ⬝pv (r ⬝ph s₁₁) ⬝vp !idp_con⁻¹ :=
+  by cases r; cases s₁₁; esimp
+
+  definition hp_eq_h {p : a₂₀ = a₂₂} (r : p₂₁ = p) :
+    s₁₁ ⬝hp r = s₁₁ ⬝h hdeg_square r :=
+  by cases r; cases s₁₁; esimp
+
+  definition pv_eq_ph_vdeg_v_vh {p : a₀₀ = a₂₀} (r : p = p₁₀) :
+    r ⬝pv s₁₁ = !idp_con⁻¹ ⬝ph ((vdeg_square r) ⬝v s₁₁) ⬝hp !idp_con :=
+  by cases r; cases s₁₁; esimp
+
+  definition vdeg_v_eq_ph_pv_hp {p : a₀₀ = a₂₀} (r : p = p₁₀) :
+    vdeg_square r ⬝v s₁₁ = !idp_con ⬝ph (r ⬝pv s₁₁) ⬝hp !idp_con⁻¹ :=
+  by cases r; cases s₁₁; esimp
+
+  definition vp_eq_v {p : a₀₂ = a₂₂} (r : p₁₂ = p) :
+    s₁₁ ⬝vp r = s₁₁ ⬝v vdeg_square r :=
+  by cases r; cases s₁₁; esimp
 
 end eq

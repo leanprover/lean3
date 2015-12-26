@@ -146,7 +146,7 @@ namespace eq
                            (pathover_idp_of_eq l)
                            (pathover_idp_of_eq r)) : square t b l r :=
   begin
-    let H := square_of_squareover so,  -- use apply ... in
+    note H := square_of_squareover so,  -- use apply ... in
     rewrite [▸* at H,+idp_con at H,+ap_id at H,↑pathover_idp_of_eq at H],
     rewrite [+to_right_inv !(pathover_equiv_tr_eq (refl a)) at H],
     exact H
@@ -230,7 +230,7 @@ namespace eq
   definition eq_of_vdeg_squareover {q₁₀' : b₀₀ =[p₁₀] b₂₀}
     (p : squareover B vrfl q₁₀ q₁₀' idpo idpo) : q₁₀ = q₁₀' :=
   begin
-    let H := square_of_squareover p,  -- use apply ... in
+    note H := square_of_squareover p,  -- use apply ... in
     induction p₁₀, -- if needed we can remove this induction and use con_tr_idp in types/eq2
     rewrite [▸* at H,idp_con at H,+ap_id at H],
     let H' := eq_of_vdeg_square H,
@@ -261,5 +261,20 @@ namespace eq
   begin
     induction p, esimp at s, apply pathover_idp_of_eq, apply eq_of_vdeg_squareover, exact s
   end
+
+  definition squareover_change_path_left {p₀₁' : a₀₀ = a₀₂} (r : p₀₁' = p₀₁)
+    {q₀₁ : b₀₀ =[p₀₁'] b₀₂} (t : squareover B (r ⬝ph s₁₁) q₁₀ q₁₂ q₀₁ q₂₁)
+  : squareover B s₁₁ q₁₀ q₁₂ (change_path r q₀₁) q₂₁ :=
+  by induction r; exact t
+
+  definition squareover_change_path_right {p₂₁' : a₂₀ = a₂₂} (r : p₂₁' = p₂₁)
+    {q₂₁ : b₂₀ =[p₂₁'] b₂₂} (t : squareover B (s₁₁ ⬝hp r⁻¹) q₁₀ q₁₂ q₀₁ q₂₁)
+  : squareover B s₁₁ q₁₀ q₁₂ q₀₁ (change_path r q₂₁) :=
+  by induction r; exact t
+
+  definition squareover_change_path_right' {p₂₁' : a₂₀ = a₂₂} (r : p₂₁ = p₂₁')
+    {q₂₁ : b₂₀ =[p₂₁'] b₂₂} (t : squareover B (s₁₁ ⬝hp r) q₁₀ q₁₂ q₀₁ q₂₁)
+  : squareover B s₁₁ q₁₀ q₁₂ q₀₁ (change_path r⁻¹ q₂₁) :=
+  by induction r; exact t
 
 end eq

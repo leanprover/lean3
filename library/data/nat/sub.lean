@@ -6,7 +6,7 @@ Authors: Floris van Doorn, Jeremy Avigad
 Subtraction on the natural numbers, as well as min, max, and distance.
 -/
 import .order
-open eq.ops algebra
+open eq.ops
 
 namespace nat
 
@@ -46,7 +46,7 @@ nat.induction_on k
                               ... = (n + l) - (m + l)           : !succ_sub_succ
                               ... =  n - m                      : IH)
 protected theorem add_sub_add_left (k n m : ℕ) : (k + n) - (k + m) = n - m :=
-!add.comm ▸ !add.comm ▸ !nat.add_sub_add_right
+add.comm n k ▸ add.comm m k ▸ nat.add_sub_add_right n k m
 
 protected theorem add_sub_cancel (n m : ℕ) : n + m - m = n :=
 nat.induction_on m
@@ -144,7 +144,7 @@ calc
           ... = n * m - n * k : {!mul.comm}
 
 protected theorem mul_self_sub_mul_self_eq (a b : nat) : a * a - b * b = (a + b) * (a - b) :=
-by rewrite [nat.mul_sub_left_distrib, *right_distrib, mul.comm b a, add.comm (a*a) (a*b), 
+by rewrite [nat.mul_sub_left_distrib, *right_distrib, mul.comm b a, add.comm (a*a) (a*b),
             nat.add_sub_add_left]
 
 theorem succ_mul_succ_eq (a : nat) : succ a * succ a = a*a + a + a + 1 :=
@@ -290,8 +290,6 @@ sub.cases
                ... = k - n + n    : nat.sub_add_cancel H3,
     le.intro (add.right_cancel H4))
 
-open algebra
-
 protected theorem sub_pos_of_lt {m n : ℕ} (H : m < n) : n - m > 0 :=
 assert H1 : n = n - m + m, from (nat.sub_add_cancel (le_of_lt H))⁻¹,
 have   H2 : 0 + m < n - m + m, begin rewrite [zero_add, -H1], exact H end,
@@ -317,7 +315,7 @@ lt_of_not_ge
 
 protected theorem sub_lt_sub_add_sub (n m k : ℕ) : n - k ≤ (n - m) + (m - k) :=
 sub.cases
-  (assume H : n ≤ m, !zero_add⁻¹ ▸ nat.sub_le_sub_right H k)
+  (assume H : n ≤ m, (zero_add (m - k))⁻¹ ▸ nat.sub_le_sub_right H k)
   (take mn : ℕ,
     assume Hmn : m + mn = n,
     sub.cases
@@ -443,7 +441,7 @@ dist_eq_intro H2
 
 theorem dist_sub_eq_dist_add_right {k m : ℕ} (H : k ≥ m) (n : ℕ) :
   dist n (k - m) = dist (n + m) k :=
-(dist_sub_eq_dist_add_left H n ▸ !dist.comm) ▸ !dist.comm
+dist.comm (k - m) n ▸ dist.comm k (n + m) ▸ dist_sub_eq_dist_add_left H n
 
 theorem dist.triangle_inequality (n m k : ℕ) : dist n k ≤ dist n m + dist m k :=
 have (n - m) + (m - k) + ((k - m) + (m - n)) = (n - m) + (m - n) + ((m - k) + (k - m)),
@@ -484,7 +482,7 @@ or.elim !le.total
 
 lemma dist_eq_max_sub_min {i j : nat} : dist i j = (max i j) - min i j :=
 or.elim (lt_or_ge i j)
-  (suppose i < j, 
+  (suppose i < j,
     by rewrite [max_eq_right_of_lt this, min_eq_left_of_lt this, dist_eq_sub_of_lt this])
   (suppose i ≥ j,
     by rewrite [max_eq_left this , min_eq_right this, dist_eq_sub_of_ge this])

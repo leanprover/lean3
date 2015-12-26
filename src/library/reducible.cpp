@@ -12,6 +12,7 @@ Author: Leonardo de Moura
 #include "library/scoped_ext.h"
 #include "library/reducible.h"
 #include "library/kernel_bindings.h"
+#include "library/attribute_manager.h"
 
 namespace lean {
 struct reducible_entry {
@@ -69,6 +70,37 @@ void initialize_reducible() {
     g_key        = new std::string("redu");
     g_tmp_prefix = new name(name::mk_internal_unique_name());
     reducible_ext::initialize();
+
+    register_attribute("reducible", "reducible",
+                       [](environment const & env, io_state const &, name const & d, name const & ns, bool persistent) {
+                           return set_reducible(env, d, reducible_status::Reducible, ns, persistent);
+                       },
+                       [](environment const & env, name const & d) { return get_reducible_status(env, d) == reducible_status::Reducible; });
+
+    register_attribute("quasireducible", "quasireducible",
+                       [](environment const & env, io_state const &, name const & d, name const & ns, bool persistent) {
+                           return set_reducible(env, d, reducible_status::Quasireducible, ns, persistent);
+                       },
+                       [](environment const & env, name const & d) { return get_reducible_status(env, d) == reducible_status::Quasireducible; });
+
+    register_attribute("semireducible", "semireducible",
+                       [](environment const & env, io_state const &, name const & d, name const & ns, bool persistent) {
+                           return set_reducible(env, d, reducible_status::Semireducible, ns, persistent);
+                       },
+                       [](environment const & env, name const & d) { return get_reducible_status(env, d) == reducible_status::Semireducible; });
+
+    register_attribute("irreducible", "irreducible",
+                       [](environment const & env, io_state const &, name const & d, name const & ns, bool persistent) {
+                           return set_reducible(env, d, reducible_status::Irreducible, ns, persistent);
+                       },
+                       [](environment const & env, name const & d) { return get_reducible_status(env, d) == reducible_status::Irreducible; });
+
+    register_incompatible("reducible", "quasireducible");
+    register_incompatible("reducible", "semireducible");
+    register_incompatible("reducible", "irreducible");
+    register_incompatible("quasireducible", "semireducible");
+    register_incompatible("quasireducible", "irreducible");
+    register_incompatible("semireducible", "irreducible");
 }
 
 void finalize_reducible() {
@@ -89,9 +121,9 @@ static void check_declaration(environment const & env, name const & n) {
         throw exception(sstream() << "invalid reducible command, '" << n << "' is not a definition");
 }
 
-environment set_reducible(environment const & env, name const & n, reducible_status s, bool persistent) {
+environment set_reducible(environment const & env, name const & n, reducible_status s, name const & ns, bool persistent) {
     check_declaration(env, n);
-    return reducible_ext::add_entry(env, get_dummy_ios(), reducible_entry(s, n), persistent);
+    return reducible_ext::add_entry(env, get_dummy_ios(), reducible_entry(s, n), ns, persistent);
 }
 
 reducible_status get_reducible_status(environment const & env, name const & n) {
@@ -184,13 +216,15 @@ static int mk_non_irreducible_type_checker(lua_State * L) {
 
 static int set_reducible(lua_State * L) {
     int nargs = lua_gettop(L);
+    environment const & env = to_environment(L, 1);
     if (nargs == 3) {
-        return push_environment(L, set_reducible(to_environment(L, 1), to_name_ext(L, 2),
-                                                 static_cast<reducible_status>(lua_tonumber(L, 3))));
-    } else {
-        return push_environment(L, set_reducible(to_environment(L, 1), to_name_ext(L, 2),
+        return push_environment(L, set_reducible(env, to_name_ext(L, 2),
                                                  static_cast<reducible_status>(lua_tonumber(L, 3)),
-                                                 lua_toboolean(L, 4)));
+                                                 get_namespace(env), true));
+    } else {
+        return push_environment(L, set_reducible(env, to_name_ext(L, 2),
+                                                 static_cast<reducible_status>(lua_tonumber(L, 3)),
+                                                 get_namespace(env), lua_toboolean(L, 4)));
     }
 }
 

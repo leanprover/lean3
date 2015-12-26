@@ -7,7 +7,7 @@ Author: Leonardo de Moura
 #pragma once
 #include "util/rc.h"
 #include "util/rb_map.h"
-#include "library/blast/expr.h"
+#include "kernel/expr.h"
 
 namespace lean {
 namespace blast {
@@ -21,6 +21,13 @@ typedef list<unsigned>                  hypothesis_idx_list;
 typedef buffer<unsigned>                hypothesis_idx_buffer;
 template<typename T>
 using hypothesis_idx_map = typename lean::rb_map<unsigned, T, unsigned_cmp>;
+
+/* trick to make sure the rb_map::erase_min removes the hypothesis with biggest weight */
+struct inv_double_cmp {
+    int operator()(double const & d1, double const & d2) const { return d1 > d2 ? -1 : (d1 < d2 ? 1 : 0); }
+};
+
+typedef rb_map<double, hypothesis_idx, inv_double_cmp>   hypothesis_priority_queue;
 
 class hypothesis {
     friend class state;
@@ -44,8 +51,8 @@ public:
     expr const & get_type() const { return m_type; }
     optional<expr> const & get_value() const { return m_value; }
     /** \brief Return true iff this hypothesis depends on \c h. */
-    bool depends_on(expr const & h) const { return m_deps.contains(href_index(h)); }
-    bool is_assumption() const { return !m_value || is_local_non_href(*m_value); }
+    bool depends_on(expr const & h) const;
+    bool is_assumption() const;
 };
 
 class hypothesis_idx_buffer_set {
@@ -65,6 +72,12 @@ public:
             m_buffer.push_back(h);
         }
     }
+
+    void erase(hypothesis_idx h) {
+        m_set.erase(h);
+        m_buffer.erase_elem(h);
+    }
+
     unsigned size() const { return m_buffer.size(); }
     bool empty() const { return m_buffer.empty(); }
     hypothesis_idx_buffer const & as_buffer() const {

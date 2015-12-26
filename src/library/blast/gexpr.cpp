@@ -6,6 +6,7 @@ Author: Leonardo de Moura
 */
 #include "library/blast/gexpr.h"
 #include "library/blast/blast.h"
+#include "library/blast/trace.h"
 
 namespace lean {
 namespace blast {
@@ -25,5 +26,19 @@ expr gexpr::to_expr(type_context & ctx) const {
 
 expr gexpr::to_expr() const {
     return to_expr(get_type_context());
+}
+
+bool operator==(gexpr const & ge1, gexpr const & ge2) { return ge1.m_expr == ge2.m_expr; }
+
+std::ostream & operator<<(std::ostream & out, gexpr const & ge) {
+    out << ge.m_expr;
+    if (ge.is_universe_polymorphic()) out << " (poly)";
+    return out;
+}
+
+io_state_stream const & operator<<(io_state_stream const & out, gexpr const & ge) {
+    out << ppb(ge.m_expr);
+    if (ge.is_universe_polymorphic()) out << " (poly)";
+    return out;
 }
 }}

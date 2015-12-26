@@ -9,18 +9,16 @@ Author : Haitao Zhang
 -- can be used directly without translating from the set based theory first
 
 import data algebra.group .subgroup
-open function algebra finset
+open function finset
 -- ⁻¹ in eq.ops conflicts with group ⁻¹
 open eq.ops
 
-namespace group
+namespace group_theory
 open ops
 
 section subg
 -- we should be able to prove properties using finsets directly
-variable {G : Type}
-variable [ambientG : group G]
-include ambientG
+variables {G : Type} [group G]
 
 definition finset_mul_closed_on [reducible] (H : finset G) : Prop :=
            ∀ x y : G, x ∈ H → y ∈ H → x * y ∈ H
@@ -47,8 +45,7 @@ lemma finsubg_mul_closed (H : finset G) [h : is_finsubg H] {x y : G} : x ∈ H �
 lemma finsubg_has_inv (H : finset G) [h : is_finsubg H] {a : G} :  a ∈ H → a⁻¹ ∈ H :=
       @is_finsubg.has_inv G _ H h a
 
-variable [deceqG : decidable_eq G]
-include deceqG
+variable [decidable_eq G]
 
 definition finsubg_to_subg [instance] {H : finset G} [h : is_finsubg H]
          : is_subgroup (ts H) :=
@@ -72,11 +69,7 @@ section fin_lcoset
 
 open set
 
-variable {A : Type}
-variable [deceq : decidable_eq A]
-include deceq
-variable [s : group A]
-include s
+variables {A : Type} [decidable_eq A] [group A]
 
 definition fin_lcoset (H : finset A) (a : A) := finset.image (lmul_by a) H
 
@@ -173,8 +166,8 @@ definition fin_lcoset_partition_subg (Psub : H ⊆ G) :=
 open nat
 
 theorem lagrange_theorem (Psub : H ⊆ G) : card G = card (fin_lcosets H G) * card H := calc
-        card G = nat.finset.Sum (fin_lcosets H G) card : class_equation (fin_lcoset_partition_subg Psub)
-        ... = nat.finset.Sum (fin_lcosets H G) (λ x, card H) : nat.finset.Sum_ext (take g P, fin_lcosets_card_eq g P)
+        card G = finset.Sum (fin_lcosets H G) card : class_equation (fin_lcoset_partition_subg Psub)
+        ... = finset.Sum (fin_lcosets H G) (λ x, card H) : finset.Sum_ext (take g P, fin_lcosets_card_eq g P)
         ... = card (fin_lcosets H G) * card H : Sum_const_eq_card_mul
 
 end fin_lcoset
@@ -195,8 +188,7 @@ end
 section lcoset_fintype
 open fintype list subtype
 
-variables {A : Type} [ambientA : group A] [finA : fintype A] [deceqA : decidable_eq A]
-include ambientA deceqA finA
+variables {A : Type} [group A] [fintype A] [decidable_eq A]
 
 variables G H : finset A
 
@@ -304,7 +296,7 @@ fintype.mk (all_lcosets G H)
 lemma card_lcoset_type : card (lcoset_type G H) = card (fin_lcosets H G) :=
 length_all_lcosets
 
-open nat nat.finset
+open nat
 variable [finsubgH : is_finsubg H]
 include finsubgH
 
@@ -532,4 +524,4 @@ is_finsubg.mk fcU_has_one fcU_mul_closed fcU_has_inv
 
 end normalizer
 
-end group
+end group_theory

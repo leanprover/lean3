@@ -42,8 +42,27 @@ installation instructions below.
 Installation
 ============
 
-Put the following elisp code in your emacs setup
-(e.g. ``.emacs.d/init.el`` [GNU Emacs], ``~/Library/Preferences/Aquamacs Emacs/Preferences.el`` [Aquamacs]) :
+When Emacs is started, it loads startup information from a special
+initialization file, often called an "init file." The init file can be
+found in different places on different systems:
+
+- Emacs will check for a file named ``.emacs`` in your home directory.
+- With GNU Emacs, it is common to use ``.emacs.d/init.el`` instead.
+- With Aquamacs, it is common to use ``~/Library/Preferences/Aquamacs Emacs/Preferences.el``.
+
+On Windows, there are two additional complications: 
+
+- It may be hard to figure out what Emacs considers to be your "home
+  directory".
+- The file explorer may not let you create a file named ``.emacs``,
+  since it begins with a period.
+
+One solution is to run Emacs itself and create the file using C-c C-f
+(control-C, control-F) and then entering ``~/.emacs``. (The tilde
+indicates your home directory.) On Windows, you can also name the file
+``_emacs``.
+ 
+Put the following code in your Emacs init file:
 
 ```elisp
 (require 'package)
@@ -66,7 +85,8 @@ Put the following elisp code in your emacs setup
       (package-install p))))
 ```
 
-Please choose your installation method from the following scenarios, and add the elisp code to your emacs setup:
+Then choose your installation method from the following scenarios, and
+add the corresponding code to your init file:
 
 Case 1: Build Lean from source
 -----------------------------
@@ -142,24 +162,39 @@ Known Issues and Possible Solutions
 Unicode
 -------
 
-If you experience a problem reading unicode characters on emacs,
-first consider using a unicode-friendly font such as `DejaVu Sans Mono`:
+If you experience a problem rendering unicode symbols on emacs,
+please download the following fonts and install them on your machine:
+
+ - [Quivira.ttf](http://www.quivira-font.com/files/Quivira.ttf)
+ - [Dejavu Fonts](http://sourceforge.net/projects/dejavu/files/dejavu/2.35/dejavu-fonts-ttf-2.35.tar.bz2)
+ - [NotoSans](https://github.com/googlei18n/noto-fonts/blob/master/hinted/NotoSans-Regular.ttc?raw=true)
+ - [NotoSansSymbols](https://github.com/googlei18n/noto-fonts/blob/master/unhinted/NotoSansSymbols-Regular.ttf?raw=true)
+
+Then, have the following lines in your emacs setup to use `DejaVu Sans Mono` font:
 
 ```elisp
 (when (member "DejaVu Sans Mono" (font-family-list))
   (set-face-attribute 'default nil :font "DejaVu Sans Mono-11"))
 ```
 
-If you still experience a rendering problem, consider trying
-[emacs-unicode-fonts](https://github.com/rolandwalker/unicode-fonts):
+You may also need to install [emacs-unicode-fonts](https://github.com/rolandwalker/unicode-fonts) package.
 
- - Install `unicode-fonts` package by running `M-x package-refresh-contents` and `M-x package-install`.
+ - Run `M-x package-refresh-contents`, `M-x package-install`, and type `unicode-fonts`.
  - Add the following lines in your emacs setup:
+
    ```lisp
 (require 'unicode-fonts)
 (unicode-fonts-setup)
-
    ```
+
+"Variable binding depth exceeds max-specpdl-size" Error
+---------------------------------------------------------
+
+See [Issue 906](https://github.com/leanprover/lean/issues/906) for details.
+[Moritz Kiefer](https://github.com/cocreature) reported that `proofgeneral` 
+comes with an old version of `mmm-mode` (0.4.8, released in 2004) on ArchLinux
+and it caused this problem. Either removing `proofgeneral` or upgrading
+`mmm-mode` to the latest version (0.5.1 as of 2015 Dec) resolves this issue.
 
 
 Contributions

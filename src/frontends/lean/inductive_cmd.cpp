@@ -197,7 +197,7 @@ struct inductive_cmd_fn {
     */
     pair<name, name> parse_decl_name(optional<name> const & ind_name) {
         m_pos   = m_p.pos();
-        name id = m_p.check_id_next("invalid declaration, identifier expected");
+        name id = m_p.check_decl_id_next("invalid declaration, identifier expected");
         if (ind_name) {
             // for intro rules, we append the name of the inductive datatype
             check_atomic(id);
@@ -431,6 +431,7 @@ struct inductive_cmd_fn {
         collect_locals_core(decls, local_set);
         if (local_set.empty())
             return;
+        collect_annonymous_inst_implicit(m_p, local_set);
         sort_locals(local_set.get_collected(), m_p, locals);
         m_num_params += locals.size();
     }
@@ -772,7 +773,7 @@ struct inductive_cmd_fn {
     environment apply_modifiers(environment env) {
         m_modifiers.for_each([&](name const & n, modifiers const & m) {
                 if (m.is_class())
-                    env = add_class(env, n);
+                    env = add_class(env, n, get_namespace(env), true);
             });
         return env;
     }

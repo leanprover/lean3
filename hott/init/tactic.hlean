@@ -64,6 +64,11 @@ definition opt_expr_list := expr_list
 definition identifier := expr
 definition identifier_list := expr_list
 definition opt_identifier_list := expr_list
+-- Remark: the parser has special support for tactics containing `location` parameters.
+-- It will parse the optional `at ...` modifier.
+definition location := expr
+-- Marker for instructing the parser to parse it as 'with <expr>'
+definition with_expr := expr
 
 -- Marker for instructing the parser to parse it as '?(using <expr>)'
 definition using_expr := expr
@@ -74,7 +79,7 @@ definition apply      (e : expr)            : tactic := builtin
 definition eapply     (e : expr)            : tactic := builtin
 definition fapply     (e : expr)            : tactic := builtin
 definition rename     (a b : identifier)    : tactic := builtin
-definition intro      (e : identifier_list) : tactic := builtin
+definition intro      (e : opt_identifier_list) : tactic := builtin
 definition generalize_tac (e : expr) (id : identifier) : tactic := builtin
 definition clear      (e : identifier_list) : tactic := builtin
 definition revert     (e : identifier_list) : tactic := builtin
@@ -91,15 +96,6 @@ definition rewrite_tac  (e : expr_list) : tactic := builtin
 definition xrewrite_tac (e : expr_list) : tactic := builtin
 definition krewrite_tac (e : expr_list) : tactic := builtin
 
--- simp_tac is just a marker for the builtin 'simp' notation
--- used to create instances of this tactic.
--- Arguments:
---  - e : additional rewrites to be considered
---  - n : add rewrites from the give namespaces
---  - x : exclude the give global rewrites
---  - t : tactic for discharging conditions
---  - l : location
-definition simp_tac (e : expr_list) (n : identifier_list) (x : identifier_list) (t : option tactic) (l : expr) : tactic := builtin
 -- Arguments:
 --  - ls : lemmas to be used (if not provided, then blast will choose them)
 --  - ds : definitions that can be unfolded (if not provided, then blast will choose them)
@@ -107,6 +103,8 @@ definition blast (ls : opt_identifier_list) (ds : opt_identifier_list) : tactic 
 
 -- with_options_tac is just a marker for the builtin 'with_options' notation
 definition with_options_tac (o : expr) (t : tactic) : tactic := builtin
+-- with_options_tac is just a marker for the builtin 'with_attributes' notation
+definition with_attributes_tac (o : expr) (n : identifier_list) (t : tactic) : tactic := builtin
 
 definition cases (h : expr) (ids : opt_identifier_list) : tactic := builtin
 
@@ -124,7 +122,7 @@ definition change (e : expr) : tactic := builtin
 
 definition assert_hypothesis (id : identifier) (e : expr) : tactic := builtin
 
-definition lettac (id : identifier) (e : expr) : tactic := builtin
+definition note_tac (id : identifier) (e : expr) : tactic := builtin
 
 definition constructor (k : option num)  : tactic := builtin
 definition fconstructor (k : option num) : tactic := builtin

@@ -30,6 +30,11 @@ Author: Leonardo de Moura
 #include "frontends/lean/update_environment_exception.h"
 #include "frontends/lean/nested_declaration.h"
 
+// We don't display profiling information for declarations that take less than 0.01 secs
+#ifndef LEAN_PROFILE_THRESHOLD
+#define LEAN_PROFILE_THRESHOLD 0.01
+#endif
+
 namespace lean {
 static environment declare_universe(parser & p, environment env, name const & n, bool local) {
     if (local) {
@@ -68,7 +73,7 @@ static environment universe_cmd(parser & p) {
             p.next();
             local = true;
         }
-        name n = p.check_id_next("invalid 'universe' command, identifier expected");
+        name n = p.check_decl_id_next("invalid 'universe' command, identifier expected");
         return declare_universe(p, p.env(), n, local);
     }
 }
@@ -139,7 +144,7 @@ static environment declare_var(parser & p, environment env,
         if (k == variable_kind::Parameter)
             p.add_parameter(n, l);
         else
-            p.add_local_expr(n, l, k == variable_kind::Variable);
+            p.add_variable(n, l);
         return env;
     } else {
         lean_assert(k == variable_kind::Constant || k == variable_kind::Axiom);
@@ -217,31 +222,65 @@ static environment variable_cmd_core(parser & p, variable_kind k, bool is_protec
     check_variable_kind(p, k);
     auto pos = p.pos();
     optional<binder_info> bi = parse_binder_info(p, k);
-    name n = p.check_id_next("invalid declaration, identifier expected");
-    buffer<name> ls_buffer;
-    if (p.curr_is_token(get_llevel_curly_tk()) && (k == variable_kind::Parameter || k == variable_kind::Variable))
-        throw parser_error("invalid declaration, only constants/axioms can be universe polymorphic", p.pos());
     optional<parser::local_scope> scope1;
-    if (k == variable_kind::Constant || k == variable_kind::Axiom)
-        scope1.emplace(p);
-    parse_univ_params(p, ls_buffer);
+    name n;
     expr type;
-    if (!p.curr_is_token(get_colon_tk())) {
-        if (!curr_is_binder_annotation(p) && (k == variable_kind::Parameter || k == variable_kind::Variable)) {
-            p.parse_close_binder_info(bi);
-            update_local_binder_info(p, k, n, bi, pos);
-            return p.env();
+    buffer<name> ls_buffer;
+    if (bi && bi->is_inst_implicit() && (k == variable_kind::Parameter || k == variable_kind::Variable)) {
+        /* instance implicit */
+        if (p.curr_is_identifier()) {
+            auto n_pos = p.pos();
+            n = p.get_name_val();
+            p.next();
+            if (p.curr_is_token(get_colon_tk())) {
+                /* simple decl: variable [decA : decidable A] */
+                p.next();
+                type = p.parse_expr();
+            } else if (p.curr_is_token(get_rbracket_tk())) {
+                /* annotation update: variable [decA] */
+                p.parse_close_binder_info(bi);
+                update_local_binder_info(p, k, n, bi, pos);
+                return p.env();
+            } else {
+                /* anonymous : variable [decidable A] */
+                expr left    = p.id_to_expr(n, n_pos);
+                n            = p.mk_anonymous_inst_name();
+                unsigned rbp = 0;
+                while (rbp < p.curr_expr_lbp()) {
+                    left = p.parse_led(left);
+                }
+                type = left;
+            }
         } else {
-            buffer<expr> ps;
-            unsigned rbp = 0;
-            auto lenv = p.parse_binders(ps, rbp);
-            p.check_token_next(get_colon_tk(), "invalid declaration, ':' expected");
-            type = p.parse_scoped_expr(ps, lenv);
-            type = Pi(ps, type, p);
+            /* anonymous : variable [forall x y, decidable (x = y)] */
+            n    = p.mk_anonymous_inst_name();
+            type = p.parse_expr();
         }
     } else {
-        p.next();
-        type = p.parse_expr();
+        /* non instance implicit cases */
+        n = p.check_decl_id_next("invalid declaration, identifier expected");
+        if (p.curr_is_token(get_llevel_curly_tk()) && (k == variable_kind::Parameter || k == variable_kind::Variable))
+            throw parser_error("invalid declaration, only constants/axioms can be universe polymorphic", p.pos());
+        if (k == variable_kind::Constant || k == variable_kind::Axiom)
+            scope1.emplace(p);
+        parse_univ_params(p, ls_buffer);
+        if (!p.curr_is_token(get_colon_tk())) {
+            if (!curr_is_binder_annotation(p) && (k == variable_kind::Parameter || k == variable_kind::Variable)) {
+                p.parse_close_binder_info(bi);
+                update_local_binder_info(p, k, n, bi, pos);
+                return p.env();
+            } else {
+                buffer<expr> ps;
+                unsigned rbp = 0;
+                auto lenv = p.parse_binders(ps, rbp);
+                p.check_token_next(get_colon_tk(), "invalid declaration, ':' expected");
+                type = p.parse_scoped_expr(ps, lenv);
+                type = Pi(ps, type, p);
+            }
+        } else {
+            p.next();
+            type = p.parse_expr();
+        }
     }
     p.parse_close_binder_info(bi);
     check_command_period_or_eof(p);
@@ -279,34 +318,75 @@ static environment variables_cmd_core(parser & p, variable_kind k, bool is_prote
 
     optional<binder_info> bi = parse_binder_info(p, k);
     buffer<name> ids;
-    while (p.curr_is_identifier()) {
-        name id = p.get_name_val();
-        p.next();
-        ids.push_back(id);
-    }
-
-    if (p.curr_is_token(get_colon_tk())) {
-        p.next();
-    } else {
-        if (k == variable_kind::Parameter || k == variable_kind::Variable) {
-            p.parse_close_binder_info(bi);
-            for (name const & id : ids) {
-                update_local_binder_info(p, k, id, bi, pos);
-            }
-            if (curr_is_binder_annotation(p))
-                return variables_cmd_core(p, k);
-            else
-                return env;
-        } else {
-            throw parser_error("invalid variables/constants/axioms declaration, ':' expected", pos);
-        }
-    }
-
     optional<parser::local_scope> scope1;
-    if (k == variable_kind::Constant || k == variable_kind::Axiom)
-        scope1.emplace(p);
-    expr type = p.parse_expr();
+    expr type;
+    if (bi && bi->is_inst_implicit() && (k == variable_kind::Parameter || k == variable_kind::Variable)) {
+        /* instance implicit */
+        if (p.curr_is_identifier()) {
+            auto id_pos = p.pos();
+            name id = p.get_name_val();
+            p.next();
+            if (p.curr_is_token(get_colon_tk())) {
+                /* simple decl: variables [decA : decidable A] */
+                p.next();
+                ids.push_back(id);
+                type = p.parse_expr();
+            } else if (p.curr_is_token(get_rbracket_tk())) {
+                /* annotation update: variables [decA] */
+                p.parse_close_binder_info(bi);
+                update_local_binder_info(p, k, id, bi, pos);
+                if (curr_is_binder_annotation(p))
+                    return variables_cmd_core(p, k);
+                else
+                    return env;
+            } else {
+                /* anonymous : variables [decidable A] */
+                expr left    = p.id_to_expr(id, id_pos);
+                id           = p.mk_anonymous_inst_name();
+                unsigned rbp = 0;
+                while (rbp < p.curr_expr_lbp()) {
+                    left = p.parse_led(left);
+                }
+                ids.push_back(id);
+                type = left;
+            }
+        } else {
+            /* anonymous : variables [forall x y, decidable (x = y)] */
+            name id = p.mk_anonymous_inst_name();
+            ids.push_back(id);
+            type = p.parse_expr();
+        }
+    } else {
+        /* non instance implicit cases */
+        while (p.curr_is_identifier()) {
+            name id = p.get_name_val();
+            p.next();
+            ids.push_back(id);
+        }
+        if (p.curr_is_token(get_colon_tk())) {
+            p.next();
+        } else {
+            /* binder annotation update */
+            /* example: variables (A) */
+            if (k == variable_kind::Parameter || k == variable_kind::Variable) {
+                p.parse_close_binder_info(bi);
+                for (name const & id : ids) {
+                    update_local_binder_info(p, k, id, bi, pos);
+                }
+                if (curr_is_binder_annotation(p))
+                    return variables_cmd_core(p, k);
+                else
+                    return env;
+            } else {
+                throw parser_error("invalid variables/constants/axioms declaration, ':' expected", pos);
+            }
+        }
+        if (k == variable_kind::Constant || k == variable_kind::Axiom)
+            scope1.emplace(p);
+        type = p.parse_expr();
+    }
     p.parse_close_binder_info(bi);
+
     level_param_names ls = to_level_param_names(collect_univ_params(type));
     list<expr> ctx = p.locals_to_context();
     for (auto id : ids) {
@@ -468,7 +548,7 @@ static void parse_equations_core(parser & p, buffer<expr> const & fns, buffer<ex
             auto lhs_pos = p.pos();
             if (p.curr_is_token(get_explicit_tk())) {
                 p.next();
-                name fn_name = p.check_id_next("invalid recursive equation, identifier expected");
+                name fn_name = p.check_decl_id_next("invalid recursive equation, identifier expected");
                 lhs_args.push_back(p.save_pos(mk_explicit(get_equation_fn(fns, fn_name, lhs_pos)), lhs_pos));
             } else {
                 expr first = p.parse_expr(get_max_prec());
@@ -529,7 +609,7 @@ expr parse_equations(parser & p, name const & n, expr const & type, buffer<name>
             while (p.curr_is_token(get_with_tk())) {
                 p.next();
                 auto pos = p.pos();
-                name g_name = p.check_id_next("invalid declaration, identifier expected");
+                name g_name = p.check_decl_id_next("invalid declaration, identifier expected");
                 p.check_token_next(get_colon_tk(), "invalid declaration, ':' expected");
                 expr g_type = p.parse_expr();
                 expr g      = p.save_pos(mk_local(g_name, g_type), pos);
@@ -678,7 +758,7 @@ class definition_cmd_fn {
         if (m_kind == Example)
             m_name = get_this_tk();
         else
-            m_name = m_p.check_id_next("invalid declaration, identifier expected");
+            m_name = m_p.check_decl_id_next("invalid declaration, identifier expected");
     }
 
     expr extract_nested(expr const & v) {
@@ -799,7 +879,7 @@ class definition_cmd_fn {
             std::ostringstream msg;
             display_pos(msg);
             msg << " type checking time for " << m_name;
-            timeit timer(m_p.diagnostic_stream().get_stream(), msg.str().c_str());
+            timeit timer(m_p.diagnostic_stream().get_stream(), msg.str().c_str(), LEAN_PROFILE_THRESHOLD);
             return ::lean::check(m_env, d);
         } else {
             return ::lean::check(m_env, d);
@@ -906,9 +986,9 @@ class definition_cmd_fn {
             }
             if (m_kind == Abbreviation || m_kind == LocalAbbreviation) {
                 bool persistent = m_kind == Abbreviation;
-                m_env = add_abbreviation(m_env, real_n, m_attributes.is_parsing_only(), persistent);
+                m_env = add_abbreviation(m_env, real_n, m_attributes.is_parsing_only(), get_namespace(m_env), persistent);
             }
-            m_env = m_attributes.apply(m_env, m_p.ios(), real_n);
+            m_env = m_attributes.apply(m_env, m_p.ios(), real_n, get_namespace(m_env));
         }
     }
 
@@ -955,7 +1035,7 @@ class definition_cmd_fn {
             std::ostringstream msg;
             display_pos(msg);
             msg << " type elaboration time for " << m_name;
-            timeit timer(m_p.diagnostic_stream().get_stream(), msg.str().c_str());
+            timeit timer(m_p.diagnostic_stream().get_stream(), msg.str().c_str(), LEAN_PROFILE_THRESHOLD);
             return m_p.elaborate_type(e, list<expr>(), clear_pre_info);
         } else {
             return m_p.elaborate_type(e, list<expr>(), clear_pre_info);
@@ -968,7 +1048,7 @@ class definition_cmd_fn {
             std::ostringstream msg;
             display_pos(msg);
             msg << " elaboration time for " << m_name;
-            timeit timer(m_p.diagnostic_stream().get_stream(), msg.str().c_str());
+            timeit timer(m_p.diagnostic_stream().get_stream(), msg.str().c_str(), LEAN_PROFILE_THRESHOLD);
             return m_p.elaborate_definition(def_name, type, value);
         } else {
             return m_p.elaborate_definition(def_name, type, value);
@@ -1252,17 +1332,32 @@ static environment omit_cmd(parser & p) {
 
 static environment attribute_cmd_core(parser & p, bool persistent) {
     buffer<name> ds;
+    bool abbrev       = false;
+    decl_attributes attributes(abbrev, persistent);
+    bool parsed_attrs = false;
+    if (!p.curr_is_identifier()) {
+        attributes.parse(p);
+        parsed_attrs  = true;
+    }
     name d          = p.check_constant_next("invalid 'attribute' command, constant expected");
     ds.push_back(d);
     while (p.curr_is_identifier()) {
         ds.push_back(p.check_constant_next("invalid 'attribute' command, constant expected"));
     }
-    bool abbrev     = false;
-    decl_attributes attributes(abbrev, persistent);
-    attributes.parse(p);
+    if (!parsed_attrs)
+        attributes.parse(p);
+    name ns = get_namespace(p.env());
+    if (p.curr_is_token(get_at_tk())) {
+        if (!persistent)
+            throw parser_error("invalid 'attribute' command, 'at' modifier cannot be used with local attributes", p.pos());
+        p.next();
+        ns = p.check_id_next("invalid 'attribute' command, identifier expected");
+        if (ns == get_root_tk())
+            ns = name();
+    }
     environment env = p.env();
     for (name const & d : ds)
-        env = attributes.apply(env, p.ios(), d);
+        env = attributes.apply(env, p.ios(), d, ns);
     return env;
 }
 

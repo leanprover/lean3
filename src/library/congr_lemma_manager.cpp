@@ -7,6 +7,7 @@ Author: Leonardo de Moura
 #include "kernel/instantiate.h"
 #include "kernel/abstract.h"
 #include "library/util.h"
+#include "library/trace.h"
 #include "library/locals.h"
 #include "library/constants.h"
 #include "library/replace_visitor.h"
@@ -145,9 +146,19 @@ struct congr_lemma_manager::imp {
         }
     }
 
+    void trace_too_many_arguments(expr const & fn, unsigned nargs) {
+        lean_trace("congruence_manager", tout() << "failed to generate lemma for (" << fn << ") with " << nargs
+                   << " arguments, too many arguments\n";);
+    }
+
+    void trace_app_builder_failure(expr const & fn) {
+        lean_trace("congruence_manager", tout() << "failed to generate lemma for (" << fn << "), "
+                   << " failed to build proof (enable 'trace.app_builder' for details\n";);
+    }
+
     optional<result> mk_congr_simp(expr const & fn, buffer<param_info> const & pinfos, buffer<congr_arg_kind> const & kinds) {
         try {
-            expr fn_type = whnf(infer(fn));
+            expr fn_type = relaxed_whnf(infer(fn));
             name e_name("e");
             buffer<expr> lhss;
             buffer<expr> rhss;          // it contains the right-hand-side argument
@@ -155,6 +166,7 @@ struct congr_lemma_manager::imp {
             buffer<expr> hyps;          // contains lhss + rhss + eqs
             for (unsigned i = 0; i < pinfos.size(); i++) {
                 if (!is_pi(fn_type)) {
+                    trace_too_many_arguments(fn, pinfos.size());
                     return optional<result>();
                 }
                 expr lhs = m_ctx.mk_tmp_local(binding_name(fn_type), binding_domain(fn_type));
@@ -183,7 +195,7 @@ struct congr_lemma_manager::imp {
                     eqs.push_back(none_expr());
                     break;
                 }}
-                fn_type  = whnf(instantiate(binding_body(fn_type), lhs));
+                fn_type  = relaxed_whnf(instantiate(binding_body(fn_type), lhs));
             }
             expr lhs = mk_app(fn, lhss);
             expr rhs = mk_app(fn, rhss);
@@ -198,6 +210,7 @@ struct congr_lemma_manager::imp {
             congr_proof = Fun(hyps, congr_proof);
             return optional<result>(congr_type, congr_proof, to_list(kinds));
         } catch (app_builder_exception &) {
+            trace_app_builder_failure(fn);
             return optional<result>();
         }
     }
@@ -215,6 +228,7 @@ struct congr_lemma_manager::imp {
             buffer<expr> simp_lemma_args;
             for (unsigned i = 0; i < pinfos.size(); i++) {
                 if (!is_pi(fn_type1)) {
+                    trace_too_many_arguments(fn, pinfos.size());
                     return optional<result>();
                 }
                 expr lhs = m_ctx.mk_tmp_local(binding_name(fn_type1), binding_domain(fn_type1));
@@ -292,6 +306,7 @@ struct congr_lemma_manager::imp {
             expr congr_proof = Fun(hyps, m_builder.mk_eq_trans(pr1, pr2));
             return optional<result>(congr_type, congr_proof, to_list(kinds));
         } catch (app_builder_exception &) {
+            trace_app_builder_failure(fn);
             return optional<result>();
         }
     }
@@ -300,6 +315,8 @@ public:
     imp(app_builder & b, fun_info_manager & fm):
         m_builder(b), m_fmanager(fm), m_ctx(fm.ctx()),
         m_relation_info_getter(mk_relation_info_getter(fm.ctx().env())) {}
+
+    type_context & ctx() { return m_ctx; }
 
     optional<result> mk_congr_simp(expr const & fn) {
         fun_info finfo = m_fmanager.get(fn);
@@ -320,7 +337,8 @@ public:
             if (std::find(result_deps.begin(), result_deps.end(), i) != result_deps.end()) {
                 kinds[i] = congr_arg_kind::Fixed;
             } else if (pinfos[i].is_subsingleton()) {
-                if (empty(pinfos[i].get_dependencies()))
+                // See comment at mk_congr.
+                if (!pinfos[i].is_prop() && pinfos[i].is_dep())
                     kinds[i] = congr_arg_kind::Fixed;
                 else
                     kinds[i] = congr_arg_kind::Cast;
@@ -472,6 +490,7 @@ public:
             m_rel_cache[is_iff].insert(mk_pair(k, res));
             return optional<result>(res);
         } catch (app_builder_exception &) {
+            trace_app_builder_failure(R);
             return optional<result>();
         }
     }
@@ -492,6 +511,8 @@ congr_lemma_manager::congr_lemma_manager(app_builder & b, fun_info_manager & fm)
 congr_lemma_manager::~congr_lemma_manager() {
 }
 
+type_context & congr_lemma_manager::ctx() { return m_ptr->ctx(); }
+
 auto congr_lemma_manager::mk_congr_simp(expr const & fn) -> optional<result> {
     return m_ptr->mk_congr_simp(fn);
 }
@@ -511,5 +532,12 @@ auto congr_lemma_manager::mk_rel_iff_congr(expr const & R) -> optional<result> {
 
 auto congr_lemma_manager::mk_rel_eq_congr(expr const & R) -> optional<result> {
     return m_ptr->mk_rel_eq_congr(R);
+}
+
+void initialize_congr_lemma_manager() {
+    register_trace_class("congruence_manager");
+}
+
+void finalize_congr_lemma_manager() {
 }
 }

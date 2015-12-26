@@ -122,7 +122,7 @@ struct structure_cmd_fn {
     /** \brief Parse structure name and (optional) universe parameters */
     void parse_decl_name() {
         m_name_pos = m_p.pos();
-        m_name = m_p.check_atomic_id_next("invalid 'structure', identifier expected");
+        m_name = m_p.check_atomic_decl_id_next("invalid 'structure', identifier expected");
         m_name = m_namespace + m_name;
         buffer<name> ls_buffer;
         if (parse_univ_params(m_p, ls_buffer)) {
@@ -306,6 +306,7 @@ struct structure_cmd_fn {
         }
         for (expr const & p : m_params)
             ::lean::collect_locals(mlocal_type(p), dep_set);
+        collect_annonymous_inst_implicit(m_p, dep_set);
         buffer<expr> ctx;
         sort_locals(dep_set.get_collected(), m_p, ctx);
 
@@ -693,7 +694,7 @@ struct structure_cmd_fn {
         add_alias(m_mk);
         add_rec_alias(rec_name);
         if (m_modifiers.is_class())
-            m_env = add_class(m_env, m_name);
+            m_env = add_class(m_env, m_name, get_namespace(m_env), true);
     }
 
     void save_def_info(name const & n) {
@@ -723,9 +724,9 @@ struct structure_cmd_fn {
         declaration new_decl = mk_definition(m_env, n, rec_on_decl.get_univ_params(),
                                              rec_on_decl.get_type(), rec_on_decl.get_value());
         m_env = module::add(m_env, check(m_env, new_decl));
-        m_env = set_reducible(m_env, n, reducible_status::Reducible);
+        m_env = set_reducible(m_env, n, reducible_status::Reducible, get_namespace(m_env), true);
         if (list<unsigned> idx = has_unfold_hint(m_env, rec_on_name))
-            m_env = add_unfold_hint(m_env, n, idx);
+            m_env = add_unfold_hint(m_env, n, idx, get_namespace(m_env), true);
         save_def_info(n);
         add_alias(n);
     }
@@ -814,15 +815,15 @@ struct structure_cmd_fn {
             bool use_conv_opt              = false;
             declaration coercion_decl      = mk_definition(m_env, coercion_name, lnames, coercion_type, coercion_value, use_conv_opt);
             m_env = module::add(m_env, check(m_env, coercion_decl));
-            m_env = set_reducible(m_env, coercion_name, reducible_status::Reducible);
+            m_env = set_reducible(m_env, coercion_name, reducible_status::Reducible, get_namespace(m_env), true);
             save_def_info(coercion_name);
             add_alias(coercion_name);
             if (!m_private_parents[i]) {
                 if (!m_modifiers.is_class() || !is_class(m_env, parent_name))
-                    m_env = add_coercion(m_env, m_p.ios(), coercion_name);
+                    m_env = add_coercion(m_env, m_p.ios(), coercion_name, get_namespace(m_env), true);
                 if (m_modifiers.is_class() && is_class(m_env, parent_name)) {
                     // if both are classes, then we also mark coercion_name as an instance
-                    m_env = add_trans_instance(m_env, coercion_name);
+                    m_env = add_trans_instance(m_env, coercion_name, get_namespace(m_env), true);
                 }
             }
         }

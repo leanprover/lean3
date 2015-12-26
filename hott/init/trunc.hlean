@@ -11,8 +11,9 @@ Ported from Coq HoTT.
 --TODO: can we replace some definitions with a hprop as codomain by theorems?
 
 prelude
-import .logic .equiv .types .pathover
+import .nat .logic .equiv .pathover
 open eq nat sigma unit
+--set_option class.force_new true
 
 namespace is_trunc
 
@@ -22,32 +23,53 @@ namespace is_trunc
   | minus_two : trunc_index
   | succ : trunc_index → trunc_index
 
+  open trunc_index
+
+  definition has_zero_trunc_index [instance] [reducible] : has_zero trunc_index :=
+  has_zero.mk (succ (succ minus_two))
+
+  definition has_one_trunc_index [instance] [reducible] : has_one trunc_index :=
+  has_one.mk (succ (succ (succ minus_two)))
+
   /-
      notation for trunc_index is -2, -1, 0, 1, ...
      from 0 and up this comes from a coercion from num to trunc_index (via nat)
   -/
+  notation `-1` := trunc_index.succ trunc_index.minus_two -- ISSUE: -1 gets printed as -2.+1?
+  notation `-2` := trunc_index.minus_two
   postfix ` .+1`:(max+1) := trunc_index.succ
   postfix ` .+2`:(max+1) := λn, (n .+1 .+1)
-  notation `-2` := trunc_index.minus_two
-  notation `-1` := -2.+1 -- ISSUE: -1 gets printed as -2.+1
-  export [coercions] nat
-  notation `ℕ₋₂` := trunc_index
+  notation `ℕ₋₂` := trunc_index -- input using \N-2
 
   namespace trunc_index
-  definition add (n m : trunc_index) : trunc_index :=
+  --addition, where we add two to the result
+  definition add_plus_two [reducible] (n m : trunc_index) : trunc_index :=
   trunc_index.rec_on m n (λ k l, l .+1)
 
-  definition leq (n m : trunc_index) : Type₀ :=
+  -- addition of trunc_indices, where results smaller than -2 are changed to -2
+  definition tr_add (n m : trunc_index) : trunc_index :=
+  trunc_index.cases_on m
+    (trunc_index.cases_on n -2 (λn', (trunc_index.cases_on n' -2 id)))
+    (λm', trunc_index.cases_on m'
+      (trunc_index.cases_on n -2 id)
+      (trunc_index.rec n (λn' r, succ r)))
+
+  definition leq [reducible] (n m : trunc_index) : Type₀ :=
   trunc_index.rec_on n (λm, unit) (λ n p m, trunc_index.rec_on m (λ p, empty) (λ m q p, p m) p) m
-  infix <= := trunc_index.leq
-  infix ≤  := trunc_index.leq
+
+  definition has_le_trunc_index [instance] [reducible] : has_le trunc_index :=
+  has_le.mk leq
+
   end trunc_index
 
-  infix `+2+`:65 := trunc_index.add
+  attribute trunc_index.tr_add [reducible]
+  infix `+2+`:65 := trunc_index.add_plus_two
+  definition has_add_trunc_index [instance] [reducible] : has_add ℕ₋₂ :=
+  has_add.mk trunc_index.tr_add
 
   namespace trunc_index
-  definition succ_le_succ {n m : trunc_index} (H : n ≤ m) : n.+1 ≤ m.+1 := H
-  definition le_of_succ_le_succ {n m : trunc_index} (H : n.+1 ≤ m.+1) : n ≤ m := H
+  definition succ_le_succ {n m : trunc_index} (H : n ≤ m) : n.+1 ≤ m.+1 := proof H qed
+  definition le_of_succ_le_succ {n m : trunc_index} (H : n.+1 ≤ m.+1) : n ≤ m := proof H qed
   definition minus_two_le (n : trunc_index) : -2 ≤ n := star
   definition le.refl (n : trunc_index) : n ≤ n := by induction n with n IH; exact star; exact IH
   definition empty_of_succ_le_minus_two {n : trunc_index} (H : n .+1 ≤ -2) : empty := H
@@ -157,7 +179,7 @@ namespace is_trunc
 
   -- these must be definitions, because we need them to compute sometimes
   definition is_trunc_of_is_contr (A : Type) (n : trunc_index) [H : is_contr A] : is_trunc n A :=
-  trunc_index.rec_on n H _
+  trunc_index.rec_on n H (λn H, _)
 
   definition is_trunc_succ_of_is_hprop (A : Type) (n : trunc_index) [H : is_hprop A]
       : is_trunc (n.+1) A :=
@@ -165,7 +187,7 @@ namespace is_trunc
 
   definition is_trunc_succ_succ_of_is_hset (A : Type) (n : trunc_index) [H : is_hset A]
       : is_trunc (n.+2) A :=
-  is_trunc_of_leq A (show 0 ≤ n.+2, from star)
+  @(is_trunc_of_leq A (show 0 ≤ n.+2, from proof star qed)) H
 
   /- hprops -/
 
@@ -280,6 +302,7 @@ namespace is_trunc
 
   open equiv
   -- A contractible type is equivalent to [Unit]. *)
+  variable (A)
   definition equiv_unit_of_is_contr [H : is_contr A] : A ≃ unit :=
   equiv.MK (λ (x : A), ⋆)
            (λ (u : unit), center A)
@@ -287,6 +310,7 @@ namespace is_trunc
            (λ (x : A), center_eq x)
 
   /- interaction with pathovers -/
+  variable {A}
   variables {C : A → Type}
             {a a₂ : A} (p : a = a₂)
             (c : C a) (c₂ : C a₂)

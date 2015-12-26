@@ -4,6 +4,7 @@ Released under Apache 2.0 license as described in the file LICENSE.
 
 Author: Leonardo de Moura
 */
+#include "library/trace.h"
 #include "library/constants.h"
 #include "library/unifier.h"
 #include "library/kernel_serializer.h"
@@ -28,6 +29,7 @@ Author: Leonardo de Moura
 #include "library/idx_metavar.h"
 #include "library/sorry.h"
 #include "library/placeholder.h"
+#include "library/light_lt_manager.h"
 #include "library/print.h"
 #include "library/fingerprint.h"
 #include "library/util.h"
@@ -42,12 +44,16 @@ Author: Leonardo de Moura
 #include "library/aux_recursors.h"
 #include "library/decl_stats.h"
 #include "library/meng_paulson.h"
-#include "library/norm_num.h"
 #include "library/class_instance_resolution.h"
 #include "library/type_context.h"
+#include "library/congr_lemma_manager.h"
+#include "library/app_builder.h"
+#include "library/attribute_manager.h"
 
 namespace lean {
 void initialize_library_module() {
+    initialize_attribute_manager();
+    initialize_trace();
     initialize_constants();
     initialize_fingerprint();
     initialize_print();
@@ -86,15 +92,19 @@ void initialize_library_module() {
     initialize_aux_recursors();
     initialize_decl_stats();
     initialize_meng_paulson();
-    initialize_norm_num();
     initialize_class_instance_resolution();
     initialize_type_context();
+    initialize_light_rule_set();
+    initialize_congr_lemma_manager();
+    initialize_app_builder();
 }
 
 void finalize_library_module() {
+    finalize_app_builder();
+    finalize_congr_lemma_manager();
+    finalize_light_rule_set();
     finalize_type_context();
     finalize_class_instance_resolution();
-    finalize_norm_num();
     finalize_meng_paulson();
     finalize_decl_stats();
     finalize_aux_recursors();
@@ -133,5 +143,7 @@ void finalize_library_module() {
     finalize_print();
     finalize_fingerprint();
     finalize_constants();
+    finalize_trace();
+    finalize_attribute_manager();
 }
 }

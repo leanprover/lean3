@@ -12,6 +12,7 @@ Author: Leonardo de Moura
 #include "library/constants.h"
 #include "library/scoped_ext.h"
 #include "library/relation_manager.h"
+#include "library/attribute_manager.h"
 
 namespace lean {
 // Check whether e is of the form (f ...) where f is a constant. If it is return f.
@@ -185,24 +186,24 @@ struct rel_config {
 template class scoped_ext<rel_config>;
 typedef scoped_ext<rel_config> rel_ext;
 
-environment add_relation(environment const & env, name const & n, bool persistent) {
-    return rel_ext::add_entry(env, get_dummy_ios(), rel_entry(op_kind::Relation, n), persistent);
+environment add_relation(environment const & env, name const & n, name const & ns, bool persistent) {
+    return rel_ext::add_entry(env, get_dummy_ios(), rel_entry(op_kind::Relation, n), ns, persistent);
 }
 
-environment add_subst(environment const & env, name const & n, bool persistent) {
-    return rel_ext::add_entry(env, get_dummy_ios(), rel_entry(op_kind::Subst, n), persistent);
+environment add_subst(environment const & env, name const & n, name const & ns, bool persistent) {
+    return rel_ext::add_entry(env, get_dummy_ios(), rel_entry(op_kind::Subst, n), ns, persistent);
 }
 
-environment add_refl(environment const & env, name const & n, bool persistent) {
-    return rel_ext::add_entry(env, get_dummy_ios(), rel_entry(op_kind::Refl, n), persistent);
+environment add_refl(environment const & env, name const & n, name const & ns, bool persistent) {
+    return rel_ext::add_entry(env, get_dummy_ios(), rel_entry(op_kind::Refl, n), ns, persistent);
 }
 
-environment add_symm(environment const & env, name const & n, bool persistent) {
-    return rel_ext::add_entry(env, get_dummy_ios(), rel_entry(op_kind::Symm, n), persistent);
+environment add_symm(environment const & env, name const & n, name const & ns, bool persistent) {
+    return rel_ext::add_entry(env, get_dummy_ios(), rel_entry(op_kind::Symm, n), ns, persistent);
 }
 
-environment add_trans(environment const & env, name const & n, bool persistent) {
-    return rel_ext::add_entry(env, get_dummy_ios(), rel_entry(op_kind::Trans, n), persistent);
+environment add_trans(environment const & env, name const & n, name const & ns, bool persistent) {
+    return rel_ext::add_entry(env, get_dummy_ios(), rel_entry(op_kind::Trans, n), ns, persistent);
 }
 
 static optional<relation_lemma_info> get_info(name_map<relation_lemma_info> const & table, name const & op) {
@@ -329,6 +330,29 @@ void initialize_relation_manager() {
     g_rel_name = new name("rel");
     g_key       = new std::string("rel");
     rel_ext::initialize();
+    register_attribute("refl", "reflexive relation",
+                       [](environment const & env, io_state const &, name const & d, name const & ns, bool persistent) {
+                           return add_refl(env, d, ns, persistent);
+                       },
+                       is_refl_relation);
+
+    register_attribute("symm", "symmetric relation",
+                       [](environment const & env, io_state const &, name const & d, name const & ns, bool persistent) {
+                           return add_symm(env, d, ns, persistent);
+                       },
+                       is_symm_relation);
+
+    register_attribute("trans", "transitive relation",
+                       [](environment const & env, io_state const &, name const & d, name const & ns, bool persistent) {
+                           return add_trans(env, d, ns, persistent);
+                       },
+                       is_trans_relation);
+
+    register_attribute("subst", "substitution",
+                       [](environment const & env, io_state const &, name const & d, name const & ns, bool persistent) {
+                           return add_subst(env, d, ns, persistent);
+                       },
+                       [](environment const & env, name const & n) { return static_cast<bool>(get_subst_extra_info(env, n)); });
 }
 
 void finalize_relation_manager() {
