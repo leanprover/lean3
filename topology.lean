@@ -1,601 +1,506 @@
 /-
 Copyright (c) 2015 Jacob Gross. All rights reserved.
 Released under Apache 2.0 license as described in the file LICENSE.
-Authors: Jacob Gross
+Authors: Jacob Gross, Jeremy Avigad
 
-Open/Closed sets, seperation axioms and generator topologies
+Open and closed sets, seperation axioms and generator topologies.
 -/
+import data.set data.nat
+open algebra eq.ops set nat
 
-import data.set data.nat data.real
-open algebra eq.ops set nat real
+/- some useful things involving sets -- to move to data.sets -/
 
-variable {X : Type}
+prefix `⋃₀`:110 := sUnion
+notation `⋃` binders, r:(scoped f, Union f) := r
+notation `⋃` binders `∈` s, r:(scoped f, bUnion s f) := r
+prefix `⋂₀`:110 := sInter
+notation `⋂` binders, r:(scoped f, Inter f) := r
+notation `⋂` binders `∈` s, r:(scoped f, bInter s f) := r
 
-structure topology (X : Type) :=
-  (top : set (set X))
-  (empty : ∅ ∈ top)
-  (univ : univ ∈ top)
-  (union : ∀ I : Type.{1}, ∀ s : I → set X, (∀ i, s i ∈ top) → (Union s) ∈ top)
-  (fin_inter : ∀ s, finite s → s ⊆ top → (sInter s ∈ top))
+theorem comp_empty {X : Type} : -(∅ : set X) = univ :=
+ext (take x, iff.intro (assume H, trivial) (assume H, not_false))
 
-attribute topology [class]
-attribute topology.top [coercion]
-
-namespace top
-
-definition openset [τ : topology X] (s : set X) : Prop := s ∈ τ
-
-private definition bin_ext (A B : set X)  : ℕ → set X := 
-  λ i, if i ≤ 1 then (if i = 0 then A else B) else ∅
-
-theorem bin_union_open {τ : topology X} {A B : set X} (OpA : A ∈ τ) (OpB : B ∈ τ) :
-  A ∪ B ∈ τ := 
-have H : Union (bin_ext A B) = A ∪ B, from ext(
-  take x,
-  iff.intro
-    (suppose x ∈ Union (bin_ext A B), 
-      obtain i (Hi : x ∈ (bin_ext A B) i), from this,
-      assert i ≤ 1, from not_not_elim
-     (not.intro(
-       suppose ¬(i ≤ 1),
-       have (bin_ext A B) i = ∅, by rewrite[↑bin_ext, if_neg this],
-       have x ∈ ∅, from this ▸ Hi,
-       show false, from absurd this !not_mem_empty)),
-      show x ∈ A ∪ B, from
-        if Hp : i ≤ 1 then
-          if Hpp : i = 0 then
-           have (bin_ext A B) i = A, by rewrite[↑bin_ext, if_pos Hp, if_pos Hpp],
-           have x ∈ A, from this ▸ Hi,
-           show x ∈ A ∪ B, from !mem_union_left this
-          else 
-           have (bin_ext A B) i = B, by rewrite[↑bin_ext, if_pos Hp, if_neg Hpp],
-           have x ∈ B, from this ▸ Hi,
-           show x ∈ A ∪ B, from !mem_union_right this 
-        else
-         have (bin_ext A B) i = ∅, by rewrite[↑bin_ext, if_neg Hp],
-         have x ∈ ∅, from this ▸ Hi,
-         show x ∈ A ∪ B, from !not.elim !not_mem_empty this)
-    (suppose x ∈ A ∪ B, 
-     assert A ∪ B ⊆ Union (bin_ext A B), from
-     take x,
-     suppose x ∈ A ∪ B,
-       or.elim 
-         (mem_or_mem_of_mem_union `x ∈ A ∪ B`) 
-         (suppose x ∈ A, exists.intro 0 this)
-         (suppose x ∈ B, exists.intro 1 this),
-    show x ∈ Union (bin_ext A B), from (!mem_of_subset_of_mem this) `x ∈ A ∪ B`)),
-have ∀ i, (bin_ext A B) i ∈ τ, from 
-   take i,
-   if Hp : i ≤ 1 then
-     if Hpp : i = 0 then
-       by rewrite[↑bin_ext, if_pos Hp, if_pos Hpp]; exact OpA
-     else
-       by rewrite[↑bin_ext, if_pos Hp, if_neg Hpp]; exact OpB
-     else 
-       by rewrite[↑bin_ext, if_neg Hp]; exact !topology.empty,
-have Union (bin_ext A B) ∈ τ, from !topology.union this,
-show  A ∪ B ∈ τ, from H ▸ this
-
-theorem fin_union_open {τ : topology X} (S : set (set X)) {fin : finite S} :
-  (∀ s, s ∈ S → openset s) → openset (sUnion S) := 
-!induction_on_finite
-  (suppose ∀ s, s ∈ ∅ → openset s,
-     have sUnion ∅ = ∅, from ext (λx, iff.intro
-          (suppose x ∈ sUnion ∅,
-            obtain c [(hc : c ∈ ∅) (xc : x ∈ c)], from this,
-            show _, from !not.elim !not_mem_empty hc)
-          (suppose x ∈ ∅, !not.elim !not_mem_empty this)),
-   show openset (sUnion ∅), from this⁻¹ ▸ !topology.empty)
-  (begin
-   intro a s fins,
-   λ H₁, λ H₂, λ H₃,
-   !sUnion_insert⁻¹ ▸ (!bin_union_open (H₃ a !mem_insert) (H₂(
-     λ s, λ s', H₃ s (!mem_insert_of_mem s'))))
-   end)
-
-theorem bin_inter_open {τ : topology X} {A B : set X} (OpA : A ∈ τ) (OpB : B ∈ τ) :
-  A ∩ B ∈ τ :=
-have finite (∅ : set X), from !finite_empty,
-have '{A} = insert A ∅, from ext(
-  take x,
-  iff.intro
-    (assume xA, ((iff.elim_left !mem_singleton_iff) xA)⁻¹ ▸ !mem_insert)
-    (suppose x ∈ insert A ∅, or.elim 
-      (!eq_or_mem_of_mem_insert this)
-      (suppose x = A, this⁻¹ ▸ !mem_singleton)
-      (suppose x ∈ ∅, !not.elim !not_mem_empty this))),
-have finite '{A}, from finite_insert A ∅,
-have {x | x = A ∨ x = B} = insert B '{A}, from ext(
-  take x,
-  iff.intro
-    (suppose x ∈ {x | x = A ∨ x = B}, or.elim this
-        (suppose x = A, !mem_insert_of_mem (this⁻¹ ▸ !mem_singleton))
-        (suppose x = B, this⁻¹ ▸ !mem_insert))
-    (suppose x ∈ insert B '{A}, or.elim (!eq_or_mem_of_mem_insert this)
-        (suppose x = B, or.inr this)
-        (suppose x ∈ '{A}, or.inl ((iff.elim_left !mem_singleton_iff) this)))),
-have finite {x | x = A ∨ x = B}, from this⁻¹ ▸ (finite_insert B '{A}),
-have {x | x = A ∨ x = B} ⊆ τ, from
-  take y,
-  suppose y ∈ {x | x = A ∨ x = B},
-  show y ∈ τ, from or.elim
-    (this)
-    (suppose y = A, this⁻¹ ▸ OpA)
-    (suppose y = B, this⁻¹ ▸ OpB),
-have H : sInter {x | x = A ∨ x = B} ∈ τ, from !topology.fin_inter `finite {x | x = A ∨ x = B}` this,
-have A ∩ B = sInter {x | x = A ∨ x = B}, from ext(
-  take x,
-  iff.intro
-    (suppose x ∈ A ∩ B, 
-      take y,
-      suppose y ∈ {x | x = A ∨ x = B}, 
-      show x ∈ y, from or.elim
-        (this)
-        (suppose y = A,
-          have x ∈ A, from and.elim_left `x ∈ A ∩ B`,
-          show x ∈ y, from `y = A`⁻¹ ▸ this)
-        (suppose y = B, 
-          have x ∈ B, from and.elim_right `x ∈ A ∩ B`,
-          show x ∈ y, from `y = B`⁻¹ ▸ this))
-    (suppose x ∈ sInter {x | x = A ∨ x = B}, 
-      have H : ∀ y, y ∈ {x | x = A ∨ x = B} → x ∈ y, from this,
-      have x ∈ A, from (H A) (or.inl rfl),
-      have x ∈ B, from (H B) (or.inr rfl),
-      show x ∈ A ∩ B, from and.intro `x ∈ A` `x ∈ B`)),
-show _, from this⁻¹ ▸ H
-
-definition closedset [τ : topology X] (s : set X) : Prop := univ \ s ∈ τ
-
-theorem space_closed {τ : topology X} :
-  closedset (@univ X) := 
-have univ\univ = ∅, from ext(
-  take x,
-  iff.intro
-    (suppose x ∈ univ\univ, !not.elim (and.elim_right this) (and.elim_left this))
-    (suppose x ∈ ∅, !not.elim !not_mem_empty this)),
-show univ\univ ∈ τ, from this⁻¹ ▸ !topology.empty
-
-theorem empty_closed (τ : topology X) :
-   univ \ ∅ ∈ τ := 
-have univ \ ∅ = univ, from ext(
-  take x,
-  iff.intro
-    (suppose x ∈ univ \ ∅, and.elim_left this)
-    (suppose x ∈ univ, and.intro this !not_mem_empty)),
-show _, from this⁻¹ ▸ !topology.univ
+theorem comp_union {X : Type} (s t : set X) : -(s ∪ t) = -s ∩ -t :=
+ext (take x, !not_or_iff_not_and_not)
 
 section
-
-open classical
-
-lemma diff_diff_univ (A : set X) :
-  univ \ (univ \ A ) = A := 
-ext(
-  take x,
-  iff.intro
-    (suppose x ∈ univ \ (univ \ A ), 
-      have ¬(x ∈ univ ∧ x ∉ A), from and.elim_right this,
-      have ¬(x ∈ univ) ∨ ¬(x ∉ A), from (and.elim_left !not_and_iff_not_or_not) this,
-      have ¬¬(x ∈ univ), from (and.elim_right not_not_iff) (and.elim_left `x ∈ (@univ X) \ ( (@univ X) \ A )`),
-      have ¬(x ∉ A), from or_resolve_right `¬(x ∈ univ) ∨ ¬(x ∉ A)` this,
-      show _, from not_not_elim this)
-    (suppose x ∈ A, 
-      have ¬¬(x ∈ A), from (and.elim_right !not_not_iff) this,
-      have ¬(x ∈ univ) ∨ ¬¬(x ∈ A), from or.inr this,
-      have ¬(x ∈ univ ∧ x ∉ A), from (and.elim_right !not_and_iff_not_or_not) this,
-      show _, from and.intro !mem_univ this))
-
-theorem bin_inter_closed {τ : topology X} (A B : set X) (CloA : closedset A) (CloB: closedset B) :
-  closedset (A ∩ B) :=
- have H : closedset (univ \ (univ \ A ∪ univ \ B)), from
-   begin
-     rewrite[↑closedset, diff_diff_univ],
-     exact !bin_union_open CloA CloB,
-   end,
- have A ∩ B = univ \ (univ \ A ∪ univ \ B), from ext(
- take x,
- iff.intro
-   (suppose x ∈ A ∩ B,
-     have x ∈ univ, from !mem_univ,
-     have x ∉ (univ \ A ∪ univ \ B), from not.intro(
-       suppose x ∈ (univ \ A ∪ univ \ B),
-       show false, from or.elim this
-         (suppose x ∈ univ ∧ x ∉ A, absurd (and.elim_left `x ∈ A ∩ B`) (and.elim_right this))
-         (suppose x ∈ univ ∧ x ∉ B, absurd (and.elim_right `x ∈ A ∩ B`) (and.elim_right this))),
-     show _, from and.intro `x ∈ univ` this)
-   (suppose x ∈ univ \ (univ \ A ∪ univ \ B),
-     have H : x ∈ univ ∧ x ∉ (univ \ A ∪ univ \ B), from this,
-     have ¬(x ∈ (univ \ A ∪ univ \ B)), from and.elim_right this,
-     have H1 : ¬(x ∈ (univ \ A)) ∧ ¬(x ∈ (univ \ B)), from (iff.elim_left !not_or_iff_not_and_not this),
-     have ¬(x ∈ univ ∧ x ∉ A), from and.elim_left H1,
-     have ¬(x ∈ univ) ∨ ¬(x ∉ A), from (iff.elim_left !not_and_iff_not_or_not) this, 
-     have ¬¬(x ∈ univ), from (iff.elim_right not_not_iff) (and.elim_left H),
-     have x ∈ A, from not_not_elim (or_resolve_right `¬(x ∈ univ) ∨ ¬(x ∉ A)` this),
-     have ¬(x ∈ univ ∧ x ∉ B), from and.elim_right H1,
-     have ¬(x ∈ univ) ∨ ¬(x ∉ B), from (iff.elim_left !not_and_iff_not_or_not) this, 
-     have x ∈ B, from not_not_elim (or_resolve_right this `¬¬(x ∈ univ)`),
-     show _, from and.intro `x ∈ A` `x ∈ B`)),
- show _, from this⁻¹ ▸ H
-
-theorem closed_diff {τ : topology X} (A B : set X) (CloA : closedset A) (OpB : openset B) :
-  closedset (A \ B) :=
-have H : A \ B = A ∩ (univ\B), from ext(
-  take x,
-  iff.intro
-    (suppose x ∈ A \ B, and.intro (and.elim_left `x ∈ A \ B`) ( and.intro !mem_univ (and.elim_right this)))
-    (suppose x ∈ A ∩ (univ\B), and.intro (and.elim_left this) (and.elim_right (and.elim_right this)))),
-have closedset (univ\B), by rewrite[↑closedset]; exact (!diff_diff_univ⁻¹ ▸ OpB),
-have closedset (A ∩ (univ\B)), from !bin_inter_closed CloA this,
-show _, from H⁻¹ ▸ this
-
-theorem cinter_closed (τ : topology X) (S : ℕ → set X) :
-  (∀ i, closedset (S i)) → closedset (Inter S) := 
-suppose ∀ i, closedset (S i),
-have openset (Union (λ i, univ\(S i))), from !topology.union (take i, this i),
-have H : openset (univ\(univ\(Union (λ i, univ\(S i))))), from !diff_diff_univ⁻¹ ▸ this,
-have Inter S = univ\(Union (λ i, univ\(S i))), from ext(
-  take x,
-  iff.intro
-    (suppose x ∈ Inter S,
-      have x ∉ (Union (λ i, univ\(S i))), from not.intro(
-        suppose x ∈ (Union (λ i, univ\(S i))),
-        obtain i (Hi : x ∈ univ\(S i)), from this,
-        have x ∉ S i, from and.elim_right Hi,
-        have ∀ i, x ∈ S i, from `x ∈ Inter S`,
-        absurd  (this i) `x ∉ S i`),
-      show _, from and.intro !mem_univ this)
-    (suppose x ∈ univ\(Union (λ i, univ\(S i))),
-      have ¬ ∃ i, x ∈ univ\(S i), from and.elim_right this,
-      have ∀ i, x ∉ (univ\(S i)), from iff.elim_left !forall_iff_not_exists this,
-      have ∀ i, x ∈ S i, from 
-        take i,
-        have ¬(x ∈ univ ∧ x ∉ S i), from `∀ i, x ∉ (univ\(S i))` i,
-        have x ∉ univ ∨ ¬(x ∉ S i), from iff.elim_left !not_and_iff_not_or_not this,
-        or.elim
-          this
-          (suppose x ∉ univ, !not.elim this !mem_univ)
-          (suppose ¬(x ∉ S i), not_not_elim this),
-      show _, from this)),
-show _, from this⁻¹ ▸ H
-
-end 
-
-theorem bin_union_closed {τ : topology X} (A B : set X) (CloA : closedset A) (CloB : closedset B) :
-  closedset (A ∪ B) := 
-have H : univ \ (A ∪ B) = (univ \ A) ∩ (univ \ B), from ext(
-  take x,
-  iff.intro
-    (suppose x ∈ univ \ (A ∪ B),
-      have ¬(x ∈ A ∨ x ∈ B), from and.elim_right this,
-      have x ∉ A ∧ x ∉ B, from (and.elim_left !not_or_iff_not_and_not) this,
-      have x ∈ (univ \ A), from and.intro !mem_univ (and.elim_left this),
-      have x ∈ (univ \ B), from and.intro !mem_univ (and.elim_right `x ∉ A ∧ x ∉ B`),
-      show _, from and.intro `x ∈ (univ \ A)` this)
-    (suppose x ∈ (univ \ A) ∩ (univ \ B),
-      have x ∉ A, from and.elim_right (and.elim_left this),
-      have x ∉ B, from and.elim_right (and.elim_right `x ∈ (univ \ A) ∩ (univ \ B)`),
-      have ¬(x ∈ A ∨ x ∈ B), from  (and.elim_right !not_or_iff_not_and_not) (and.intro `x ∉ A` this), 
-      show _, from and.intro !mem_univ this)),
-have openset ((univ \ A) ∩ (univ \ B)), from !bin_inter_open CloA CloB, 
-show openset (univ \ (A ∪ B)), from H⁻¹ ▸ this
-
-theorem fin_union_closed {τ : topology X} (S : set (set X)) {fin : finite S} :
-  (∀ s, s ∈ S → closedset s) → closedset (sUnion S) := 
-!induction_on_finite
-  (suppose ∀ s, s ∈ ∅ → closedset s, 
-        have sUnion ∅ = ∅, from ext (λx, iff.intro
-          (suppose x ∈ sUnion ∅,
-            obtain c [(hc : c ∈ ∅) (xc : x ∈ c)], from this,
-            show _, from !not.elim !not_mem_empty hc)
-          (suppose x ∈ ∅, !not.elim !not_mem_empty this)),
-   show closedset (sUnion ∅), from this⁻¹ ▸ !empty_closed)
-  (begin
-    intro a s fins,
-    λ H₁, λ H₂, λ H₃,
-    !sUnion_insert⁻¹ ▸ (!bin_union_closed (H₃ a !mem_insert) (H₂(
-      λ s, λ s', H₃ s (!mem_insert_of_mem s'))))
-   end)
-
-theorem fin_inter_closed {τ : topology X} (S : set (set X)) {fin : finite S} :
-  (∀ s, s ∈ S → closedset s) → closedset (sInter S) := 
-!induction_on_finite
-  (suppose ∀ s, s ∈ ∅ → closedset s,
-   have sInter ∅ = univ, from ext(
-     take x,
-     iff.intro
-       (suppose x ∈ sInter ∅, !mem_univ)
-       (suppose x ∈ univ, 
-           take c,
-           suppose c ∈ ∅,
-           !not.elim !not_mem_empty this)),
-   show closedset (sInter ∅), from this⁻¹ ▸ !space_closed)
-  (begin
-    intro a s fins,
-    λ H₁, λ H₂, λ H₃,
-    !sInter_insert⁻¹ ▸ (!bin_inter_closed (H₃ a !mem_insert) (H₂(
-      λ s, λ s', H₃ s (!mem_insert_of_mem s'))))
-   end)
-
-theorem open_diff {τ : topology X} (A B : set X) (OpA : openset A) (CloB : closedset B) :
-  openset (A \ B) := 
-have H : A \ B = A ∩ (univ\B), from ext(
-  take x,
-  iff.intro
-    (suppose x ∈ A \ B, and.intro (and.elim_left `x ∈ A \ B`) ( and.intro !mem_univ (and.elim_right this)))
-    (suppose x ∈ A ∩ (univ\B), and.intro (and.elim_left this) (and.elim_right (and.elim_right this)))),
-have openset (univ\B), from CloB,
-have openset (A ∩ (univ\B)), from !bin_inter_open OpA this,
-show _, from H⁻¹ ▸ this
-
-/- Seperation  -/
-
-structure T0_space [class] (X : Type) extends topology X :=
- (T0 : ∀ x y, x ≠ y → ∃ U, U ∈ top ∧ ¬(x ∈ U ↔ y ∈ U))
-
-attribute T0_space.top [coercion]
-
-theorem seperation_T0 {τ : T0_space X} :
-  ∀ x y, x ≠ y ↔ ∃ U, U ∈ τ ∧ ¬(x ∈ U ↔ y ∈ U) := 
-take x y,
-iff.intro
-  (suppose x ≠ y, T0_space.T0 x y this)
-  (suppose ∃ U, U ∈ τ ∧ ¬(x ∈ U ↔ y ∈ U),
-    obtain U (HU:  U ∈ τ ∧ ¬(x ∈ U ↔ y ∈ U)), from this,
-    not.intro(
-      suppose x = y,
-      have x ∈ U ↔ y ∈ U, from iff.intro (λ H, `x = y` ▸ H) (λ H, `x = y`⁻¹ ▸ H),
-      show false, from absurd this (and.elim_right HU)))
-
-structure T1_space [class] (X : Type) extends topology X := 
-  (T1 : ∀ x y, x ≠ y → ∃ U, U ∈ top ∧ x ∈ U ∧ y ∉ U)
-
-attribute T1_space.top [coercion]
-
-theorem seperation_T1 {τ : T1_space X} :
-  ∀ x y, x ≠ y ↔ ∃ U, U ∈ τ ∧ x ∈ U ∧ y ∉ U := 
-take x y,
-iff.intro
-  (suppose x ≠ y, T1_space.T1 x y this)
-  (suppose ∃ U, U ∈ τ ∧ x ∈ U ∧ y ∉ U, 
-    obtain U (HU : U ∈ τ ∧ x ∈ U ∧ y ∉ U), from this,
-    not.intro(
-      suppose x = y, 
-      have x ∉ U, from this⁻¹ ▸ (and.elim_right (and.elim_right HU)),
-      show false, from absurd (and.elim_left (and.elim_right HU)) this))
-
-lemma T1_implies_T0 {τ : T1_space X} : 
-  ∀ x y, x ≠ y → ∃ U, U ∈ τ ∧ ¬(x ∈ U ↔ y ∈ U) := 
-take x y,
-suppose x ≠ y,
-obtain U (HU : U ∈ τ ∧ x ∈ U ∧ y ∉ U), from !T1_space.T1 this,
-have ¬(x ∈ U ↔ y ∈ U), from not.intro(
-  suppose x ∈ U ↔ y ∈ U,
-  have ¬(x ∈ U → y ∈ U), from not.intro(
-    suppose x ∈ U → y ∈ U,
-    have y ∈ U, from this (and.elim_left (and.elim_right HU)),
-    have y ∉ U, from and.elim_right (and.elim_right HU),
-    absurd `y ∈ U` this),
-  absurd (iff.elim_left `x ∈ U ↔ y ∈ U`) this),
-have U ∈ τ ∧ ¬(x ∈ U ↔ y ∈ U), from and.intro (and.elim_left HU) this,
-show _, from exists.intro U this
-
-definition T1_space.to_T0_space [trans_instance] [reducible] [τ : T1_space X] :
-T0_space X :=
-⦃ T0_space, 
-  top       := T1_space.top X,
-  empty      := T1_space.empty X,
-  univ    := T1_space.univ X,
-  union     := T1_space.union,
-  fin_inter := T1_space.fin_inter,
-  T0        := T1_implies_T0 ⦄
-
-structure T2_space [class] (X : Type) extends topology X :=
-  (T2 : ∀ x y, x ≠ y → ∃ U V, U ∈ top ∧ V ∈ top ∧ x ∈ U ∧ y ∈ V ∧ (U ∩ V = ∅))
-
-attribute T2_space.top [coercion]
-
-theorem seperation_T2 {τ : T2_space X} : 
-  ∀ x y, x ≠ y ↔ ∃ U V, U ∈ τ ∧ V ∈ τ ∧ x ∈ U ∧ y ∈ V ∧ (U ∩ V = ∅) := 
-take x y,
-iff.intro
-  (suppose x ≠ y, T2_space.T2 x y this)
-  (suppose ∃ U V, U ∈ τ ∧ V ∈ τ ∧ x ∈ U ∧ y ∈ V ∧ (U ∩ V = ∅), 
-    obtain U V (HUV : U ∈ τ ∧ V ∈ τ ∧ x ∈ U ∧ y ∈ V ∧ (U ∩ V = ∅)), from this,
-    have U ∩ V = ∅, from and.elim_right (and.elim_right (and.elim_right (and.elim_right HUV))),
-    have x ∈ U, from and.elim_left (and.elim_right (and.elim_right HUV)),
-    have y ∈ V, from and.elim_left (and.elim_right (and.elim_right (and.elim_right HUV))),
-    show x ≠ y, from
-      not.intro(
-        suppose x = y,
-        have x ∈ V, from this⁻¹ ▸ `y ∈ V`,
-        have x ∈ U ∩ V, from and.intro `x ∈ U` this,
-        have x ∈ ∅, from `U ∩ V = ∅` ▸ this,
-        absurd this !not_mem_empty))
-
-lemma T2_implies_T1 {τ : T2_space X} : 
-  ∀ x y, x ≠ y → ∃ U, U ∈ τ ∧ x ∈ U ∧ y ∉ U := 
-take x y,
-suppose x ≠ y,
-obtain U V (HUV : U ∈ τ ∧ V ∈ τ ∧ x ∈ U ∧ y ∈ V ∧ (U ∩ V = ∅)), from !T2_space.T2 this,
-have y ∉ U, from not.intro(
- suppose y ∈ U,
- have y ∈ V, from and.elim_left (and.elim_right (and.elim_right (and.elim_right HUV))),
- have y ∈ U ∩ V, from and.intro `y ∈ U` this,
- have y ∈ ∅, from (and.elim_right (and.elim_right (and.elim_right (and.elim_right HUV)))) ▸ this,
- absurd this !not_mem_empty),
-have U ∈ τ ∧ x ∈ U ∧ y ∉ U, from and.intro (and.elim_left HUV) (and.intro (and.elim_left (and.elim_right (and.elim_right HUV))) this),
-show _, from exists.intro U this
-
-definition T2_space.to_T1_space [trans_instance] [reducible] [τ : T2_space X] :
-T1_space X :=
-⦃ T1_space, 
-  top       := T2_space.top X,
-  empty     := T2_space.empty X,
-  univ      := T2_space.univ X,
-  union     := T2_space.union,
-  fin_inter := T2_space.fin_inter,
-  T1        := T2_implies_T1 ⦄
-
-structure perfect_space [class] (X : Type) extends topology X :=
-  (perfect : ∀ x, ¬('{x} ∈ top))
-
-/- Generators for Topologies -/
-
-inductive generate_topology (B : set (set X))  : (X → Prop) → Prop :=
-| UNIV : (generate_topology B) (λ x, true) 
-| EMPTY : (generate_topology B) (λ x, false)
-| Int :  ∀ a b, generate_topology B a → generate_topology B b → (generate_topology B (a ∩ b))
-| UN : ∀ I : Type.{1}, ∀ U : I → set X, (∀ i, U i ∈ generate_topology B) → generate_topology B (Union U)
-| Basis : ∀ s, B s → generate_topology B s
-
-lemma generate_topology_Union (A : Type) (B : set (set A)) : 
-  ∀ I : Type.{1}, ∀ U : I → set A, (∀ i, U i ∈ generate_topology B) → Union U ∈ generate_topology B := 
-take I,
-take U : I → set A,
-suppose ∀ i, U i ∈ generate_topology B,
-!generate_topology.UN this
-
-open classical
-
-private lemma fin_inter_ind_step (B : set (set X)) (a : set X) : 
-  ∀ s, a ∉ s → (finite s → s ⊆ (generate_topology B) →  (sInter s ∈ (generate_topology B))) → 
-(finite (insert a s) → (insert a s) ⊆ generate_topology B →  (sInter (insert a s) ∈ generate_topology B)) := 
-take s,
-λ H₁, λ H₂, λ H₃, λ H₄,
-!sInter_insert⁻¹ ▸ (!generate_topology.Int ((H₄ a) !mem_insert)(H₂ (!finite_of_finite_insert H₃) (subset.trans (subset_insert a s) H₄)))
-
-lemma generate_topology_fin_Inter {B : set (set X)} :
-  ∀ s, finite s → s ⊆ (generate_topology B) → (sInter s ∈ (generate_topology B)) := 
-take s,
-if fin : finite s then 
-  !induction_on_finite
-    (suppose finite ∅,
-     suppose ∅ ⊆ (generate_topology B),
-     have (sInter (∅ : set (set X))) = univ, from ext(
-     take x,
-     iff.intro
-       (suppose x ∈ sInter ∅, !mem_univ)
-       (suppose x ∈ univ, 
-           take c,
-           suppose c ∈ ∅,
-           !not.elim !not_mem_empty this)),
-     have univ ∈ (generate_topology B), from generate_topology.UNIV B,
-     show sInter ∅ ∈ (generate_topology B), from `sInter ∅ = univ`⁻¹ ▸ this)
-    (begin
-      intro a s fins,
-      apply !fin_inter_ind_step
-     end)
-else 
-  suppose finite s,
-  suppose s ⊆ (generate_topology B),
-  show sInter s ∈ (generate_topology B), from !not.elim fin `finite s`
-
-definition generate_topology.to_topology [trans_instance] [reducible] (B : set (set X)) :
-  topology X :=
-⦃ topology, 
-  top        := generate_topology B,
-  empty      := generate_topology.EMPTY B,
-  univ       := generate_topology.UNIV B,
-  union      := generate_topology_Union X B,
-  fin_inter  := generate_topology_fin_Inter ⦄
-
-lemma basis_in_topology {B : set (set X)} : B ⊆ (generate_topology.to_topology B) := 
-take s, 
-suppose s ∈ B,
-have s ∈ generate_topology B → s ∈ generate_topology.to_topology B, from 
-  suppose s ∈ generate_topology B,
-  have generate_topology B = topology.top (generate_topology.to_topology B), by rewrite[↑generate_topology.to_topology],
-  show _, from this ▸ (generate_topology.Basis s `s ∈ B`),
-show _, from this (generate_topology.Basis s `s ∈ B`)
-
-end top
-
-/- Linear Order Topologies  -- Move to a different file? -/
-
-namespace order_topology
-
-open top
-
-section
-
-  variable [L : linear_strong_order_pair X]
-  include L
-
-  definition linorder_topology : topology X :=
-    generate_topology.to_topology ({y | ∃ a, y = {x | a < x} } ∪ {y | ∃ a, y = {x | a > x}})
-
-  theorem open_lt {a : X} : {x | a < x} ∈ linorder_topology := 
-    !basis_in_topology (!mem_unionl (exists.intro a rfl))
-
-  theorem open_gt {a : X} : {x | a > x} ∈ linorder_topology := 
-     !basis_in_topology (!mem_unionr (exists.intro a rfl))
-
-  theorem closed_le {a : X} : univ \ {x | a ≤ x} ∈ linorder_topology := 
-    have univ \ {x | a ≤ x} = {x | a > x}, from ext(
-      take y,
-      iff.intro
-        (suppose y ∈ univ \ {x | a ≤ x}, lt_of_not_ge (and.elim_right this))
-        (suppose y ∈ {x | a > x}, 
-          have a > y, from this,
-          have ¬ a ≤ y, from not.intro(
-            suppose a ≤ y,
-            have a < y ∨ a = y, from (iff.elim_left le_iff_lt_or_eq) this,
-            have a < y → false, from assume H, absurd H (lt.asymm `a > y`),
-            have a = y → false, from assume H, absurd H (ne_of_gt `a > y`),
-            or.elim `a < y ∨ a = y` `a < y → false` `a = y → false`),
-          and.intro !mem_univ this)),
-    this⁻¹ ▸ !open_gt
-
-  theorem closed_ge {a : X} : univ \ {x | a ≥ x} ∈ linorder_topology := 
-    have univ \ {x | a ≥ x} = {x | a < x}, from ext(
-      take y,
-      iff.intro
-        (suppose y ∈ univ \ {x | a ≥ x}, lt_of_not_ge (and.elim_right this))
-        (suppose y ∈ {x | a < x},
-          have a < y, from this,
-          have ¬ a ≥ y, from not.intro(
-            suppose a ≥ y,
-            have a > y ∨ y = a, from (iff.elim_left le_iff_lt_or_eq) this,
-            have a > y → false, from assume H, absurd H (lt.asymm `a < y`),
-            have y = a → false, from assume H, absurd H (ne_of_gt `a < y`),
-            or.elim `a > y ∨ y = a` `a > y → false` `y = a → false`),
-          and.intro !mem_univ this)), 
-    this⁻¹ ▸ open_lt
-
-section
-
   open classical
 
-  theorem seperation_linorder {x y : X} : 
-    x < y → ∃ a, ∃ b, x < a ∧ b < y ∧ {x | x < a} ∩ {x | b < x} = ∅ :=
-    suppose x < y,
-    if ∃ z, x < z ∧ z < y then
-      sorry 
-    else 
-      sorry
+  theorem comp_comp {X : Type} (s : set X) : -(-s) = s :=
+  ext (take x, !not_not_iff)
+
+  theorem comp_inter {X : Type} (s t : set X) : -(s ∩ t) = -s ∪ -t :=
+  ext (take x, !not_and_iff_not_or_not)
+
+  theorem comp_univ {X : Type} : -(univ : set X) = ∅ :=
+  by rewrite [-comp_empty, comp_comp]
+end
+
+theorem comp_eq_univ_diff {X : Type} (s : set X) : -s = univ \ s :=
+ext (take x, iff.intro (assume H, and.intro trivial H) (assume H, and.right H))
+
+theorem insert_eq {X : Type} (x : X) (s : set X) : insert x s = '{x} ∪ s :=
+ext (take y, iff.intro
+  (suppose y ∈ insert x s,
+    or.elim this (suppose y = x, or.inl (or.inl this)) (suppose y ∈ s, or.inr this))
+  (suppose y ∈ '{x} ∪ s,
+    or.elim this
+      (suppose y ∈ '{x}, or.inl (eq_of_mem_singleton this))
+      (suppose y ∈ s, or.inr this)))
+
+theorem mem_sUnion {X : Type} {x : X} {t : set X} {S : set (set X)} (Hx : x ∈ t) (Ht : t ∈ S) :
+  x ∈ ⋃₀ S :=
+exists.intro t (and.intro Ht Hx)
+
+theorem Union_eq_sUnion_image {X I : Type} (s : I → set X) : (⋃ i, s i) = ⋃₀ (s '[univ]) :=
+ext (take x, iff.intro
+  (suppose x ∈ Union s,
+    obtain i (Hi : x ∈ s i), from this,
+    mem_sUnion Hi (mem_image_of_mem s trivial))
+  (suppose x ∈ sUnion (s '[univ]),
+    obtain t [(Ht : t ∈ s '[univ]) (Hx : x ∈ t)], from this,
+    obtain i [univi (Hi : s i = t)], from Ht,
+    exists.intro i (show x ∈ s i, by rewrite Hi; apply Hx)))
+
+theorem Inter_eq_sInter_image {X I : Type} (s : I → set X) : (⋂ i, s i) = ⋂₀ (s '[univ]) :=
+ext (take x, iff.intro
+  (assume H : x ∈ Inter s,
+    take t,
+    suppose t ∈ s '[univ],
+    obtain i [univi (Hi : s i = t)], from this,
+    show x ∈ t, by rewrite -Hi; exact H i)
+  (assume H : x ∈ ⋂₀ (s '[univ]),
+    take i,
+    have s i ∈ s '[univ], from mem_image_of_mem s trivial,
+    show x ∈ s i, from H this))
+
+theorem sUnion_empty {X : Type} : ⋃₀ ∅ = (∅ : set X) :=
+eq_empty_of_forall_not_mem
+  (take x, suppose x ∈ sUnion ∅,
+    obtain t [(Ht : t ∈ ∅) Ht'], from this,
+    show false, from Ht)
+
+theorem sInter_empty {X : Type} : ⋂₀ ∅ = (univ : set X) :=
+eq_univ_of_forall (λ x s H, false.elim H)
+
+theorem sUnion_singleton {X : Type} (s : set X) : ⋃₀ '{s} = s :=
+ext (take x, iff.intro
+  (suppose x ∈ sUnion '{s},
+    obtain u [(Hu : u ∈ '{s}) (xu : x ∈ u)], from this,
+    have u = s, from eq_of_mem_singleton Hu,
+    show x ∈ s, using this, by rewrite -this; apply xu)
+  (suppose x ∈ s,
+    mem_sUnion this (mem_singleton s)))
+
+theorem sInter_singleton {X : Type} (s : set X) : ⋂₀ '{s} = s :=
+ext (take x, iff.intro
+  (suppose x ∈ ⋂₀ '{s}, show x ∈ s, from this (mem_singleton s))
+  (suppose x ∈ s, take u, suppose u ∈ '{s},
+    show x ∈ u, by+ rewrite [eq_of_mem_singleton this]; assumption))
+
+theorem sUnion_union {X : Type} (S T : set (set X)) : ⋃₀ (S ∪ T) = ⋃₀ S ∪ ⋃₀ T :=
+ext (take x, iff.intro
+  (suppose x ∈ sUnion (S ∪ T),
+    obtain u [(Hu : u ∈ S ∪ T) (xu : x ∈ u)], from this,
+    or.elim Hu
+      (assume uS, or.inl (mem_sUnion xu uS))
+      (assume uT, or.inr (mem_sUnion xu uT)))
+  (suppose x ∈ sUnion S ∪ sUnion T,
+    or.elim this
+      (suppose x ∈ sUnion S,
+        obtain u [(uS : u ∈ S) (xu : x ∈ u)], from this,
+        mem_sUnion xu (or.inl uS))
+      (suppose x ∈ sUnion T,
+        obtain u [(uT : u ∈ T) (xu : x ∈ u)], from this,
+        mem_sUnion xu (or.inr uT))))
+
+theorem sInter_union {X : Type} (S T : set (set X)) : ⋂₀ (S ∪ T) = ⋂₀ S ∩ ⋂₀ T :=
+ext (take x, iff.intro
+  (assume H : x ∈ ⋂₀ (S ∪ T),
+    and.intro (λ u uS, H (or.inl uS)) (λ u uT, H (or.inr uT)))
+  (assume H : x ∈ ⋂₀ S ∩ ⋂₀ T,
+    take u, suppose u ∈ S ∪ T, or.elim this (λ uS, and.left H u uS) (λ uT, and.right H u uT)))
+
+theorem sUnion_insert {X : Type} (s : set X) (T : set (set X)) :
+  ⋃₀ (insert s T) = s ∪ ⋃₀ T :=
+by rewrite [insert_eq, sUnion_union, sUnion_singleton]
+
+theorem sInter_insert {X : Type} (s : set X) (T : set (set X)) :
+  ⋂₀ (insert s T) = s ∩ ⋂₀ T :=
+by rewrite [insert_eq, sInter_union, sInter_singleton]
+
+theorem mem_image_complement {X : Type} (t : set X) (S : set (set X)) :
+  t ∈ complement '[S] ↔ -t ∈ S :=
+iff.intro
+  (suppose t ∈ complement '[S],
+    obtain t' [(Ht' : t' ∈ S) (Ht : -t' = t)], from this,
+    show -t ∈ S, by rewrite [-Ht, comp_comp]; exact Ht')
+  (suppose -t ∈ S,
+    have -(-t) ∈ complement '[S], from mem_image_of_mem complement this,
+    show t ∈ complement '[S], from comp_comp t ▸ this)
+
+theorem image_id {X : Type} (s : set X) : id '[s] = s :=
+ext (take x, iff.intro
+  (suppose x ∈ id '[s],
+    obtain x' [(Hx' : x' ∈ s) (x'eq : x' = x)], from this,
+    show x ∈ s, by rewrite [-x'eq]; apply Hx')
+  (suppose x ∈ s, mem_image_of_mem id this))
+
+theorem complement_compose_complement {X : Type} :
+  #function complement ∘ complement = @id (set X) :=
+funext (λ s, comp_comp s)
+
+theorem complement_complement_image {X : Type} (S : set (set X)) :
+  complement '[complement '[S]] = S :=
+by rewrite [-image_compose, complement_compose_complement, image_id]
+
+theorem comp_sUnion {X : Type} (S : set (set X)) :
+  - ⋃₀ S = ⋂₀ (complement '[S]) :=
+ext (take x, iff.intro
+  (assume H : x ∈ -(⋃₀ S),
+    take t, suppose t ∈ complement '[S],
+    obtain t' [(Ht' : t' ∈ S) (Ht : -t' = t)], from this,
+    have x ∈ -t', from suppose x ∈ t', H (mem_sUnion this Ht'),
+    show x ∈ t, using this, by rewrite -Ht; apply this)
+  (assume H : x ∈ ⋂₀ (complement '[S]),
+    suppose x ∈ ⋃₀ S,
+    obtain t [(tS : t ∈ S) (xt : x ∈ t)], from this,
+    have -t ∈ complement '[S], from mem_image_of_mem complement tS,
+    have x ∈ -t, from H this,
+    show false, proof this xt qed))
+
+theorem sUnion_eq_comp_sInter_comp {X : Type} (S : set (set X)) :
+  ⋃₀ S = - ⋂₀ (complement '[S]) :=
+by rewrite [-comp_comp, comp_sUnion]
+
+theorem comp_sInter {X : Type} (S : set (set X)) :
+  - ⋂₀ S = ⋃₀ (complement '[S]) :=
+by rewrite [sUnion_eq_comp_sInter_comp, complement_complement_image]
+
+theorem sInter_eq_comp_sUnion_comp {X : Type} (S : set (set X)) :
+   ⋂₀ S = -(⋃₀ (complement '[S])) :=
+by rewrite [-comp_comp, comp_sInter]
+
+theorem comp_Union {X I : Type} (s : I → set X) : - (⋃ i, s i) = (⋂ i, - s i) :=
+by rewrite [Union_eq_sUnion_image, comp_sUnion, -image_compose, -Inter_eq_sInter_image]
+
+theorem Union_eq_comp_Inter_comp {X I : Type} (s : I → set X) : (⋃ i, s i) = - (⋂ i, - s i) :=
+by rewrite [-comp_comp, comp_Union]
+
+theorem comp_Inter {X I : Type} (s : I → set X) : -(⋂ i, s i) = (⋃ i, - s i) :=
+by rewrite [Inter_eq_sInter_image, comp_sInter, -image_compose, -Union_eq_sUnion_image]
+
+theorem Inter_eq_comp_Union_comp {X I : Type} (s : I → set X) : (⋂ i, s i) = - (⋃ i, -s i) :=
+by rewrite [-comp_comp, comp_Inter]
+
+/-
+Notes:
+o Let's try "Open s" and "closed s" instead of openset and closedset.
+o When you declare a class, it is better to use
+    structure foo [class]
+  than
+    attribute foo [class]
+  afterwards. When you do the first, the argument for [S : foo] is marked for
+  type class inference in every struture.
+o If we do make topology a class (which makes sense), then it should always be
+  inferred by class inference. We should always mark it [τ : topology X], and
+  we should never have to infer to it explicitly. For example, we should say "Open s"
+  instead of "s ∈ τ".
+o Use the naming conventions:
+    https://github.com/leanprover/lean/blob/master/doc/lean/library_style.org
+  Especially before we have really good automation, it is crucial that it is easy
+  to guess theorem names. So the destructor for a topology, ∅ ∈ opens, should be
+  "empty_mem_opens", and the theorem "Open (A ∪ B)" should be "Open_union", etc.
+o To avoid universe problems, we need to use sUnion to state the closure property for opens.
+  It was not hard to derive the version for indexed unions from it.
+o It is better to state the definition of a topology in terms of closure under binary
+  intersections. That makes it easier to show that something is a topology. It was not hard
+  derive the version for arbitrary finite intersetions from that.
+o Note the definition of bin_ext below. It made the proof of Open_union much shorter.
+o It is more convenient to use -s then univ \ s.
+o In general, if you see useful facts that you think should be in the main part
+  of the library, gather them at the top of the file (as I did here).
+-/
+
+/- topology starts here -/
+
+structure topology [class] (X : Type) :=
+  (opens : set (set X))
+  (empty_mem_opens : ∅ ∈ opens)
+  (univ_mem_opens : univ ∈ opens)
+  (sUnion_mem_opens : ∀ {S : set (set X)}, S ⊆ opens → ⋃₀ S ∈ opens)
+  (inter_mem_opens : ∀₀ s ∈ opens, ∀₀ t ∈ opens, s ∩ t ∈ opens)
+
+namespace topology
+
+variables {X : Type} [topology X]
+
+/- open sets -/
+
+definition Open (s : set X) : Prop := s ∈ opens X
+
+theorem Open_empty : Open (∅ : set X) :=
+empty_mem_opens X
+
+theorem Open_univ : Open (univ : set X) :=
+univ_mem_opens X
+
+theorem Open_sUnion {S : set (set X)} (H : ∀₀ t ∈ S, Open t) : Open (⋃₀ S) :=
+sUnion_mem_opens H
+
+theorem Open_Union {I : Type} {s : I → set X} (H : ∀ i, Open (s i)) : Open (⋃ i, s i) :=
+have ∀₀ t ∈ s '[univ], Open t,
+  from take t, suppose t ∈ s '[univ],
+    obtain i [univi (Hi : s i = t)], from this,
+    show Open t, by rewrite -Hi; exact H i,
+using this, by rewrite Union_eq_sUnion_image; apply Open_sUnion this
+
+private definition bin_ext (s t : set X) (n : ℕ) : set X :=
+nat.cases_on n s (λ m, t)
+
+private lemma Union_bin_ext (s t : set X) : (⋃ i, bin_ext s t i) = s ∪ t :=
+ext (take x, iff.intro
+  (suppose x ∈ Union (bin_ext s t),
+    obtain i (Hi : x ∈ (bin_ext s t) i), from this,
+    by cases i; apply or.inl Hi; apply or.inr Hi)
+  (suppose x ∈ s ∪ t,
+    or.elim this
+      (suppose x ∈ s, exists.intro 0 this)
+      (suppose x ∈ t, exists.intro 1 this)))
+
+theorem Open_union {s t : set X} (Hs : Open s) (Ht : Open t) : Open (s ∪ t) :=
+have ∀ i, Open (bin_ext s t i), by intro i; cases i; exact Hs; exact Ht,
+show Open (s ∪ t), using this, by rewrite -Union_bin_ext; exact Open_Union this
+
+theorem Open_inter {s t : set X} (Hs : Open s) (Ht : Open t) : Open (s ∩ t) :=
+inter_mem_opens X Hs Ht
+
+theorem Open_sInter_of_finite {s : set (set X)} [fins : finite s] (H : ∀₀ t ∈ s, Open t) :
+  Open (⋂₀ s) :=
+begin
+  induction fins with a s fins anins ih,
+    {rewrite sInter_empty, exact Open_univ},
+  rewrite sInter_insert,
+  apply Open_inter,
+    show Open a, from H (mem_insert a s),
+  apply ih, intros t ts,
+  show Open t, from H (mem_insert_of_mem a ts)
+end
+
+/- closed sets -/
+
+definition closed [reducible] (s : set X) : Prop := Open (-s)
+
+theorem closed_iff_Open_comp (s : set X) : closed s ↔ Open (-s) := !iff.refl
+
+theorem Open_iff_closed_comp (s : set X) : Open s ↔ closed (-s) :=
+by rewrite [closed_iff_Open_comp, comp_comp]
+
+theorem closed_comp {s : set X} (H : Open s) : closed (-s) :=
+by rewrite [-Open_iff_closed_comp]; apply H
+
+theorem closed_empty : closed (∅ : set X) :=
+by rewrite [↑closed, comp_empty]; exact Open_univ
+
+theorem closed_univ : closed (univ : set X) :=
+by rewrite [↑closed, comp_univ]; exact Open_empty
+
+theorem closed_sInter {S : set (set X)} (H : ∀₀ t ∈ S, closed t) : closed (⋂₀ S) :=
+begin
+  rewrite [↑closed, comp_sInter],
+  apply Open_sUnion,
+  intro t,
+  rewrite [mem_image_complement, Open_iff_closed_comp],
+  apply H
+end
+
+theorem closed_Inter {I : Type} {s : I → set X} (H : ∀ i, closed (s i : set X)) :
+  closed (⋂ i, s i) :=
+by rewrite [↑closed, comp_Inter]; apply Open_Union; apply H
+
+theorem closed_inter {s t : set X} (Hs : closed s) (Ht : closed t) : closed (s ∩ t) :=
+by rewrite [↑closed, comp_inter]; apply Open_union; apply Hs; apply Ht
+
+theorem closed_union {s t : set X} (Hs : closed s) (Ht : closed t) : closed (s ∪ t) :=
+by rewrite [↑closed, comp_union]; apply Open_inter; apply Hs; apply Ht
+
+theorem closed_sUnion_of_finite {s : set (set X)} [fins : finite s] (H : ∀₀ t ∈ s, closed t) :
+  closed (⋂₀ s) :=
+begin
+  rewrite [↑closed, comp_sInter],
+  apply Open_sUnion,
+  intro t,
+  rewrite [mem_image_complement, Open_iff_closed_comp],
+  apply H
+end
+
+theorem open_diff {s t : set X} (Hs : Open s) (Ht : closed t) : Open (s \ t) :=
+Open_inter Hs Ht
+
+theorem closed_diff {s t : set X} (Hs : closed s) (Ht : Open t) : closed (s \ t) :=
+closed_inter Hs (closed_comp Ht)
+
+end topology
+
+/- separation -/
+
+structure T0_space [class] (X : Type) extends topology X :=
+ (T0 : ∀ {x y}, x ≠ y → ∃ U, U ∈ opens ∧ ¬(x ∈ U ↔ y ∈ U))
+
+namespace topology
+  variables {X : Type} [T0_space X]
+
+  theorem T0 {x y : X} (H : x ≠ y) : ∃ U, Open U ∧ ¬(x ∈ U ↔ y ∈ U) :=
+  T0_space.T0 H
+end topology
+
+structure T1_space [class] (X : Type) extends topology X :=
+  (T1 : ∀ {x y}, x ≠ y → ∃ U, U ∈ opens ∧ x ∈ U ∧ y ∉ U)
+
+protected definition T0_space.of_T1 [reducible] [trans_instance] {X : Type} [T : T1_space X] :
+  T0_space X :=
+⦃T0_space, T,
+  T0 := abstract
+          take x y, assume H,
+          obtain U [Uopens [xU ynU]], from T1_space.T1 H,
+          exists.intro U (and.intro Uopens
+            (show ¬ (x ∈ U ↔ y ∈ U), from assume H, ynU (iff.mp H xU)))
+        end ⦄
+
+namespace topology
+  variables {X : Type} [T1_space X]
+
+  theorem T1 {x y : X} (H : x ≠ y) : ∃ U, Open U ∧ x ∈ U ∧ y ∉ U :=
+  T1_space.T1 H
+end topology
+
+structure T2_space [class] (X : Type) extends topology X :=
+  (T2 : ∀ {x y}, x ≠ y → ∃ U V, U ∈ opens ∧ V ∈ opens ∧ x ∈ U ∧ y ∈ V ∧ U ∩ V = ∅)
+
+protected definition T1_space.of_T2 [reducible] [trans_instance] {X : Type} [T : T2_space X] :
+  T1_space X :=
+⦃T1_space, T,
+  T1 := abstract
+          take x y, assume H,
+          obtain U [V [Uopens [Vopens [xU [yV UVempty]]]]], from T2_space.T2 H,
+          exists.intro U (and.intro Uopens (and.intro xU
+            (show y ∉ U, from assume yU,
+              have y ∈ U ∩ V, from and.intro yU yV,
+              show y ∈ ∅, from UVempty ▸ this)))
+        end ⦄
+
+namespace topology
+  variables {X : Type} [T2_space X]
+
+  theorem T2 {x y : X} (H : x ≠ y) : ∃ U V, Open U ∧ Open V ∧ x ∈ U ∧ y ∈ V ∧ U ∩ V = ∅ :=
+  T2_space.T2 H
+end topology
+
+structure perfect_space [class] (X : Type) extends topology X :=
+  (perfect : ∀ x, '{x} ∉ opens)
+
+/- topology generated by a set -/
+
+namespace topology
+
+inductive opens_generated_by {X : Type} (B : set (set X)) : set X → Prop :=
+| generators_mem : ∀ ⦃s : set X⦄, s ∈ B → opens_generated_by B s
+| univ_mem       : opens_generated_by B univ
+| inter_mem      : ∀ ⦃s t⦄, opens_generated_by B s → opens_generated_by B t →
+                    opens_generated_by B (s ∩ t)
+| sUnion_mem     : ∀ ⦃S : set (set X)⦄, S ⊆ opens_generated_by B → opens_generated_by B (⋃₀ S)
+
+definition topology_generated_by [instance] [reducible] {X : Type} (B : set (set X)) : topology X :=
+⦃topology,
+  opens            := opens_generated_by B,
+  empty_mem_opens  := abstract
+                        have ∅ ⊆ opens_generated_by B, from empty_subset _,
+                        have opens_generated_by B (⋃₀ ∅),
+                          from opens_generated_by.sUnion_mem this,
+                        show opens_generated_by B ∅,
+                          using this, by rewrite -sUnion_empty; apply this
+                      end,
+  univ_mem_opens   := opens_generated_by.univ_mem B,
+  sUnion_mem_opens := opens_generated_by.sUnion_mem,
+  inter_mem_opens  := λ s Hs t Ht, opens_generated_by.inter_mem Hs Ht
+⦄
+
+theorem generators_mem_topology_generated_by {X : Type} (B : set (set X)) :
+  let T := topology_generated_by B in
+  ∀₀ s ∈ B, @Open _ T s :=
+λ s H, opens_generated_by.generators_mem H
+
+end topology
+
+/- intervals -/
+
+section
+  variables {A : Type} [Astruc : order_pair A]
+  include Astruc
+
+  definition Ioo (a b : A) : set A := {x | a < x ∧ x < b}
+  definition Ioc (a b : A) : set A := {x | a < x ∧ x ≤ b}
+  definition Ico (a b : A) : set A := {x | a ≤ x ∧ x < b}
+  definition Icc (a b : A) : set A := {x | a ≤ x ∧ x ≤ b}
+  definition Iou (a : A)   : set A := {x | a < x}
+  definition Icu (a : A)   : set A := {x | a ≤ x}
+  definition Iuo (b : A)   : set A := {x | x < b}
+  definition Iuc (b : A)   : set A := {x | x ≤ b}
+
+  notation `'` `(` a `,` b `)`     := Ioo a b
+  notation `'` `(` a `,` b `]`     := Ioc a b
+  notation `'[` a `,` b `)`        := Ico a b
+  notation `'[` a `,` b `]`        := Icc a b
+  notation `'` `(` a `,` `∞` `)`   := Iou a
+  notation `'[` a `,` `∞` `)`      := Icu a
+  notation `'` `(` `-∞` `,` b `)`  := Iuo b
+  notation `'` `(` `-∞` `,` b `]`  := Iuc b
+
+  variables (a b c d e f : A)
+
+  proposition Iou_inter_Iuo : '(a, ∞) ∩ '(-∞, b) = '(a, b) := rfl
 
 end
 
-  definition linorder_topology.to_T2_space [trans_instance] [reducible] :
-    T2_space X :=
-  ⦃ T2_space, 
-  top       := topology.top linorder_topology,
-  empty     := topology.empty linorder_topology,
-  univ      := topology.univ linorder_topology,
-  union     := topology.union linorder_topology,
-  fin_inter := topology.fin_inter linorder_topology,
-  T2        := sorry ⦄
+/- Order Topology -/
 
-  theorem open_right {S : set X} {x y : X} :
-    (S ∈ linorder_topology ∧ x ∈ S ∧ x < y) → ∃ b, b > x ∧ {x | x < b} ⊆ S := 
-  sorry
+namespace topology
 
-  theorem open_left {S : set X} {x y : X} :
-    (S ∈ linorder_topology ∧ x ∈ S ∧ y < x) → ∃ b, b < x ∧ {x | x > b} ⊆ S :=
-  sorry
+attribute topology.opens [coercion]
 
-end
+variables {X : Type} [L : linear_strong_order_pair X] {B : set (set X)}
 
-end order_topology
+include L
 
+notation `linorder_generators` := {y | ∃ a, y = '(a, ∞) } ∪ {y | ∃ a, y = '(-∞, a)}
 
+definition linorder_topology [instance] : topology X := 
+  topology_generated_by linorder_generators
+
+theorem open_le {a : X} : Open '(a, ∞) := 
+(generators_mem_topology_generated_by linorder_generators) (!mem_unionl (exists.intro a rfl))
+
+theorem open_ge {a : X} : Open '(-∞, a) := 
+(generators_mem_topology_generated_by linorder_generators) (!mem_unionr (exists.intro a rfl))
+
+theorem closed_lt {a : X} : closed ('[a,∞)) := sorry
+
+theorem closed_gt {a : X} : closed '(-∞,a] := sorry
+
+theorem linorder_seperation {x y : X} :
+  x < y → ∃ a, ∃ b, x < a ∧ b < y ∧ '(-∞, a) ∩ '(b, ∞) = ∅ := sorry
+ 
+protected definition T2_space.of_linorder_topology [reducible] [trans_instance] :
+  T2_space X :=
+⦃ T2_space, linorder_topology,
+  T2 := sorry ⦄
+
+theorem open_right {S : set X} {x y : X} :
+  (Open S ∧ x ∈ S ∧ x < y) → ∃ b, b > x ∧ '(-∞, b) ⊆ S := 
+sorry
+
+theorem open_left {S : set X} {x y : X} :
+  (Open S ∧ x ∈ S ∧ y < x) → ∃ b, b < x ∧ '(b, ∞) ⊆ S :=
+sorry
+
+end topology
