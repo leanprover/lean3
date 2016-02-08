@@ -37,6 +37,16 @@ namespace pi
   definition eq_of_homotopy_idp (f : Πa, B a) : eq_of_homotopy (λx : A, refl (f x)) = refl f :=
   !eq_of_homotopy_eta
 
+  /- homotopy.symm is an equivalence -/
+  definition is_equiv_homotopy_symm : is_equiv (homotopy.symm : f ~ g → g ~ f) :=
+  begin
+    fapply adjointify homotopy.symm homotopy.symm,
+    { intro p, apply eq_of_homotopy, intro a,
+      unfold homotopy.symm, apply inv_inv },
+    { intro p, apply eq_of_homotopy, intro a,
+      unfold homotopy.symm, apply inv_inv }
+  end
+
   /-
     The identification of the path space of a dependent function space,
     up to equivalence, is of course just funext.

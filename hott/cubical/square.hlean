@@ -514,6 +514,10 @@ namespace eq
   definition is_set.elims [H : is_set A] : square p₁₀ p₁₂ p₀₁ p₂₁ :=
   square_of_eq !is_set.elim
 
+  definition is_trunc_square [instance] (n : trunc_index) [H : is_trunc n .+2 A]
+    : is_trunc n (square p₁₀ p₁₂ p₀₁ p₂₁) :=
+  is_trunc_equiv_closed_rev n !square_equiv_eq
+
   -- definition square_of_con_inv_hsquare {p₁ p₂ p₃ p₄ : a₁ = a₂}
   --   {t : p₁ = p₂} {b : p₃ = p₄} {l : p₁ = p₃} {r : p₂ = p₄}
   --   (s : square (con_inv_eq_idp t) (con_inv_eq_idp b) (l ◾ r⁻²) idp)

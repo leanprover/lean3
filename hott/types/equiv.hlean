@@ -7,7 +7,7 @@ Ported from Coq HoTT
 Theorems about the types equiv and is_equiv
 -/
 
-import .fiber .arrow arity ..prop_trunc
+import .fiber .arrow arity ..prop_trunc cubical.square
 
 open eq is_trunc sigma sigma.ops pi fiber function equiv
 
@@ -99,6 +99,83 @@ namespace is_equiv
 
   definition is_equiv_equiv_is_contr_fun : is_equiv f ≃ is_contr_fun f :=
   equiv_of_is_prop _ (λH, !is_equiv_of_is_contr_fun)
+
+end is_equiv
+
+/- Moving equivalences around in homotopies -/
+namespace is_equiv
+  variables {A B C : Type} (f : A → B) [Hf : is_equiv f]
+
+  include Hf
+
+  section pre_compose
+    variables (α : A → C) (β : B → C)
+
+    definition homotopy_inv_of_homotopy_pre (p : α ~ β ∘ f) : α ∘ f⁻¹ ~ β :=
+    λb, p (f⁻¹ b) ⬝ ap β (right_inv f b)
+
+    protected definition homotopy_inv_of_homotopy_pre.is_equiv
+      : is_equiv (homotopy_inv_of_homotopy_pre f α β) :=
+    adjointify _ (λq a, (ap α (left_inv f a))⁻¹ ⬝ q (f a))
+    abstract begin
+      intro q, apply eq_of_homotopy, intro b,
+      unfold homotopy_inv_of_homotopy_pre,
+      apply inverse, apply eq_bot_of_square,
+      apply eq_hconcat (ap02 α (adj_inv f b)),
+      apply eq_hconcat (ap_compose α f⁻¹ (right_inv f b))⁻¹,
+      apply natural_square_tr q (right_inv f b)
+    end end
+    abstract begin
+      intro p, apply eq_of_homotopy, intro a,
+      unfold homotopy_inv_of_homotopy_pre,
+      apply trans (con.assoc
+        (ap α (left_inv f a))⁻¹
+        (p (f⁻¹ (f a)))
+        (ap β (right_inv f (f a))))⁻¹,
+      apply inverse, apply eq_bot_of_square,
+      refine hconcat_eq _ (ap02 β (adj f a))⁻¹,
+      refine hconcat_eq _ (ap_compose β f (left_inv f a)),
+      apply natural_square_tr p (left_inv f a)
+    end end
+  end pre_compose
+
+  section post_compose
+    variables (β : C → B) (α : C → A)
+
+    definition homotopy_inv_of_homotopy_post (p : β ~ f ∘ α) : f⁻¹ ∘ β ~ α :=
+    λc, ap f⁻¹ (p c) ⬝ (left_inv f (α c))
+
+    protected definition homotopy_inv_of_homotopy_post.is_equiv
+      : is_equiv (homotopy_inv_of_homotopy_post f β α) :=
+    adjointify _ (λq c, (right_inv f (β c))⁻¹ ⬝ ap f (q c))
+    abstract begin
+      intro q, apply eq_of_homotopy, intro c,
+      unfold homotopy_inv_of_homotopy_post,
+      apply trans (whisker_right
+       (ap_con f⁻¹ (right_inv f (β c))⁻¹ (ap f (q c))
+       ⬝ whisker_right (ap_inv f⁻¹ (right_inv f (β c)))
+        (ap f⁻¹ (ap f (q c)))) (left_inv f (α c))),
+      apply inverse, apply eq_bot_of_square,
+      apply eq_hconcat (adj_inv f (β c))⁻¹,
+      apply eq_vconcat (ap_compose f⁻¹ f (q c))⁻¹,
+      refine vconcat_eq _ (ap_id (q c)),
+      apply natural_square (left_inv f) (q c)
+    end end
+    abstract begin
+      intro p, apply eq_of_homotopy, intro c,
+      unfold homotopy_inv_of_homotopy_post,
+      apply trans (whisker_left (right_inv f (β c))⁻¹
+        (ap_con f (ap f⁻¹ (p c)) (left_inv f (α c)))),
+      apply trans (con.assoc (right_inv f (β c))⁻¹ (ap f (ap f⁻¹ (p c)))
+        (ap f (left_inv f (α c))))⁻¹,
+      apply inverse, apply eq_bot_of_square,
+      refine hconcat_eq _ (adj f (α c)),
+      apply eq_vconcat (ap_compose f f⁻¹ (p c))⁻¹,
+      refine vconcat_eq _ (ap_id (p c)),
+      apply natural_square (right_inv f) (p c)
+    end end
+
+  end post_compose
 
 end is_equiv
 

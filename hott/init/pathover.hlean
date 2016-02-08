@@ -138,6 +138,10 @@ namespace eq
     { intro r, cases r, reflexivity},
   end
 
+  definition pathover_of_eq_tr_constant_inv (p : a = a₂) (a' : A')
+    : pathover_of_eq (tr_constant p a')⁻¹ = pathover_tr p a' :=
+  by cases p; constructor
+
   definition eq_of_pathover_idp [unfold 6] {b' : B a} (q : b =[idpath a] b') : b = b' :=
   tr_eq_of_pathover q
 
