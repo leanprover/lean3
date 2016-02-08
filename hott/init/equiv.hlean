@@ -253,7 +253,6 @@ namespace is_equiv
   !ap_eq_of_fn_eq_fn'
 
   end
-
 end is_equiv
 open is_equiv
 

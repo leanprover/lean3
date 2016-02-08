@@ -1,12 +1,12 @@
 /-
 Copyright (c) 2015 Floris van Doorn. All rights reserved.
 Released under Apache 2.0 license as described in the file LICENSE.
-Authors: Floris van Doorn
+Authors: Floris van Doorn, Ulrik Buchholtz
 
 Declaration of suspension
 -/
 
-import hit.pushout types.pointed cubical.square
+import hit.pushout types.pointed cubical.square .connectedness
 
 open pushout unit eq equiv
 
@@ -76,6 +76,72 @@ attribute susp.rec susp.elim [unfold 6] [recursor 6]
 attribute susp.elim_type [unfold 5]
 attribute susp.rec_on susp.elim_on [unfold 3]
 attribute susp.elim_type_on [unfold 2]
+
+namespace susp
+
+  open is_trunc is_conn trunc
+
+  -- Theorem 8.2.1
+  definition is_conn_susp [instance] (n : trunc_index) (A : Type)
+    [H : is_conn n A] : is_conn (n .+1) (susp A) :=
+  is_contr.mk (tr north)
+  begin
+    apply trunc.rec,
+    fapply susp.rec,
+    { reflexivity },
+    { exact (trunc.rec (λa, ap tr (merid a)) (center (trunc n A))) },
+    { intro a,
+      generalize (center (trunc n A)),
+      apply trunc.rec,
+      intro a',
+      apply pathover_of_tr_eq,
+      rewrite [transport_eq_Fr,idp_con],
+      revert H, induction n with [n, IH],
+      { intro H, apply is_prop.elim },
+      { intros H,
+        change ap (@tr n .+2 (susp A)) (merid a) = ap tr (merid a'),
+        generalize a',
+        apply is_conn_map.elim
+              (is_conn_map_from_unit n A a)
+              (λx : A, trunctype.mk' n (ap (@tr n .+2 (susp A)) (merid a) = ap tr (merid x))),
+        intros,
+        change ap (@tr n .+2 (susp A)) (merid a) = ap tr (merid a),
+        reflexivity
+      }
+    }
+  end
+
+end susp
+
+/-
+namespace susp
+  
+  open prod prod.ops
+  section
+    universe variable u
+    parameters (A : Type) (PN PS : Type.{u}) (Pm : A → PN ≃ PS)
+    include Pm
+
+    local abbreviation P [unfold 5] := susp.elim_type PN PS Pm
+
+    local abbreviation F : A × PN → PN := λz, z.2
+
+    local abbreviation G : A × PN → PS := λz, Pm z.1 z.2
+
+    protected definition flattening : sigma P ≃ pushout F G :=
+    begin
+/-
+  sigma P ≃ sigma P' (P' := pushout.elim_type (λx, PN) (λx, PS) Pm) : foo
+          ≃ pushout F' G' : pushout.flattening
+          ≃ pushout F G   : pushout_functor_is_equiv
+
+-/
+      exact sorry
+    end
+  end
+
+end susp
+-/
 
 namespace susp
   open pointed

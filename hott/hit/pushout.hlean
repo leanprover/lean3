@@ -6,7 +6,7 @@ Authors: Floris van Doorn
 Declaration of the pushout
 -/
 
-import .quotient cubical.square types.sigma
+import .quotient types.sigma types.arrow_2
 
 open quotient eq sum equiv is_trunc
 
@@ -120,6 +120,11 @@ namespace pushout
       apply eq_pathover, apply hdeg_square, esimp, apply elim_glue},
   end
 
+  /- glue squares -/
+  protected definition glue_square {x x' : TL} (p : x = x')
+    : square (glue x) (glue x') (ap inl (ap f p)) (ap inr (ap g p)) :=
+  by cases p; apply vrefl
+
 end pushout
 
 open function sigma.ops
@@ -231,4 +236,117 @@ namespace pushout
 
   end
 
+  -- Functoriality of pushouts
+  section
+    section lemmas
+      variables {X : Type} {x₀ x₁ x₂ x₃ : X}
+                (p : x₀ = x₁) (q : x₁ = x₂) (r : x₂ = x₃)
+      private definition is_equiv_functor_lemma₁
+        : (r ⬝ ((p ⬝ q ⬝ r)⁻¹ ⬝ p)) = q⁻¹ :=
+      by cases p; cases r; cases q; reflexivity
+
+      private definition is_equiv_functor_lemma₂
+        : (p ⬝ q ⬝ r)⁻¹ ⬝ (p ⬝ q) = r⁻¹ :=
+      by cases p; cases r; cases q; reflexivity
+    end lemmas
+
+    variables {TL BL TR : Type} (f : TL → BL) (g : TL → TR)
+              {TL' BL' TR' : Type} (f' : TL' → BL') (g' : TL' → TR')
+              (tl : TL → TL') (bl : BL → BL') (tr : TR → TR')
+              (fh : bl ∘ f ~ f' ∘ tl) (gh : tr ∘ g ~ g' ∘ tl)
+    include fh gh
+
+    protected definition functor [reducible] : pushout f g → pushout f' g' :=
+    begin
+      intro x, induction x with a b z,
+      { exact inl (bl a) },
+      { exact inr (tr b) },
+      { exact (ap inl (fh z)) ⬝ glue (tl z) ⬝ (ap inr (gh z)⁻¹) }
+    end
+
+    protected definition ap_functor_inl [reducible] {x x' : BL} (p : x = x')
+      : ap (pushout.functor f g f' g' tl bl tr fh gh) (ap inl p) = ap inl (ap bl p) :=
+    by cases p; reflexivity
+
+    protected definition ap_functor_inr [reducible] {x x' : TR} (p : x = x')
+      : ap (pushout.functor f g f' g' tl bl tr fh gh) (ap inr p) = ap inr (ap tr p) :=
+    by cases p; reflexivity
+
+    variables [ietl : is_equiv tl] [iebl : is_equiv bl] [ietr : is_equiv tr]
+    include ietl iebl ietr
+
+    open equiv is_equiv arrow
+    protected definition is_equiv_functor [instance]
+      : is_equiv (pushout.functor f g f' g' tl bl tr fh gh) :=
+    adjointify
+      (pushout.functor f g f' g' tl bl tr fh gh)
+      (pushout.functor f' g' f g tl⁻¹ bl⁻¹ tr⁻¹
+        (inv_commute_of_commute tl bl f f' fh)
+        (inv_commute_of_commute tl tr g g' gh))
+    abstract begin
+      intro x', induction x' with a' b' z',
+      { apply ap inl, apply right_inv },
+      { apply ap inr, apply right_inv },
+      { apply eq_pathover,
+        rewrite [ap_id,ap_compose' (pushout.functor f g f' g' tl bl tr fh gh)],
+        krewrite elim_glue,
+        rewrite [ap_inv,ap_con,ap_inv],
+        krewrite [pushout.ap_functor_inr], rewrite ap_con,
+        krewrite [pushout.ap_functor_inl,elim_glue],
+        apply transpose,
+        apply move_top_of_right, apply move_top_of_left',
+        krewrite [-(ap_inv inl),-ap_con,-(ap_inv inr),-ap_con],
+        apply move_top_of_right, apply move_top_of_left',
+        krewrite [-ap_con,-(ap_inv inl),-ap_con],
+        rewrite ap_bot_inv_commute_of_commute,
+        apply eq_hconcat (ap02 inl
+          (is_equiv_functor_lemma₁
+            (right_inv bl (f' z'))
+            (ap f' (right_inv tl z')⁻¹)
+            (fh (tl⁻¹ z'))⁻¹)),
+        rewrite [ap_inv f',inv_inv],
+        rewrite ap_bot_inv_commute_of_commute,
+        refine hconcat_eq _ (ap02 inr
+          (is_equiv_functor_lemma₁
+            (right_inv tr (g' z'))
+            (ap g' (right_inv tl z')⁻¹)
+            (gh (tl⁻¹ z'))⁻¹))⁻¹,
+        rewrite [ap_inv g',inv_inv],
+        apply pushout.glue_square }
+    end end
+    abstract begin
+      intro x, induction x with a b z,
+      { apply ap inl, apply left_inv },
+      { apply ap inr, apply left_inv },
+      { apply eq_pathover,
+        rewrite [ap_id,ap_compose'
+          (pushout.functor f' g' f g tl⁻¹ bl⁻¹ tr⁻¹ _ _)
+          (pushout.functor f g f' g' tl bl tr _ _)],
+        krewrite elim_glue,
+        rewrite [ap_inv,ap_con,ap_inv],
+        krewrite [pushout.ap_functor_inr], rewrite ap_con,
+        krewrite [pushout.ap_functor_inl,elim_glue],
+        apply transpose,
+        apply move_top_of_right, apply move_top_of_left',
+        krewrite [-(ap_inv inl),-ap_con,-(ap_inv inr),-ap_con],
+        apply move_top_of_right, apply move_top_of_left',
+        krewrite [-ap_con,-(ap_inv inl),-ap_con],
+        rewrite inv_commute_of_commute_top,
+        apply eq_hconcat (ap02 inl
+          (is_equiv_functor_lemma₂
+            (ap bl⁻¹ (fh z))⁻¹
+            (left_inv bl (f z))
+            (ap f (left_inv tl z)⁻¹))),
+        rewrite [ap_inv f,inv_inv],
+        rewrite inv_commute_of_commute_top,
+        refine hconcat_eq _ (ap02 inr
+          (is_equiv_functor_lemma₂
+            (ap tr⁻¹ (gh z))⁻¹
+            (left_inv tr (g z))
+            (ap g (left_inv tl z)⁻¹)))⁻¹,
+        rewrite [ap_inv g,inv_inv],
+        apply pushout.glue_square }
+    end end
+
+  end
 end pushout

@@ -252,6 +252,18 @@ namespace sphere
 
 end sphere
 
+namespace sphere
+  open is_conn trunc_index
+  -- Corollary 8.2.2
+  theorem is_conn_sphere [instance] (n : ℕ₋₁) : is_conn (n..-1) (sphere n) :=
+  begin
+    induction n with n IH,
+    { apply minus_two_conn},
+    { rewrite [trunc_index.succ_sub_one n, sphere.sphere_succ],
+      apply is_conn_susp }
+  end
+end sphere
+
 open sphere sphere.ops
 
 namespace is_trunc
