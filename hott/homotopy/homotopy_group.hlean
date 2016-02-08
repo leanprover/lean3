@@ -5,9 +5,9 @@ Authors: Floris van Doorn, Clive Newstead
 
 -/
 
-import algebra.homotopy_group .connectedness
+import algebra.homotopy_group .sphere
 
-open eq is_trunc trunc_index pointed algebra trunc nat homotopy fiber pointed
+open eq is_trunc trunc_index pointed algebra trunc nat is_conn fiber pointed
 
 namespace is_trunc
   -- Lemma 8.3.1
@@ -33,13 +33,13 @@ namespace is_trunc
 
   -- Corollary 8.3.3
   section
-  open sphere.ops sphere_index
+  open sphere sphere.ops sphere_index
   theorem homotopy_group_sphere_le (n k : ℕ) (H : k < n) : is_contr (π[k] (S. n)) :=
   begin
     cases n with n,
     { exfalso, apply not_lt_zero, exact H},
     { have H2 : k ≤ n, from le_of_lt_succ H,
-      apply @(trivial_homotopy_group_of_is_conn _ H2)}
+      apply @(trivial_homotopy_group_of_is_conn _ H2) }
   end
   end
 
