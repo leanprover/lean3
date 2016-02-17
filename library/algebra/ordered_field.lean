@@ -566,4 +566,11 @@ section discrete_linear_ordered_field
     exact H
   end
 
+  theorem div_nonneg_of_nonneg_of_nonneg {a b : A} (Ha : a ≥ 0) (Hb : b ≥ 0) : a / b ≥ 0 :=
+    if Hgt : b > 0 then
+      div_nonneg_of_nonneg_of_pos Ha Hgt
+    else
+      have b = 0, from eq_of_le_of_ge (le_of_not_gt Hgt) Hb,
+      by+ rewrite [this, div_zero]; apply le.refl
+
 end discrete_linear_ordered_field
