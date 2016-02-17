@@ -402,7 +402,7 @@ end limit_operations
 /- properties of converges_to_at -/
 
 section limit_operations_continuous
-variables {f g : ℝ → ℝ}
+variables {f g h : ℝ → ℝ}
 variables {a b x y : ℝ}
 
 theorem mul_converges_to_at (Hf : f ⟶ a [at x]) (Hg : g ⟶ b [at x]) : (λ z, f z * g z) ⟶ a * b [at x] :=
@@ -594,3 +594,21 @@ theorem continuous_mul_of_continuous {f g : ℝ → ℝ} (Hconf : continuous f) 
   end
 
 end continuous
+
+-- this can be strengthened: Hle and Hge only need to hold around x
+theorem converges_to_at_squeeze {M : Type} [Hm : metric_space M] {f g h : M → ℝ} {a : ℝ} {x : M}
+        (Hf : f ⟶ a at x) (Hh : h ⟶ a at x) (Hle : ∀ y : M, f y ≤ g y)
+        (Hge : ∀ y : M, g y ≤ h y) : g ⟶ a at x :=
+  begin
+    apply converges_to_at_of_all_conv_seqs,
+    intro X HX,
+    apply converges_to_seq_squeeze,
+    apply all_conv_seqs_of_converges_to_at Hf,
+    apply HX,
+    apply all_conv_seqs_of_converges_to_at Hh,
+    apply HX,
+    intro,
+    apply Hle,
+    intro,
+    apply Hge
+  end
