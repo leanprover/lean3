@@ -241,3 +241,36 @@ proposition norm_converges_to_seq_zero_iff (X : ℕ → V) :
 iff.intro converges_to_seq_zero_of_norm_converges_to_seq_zero norm_converges_to_seq_zero
 
 end analysis
+
+namespace analysis
+variables {U V : Type}
+variable [HU : normed_vector_space U]
+variable [HV : normed_vector_space V]
+variables f g : U → V
+
+include HU HV
+
+theorem add_converges_to_at {lf lg : V} {x : U} (Hf : f ⟶ lf at x) (Hg : g ⟶ lg at x) :
+        (λ y, f y + g y) ⟶ lf + lg at x :=
+  begin
+    apply converges_to_at_of_all_conv_seqs,
+    intro X HX,
+    apply add_converges_to_seq,
+    apply all_conv_seqs_of_converges_to_at Hf,
+    apply HX,
+    apply all_conv_seqs_of_converges_to_at Hg,
+    apply HX
+  end
+
+open topology
+
+theorem normed_vector_space.continuous_at_intro {x : U}
+        (H : ∀ ε : ℝ, ε > 0 → (∃ δ : ℝ, δ > 0 ∧ ∀ x' : U, ∥x' - x∥ < δ → ∥f x' - f x∥ < ε)) :
+        continuous_at f x :=
+  continuous_at_intro H
+
+theorem normed_vector_space.continuous_at_elim {x : U} (H : continuous_at f x) :
+         ∀ ε : ℝ, ε > 0 → (∃ δ : ℝ, δ > 0 ∧ ∀ x' : U, ∥x' - x∥ < δ → ∥f x' - f x∥ < ε) :=
+  continuous_at_elim H
+
+end analysis

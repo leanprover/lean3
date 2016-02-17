@@ -399,6 +399,17 @@ definition converges_to_at (f : M → N) (y : N) (x : M) :=
 
 notation f `⟶` y `at` x := converges_to_at f y x
 
+theorem converges_to_at_constant (y : N) (x : M) : (λ m, y) ⟶ y at x :=
+  begin
+    intros ε Hε,
+    existsi 1,
+    split,
+    exact zero_lt_one,
+    intros x' Hx',
+    rewrite dist_self,
+    apply Hε
+  end
+
 definition converges_at [class] (f : M → N) (x : M) :=
 ∃ y, converges_to_at f y x
 
