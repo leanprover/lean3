@@ -116,6 +116,7 @@ class type_context : public abstract_type_context {
     // postponed universe constraints
     std::vector<pair<level, level>> m_postponed;
     name_map<projection_info>       m_proj_info;
+    bool                            m_in_is_def_eq{false};
 
     // Internal (configuration) options for customers
 
@@ -602,7 +603,6 @@ class normalizer {
     expr normalize_binding(expr const & e);
     optional<expr> unfold_recursor_core(expr const & f, unsigned i,
                                         buffer<unsigned> const & idxs, buffer<expr> & args, bool is_rec);
-    optional<expr> unfold_recursor_major(expr const & f, unsigned idx, buffer<expr> & args);
     expr normalize_app(expr const & e);
     expr normalize_macro(expr const & e);
     expr normalize(expr e);
@@ -614,6 +614,8 @@ public:
     */
     normalizer(type_context & ctx, bool eta = true, bool nested_prop = false);
     virtual ~normalizer() {}
+
+    optional<expr> unfold_recursor_major(expr const & f, unsigned idx, buffer<expr> & args);
 
     /** \brief Auxiliary predicate for controlling which subterms will be normalized. */
     virtual bool should_normalize(expr const &) const { return true; }
