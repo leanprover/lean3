@@ -69,8 +69,8 @@ theorem lem_eq_iff_vector_inj (A : Type) [inh : inhabited A] : lem_eq A ↔ vect
 iff.intro
   (assume Hl : lem_eq A,
    assume n m he,
-   assert a : A, from default A,
-   assert v : vector A n, from const n a,
+   have a : A, from default A,
+   have v : vector A n, from const n a,
    have e₁  : v == cast he v, from heq.symm (cast_heq he v),
    Hl n m v (cast he v) e₁)
   (assume Hr : vector_inj A,
