@@ -19,15 +19,15 @@
 (defun lean-project-create (directory type)
   (interactive
    (list (read-directory-name "Specify the project root directory: ")
-         (intern (completing-read "Project type:: " '(standard hott)))))
+         (intern (completing-read "Project type (standard or hott): " '(standard hott) nil t))))
   (let ((project-file (concat (file-name-as-directory directory)
                               lean-project-file-name))
         (ext (pcase type
-               (`lean     "lean")
                (`standard "lean")
-               (`hlean    "hlean")
                (`hott     "hlean")
-               (_         (error "Unknown project type %S. Please select either standard or hott" type))))
+               (_         (progn
+                            (message "Default 'standard' lean-project is created.")
+                            "lean"))))
         (default-contents
           (s-join "\n"
                   ;;  EXT is a placeholder.
