@@ -23,8 +23,11 @@
   (let ((project-file (concat (file-name-as-directory directory)
                               lean-project-file-name))
         (ext (pcase type
+               (`lean     "lean")
                (`standard "lean")
-               (`hott     "hlean")))
+               (`hlean    "hlean")
+               (`hott     "hlean")
+               (_         (error "Unknown project type %S. Please select either standard or hott" type))))
         (default-contents
           (s-join "\n"
                   ;;  EXT is a placeholder.
