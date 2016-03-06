@@ -302,10 +302,38 @@ namespace eq
     (s : square q r (ap f p) (ap g p)) : q =[p] r :=
   by induction p;apply pathover_idp_of_eq;exact eq_of_vdeg_square s
 
+  definition eq_pathover_constant_left {g : A → B} {p : a = a'} {b : B} {q : b = g a} {r : b = g a'}
+    (s : square q r idp (ap g p)) : q =[p] r :=
+  eq_pathover (ap_constant p b ⬝ph s)
+
+  definition eq_pathover_id_left {g : A → A} {p : a = a'} {q : a = g a} {r : a' = g a'}
+    (s : square q r p (ap g p)) : q =[p] r :=
+  eq_pathover (ap_id p ⬝ph s)
+
+  definition eq_pathover_constant_right {f : A → B} {p : a = a'} {b : B} {q : f a = b} {r : f a' = b}
+    (s : square q r (ap f p) idp) : q =[p] r :=
+  eq_pathover (s ⬝hp (ap_constant p b)⁻¹)
+
+  definition eq_pathover_id_right {f : A → A} {p : a = a'} {q : f a = a} {r : f a' = a'}
+    (s : square q r (ap f p) p) : q =[p] r :=
+  eq_pathover (s ⬝hp (ap_id p)⁻¹)
+
   definition square_of_pathover [unfold 7]
     {f g : A → B} {p : a = a'} {q : f a = g a} {r : f a' = g a'}
     (s : q =[p] r) : square q r (ap f p) (ap g p) :=
   by induction p;apply vdeg_square;exact eq_of_pathover_idp s
+
+  definition eq_pathover_constant_left_id_right {p : a = a'} {a₀ : A} {q : a₀ = a} {r : a₀ = a'}
+    (s : square q r idp p) : q =[p] r :=
+  eq_pathover (ap_constant p a₀ ⬝ph s ⬝hp (ap_id p)⁻¹)
+
+  definition eq_pathover_id_left_constant_right {p : a = a'} {a₀ : A} {q : a = a₀} {r : a' = a₀}
+    (s : square q r p idp) : q =[p] r :=
+  eq_pathover (ap_id p ⬝ph s ⬝hp (ap_constant p a₀)⁻¹)
+
+  definition loop_pathover {p : a = a'} {b : B} {q : a = a} {r : a' = a'}
+    (s : square q r p p) : q =[p] r :=
+  eq_pathover (ap_id p ⬝ph s ⬝hp (ap_id p)⁻¹)
 
   /- interaction of equivalences with operations on squares -/
 
