@@ -349,4 +349,16 @@ namespace pushout
     end end
 
   end
+
+  /- version giving the equivalence -/
+  section
+    variables {TL BL TR : Type} (f : TL → BL) (g : TL → TR)
+              {TL' BL' TR' : Type} (f' : TL' → BL') (g' : TL' → TR')
+              (tl : TL ≃ TL') (bl : BL ≃ BL') (tr : TR ≃ TR')
+              (fh : bl ∘ f ~ f' ∘ tl) (gh : tr ∘ g ~ g' ∘ tl)
+    include fh gh
+
+    protected definition equiv : pushout f g ≃ pushout f' g' :=
+    equiv.mk (pushout.functor f g f' g' tl bl tr fh gh) _
+  end
 end pushout
