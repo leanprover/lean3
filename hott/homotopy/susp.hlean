@@ -69,6 +69,10 @@ namespace susp
     (a : A) : transport (susp.elim_type PN PS Pm) (merid a) = Pm a :=
   by rewrite [tr_eq_cast_ap_fn,↑susp.elim_type,elim_merid];apply cast_ua_fn
 
+  protected definition merid_square {a a' : A} (p : a = a')
+    : square (merid a) (merid a') idp idp :=
+  by cases p; apply vrefl
+
 end susp
 
 attribute susp.north susp.south [constructor]
@@ -113,7 +117,7 @@ namespace susp
 
 end susp
 
-/-
+/- Flattening lemma -/
 namespace susp
   
   open prod prod.ops
@@ -130,18 +134,62 @@ namespace susp
 
     protected definition flattening : sigma P ≃ pushout F G :=
     begin
-/-
-  sigma P ≃ sigma P' (P' := pushout.elim_type (λx, PN) (λx, PS) Pm) : foo
-          ≃ pushout F' G' : pushout.flattening
-          ≃ pushout F G   : pushout_functor_is_equiv
-
--/
-      exact sorry
+      apply equiv.trans (pushout.flattening (λ(a : A), star) (λ(a : A), star)
+        (λx, unit.cases_on x PN) (λx, unit.cases_on x PS) Pm),
+      fapply pushout.equiv,
+      { exact sigma.equiv_prod A PN },
+      { apply sigma.sigma_unit_left },
+      { apply sigma.sigma_unit_left },
+      { reflexivity },
+      { reflexivity }
     end
   end
 
 end susp
--/
+
+/- Functoriality and equivalence -/
+namespace susp
+  variables {A B : Type} (f : A → B)
+  include f
+
+  protected definition functor : susp A → susp B :=
+  begin
+    intro x, induction x with a,
+    { exact north },
+    { exact south },
+    { exact merid (f a) }
+  end
+
+  variable [Hf : is_equiv f]
+  include Hf
+
+  open is_equiv
+  protected definition is_equiv_functor [instance] : is_equiv (susp.functor f) :=
+  adjointify (susp.functor f) (susp.functor f⁻¹)
+  abstract begin
+    intro sb, induction sb with b, do 2 reflexivity,
+    apply eq_pathover,
+    rewrite [ap_id,ap_compose' (susp.functor f) (susp.functor f⁻¹)],
+    krewrite [susp.elim_merid,susp.elim_merid], apply transpose,
+    apply susp.merid_square (right_inv f b)
+  end end
+  abstract begin
+    intro sa, induction sa with a, do 2 reflexivity,
+    apply eq_pathover,
+    rewrite [ap_id,ap_compose' (susp.functor f⁻¹) (susp.functor f)],
+    krewrite [susp.elim_merid,susp.elim_merid], apply transpose,
+    apply susp.merid_square (left_inv f a)
+  end end
+
+
+end susp
+
+namespace susp
+  variables {A B : Type} (f : A ≃ B)
+
+  protected definition equiv : susp A ≃ susp B :=
+  equiv.mk (susp.functor f) _
+end susp
 
 namespace susp
   open pointed
