@@ -32,7 +32,7 @@ attribute trunc.elim [recursor 6] [unfold 6]
 
 namespace trunc
 
-  variables {X Y Z : Type} {P : X → Type} (A B : Type) (n : trunc_index)
+  variables {X Y Z : Type} {P : X → Type} (n : trunc_index) (A B : Type)
 
   local attribute is_trunc_eq [instance]
 

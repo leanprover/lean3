@@ -13,27 +13,29 @@ open eq is_trunc trunc
 namespace algebra
 
   section
-  parameters (A : Type) (mul : A → A → A) (inv : A → A) (one : A)
-    {mul_assoc : ∀a b c, mul (mul a b) c = mul a (mul b c)}
-    {one_mul : ∀a, mul one a = a} {mul_one : ∀a, mul a one = a}
-    {mul_left_inv : ∀a, mul (inv a) a = one}
+  parameters (n : trunc_index) {A : Type} (mul : A → A → A) (inv : A → A) (one : A)
+    (mul_assoc : ∀a b c, mul (mul a b) c = mul a (mul b c))
+    (one_mul : ∀a, mul one a = a) (mul_one : ∀a, mul a one = a)
+    (mul_left_inv : ∀a, mul (inv a) a = one)
 
-  local abbreviation G := trunc 0 A
+  local abbreviation G := trunc n A
 
-  include mul_assoc one_mul mul_one mul_left_inv
+  include mul
   definition trunc_mul [unfold 9 10] (g h : G) : G :=
   begin
-    apply trunc.rec_on g, intro p,
-    apply trunc.rec_on h, intro q,
+    induction g with p,
+    induction h with q,
     exact tr (mul p q)
   end
 
+  omit mul include inv
   definition trunc_inv [unfold 9] (g : G) : G :=
   begin
-    apply trunc.rec_on g, intro p,
+    induction g with p,
     exact tr (inv p)
   end
 
+  omit inv include one
   definition trunc_one [constructor] : G :=
   tr one
 
@@ -41,56 +43,62 @@ namespace algebra
   local postfix ⁻¹ := trunc_inv
   local infix * := trunc_mul
 
+  parameters {mul} {inv} {one}
+  omit one include mul_assoc
   theorem trunc_mul_assoc (g₁ g₂ g₃ : G) : g₁ * g₂ * g₃ = g₁ * (g₂ * g₃) :=
   begin
-    apply trunc.rec_on g₁, intro p₁,
-    apply trunc.rec_on g₂, intro p₂,
-    apply trunc.rec_on g₃, intro p₃,
+    induction g₁ with p₁,
+    induction g₂ with p₂,
+    induction g₃ with p₃,
     exact ap tr !mul_assoc,
   end
 
+  omit mul_assoc include one_mul
   theorem trunc_one_mul (g : G) : 1 * g = g :=
   begin
-    apply trunc.rec_on g, intro p,
+    induction g with p,
     exact ap tr !one_mul
   end
 
+  omit one_mul include mul_one
   theorem trunc_mul_one (g : G) : g * 1 = g :=
   begin
-    apply trunc.rec_on g, intro p,
+    induction g with p,
     exact ap tr !mul_one
   end
 
+  omit mul_one include mul_left_inv
   theorem trunc_mul_left_inv (g : G) : g⁻¹ * g = 1 :=
   begin
-    apply trunc.rec_on g, intro p,
+    induction g with p,
     exact ap tr !mul_left_inv
   end
 
+  omit mul_left_inv
   theorem trunc_mul_comm (mul_comm : ∀a b, mul a b = mul b a) (g h : G)
     : g * h = h * g :=
   begin
-    apply trunc.rec_on g, intro p,
-    apply trunc.rec_on h, intro q,
+    induction g with p,
+    induction h with q,
     exact ap tr !mul_comm
   end
 
-  parameters (mul_assoc) (one_mul) (mul_one) (mul_left_inv) {A}
+  parameters (mul) (inv) (one)
 
-  definition trunc_group [constructor] : group G :=
+  definition trunc_group [constructor] : group (trunc 0 A) :=
   ⦃group,
-    mul          := trunc_mul,
-    mul_assoc    := trunc_mul_assoc,
-    one          := trunc_one,
-    one_mul      := trunc_one_mul,
-    mul_one      := trunc_mul_one,
-    inv          := trunc_inv,
-    mul_left_inv := trunc_mul_left_inv,
+    mul          := algebra.trunc_mul          0 mul,
+    mul_assoc    := algebra.trunc_mul_assoc    0 mul_assoc,
+    one          := algebra.trunc_one          0 one,
+    one_mul      := algebra.trunc_one_mul      0 one_mul,
+    mul_one      := algebra.trunc_mul_one      0 mul_one,
+    inv          := algebra.trunc_inv          0 inv,
+    mul_left_inv := algebra.trunc_mul_left_inv 0 mul_left_inv,
    is_set_carrier := _⦄
 
-
-  definition trunc_comm_group [constructor] (mul_comm : ∀a b, mul a b = mul b a) : comm_group G :=
-  ⦃comm_group, trunc_group, mul_comm := trunc_mul_comm mul_comm⦄
+  definition trunc_comm_group [constructor] (mul_comm : ∀a b, mul a b = mul b a)
+    : comm_group (trunc 0 A) :=
+  ⦃comm_group, trunc_group, mul_comm := algebra.trunc_mul_comm 0 mul_comm⦄
 
   end
 end algebra

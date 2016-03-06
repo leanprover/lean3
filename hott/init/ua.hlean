@@ -48,6 +48,12 @@ ap to_fun (equiv_of_eq_ua f)
 definition cast_ua {A B : Type} (f : A ≃ B) (a : A) : cast (ua f) a = f a :=
 ap10 (cast_ua_fn f) a
 
+definition cast_ua_inv_fn {A B : Type} (f : A ≃ B) : cast (ua f)⁻¹ = to_inv f :=
+ap to_inv (equiv_of_eq_ua f)
+
+definition cast_ua_inv {A B : Type} (f : A ≃ B) (b : B) : cast (ua f)⁻¹ b = to_inv f b :=
+ap10 (cast_ua_inv_fn f) b
+
 definition ua_equiv_of_eq [reducible] {A B : Type} (p : A = B) : ua (equiv_of_eq p) = p :=
 left_inv equiv_of_eq p
 

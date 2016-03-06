@@ -21,8 +21,18 @@ namespace homotopy
     assumption
   end
 
-  definition is_conn_map (n : ℕ₋₂) {A B : Type} (f : A → B) : Type :=
+  definition is_conn_map [reducible] (n : ℕ₋₂) {A B : Type} (f : A → B) : Type :=
   Πb : B, is_conn n (fiber f b)
+
+  theorem is_conn_of_le (A : Type) {n k : ℕ₋₂} (H : n ≤ k) [is_conn k A] : is_conn n A :=
+  begin
+    apply is_contr_equiv_closed,
+    apply trunc_trunc_equiv_left _ n k H
+  end
+
+  theorem is_conn_map_of_le {A B : Type} (f : A → B) {n k : ℕ₋₂} (H : n ≤ k)
+    [is_conn_map k f] : is_conn_map n f :=
+  λb, is_conn_of_le _ H
 
   namespace is_conn_map
   section
@@ -131,7 +141,7 @@ namespace homotopy
     parameters (n : ℕ₋₂) (A : Type)
 
     definition is_conn_of_map_to_unit
-      : is_conn_map n (λx : A, unit.star) → is_conn n A :=
+      : is_conn_map n (const A unit.star) → is_conn n A :=
     begin
       intro H, unfold is_conn_map at H,
       rewrite [-(ua (fiber.fiber_star_equiv A))],
@@ -239,7 +249,7 @@ namespace homotopy
   @retract_of_conn_is_conn _ _ (arrow.arrow_hom_of_homotopy p) (arrow.is_retraction_arrow_hom_of_homotopy p) n H
 
   -- all types are -2-connected
-  definition minus_two_conn [instance] (A : Type) : is_conn -2 A :=
+  definition is_conn_minus_two (A : Type) : is_conn -2 A :=
   _
 
   -- Theorem 8.2.1
@@ -274,13 +284,34 @@ namespace homotopy
     }
   end
 
-  open trunc_index
+  -- Lemma 7.5.14
+  theorem is_equiv_trunc_functor_of_is_conn_map {A B : Type} (n : ℕ₋₂) (f : A → B)
+    [H : is_conn_map n f] : is_equiv (trunc_functor n f) :=
+  begin
+    fapply adjointify,
+    { intro b, induction b with b, exact trunc_functor n point (center (trunc n (fiber f b)))},
+    { intro b, induction b with b, esimp, generalize center (trunc n (fiber f b)), intro v,
+      induction v with v, induction v with a p, esimp, exact ap tr p},
+    { intro a, induction a with a, esimp, rewrite [center_eq (tr (fiber.mk a idp))]}
+  end
+
+  theorem trunc_equiv_trunc_of_is_conn_map {A B : Type} (n : ℕ₋₂) (f : A → B)
+    [H : is_conn_map n f] : trunc n A ≃ trunc n B :=
+  equiv.mk (trunc_functor n f) (is_equiv_trunc_functor_of_is_conn_map n f)
+
+  open trunc_index pointed sphere.ops
   -- Corollary 8.2.2
-  theorem is_conn_sphere [instance] (n : ℕ₋₁) : is_conn (n..-1) (sphere n) :=
+  theorem is_conn_sphere [instance] (n : ℕ₋₁) : is_conn (n..-1) (S n) :=
   begin
     induction n with n IH,
-    { apply minus_two_conn},
+    { apply is_conn_minus_two},
     { rewrite [succ_sub_one, sphere.sphere_succ], apply is_conn_susp}
+  end
+
+  section
+    open sphere_index
+    theorem is_conn_psphere [instance] (n : ℕ) : is_conn (n.-1) (S. n) :=
+    transport (λx, is_conn x (sphere n)) (of_nat_sub_one n) (is_conn_sphere n)
   end
 
 end homotopy

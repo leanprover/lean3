@@ -47,15 +47,13 @@ namespace eq
 
   definition phomotopy_group_pequiv [constructor] (n : ℕ) {A B : Type*} (H : A ≃* B)
     : π*[n] A ≃* π*[n] B :=
-  ptrunc_pequiv 0 (iterated_loop_space_pequiv n H)
+  ptrunc_pequiv_ptrunc 0 (iterated_loop_space_pequiv n H)
 
-  set_option pp.coercions true
-  set_option pp.numerals false
   definition phomotopy_group_pequiv_loop_ptrunc [constructor] (k : ℕ) (A : Type*) :
     π*[k] A ≃* Ω[k] (ptrunc k A) :=
   begin
     refine !iterated_loop_ptrunc_pequiv⁻¹ᵉ* ⬝e* _,
-    rewrite [trunc_index.zero_add]
+    exact loopn_pequiv_loopn k (pequiv_of_eq begin rewrite [trunc_index.zero_add] end)
   end
 
   open equiv unit
@@ -112,6 +110,9 @@ namespace eq
 
   definition tinverse [constructor] {X : Type*} : π*[1] X →* π*[1] X :=
   ptrunc_functor 0 pinverse
+
+  definition is_equiv_tinverse [constructor] (A : Type*) : is_equiv (@tinverse A) :=
+  by apply @is_equiv_trunc_functor; apply is_equiv_eq_inverse
 
   definition ptrunc_functor_pinverse [constructor] {X : Type*}
     : ptrunc_functor 0 (@pinverse X) ~* @tinverse X :=

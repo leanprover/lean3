@@ -472,9 +472,10 @@ namespace eq
       { exact decode},
       { intro c,
         unfold [encode, decode, decode'],
-        induction p, esimp, rewrite [is_prop_elim_self,▸*,+idp_con], apply tr_eq_of_pathover,
+        induction p, esimp, rewrite [is_prop_elim_self,▸*,+idp_con],
+        apply tr_eq_of_pathover,
         eapply @sigma.rec_on _ _ (λx, x.2 =[(is_prop.elim ⟨x.1, x.2⟩ ⟨a, c⟩)..1] c)
-          (center (sigma code)), -- BUG(?): induction fails
+          (center (sigma code)),
         intro a c, apply eq_pr2},
       { intro q, induction q, esimp, apply con.left_inv, },
     end

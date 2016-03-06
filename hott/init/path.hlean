@@ -185,6 +185,18 @@ namespace eq
   definition idp_eq_con {p : x = y} {q : y = x} (r : p⁻¹ = q) : idp = q ⬝ p :=
   by cases p; exact r
 
+  definition eq_idp_of_con_right {p : x = x} {q : x = y} (r : p ⬝ q = q) : p = idp :=
+  by cases q; exact r
+
+  definition eq_idp_of_con_left {p : x = x} {q : y = x} (r : q ⬝ p = q) : p = idp :=
+  by cases q; exact (idp_con p)⁻¹ ⬝ r
+
+  definition idp_eq_of_con_right {p : x = x} {q : x = y} (r : q = p ⬝ q) : idp = p :=
+  by cases q; exact r
+
+  definition idp_eq_of_con_left {p : x = x} {q : y = x} (r : q = q ⬝ p) : idp = p :=
+  by cases q; exact r ⬝ idp_con p
+
   /- Transport -/
 
   definition transport [subst] [reducible] [unfold 5] (P : A → Type) {x y : A} (p : x = y)

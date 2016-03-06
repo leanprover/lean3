@@ -153,7 +153,27 @@ weak_order.mk le sphere_index.le.sp_refl @sphere_index.le_trans @sphere_index.le
 
 namespace trunc_index
   definition sub_two_eq_sub_one_sub_one (n : ℕ) : n.-2 = n..-1..-1 :=
-  nat.rec_on n idp (λn p, ap trunc_index.succ p)
+  begin
+    induction n with n IH,
+    { reflexivity},
+    { exact ap trunc_index.succ IH}
+  end
+
+  definition of_nat_sub_one (n : ℕ)
+    : (sphere_index.of_nat n)..-1 = (trunc_index.sub_two n).+1 :=
+  begin
+    induction n with n IH,
+    { reflexivity},
+    { exact ap trunc_index.succ IH}
+  end
+
+  definition sub_one_of_sphere_index (n : ℕ)
+    : of_sphere_index n..-1 = (trunc_index.sub_two n).+1 :=
+  begin
+    induction n with n IH,
+    { reflexivity},
+    { exact ap trunc_index.succ IH}
+  end
 
   definition succ_sub_one (n : ℕ₋₁) : n.+1..-1 = n :> ℕ₋₂ :=
   idp
@@ -180,7 +200,7 @@ definition sphere : ℕ₋₁ → Type₀
 
 namespace sphere
 
-  export [notation] [coercion] sphere_index
+  export [notation] sphere_index
 
   definition base {n : ℕ} : sphere n := north
   definition pointed_sphere [instance] [constructor] (n : ℕ) : pointed (sphere n) :=

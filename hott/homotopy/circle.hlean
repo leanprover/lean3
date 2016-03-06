@@ -238,12 +238,12 @@ namespace circle
   open algebra trunc
 
   definition fg_carrier_equiv_int : π[1](S¹.) ≃ ℤ :=
-  trunc_equiv_trunc 0 base_eq_base_equiv ⬝e @(trunc_equiv ℤ _) proof _ qed
+  trunc_equiv_trunc 0 base_eq_base_equiv ⬝e @(trunc_equiv 0 ℤ) proof _ qed
 
   definition con_comm_base (p q : base = base) : p ⬝ q = q ⬝ p :=
   eq_of_fn_eq_fn base_eq_base_equiv (by esimp;rewrite [+encode_con,add.comm])
 
-  definition fundamental_group_of_circle : π₁(S¹.) = group_integers :=
+  definition fundamental_group_of_circle : π₁(S¹.) = gℤ :=
   begin
     apply (Group_eq fg_carrier_equiv_int),
     intros g h,

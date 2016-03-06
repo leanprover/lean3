@@ -31,8 +31,8 @@ namespace pointed
   attribute pType.carrier [coercion]
   variables {A B : Type}
 
-  definition pt [unfold 2] [H : pointed A] := point A
-  definition Point [unfold 1] (A : Type*) := pType.Point A
+  definition pt [reducible] [unfold 2] [H : pointed A] := point A
+  definition Point [reducible] [unfold 1] (A : Type*) := pType.Point A
   abbreviation carrier [unfold 1] (A : Type*) := pType.carrier A
   protected definition Mk [constructor] {A : Type} (a : A) := pType.mk A a
   protected definition MK [constructor] (A : Type) (a : A) := pType.mk A a
@@ -90,12 +90,15 @@ namespace pointed
   definition iterated_ploop_space_succ [unfold_full] (k : ℕ) (A : Type*)
     : Ω[succ k] A = Ω Ω[k] A := rfl
 
-  definition rfln  [constructor] [reducible] {A : Type*} {n : ℕ} : Ω[n] A := pt
-  definition refln [constructor] [reducible] (A : Type*) (n : ℕ) : Ω[n] A := pt
+  definition rfln  [constructor] [reducible] {n : ℕ} {A : Type*} : Ω[n] A := pt
+  definition refln [constructor] [reducible] (n : ℕ) (A : Type*) : Ω[n] A := pt
   definition refln_eq_refl (A : Type*) (n : ℕ) : rfln = rfl :> Ω[succ n] A := rfl
 
   definition iterated_loop_space [unfold 3] (A : Type) [H : pointed A] (n : ℕ) : Type :=
   Ω[n] (pointed.mk' A)
+
+  definition loop_mul {k : ℕ} {A : Type*} (mul : A → A → A) : Ω[k] A → Ω[k] A → Ω[k] A :=
+  begin cases k with k, exact mul, exact concat end
 
   definition pType_eq {A B : Type*} (f : A ≃ B) (p : f pt = pt) : A = B :=
   begin

@@ -116,6 +116,14 @@ namespace function
   definition is_prop_is_surjective [instance] : is_prop (is_surjective f) :=
   by unfold is_surjective; exact _
 
+  definition is_surjective_cancel_right {A B C : Type} (g : B → C) (f : A → B)
+    [H : is_surjective (g ∘ f)] : is_surjective g :=
+  begin
+    intro c,
+    induction H c with v, induction v with a p,
+    exact tr (fiber.mk (f a) p)
+  end
+
   definition is_weakly_constant_ap [instance] [H : is_weakly_constant f] (a a' : A) :
     is_weakly_constant (ap f : a = a' → f a = f a') :=
   take p q : a = a',
@@ -222,7 +230,7 @@ namespace function
     (λb,
       ((trunc_functor_compose n (sect r) r) b)⁻¹
       ⬝ trunc_homotopy n (right_inverse r) b
-      ⬝ trunc_functor_id B n b)
+      ⬝ trunc_functor_id n B b)
 
   -- Lemma 3.11.7
   definition is_contr_retract (r : A → B) [H : is_retraction r] : is_contr A → is_contr B :=

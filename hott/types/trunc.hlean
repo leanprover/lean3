@@ -3,7 +3,7 @@ Copyright (c) 2015 Jakob von Raumer. All rights reserved.
 Released under Apache 2.0 license as described in the file LICENSE.
 Authors: Floris van Doorn
 
-Properties of is_trunc and trunctype
+Properties of trunc_index, is_trunc, trunctype, trunc, and the pointed versions of these
 -/
 
 -- NOTE: the fact that (is_trunc n A) is a mere proposition is proved in .prop_trunc
@@ -275,7 +275,7 @@ namespace is_trunc
 
   /- theorems about decidable equality and axiom K -/
   theorem is_set_of_axiom_K {A : Type} (K : Π{a : A} (p : a = a), p = idp) : is_set A :=
-  is_set.mk _ (λa b p q, eq.rec_on q K p)
+  is_set.mk _ (λa b p q, eq.rec K q p)
 
   theorem is_set_of_relation.{u} {A : Type.{u}} (R : A → A → Type.{u})
     (mere : Π(a b : A), is_prop (R a b)) (refl : Π(a : A), R a a)
@@ -296,10 +296,8 @@ namespace is_trunc
   definition relation_equiv_eq {A : Type} (R : A → A → Type)
     (mere : Π(a b : A), is_prop (R a b)) (refl : Π(a : A), R a a)
     (imp : Π{a b : A}, R a b → a = b) (a b : A) : R a b ≃ a = b :=
-  @equiv_of_is_prop _ _ _
-    (@is_trunc_eq _ _ (is_set_of_relation R mere refl @imp) a b)
-    imp
-    (λp, p ▸ refl a)
+  have is_set A, from is_set_of_relation R mere refl @imp,
+  equiv_of_is_prop imp (λp, p ▸ refl a)
 
   local attribute not [reducible]
   theorem is_set_of_double_neg_elim {A : Type} (H : Π(a b : A), ¬¬a = b → a = b)
@@ -377,17 +375,20 @@ namespace is_trunc
 end is_trunc open is_trunc
 
 namespace trunc
-  variable {A : Type}
+  universe variable u
+  variable {A : Type.{u}}
 
-  protected definition code (n : ℕ₋₂) (aa aa' : trunc n.+1 A) : n-Type :=
-  trunc.rec_on aa (λa, trunc.rec_on aa' (λa', trunctype.mk' n (trunc n (a = a'))))
+  /- characterization of equality in truncated types -/
+  protected definition code [unfold 3 4] (n : ℕ₋₂) (aa aa' : trunc n.+1 A) : trunctype.{u} n :=
+  by induction aa with a; induction aa' with a'; exact trunctype.mk' n (trunc n (a = a'))
 
-  protected definition encode (n : ℕ₋₂) (aa aa' : trunc n.+1 A) : aa = aa' → trunc.code n aa aa' :=
+  protected definition encode [unfold 3 5] {n : ℕ₋₂} {aa aa' : trunc n.+1 A}
+    : aa = aa' → trunc.code n aa aa' :=
   begin
-    intro p, induction p, induction aa with a, esimp [trunc.code,trunc.rec_on], exact (tr idp)
+    intro p, induction p, induction aa with a, esimp, exact (tr idp)
   end
 
-  protected definition decode (n : ℕ₋₂) (aa aa' : trunc n.+1 A) : trunc.code n aa aa' → aa = aa' :=
+  protected definition decode {n : ℕ₋₂} (aa aa' : trunc n.+1 A) : trunc.code n aa aa' → aa = aa' :=
   begin
     induction aa' with a', induction aa with a,
     esimp [trunc.code, trunc.rec_on], intro x,
@@ -411,6 +412,33 @@ namespace trunc
   definition tr_eq_tr_equiv [constructor] (n : ℕ₋₂) (a a' : A)
     : (tr a = tr a' :> trunc n.+1 A) ≃ trunc n (a = a') :=
   !trunc_eq_equiv
+
+  definition trunc_functor2 [unfold 6 7] {n : ℕ₋₂} {A B C : Type} (f : A → B → C)
+    (x : trunc n A) (y : trunc n B) : trunc n C :=
+  by induction x with a; induction y with b; exact tr (f a b)
+
+  definition trunc_concat [unfold 6 7] {n : ℕ₋₂} {A : Type} {a₁ a₂ a₃ : A}
+    (p : trunc n (a₁ = a₂)) (q : trunc n (a₂ = a₃)) : trunc n (a₁ = a₃) :=
+  trunc_functor2 concat p q
+
+  definition code_mul {n : ℕ₋₂} {aa₁ aa₂ aa₃ : trunc n.+1 A}
+    (g : trunc.code n aa₁ aa₂) (h : trunc.code n aa₂ aa₃) : trunc.code n aa₁ aa₃ :=
+  begin
+    induction aa₁ with a₁, induction aa₂ with a₂, induction aa₃ with a₃,
+    esimp at *, induction g with p, induction h with q,
+    exact tr (p ⬝ q)
+  end
+
+  definition encode_con' {n : ℕ₋₂} {aa₁ aa₂ aa₃ : trunc n.+1 A} (p : aa₁ = aa₂) (q : aa₂ = aa₃)
+    : trunc.encode (p ⬝ q) = code_mul (trunc.encode p) (trunc.encode q) :=
+  begin
+    induction p, induction q, induction aa₁ with a₁, reflexivity
+  end
+
+  definition encode_con {n : ℕ₋₂} {a₁ a₂ a₃ : A} (p : tr a₁ = tr a₂ :> trunc (n.+1) A)
+    (q : tr a₂ = tr a₃ :> trunc (n.+1) A)
+    : trunc.encode (p ⬝ q) = trunc_concat (trunc.encode p) (trunc.encode q) :=
+  encode_con' p q
 
   definition is_trunc_trunc_of_is_trunc [instance] [priority 500] (A : Type)
     (n m : ℕ₋₂) [H : is_trunc n A] : is_trunc n (trunc m A) :=
@@ -437,6 +465,12 @@ namespace trunc
     : transport (λa, trunc n (P a)) p (tr x) = tr (p ▸ x) :=
   by induction p; reflexivity
 
+  /- pathover over a truncated family -/
+  definition trunc_pathover {A : Type} {B : A → Type} {n : ℕ₋₂} {a a' : A} {p : a = a'}
+    {b : B a} {b' : B a'} (q : b =[p] b') : @tr n _ b =[p] @tr n _ b' :=
+  by induction q; constructor
+
+  /- equivalences between truncated types (see also hit.trunc) -/
   definition trunc_trunc_equiv_left [constructor] (A : Type) (n m : ℕ₋₂) (H : n ≤ m)
     : trunc n (trunc m A) ≃ trunc n A :=
   begin
@@ -455,13 +489,41 @@ namespace trunc
     exact is_trunc_of_le _ H,
   end
 
+  definition trunc_equiv_trunc_of_le {n m : ℕ₋₂} {A B : Type} (H : n ≤ m)
+    (f : trunc m A ≃ trunc m B) : trunc n A ≃ trunc n B :=
+  (trunc_trunc_equiv_left A _ _ H)⁻¹ᵉ ⬝e trunc_equiv_trunc n f ⬝e trunc_trunc_equiv_left B _ _ H
+
+  definition trunc_trunc_equiv_trunc_trunc [constructor] (n m : ℕ₋₂) (A : Type)
+    : trunc n (trunc m A) ≃ trunc m (trunc n A) :=
+  begin
+    fapply equiv.MK: intro x; induction x with x; induction x with x,
+    { exact tr (tr x)},
+    { exact tr (tr x)},
+    { reflexivity},
+    { reflexivity}
+  end
+
+  /- trunc_functor preserves surjectivity -/
+
+  definition is_surjective_trunc_functor {A B : Type} (n : ℕ₋₂) (f : A → B) [H : is_surjective f]
+    : is_surjective (trunc_functor n f) :=
+  begin
+    cases n with n: intro b,
+    { exact tr (fiber.mk !center !is_prop.elim)},
+    { refine @trunc.rec _ _ _ _ _ b, {intro x, exact is_trunc_of_le _ !minus_one_le_succ},
+      clear b, intro b, induction H b with v, induction v with a p,
+      exact tr (fiber.mk (tr a) (ap tr p))}
+  end
+
+
+  /- the image of a map is the (-1)-truncated fiber -/
   definition image [constructor] {A B : Type} (f : A → B) (b : B) : Prop := ∥ fiber f b ∥
 
   definition image.mk [constructor] {A B : Type} {f : A → B} {b : B} (a : A) (p : f a = b)
     : image f b :=
   tr (fiber.mk a p)
 
-  -- truncation of pointed types
+  /- truncation of pointed types and its functorial action -/
   definition ptrunc [constructor] (n : ℕ₋₂) (X : Type*) : n-Type* :=
   ptrunctype.mk (trunc n X) _ (tr pt)
 
@@ -469,15 +531,42 @@ namespace trunc
     : ptrunc n X →* ptrunc n Y :=
   pmap.mk (trunc_functor n f) (ap tr (respect_pt f))
 
-  definition ptrunc_pequiv [constructor] (n : ℕ₋₂) {X Y : Type*} (H : X ≃* Y)
+  definition ptrunc_pequiv_ptrunc [constructor] (n : ℕ₋₂) {X Y : Type*} (H : X ≃* Y)
     : ptrunc n X ≃* ptrunc n Y :=
   pequiv_of_equiv (trunc_equiv_trunc n H) (ap tr (respect_pt H))
+
+  definition ptrunc_pequiv [constructor] (n : ℕ₋₂) (X : Type*) (H : is_trunc n X)
+    : ptrunc n X ≃* X :=
+  pequiv_of_equiv (trunc_equiv n X) idp
+
+  definition ptrunc_ptrunc_pequiv_left [constructor] (A : Type*) (n m : ℕ₋₂) (H : n ≤ m)
+    : ptrunc n (ptrunc m A) ≃* ptrunc n A :=
+  pequiv_of_equiv (trunc_trunc_equiv_left A n m H) idp
+
+  definition ptrunc_ptrunc_pequiv_right [constructor] (A : Type*) (n m : ℕ₋₂) (H : n ≤ m)
+    : ptrunc m (ptrunc n A) ≃* ptrunc n A :=
+  pequiv_of_equiv (trunc_trunc_equiv_right A n m H) idp
+
+  definition ptrunc_pequiv_ptrunc_of_le {n m : ℕ₋₂} {A B : Type*} (H : n ≤ m)
+    (f : ptrunc m A ≃* ptrunc m B) : ptrunc n A ≃* ptrunc n B :=
+  (ptrunc_ptrunc_pequiv_left A _ _ H)⁻¹ᵉ* ⬝e*
+  ptrunc_pequiv_ptrunc n f ⬝e*
+  ptrunc_ptrunc_pequiv_left B _ _ H
+
+  definition ptrunc_ptrunc_pequiv_ptrunc_ptrunc [constructor] (n m : ℕ₋₂) (A : Type*)
+    : ptrunc n (ptrunc m A) ≃ ptrunc m (ptrunc n A) :=
+  pequiv_of_equiv (trunc_trunc_equiv_trunc_trunc n m A) idp
 
   definition loop_ptrunc_pequiv [constructor] (n : ℕ₋₂) (A : Type*) :
     Ω (ptrunc (n+1) A) ≃* ptrunc n (Ω A) :=
   pequiv_of_equiv !tr_eq_tr_equiv idp
 
-  definition iterated_loop_ptrunc_pequiv [constructor] (n : ℕ₋₂) (k : ℕ) (A : Type*) :
+  definition loop_ptrunc_pequiv_con {n : ℕ₋₂} {A : Type*} (p q : Ω (ptrunc (n+1) A)) :
+    loop_ptrunc_pequiv n A (p ⬝ q) =
+      trunc_concat (loop_ptrunc_pequiv n A p) (loop_ptrunc_pequiv n A q) :=
+  encode_con p q
+
+  definition iterated_loop_ptrunc_pequiv (n : ℕ₋₂) (k : ℕ) (A : Type*) :
     Ω[k] (ptrunc (n+k) A) ≃* ptrunc n (Ω[k] A) :=
   begin
     revert n, induction k with k IH: intro n,

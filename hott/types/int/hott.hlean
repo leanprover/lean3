@@ -16,6 +16,8 @@ namespace int
   open algebra
   definition group_integers : Group :=
   Group.mk ℤ (group_of_add_group _)
+
+  notation `gℤ` := group_integers
   end
 
   definition is_equiv_succ [instance] : is_equiv succ :=

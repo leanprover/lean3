@@ -18,7 +18,7 @@ The rows indicate the chapters, the columns the sections.
 | Ch 1  | . | . | . | . | + | + | + | + | + | .  | +  | +  |    |    |    |
 | Ch 2  | + | + | + | + | . | + | + | + | + | +  | +  | +  | +  | +  | +  |
 | Ch 3  | + | + | + | + | ½ | + | + | + | + | .  | +  |    |    |    |    |
-| Ch 4  | - | + | + | + | . | + | ½ | + | + |    |    |    |    |    |    |
+| Ch 4  | - | + | + | + | . | + | + | + | + |    |    |    |    |    |    |
 | Ch 5  | - | . | ½ | - | - | . | . | ½ |   |    |    |    |    |    |    |
 | Ch 6  | . | + | + | + | + | ½ | ½ | + | ¾ | ¼  | ¾  | +  | .  |    |    |
 | Ch 7  | + | + | + | - | ¾ | - | - |   |   |    |    |    |    |    |    |
@@ -75,7 +75,7 @@ Chapter 3: Sets and logic
 - 3.2 (Propositions as types?): [types.univ](types/univ.hlean)
 - 3.3 (Mere propositions): [init.trunc](init/trunc.hlean) and [prop_trunc](prop_trunc.hlean) (Lemma 3.3.5).
 - 3.4 (Classical vs. intuitionistic logic): decidable is defined in [init.logic](init/logic.hlean)
-- 3.5 (Subsets and propositional resizing): Lemma 3.5.1 is subtype_eq in [types.sigma](types/sigma.hlean), we don't have propositional resizing as axiom yet.
+- 3.5 (Subsets and propositional resizing): Lemma 3.5.1 is subtype_eq in [types.sigma](types/sigma.hlean). We have not declared propositional resizing as an axiom.
 - 3.6 (The logic of mere propositions): in the corresponding file in the [types](types/types.md) folder. (is_trunc_prod is defined in [types.sigma](types/sigma.hlean))
 - 3.7 (Propositional truncation): [init.hit](init/hit.hlean) and [hit.trunc](hit/trunc.hlean)
 - 3.8 (The axiom of choice): [choice](choice.hlean)
@@ -92,7 +92,7 @@ Chapter 4: Equivalences
 - 4.4 (Contractible fibers): [types.equiv](types/equiv.hlean)
 - 4.5 (On the definition of equivalences): no formalizable content
 - 4.6 (Surjections and embeddings): [function](function.hlean)
-- 4.7 (Closure properties of equivalences): 4.7.1 in [init.equiv](init/equiv.hlean); 4.7.2 in [function](function.hlean); 4.7.5 and 4.7.7 in [types.sigma](types/sigma.hlean) (sigma_functor is a generalization of total(f)); and 4.7.6 in 4.7.6 in [types.fiber](types/fiber.hlean).
+- 4.7 (Closure properties of equivalences): 4.7.1 in [init.equiv](init/equiv.hlean); 4.7.2 in [function](function.hlean); 4.7.3 and 4.7.4 in [types.arrow_2](types/arrow_2.hlean) 4.7.5 in [types.sigma](types/sigma.hlean) (sigma_functor is a generalization of total(f)); 4.7.6 in [types.fiber](types/fiber.hlean) and 4.7.7 in [types.equiv](types/equiv.hlean).
 - 4.8 (The object classifier): 4.8.1 and 4.8.2 in [types.fiber](types/fiber.hlean); 4.8.3 and 4.8.4 in [types.univ](types/univ.hlean)
 - 4.9 (Univalence implies function extensionality): [init.funext](init/funext.hlean)
 
@@ -132,7 +132,7 @@ Chapter 7: Homotopy n-types
 - 7.2 (Uniqueness of identity proofs and Hedberg’s theorem): [init.hedberg](init/hedberg.hlean) and [types.trunc](types/trunc.hlean)
 - 7.3 (Truncations): [init.hit](init/hit.hlean), [hit.trunc](hit/trunc.hlean) and [types.trunc](types/trunc.hlean)
 - 7.4 (Colimits of n-types): not formalized
-- 7.5 (Connectedness): [homotopy.connectedness](homotopy/connectedness.hlean) (the main "induction principle" Lemma 7.5.7)
+- 7.5 (Connectedness): [homotopy.connectedness](homotopy/connectedness.hlean) (missing theorems: 6, 8, 9, 10, 12, 13)
 - 7.6 (Orthogonal factorization): not formalized
 - 7.7 (Modalities): not formalized, and may be unformalizable in general because it's unclear how to define modalities
 
@@ -142,7 +142,7 @@ Chapter 8: Homotopy theory
 Unless otherwise noted, the files are in the folder [homotopy](homotopy/homotopy.md)
 
 - 8.1 (π_1(S^1)): [homotopy.circle](homotopy/circle.hlean) (only the encode-decode proof)
-- 8.2 (Connectedness of suspensions): [homotopy.connectedness](homotopy/connectedness.hlean) (different proof)
+- 8.2 (Connectedness of suspensions): [homotopy.connectedness](homotopy/connectedness.hlean) (different proof of Theorem 8.2.1)
 - 8.3 (πk≤n of an n-connected space and π_{k<n}(S^n)): [homotopy.homotopy_group](homotopy/homotopy_group.hlean)
 - 8.4 (Fiber sequences and the long exact sequence): not formalized
 - 8.5 (The Hopf fibration): [homotopy.circle](homotopy/circle.hlean) (H-space structure on the circle, Lemma 8.5.8), [homotopy.join](homotopy/join.hlean) (join is associative, Lemma 8.5.9), the rest is not formalized

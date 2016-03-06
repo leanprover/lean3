@@ -217,6 +217,11 @@ namespace pointed
     { exact loop_pequiv_loop IH}
   end
 
+  definition loopn_pequiv_loopn_con (n : ℕ) (f : A ≃* B) (p q : Ω[n+1] A)
+    : loopn_pequiv_loopn (n+1) f (p ⬝ q) =
+    loopn_pequiv_loopn (n+1) f p ⬝ loopn_pequiv_loopn (n+1) f q :=
+  ap1_con (loopn_pequiv_loopn n f) p q
+
   definition pmap_functor [constructor] {A A' B B' : Type*} (f : A' →* A) (g : B →* B') :
     ppmap A B →* ppmap A' B' :=
   pmap.mk (λh, g ∘* h ∘* f)
