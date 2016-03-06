@@ -21,7 +21,7 @@ namespace homotopy
     assumption
   end
 
-  definition is_conn_map [reducible] (n : ℕ₋₂) {A B : Type} (f : A → B) : Type :=
+  definition is_conn_fun [reducible] (n : ℕ₋₂) {A B : Type} (f : A → B) : Type :=
   Πb : B, is_conn n (fiber f b)
 
   theorem is_conn_of_le (A : Type) {n k : ℕ₋₂} (H : n ≤ k) [is_conn k A] : is_conn n A :=
@@ -30,14 +30,14 @@ namespace homotopy
     apply trunc_trunc_equiv_left _ n k H
   end
 
-  theorem is_conn_map_of_le {A B : Type} (f : A → B) {n k : ℕ₋₂} (H : n ≤ k)
-    [is_conn_map k f] : is_conn_map n f :=
+  theorem is_conn_fun_of_le {A B : Type} (f : A → B) {n k : ℕ₋₂} (H : n ≤ k)
+    [is_conn_fun k f] : is_conn_fun n f :=
   λb, is_conn_of_le _ H
 
-  namespace is_conn_map
+  namespace is_conn_fun
   section
-    parameters {n : ℕ₋₂} {A B : Type} {h : A → B}
-               (H : is_conn_map n h) (P : B → n -Type)
+    parameters (n : ℕ₋₂) {A B : Type} {h : A → B}
+               (H : is_conn_fun n h) (P : B → Type) [Πb, is_trunc n (P b)]
 
     private definition rec.helper : (Πa : A, P (h a)) → Πb : B, trunc n (fiber h b) → P b :=
     λt b, trunc.rec (λx, point_eq x ▸ t (point x))
@@ -67,16 +67,16 @@ namespace homotopy
   end
 
   section
-    parameters {n k : ℕ₋₂} {A B : Type} {f : A → B}
-               (H : is_conn_map n f) (P : B → (n +2+ k)-Type)
+    parameters (n k : ℕ₋₂) {A B : Type} {f : A → B}
+               (H : is_conn_fun n f) (P : B → Type) [HP : Πb, is_trunc (n +2+ k) (P b)]
 
-    include H
+    include H HP
     -- Lemma 8.6.1
     proposition elim_general : is_trunc_fun k (pi_functor_left f P) :=
     begin
-      intro t,
-      induction k with k IH,
-      { apply is_contr_fiber_of_is_equiv, apply is_conn_map.rec, exact H },
+      revert P HP,
+      induction k with k IH: intro P HP t,
+      { apply is_contr_fiber_of_is_equiv, apply is_conn_fun.rec, exact H, exact HP},
       { apply is_trunc_succ_intro,
         intros x y, cases x with g p, cases y with h q,
         have e : fiber (λr : g ~ h, (λa, r (f a))) (apd10 (p ⬝ q⁻¹))
@@ -104,16 +104,14 @@ namespace homotopy
           apply eq_equiv_eq_symm
         end,
         apply @is_trunc_equiv_closed _ _ k e, clear e,
-        apply IH (λb : B, trunctype.mk (g b = h b)
-                           (@is_trunc_eq (P b) (n +2+ k) (trunctype.struct (P b))
-                           (g b) (h b))) }
+        apply IH (λb : B, (g b = h b)) (λb, @is_trunc_eq (P b) (n +2+ k) (HP b) (g b) (h b))}
     end
 
   end
 
   section
     universe variables u v
-    parameters {n : ℕ₋₂} {A : Type.{u}} {B : Type.{v}} {h : A → B}
+    parameters (n : ℕ₋₂) {A : Type.{u}} {B : Type.{v}} {h : A → B}
     parameter sec : ΠP : B → trunctype.{max u v} n,
                     is_retraction (λs : (Πb : B, P b), λ a, s (h a))
 
@@ -122,7 +120,7 @@ namespace homotopy
     include sec
 
     -- the other half of Lemma 7.5.7
-    definition intro : is_conn_map n h :=
+    definition intro : is_conn_fun n h :=
     begin
       intro b,
       apply is_contr.mk (@is_retraction.sect _ _ _ s (λa, tr (fiber.mk a idp)) b),
@@ -134,22 +132,22 @@ namespace homotopy
       exact apd10 (@right_inverse _ _ _ s (λa, tr (fiber.mk a idp))) a
     end
   end
-  end is_conn_map
+  end is_conn_fun
 
   -- Connectedness is related to maps to and from the unit type, first to
   section
     parameters (n : ℕ₋₂) (A : Type)
 
     definition is_conn_of_map_to_unit
-      : is_conn_map n (const A unit.star) → is_conn n A :=
+      : is_conn_fun n (const A unit.star) → is_conn n A :=
     begin
-      intro H, unfold is_conn_map at H,
+      intro H, unfold is_conn_fun at H,
       rewrite [-(ua (fiber.fiber_star_equiv A))],
       exact (H unit.star)
     end
 
     -- now maps from unit
-    definition is_conn_of_map_from_unit (a₀ : A) (H : is_conn_map n (const unit a₀))
+    definition is_conn_of_map_from_unit (a₀ : A) (H : is_conn_fun n (const unit a₀))
       : is_conn n .+1 A :=
     is_contr.mk (tr a₀)
     begin
@@ -158,8 +156,8 @@ namespace homotopy
                             (@center _ (H a))
     end
 
-    definition is_conn_map_from_unit (a₀ : A) [H : is_conn n .+1 A]
-      : is_conn_map n (const unit a₀) :=
+    definition is_conn_fun_from_unit (a₀ : A) [H : is_conn n .+1 A]
+      : is_conn_fun n (const unit a₀) :=
     begin
       intro a,
       apply is_conn_equiv_closed n (equiv.symm (fiber_const_equiv A a₀ a)),
@@ -172,15 +170,15 @@ namespace homotopy
   namespace is_conn
     open pointed unit
     section
-      parameters {n : ℕ₋₂} {A : Type*}
-                 [H : is_conn n .+1 A] (P : A → n-Type)
+      parameters (n : ℕ₋₂) {A : Type*}
+                 [H : is_conn n .+1 A] (P : A → Type) [Πa, is_trunc n (P a)]
 
       include H
       protected definition rec : is_equiv (λs : Πa : A, P a, s (Point A)) :=
       @is_equiv_compose
         (Πa : A, P a) (unit → P (Point A)) (P (Point A))
         (λs x, s (Point A)) (λf, f unit.star)
-        (is_conn_map.rec (is_conn_map_from_unit n A (Point A)) P)
+        (is_conn_fun.rec n (is_conn_fun_from_unit n A (Point A)) P)
         (to_is_equiv (arrow_unit_left (P (Point A))))
 
       protected definition elim : P (Point A) → (Πa : A, P a) :=
@@ -191,8 +189,8 @@ namespace homotopy
     end
 
     section
-      parameters {n k : ℕ₋₂} {A : Type*}
-                 [H : is_conn n .+1 A] (P : A → (n +2+ k)-Type)
+      parameters (n k : ℕ₋₂) {A : Type*}
+                 [H : is_conn n .+1 A] (P : A → Type) [Πa, is_trunc (n +2+ k) (P a)]
 
       include H
       proposition elim_general (p : P (Point A))
@@ -202,20 +200,20 @@ namespace homotopy
         (fiber (λs, s (Point A)) p)
         k
         (equiv.symm (fiber.equiv_postcompose (to_fun (arrow_unit_left (P (Point A))))))
-        (is_conn_map.elim_general (is_conn_map_from_unit n A (Point A)) P (λx, p))
+        (is_conn_fun.elim_general n k (is_conn_fun_from_unit n A (Point A)) P (λx, p))
     end
   end is_conn
 
   -- Lemma 7.5.2
   definition minus_one_conn_of_surjective {A B : Type} (f : A → B)
-    : is_surjective f → is_conn_map -1 f :=
+    : is_surjective f → is_conn_fun -1 f :=
   begin
     intro H, intro b,
     exact @is_contr_of_inhabited_prop (∥fiber f b∥) (is_trunc_trunc -1 (fiber f b)) (H b),
   end
 
   definition is_surjection_of_minus_one_conn {A B : Type} (f : A → B)
-    : is_conn_map -1 f → is_surjective f :=
+    : is_conn_fun -1 f → is_surjective f :=
   begin
     intro H, intro b,
     exact @center (∥fiber f b∥) (H b),
@@ -234,7 +232,7 @@ namespace homotopy
 
     -- Lemma 7.5.4
     definition retract_of_conn_is_conn [instance] (r : arrow_hom f g) [H : is_retraction r]
-      (n : ℕ₋₂) [K : is_conn_map n f] : is_conn_map n g :=
+      (n : ℕ₋₂) [K : is_conn_fun n f] : is_conn_fun n g :=
     begin
       intro b, unfold is_conn,
       apply is_contr_retract (trunc_functor n (retraction_on_fiber r b)),
@@ -245,7 +243,7 @@ namespace homotopy
 
   -- Corollary 7.5.5
   definition is_conn_homotopy (n : ℕ₋₂) {A B : Type} {f g : A → B}
-    (p : f ~ g) (H : is_conn_map n f) : is_conn_map n g :=
+    (p : f ~ g) (H : is_conn_fun n f) : is_conn_fun n g :=
   @retract_of_conn_is_conn _ _ (arrow.arrow_hom_of_homotopy p) (arrow.is_retraction_arrow_hom_of_homotopy p) n H
 
   -- all types are -2-connected
@@ -274,8 +272,8 @@ namespace homotopy
       { intros H,
         change ap (@tr n .+2 (susp A)) (merid a) = ap tr (merid a'),
         generalize a',
-        apply is_conn_map.elim
-              (is_conn_map_from_unit n A a)
+        apply is_conn_fun.elim n
+              (is_conn_fun_from_unit n A a)
               (λx : A, trunctype.mk' n (ap (@tr n .+2 (susp A)) (merid a) = ap tr (merid x))),
         intros,
         change ap (@tr n .+2 (susp A)) (merid a) = ap tr (merid a),
@@ -285,8 +283,8 @@ namespace homotopy
   end
 
   -- Lemma 7.5.14
-  theorem is_equiv_trunc_functor_of_is_conn_map {A B : Type} (n : ℕ₋₂) (f : A → B)
-    [H : is_conn_map n f] : is_equiv (trunc_functor n f) :=
+  theorem is_equiv_trunc_functor_of_is_conn_fun {A B : Type} (n : ℕ₋₂) (f : A → B)
+    [H : is_conn_fun n f] : is_equiv (trunc_functor n f) :=
   begin
     fapply adjointify,
     { intro b, induction b with b, exact trunc_functor n point (center (trunc n (fiber f b)))},
@@ -295,9 +293,9 @@ namespace homotopy
     { intro a, induction a with a, esimp, rewrite [center_eq (tr (fiber.mk a idp))]}
   end
 
-  theorem trunc_equiv_trunc_of_is_conn_map {A B : Type} (n : ℕ₋₂) (f : A → B)
-    [H : is_conn_map n f] : trunc n A ≃ trunc n B :=
-  equiv.mk (trunc_functor n f) (is_equiv_trunc_functor_of_is_conn_map n f)
+  theorem trunc_equiv_trunc_of_is_conn_fun {A B : Type} (n : ℕ₋₂) (f : A → B)
+    [H : is_conn_fun n f] : trunc n A ≃ trunc n B :=
+  equiv.mk (trunc_functor n f) (is_equiv_trunc_functor_of_is_conn_fun n f)
 
   open trunc_index pointed sphere.ops
   -- Corollary 8.2.2

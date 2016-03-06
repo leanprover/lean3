@@ -39,13 +39,12 @@ namespace is_trunc
     cases n with n,
     { exfalso, apply not_lt_zero, exact H},
     { have H2 : k ≤ n, from le_of_lt_succ H,
-      apply @(trivial_homotopy_group_of_is_conn _ H2),
-      rewrite [-trunc_index.of_sphere_index_of_nat, -trunc_index.succ_sub_one], apply is_conn_sphere}
+      apply @(trivial_homotopy_group_of_is_conn _ H2)}
   end
   end
 
   theorem is_contr_HG_fiber_of_is_connected {A B : Type*} (k n : ℕ) (f : A →* B)
-    [H : is_conn_map n f] (H2 : k ≤ n) : is_contr (π[k] (pfiber f)) :=
+    [H : is_conn_fun n f] (H2 : k ≤ n) : is_contr (π[k] (pfiber f)) :=
   @(trivial_homotopy_group_of_is_conn (pfiber f) H2) (H pt)
 
 

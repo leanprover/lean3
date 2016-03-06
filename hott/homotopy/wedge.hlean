@@ -36,22 +36,24 @@ section
   -- The wedge connectivity lemma (Lemma 8.6.2)
   parameters {A B : Type*} (n m : ℕ)
              [cA : is_conn n A] [cB : is_conn m B]
-             (P : A → B → (m + n)-Type)
+             (P : A → B → Type) [HP : Πa b, is_trunc (m + n) (P a b)]
              (f : Πa : A, P a pt)
              (g : Πb : B, P pt b)
              (p : f pt = g pt)
 
-  include cA cB
-  private definition Q (a : A) : (n.-1)-Type :=
-  trunctype.mk
-    (fiber (λs : (Πb : B, P a b), s (Point B)) (f a))
-    abstract begin
-      refine @is_conn.elim_general (m.-1) _ _ _ (λb, trunctype.mk (P a b) _) (f a),
-      rewrite [-succ_add_succ, of_nat_add_of_nat], intro b, apply trunctype.struct
-    end end
+  include cA cB HP
+  private definition Q (a : A) : Type :=
+  fiber (λs : (Πb : B, P a b), s (Point B)) (f a)
 
+  private definition is_trunc_Q (a : A) : is_trunc (n.-1) (Q a) :=
+  begin
+    refine @is_conn.elim_general (m.-1) _ _ _ (P a) _ (f a),
+    rewrite [-succ_add_succ, of_nat_add_of_nat], intro b, apply HP
+  end
+
+  local attribute is_trunc_Q [instance]
   private definition Q_sec : Πa : A, Q a :=
-  is_conn.elim Q (fiber.mk g p⁻¹)
+  is_conn.elim (n.-1) Q (fiber.mk g p⁻¹)
 
   protected definition ext : Π(a : A)(b : B), P a b :=
   λa, fiber.point (Q_sec a)
@@ -62,7 +64,7 @@ section
   private definition coh_aux : Σq : ext (Point A) = g,
     β_left (Point A) = ap (λs : (Πb : B, P (Point A) b), s (Point B)) q ⬝ p⁻¹ :=
   equiv.to_fun (fiber.fiber_eq_equiv (Q_sec (Point A)) (fiber.mk g p⁻¹))
-               (is_conn.elim_β Q (fiber.mk g p⁻¹))
+               (is_conn.elim_β (n.-1) Q (fiber.mk g p⁻¹))
 
   protected definition β_right (b : B) : ext (Point A) b = g b :=
   apd10 (sigma.pr1 coh_aux) b
