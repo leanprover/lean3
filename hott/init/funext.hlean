@@ -221,15 +221,22 @@ theorem weak_funext_of_ua : weak_funext :=
     from p⁻¹ ▸ tU,
   tlast)
 
--- In the following we will proof function extensionality using the univalence axiom
+-- we have proven function extensionality from the univalence axiom
 definition funext_of_ua : funext :=
   funext_of_weak_funext (@weak_funext_of_ua)
+
+/-
+  We still take funext as an axiom, so that when you write "print axioms foo", you can see whether
+  it uses only function extensionality, and not also univalence.
+-/
+
+axiom function_extensionality : funext
 
 variables {A : Type} {P : A → Type} {f g : Π x, P x}
 
 namespace funext
   theorem is_equiv_apd [instance] (f g : Π x, P x) : is_equiv (@apd10 A P f g) :=
-  funext_of_ua f g
+  function_extensionality f g
 end funext
 
 open funext
