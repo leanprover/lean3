@@ -5,9 +5,9 @@ Authors: Floris van Doorn, Clive Newstead
 
 -/
 
-import algebra.homotopy_group .connectedness
+import algebra.homotopy_group .sphere
 
-open eq is_trunc trunc_index pointed algebra trunc nat homotopy
+open eq is_trunc trunc_index pointed algebra trunc nat is_conn
 
 namespace is_trunc
   -- Lemma 8.3.1
@@ -38,7 +38,7 @@ namespace is_trunc
   end
 
   -- Corollary 8.3.3
-  open sphere.ops sphere_index
+  open sphere sphere.ops sphere_index
   theorem homotopy_group_sphere_le (n k : ℕ) (H : k < n) : is_contr (π[k] (S. n)) :=
   begin
     cases n with n,

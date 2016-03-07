@@ -3,11 +3,11 @@ Copyright (c) 2015 Ulrik Buchholtz. All rights reserved.
 Released under Apache 2.0 license as described in the file LICENSE.
 Authors: Ulrik Buchholtz, Floris van Doorn
 -/
-import types.trunc types.arrow_2 .sphere
+import types.trunc types.arrow_2 types.fiber
 
 open eq is_trunc is_equiv nat equiv trunc function fiber funext pi
 
-namespace homotopy
+namespace is_conn
 
   definition is_conn [reducible] (n : ℕ₋₂) (A : Type) : Type :=
   is_contr (trunc n A)
@@ -240,47 +240,6 @@ namespace homotopy
 
   -- all types are -2-connected
   definition minus_two_conn [instance] (A : Type) : is_conn -2 A :=
-  _
+  is_trunc_trunc -2 A
 
-  -- Theorem 8.2.1
-  open susp
-
-  theorem is_conn_susp [instance] (n : ℕ₋₂) (A : Type)
-    [H : is_conn n A] : is_conn (n .+1) (susp A) :=
-  is_contr.mk (tr north)
-  begin
-    apply trunc.rec,
-    fapply susp.rec,
-    { reflexivity },
-    { exact (trunc.rec (λa, ap tr (merid a)) (center (trunc n A))) },
-    { intro a,
-      generalize (center (trunc n A)),
-      apply trunc.rec,
-      intro a',
-      apply pathover_of_tr_eq,
-      rewrite [transport_eq_Fr,idp_con],
-      revert H, induction n with [n, IH],
-      { intro H, apply is_prop.elim },
-      { intros H,
-        change ap (@tr n .+2 (susp A)) (merid a) = ap tr (merid a'),
-        generalize a',
-        apply is_conn_map.elim
-              (is_conn_map_from_unit n A a)
-              (λx : A, trunctype.mk' n (ap (@tr n .+2 (susp A)) (merid a) = ap tr (merid x))),
-        intros,
-        change ap (@tr n .+2 (susp A)) (merid a) = ap tr (merid a),
-        reflexivity
-      }
-    }
-  end
-
-  open trunc_index
-  -- Corollary 8.2.2
-  theorem is_conn_sphere [instance] (n : ℕ₋₁) : is_conn (n..-1) (sphere n) :=
-  begin
-    induction n with n IH,
-    { apply minus_two_conn},
-    { rewrite [succ_sub_one, sphere.sphere_succ], apply is_conn_susp}
-  end
-
-end homotopy
+end is_conn

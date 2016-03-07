@@ -30,7 +30,8 @@ namespace wedge
   end
 end wedge
 
-open trunc is_trunc function homotopy
+open trunc is_trunc is_conn function
+
 namespace wedge_extension
 section
   -- The wedge connectivity lemma (Lemma 8.6.2)

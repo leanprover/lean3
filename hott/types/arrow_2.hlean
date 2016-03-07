@@ -109,3 +109,77 @@ namespace arrow
     (λa, con_eq_of_eq_inv_con (ap_id _))
 
 end arrow
+
+namespace arrow
+  /-
+    equivalences in the arrow category; could be packaged into structures.
+    cannot be moved to types.pi because of the dependence on types.equiv.
+  -/
+
+  variables {A A' B B' : Type} (f : A → B) (f' : A' → B')
+            (α : A → A') (β : B → B')
+            [Hf : is_equiv f] [Hf' : is_equiv f']
+  include Hf Hf'
+
+  open function
+  definition inv_commute_of_commute (p : f' ∘ α ~ β ∘ f) : f'⁻¹ ∘ β ~ α ∘ f⁻¹ :=
+  begin
+    apply homotopy_inv_of_homotopy_post f' β (α ∘ f⁻¹),
+    apply homotopy.symm,
+    apply homotopy_inv_of_homotopy_pre f (f' ∘ α) β,
+    apply p
+  end
+
+  definition inv_commute_of_commute_top (p : f' ∘ α ~ β ∘ f) (a : A)
+    : inv_commute_of_commute f f' α β p (f a)
+    =  (ap f'⁻¹ (p a))⁻¹ ⬝ left_inv f' (α a) ⬝ ap α (left_inv f a)⁻¹ :=
+  begin
+    unfold inv_commute_of_commute,
+    unfold homotopy_inv_of_homotopy_post,
+    unfold homotopy_inv_of_homotopy_pre,
+    rewrite [adj f a,-(ap_compose β f)],
+    rewrite [eq_of_square (natural_square_tr p (left_inv f a))],
+    rewrite [ap_inv f'⁻¹,ap_con f'⁻¹,con_inv,con.assoc,con.assoc],
+    apply whisker_left (ap f'⁻¹ (p a))⁻¹,
+    apply eq_of_square, rewrite [ap_inv α,-(ap_compose f'⁻¹ (f' ∘ α))],
+    apply hinverse, rewrite [ap_compose (f'⁻¹ ∘ f') α],
+    refine vconcat_eq _ (ap_id (ap α (left_inv f a))),
+    apply natural_square (left_inv f') (ap α (left_inv f a))
+  end
+
+  definition ap_bot_inv_commute_of_commute (p : f' ∘ α ~ β ∘ f) (b : B)
+    : ap f' (inv_commute_of_commute f f' α β p b)
+    = right_inv f' (β b) ⬝ ap β (right_inv f b)⁻¹ ⬝ (p (f⁻¹ b))⁻¹ :=
+  begin
+    unfold inv_commute_of_commute,
+    unfold homotopy_inv_of_homotopy_post,
+    unfold homotopy_inv_of_homotopy_pre,
+    rewrite [ap_con,-(ap_compose f' f'⁻¹),-(adj f' (α (f⁻¹ b)))],
+    rewrite [con.assoc (right_inv f' (β b)) (ap β (right_inv f b)⁻¹)
+                       (p (f⁻¹ b))⁻¹],
+    apply eq_of_square,
+    refine vconcat_eq _
+      (whisker_right (ap_inv β (right_inv f b)) (p (f⁻¹ b))⁻¹)⁻¹,
+    refine vconcat_eq _
+      (con_inv (p (f⁻¹ b)) (ap β (right_inv f b))),
+    refine vconcat_eq _
+      (ap_id (p (f⁻¹ b) ⬝ ap β (right_inv f b))⁻¹),
+    apply natural_square (right_inv f')
+      (p (f⁻¹ b) ⬝ ap β (right_inv f b))⁻¹
+  end
+
+  definition is_equiv_inv_commute_of_commute
+    : is_equiv (inv_commute_of_commute f f' α β) :=
+  begin
+    unfold inv_commute_of_commute,
+    apply @is_equiv_compose _ _ _
+      (homotopy.symm ∘ (homotopy_inv_of_homotopy_pre f (f' ∘ α) β))
+      (homotopy_inv_of_homotopy_post f' β (α ∘ f⁻¹)),
+    { apply @is_equiv_compose _ _ _
+            (homotopy_inv_of_homotopy_pre f (f' ∘ α) β) homotopy.symm,
+      { apply homotopy_inv_of_homotopy_pre.is_equiv },
+      { apply pi.is_equiv_homotopy_symm }
+    },
+    { apply homotopy_inv_of_homotopy_post.is_equiv }
+  end
+end arrow

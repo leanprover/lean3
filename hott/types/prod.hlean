@@ -127,6 +127,16 @@ namespace prod
     : ap (prod_functor f g) (prod_eq p q) = prod_eq (ap f p) (ap g q) :=
   by induction u; induction v; esimp at *; induction p; induction q; reflexivity
 
+  /- Helpers for functions of two arguments -/
+  definition ap_diagonal {a a' : A} (p : a = a')
+    : ap (λx : A, (x,x)) p = prod_eq p p :=
+  by cases p; constructor
+
+  definition ap_binary (m : A → B → C) (p : a = a') (q : b = b')
+    : ap (λz : A × B, m z.1 z.2) (prod_eq p q)
+    = (ap (m a) q) ⬝ (ap (λx : A, m x b') p) :=
+  by cases p; cases q; constructor
+
   /- Equivalences -/
 
   definition is_equiv_prod_functor [instance] [constructor] [H : is_equiv f] [H : is_equiv g]
