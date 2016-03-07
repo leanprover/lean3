@@ -139,14 +139,14 @@ Chapter 7: Homotopy n-types
 Chapter 8: Homotopy theory
 ---------
 
-Unless otherwise noted, the files are in the folder [homotopy](homotopy/homotopy.md)
+Every file is in the folder [homotopy](homotopy/homotopy.md)
 
-- 8.1 (π_1(S^1)): [homotopy.circle](homotopy/circle.hlean) (only the encode-decode proof)
-- 8.2 (Connectedness of suspensions): [homotopy.connectedness](homotopy/connectedness.hlean) (different proof)
-- 8.3 (πk≤n of an n-connected space and π_{k<n}(S^n)): [homotopy.homotopy_group](homotopy/homotopy_group.hlean)
+- 8.1 (π_1(S^1)): [circle](homotopy/circle.hlean) (only the encode-decode proof)
+- 8.2 (Connectedness of suspensions): [susp](homotopy/susp.hlean) (Theorem 8.2.1, different proof)
+- 8.3 (πk≤n of an n-connected space and π_{k<n}(S^n)): [homotopy_group](homotopy/homotopy_group.hlean)
 - 8.4 (Fiber sequences and the long exact sequence): not formalized
-- 8.5 (The Hopf fibration): [homotopy.circle](homotopy/circle.hlean) (multiplication on the circle, Lemma 8.5.8), [homotopy.join](homotopy/join.hlean) (join is associative, Lemma 8.5.9), [homotopy.hopf](homotopy/hopf.hlean) (The Hopf construction, Lemmas 8.5.5 and 8.5.7), [homotopy/complex_hopf.hlean] (the H-space structure on the circle and the complex Hopf fibration)
-- 8.6 (The Freudenthal suspension theorem): [homotopy.connectedness](homotopy/connectedness.hlean) (Lemma 8.6.1), [homotopy.wedge](homotopy/wedge.hlean) (Wedge connectivity, Lemma 8.6.2), the rest is not formalized
+- 8.5 (The Hopf fibration): [circle](homotopy/circle.hlean) (multiplication on the circle, Lemma 8.5.8), [join](homotopy/join.hlean) (join is associative, Lemma 8.5.9), [hopf](homotopy/hopf.hlean) (The Hopf construction, Lemmas 8.5.5 and 8.5.7), [complex_hopf](homotopy/complex_hopf.hlean) (the H-space structure on the circle and the complex Hopf fibration)
+- 8.6 (The Freudenthal suspension theorem): [connectedness](homotopy/connectedness.hlean) (Lemma 8.6.1), [wedge](homotopy/wedge.hlean) (Wedge connectivity, Lemma 8.6.2), the rest is not formalized
 - 8.7 (The van Kampen theorem): not formalized
 - 8.8 (Whitehead’s theorem and Whitehead’s principle): not formalized
 - 8.9 (A general statement of the encode-decode method): not formalized
