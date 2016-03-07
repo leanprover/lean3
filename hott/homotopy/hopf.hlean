@@ -23,6 +23,11 @@ section
   definition one_mul (a : A) : 1 * a = a := !h_space.one_mul
   definition mul_one (a : A) : a * 1 = a := !h_space.mul_one
 
+  definition h_space_equiv_closed {B : Type} (f : A ≃ B) : h_space B :=
+  ⦃ h_space, one := f 1, mul := (λb b', f (f⁻¹ b * f⁻¹ b')),
+    one_mul := by intro b; rewrite [to_left_inv,one_mul,to_right_inv],
+    mul_one := by intro b; rewrite [to_left_inv,mul_one,to_right_inv] ⦄
+
   /- Lemma 8.5.5.
      If A is 0-connected, then left and right multiplication are equivalences -/
   variable [K : is_conn 0 A]
