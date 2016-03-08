@@ -47,7 +47,7 @@ namespace eq
 
   definition phomotopy_group_pequiv [constructor] (n : ℕ) {A B : Type*} (H : A ≃* B)
     : π*[n] A ≃* π*[n] B :=
-  ptrunc_pequiv_ptrunc 0 (iterated_loop_space_pequiv n H)
+  ptrunc_pequiv_ptrunc 0 (loopn_pequiv_loopn n H)
 
   definition phomotopy_group_pequiv_loop_ptrunc [constructor] (k : ℕ) (A : Type*) :
     π*[k] A ≃* Ω[k] (ptrunc k A) :=

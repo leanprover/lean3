@@ -11,10 +11,6 @@ import .equiv cubical.square
 
 open eq is_equiv equiv pointed is_trunc
 
--- structure pequiv (A B : Type*) :=
---   (to_pmap : A →* B)
---   (is_equiv_to_pmap : is_equiv to_pmap)
-
 structure pequiv (A B : Type*) extends equiv A B, pmap A B
 
 namespace pointed
@@ -36,7 +32,7 @@ namespace pointed
   definition pequiv_of_equiv [constructor] (f : A ≃ B) (H : f pt = pt) : A ≃* B :=
   pequiv.mk f _ H
 
-  protected definition pequiv.MK [constructor] (f : A →* B) (g : B →* A)
+  protected definition pequiv.MK [constructor] (f : A →* B) (g : B → A)
     (gf : Πa, g (f a) = a) (fg : Πb, f (g b) = b) : A ≃* B :=
   pequiv.mk f (adjointify f g fg gf) (respect_pt f)
 
@@ -44,7 +40,34 @@ namespace pointed
   equiv.mk f _
 
   definition to_pinv [constructor] (f : A ≃* B) : B →* A :=
-  pmap.mk f⁻¹ ((ap f⁻¹ (respect_pt f))⁻¹ ⬝ !left_inv)
+  pmap.mk f⁻¹ ((ap f⁻¹ (respect_pt f))⁻¹ ⬝ left_inv f pt)
+
+  /- A version of pequiv.MK with stronger conditions.
+     The advantage of defining a pointed equivalence with this definition is that there is a
+     pointed homotopy between the inverse of the resulting equivalence and the given pointed map g.
+     This is not the case when using `pequiv.MK` (if g is a pointed map),
+     that will only give an ordinary homotopy.
+  -/
+  protected definition pequiv.MK2 [constructor] (f : A →* B) (g : B →* A)
+    (gf : g ∘* f ~* !pid) (fg : f ∘* g ~* !pid) : A ≃* B :=
+  pequiv.MK f g gf fg
+
+  definition to_pmap_pequiv_MK2 [constructor] (f : A →* B) (g : B →* A)
+    (gf : g ∘* f ~* !pid) (fg : f ∘* g ~* !pid) : pequiv.MK2 f g gf fg ~* f :=
+  phomotopy.mk (λb, idp) !idp_con
+
+  definition to_pinv_pequiv_MK2 [constructor] (f : A →* B) (g : B →* A)
+    (gf : g ∘* f ~* !pid) (fg : f ∘* g ~* !pid) : to_pinv (pequiv.MK2 f g gf fg) ~* g :=
+  phomotopy.mk (λb, idp)
+    abstract [irreducible] begin
+      esimp, unfold [adjointify_left_inv'],
+      note H := to_homotopy_pt gf, note H2 := to_homotopy_pt fg,
+      note H3 := eq_top_of_square (natural_square_tr (to_homotopy fg) (respect_pt f)),
+      rewrite [▸* at *, H, H3, H2, ap_id, - +con.assoc, ap_compose' f g, con_inv,
+               - ap_inv, - +ap_con g],
+      apply whisker_right, apply ap02 g,
+      rewrite [ap_con, - + con.assoc, +ap_inv, +inv_con_cancel_right, con.left_inv],
+    end end
 
   definition pua {A B : Type*} (f : A ≃* B) : A = B :=
   pType_eq (equiv_of_pequiv f) !respect_pt
@@ -63,6 +86,13 @@ namespace pointed
 
   postfix `⁻¹ᵉ*`:(max + 1) := pequiv.symm
   infix ` ⬝e* `:75 := pequiv.trans
+
+  definition pequiv_change_fun [constructor] (f : A ≃* B) (f' : A →* B) (Heq : f ~ f') : A ≃* B :=
+  pequiv_of_pmap f' (is_equiv.homotopy_closed f Heq)
+
+  definition pequiv_change_inv [constructor] (f : A ≃* B) (f' : B →* A) (Heq : to_pinv f ~ f')
+    : A ≃* B :=
+  pequiv.MK f f' (to_left_inv (equiv_change_inv f Heq)) (to_right_inv (equiv_change_inv f Heq))
 
   definition pequiv_rect' (f : A ≃* B) (P : A → B → Type)
     (g : Πb, P (f⁻¹ b) b) (a : A) : P a (f a) :=
@@ -83,24 +113,10 @@ namespace pointed
   definition peap {A B : Type*} (F : Type* → Type*) (p : A ≃* B) : F A ≃* F B :=
   pequiv_of_pmap (pcast (ap F (eq_of_pequiv p))) begin cases eq_of_pequiv p, apply is_equiv_id end
 
-  definition loop_space_pequiv [constructor] (p : A ≃* B) : Ω A ≃* Ω B :=
-  pequiv_of_pmap (ap1 p) (is_equiv_ap1 p)
-
-  definition iterated_loop_space_pequiv [constructor] (n : ℕ) (p : A ≃* B) : Ω[n] A ≃* Ω[n] B :=
-  pequiv_of_pmap (apn n p) (is_equiv_apn n p)
-
   definition pequiv_eq {p q : A ≃* B} (H : p = q :> (A →* B)) : p = q :=
   begin
     cases p with f Hf, cases q with g Hg, esimp at *,
     exact apd011 pequiv_of_pmap H !is_prop.elim
-  end
-
-  definition loop_space_pequiv_rfl
-    : loop_space_pequiv (@pequiv.refl A) = @pequiv.refl (Ω A) :=
-  begin
-    apply pequiv_eq, fapply pmap_eq: esimp,
-    { intro p, exact !idp_con ⬝ !ap_id},
-    { reflexivity}
   end
 
   infix ` ⬝e*p `:75 := peconcat_eq
@@ -195,32 +211,49 @@ namespace pointed
 
   /- pointed equivalences between particular pointed types -/
 
-  definition loop_pequiv_loop [constructor] (f : A ≃* B) : Ω A ≃* Ω B :=
-  pequiv.MK (ap1 f) (ap1 f⁻¹ᵉ*)
+  definition loopn_pequiv_loopn [constructor] (n : ℕ) (f : A ≃* B) : Ω[n] A ≃* Ω[n] B :=
+  pequiv.MK2 (apn n f) (apn n f⁻¹ᵉ*)
   abstract begin
-    intro p,
-    refine ((ap1_compose f⁻¹ᵉ* f) p)⁻¹ ⬝ _,
-    refine ap1_phomotopy (pleft_inv f) p ⬝ _,
-    exact ap1_id p
+    induction n with n IH,
+    { apply pleft_inv},
+    { replace nat.succ n with n + 1,
+      rewrite [+apn_succ],
+      refine !ap1_compose⁻¹* ⬝* _,
+      refine ap1_phomotopy IH ⬝* _,
+      apply ap1_id}
   end end
   abstract begin
-    intro p,
-    refine ((ap1_compose f f⁻¹ᵉ*) p)⁻¹ ⬝ _,
-    refine ap1_phomotopy (pright_inv f) p ⬝ _,
-    exact ap1_id p
+    induction n with n IH,
+    { apply pright_inv},
+    { replace nat.succ n with n + 1,
+      rewrite [+apn_succ],
+      refine !ap1_compose⁻¹* ⬝* _,
+      refine ap1_phomotopy IH ⬝* _,
+      apply ap1_id}
   end end
 
-  definition loopn_pequiv_loopn (n : ℕ) (f : A ≃* B) : Ω[n] A ≃* Ω[n] B :=
-  begin
-    induction n with n IH,
-    { exact f},
-    { exact loop_pequiv_loop IH}
-  end
+  definition loop_pequiv_loop [constructor] (f : A ≃* B) : Ω A ≃* Ω B :=
+  loopn_pequiv_loopn 1 f
+
+  definition to_pmap_loopn_pequiv_loopn [constructor] (n : ℕ) (f : A ≃* B)
+    : loopn_pequiv_loopn n f ~* apn n f :=
+  !to_pmap_pequiv_MK2
+
+  definition to_pinv_loopn_pequiv_loopn [constructor] (n : ℕ) (f : A ≃* B)
+    : (loopn_pequiv_loopn n f)⁻¹ᵉ* ~* apn n f⁻¹ᵉ* :=
+  !to_pinv_pequiv_MK2
 
   definition loopn_pequiv_loopn_con (n : ℕ) (f : A ≃* B) (p q : Ω[n+1] A)
     : loopn_pequiv_loopn (n+1) f (p ⬝ q) =
     loopn_pequiv_loopn (n+1) f p ⬝ loopn_pequiv_loopn (n+1) f q :=
   ap1_con (loopn_pequiv_loopn n f) p q
+
+  definition loopn_pequiv_loopn_rfl (n : ℕ) :
+    loopn_pequiv_loopn n (@pequiv.refl A) = @pequiv.refl (Ω[n] A) :=
+  begin
+    apply pequiv_eq, apply eq_of_phomotopy,
+    exact !to_pmap_loopn_pequiv_loopn ⬝* apn_pid n,
+  end
 
   definition pmap_functor [constructor] {A A' B B' : Type*} (f : A' →* A) (g : B →* B') :
     ppmap A B →* ppmap A' B' :=

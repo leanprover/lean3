@@ -393,6 +393,18 @@ namespace sigma
     { intro v, induction v with a p, induction p: reflexivity},
   end
 
+  definition sigma_sigma_eq_right {A : Type} (a : A) (P : Π(b : A), a = b → Type)
+    : (Σ(b : A) (p : a = b), P b p) ≃ P a idp :=
+  calc
+    (Σ(b : A) (p : a = b), P b p) ≃ (Σ(v : Σ(b : A), a = b), P v.1 v.2) : sigma_assoc_equiv
+      ... ≃ P a idp : !sigma_equiv_of_is_contr_left
+
+  definition sigma_sigma_eq_left {A : Type} (a : A) (P : Π(b : A), b = a → Type)
+    : (Σ(b : A) (p : b = a), P b p) ≃ P a idp :=
+  calc
+    (Σ(b : A) (p : b = a), P b p) ≃ (Σ(v : Σ(b : A), b = a), P v.1 v.2) : sigma_assoc_equiv
+      ... ≃ P a idp : !sigma_equiv_of_is_contr_left
+
   /- ** Universal mapping properties -/
   /- *** The positive universal property. -/
 

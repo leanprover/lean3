@@ -20,9 +20,9 @@ The rows indicate the chapters, the columns the sections.
 | Ch 3  | + | + | + | + | ½ | + | + | + | + | .  | +  |    |    |    |    |
 | Ch 4  | - | + | + | + | . | + | + | + | + |    |    |    |    |    |    |
 | Ch 5  | - | . | ½ | - | - | . | . | ½ |   |    |    |    |    |    |    |
-| Ch 6  | . | + | + | + | + | ½ | ½ | + | ¾ | ¼  | ¾  | +  | .  |    |    |
+| Ch 6  | . | + | + | + | + | + | + | + | ¾ | ¼  | ¾  | +  | .  |    |    |
 | Ch 7  | + | + | + | - | ¾ | - | - |   |   |    |    |    |    |    |    |
-| Ch 8  | + | + | + | - | ¾ | ¼ | - | - | - | -  |    |    |    |    |    |
+| Ch 8  | + | + | + | - | ¾ | ¼ | - | - | ½ | -  |    |    |    |    |    |
 | Ch 9  | ¾ | + | + | ½ | ¾ | ½ | - | - | - |    |    |    |    |    |    |
 | Ch 10 | - | - | - | - | - |   |   |   |   |    |    |    |    |    |    |
 | Ch 11 | - | - | - | - | - | - |   |   |   |    |    |    |    |    |    |
@@ -99,25 +99,29 @@ Chapter 4: Equivalences
 Chapter 5: Induction
 ---------
 
+Lean has support for inductive families, but not for induction-induction or induction-recursion.
+
 - 5.1 (Introduction to inductive types): not formalized
 - 5.2 (Uniqueness of inductive types): no formalizable content
 - 5.3 (W-types): [types.W](types/W.hlean) defines W-types.
 - 5.4 (Inductive types are initial algebras): not formalized
 - 5.5 (Homotopy-inductive types): not formalized
 - 5.6 (The general syntax of inductive definitions): no formalizable content
-- 5.7 (Generalizations of inductive types): no formalizable content. Lean has inductive families and mutual induction, but no induction-induction or induction-recursion
+- 5.7 (Generalizations of inductive types): no formalizable content.
 - 5.8 (Identity types and identity systems): 5.8.1-5.8.4 not formalized, 5.8.5 in [init.ua](init/ua.hlean) and 5.8.6 in [init.funext](init/funext.hlean)
 
 Chapter 6: Higher inductive types
 ---------
+
+We have two primitive HITs in Lean, the computation rules are manually added to the Lean-HoTT kernel. The primitive HITs are the n-truncation and the quotient (not to be confused with the set-quotient). See [init.hit](init/hit.hlean).
 
 - 6.1 (Introduction): no formalizable content
 - 6.2 (Induction principles and dependent paths): dependent paths in [init.pathover](init/pathover.hlean), circle in [homotopy.circle](homotopy/circle.hlean)
 - 6.3 (The interval): [homotopy.interval](homotopy/interval.hlean)
 - 6.4 (Circles and spheres): [homotopy.sphere](homotopy/sphere.hlean) and [homotopy.circle](homotopy/circle.hlean)
 - 6.5 (Suspensions): [homotopy.suspension](homotopy/susp.hlean) (we define the circle to be the suspension of bool, but Lemma 6.5.1 is similar to proving the ordinary induction principle for the circle in [homotopy.circle](homotopy/circle.hlean)) and a bit in [homotopy.sphere](homotopy/sphere.hlean) and [types.pointed](types/pointed.hlean)
-- 6.6 (Cell complexes): we define the torus using the quotient, see [hit.two_quotient](hit/two_quotient.hlean) and [homotopy.torus](homotopy/torus.hlean) (no dependent eliminator defined yet)
-- 6.7 (Hubs and spokes): [hit.two_quotient](hit/two_quotient.hlean) and [homotopy.torus](homotopy/torus.hlean) (no dependent eliminator defined yet)
+- 6.6 (Cell complexes): We define the torus using a two quotient, which in turn is defined in terms of the quotient, see [homotopy.torus](homotopy/torus.hlean).
+- 6.7 (Hubs and spokes): We define the two quotient using only the quotient in [hit.two_quotient](hit/two_quotient.hlean). This is slightly different than what is done in section 6.7, because the HIT in section 6.7 is not a quotient.
 - 6.8 (Pushouts): [hit.pushout](hit/pushout.hlean). Some of the "standard homotopy-theoretic constructions" have separate files, although not all of them have been defined explicitly yet
 - 6.9 (Truncations): [hit.trunc](hit/trunc.hlean) (except Lemma 6.9.3)
 - 6.10 (Quotients): [hit.set_quotient](hit/set_quotient.hlean) (up to 6.10.3). We define integers differently, to make them compute, in the folder [types.int](types/int/int.md). 6.10.13 is in [types.int.hott](types/int/hott.hlean)
@@ -149,7 +153,7 @@ Every file is in the folder [homotopy](homotopy/homotopy.md)
 - 8.6 (The Freudenthal suspension theorem): [connectedness](homotopy/connectedness.hlean) (Lemma 8.6.1), [wedge](homotopy/wedge.hlean) (Wedge connectivity, Lemma 8.6.2), the rest is not formalized
 - 8.7 (The van Kampen theorem): not formalized
 - 8.8 (Whitehead’s theorem and Whitehead’s principle): not formalized
-- 8.9 (A general statement of the encode-decode method): not formalized
+- 8.9 (A general statement of the encode-decode method): One variation of the encode-decode method is in [types.eq](types/eq.hlean).
 - 8.10 (Additional Results): not formalized
 
 Chapter 9: Category theory

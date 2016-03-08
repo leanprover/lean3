@@ -164,7 +164,7 @@ namespace circle
 
   theorem elim_type_loop (Pbase : Type) (Ploop : Pbase ≃ Pbase) :
     transport (circle.elim_type Pbase Ploop) loop = Ploop :=
-  by rewrite [tr_eq_cast_ap_fn,↑circle.elim_type,circle.elim_loop];apply cast_ua_fn
+  by rewrite [tr_eq_cast_ap_fn,↑circle.elim_type,elim_loop];apply cast_ua_fn
 
   theorem elim_type_loop_inv (Pbase : Type) (Ploop : Pbase ≃ Pbase) :
     transport (circle.elim_type Pbase Ploop) loop⁻¹ = to_inv Ploop :=
@@ -182,6 +182,40 @@ attribute circle.rec_on circle.elim_on [unfold 2]
 attribute circle.elim_type_on [unfold 1]
 
 namespace circle
+  open sigma
+  /- universal property of the circle -/
+  definition circle_pi_equiv [constructor] (P : S¹ → Type)
+    : (Π(x : S¹), P x) ≃ Σ(p : P base), p =[loop] p :=
+  begin
+    fapply equiv.MK,
+    { intro f, exact ⟨f base, apdo f loop⟩},
+    { intro v x, induction v with p q, induction x,
+      { exact p},
+      { exact q}},
+    { intro v, induction v with p q, fapply sigma_eq,
+      { reflexivity},
+      { esimp, apply pathover_idp_of_eq, apply rec_loop}},
+    { intro f, apply eq_of_homotopy, intro x, induction x,
+      { reflexivity},
+      { apply eq_pathover_dep, apply hdeg_squareover, esimp, apply rec_loop}}
+  end
+
+  definition circle_arrow_equiv [constructor] (P : Type)
+    : (S¹ → P) ≃ Σ(p : P), p = p :=
+  begin
+    fapply equiv.MK,
+    { intro f, exact ⟨f base, ap f loop⟩},
+    { intro v x, induction v with p q, induction x,
+      { exact p},
+      { exact q}},
+    { intro v, induction v with p q, fapply sigma_eq,
+      { reflexivity},
+      { esimp, apply pathover_idp_of_eq, apply elim_loop}},
+    { intro f, apply eq_of_homotopy, intro x, induction x,
+      { reflexivity},
+      { apply eq_pathover, apply hdeg_square, esimp, apply elim_loop}}
+  end
+
   definition pointed_circle [instance] [constructor] : pointed S¹ :=
   pointed.mk base
 
