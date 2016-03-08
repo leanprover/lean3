@@ -539,6 +539,13 @@ namespace pointed
     { refine ap1_phomotopy IH ⬝* _, apply ap1_compose}
   end
 
+  definition apn_pid [constructor] {A : Type*} (n : ℕ) : apn n (pid A) ~* pid (Ω[n] A) :=
+  begin
+    induction n with n IH,
+    { reflexivity},
+    { exact ap1_phomotopy IH ⬝* ap1_id}
+  end
+
   theorem apn_con (n : ℕ) (f : A →* B) (p q : Ω[n+1] A)
     : apn (n+1) f (p ⬝ q) = apn (n+1) f p ⬝ apn (n+1) f q :=
   by rewrite [+apn_succ, ap1_con]

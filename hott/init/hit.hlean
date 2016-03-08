@@ -28,18 +28,18 @@ open is_trunc eq
   uses of these hits, see the folder ../hit/
 -/
 
-constant trunc.{u} (n : trunc_index) (A : Type.{u}) : Type.{u}
+constant trunc.{u} (n : ℕ₋₂) (A : Type.{u}) : Type.{u}
 
 namespace trunc
-  constant tr {n : trunc_index} {A : Type} (a : A) : trunc n A
-  constant is_trunc_trunc (n : trunc_index) (A : Type) : is_trunc n (trunc n A)
+  constant tr {n : ℕ₋₂} {A : Type} (a : A) : trunc n A
+  constant is_trunc_trunc (n : ℕ₋₂) (A : Type) : is_trunc n (trunc n A)
 
   attribute is_trunc_trunc [instance]
 
-  protected constant rec {n : trunc_index} {A : Type} {P : trunc n A → Type}
+  protected constant rec {n : ℕ₋₂} {A : Type} {P : trunc n A → Type}
     [Pt : Πaa, is_trunc n (P aa)] (H : Πa, P (tr a)) : Πaa, P aa
 
-  protected definition rec_on [reducible] {n : trunc_index} {A : Type}
+  protected definition rec_on [reducible] {n : ℕ₋₂} {A : Type}
     {P : trunc n A → Type} (aa : trunc n A) [Pt : Πaa, is_trunc n (P aa)] (H : Πa, P (tr a))
     : P aa :=
   trunc.rec H aa
@@ -68,7 +68,7 @@ end quotient
 init_hits -- Initialize builtin computational rules for trunc and quotient
 
 namespace trunc
-  definition rec_tr [reducible] {n : trunc_index} {A : Type} {P : trunc n A → Type}
+  definition rec_tr [reducible] {n : ℕ₋₂} {A : Type} {P : trunc n A → Type}
     [Pt : Πaa, is_trunc n (P aa)] (H : Πa, P (tr a)) (a : A) : trunc.rec H (tr a) = H a :=
   idp
 end trunc

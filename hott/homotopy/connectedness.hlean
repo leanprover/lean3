@@ -265,4 +265,17 @@ namespace is_conn
     [H : is_conn_fun n f] : trunc n A ≃ trunc n B :=
   equiv.mk (trunc_functor n f) (is_equiv_trunc_functor_of_is_conn_fun n f)
 
+  definition is_conn_fun_trunc_functor {n k : ℕ₋₂} {A B : Type} (f : A → B) (H : k ≤ n)
+    [H2 : is_conn_fun k f] : is_conn_fun k (trunc_functor n f) :=
+  begin
+    apply is_conn_fun.intro,
+    intro P, have Πb, is_trunc n (P b), from (λb, is_trunc_of_le _ H),
+    fconstructor,
+    { intro f' b,
+      induction b with b,
+      refine is_conn_fun.elim k H2 _ _ b, intro a, exact f' (tr a)},
+    { intro f', apply eq_of_homotopy, intro a,
+      induction a with a, esimp, rewrite [is_conn_fun.elim_β]}
+  end
+
 end is_conn

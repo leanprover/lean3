@@ -13,6 +13,7 @@ import .pointed2 ..function algebra.order types.nat.order
 open eq sigma sigma.ops pi function equiv trunctype
      is_equiv prod pointed nat is_trunc algebra
 
+  /- basic computation with ℕ₋₂, its operations and its order -/
 namespace trunc_index
 
   definition minus_one_le_succ (n : ℕ₋₂) : -1 ≤ n.+1 :=
@@ -203,26 +204,7 @@ namespace is_trunc
 
   variables {A B : Type} {n : ℕ₋₂}
 
-  /- theorems about trunctype -/
-  protected definition trunctype.sigma_char.{l} [constructor] (n : ℕ₋₂) :
-    (trunctype.{l} n) ≃ (Σ (A : Type.{l}), is_trunc n A) :=
-  begin
-    fapply equiv.MK,
-    { intro A, exact (⟨carrier A, struct A⟩)},
-    { intro S, exact (trunctype.mk S.1 S.2)},
-    { intro S, induction S with S1 S2, reflexivity},
-    { intro A, induction A with A1 A2, reflexivity},
-  end
-
-  definition trunctype_eq_equiv [constructor] (n : ℕ₋₂) (A B : n-Type) :
-    (A = B) ≃ (carrier A = carrier B) :=
-  calc
-    (A = B) ≃ (to_fun (trunctype.sigma_char n) A = to_fun (trunctype.sigma_char n) B)
-              : eq_equiv_fn_eq_of_equiv
-      ... ≃ ((to_fun (trunctype.sigma_char n) A).1 = (to_fun (trunctype.sigma_char n) B).1)
-             : equiv.symm (!equiv_subtype)
-      ... ≃ (carrier A = carrier B) : equiv.refl
-
+  /- closure properties of truncatedness -/
   theorem is_trunc_is_embedding_closed (f : A → B) [Hf : is_embedding f] [HB : is_trunc n B]
     (Hn : -1 ≤ n) : is_trunc n A :=
   begin
@@ -254,13 +236,31 @@ namespace is_trunc
   definition is_embedding_to_fun (A B : Type) : is_embedding (@to_fun A B)  :=
   λf f', !is_equiv_ap_to_fun
 
+  /- theorems about trunctype -/
+  protected definition trunctype.sigma_char.{l} [constructor] (n : ℕ₋₂) :
+    (trunctype.{l} n) ≃ (Σ (A : Type.{l}), is_trunc n A) :=
+  begin
+    fapply equiv.MK,
+    { intro A, exact (⟨carrier A, struct A⟩)},
+    { intro S, exact (trunctype.mk S.1 S.2)},
+    { intro S, induction S with S1 S2, reflexivity},
+    { intro A, induction A with A1 A2, reflexivity},
+  end
+
+  definition trunctype_eq_equiv [constructor] (n : ℕ₋₂) (A B : n-Type) :
+    (A = B) ≃ (carrier A = carrier B) :=
+  calc
+    (A = B) ≃ (to_fun (trunctype.sigma_char n) A = to_fun (trunctype.sigma_char n) B)
+              : eq_equiv_fn_eq_of_equiv
+      ... ≃ ((to_fun (trunctype.sigma_char n) A).1 = (to_fun (trunctype.sigma_char n) B).1)
+             : equiv.symm (!equiv_subtype)
+      ... ≃ (carrier A = carrier B) : equiv.refl
+
   theorem is_trunc_trunctype [instance] (n : ℕ₋₂) : is_trunc n.+1 (n-Type) :=
   begin
     apply is_trunc_succ_intro, intro X Y,
-    fapply is_trunc_equiv_closed,
-    { apply equiv.symm, apply trunctype_eq_equiv},
-    fapply is_trunc_equiv_closed,
-    { apply equiv.symm, apply eq_equiv_equiv},
+    fapply is_trunc_equiv_closed_rev, { apply trunctype_eq_equiv},
+    fapply is_trunc_equiv_closed_rev, { apply eq_equiv_equiv},
     induction n,
     { apply @is_contr_of_inhabited_prop,
       { apply is_trunc_is_embedding_closed,
@@ -271,7 +271,6 @@ namespace is_trunc
       { apply is_embedding_to_fun},
       { apply minus_one_le_succ}}
   end
-
 
   /- theorems about decidable equality and axiom K -/
   theorem is_set_of_axiom_K {A : Type} (K : Π{a : A} (p : a = a), p = idp) : is_set A :=
@@ -413,6 +412,7 @@ namespace trunc
     : (tr a = tr a' :> trunc n.+1 A) ≃ trunc n (a = a') :=
   !trunc_eq_equiv
 
+  /- encode preserves concatenation -/
   definition trunc_functor2 [unfold 6 7] {n : ℕ₋₂} {A B C : Type} (f : A → B → C)
     (x : trunc n A) (y : trunc n B) : trunc n C :=
   by induction x with a; induction y with b; exact tr (f a b)
@@ -425,8 +425,7 @@ namespace trunc
     (g : trunc.code n aa₁ aa₂) (h : trunc.code n aa₂ aa₃) : trunc.code n aa₁ aa₃ :=
   begin
     induction aa₁ with a₁, induction aa₂ with a₂, induction aa₃ with a₃,
-    esimp at *, induction g with p, induction h with q,
-    exact tr (p ⬝ q)
+    esimp at *, apply trunc_concat g h,
   end
 
   definition encode_con' {n : ℕ₋₂} {aa₁ aa₂ aa₃ : trunc n.+1 A} (p : aa₁ = aa₂) (q : aa₂ = aa₃)
@@ -440,6 +439,22 @@ namespace trunc
     : trunc.encode (p ⬝ q) = trunc_concat (trunc.encode p) (trunc.encode q) :=
   encode_con' p q
 
+  /- the principle of unique choice -/
+  definition unique_choice {P : A → Type} [H : Πa, is_prop (P a)] (f : Πa, ∥ P a ∥) (a : A)
+    : P a :=
+  !trunc_equiv (f a)
+
+  /- transport over a truncated family -/
+  definition trunc_transport {a a' : A} {P : A → Type} (p : a = a') (n : ℕ₋₂) (x : P a)
+    : transport (λa, trunc n (P a)) p (tr x) = tr (p ▸ x) :=
+  by induction p; reflexivity
+
+  /- pathover over a truncated family -/
+  definition trunc_pathover {A : Type} {B : A → Type} {n : ℕ₋₂} {a a' : A} {p : a = a'}
+    {b : B a} {b' : B a'} (q : b =[p] b') : @tr n _ b =[p] @tr n _ b' :=
+  by induction q; constructor
+
+  /- truncations preserve truncatedness -/
   definition is_trunc_trunc_of_is_trunc [instance] [priority 500] (A : Type)
     (n m : ℕ₋₂) [H : is_trunc n A] : is_trunc n (trunc m A) :=
   begin
@@ -455,20 +470,6 @@ namespace trunc
         { apply tr_eq_tr_equiv},
         { exact (IH _ _ _)}}}
   end
-
-  definition unique_choice {P : A → Type} [H : Πa, is_prop (P a)] (f : Πa, ∥ P a ∥) (a : A)
-    : P a :=
-  !trunc_equiv (f a)
-
-  /- transport over a truncated family -/
-  definition trunc_transport {a a' : A} {P : A → Type} (p : a = a') (n : ℕ₋₂) (x : P a)
-    : transport (λa, trunc n (P a)) p (tr x) = tr (p ▸ x) :=
-  by induction p; reflexivity
-
-  /- pathover over a truncated family -/
-  definition trunc_pathover {A : Type} {B : A → Type} {n : ℕ₋₂} {a a' : A} {p : a = a'}
-    {b : B a} {b' : B a'} (q : b =[p] b') : @tr n _ b =[p] @tr n _ b' :=
-  by induction q; constructor
 
   /- equivalences between truncated types (see also hit.trunc) -/
   definition trunc_trunc_equiv_left [constructor] (A : Type) (n m : ℕ₋₂) (H : n ≤ m)
@@ -514,7 +515,6 @@ namespace trunc
       clear b, intro b, induction H b with v, induction v with a p,
       exact tr (fiber.mk (tr a) (ap tr p))}
   end
-
 
   /- the image of a map is the (-1)-truncated fiber -/
   definition image [constructor] {A B : Type} (f : A → B) (b : B) : Prop := ∥ fiber f b ∥

@@ -144,8 +144,8 @@ definition repeat1     (t : tactic) : tactic := and_then t (repeat t)
 definition focus       (t : tactic) : tactic := focus_at t 0
 definition determ      (t : tactic) : tactic := at_most t 1
 definition trivial                  : tactic := or_else (apply eq.refl) assumption
-definition do (n : num) (t : tactic) : tactic :=
-nat.rec id (λn t', and_then t t') (nat.of_num n)
+definition do (n : nat) (t : tactic) : tactic :=
+nat.rec id (λn t', and_then t t') n
 
 end tactic
 tactic_infixl `;`:15 := tactic.and_then

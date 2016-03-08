@@ -68,10 +68,10 @@ namespace is_equiv
   parameters {A B : Type} (f : A → B) (g : B → A)
             (ret : Πb, f (g b) = b) (sec : Πa, g (f a) = a)
 
-  private definition adjointify_left_inv' (a : A) : g (f a) = a :=
+  definition adjointify_left_inv' (a : A) : g (f a) = a :=
   ap g (ap f (inverse (sec a))) ⬝ ap g (ret (f a)) ⬝ sec a
 
-  private theorem adjointify_adj' (a : A) : ret (f a) = ap f (adjointify_left_inv' a) :=
+  theorem adjointify_adj' (a : A) : ret (f a) = ap f (adjointify_left_inv' a) :=
   let fgretrfa := ap f (ap g (ret (f a))) in
   let fgfinvsect := ap f (ap g (ap f (sec a)⁻¹)) in
   let fgfa := f (g (f a)) in

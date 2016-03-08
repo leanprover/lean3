@@ -332,7 +332,7 @@ namespace simple_two_quotient
 end
 end simple_two_quotient
 
-attribute simple_two_quotient.j [constructor]
+attribute simple_two_quotient.j simple_two_quotient.incl0 [constructor]
 attribute simple_two_quotient.rec simple_two_quotient.elim [unfold 8] [recursor 8]
 --attribute simple_two_quotient.elim_type [unfold 9] -- TODO
 attribute simple_two_quotient.rec_on simple_two_quotient.elim_on [unfold 5]

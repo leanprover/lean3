@@ -23,7 +23,8 @@ open trunc_index
 
 /-
    notation for trunc_index is -2, -1, 0, 1, ...
-   from 0 and up this comes from a coercion from num to trunc_index (via ℕ)
+   from 0 and up this comes from the way numerals are parsed in Lean.
+   Any structure with a 0, a 1, and a + have numerals defined in them.
 -/
 
 notation `ℕ₋₂` := trunc_index -- input using \N-2
