@@ -758,8 +758,8 @@ theorem mul_neg_equiv_neg_mul {s t : seq} : smul s (sneg t) ≡ sneg (smul s t) 
   begin
     rewrite [↑equiv, ↑smul],
     intros,
-    rewrite [↑sneg, *sub_neg_eq_add, -neg_mul_eq_mul_neg, add.comm, *sneg_def,
-             *neg_bound2_eq_bound2, add.right_inv, abs_zero],
+    rewrite [↑sneg, *sub_neg_eq_add, -neg_mul_eq_mul_neg, add.comm],
+    rewrite [*sneg_def t, *neg_bound2_eq_bound2, add.right_inv, abs_zero],
     apply add_invs_nonneg
   end
 

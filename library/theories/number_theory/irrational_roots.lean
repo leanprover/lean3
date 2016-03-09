@@ -121,7 +121,7 @@ section
           have ane0 : a ≠ 0, from
             suppose aeq0 : a = 0,
             have qeq0 : q = 0,
-              by rewrite [eq_num_div_denom, aeq0, of_int_zero, zero_div],
+              begin rewrite [eq_num_div_denom q, aeq0, of_int_zero, zero_div] end,
             show false,
               from qne0 qeq0,
           have nat_abs a ≠ 0, from

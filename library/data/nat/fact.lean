@@ -49,7 +49,7 @@ begin
       {subst m},
       {transitivity (fact n),
         exact ih (le_of_lt_succ h₂),
-        rewrite [fact_succ, -one_mul at {1}],
+        rewrite [fact_succ, -one_mul (fact n) at {1}],
         exact nat.mul_le_mul (succ_le_succ (zero_le n)) !le.refl}}
 end
 end nat

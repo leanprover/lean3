@@ -196,7 +196,7 @@ begin
   apply one_div_lt_one_div_of_lt,
   apply rat_of_pnat_is_pos,
   have H : n~ < (2 * n)~, begin
-    rewrite -pnat.one_mul at {1},
+    rewrite -(pnat.one_mul n) at {1},
     rewrite -pnat.lt_def,
     apply mul_lt_mul_left,
     apply one_lt_two
@@ -265,7 +265,7 @@ pnat.eq !add.assoc
 
 protected theorem mul_le_mul_left (p q : ℕ+) : q ≤ p * q :=
 begin
-  rewrite [-pnat.one_mul at {1}, pnat.mul_comm, pnat.mul_comm p],
+  rewrite [-pnat.one_mul q at {1}, pnat.mul_comm, pnat.mul_comm p],
   apply pnat_mul_le_mul_left',
   apply pone_le
 end
@@ -285,7 +285,7 @@ by rewrite rat.mul_comm; apply pnat.inv_cancel_left
 theorem lt_add_left (p q : ℕ+) : p < p + q :=
 begin
   have H : p~ < p~ + q~, begin
-    rewrite -nat.add_zero at {1},
+    rewrite -(nat.add_zero (p~)) at {1},
     apply nat.add_lt_add_left,
     apply pnat_pos
   end,

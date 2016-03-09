@@ -116,10 +116,10 @@ theorem head_map (s : stream A) : head (map f s) = f (head s) :=
 rfl
 
 theorem map_eq (s : stream A) : map f s = f (head s) :: map f (tail s) :=
-by rewrite [-stream.eta, tail_map, head_map]
+by rewrite [-stream.eta (map f s), tail_map, head_map]
 
 theorem map_cons (a : A) (s : stream A) : map f (a :: s) = f a :: map f s :=
-by rewrite [-stream.eta, map_eq]
+by rewrite [-stream.eta (map f (a :: s)), map_eq]
 
 theorem map_id (s : stream A) : map id s = s :=
 rfl
@@ -151,7 +151,7 @@ theorem tail_zip (s₁ : stream A) (s₂ : stream B) : tail (zip f s₁ s₂) = 
 rfl
 
 theorem zip_eq (s₁ : stream A) (s₂ : stream B) : zip f s₁ s₂ = f (head s₁) (head s₂) :: zip f (tail s₁) (tail s₂) :=
-by rewrite [-stream.eta]
+by rewrite [-stream.eta (zip f s₁ s₂)]
 end zip
 
 definition const (a : A) : stream A :=
@@ -196,7 +196,7 @@ end
 
 theorem iterate_eq (f : A → A) (a : A) : iterate f a = a :: iterate f (f a) :=
 begin
-  rewrite [-stream.eta], congruence, exact !tail_iterate
+  rewrite [-stream.eta (iterate f a)], congruence, exact !tail_iterate
 end
 
 theorem nth_zero_iterate (f : A → A) (a : A) : nth 0 (iterate f a) = a :=

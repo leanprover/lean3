@@ -27,7 +27,7 @@ rfl
 
 lemma erase_cons_head (a : A) (l : list A) : erase a (a :: l) = l :=
 show match H a a with | inl e := l | inr n := a :: erase a l end = l,
-by rewrite decidable_eq_inl_refl
+by rewrite (@decidable_eq_inl_refl A H)
 
 lemma erase_cons_tail {a b : A} (l : list A) : a ≠ b → erase a (b::l) = b :: erase a l :=
 assume h : a ≠ b,

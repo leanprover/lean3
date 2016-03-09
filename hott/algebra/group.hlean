@@ -352,7 +352,7 @@ section add_group
   by rewrite [add.assoc, add.left_inv, add_zero]
 
   theorem neg_eq_of_add_eq_zero {a b : A} (H : a + b = 0) : -a = b :=
-  by rewrite [-add_zero, -H, neg_add_cancel_left]
+  by rewrite [-add_zero (-a), -H, neg_add_cancel_left]
 
   theorem neg_zero : -0 = (0 : A) := neg_eq_of_add_eq_zero (zero_add 0)
 

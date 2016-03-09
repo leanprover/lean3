@@ -378,8 +378,8 @@ namespace iso
 
   variables (q)
   theorem comp.cancel_left  (H : q ∘ p = q ∘ p') : p = p' :=
-  by rewrite [-inverse_comp_cancel_left q, H, inverse_comp_cancel_left q]
+  by rewrite [-inverse_comp_cancel_left q p, H, inverse_comp_cancel_left q]
   theorem comp.cancel_right (H : r ∘ q = r' ∘ q) : r = r' :=
-  by rewrite [-comp_inverse_cancel_right _ q, H, comp_inverse_cancel_right _ q]
+  by rewrite [-comp_inverse_cancel_right r q, H, comp_inverse_cancel_right _ q]
   end
 end iso

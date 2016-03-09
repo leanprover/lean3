@@ -248,7 +248,7 @@ iff.intro
       (suppose a = b, this ▸ !rat.le_refl))
 
 private theorem to_nonneg : a ≥ 0 → nonneg a :=
-by intros; rewrite -sub_zero; eassumption
+by intros; rewrite -(sub_zero a); eassumption
 
 protected theorem add_le_add_left (H : a ≤ b) (c : ℚ) : c + a ≤ c + b :=
 have c + b - (c + a) = b - a,
@@ -257,14 +257,14 @@ show nonneg (c + b - (c + a)), from this⁻¹ ▸ H
 
 protected theorem mul_nonneg (H1 : a ≥ (0 : ℚ)) (H2 : b ≥ (0 : ℚ)) : a * b ≥ (0 : ℚ) :=
 have nonneg (a * b), from nonneg_mul (to_nonneg H1) (to_nonneg H2),
-begin rewrite -sub_zero at this, exact this end
+begin rewrite -(sub_zero (a*b)) at this, exact this end
 
 private theorem to_pos : a > 0 → pos a :=
-by intros; rewrite -sub_zero; eassumption
+by intros; rewrite -(sub_zero a); eassumption
 
 protected theorem mul_pos (H1 : a > (0 : ℚ)) (H2 : b > (0 : ℚ)) : a * b > (0 : ℚ) :=
 have pos (a * b), from pos_mul (to_pos H1) (to_pos H2),
-begin rewrite -sub_zero at this, exact this end
+begin rewrite -(sub_zero (a*b)) at this, exact this end
 
 definition decidable_lt [instance] : decidable_rel rat.lt :=
 take a b, decidable_pos (b - a)

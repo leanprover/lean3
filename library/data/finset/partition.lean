@@ -112,7 +112,7 @@ include deceqB
 
 lemma binary_Union (f : A → finset B) {P : A → Prop} [decP : decidable_pred P] {s : finset A} :
   Union s f = Union {a ∈ s | P a} f ∪ Union {a ∈ s | ¬P a} f :=
-begin rewrite [binary_union P at {1}], apply Union_union, exact binary_inter_empty end
+begin rewrite [@binary_union _ _ P _ s at {1}], apply Union_union, exact binary_inter_empty end
 
 end
 

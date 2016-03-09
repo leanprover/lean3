@@ -121,7 +121,7 @@ by rewrite [↑card, to_finset_image]; apply finset.card_image_le
 theorem inj_on_of_card_image_eq {f : A → B} {s : set A} [finite s]
   (H : card (image f s) = card s) : inj_on f s :=
 begin
-  rewrite -to_set_to_finset,
+  rewrite -(to_set_to_finset s),
   apply finset.inj_on_of_card_image_eq,
   rewrite [-to_finset_to_set (finset.image _ _), finset.to_set_image, to_set_to_finset],
   exact H

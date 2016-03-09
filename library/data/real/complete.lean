@@ -816,7 +816,7 @@ private theorem under_seq_mono_helper (i k : ℕ) : under_seq i ≤ under_seq (i
       rewrite [if_neg Havg, ↑avg_seq, ↑avg],
       apply rat.le_trans,
       apply Ha,
-      rewrite -add_halves at {1},
+      rewrite -(add_halves (under_seq (i + a))) at {1},
       apply add_le_add_right,
       apply div_le_div_of_le_of_pos,
       apply rat.le_of_lt,

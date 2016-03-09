@@ -49,7 +49,7 @@ is_add_hom.mk (take a₁ a₂, rfl)
 
 proposition is_add_hom_comp [has_add A] [has_add B] [has_add C]
   {f : B → C} {g : A → B} [is_add_hom f] [is_add_hom g] : is_add_hom (f ∘ g) :=
-is_add_hom.mk (take a₁ a₂, by esimp; rewrite *hom_add)
+is_add_hom.mk (take a₁ a₂, begin esimp, rewrite [hom_add g, hom_add f] end)
 
 section add_group_A_B
   variables [add_group A] [add_group B]
@@ -61,26 +61,26 @@ section add_group_A_B
 
   proposition hom_neg (f : A → B) [is_add_hom f] (a : A) :
     f (- a) = - f a :=
-  have f (- a) + f a = 0, by rewrite [-hom_add f, add.left_inv, hom_zero],
+  have f (- a) + f a = 0, by rewrite [-hom_add f, add.left_inv, hom_zero f],
   eq_neg_of_add_eq_zero this
 
   proposition hom_sub (f : A → B) [is_add_hom f] (a₁ a₂ : A) :
     f (a₁ - a₂) = f a₁ - f a₂ :=
-  by rewrite [*sub_eq_add_neg, *hom_add, hom_neg]
+  by rewrite [*sub_eq_add_neg, *(hom_add f), (hom_neg f)]
 
   proposition injective_hom_add [add_group B] {f : A → B} [is_add_hom f]
       (H : ∀ x, f x = 0 → x = 0) :
     injective f :=
   take x₁ x₂,
   suppose f x₁ = f x₂,
-  have f (x₁ - x₂) = 0, by rewrite [hom_sub, this, sub_self],
+  have f (x₁ - x₂) = 0, by rewrite [hom_sub f, this, sub_self],
   have x₁ - x₂ = 0, from H _ this,
   eq_of_sub_eq_zero this
 
   proposition eq_zero_of_injective_hom [add_group B] {f : A → B} [is_add_hom f]
       (injf : injective f) {a : A} (fa0 : f a = 0) :
     a = 0 :=
-  have f a = f 0, by rewrite [fa0, hom_zero],
+  have f a = f 0, by rewrite [fa0, hom_zero f],
   show a = 0, from injf this
 end add_group_A_B
 
@@ -104,7 +104,7 @@ is_mul_hom.mk (take a₁ a₂, rfl)
 
 proposition is_mul_hom_comp [has_mul A] [has_mul B] [has_mul C]
   {f : B → C} {g : A → B} [is_mul_hom f] [is_mul_hom g] : is_mul_hom (f ∘ g) :=
-is_mul_hom.mk (take a₁ a₂, by esimp; rewrite *hom_mul)
+is_mul_hom.mk (take a₁ a₂, begin esimp, rewrite [hom_mul g, hom_mul f] end)
 
 section group_A_B
   variables [group A] [group B]
@@ -116,7 +116,7 @@ section group_A_B
 
   proposition hom_inv (f : A → B) [is_mul_hom f] (a : A) :
     f (a⁻¹) = (f a)⁻¹ :=
-  have f (a⁻¹) * f a = 1, by rewrite [-hom_mul f, mul.left_inv, hom_one],
+  have f (a⁻¹) * f a = 1, by rewrite [-hom_mul f, mul.left_inv, hom_one f],
   eq_inv_of_mul_eq_one this
 
   proposition injective_hom_mul [group B] {f : A → B} [is_mul_hom f]
@@ -124,14 +124,14 @@ section group_A_B
     injective f :=
   take x₁ x₂,
   suppose f x₁ = f x₂,
-  have f (x₁ * x₂⁻¹) = 1, by rewrite [hom_mul, hom_inv, this, mul.right_inv],
+  have f (x₁ * x₂⁻¹) = 1, by rewrite [hom_mul f, hom_inv f, this, mul.right_inv],
   have x₁ * x₂⁻¹ = 1, from H _ this,
   eq_of_mul_inv_eq_one this
 
   proposition eq_one_of_injective_hom [group B] {f : A → B} [is_mul_hom f]
       (injf : injective f) {a : A} (fa1 : f a = 1) :
     a = 1 :=
-  have f a = f 1, by rewrite [fa1, hom_one],
+  have f a = f 1, by rewrite [fa1, hom_one f],
   show a = 1, from injf this
 end group_A_B
 
@@ -156,11 +156,11 @@ section module_hom
 
   proposition is_module_hom_comp : is_module_hom R (g ∘ f) :=
   is_module_hom.mk
-    (take a₁ a₂, by esimp; rewrite *hom_add)
+    (take a₁ a₂, begin esimp, rewrite [hom_add f, hom_add g] end)
     (take r a, by esimp; rewrite [hom_smul f, hom_smul g])
 
   proposition hom_smul_add_smul (a b : R) (u v : M₁) : f (a • u + b • v) = a • f u + b • f v :=
-  by rewrite [hom_add, +hom_smul f]
+  by rewrite [hom_add f, +hom_smul f]
 end module_hom
 
 /- rings -/
@@ -177,9 +177,9 @@ section semiring
 
   proposition is_ring_hom_comp : is_ring_hom (g ∘ f) :=
   is_ring_hom.mk
-    (take a₁ a₂, by esimp; rewrite *hom_add)
+    (take a₁ a₂, begin esimp, rewrite [hom_add f, hom_add g] end)
     (take r a, by esimp; rewrite [hom_mul f, hom_mul g])
 
   proposition hom_mul_add_mul (a b c d : R₁) : f (a * b + c * d) = f a * f b + f c * f d :=
-  by rewrite [hom_add, +hom_mul]
+  by rewrite [hom_add f, +(hom_mul f)]
 end semiring

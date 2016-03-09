@@ -32,7 +32,7 @@ by rewrite [↑to_finset, dif_pos fins]; exact eq.symm (some_spec fins)
 
 theorem mem_to_finset_eq (a : A) (s : set A) [finite s] :
   (#finset a ∈ to_finset s) = (a ∈ s) :=
-by rewrite [-to_set_to_finset at {2}]
+by rewrite [-to_set_to_finset s at {2}]
 
 theorem to_set_to_finset_of_not_finite {s : set A} (nfins : ¬ finite s) :
   finset.to_set (to_finset s) = ∅ :=

@@ -95,7 +95,8 @@ section
     apply forall_congr,
     intro x,
     rewrite not_and_iff_not_or_not,
-    rewrite imp_iff_not_or
+    symmetry,
+    apply imp_iff_not_or
   end
 
   lemma not_bounded_forall {A : Type} {S : set A} {P : A → Prop} :
@@ -808,7 +809,7 @@ ext (take x, iff.intro
 
 theorem sUnion_eq_compl_sInter_compl (S : set (set X)) :
   ⋃₀ S = - ⋂₀ (compl ' S) :=
-by rewrite [-compl_compl, compl_sUnion]
+by rewrite [-compl_compl (⋃₀ S), compl_sUnion]
 
 theorem compl_sInter (S : set (set X)) :
   - ⋂₀ S = ⋃₀ (compl ' S) :=
@@ -816,7 +817,7 @@ by rewrite [sUnion_eq_compl_sInter_compl, compl_compl_image]
 
 theorem sInter_eq_comp_sUnion_compl (S : set (set X)) :
    ⋂₀ S = -(⋃₀ (compl ' S)) :=
-by rewrite [-compl_compl, compl_sInter]
+by rewrite [-compl_compl (⋂₀ S), compl_sInter]
 
 theorem inter_sUnion_nonempty_of_inter_nonempty {s t : set X} {S : set (set X)} (Hs : t ∈ S) (Hne : s ∩ t ≠ ∅) :
         s ∩ ⋃₀ S ≠ ∅ :=
@@ -870,10 +871,10 @@ theorem compl_Inter {X I : Type} (s : I → set X) : -(⋂ i, s i) = (⋃ i, - s
 by rewrite [Inter_eq_sInter_image, compl_sInter, -image_comp, -Union_eq_sUnion_image]
 
 theorem Union_eq_comp_Inter_comp {X I : Type} (s : I → set X) : (⋃ i, s i) = - (⋂ i, - s i) :=
-by rewrite [-compl_compl, compl_Union]
+by rewrite [-compl_compl (⋃ i, s i), compl_Union]
 
 theorem Inter_eq_comp_Union_comp {X I : Type} (s : I → set X) : (⋂ i, s i) = - (⋃ i, -s i) :=
-by rewrite [-compl_compl, compl_Inter]
+by rewrite [-compl_compl (⋂ i, s i), compl_Inter]
 
 lemma inter_distrib_Union_left {X I : Type} (s : I → set X) (a : set X) :
   a ∩ (⋃ i, s i) = ⋃ i, a ∩ s i :=
