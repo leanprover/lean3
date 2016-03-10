@@ -121,8 +121,10 @@ inj_on_of_left_inv_on H
 theorem left_inverse_comp {f' : map b a} {g' : map c b} {g : map b c} {f : map a b}
     (Hf : map.left_inverse f' f) (Hg : map.left_inverse g' g) :
   map.left_inverse (f' ∘ g') (g ∘ f) :=
-left_inv_on_comp (mapsto f) Hf Hg
-
+begin
+  unfold map.left_inverse,
+  exact left_inv_on_comp (mapsto f) Hf Hg
+end
 /- right inverse -/
 
 -- g is a right inverse to f

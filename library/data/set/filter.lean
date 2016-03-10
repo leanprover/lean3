@@ -401,6 +401,7 @@ le.antisymm !bot_le
   begin
     apply le_of_forall_eventually,
     intro P H,
+    unfold eventually,
     apply mem_univ
   end
 
