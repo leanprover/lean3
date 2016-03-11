@@ -103,17 +103,14 @@ namespace hopf
   @h_space_equiv_closed (join S¹ S¹)
       (cd_h_space (S -1.+1) circle_assoc) (S 3) (join.spheres 1 1)
 
-  /- once we know that connectivity is downward closed,
-     we can replace this with an appeal to is_conn_sphere -/
   definition is_conn_sphere_three : is_conn 0 (S 3) :=
   begin
-    fapply is_contr.mk,
-    { exact tr (north : sphere -1.+2.+2) },
-    { intro x, induction x with x,
-      induction x with x,
-      { reflexivity },
-      { apply ap tr, exact merid (north : sphere -1.+2.+1) },
-      { apply is_prop.elimo }, }
+    have le02 : trunc_index.le 0 2,
+    from trunc_index.le.step
+      (trunc_index.le.step (trunc_index.le.tr_refl 0)),
+    exact @is_conn_of_le (S 3) 0 2 le02 (is_conn_sphere 3)
+    -- apply is_conn_of_le (S 3) le02
+    --   doesn't find is_conn_sphere instance
   end
 
   local attribute is_conn_sphere_three [instance]
@@ -125,4 +122,3 @@ namespace hopf
   end
 
 end hopf
-
