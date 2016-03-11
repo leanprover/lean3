@@ -197,78 +197,47 @@ The following command declare the `definition id.{l} {A : Type.{l}} (a : A) : A 
 Inductive definitions
 ---------------------
 
-Mutually inductive datatype declarations are slightly more complicated.
-They are declared by a block of commands delimited by the command `#BIND` and `#EIND`.
-The command `#BIND` has the following form:
+Inductive datatype declarations have the following form:
 ```
-#BIND <integer> <integer> <nidx>*
+#IND <name:nidx> <numParams:integer> <lpNames:nidx>* | <type:eidx> <numIntroRules:integer>
+#IR <irName:nidx> <irType:eidx>
+...
+#IR <irName:nidx> <irType:eidx>
 ```
-where the first integer are the number of parameters, the second is the number of
-mutually recursive types being declared by the block, and `nidx*` is the sequence
-of universe parameter _names_.
-The command `#EIND` is just a delimiter and does not have arguments.
-The block is composed by commands `#IND` and `#INTRO`.
-```
-#IND <nidx> <eidx>
-#INTRO <nidx> <eidx>
-```
-The command `#IND` declares an inductive type with name `nidx` and type `eidx`.
-The command `#INTRO` declares an introduction rule (aka constructor) with name
-`nidx` and type `eidx`. The first command in a block is always an `#IND`,
-the subsequent `#INTRO` commands are declaring the introduction rules for this
-inductive type.
-
-For example, the following mutually recursive declaration
+For example, the following inductive type declaration
 ```lean
-inductive tree.{l} (A : Type.{l}) : Type.{max 1 l} :=
-| node  : tree_list.{l} A → tree.{l} A
-| empty : tree.{l} A
-with tree_list : Type.{max 1 l} :=
-| nil  : tree_list.{l} A
-| cons : tree.{l} A → tree_list.{l} A → tree_list.{l} A
+inductive list.{l} (T : Type.{l}) : Type.{max 1 l} :=
+| nil : list.{l} T
+| cons : T → list.{l} T → list.{l} T
 ```
-is encoded by the following sequence of commands
+is encoded by the following sequence of commands:
 ```
 2 #NS 0 l
-3 #NS 0 tree
-4 #NS 0 A
+3 #NS 0 list
+4 #NS 0 T
 1 #UP 2
 0 #ES 1
 2 #US 0
 3 #UM 2 1
 1 #ES 3
-2 #EP #D 4 0 1
-5 #NS 3 node
-6 #NS 0 a
-7 #NS 0 tree_list
-3 #EC 7 1
+2 #EP #BD 4 0 1
+5 #NS 3 nil
+3 #EC 3 1
 4 #EV 0
 5 #EA 3 4
-6 #EC 3 1
+6 #EP #BD 4 0 5
+6 #NS 3 cons
+7 #NS 0 a
 7 #EV 1
-8 #EA 6 7
-9 #EP #BD 6 5 8
-10 #EP #BI 4 0 9
-8 #NS 3 empty
-11 #EA 6 4
-12 #EP #BD 4 0 11
-9 #NS 7 nil
-13 #EP #BD 4 0 5
-10 #NS 7 cons
-14 #EA 3 7
-15 #EV 2
-16 #EA 3 15
-17 #EP #BD 6 14 16
-18 #EP #BD 6 11 17
-19 #EP #BI 4 0 18
-#BIND 1 2 2
-#IND 3 2
-#INTRO 5 10
-#INTRO 8 12
-#IND 7 2
-#INTRO 9 13
-#INTRO 10 19
-#EIND
+8 #EA 3 7
+9 #EV 2
+10 #EA 3 9
+11 #EP #BD 7 8 10
+12 #EP #BD 7 4 11
+13 #EP #BI 4 0 12
+#IND 1 2 | 3 2 2
+#INTRO 5 6
+#INTRO 6 13
 ```
 
 Exporting declarations
