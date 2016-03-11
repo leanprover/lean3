@@ -193,24 +193,32 @@ end susp
 
 namespace susp
   open pointed
-
-  variables {X Y Z : pType}
-
-  definition pointed_susp [instance] [constructor] (X : Type) : pointed (susp X) :=
+  definition pointed_susp [instance] [constructor] (X : Type)
+    : pointed (susp X) :=
   pointed.mk north
+end susp
 
-  definition psusp [constructor] (X : Type) : pType :=
-  pointed.mk' (susp X)
+open susp
+definition psusp [constructor] (X : Type) : pType :=
+pointed.mk' (susp X)
+
+namespace susp
+  open pointed
+  variables {X Y Z : pType}
 
   definition psusp_functor (f : X →* Y) : psusp X →* psusp Y :=
   begin
     fconstructor,
-    { intro x, induction x,
-        apply north,
-        apply south,
-        exact merid (f a)},
-    { reflexivity}
+    { exact susp.functor f },
+    { reflexivity }
   end
+
+  definition is_equiv_psusp_functor (f : X →* Y) [Hf : is_equiv f]
+    : is_equiv (psusp_functor f) :=
+  susp.is_equiv_functor f
+
+  definition psusp_equiv (f : X ≃* Y) : psusp X ≃* psusp Y :=
+  pequiv_of_equiv (susp.equiv f) idp
 
   definition psusp_functor_compose (g : Y →* Z) (f : X →* Y)
     : psusp_functor (g ∘* f) ~* psusp_functor g ∘* psusp_functor f :=

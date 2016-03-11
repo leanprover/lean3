@@ -87,6 +87,13 @@ namespace sphere_index
   definition succ_sub_one (n : ℕ) : (nat.succ n)..-1 = n :> ℕ₋₁ :=
   idp
 
+  definition add_sub_one (n m : ℕ) : (n + m)..-1 = n..-1 +1+ m..-1 :> ℕ₋₁ :=
+  begin
+    induction m with m IH,
+    { reflexivity },
+    { exact ap succ IH }
+  end
+
   definition succ_le_succ {n m : ℕ₋₁} (H : n ≤ m) : n.+1 ≤[ℕ₋₁] m.+1 :=
   by induction H with m H IH; apply le.sp_refl; exact le.step IH
 
