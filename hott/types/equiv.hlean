@@ -111,15 +111,14 @@ namespace is_equiv
   section pre_compose
     variables (α : A → C) (β : B → C)
 
-    definition homotopy_inv_of_homotopy_pre (p : α ~ β ∘ f) : α ∘ f⁻¹ ~ β :=
-    λb, p (f⁻¹ b) ⬝ ap β (right_inv f b)
-
-    protected definition homotopy_inv_of_homotopy_pre.is_equiv
-      : is_equiv (homotopy_inv_of_homotopy_pre f α β) :=
-    adjointify _ (λq a, (ap α (left_inv f a))⁻¹ ⬝ q (f a))
+    -- homotopy_inv_of_homotopy_pre is in init.equiv
+    protected definition inv_homotopy_of_homotopy_pre.is_equiv
+      : is_equiv (inv_homotopy_of_homotopy_pre f α β) :=
+    adjointify _ (homotopy_of_inv_homotopy_pre f α β)
     abstract begin
       intro q, apply eq_of_homotopy, intro b,
-      unfold homotopy_inv_of_homotopy_pre,
+      unfold inv_homotopy_of_homotopy_pre,
+      unfold homotopy_of_inv_homotopy_pre,
       apply inverse, apply eq_bot_of_square,
       apply eq_hconcat (ap02 α (adj_inv f b)),
       apply eq_hconcat (ap_compose α f⁻¹ (right_inv f b))⁻¹,
@@ -127,7 +126,8 @@ namespace is_equiv
     end end
     abstract begin
       intro p, apply eq_of_homotopy, intro a,
-      unfold homotopy_inv_of_homotopy_pre,
+      unfold inv_homotopy_of_homotopy_pre,
+      unfold homotopy_of_inv_homotopy_pre,
       apply trans (con.assoc
         (ap α (left_inv f a))⁻¹
         (p (f⁻¹ (f a)))
@@ -140,17 +140,16 @@ namespace is_equiv
   end pre_compose
 
   section post_compose
-    variables (β : C → B) (α : C → A)
+    variables (α : C → A) (β : C → B)
 
-    definition homotopy_inv_of_homotopy_post (p : β ~ f ∘ α) : f⁻¹ ∘ β ~ α :=
-    λc, ap f⁻¹ (p c) ⬝ (left_inv f (α c))
-
-    protected definition homotopy_inv_of_homotopy_post.is_equiv
-      : is_equiv (homotopy_inv_of_homotopy_post f β α) :=
-    adjointify _ (λq c, (right_inv f (β c))⁻¹ ⬝ ap f (q c))
+    -- homotopy_inv_of_homotopy_post is in init.equiv
+    protected definition inv_homotopy_of_homotopy_post.is_equiv
+      : is_equiv (inv_homotopy_of_homotopy_post f α β) :=
+    adjointify _ (homotopy_of_inv_homotopy_post f α β)
     abstract begin
       intro q, apply eq_of_homotopy, intro c,
-      unfold homotopy_inv_of_homotopy_post,
+      unfold inv_homotopy_of_homotopy_post,
+      unfold homotopy_of_inv_homotopy_post,
       apply trans (whisker_right
        (ap_con f⁻¹ (right_inv f (β c))⁻¹ (ap f (q c))
        ⬝ whisker_right (ap_inv f⁻¹ (right_inv f (β c)))
@@ -163,7 +162,8 @@ namespace is_equiv
     end end
     abstract begin
       intro p, apply eq_of_homotopy, intro c,
-      unfold homotopy_inv_of_homotopy_post,
+      unfold inv_homotopy_of_homotopy_post,
+      unfold homotopy_of_inv_homotopy_post,
       apply trans (whisker_left (right_inv f (β c))⁻¹
         (ap_con f (ap f⁻¹ (p c)) (left_inv f (α c)))),
       apply trans (con.assoc (right_inv f (β c))⁻¹ (ap f (ap f⁻¹ (p c)))

@@ -198,34 +198,57 @@ namespace is_equiv
   end
 
   section
-  variables {A B C : Type} {f : A → B} [Hf : is_equiv f] {a : A} {b : B} {g : B → C} {h : A → C}
+  variables {A B C : Type} {f : A → B} [Hf : is_equiv f]
   include Hf
 
-  --Rewrite rules
-  definition eq_of_eq_inv (p : a = f⁻¹ b) : f a = b :=
-  ap f p ⬝ right_inv f b
+  section rewrite_rules
+    variables {a : A} {b : B}
+    definition eq_of_eq_inv (p : a = f⁻¹ b) : f a = b :=
+    ap f p ⬝ right_inv f b
 
-  definition eq_of_inv_eq (p : f⁻¹ b = a) : b = f a :=
-  (eq_of_eq_inv p⁻¹)⁻¹
+    definition eq_of_inv_eq (p : f⁻¹ b = a) : b = f a :=
+    (eq_of_eq_inv p⁻¹)⁻¹
 
-  definition inv_eq_of_eq (p : b = f a) : f⁻¹ b = a :=
-  ap f⁻¹ p ⬝ left_inv f a
+    definition inv_eq_of_eq (p : b = f a) : f⁻¹ b = a :=
+    ap f⁻¹ p ⬝ left_inv f a
 
-  definition eq_inv_of_eq (p : f a = b) : a = f⁻¹ b :=
-  (inv_eq_of_eq p⁻¹)⁻¹
+    definition eq_inv_of_eq (p : f a = b) : a = f⁻¹ b :=
+    (inv_eq_of_eq p⁻¹)⁻¹
+  end rewrite_rules
 
   variable (f)
-  definition homotopy_of_homotopy_inv' (p : g ~ h ∘ f⁻¹) : g ∘ f ~ h :=
-  λa, p (f a) ⬝ ap h (left_inv f a)
 
-  definition homotopy_of_inv_homotopy' (p : h ∘ f⁻¹ ~ g) : h ~ g ∘ f :=
-  λa, ap h (left_inv f a)⁻¹ ⬝ p (f a)
+  section pre_compose
+    variables (α : A → C) (β : B → C)
 
-  definition inv_homotopy_of_homotopy' (p : h ~ g ∘ f) : h ∘ f⁻¹ ~ g :=
-  λb, p (f⁻¹ b) ⬝ ap g (right_inv f b)
+    definition homotopy_of_homotopy_inv_pre (p : β ~ α ∘ f⁻¹) : β ∘ f ~ α :=
+    λ a, p (f a) ⬝ ap α (left_inv f a)
 
-  definition homotopy_inv_of_homotopy' (p : g ∘ f ~ h) : g ~ h ∘ f⁻¹  :=
-  λb, ap g (right_inv f b)⁻¹ ⬝ p (f⁻¹ b)
+    definition homotopy_of_inv_homotopy_pre (p : α ∘ f⁻¹ ~ β) : α ~ β ∘ f :=
+    λ a, (ap α (left_inv f a))⁻¹ ⬝ p (f a)
+
+    definition inv_homotopy_of_homotopy_pre (p : α ~ β ∘ f) : α ∘ f⁻¹ ~ β :=
+    λ b, p (f⁻¹ b) ⬝ ap β (right_inv f b)
+
+    definition homotopy_inv_of_homotopy_pre (p : β ∘ f ~ α) : β ~ α ∘ f⁻¹  :=
+    λ b, (ap β (right_inv f b))⁻¹ ⬝ p (f⁻¹ b)
+  end pre_compose
+
+  section post_compose
+    variables (α : C → A) (β : C → B)
+
+    definition homotopy_of_homotopy_inv_post (p : α ~ f⁻¹ ∘ β) : f ∘ α ~ β :=
+    λ c, ap f (p c) ⬝ (right_inv f (β c))
+
+    definition homotopy_of_inv_homotopy_post (p : f⁻¹ ∘ β ~ α) : β ~ f ∘ α :=
+    λ c, (right_inv f (β c))⁻¹ ⬝ ap f (p c)
+
+    definition inv_homotopy_of_homotopy_post (p : β ~ f ∘ α) : f⁻¹ ∘ β ~ α :=
+    λ c, ap f⁻¹ (p c) ⬝ (left_inv f (α c))
+
+    definition homotopy_inv_of_homotopy_post (p : f ∘ α ~ β) : α ~ f⁻¹ ∘ β :=
+    λ c, (left_inv f (α c))⁻¹ ⬝ ap f⁻¹ (p c)
+  end post_compose
 
   end
 
@@ -371,23 +394,6 @@ namespace equiv
   definition fun_commute_of_inv_commute (p : Π⦃a : A⦄ (c : C (g' a)), f⁻¹ (h' c) = h (f⁻¹ c))
     {a : A} (b : B (g' a)) : f (h b) = h' (f b) :=
   fun_commute_of_inv_commute' @f @h @h' p b
-
-  end
-
-  section
-  variables {A B C : Type} (f : A ≃ B) {a : A} {b : B} {g : B → C} {h : A → C}
-
-  definition homotopy_of_homotopy_inv (p : g ~ h ∘ f⁻¹) : g ∘ f ~ h :=
-  homotopy_of_homotopy_inv' f p
-
-  definition homotopy_of_inv_homotopy (p : h ∘ f⁻¹ ~ g) : h ~ g ∘ f :=
-  homotopy_of_inv_homotopy' f p
-
-  definition inv_homotopy_of_homotopy (p : h ~ g ∘ f) : h ∘ f⁻¹ ~ g :=
-  inv_homotopy_of_homotopy' f p
-
-  definition homotopy_inv_of_homotopy (p : g ∘ f ~ h) : g ~ h ∘ f⁻¹  :=
-  homotopy_inv_of_homotopy' f p
 
   end
 

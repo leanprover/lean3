@@ -225,11 +225,12 @@ namespace susp
   begin
     fconstructor,
     { intro a, induction a,
-      { reflexivity},
-      { reflexivity},
+      { reflexivity },
+      { reflexivity },
       { apply eq_pathover, apply hdeg_square,
-        rewrite [▸*,ap_compose' _ (psusp_functor f),↑psusp_functor,+elim_merid]}},
-    { reflexivity}
+        rewrite [▸*,ap_compose' _ (psusp_functor f),↑psusp_functor],
+        krewrite +susp.elim_merid } },
+    { reflexivity }
   end
 
   -- adjunction from Coq-HoTT
