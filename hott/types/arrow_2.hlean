@@ -124,9 +124,9 @@ namespace arrow
   open function
   definition inv_commute_of_commute (p : f' ∘ α ~ β ∘ f) : f'⁻¹ ∘ β ~ α ∘ f⁻¹ :=
   begin
-    apply homotopy_inv_of_homotopy_post f' β (α ∘ f⁻¹),
+    apply inv_homotopy_of_homotopy_post f' (α ∘ f⁻¹) β,
     apply homotopy.symm,
-    apply homotopy_inv_of_homotopy_pre f (f' ∘ α) β,
+    apply inv_homotopy_of_homotopy_pre f (f' ∘ α) β,
     apply p
   end
 
@@ -135,8 +135,8 @@ namespace arrow
     =  (ap f'⁻¹ (p a))⁻¹ ⬝ left_inv f' (α a) ⬝ ap α (left_inv f a)⁻¹ :=
   begin
     unfold inv_commute_of_commute,
-    unfold homotopy_inv_of_homotopy_post,
-    unfold homotopy_inv_of_homotopy_pre,
+    unfold inv_homotopy_of_homotopy_post,
+    unfold inv_homotopy_of_homotopy_pre,
     rewrite [adj f a,-(ap_compose β f)],
     rewrite [eq_of_square (natural_square_tr p (left_inv f a))],
     rewrite [ap_inv f'⁻¹,ap_con f'⁻¹,con_inv,con.assoc,con.assoc],
@@ -152,8 +152,8 @@ namespace arrow
     = right_inv f' (β b) ⬝ ap β (right_inv f b)⁻¹ ⬝ (p (f⁻¹ b))⁻¹ :=
   begin
     unfold inv_commute_of_commute,
-    unfold homotopy_inv_of_homotopy_post,
-    unfold homotopy_inv_of_homotopy_pre,
+    unfold inv_homotopy_of_homotopy_post,
+    unfold inv_homotopy_of_homotopy_pre,
     rewrite [ap_con,-(ap_compose f' f'⁻¹),-(adj f' (α (f⁻¹ b)))],
     rewrite [con.assoc (right_inv f' (β b)) (ap β (right_inv f b)⁻¹)
                        (p (f⁻¹ b))⁻¹],
@@ -173,13 +173,13 @@ namespace arrow
   begin
     unfold inv_commute_of_commute,
     apply @is_equiv_compose _ _ _
-      (homotopy.symm ∘ (homotopy_inv_of_homotopy_pre f (f' ∘ α) β))
-      (homotopy_inv_of_homotopy_post f' β (α ∘ f⁻¹)),
+      (homotopy.symm ∘ (inv_homotopy_of_homotopy_pre f (f' ∘ α) β))
+      (inv_homotopy_of_homotopy_post f' (α ∘ f⁻¹) β),
     { apply @is_equiv_compose _ _ _
-            (homotopy_inv_of_homotopy_pre f (f' ∘ α) β) homotopy.symm,
-      { apply homotopy_inv_of_homotopy_pre.is_equiv },
+            (inv_homotopy_of_homotopy_pre f (f' ∘ α) β) homotopy.symm,
+      { apply inv_homotopy_of_homotopy_pre.is_equiv },
       { apply pi.is_equiv_homotopy_symm }
     },
-    { apply homotopy_inv_of_homotopy_post.is_equiv }
+    { apply inv_homotopy_of_homotopy_post.is_equiv }
   end
 end arrow
