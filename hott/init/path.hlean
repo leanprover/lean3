@@ -257,6 +257,7 @@ namespace eq
   definition ap11 {f g : A → B} (H : f = g) {x y : A} (p : x = y) : f x = g y :=
   by induction H; exact ap f p
 
+  -- [apd] is defined in init.pathover using pathover instead of an equality with transport.
   definition apdt [unfold 6] (f : Πa, P a) {x y : A} (p : x = y) : p ▸ f x = f y :=
   by induction p; reflexivity
 
@@ -443,7 +444,7 @@ namespace eq
     p⁻¹ ▸ p ▸ z = z :=
   (con_tr p p⁻¹ z)⁻¹ ⬝ ap (λr, transport P r z) (con.right_inv p)
 
-  definition con_tr_lemma {P : A → Type}
+  definition con_con_tr {P : A → Type}
       {x y z w : A} (p : x = y) (q : y = z) (r : z = w) (u : P x) :
     ap (λe, e ▸ u) (con.assoc' p q r) ⬝ (con_tr (p ⬝ q) r u) ⬝
         ap (transport P r) (con_tr p q u)
@@ -633,7 +634,7 @@ namespace eq
     idp ◾ h = whisker_left idp h :> (idp ⬝ p = idp ⬝ q) :=
   idp
 
-  definition inverse2_concat2 {p p' : x = y} (h : p = p')
+  definition inv2_con2 {p p' : x = y} (h : p = p')
     : h⁻² ◾ h = con.left_inv p ⬝ (con.left_inv p')⁻¹ :=
   by induction h; induction p; reflexivity
 
@@ -643,11 +644,11 @@ namespace eq
     (a ◾ c) ⬝ (b ◾ d) = (a ⬝ b) ◾ (c ⬝ d) :=
   by induction d; induction c; induction b;induction a; reflexivity
 
-  definition concat2_eq_rl {A : Type} {x y z : A} {p p' : x = y} {q q' : y = z}
+  definition con2_eq_rl {A : Type} {x y z : A} {p p' : x = y} {q q' : y = z}
     (a : p = p') (b : q = q') : a ◾ b = whisker_right a q ⬝ whisker_left p' b :=
   by induction b; induction a; reflexivity
 
-  definition concat2_eq_lf {A : Type} {x y z : A} {p p' : x = y} {q q' : y = z}
+  definition con2_eq_lf {A : Type} {x y z : A} {p p' : x = y} {q q' : y = z}
     (a : p = p') (b : q = q') : a ◾ b = whisker_left p b ⬝ whisker_right a q' :=
   by induction b; induction a; reflexivity
 
@@ -671,25 +672,25 @@ namespace eq
     con.assoc' p idp q ⬝ whisker_right (con_idp p) q = whisker_left p (idp_con q) :=
   by induction q; induction p; reflexivity
 
-  definition eckmann_hilton {x:A} (p q : idp = idp :> x = x) : p ⬝ q = q ⬝ p :=
+  definition eckmann_hilton (p q : idp = idp :> a = a) : p ⬝ q = q ⬝ p :=
   begin
     refine (whisker_right_idp p ◾ whisker_left_idp2 q)⁻¹ ⬝ _,
     refine !whisker_right_con_whisker_left ⬝ _,
     refine !whisker_left_idp2 ◾ !whisker_right_idp
   end
 
-  definition concat_eq_concat2 {A : Type} {a : A} (p q : idp = idp :> a = a) : p ⬝ q = p ◾ q :=
+  definition con_eq_con2 (p q : idp = idp :> a = a) : p ⬝ q = p ◾ q :=
   begin
     refine (whisker_right_idp p ◾ whisker_left_idp2 q)⁻¹ ⬝ _,
-    exact !concat2_eq_rl⁻¹
+    exact !con2_eq_rl⁻¹
   end
 
-  definition inverse_eq_inverse2 {A : Type} {a : A} (p : idp = idp :> a = a) : p⁻¹ = p⁻² :=
+  definition inv_eq_inv2 (p : idp = idp :> a = a) : p⁻¹ = p⁻² :=
   begin
     apply eq.cancel_right p,
     refine !con.left_inv ⬝ _,
-    refine _ ⬝ !concat_eq_concat2⁻¹,
-    exact !inverse2_concat2⁻¹,
+    refine _ ⬝ !con_eq_con2⁻¹,
+    exact !inv2_con2⁻¹,
   end
 
   -- The action of functions on 2-dimensional paths
