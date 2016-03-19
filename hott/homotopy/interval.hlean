@@ -31,7 +31,7 @@ namespace interval
   interval.rec P0 P1 Ps x
 
   theorem rec_seg {P : interval → Type} (P0 : P zero) (P1 : P one) (Ps : P0 =[seg] P1)
-      : apdo (interval.rec P0 P1 Ps) seg = Ps :=
+      : apd (interval.rec P0 P1 Ps) seg = Ps :=
   !rec_merid
 
   protected definition elim {P : Type} (P0 P1 : P) (Ps : P0 = P1) (x : interval) : P :=
@@ -45,7 +45,7 @@ namespace interval
     : ap (interval.elim P0 P1 Ps) seg = Ps :=
   begin
     apply eq_of_fn_eq_fn_inv !(pathover_constant seg),
-    rewrite [▸*,-apdo_eq_pathover_of_eq_ap,↑interval.elim,rec_seg],
+    rewrite [▸*,-apd_eq_pathover_of_eq_ap,↑interval.elim,rec_seg],
   end
 
   protected definition elim_type (P0 P1 : Type) (Ps : P0 ≃ P1) (x : interval) : Type :=

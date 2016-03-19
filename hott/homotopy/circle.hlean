@@ -42,12 +42,12 @@ namespace circle
 
   theorem rec2_seg1 {P : circle → Type} (Pb1 : P base1) (Pb2 : P base2)
     (Ps1 : Pb1 =[seg1] Pb2) (Ps2 : Pb1 =[seg2] Pb2)
-      : apdo (rec2 Pb1 Pb2 Ps1 Ps2) seg1 = Ps1 :=
+      : apd (rec2 Pb1 Pb2 Ps1 Ps2) seg1 = Ps1 :=
   !rec_merid
 
   theorem rec2_seg2 {P : circle → Type} (Pb1 : P base1) (Pb2 : P base2)
     (Ps1 : Pb1 =[seg1] Pb2) (Ps2 : Pb1 =[seg2] Pb2)
-      : apdo (rec2 Pb1 Pb2 Ps1 Ps2) seg2 = Ps2 :=
+      : apd (rec2 Pb1 Pb2 Ps1 Ps2) seg2 = Ps2 :=
   !rec_merid
 
   definition elim2 {P : Type} (Pb1 Pb2 : P) (Ps1 Ps2 : Pb1 = Pb2) (x : circle) : P :=
@@ -61,14 +61,14 @@ namespace circle
     : ap (elim2 Pb1 Pb2 Ps1 Ps2) seg1 = Ps1 :=
   begin
     apply eq_of_fn_eq_fn_inv !(pathover_constant seg1),
-    rewrite [▸*,-apdo_eq_pathover_of_eq_ap,↑elim2,rec2_seg1],
+    rewrite [▸*,-apd_eq_pathover_of_eq_ap,↑elim2,rec2_seg1],
   end
 
   theorem elim2_seg2 {P : Type} (Pb1 Pb2 : P) (Ps1 : Pb1 = Pb2) (Ps2 : Pb1 = Pb2)
     : ap (elim2 Pb1 Pb2 Ps1 Ps2) seg2 = Ps2 :=
   begin
     apply eq_of_fn_eq_fn_inv !(pathover_constant seg2),
-    rewrite [▸*,-apdo_eq_pathover_of_eq_ap,↑elim2,rec2_seg2],
+    rewrite [▸*,-apd_eq_pathover_of_eq_ap,↑elim2,rec2_seg2],
   end
 
   definition elim2_type (Pb1 Pb2 : Type) (Ps1 Ps2 : Pb1 ≃ Pb2) (x : circle) : Type :=
@@ -109,9 +109,9 @@ namespace circle
   eq.rec_on p idp
 
   theorem rec_loop {P : circle → Type} (Pbase : P base) (Ploop : Pbase =[loop] Pbase) :
-    apdo (circle.rec Pbase Ploop) loop = Ploop :=
+    apd (circle.rec Pbase Ploop) loop = Ploop :=
   begin
-    rewrite [↑loop,apdo_con,↑circle.rec,↑circle.rec2_on,↑base,rec2_seg2,apdo_inv,rec2_seg1],
+    rewrite [↑loop,apd_con,↑circle.rec,↑circle.rec2_on,↑base,rec2_seg2,apd_inv,rec2_seg1],
     apply rec_loop_helper
   end
 
@@ -127,14 +127,14 @@ namespace circle
     ap (circle.elim Pbase Ploop) loop = Ploop :=
   begin
     apply eq_of_fn_eq_fn_inv !(pathover_constant loop),
-    rewrite [▸*,-apdo_eq_pathover_of_eq_ap,↑circle.elim,rec_loop],
+    rewrite [▸*,-apd_eq_pathover_of_eq_ap,↑circle.elim,rec_loop],
   end
 
   theorem elim_seg1 {P : Type} (Pbase : P) (Ploop : Pbase = Pbase)
     : ap (circle.elim Pbase Ploop) seg1 = (tr_constant seg1 Pbase)⁻¹ :=
   begin
     apply eq_of_fn_eq_fn_inv !(pathover_constant seg1),
-    rewrite [▸*,-apdo_eq_pathover_of_eq_ap,↑circle.elim,↑circle.rec],
+    rewrite [▸*,-apd_eq_pathover_of_eq_ap,↑circle.elim,↑circle.rec],
     rewrite [↑circle.rec2_on,rec2_seg1], apply inverse,
     apply pathover_of_eq_tr_constant_inv
   end
@@ -143,7 +143,7 @@ namespace circle
     : ap (circle.elim Pbase Ploop) seg2 = Ploop ⬝ (tr_constant seg1 Pbase)⁻¹ :=
   begin
     apply eq_of_fn_eq_fn_inv !(pathover_constant seg2),
-    rewrite [▸*,-apdo_eq_pathover_of_eq_ap,↑circle.elim,↑circle.rec],
+    rewrite [▸*,-apd_eq_pathover_of_eq_ap,↑circle.elim,↑circle.rec],
     rewrite [↑circle.rec2_on,rec2_seg2],
     assert l : Π(A B : Type)(a a₂ a₂' : A)(b b' : B)(p : a = a₂)(p' : a₂' = a₂)
                    (q : b = b'),
@@ -188,7 +188,7 @@ namespace circle
     : (Π(x : S¹), P x) ≃ Σ(p : P base), p =[loop] p :=
   begin
     fapply equiv.MK,
-    { intro f, exact ⟨f base, apdo f loop⟩},
+    { intro f, exact ⟨f base, apd f loop⟩},
     { intro v x, induction v with p q, induction x,
       { exact p},
       { exact q}},

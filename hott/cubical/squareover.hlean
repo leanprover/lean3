@@ -49,7 +49,7 @@ namespace eq
   definition idso      [reducible] [constructor]               := @squareover.idsquareo A B a₀₀ b₀₀
 
   definition apds (f : Πa, B a) (s : square p₁₀ p₁₂ p₀₁ p₂₁)
-    : squareover B s (apdo f p₁₀) (apdo f p₁₂) (apdo f p₀₁) (apdo f p₂₁) :=
+    : squareover B s (apd f p₁₀) (apd f p₁₂) (apd f p₀₁) (apd f p₂₁) :=
   square.rec_on s idso
 
   definition vrflo : squareover B vrfl q₁₀ q₁₀ idpo idpo :=
@@ -244,7 +244,7 @@ namespace eq
   /- A version of eq_pathover where the type of the equality also varies -/
   definition eq_pathover_dep {f g : Πa, B a} {p : a = a'} {q : f a = g a}
     {r : f a' = g a'} (s : squareover B hrfl (pathover_idp_of_eq q) (pathover_idp_of_eq r)
-                                             (apdo f p) (apdo g p)) : q =[p] r :=
+                                             (apd f p) (apd g p)) : q =[p] r :=
   begin
     induction p, apply pathover_idp_of_eq, apply eq_of_vdeg_square, exact square_of_squareover_ids s
   end
@@ -256,7 +256,7 @@ namespace eq
     (r : pathover B (b a') (q a') (b₂ a'))
     (r₂ : pathover B (b a₂') (q a₂') (b₂ a₂'))
     (s : squareover B (natural_square_tr q p) r r₂
-                      (pathover_ap B f (apdo b p)) (pathover_ap B g (apdo b₂ p)))
+                      (pathover_ap B f (apd b p)) (pathover_ap B g (apd b₂ p)))
     : pathover (λa, pathover B (b a) (q a) (b₂ a)) r p r₂ :=
   begin
     induction p, esimp at s, apply pathover_idp_of_eq, apply eq_of_vdeg_squareover, exact s

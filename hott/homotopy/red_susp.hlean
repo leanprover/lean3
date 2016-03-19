@@ -47,7 +47,7 @@ section
 
   -- definition rec_merid {P : red_susp → Type} (Pb : P base) (Pm : Π(a : A), Pb =[merid a] Pb)
   --   (Pe : Pm pt =[merid_pt] idpo) (a : A)
-  --   : apdo (rec Pb Pm Pe) (merid a) = Pm a :=
+  --   : apd (rec Pb Pm Pe) (merid a) = Pm a :=
   -- !rec_incl1
 
   -- theorem elim_merid_pt {P : red_susp → Type} (Pb : P base) (Pm : Π(a : A), Pb =[merid a] Pb)

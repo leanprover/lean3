@@ -52,7 +52,7 @@ parameters {A B : Type.{u}} (f : A → B)
   theorem rec_seg {P : cylinder → Type}
     (Pbase : Π(b : B), P (base b)) (Ptop : Π(a : A), P (top a))
     (Pseg : Π(a : A), Pbase (f a) =[seg a] Ptop a)
-      (a : A) : apdo (rec Pbase Ptop Pseg) (seg a) = Pseg a :=
+      (a : A) : apd (rec Pbase Ptop Pseg) (seg a) = Pseg a :=
   !rec_eq_of_rel
 
   protected definition elim {P : Type} (Pbase : B → P) (Ptop : A → P)
@@ -68,7 +68,7 @@ parameters {A B : Type.{u}} (f : A → B)
     (a : A) : ap (elim Pbase Ptop Pseg) (seg a) = Pseg a :=
   begin
     apply eq_of_fn_eq_fn_inv !(pathover_constant (seg a)),
-    rewrite [▸*,-apdo_eq_pathover_of_eq_ap,↑elim,rec_seg],
+    rewrite [▸*,-apd_eq_pathover_of_eq_ap,↑elim,rec_seg],
   end
 
   protected definition elim_type (Pbase : B → Type) (Ptop : A → Type)

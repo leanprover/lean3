@@ -51,12 +51,12 @@ namespace torus
 
   theorem rec_loop1 {P : torus → Type} (Pb : P base) (Pl1 : Pb =[loop1] Pb)
     (Pl2 : Pb =[loop2] Pb) (Ps : squareover P surf Pl1 Pl1 Pl2 Pl2)
-    : apdo (torus.rec Pb Pl1 Pl2 Ps) loop1 = Pl1 :=
+    : apd (torus.rec Pb Pl1 Pl2 Ps) loop1 = Pl1 :=
   !rec_incl1
 
   theorem rec_loop2 {P : torus → Type} (Pb : P base) (Pl1 : Pb =[loop1] Pb)
     (Pl2 : Pb =[loop2] Pb) (Ps : squareover P surf Pl1 Pl1 Pl2 Pl2)
-    : apdo (torus.rec Pb Pl1 Pl2 Ps) loop2 = Pl2 :=
+    : apd (torus.rec Pb Pl1 Pl2 Ps) loop2 = Pl2 :=
   !rec_incl1
 
   protected definition elim {P : Type} (Pb : P) (Pl1 : Pb = Pb) (Pl2 : Pb = Pb)

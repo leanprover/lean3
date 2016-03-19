@@ -14,7 +14,7 @@ namespace eq
 
   theorem ap_is_constant_eq (p : Πx, f x = b) (q : a = a') :
       ap_is_constant p q =
-      eq_con_inv_of_con_eq ((eq_of_square (square_of_pathover (apdo p q)))⁻¹ ⬝
+      eq_con_inv_of_con_eq ((eq_of_square (square_of_pathover (apd p q)))⁻¹ ⬝
       whisker_left (p a) (ap_constant q b)) :=
   begin
     induction q, esimp, generalize (p a), intro p, cases p, apply idpath idp
@@ -105,9 +105,9 @@ namespace eq
   : eq_of_con_inv_eq_idp (r ◾ inverse2 s ⬝ t) = r ⬝ eq_of_con_inv_eq_idp t ⬝ s⁻¹ :=
   by induction s;induction r;induction q;reflexivity
 
-  definition naturality_apdo_eq {A : Type} {B : A → Type} {a a₂ : A} {f g : Πa, B a}
+  definition naturality_apd_eq {A : Type} {B : A → Type} {a a₂ : A} {f g : Πa, B a}
     (H : f ~ g) (p : a = a₂)
-    : apdo f p = concato_eq (eq_concato (H a) (apdo g p)) (H a₂)⁻¹ :=
+    : apd f p = concato_eq (eq_concato (H a) (apd g p)) (H a₂)⁻¹ :=
   begin
     induction p, esimp,
     generalizes [H a, g a], intro ga Ha, induction Ha,

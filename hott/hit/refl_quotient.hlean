@@ -47,7 +47,7 @@ section
   definition rec_req_of_rel {P : Type} {P : refl_quotient → Type} (Pc : Π(a : A), P (rclass_of a))
     (Pp : Π⦃a a' : A⦄ (H : R a a'), Pc a =[req_of_rel H] Pc a')
     (Pr : Π(a : A), change_path (pρ a) (Pp (ρ a)) = idpo) ⦃a a' : A⦄ (r : R a a')
-    : apdo (rec Pc Pp Pr) (req_of_rel r) = Pp r :=
+    : apd (rec Pc Pp Pr) (req_of_rel r) = Pp r :=
   !rec_incl1
 
   protected definition elim {P : Type} (Pc : Π(a : A), P)

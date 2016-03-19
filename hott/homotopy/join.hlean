@@ -34,7 +34,7 @@ namespace join
     (Pinr : Π(y : B), P (inr y))
     (Pglue : Π(x : A)(y : B), Pinl x =[glue x y] Pinr y)
     (x : A) (y : B)
-    : apdo (join.rec Pinl Pinr Pglue) (glue x y) = Pglue x y :=
+    : apd (join.rec Pinl Pinr Pglue) (glue x y) = Pglue x y :=
   !quotient.rec_eq_of_rel
 
   protected definition elim {P : Type} (Pinl : A → P) (Pinr : B → P)
@@ -46,7 +46,7 @@ namespace join
     : ap (join.elim Pinl Pinr Pglue) (glue x y) = Pglue x y :=
   begin
     apply equiv.eq_of_fn_eq_fn_inv !(pathover_constant (glue x y)),
-    rewrite [▸*,-apdo_eq_pathover_of_eq_ap,↑join.elim],
+    rewrite [▸*,-apd_eq_pathover_of_eq_ap,↑join.elim],
     apply join.rec_glue
   end
 
@@ -404,7 +404,7 @@ section join_switch
 
     private definition switch_inv_cube_aux2 {A B : Type} {b : B} {f : A → B}
       (g : Π a, f a = b) {x y : A} (p : x = y) {sq : square (g x) (g y) (ap f p) idp}
-      (q : apdo g p = eq_pathover (sq ⬝hp !ap_constant⁻¹)) : square_Flr_ap_idp _ _ = sq :=
+      (q : apd g p = eq_pathover (sq ⬝hp !ap_constant⁻¹)) : square_Flr_ap_idp _ _ = sq :=
     begin
       cases p, esimp at *, apply concat, apply inverse, apply vdeg_square_idp,
       apply concat, apply ap vdeg_square, exact ap eq_of_pathover_idp q,
@@ -448,7 +448,7 @@ section join_switch
 
   private definition natural_square_tr_beta {A B : Type} {f₁ f₂ : A → B}
     (p : Π a, f₁ a = f₂ a) {x y : A} (q : x = y) {sq : square (p x) (p y) (ap f₁ q) (ap f₂ q)}
-    (e : apdo p q = eq_pathover sq) :
+    (e : apd p q = eq_pathover sq) :
     natural_square_tr p q = sq :=
   begin
     cases q, esimp at *, apply concat, apply inverse, apply vdeg_square_idp,
