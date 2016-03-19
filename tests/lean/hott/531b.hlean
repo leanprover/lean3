@@ -52,7 +52,7 @@ namespace colimit
   definition comp_cglue [D : diagram] {P : colimit D → Type}
     (Pincl : Π⦃i : Iob⦄ (x : ob i), P (ι x))
     (Pglue : Π(j : Ihom) (x : ob (dom j)), cglue j x ▸ Pincl (hom j x) = Pincl x)
-      {j : Ihom} (x : ob (dom j)) : apd (rec Pincl Pglue) (cglue j x) = sorry ⬝ Pglue j x ⬝ sorry :=
+      {j : Ihom} (x : ob (dom j)) : apdt (rec Pincl Pglue) (cglue j x) = sorry ⬝ Pglue j x ⬝ sorry :=
   --the sorry's in the statement can be removed when comp_incl is definitional
   sorry --idp
 

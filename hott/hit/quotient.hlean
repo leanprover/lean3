@@ -137,7 +137,7 @@ namespace quotient
       induction q,
       { exact Qpt p},
       { apply pi_pathover_left', esimp, intro c,
-        refine _ ⬝op apd Qpt (elim_type_eq_of_rel C f H c)⁻¹ᵖ,
+        refine _ ⬝op apdt Qpt (elim_type_eq_of_rel C f H c)⁻¹ᵖ,
         refine _ ⬝op (tr_compose Q Ppt _ _)⁻¹ ,
         rewrite ap_inv,
         refine pathover_cancel_right _ !tr_pathover⁻¹ᵒ,

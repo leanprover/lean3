@@ -281,7 +281,7 @@ namespace is_trunc
     (imp : Π{a b : A}, R a b → a = b) : is_set A :=
   is_set_of_axiom_K
     (λa p,
-      have H2 : transport (λx, R a x → a = x) p (@imp a a) = @imp a a, from !apd,
+      have H2 : transport (λx, R a x → a = x) p (@imp a a) = @imp a a, from !apdt,
       have H3 : Π(r : R a a), transport (λx, a = x) p (imp r)
                               = imp (transport (λx, R a x) p r), from
         to_fun (equiv.symm !heq_pi) H2,

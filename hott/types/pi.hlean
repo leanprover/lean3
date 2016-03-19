@@ -215,12 +215,12 @@ namespace pi
     begin
       intro h, apply eq_of_homotopy, intro a', esimp,
       rewrite [adj f0 a',-tr_compose,fn_tr_eq_tr_fn _ f1,right_inv (f1 _)],
-      apply apd
+      apply apdt
     end,
     begin
       intro h, apply eq_of_homotopy, intro a, esimp,
       rewrite [left_inv (f1 _)],
-      apply apd
+      apply apdt
     end
   end
 

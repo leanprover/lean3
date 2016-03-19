@@ -151,7 +151,7 @@ namespace eq
 
   definition transport_eq_FlFr_D {B : A → Type} {f g : Πa, B a}
     (p : a₁ = a₂) (q : f a₁ = g a₁)
-      : transport (λx, f x = g x) p q = (apd f p)⁻¹ ⬝ ap (transport B p) q ⬝ (apd g p) :=
+      : transport (λx, f x = g x) p q = (apdt f p)⁻¹ ⬝ ap (transport B p) q ⬝ (apdt g p) :=
   by induction p; rewrite [▸*,idp_con,ap_id]
 
   definition transport_eq_FFlr (p : a₁ = a₂) (q : h (f a₁) = a₁)
@@ -189,7 +189,7 @@ namespace eq
   by induction p; rewrite [▸*,idp_con]; exact idpo
 
   definition pathover_eq_FlFr_D {B : A → Type} {f g : Πa, B a} (p : a₁ = a₂) (q : f a₁ = g a₁)
-    : q =[p] (apd f p)⁻¹ ⬝ ap (transport B p) q ⬝ (apd g p) := /-(λx, f x = g x)-/
+    : q =[p] (apdt f p)⁻¹ ⬝ ap (transport B p) q ⬝ (apdt g p) := /-(λx, f x = g x)-/
   by induction p; rewrite [▸*,idp_con,ap_id];exact idpo
 
   definition pathover_eq_FFlr (p : a₁ = a₂) (q : h (f a₁) = a₁) : q =[p] (ap h (ap f p))⁻¹ ⬝ q ⬝ p :=

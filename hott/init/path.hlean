@@ -257,7 +257,7 @@ namespace eq
   definition ap11 {f g : A → B} (H : f = g) {x y : A} (p : x = y) : f x = g y :=
   by induction H; exact ap f p
 
-  definition apd [unfold 6] (f : Πa, P a) {x y : A} (p : x = y) : p ▸ f x = f y :=
+  definition apdt [unfold 6] (f : Πa, P a) {x y : A} (p : x = y) : p ▸ f x = f y :=
   by induction p; reflexivity
 
   definition ap011 [unfold 9] (f : A → B → C) (Ha : a = a') (Hb : b = b') : f a b = f a' b' :=
@@ -456,16 +456,16 @@ namespace eq
     tr_inv_tr p (transport P p z) = ap (transport P p) (inv_tr_tr p z) :=
   by induction p; reflexivity
 
-  /- some properties for apd -/
+  /- some properties for apdt -/
 
-  definition apd_idp (x : A) (f : Πx, P x) : apd f idp = idp :> (f x = f x) := idp
+  definition apdt_idp (x : A) (f : Πx, P x) : apdt f idp = idp :> (f x = f x) := idp
 
-  definition apd_con (f : Πx, P x) {x y z : A} (p : x = y) (q : y = z)
-    : apd f (p ⬝ q) = con_tr p q (f x) ⬝ ap (transport P q) (apd f p) ⬝ apd f q :=
+  definition apdt_con (f : Πx, P x) {x y z : A} (p : x = y) (q : y = z)
+    : apdt f (p ⬝ q) = con_tr p q (f x) ⬝ ap (transport P q) (apdt f p) ⬝ apdt f q :=
   by cases p; cases q; apply idp
 
-  definition apd_inv (f : Πx, P x) {x y : A} (p : x = y)
-    : apd f p⁻¹ = (eq_inv_tr_of_tr_eq (apd f p))⁻¹ :=
+  definition apdt_inv (f : Πx, P x) {x y : A} (p : x = y)
+    : apdt f p⁻¹ = (eq_inv_tr_of_tr_eq (apdt f p))⁻¹ :=
   by cases p; apply idp
 
 
@@ -562,11 +562,11 @@ namespace eq
   definition tr_eq_cast_ap_fn {P : A → Type} {x y} (p : x = y) : transport P p = cast (ap P p) :=
   by induction p; reflexivity
 
-  /- The behavior of [ap] and [apd] -/
+  /- The behavior of [ap] and [apdt] -/
 
-  -- In a constant fibration, [apd] reduces to [ap], modulo [transport_const].
-  definition apd_eq_tr_constant_con_ap (f : A → B) (p : x = y) :
-    apd f p = tr_constant p (f x) ⬝ ap f p :=
+  -- In a constant fibration, [apdt] reduces to [ap], modulo [transport_const].
+  definition apdt_eq_tr_constant_con_ap (f : A → B) (p : x = y) :
+    apdt f p = tr_constant p (f x) ⬝ ap f p :=
   by induction p; reflexivity
 
 
@@ -708,17 +708,17 @@ namespace eq
                         ⬝ (ap_con f p' q')⁻¹ :=
   by induction r; induction s; induction q; induction p; reflexivity
 
-  definition apd02 [unfold 8] {p q : x = y} (f : Π x, P x) (r : p = q) :
-    apd f p = transport2 P r (f x) ⬝ apd f q :=
+  definition apdt02 [unfold 8] {p q : x = y} (f : Π x, P x) (r : p = q) :
+    apdt f p = transport2 P r (f x) ⬝ apdt f q :=
   by induction r; exact !idp_con⁻¹
 
   -- And now for a lemma whose statement is much longer than its proof.
-  definition apd02_con {P : A → Type} (f : Π x:A, P x) {x y : A}
+  definition apdt02_con {P : A → Type} (f : Π x:A, P x) {x y : A}
       {p1 p2 p3 : x = y} (r1 : p1 = p2) (r2 : p2 = p3) :
-    apd02 f (r1 ⬝ r2) = apd02 f r1
-      ⬝ whisker_left (transport2 P r1 (f x)) (apd02 f r2)
+    apdt02 f (r1 ⬝ r2) = apdt02 f r1
+      ⬝ whisker_left (transport2 P r1 (f x)) (apdt02 f r2)
       ⬝ con.assoc' _ _ _
-      ⬝ (whisker_right (tr2_con r1 r2 (f x))⁻¹ (apd f p3)) :=
+      ⬝ (whisker_right (tr2_con r1 r2 (f x))⁻¹ (apdt f p3)) :=
   by induction r2; induction r1; induction p1; reflexivity
 
 end eq

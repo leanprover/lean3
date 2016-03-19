@@ -235,7 +235,7 @@ axiom function_extensionality : funext
 variables {A : Type} {P : A → Type} {f g : Π x, P x}
 
 namespace funext
-  theorem is_equiv_apd [instance] (f g : Π x, P x) : is_equiv (@apd10 A P f g) :=
+  theorem is_equiv_apdt [instance] (f g : Π x, P x) : is_equiv (@apd10 A P f g) :=
   function_extensionality f g
 end funext
 
