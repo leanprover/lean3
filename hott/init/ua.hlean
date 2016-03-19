@@ -61,8 +61,6 @@ definition eq_of_equiv_lift {A B : Type} (f : A ≃ B) : A = lift B :=
 ua (f ⬝e !equiv_lift)
 
 namespace equiv
-  definition ua_refl (A : Type) : ua erfl = idpath A :=
-  eq_of_fn_eq_fn !eq_equiv_equiv (right_inv !eq_equiv_equiv erfl)
 
   -- One consequence of UA is that we can transport along equivalencies of types
   -- We can use this for calculation evironments
@@ -89,5 +87,21 @@ namespace equiv
   definition rec_on_ua_idp' {A : Type} {P : Π{B}, A ≃ B → A = B → Type} {B : Type}
     (f : A ≃ B) (H : P equiv.refl idp) : P f (ua f) :=
   rec_on_ua' f (λq, eq.rec_on q H)
+
+  definition ua_refl (A : Type) : ua erfl = idpath A :=
+  eq_of_fn_eq_fn !eq_equiv_equiv (right_inv !eq_equiv_equiv erfl)
+
+  definition ua_symm {A B : Type} (f : A ≃ B) : ua f⁻¹ᵉ = (ua f)⁻¹ :=
+  begin
+    apply rec_on_ua_idp f,
+    refine !ua_refl ⬝ inverse2 !ua_refl⁻¹
+  end
+
+  definition ua_trans {A B C : Type} (f : A ≃ B) (g : B ≃ C) : ua (f ⬝e g) = ua f ⬝ ua g :=
+  begin
+    apply rec_on_ua_idp g, apply rec_on_ua_idp f,
+    refine !ua_refl ⬝ concat2 !ua_refl⁻¹ !ua_refl⁻¹
+  end
+
 
 end equiv
