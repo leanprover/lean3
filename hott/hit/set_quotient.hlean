@@ -44,7 +44,7 @@ section
 
   theorem rec_eq_of_rel {P : set_quotient → Type} [Pt : Πaa, is_set (P aa)]
     (Pc : Π(a : A), P (class_of a)) (Pp : Π⦃a a' : A⦄ (H : R a a'), Pc a =[eq_of_rel H] Pc a')
-    {a a' : A} (H : R a a') : apdo (rec Pc Pp) (eq_of_rel H) = Pp H :=
+    {a a' : A} (H : R a a') : apd (rec Pc Pp) (eq_of_rel H) = Pp H :=
   !is_set.elimo
 
   protected definition elim {P : Type} [Pt : is_set P] (Pc : A → P)
@@ -60,7 +60,7 @@ section
     : ap (elim Pc Pp) (eq_of_rel H) = Pp H :=
   begin
     apply eq_of_fn_eq_fn_inv !(pathover_constant (eq_of_rel H)),
-    rewrite [▸*,-apdo_eq_pathover_of_eq_ap,↑elim,rec_eq_of_rel],
+    rewrite [▸*,-apd_eq_pathover_of_eq_ap,↑elim,rec_eq_of_rel],
   end
 
   protected definition rec_prop {P : set_quotient → Type} [Pt : Πaa, is_prop (P aa)]

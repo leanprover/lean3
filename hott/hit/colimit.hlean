@@ -50,7 +50,7 @@ section
   theorem rec_cglue {P : colimit → Type}
     (Pincl : Π⦃i : I⦄ (x : A i), P (ι x))
     (Pglue : Π(j : J) (x : A (dom j)), Pincl (f j x) =[cglue j x] Pincl x)
-      {j : J} (x : A (dom j)) : apdo (rec Pincl Pglue) (cglue j x) = Pglue j x :=
+      {j : J} (x : A (dom j)) : apd (rec Pincl Pglue) (cglue j x) = Pglue j x :=
   !rec_eq_of_rel
 
   protected definition elim {P : Type} (Pincl : Π⦃i : I⦄ (x : A i), P)
@@ -68,7 +68,7 @@ section
       {j : J} (x : A (dom j)) : ap (elim Pincl Pglue) (cglue j x) = Pglue j x :=
   begin
     apply eq_of_fn_eq_fn_inv !(pathover_constant (cglue j x)),
-    rewrite [▸*,-apdo_eq_pathover_of_eq_ap,↑elim,rec_cglue],
+    rewrite [▸*,-apd_eq_pathover_of_eq_ap,↑elim,rec_cglue],
   end
 
   protected definition elim_type (Pincl : Π⦃i : I⦄ (x : A i), Type)
@@ -141,7 +141,7 @@ section
 
   theorem rec_glue {P : seq_colim → Type} (Pincl : Π⦃n : ℕ⦄ (a : A n), P (sι a))
     (Pglue : Π⦃n : ℕ⦄ (a : A n), Pincl (f a) =[glue a] Pincl a) {n : ℕ} (a : A n)
-      : apdo (rec Pincl Pglue) (glue a) = Pglue a :=
+      : apd (rec Pincl Pglue) (glue a) = Pglue a :=
   !rec_eq_of_rel
 
   protected definition elim {P : Type} (Pincl : Π⦃n : ℕ⦄ (a : A n), P)
@@ -158,7 +158,7 @@ section
       : ap (elim Pincl Pglue) (glue a) = Pglue a :=
   begin
     apply eq_of_fn_eq_fn_inv !(pathover_constant (glue a)),
-    rewrite [▸*,-apdo_eq_pathover_of_eq_ap,↑elim,rec_glue],
+    rewrite [▸*,-apd_eq_pathover_of_eq_ap,↑elim,rec_glue],
   end
 
   protected definition elim_type (Pincl : Π⦃n : ℕ⦄ (a : A n), Type)

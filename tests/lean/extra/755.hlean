@@ -31,7 +31,7 @@ section
 
   theorem rec_tr_eq {P : one_step_tr → Type} (Pt : Π(a : A), P (tr a))
     (Pe : Π(a a' : A), Pt a =[tr_eq a a'] Pt a') (a a' : A)
-    : apdo (rec Pt Pe) (tr_eq a a') = Pe a a' :=
+    : apd (rec Pt Pe) (tr_eq a a') = Pe a a' :=
   !rec_eq_of_rel
 
   theorem elim_tr_eq {P : Type} (Pt : A → P)
@@ -39,7 +39,7 @@ section
     : ap (elim Pt Pe) (tr_eq a a') = Pe a a' :=
   begin
     apply eq_of_fn_eq_fn_inv !(pathover_constant (tr_eq a a')),
-    rewrite [▸*,-apdo_eq_pathover_of_eq_ap,↑elim,rec_tr_eq],
+    rewrite [▸*,-apd_eq_pathover_of_eq_ap,↑elim,rec_tr_eq],
   end
 
 end

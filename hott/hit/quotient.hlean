@@ -35,7 +35,7 @@ namespace quotient
     : ap (quotient.elim Pc Pp) (eq_of_rel R H) = Pp H :=
   begin
     apply eq_of_fn_eq_fn_inv !(pathover_constant (eq_of_rel R H)),
-    rewrite [▸*,-apdo_eq_pathover_of_eq_ap,↑quotient.elim,rec_eq_of_rel],
+    rewrite [▸*,-apd_eq_pathover_of_eq_ap,↑quotient.elim,rec_eq_of_rel],
   end
 
   protected definition rec_prop {A : Type} {R : A → A → Type} {P : quotient R → Type}
@@ -89,7 +89,7 @@ namespace quotient
       (Σ(f : Π(a : A), C (class_of R a)),  Π⦃a a' : A⦄ (H : R a a'), f a =[eq_of_rel R H] f a') :=
     begin
       fapply equiv.MK,
-      { intro f, exact ⟨λa, f (class_of R a), λa a' H, apdo f (eq_of_rel R H)⟩},
+      { intro f, exact ⟨λa, f (class_of R a), λa a' H, apd f (eq_of_rel R H)⟩},
       { intro v x, induction v with i p, induction x,
           exact (i a),
           exact (p H)},
@@ -166,7 +166,7 @@ namespace quotient
       (c : C a) : ap (elim @Qpt Qeq) (Peq r c) = Qeq r c :=
     begin
       refine !ap_dpair_eq_dpair ⬝ _,
-      rewrite [apo011_eq_apo11_apdo, rec_eq_of_rel, ▸*, apo011_arrow_pathover_constant_right,
+      rewrite [apo011_eq_apo11_apd, rec_eq_of_rel, ▸*, apo011_arrow_pathover_constant_right,
                ↑elim_type_eq_of_rel', to_right_inv !pathover_equiv_tr_eq, ap_inv],
       apply inv_con_cancel_right
     end

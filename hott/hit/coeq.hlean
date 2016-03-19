@@ -44,7 +44,7 @@ parameters {A B : Type.{u}} (f g : A → B)
 
   theorem rec_cp {P : coeq → Type} (P_i : Π(x : B), P (coeq_i x))
     (Pcp : Π(x : A), P_i (f x) =[cp x] P_i (g x))
-      (x : A) : apdo (rec P_i Pcp) (cp x) = Pcp x :=
+      (x : A) : apd (rec P_i Pcp) (cp x) = Pcp x :=
   !rec_eq_of_rel
 
   protected definition elim {P : Type} (P_i : B → P)
@@ -59,7 +59,7 @@ parameters {A B : Type.{u}} (f g : A → B)
     (x : A) : ap (elim P_i Pcp) (cp x) = Pcp x :=
   begin
     apply eq_of_fn_eq_fn_inv !(pathover_constant (cp x)),
-    rewrite [▸*,-apdo_eq_pathover_of_eq_ap,↑elim,rec_cp],
+    rewrite [▸*,-apd_eq_pathover_of_eq_ap,↑elim,rec_cp],
   end
 
   protected definition elim_type (P_i : B → Type)

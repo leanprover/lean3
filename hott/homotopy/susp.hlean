@@ -39,7 +39,7 @@ namespace susp
 
   theorem rec_merid {P : susp A → Type} (PN : P north) (PS : P south)
     (Pm : Π(a : A), PN =[merid a] PS) (a : A)
-      : apdo (susp.rec PN PS Pm) (merid a) = Pm a :=
+      : apd (susp.rec PN PS Pm) (merid a) = Pm a :=
   !rec_glue
 
   protected definition elim {P : Type} (PN : P) (PS : P) (Pm : A → PN = PS)
@@ -54,7 +54,7 @@ namespace susp
     : ap (susp.elim PN PS Pm) (merid a) = Pm a :=
   begin
     apply eq_of_fn_eq_fn_inv !(pathover_constant (merid a)),
-    rewrite [▸*,-apdo_eq_pathover_of_eq_ap,↑susp.elim,rec_merid],
+    rewrite [▸*,-apd_eq_pathover_of_eq_ap,↑susp.elim,rec_merid],
   end
 
   protected definition elim_type (PN : Type) (PS : Type) (Pm : A → PN ≃ PS)
@@ -119,7 +119,7 @@ end susp
 
 /- Flattening lemma -/
 namespace susp
-  
+
   open prod prod.ops
   section
     universe variable u

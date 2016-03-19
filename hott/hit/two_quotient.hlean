@@ -76,7 +76,7 @@ namespace simple_two_quotient
   protected theorem rec_e {P : C → Type}
     (Pj : Πa, P (j a)) (Pa : Π⦃a : A⦄ ⦃r : T a a⦄ (q : Q r), P (pre_aux q))
     (Pe : Π⦃a a' : A⦄ (s : R a a'), Pj a =[e s] Pj a') ⦃a a' : A⦄ (s : R a a')
-    : apdo (pre_rec Pj Pa Pe) (e s) = Pe s :=
+    : apd (pre_rec Pj Pa Pe) (e s) = Pe s :=
   !rec_eq_of_rel
 
   protected theorem elim_e {P : Type} (Pj : A → P) (Pa : Π⦃a : A⦄ ⦃r : T a a⦄, Q r → P)
@@ -84,7 +84,7 @@ namespace simple_two_quotient
     : ap (pre_elim Pj Pa Pe) (e s) = Pe s :=
   begin
     apply eq_of_fn_eq_fn_inv !(pathover_constant (e s)),
-    rewrite [▸*,-apdo_eq_pathover_of_eq_ap,↑pre_elim,rec_e],
+    rewrite [▸*,-apd_eq_pathover_of_eq_ap,↑pre_elim,rec_e],
   end
 
   protected definition elim_et {P : Type} (Pj : A → P) (Pa : Π⦃a : A⦄ ⦃r : T a a⦄, Q r → P)
@@ -95,7 +95,7 @@ namespace simple_two_quotient
   protected definition rec_et {P : C → Type}
     (Pj : Πa, P (j a)) (Pa : Π⦃a : A⦄ ⦃r : T a a⦄ (q : Q r), P (pre_aux q))
     (Pe : Π⦃a a' : A⦄ (s : R a a'), Pj a =[e s] Pj a') ⦃a a' : A⦄ (t : T a a')
-    : apdo (pre_rec Pj Pa Pe) (et t) = e_closure.elimo e Pe t :=
+    : apd (pre_rec Pj Pa Pe) (et t) = e_closure.elimo e Pe t :=
   ap_e_closure_elimo_h e Pe (rec_e Pj Pa Pe) t
 
   inductive simple_two_quotient_rel : C → C → Type :=
@@ -151,9 +151,9 @@ namespace simple_two_quotient
         refine eq_hconcato _ _, apply _,
         { transitivity _,
           { apply ap (pathover_ap _ _),
-            transitivity _, apply apdo_compose2 (pre_rec P0 _ _) (f q) loop,
+            transitivity _, apply apd_compose2 (pre_rec P0 _ _) (f q) loop,
             apply ap (pathover_of_pathover_ap _ _),
-            transitivity _, apply apdo_change_path, exact !elim_loop⁻¹,
+            transitivity _, apply apd_change_path, exact !elim_loop⁻¹,
             transitivity _,
               apply ap (change_path _),
               transitivity _, apply rec_et,
@@ -171,7 +171,7 @@ namespace simple_two_quotient
           rewrite [↑incl2, con_inv], transitivity _, exact !con.assoc⁻¹,
           rewrite [inv_con_cancel_right, ↑incl2w, ↑ap02, +con_inv, +ap_inv, +inv_inv, -+con.assoc,
             +con_inv_cancel_right], reflexivity},
-        rewrite [change_path_con, apdo_constant],
+        rewrite [change_path_con, apd_constant],
         apply squareover_change_path_left, apply squareover_change_path_right',
         apply squareover_change_path_left,
         refine change_square _ vrflo,
@@ -189,9 +189,9 @@ namespace simple_two_quotient
     (P1 : Π⦃a a' : A⦄ (s : R a a'), P0 a =[incl1 s] P0 a')
     (P2 : Π⦃a : A⦄ ⦃r : T a a⦄ (q : Q r),
       change_path (incl2 q) (e_closure.elimo incl1 P1 r) = idpo) ⦃a a' : A⦄ (s : R a a')
-    : apdo (rec P0 P1 P2) (incl1 s) = P1 s :=
+    : apd (rec P0 P1 P2) (incl1 s) = P1 s :=
   begin
-    unfold [rec, incl1], refine !apdo_ap ⬝ _, esimp, rewrite rec_e,
+    unfold [rec, incl1], refine !apd_ap ⬝ _, esimp, rewrite rec_e,
     apply to_right_inv !pathover_compose
   end
 
@@ -199,7 +199,7 @@ namespace simple_two_quotient
     (P1 : Π⦃a a' : A⦄ (s : R a a'), P0 a =[incl1 s] P0 a')
     (P2 : Π⦃a : A⦄ ⦃r : T a a⦄ (q : Q r),
       change_path (incl2 q) (e_closure.elimo incl1 P1 r) = idpo) ⦃a a' : A⦄ (t : T a a')
-    : apdo (rec P0 P1 P2) (inclt t) = e_closure.elimo incl1 P1 t :=
+    : apd (rec P0 P1 P2) (inclt t) = e_closure.elimo incl1 P1 t :=
   ap_e_closure_elimo_h incl1 P1 (rec_incl1 P0 P1 P2) t
 
   protected definition elim {P : Type} (P0 : A → P)
@@ -288,7 +288,7 @@ namespace simple_two_quotient
                ↑[elim_incltw]],
     apply whisker_tl,
     rewrite [ap_is_constant_eq],
-    xrewrite [naturality_apdo_eq (λx, !elim_eq_of_rel) loop],
+    xrewrite [naturality_apd_eq (λx, !elim_eq_of_rel) loop],
     rewrite [↑elim_2,rec_loop,square_of_pathover_concato_eq,square_of_pathover_eq_concato,
             eq_of_square_vconcat_eq,eq_of_square_eq_vconcat],
     apply eq_vconcat,
@@ -390,14 +390,14 @@ namespace two_quotient
     (P1 : Π⦃a a' : A⦄ (s : R a a'), P0 a =[incl1 s] P0 a')
     (P2 : Π⦃a a' : A⦄ ⦃t t' : T a a'⦄ (q : Q t t'),
       change_path (incl2 q) (e_closure.elimo incl1 P1 t) = e_closure.elimo incl1 P1 t')
-    ⦃a a' : A⦄ (s : R a a') : apdo (rec P0 P1 P2) (incl1 s) = P1 s :=
+    ⦃a a' : A⦄ (s : R a a') : apd (rec P0 P1 P2) (incl1 s) = P1 s :=
   rec_incl1 _ _ _ s
 
   theorem rec_inclt {P : two_quotient → Type} (P0 : Π(a : A), P (incl0 a))
     (P1 : Π⦃a a' : A⦄ (s : R a a'), P0 a =[incl1 s] P0 a')
     (P2 : Π⦃a a' : A⦄ ⦃t t' : T a a'⦄ (q : Q t t'),
       change_path (incl2 q) (e_closure.elimo incl1 P1 t) = e_closure.elimo incl1 P1 t')
-    ⦃a a' : A⦄ (t : T a a') : apdo (rec P0 P1 P2) (inclt t) = e_closure.elimo incl1 P1 t :=
+    ⦃a a' : A⦄ (t : T a a') : apd (rec P0 P1 P2) (inclt t) = e_closure.elimo incl1 P1 t :=
   rec_inclt _ _ _ t
 
   protected definition elim {P : Type} (P0 : A → P)

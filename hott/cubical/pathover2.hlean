@@ -37,8 +37,8 @@ namespace eq
     : pathover_of_tr_eq r = pathover_tr p b ⬝o pathover_idp_of_eq r :=
   by induction r; induction p; reflexivity
 
-  definition apo011_eq_apo11_apdo (f : Πa, B a → A') (p : a = a₂) (q : b =[p] b₂)
-      : apo011 f p q = eq_of_pathover (apo11 (apdo f p) q) :=
+  definition apo011_eq_apo11_apd (f : Πa, B a → A') (p : a = a₂) (q : b =[p] b₂)
+      : apo011 f p q = eq_of_pathover (apo11 (apd f p) q) :=
   by induction q; reflexivity
 
   definition change_path_con (q : p = p') (q' : p' = p'') (r : b =[p] b₂) :
@@ -92,23 +92,23 @@ namespace eq
     { intro r, induction q, reflexivity},
   end
 
-  definition apdo_ap {B : A' → Type} (g : Πb, B b) (f : A → A') (p : a = a₂)
-    :  apdo g (ap f p) = pathover_ap B f (apdo (λx, g (f x)) p)  :=
+  definition apd_ap {B : A' → Type} (g : Πb, B b) (f : A → A') (p : a = a₂)
+    :  apd g (ap f p) = pathover_ap B f (apd (λx, g (f x)) p)  :=
   by induction p; reflexivity
 
-  definition apdo_eq_apdo_ap {B : A' → Type} (g : Πb, B b) (f : A → A') (p : a = a₂)
-    : apdo (λx, g (f x)) p = pathover_of_pathover_ap B f (apdo g (ap f p)) :=
+  definition apd_eq_apd_ap {B : A' → Type} (g : Πb, B b) (f : A → A') (p : a = a₂)
+    : apd (λx, g (f x)) p = pathover_of_pathover_ap B f (apd g (ap f p)) :=
   by induction p; reflexivity
 
   definition ap_compose_ap02_constant {A B C : Type} {a a' : A} (p : a = a') (b : B) (c : C) :
   ap_compose (λc, b) (λa, c) p ⬝ ap02 (λc, b) (ap_constant p c) = ap_constant p b :=
   by induction p; reflexivity
 
-  theorem apdo_constant (b : B'' a') (p : a = a) :
-    pathover_ap B'' (λa, a') (apdo (λa, b) p) = change_path (ap_constant p a')⁻¹ idpo :=
+  theorem apd_constant (b : B'' a') (p : a = a) :
+    pathover_ap B'' (λa, a') (apd (λa, b) p) = change_path (ap_constant p a')⁻¹ idpo :=
   begin
-    rewrite [apdo_eq_apdo_ap _ _ p],
-    let y := !change_path_of_pathover (apdo (apdo id) (ap_constant p b))⁻¹ᵒ,
+    rewrite [apd_eq_apd_ap _ _ p],
+    let y := !change_path_of_pathover (apd (apd id) (ap_constant p b))⁻¹ᵒ,
     rewrite -y, esimp,
     refine !pathover_ap_pathover_of_pathover_ap ⬝ _,
     rewrite pathover_ap_change_path,
@@ -117,8 +117,8 @@ namespace eq
     apply ap_compose_ap02_constant
   end
 
-  definition apdo_change_path {B : A → Type} {a a₂ : A} (f : Πa, B a) {p p' : a = a₂} (s : p = p')
-    : apdo f p' = change_path s (apdo f p) :=
+  definition apd_change_path {B : A → Type} {a a₂ : A} (f : Πa, B a) {p p' : a = a₂} (s : p = p')
+    : apd f p' = change_path s (apd f p) :=
   by induction s; reflexivity
 
   definition cono_invo_eq_idpo {q q' : b =[p] b₂} (r : q = q')

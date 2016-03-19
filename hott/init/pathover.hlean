@@ -70,7 +70,7 @@ namespace eq
   definition inverseo [unfold 8] (r : b =[p] b₂) : b₂ =[p⁻¹] b :=
   pathover.rec_on r idpo
 
-  definition apdo [unfold 6] (f : Πa, B a) (p : a = a₂) : f a =[p] f a₂ :=
+  definition apd [unfold 6] (f : Πa, B a) (p : a = a₂) : f a =[p] f a₂ :=
   eq.rec_on p idpo
 
   definition concato_eq [unfold 10] (r : b =[p] b₂) (q : b₂ = b₂') : b =[p] b₂' :=
@@ -198,15 +198,15 @@ namespace eq
     { intro q, cases q, reflexivity},
   end
 
-  definition apdo_con (f : Πa, B a) (p : a = a₂) (q : a₂ = a₃)
-    : apdo f (p ⬝ q) = apdo f p ⬝o apdo f q :=
+  definition apd_con (f : Πa, B a) (p : a = a₂) (q : a₂ = a₃)
+    : apd f (p ⬝ q) = apd f p ⬝o apd f q :=
   by cases p; cases q; reflexivity
 
-  definition apdo_inv (f : Πa, B a) (p : a = a₂) : apdo f p⁻¹ = (apdo f p)⁻¹ᵒ :=
+  definition apd_inv (f : Πa, B a) (p : a = a₂) : apd f p⁻¹ = (apd f p)⁻¹ᵒ :=
   by cases p; reflexivity
 
-  definition apdo_eq_pathover_of_eq_ap (f : A → A') (p : a = a₂) :
-    apdo f p = pathover_of_eq (ap f p) :=
+  definition apd_eq_pathover_of_eq_ap (f : A → A') (p : a = a₂) :
+    apd f p = pathover_of_eq (ap f p) :=
   eq.rec_on p idp
 
   definition pathover_of_pathover_tr (q : b =[p ⬝ p₂] p₂ ▸ b₂) : b =[p] b₂ :=
@@ -273,12 +273,12 @@ namespace eq
     (q : b =[p] b₂) : f b =[p] g b₂ :=
   by induction q; exact apo10 r b
 
-  definition apdo_compose1 (g : Πa, B a → B' a) (f : Πa, B a) (p : a = a₂)
-    : apdo (g ∘' f) p = apo g (apdo f p) :=
+  definition apd_compose1 (g : Πa, B a → B' a) (f : Πa, B a) (p : a = a₂)
+    : apd (g ∘' f) p = apo g (apd f p) :=
   by induction p; reflexivity
 
-  definition apdo_compose2 (g : Πa', B'' a') (f : A → A') (p : a = a₂)
-    : apdo (λa, g (f a)) p = pathover_of_pathover_ap B'' f (apdo g (ap f p)) :=
+  definition apd_compose2 (g : Πa', B'' a') (f : A → A') (p : a = a₂)
+    : apd (λa, g (f a)) p = pathover_of_pathover_ap B'' f (apd g (ap f p)) :=
   by induction p; reflexivity
 
   definition cono.right_inv_eq (q : b = b')

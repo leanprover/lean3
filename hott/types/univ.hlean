@@ -51,7 +51,7 @@ namespace univ
   begin
     intro f,
     have u : ¬¬bool, by exact (λg, g tt),
-    let H1 := apdo f eq_bnot,
+    let H1 := apd f eq_bnot,
     note H2 := apo10 H1 u,
     have p : eq_bnot ▸ u = u, from !is_prop.elim,
     rewrite p at H2,

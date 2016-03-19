@@ -63,7 +63,7 @@ namespace sigma
   ap eq_pr1 r
 
   definition eq2_pr2 {p q : u = v} (r : p = q) : p..2 =[eq2_pr1 r] q..2 :=
-  !pathover_ap (apdo eq_pr2 r)
+  !pathover_ap (apd eq_pr2 r)
 
   definition tr_pr1_sigma_eq {B' : A → Type} (p : u.1 = v.1) (q : u.2 =[p] v.2)
     : transport (λx, B' x.1) (sigma_eq p q) = transport B' p :=

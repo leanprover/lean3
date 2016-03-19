@@ -81,7 +81,7 @@ namespace quotient
 
   constant rec_eq_of_rel {A : Type} {R : A → A → Type} {P : quotient R → Type}
     (Pc : Π(a : A), P (class_of R a)) (Pp : Π⦃a a' : A⦄ (H : R a a'), Pc a =[eq_of_rel R H] Pc a')
-    {a a' : A} (H : R a a') : apdo (quotient.rec Pc Pp) (eq_of_rel R H) = Pp H
+    {a a' : A} (H : R a a') : apd (quotient.rec Pc Pp) (eq_of_rel R H) = Pp H
 end quotient
 
 attribute quotient.class_of trunc.tr [constructor]
