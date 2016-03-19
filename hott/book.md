@@ -24,7 +24,7 @@ The rows indicate the chapters, the columns the sections.
 | Ch 7  | + | + | + | - | ¾ | - | - |   |   |    |    |    |    |    |    |
 | Ch 8  | + | + | + | - | ¾ | ¼ | - | - | ½ | -  |    |    |    |    |    |
 | Ch 9  | ¾ | + | + | ½ | ¾ | ½ | - | - | - |    |    |    |    |    |    |
-| Ch 10 | - | - | - | - | - |   |   |   |   |    |    |    |    |    |    |
+| Ch 10 | ¼ | - | - | - | - |   |   |   |   |    |    |    |    |    |    |
 | Ch 11 | - | - | - | - | - | - |   |   |   |    |    |    |    |    |    |
 
 Theorems and definitions in the library which are not in the book:
@@ -173,8 +173,11 @@ Every file is in the folder [algebra.category](algebra/category/category.md)
 
 Chapter 10: Set theory
 ----------
-
-Not formalized, and parts may be unformalizable because Lean lacks induction-recursion.
+- 10.1 (The category of sets): The category of sets is in [algebra.category.constructions.set](algebra/category/constructions/set.hlean). The proof that it is complete and cocomplete is in [algebra.category.limits.set](algebra/category/limits/set.hlean). Most other properties of the category of sets has not been formalized.
+- 10.2 (Cardinal numbers): not formalized
+- 10.3 (Ordinal numbers): not formalized
+- 10.4 (Classical well-orderings): not formalized
+- 10.5 (The cumulative hierarchy): not formalized, and probably not formalizable, because Lean lacks induction-recursion.
 
 
 Chapter 11: Real numbers
