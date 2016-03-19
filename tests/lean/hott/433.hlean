@@ -38,7 +38,7 @@ namespace pi
   /- The identification of the path space of a dependent function space, up to equivalence, is of course just funext. -/
 
   definition path_equiv_homotopy (H : funext) (f g : Πx, B x) : (f = g) ≃ (f ~ g) :=
-  equiv.mk _ !is_equiv_apd
+  equiv.mk _ !is_equiv_apdt
 
   definition is_equiv_path_pi [instance] (H : funext) (f g : Πx, B x)
       : is_equiv (@eq_of_homotopy _ _ f g) :=
@@ -111,11 +111,11 @@ namespace pi
   rewrite -tr_compose,
   rewrite {f1 a' _}(fn_tr_eq_tr_fn _ f1 _),
   rewrite (right_inv (f1 _) _),
-  apply apd,
+  apply apdt,
   intro h,
   apply eq_of_homotopy, intro a, esimp,
   apply (transport_V (λx, right_inv f0 a ▸ x = h a) (left_inv (f1 _) _)),
-  apply apd
+  apply apdt
   end
 
 end pi

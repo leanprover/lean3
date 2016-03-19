@@ -247,7 +247,7 @@ namespace category
   definition Precategory_eq_hom [unfold 3] {C D : Precategory} (p : C = D) (a b : C)
     : hom a b = hom (cast (ap carrier p) a) (cast (ap carrier p) b) :=
   by induction p; reflexivity
-  --(ap10 (ap10 (apd (λx, @hom (carrier x) (Precategory.struct x)) p⁻¹ᵖ) a) b)⁻¹ᵖ ⬝ _
+  --(ap10 (ap10 (apdt (λx, @hom (carrier x) (Precategory.struct x)) p⁻¹ᵖ) a) b)⁻¹ᵖ ⬝ _
 
 
   -- beta/eta rules
