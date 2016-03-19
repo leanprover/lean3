@@ -428,7 +428,7 @@ namespace pointed
   definition ap1_pinverse {A : Type*} : ap1 (@pinverse A) ~* @pinverse (Ω A) :=
   begin
     fapply phomotopy.mk,
-    { intro p, esimp, refine !idp_con ⬝ _, exact !inverse_eq_inverse2⁻¹ },
+    { intro p, esimp, refine !idp_con ⬝ _, exact !inv_eq_inv2⁻¹ },
     { reflexivity}
   end
 
