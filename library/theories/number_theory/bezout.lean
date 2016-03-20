@@ -71,7 +71,7 @@ gcd.induction x y
     end)
 
 theorem Bezout_aux (x y : ℕ) : ∃ a b : ℤ, a * x + b * y = gcd x y :=
-exists.intro _ (exists.intro _ (egcd_prop x y))
+exists.intro2 _ _ (egcd_prop x y)
 
 theorem Bezout (x y : ℤ) : ∃ a b : ℤ, a * x + b * y = gcd x y :=
 obtain a' b' (H : a' * nat_abs x + b' * nat_abs y = gcd x y), from !Bezout_aux,

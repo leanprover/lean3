@@ -49,12 +49,12 @@ section
     have '(-∞, z) ∩ '(z, ∞) = ∅, from ext (take r, iff.intro
       (assume H, absurd (!lt.trans (and.elim_left H) (and.elim_right H)) !lt.irrefl)
       (assume H, !not.elim !not_mem_empty H)),
-    exists.intro z (exists.intro z (and.intro Hz this))
+    exists.intro2 z z (and.intro Hz this)
   else
     have '(-∞, y) ∩ '(x, ∞) = ∅, from ext(take r, iff.intro
       (assume H, absurd (exists.intro r (iff.elim_left and.comm H)) H1)
       (assume H, !not.elim !not_mem_empty H)),
-    exists.intro y (exists.intro x (and.intro (and.intro `x < y` `x < y`) this))
+    exists.intro2 y x (and.intro (and.intro `x < y` `x < y`) this)
 end
 
 protected definition T2_space.of_linorder_topology [trans_instance] :
@@ -65,8 +65,8 @@ protected definition T2_space.of_linorder_topology [trans_instance] :
          or.elim (lt_or_gt_of_ne H)
            (assume H,
             obtain a [b Hab], from linorder_separation H,
-            show _, from exists.intro '(-∞, a) (exists.intro '(b, ∞)
-              (and.intro Open_Iio (and.intro Open_Ioi (iff.elim_left and.assoc Hab)))))
+            show _, from exists.intro2 '(-∞, a) '(b, ∞)
+              (and.intro Open_Iio (and.intro Open_Ioi (iff.elim_left and.assoc Hab))))
            (assume H,
             obtain a [b Hab], from linorder_separation H,
             have Hx : x ∈ '(b, ∞), from and.elim_right (and.elim_left Hab),
@@ -75,7 +75,7 @@ protected definition T2_space.of_linorder_topology [trans_instance] :
             have (Open '(b,∞)) ∧ (Open '(-∞, a)) ∧ x ∈ '(b, ∞) ∧ y ∈ '(-∞, a) ∧
                    '(b, ∞) ∩ '(-∞, a) = ∅, from
              and.intro Open_Ioi (and.intro Open_Iio (and.intro Hx (and.intro Hy Hi))),
-           show _, from exists.intro '(b,∞) (exists.intro '(-∞, a) this))
+           show _, from exists.intro2 '(b,∞) '(-∞, a) this)
         end ⦄
 
 end order_topology

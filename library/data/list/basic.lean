@@ -265,13 +265,13 @@ list.induction_on l
     suppose x ∈ y::l,
     or.elim (eq_or_mem_of_mem_cons this)
       (suppose x = y,
-        exists.intro [] (!exists.intro (this ▸ rfl)))
+        !exists.intro2 [] (this ▸ rfl))
       (suppose x ∈ l,
         obtain s (H2 : ∃t : list T, l = s ++ (x::t)), from IH this,
         obtain t (H3 : l = s ++ (x::t)), from H2,
         have y :: l = (y::s) ++ (x::t),
           from H3 ▸ rfl,
-        !exists.intro (!exists.intro this)))
+        !exists.intro2 _ this))
 end
 
 theorem mem_append_left {a : T} {l₁ : list T} (l₂ : list T) : a ∈ l₁ → a ∈ l₁ ++ l₂ :=
@@ -572,7 +572,7 @@ theorem qeq_split {a : A} {l l' : list A} : l'≈a|l → ∃l₁ l₂, l = l₁+
 take q, qeq.induction_on q
   (λ t,
     have t = []++t ∧ a::t = []++(a::t), from and.intro rfl rfl,
-    exists.intro [] (exists.intro t this))
+    exists.intro [] t this)
   (λ b t t' q r,
     obtain (l₁ l₂ : list A) (h : t = l₁++l₂ ∧ t' = l₁++(a::l₂)), from r,
     have b::t = (b::l₁)++l₂ ∧ b::t' = (b::l₁)++(a::l₂),
@@ -580,7 +580,7 @@ take q, qeq.induction_on q
         rewrite [and.elim_right h, and.elim_left h],
         constructor, repeat reflexivity
       end,
-    exists.intro (b::l₁) (exists.intro l₂ this))
+    exists.intro (b::l₁) l₂ this)
 
 theorem sub_of_mem_of_sub_of_qeq {a : A} {l : list A} {u v : list A} : a ∉ l → a::l ⊆ v → v≈a|u → l ⊆ u :=
 λ (nainl : a ∉ l) (s : a::l ⊆ v) (q : v≈a|u) (x : A) (xinl : x ∈ l),

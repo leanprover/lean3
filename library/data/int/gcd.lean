@@ -300,7 +300,7 @@ theorem exists_coprime {a b : ℤ} (H : gcd a b ≠ 0) :
   exists a' b', coprime a' b' ∧ a = a' * gcd a b ∧ b = b' * gcd a b :=
 have H1 : a = (a / gcd a b) * gcd a b, from (int.div_mul_cancel !gcd_dvd_left)⁻¹,
 have H2 : b = (b / gcd a b) * gcd a b, from (int.div_mul_cancel !gcd_dvd_right)⁻¹,
-exists.intro _ (exists.intro _ (and.intro (coprime_div_gcd_div_gcd H) (and.intro H1 H2)))
+exists.intro2 _ _ (and.intro (coprime_div_gcd_div_gcd H) (and.intro H1 H2))
 
 theorem coprime_mul {a b c : ℤ} (H1 : coprime a c) (H2 : coprime b c) : coprime (a * b) c :=
 calc
@@ -332,7 +332,7 @@ decidable.by_cases
     have c = 0 * b, from `c = 0` ⬝ !zero_mul⁻¹,
     have 0 ∣ a, from `a = 0`⁻¹ ▸ !dvd.refl,
     have b ∣ b, from !dvd.refl,
-    exists.intro _ (exists.intro _ (and.intro `c = 0 * b` (and.intro `0 ∣ a` `b ∣ b`))))
+    exists.intro2 _ _ (and.intro `c = 0 * b` (and.intro `0 ∣ a` `b ∣ b`)))
   (suppose gcd c a ≠ 0,
     have gcd c a ∣ c, from !gcd_dvd_left,
     have H3 : c / gcd c a ∣ (a * b) / gcd c a, from div_dvd_div this H,
@@ -345,6 +345,6 @@ decidable.by_cases
     have H6 : coprime (c / gcd c a) (a / gcd c a), from coprime_div_gcd_div_gcd `gcd c a ≠ 0`,
     have H7 : c / gcd c a ∣ b, from dvd_of_coprime_of_dvd_mul_left H6 H5,
     have H8 : c = gcd c a * (c / gcd c a), from (int.mul_div_cancel' `gcd c a ∣ c`)⁻¹,
-    exists.intro _ (exists.intro _ (and.intro H8 (and.intro !gcd_dvd_right H7))))
+    exists.intro2 _ _ (and.intro H8 (and.intro !gcd_dvd_right H7)))
 
 end int
