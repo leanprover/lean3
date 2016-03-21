@@ -16,6 +16,9 @@ namespace sigma
   definition unpack {C : (Σa, B a) → Type} {u : Σa, B a} (H : C ⟨u.1 , u.2⟩) : C u :=
   destruct u (λx y H, H) H
 
+  theorem imp_sigma {C : A → Type} (H : ∀a, (B a → C a)) (p : Σa, B a) : Σa, C a :=
+  destruct p (λa Hp, mk a (H a Hp))
+
   theorem dpair_heq {a : A} {a' : A'} {b : B a} {b' : B' a'}
       (HB : B == B') (Ha : a == a') (Hb : b == b') : ⟨a, b⟩ == ⟨a', b'⟩ :=
   hcongr_arg4 @mk (type_eq_of_heq Ha) HB Ha Hb
