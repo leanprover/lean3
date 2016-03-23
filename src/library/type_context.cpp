@@ -590,7 +590,7 @@ struct instantiate_uvars_mvars_fn : public replace_visitor {
     virtual expr visit_meta(expr const & m) override {
         if (m_owner.is_mvar(m)) {
             if (auto v1 = m_owner.get_assignment(m)) {
-                if (!has_expr_metavar(*v1)) {
+                if (!has_metavar(*v1)) {
                     return *v1;
                 } else {
                     expr v2 = m_owner.instantiate_uvars_mvars(*v1);
