@@ -73,6 +73,14 @@ theorem eq_nil_of_length_eq_zero : ∀ {l : list T}, length l = 0 → l = []
 | []     H := rfl
 | (a::s) H := by contradiction
 
+theorem length_cons_pos (h : T) (tt : list T) : 0 < length (h::tt) :=
+  begin
+    apply lt_of_not_ge,
+    intro H,
+    let H' := list.eq_nil_of_length_eq_zero (eq_zero_of_le_zero H),
+    apply !list.cons_ne_nil H'
+  end
+
 theorem ne_nil_of_length_eq_succ : ∀ {l : list T} {n : nat}, length l = succ n → l ≠ []
 | []     n h := by contradiction
 | (a::l) n h := by contradiction
