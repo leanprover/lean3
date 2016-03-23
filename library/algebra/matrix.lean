@@ -1,16 +1,29 @@
-import data.real data.tuple data.fin algebra.module data.list
-open nat  tuple eq.ops rat -- list
+/-
+Copyright (c) 2016 Robert Y. Lewis. All rights reserved.
+Released under Apache 2.0 license as described in the file LICENSE.
+Author: Robert Y. Lewis
+
+Basic properties of matrices and vectors. Proof of Farkas' lemma.
+-/
+
+import data.real data.fin algebra.module
+open nat rat
 
 namespace matrix
 
-definition matrix (A : Type) (m n : ℕ) := fin m → fin n → A
+definition matrix [reducible] (A : Type) (m n : ℕ) := fin m → fin n → A
 
-definition rvector (A : Type) (n : ℕ) := matrix A 1 n
+notation `M[`A`]_(`m`, `n`)` := matrix A m n
+notation `M_(`m`, `n`)` := matrix _ m n
 
-definition cvector (A : Type) (m : ℕ) := matrix A m 1
+-- should rvector and cvector just be notation?
+
+definition rvector [reducible] (A : Type) (n : ℕ) := M[A]_(1, n)
+
+definition cvector [reducible] (A : Type) (m : ℕ) := M[A]_(m, 1)
 
 /-definition val_of_singleton_matrix [coercion] {A : Type} (M : matrix A 1 1) : A :=
-  M !fin.zero !fin.zero-/
+  M !fin.zero !fin.zero-/ -- this coercion fails
 
 -- useful for testing
 definition cvector_of_list {A : Type} (l : list A) : cvector A (list.length l) :=
@@ -19,7 +32,8 @@ definition cvector_of_list {A : Type} (l : list A) : cvector A (list.length l) :
 definition rvector_of_list {A : Type} (l : list A) : rvector A (list.length l) :=
   λ i j, list.ith l (fin.val j) !fin.val_lt
 
-section
+section matrix_defs
+
 variable {A : Type}
 variables {m n k : ℕ}
 
@@ -37,30 +51,78 @@ definition r_dot [semiring A] (u v : rvector A n) := Suml (fin.upto n) (λ i, r_
 
 definition c_dot [semiring A] (u v : cvector A m) := Suml (fin.upto m) (λ i, c_ith u i * c_ith v i)
 
--- generalize this to transpose and remove coercion
-definition cvector_of_rvector [coercion] (u : rvector A n) : cvector A n := λ i j, u !fin.zero i
+definition transpose (M : matrix A m n) : matrix A n m := λ a b, M b a
+notation M`^Tr` := transpose M
+
+
+definition dot [semiring A] (u : rvector A n) (v : cvector A n) := c_dot (u^Tr) v
+
+theorem transpose_transpose (M : matrix A m n) : (M^Tr)^Tr = M := rfl
+
+theorem c_ith_cvector_of_rvector_eq_c_ith (u : rvector A n) (i : fin n) :
+        c_ith (transpose u) i = r_ith u i :=
+  rfl
+
+theorem r_dot_zero [semiring A] (u : rvector A n) : r_dot u (λ a b, 0) = 0 :=
+  begin
+    unfold r_dot,
+    have H : (λ i, r_ith u i * r_ith (λ (a : fin 1) (b : fin n), 0) i) = (λ i, 0), begin
+      apply funext, intro,
+      rewrite [↑r_ith, mul_zero]
+    end,
+    rewrite H,
+    apply Suml_zero
+  end
+
+theorem r_zero_dot [semiring A] (u : rvector A n) : r_dot (λ a b, 0) u = 0 :=
+  begin
+    unfold r_dot,
+    have H : (λ i, r_ith (λ (a : fin 1) (b : fin n), 0) i * r_ith u i) = (λ i, 0), begin
+      apply funext, intro,
+      rewrite [↑r_ith, zero_mul]
+    end,
+    rewrite H,
+    apply Suml_zero
+  end
+
+theorem c_dot_zero [semiring A] (u : cvector A n) : c_dot u (λ a b, 0) = 0 :=
+  begin
+    unfold c_dot,
+    have H : (λ i, c_ith u i * c_ith (λ (a : fin n) (b : fin 1), 0) i) = (λ i, 0), begin
+      apply funext, intro,
+      rewrite [↑c_ith, mul_zero]
+    end,
+    rewrite H,
+    apply Suml_zero
+  end
+
+theorem c_zero_dot [semiring A] (u : cvector A n) : c_dot (λ a b, 0) u = 0 :=
+  begin
+    unfold c_dot,
+    have H : (λ i, c_ith (λ (a : fin n) (b : fin 1), 0) i * c_ith u i) = (λ i, 0), begin
+      apply funext, intro,
+      rewrite [↑c_ith, zero_mul]
+    end,
+    rewrite H,
+    apply Suml_zero
+  end
+
+theorem dot_zero [semiring A] (u : rvector A n) : dot u (λ a b, 0) = 0 :=
+  !c_dot_zero
+
+theorem zero_dot [semiring A] (u : cvector A n) : dot (λ a b, 0) u = 0 :=
+  !c_zero_dot
 
 definition mul [semiring A] (M : matrix A m n) (N : matrix A n k) : matrix A m k :=
-  λ (a : fin m) (b : fin k), c_dot (cvector_of_rvector (row_of M a)) (col_of N b) -- why doesn't coercion work?
+  λ (a : fin m) (b : fin k), c_dot (transpose (row_of M a)) (col_of N b)
 
 infix `⬝` := mul
 
-theorem fin_one_eq_zero (x : fin 1) : x = !fin.zero :=
-  begin
-    induction x,
-    unfold fin.zero,
-    congruence,
-    apply eq_zero_of_le_zero,
-    apply le_of_lt_succ is_lt
-  end
+theorem dot_eq_mul [semiring A] (u : rvector A n) (v : cvector A n) : dot u v = (u ⬝ v) !fin.zero !fin.zero :=
+  rfl
 
 theorem row_of_rvector (v : rvector A n) : row_of v !fin.zero = v :=
-  begin
-    apply funext,
-    intro x,
-    unfold row_of,
-    rewrite (fin_one_eq_zero x)
-  end
+  funext (λ x, by rewrite (fin.fin_one_eq_zero x))
 
 theorem col_of_cvector (v : cvector A m) : col_of v !fin.zero = v :=
   begin
@@ -69,7 +131,7 @@ theorem col_of_cvector (v : cvector A m) : col_of v !fin.zero = v :=
     apply funext,
     intro y,
     unfold col_of,
-    rewrite (fin_one_eq_zero y)
+    rewrite (fin.fin_one_eq_zero y)
   end
 
 theorem row_of_ith (M : matrix A m n) (x : fin m) (y : fin n) : (row_of M x) !fin.zero y = M x y :=
@@ -78,14 +140,18 @@ theorem row_of_ith (M : matrix A m n) (x : fin m) (y : fin n) : (row_of M x) !fi
 theorem col_of_ith (M : matrix A m n) (x : fin m) (y : fin n) : (col_of M y) x !fin.zero = M x y :=
   rfl
 
-theorem Suml_assoc [semiring A] {B C : Type} (la : list B) (lb : list C) (f : B → C → A) :
+/- Suml theorems. These need a better home, but I'm not sure where. -/
+
+variables {B C T : Type} (l : list T)
+
+theorem Suml_assoc [semiring A] (la : list B) (lb : list C) (f : B → C → A) :
         Suml la (λ a, Suml lb (λ b, f a b))
           = Suml lb (λ b, Suml la (λ a, f a b)) :=
   begin
     induction la with h tt ih,
-    induction lb with h' tt' ih',
-    {rewrite [Suml_nil]},
-    {rewrite [Suml_nil at *, Suml_cons, -ih', add_zero]},
+    {induction lb with h' tt' ih',
+    {rewrite Suml_nil},
+    {rewrite [Suml_nil at *, Suml_cons, -ih', add_zero]}},
     {induction lb with h' tt' ih',
     {rewrite [Suml_cons, *Suml_nil at *, ih, add_zero]},
     {rewrite [Suml_cons, ih, -Suml_add],
@@ -95,15 +161,7 @@ theorem Suml_assoc [semiring A] {B C : Type} (la : list B) (lb : list C) (f : B 
     rewrite Suml_cons}}
   end
 
-theorem length_cons_pos {A : Type} (h : A) (tt : list A) : 0 < list.length (list.cons h tt) :=
-  begin
-    apply lt_of_not_ge,
-    intro H,
-    let H' := list.eq_nil_of_length_eq_zero (eq_zero_of_le_zero H),
-    apply !list.cons_ne_nil H'
-  end
-
-theorem big_sum_dist_left [semiring A] (a : A) {T : Type} (f : T → A) (l : list T) :
+theorem big_sum_dist_left [semiring A] (a : A) (f : T → A) :
         a * Suml l f = Suml l (λ k, a * f k) :=
   begin
     induction l with h tt ih,
@@ -111,7 +169,7 @@ theorem big_sum_dist_left [semiring A] (a : A) {T : Type} (f : T → A) (l : lis
     rewrite [*Suml_cons, left_distrib, ih]
   end
 
-theorem big_sum_dist_right [semiring A] (a : A) {T : Type} (f : T → A) (l : list T) :
+theorem big_sum_dist_right [semiring A] (a : A) (f : T → A) :
          Suml l f * a= Suml l (λ k, f k * a) :=
   begin
     induction l with h tt ih,
@@ -119,7 +177,7 @@ theorem big_sum_dist_right [semiring A] (a : A) {T : Type} (f : T → A) (l : li
     rewrite [*Suml_cons, right_distrib, ih]
   end
 
-theorem Suml_nonneg_of_nonneg [ordered_semiring A] {T : Type} (l : list T) (f : T → A)
+theorem Suml_nonneg_of_nonneg [ordered_semiring A] (f : T → A)
         (H : Π (i : ℕ) (Hi : i < list.length l), f (list.ith l i Hi) ≥ 0) : Suml l f ≥ (0 : A) :=
   begin
     induction l with h tt ih,
@@ -127,7 +185,7 @@ theorem Suml_nonneg_of_nonneg [ordered_semiring A] {T : Type} (l : list T) (f : 
     apply le.refl,
     rewrite Suml_cons,
     have Hh : f h ≥ 0, begin
-      note Hl := H 0 !length_cons_pos,
+      note Hl := H 0 !list.length_cons_pos,
       rewrite list.ith_zero at Hl,
       apply Hl
     end,
@@ -143,18 +201,68 @@ theorem Suml_nonneg_of_nonneg [ordered_semiring A] {T : Type} (l : list T) (f : 
     exact add_nonneg Hh Htt
   end
 
-theorem Suml_le_of_le [ordered_semiring A] {T : Type} (l : list T) (f g : T → A) (H : ∀ t : T, f t ≤ g t) :
+theorem Suml_le_of_le [ordered_semiring A] (f g : T → A) (H : ∀ t : T, f t ≤ g t) :
         Suml l f ≤ Suml l g :=
+  begin
+    induction l,
+    {rewrite *Suml_nil, apply le.refl},
+    {rewrite *Suml_cons, apply add_le_add, apply H, assumption}
+  end
+
+theorem Suml_lt_of_lt [ordered_semiring A] (Hl : l ≠ list.nil) (f g : T → A)
+        (H : ∀ t : T, f t < g t) : Suml l f < Suml l g :=
+  begin
+    induction l,
+    {apply absurd !rfl Hl},
+    {rewrite [*Suml_cons],
+    apply add_lt_add_of_lt_of_le,
+    apply H,
+    induction a_1,
+    rewrite *Suml_nil,
+    apply le.refl,
+    apply le_of_lt,
+    apply v_0_1,
+    contradiction}
+  end
+
+theorem eq_of_Suml_eq_Suml_of_le [ordered_ring A] (f g : T → A) (H : ∀ t : T, f t ≤ g t)
+       (HSeq : Suml l f = Suml l g) : ∀ t : T, list.mem t l → f t = g t :=
+  begin
+    induction l,
+    intros,
+    contradiction,
+    intro t Ht,
+    rewrite 2 Suml_cons at HSeq,
+    have H1 : Suml a_1 f ≥ Suml a_1 g, from calc
+      Suml a_1 f = -f a + (f a + Suml a_1 f) : by rewrite neg_add_cancel_left
+             ... = (-f a + g a) + Suml a_1 g : by rewrite [HSeq, -add.assoc]
+             ... ≥ Suml a_1 g : begin apply le_add_of_nonneg_left, rewrite add.comm, apply sub_nonneg_of_le !H end,
+    have H2 : Suml a_1 f ≤ Suml a_1 g, by apply Suml_le_of_le; exact H,
+    cases (list.eq_or_mem_of_mem_cons Ht) with Eta Mta,
+    note Heq := eq_of_le_of_ge H2 H1,
+    rewrite [Heq at HSeq, Eta],
+    apply eq_of_add_eq_add_right HSeq,
+    apply v_0,
+    exact eq_of_le_of_ge H2 H1,
+    exact Mta
+  end
+
+theorem Suml_le_of_le_strong [ordered_semiring A] (f g : T → A)
+        (H : ∀ t : T, list.mem t l → f t ≤ g t) : Suml l f ≤ Suml l g :=
   begin
     induction l,
     {rewrite *Suml_nil, apply le.refl},
     {rewrite *Suml_cons,
     apply add_le_add,
     apply H,
+    apply list.mem_cons,
+    apply v_0, intros,
+    apply H,
+    apply list.mem_cons_of_mem,
     assumption}
   end
 
-theorem inner_sum_assoc [semiring A] {S T : Type} (l1 : list S) (l2 : list T) (f : S → A) (g : S → T → A) :
+theorem inner_sum_assoc [semiring A] (l1 : list B) (l2 : list C) (f : B → A) (g : B → C → A) :
         Suml l1 (λ s, f s * Suml l2 (λ t, g s t)) = Suml l1 (λ s, Suml l2 (λ t, f s * g s t)) :=
   begin
     congruence,
@@ -163,7 +271,7 @@ theorem inner_sum_assoc [semiring A] {S T : Type} (l1 : list S) (l2 : list T) (f
     rewrite big_sum_dist_left
   end
 
-theorem Suml_distrib [semiring A] {S : Type} (l : list S) (f : S → A) (a : A) :
+theorem Suml_distrib [semiring A] (f : T → A) (a : A) :
         Suml l (λ x, f x * a) = (Suml l f) * a :=
   begin
     induction l,
@@ -171,25 +279,25 @@ theorem Suml_distrib [semiring A] {S : Type} (l : list S) (f : S → A) (a : A) 
     {rewrite [*Suml_cons, right_distrib], congruence, assumption}
   end
 
+/- ------------------------- -/
+
 theorem m_mul_assoc [semiring A] {o p : ℕ} (M : matrix A m n) (N : matrix A n o) (O : matrix A o p) :
         M ⬝ (N ⬝ O) = (M ⬝ N) ⬝ O :=
   begin
     rewrite ↑mul,
     repeat (apply funext; intro),
-    rewrite [↑c_dot, ↑c_ith, ↑row_of, ↑cvector_of_rvector, ↑col_of, inner_sum_assoc, Suml_assoc],
+    rewrite [↑c_dot, ↑c_ith, ↑row_of, ↑transpose, ↑col_of, inner_sum_assoc, Suml_assoc],
     congruence, apply funext, intro,
     rewrite -Suml_distrib,
     congruence, apply funext, intro,
     rewrite mul.assoc
   end
 
-theorem cvector_of_rvector_nonneg_of_nonneg [weak_order A] [has_zero A] {u : rvector A n} (Hu : nonneg u) :
-        nonneg (cvector_of_rvector u) :=
-  λ i j, !Hu
+/- order, sign theorems -/
 
-theorem c_ith_cvector_of_rvector_eq_c_ith (u : rvector A n) (i : fin n) :
-        c_ith (cvector_of_rvector u) i = r_ith u i :=
-  rfl
+theorem transpose_nonneg_of_nonneg [weak_order A] [has_zero A] {u : rvector A n} (Hu : nonneg u) :
+        nonneg (transpose u) :=
+  λ i j, !Hu
 
 theorem c_dot_nonneg_of_nonneg [ordered_semiring A] (u v : cvector A m) (Hu : nonneg u) (Hv : nonneg v) :
         c_dot u v ≥ 0 :=
@@ -201,6 +309,10 @@ theorem c_dot_nonneg_of_nonneg [ordered_semiring A] (u v : cvector A m) (Hu : no
     apply Hu,
     apply Hv
   end
+
+theorem dot_nonneg_of_nonneg [ordered_semiring A] (u v : cvector A m) (Hu : nonneg u) (Hv : nonneg v) :
+        c_dot u v ≥ 0 :=
+  c_dot_nonneg_of_nonneg _ _ Hu Hv
 
 theorem row_of_nonneg_of_nonneg [weak_order A] [has_zero A] {M : matrix A m n} (HM : nonneg M) (i : fin m) :
         nonneg (row_of M i) :=
@@ -216,96 +328,62 @@ theorem mul_nonneg_of_nonneg [ordered_semiring A] (M : matrix A m n) (N : matrix
     intros,
     unfold mul,
     apply c_dot_nonneg_of_nonneg,
-    apply cvector_of_rvector_nonneg_of_nonneg,
+    apply transpose_nonneg_of_nonneg,
     apply row_of_nonneg_of_nonneg HM,
     apply col_of_nonneg_of_nonneg HN
   end
 
-/-
- One direction of Farkas' lemma
--/
-
-theorem farkas_rl [ordered_semiring A] (M : matrix A m n) (b : cvector A m)
-        (H : ∃ y : rvector A m, nonneg (y ⬝ M) ∧ (y ⬝ b) !fin.zero !fin.zero < 0) :
-        ¬ ∃ x : cvector A n, nonneg x ∧ M ⬝ x = b :=
+theorem dot_le_dot_of_nonneg_of_le [ordered_semiring A] (u : rvector A n) (v1 v2 : cvector A n)
+        (Hu : nonneg u) (Hv : ∀ i, c_ith v1 i ≤ c_ith v2 i) : dot u v1 ≤ dot u v2 :=
   begin
-    intro HexX,
-    cases HexX with x Hx,
-    cases Hx with Nx Mxb,
-    cases H with y Hy,
-    cases Hy with NA Nmyb,
-    rewrite [-Mxb at Nmyb, m_mul_assoc at Nmyb],
-    apply not_le_of_gt Nmyb,
-    apply mul_nonneg_of_nonneg,
-    exact NA, exact Nx -- why doesn't assumption work here?
+    unfold [dot, c_dot, transpose],
+    apply Suml_le_of_le,
+    intro,
+    apply mul_le_mul_of_nonneg_left,
+    apply Hv,
+    apply Hu
   end
 
-
-/-
- This is the useful formulation of the above for proving unsat:
- If you can find a nonnegative row vector c such that c ⬝ M = 0 and c ⬝ b < 0,
-   then the system M ⬝ x ≤ b is unsat.
--/
-theorem farkas_rl' [ordered_semiring A] (M : matrix A m n) (b : cvector A m)
-        (H : ∃ c : rvector A m, nonneg c ∧ c ⬝ M = (λ x y, (0 : A)) ∧ (c ⬝ b) !fin.zero !fin.zero < 0) :
-        ¬ ∃ x : cvector A n, ∀ i, (M ⬝ x) i !fin.zero ≤ c_ith b i :=
+theorem dot_lt_dot_of_nonneg_of_nonzero_of_lt [linear_ordered_ring A]
+        (u : rvector A n) (v1 v2 : cvector A n) (Hu : nonneg u) (i : fin n)
+        (Hunz : r_ith u i > 0) (Hv : ∀ i, c_ith v1 i < c_ith v2 i) : dot u v1 < dot u v2 :=
   begin
-    intro HexX,
-    cases HexX with x Hx,
-    cases H with c Hc,
-    cases Hc with Hcn Hc,
-    cases Hc with HcM Hcb,
-    have H : c ⬝ (M ⬝ x) = (λ a b, 0), begin
-      rewrite [m_mul_assoc, HcM, ↑mul],
-      repeat (apply funext; intro),
-      rewrite [fin_one_eq_zero, row_of_rvector, ↑c_dot],
-      have Hz : (λ i, c_ith (cvector_of_rvector (λ (x : fin 1) (y : fin n), 0)) i * c_ith (col_of x x_2) i)
-                  = (λ i, 0), begin
-       apply funext, intro i,
-       rewrite [ c_ith_cvector_of_rvector_eq_c_ith, ↑r_ith, zero_mul]
-      end,
-      rewrite [Hz, Suml_zero]
+    apply lt_of_not_ge,
+    intro Hge,
+    have Hle : dot u v1 ≤ dot u v2, begin
+      apply dot_le_dot_of_nonneg_of_le,
+      apply Hu,
+      intro, apply le_of_lt, apply Hv
     end,
-    have H' : (c ⬝ (M ⬝ x)) !fin.zero !fin.zero ≤ (c ⬝ b) !fin.zero !fin.zero, begin
-      rewrite ↑mul at {2, 3},
-      rewrite [*col_of_cvector, *row_of_rvector],
-      unfold c_dot,
-      apply Suml_le_of_le,
-      intro t,
+    note Heq := eq_of_le_of_ge Hle Hge,
+    have Hilt : r_ith u i * c_ith v1 i < r_ith u i * c_ith v2 i, begin
+      apply mul_lt_mul_of_pos_left,
+      apply Hv,
+      apply Hunz
+    end,
+    have Hmsle : ∀ t, r_ith u t * c_ith v1 t ≤ r_ith u t * c_ith v2 t, begin
+      intro,
       apply mul_le_mul_of_nonneg_left,
-      apply Hx,
-      apply Hcn
+      apply le_of_lt !Hv,
+      apply Hu
     end,
-    have HZ : (0 : A) < 0, from calc
-        0 = (c ⬝ (M ⬝ x)) !fin.zero !fin.zero : by rewrite H
-      ... ≤ (c ⬝ b) !fin.zero !fin.zero : H'
-      ... < 0 : Hcb,
-    exact not_lt_self _ HZ
+    note Hmeq := eq_of_Suml_eq_Suml_of_le _ _ _ Hmsle Heq i !fin.mem_upto,
+    rewrite Hmeq at Hilt,
+    exact !not_lt_self Hilt
   end
 
-/-
- An alternate form of the above.
--/
-theorem farkas_rl'' [ordered_semiring A] (M : matrix A m n) (b : cvector A m) (c : rvector A m)
-        (Hcnn : nonneg c) (HcM : ∀ (x : fin n), (c ⬝ M) !fin.zero x = 0) (Hcb : (c ⬝ b) !fin.zero !fin.zero < 0) :
-        ¬ ∃ x : cvector A n, ∀ i, (M ⬝ x) i !fin.zero ≤ c_ith b i :=
-  begin
-    apply farkas_rl',
-    existsi c,
-    split,
-    assumption,
-    split,
-    repeat (apply funext; intro),
-    rewrite fin_one_eq_zero,
-    apply HcM,
-    assumption
-  end
+/- instances -/
 
-section
+section inst_dec
+
+theorem matrix_inhabited [instance] (A : Type) [HA : inhabited A] (m n : ℕ) :
+        inhabited (M[A]_(succ m, succ n)) :=
+  inhabited.rec_on HA (λ a, inhabited.mk (λ s t, a))
+
 open list
 definition decidable_quant [instance] (P : fin n → Prop) [∀ k, decidable (P k)] : decidable (∀ k, P k) :=
   if H : all (fin.upto n) P then
-    decidable.inl (λ k, have Hk : k ∈ fin.upto n, from !fin.mem_upto, of_mem_of_all Hk H)
+    decidable.inl (λ k, of_mem_of_all !fin.mem_upto H)
   else
     decidable.inr (λ Hpk, H (all_of_forall (λ a Ha, Hpk a)))
 
@@ -315,9 +393,9 @@ definition matrix_decidable_eq [instance] [decidable_eq A] : decidable_eq (matri
     decidable.inl (funext (λ i, funext (λ j, H i j)))
   else
     decidable.inr (begin intro Heq, apply H, intros, congruence, exact Heq end)
-end
+end inst_dec
 
-end
+end matrix_defs
 
 section matrix_arith_m_n
 
@@ -348,11 +426,186 @@ definition m_left_module [instance] [reducible] (A : Type) [ring A] (m n : ℕ) 
     {intro, unfold m_smul, repeat (apply funext; intro), rewrite one_mul}
   end
 
+variables {A : Type}
+
+theorem Suml_neg [add_comm_group A] {T : Type} (l : list T) (f : T → A) : -(Suml l f) = Suml l (λ t, - f t) :=
+  begin
+    apply neg_eq_of_add_eq_zero,
+    have H : (λ x, f x + -f x) = (λ x, 0), from funext (λ x, !sub_self),
+    rewrite [-Suml_add, H],
+    apply Suml_zero
+  end
+
+theorem distrib_dot_right [ring A] (n : ℕ) (M N : rvector A n) (x : cvector A n) :
+        dot (M + N) x = dot M x + dot N x :=
+  begin
+    change dot (m_add M N) x = (dot M x) + (dot N x),
+    rewrite [↑dot, ↑c_dot, ↑m_add, ↑transpose, ↑c_ith, -Suml_add],
+    congruence,
+    apply funext, intro,
+    rewrite right_distrib
+  end
+
+theorem distrib_smul_right [ring A] (m n o : ℕ) (M N : matrix A m n) (x : matrix A n o) :
+        (M + N) ⬝ x = M ⬝ x + N ⬝ x :=
+  begin
+    change (m_add M N) ⬝ x = m_add (M ⬝ x) (N ⬝ x),
+    rewrite [↑mul, ↑c_dot, ↑m_add],
+    repeat (apply funext; intro),
+    rewrite [↑c_ith, ↑row_of, ↑col_of, ↑transpose, -Suml_add],
+    congruence,
+    apply funext, intro,
+    rewrite right_distrib
+  end
+
+theorem neg_matrix [ring A] (m n : ℕ) (M : matrix A m n) : -M = (λ a b, -M a b) := rfl
+
+theorem zero_matrix [ring A] (m n : ℕ) : (0 : matrix A m n) = (λ a b, 0) := rfl
+
+
+theorem m_add_app [ring A] (m n : ℕ) (M N : matrix A m n) (a : fin m) (b : fin n) :
+        (M + N) a b = M a b + N a b := rfl
+
+theorem neg_smul [ring A] (m n o : ℕ) (M : matrix A m n) (N : matrix A n o) : (-M) ⬝ N = - (M ⬝ N) :=
+  begin
+    rewrite [↑mul],
+    repeat (apply funext; intro),
+    unfold [c_dot, row_of, col_of, c_ith, transpose],
+    rewrite [2 neg_matrix, Suml_neg],
+    congruence,
+    apply funext, intro,
+    rewrite neg_mul_eq_neg_mul
+  end
+
+theorem zero_smul [ring A] (l m n : ℕ) (M : matrix A m n) : (0 : matrix A l m) ⬝ M = 0 :=
+  begin
+    rewrite [↑mul, 2 zero_matrix],
+    repeat (apply funext; intro),
+    unfold [c_dot, row_of, col_of, transpose, c_ith],
+    have H : (λ i, 0 * M i x_1) = (λ i, 0), from funext (λ i, !zero_mul),
+    rewrite H,
+    apply Suml_zero
+  end
+
+theorem smul_zero [ring A] (l m n : ℕ) (M : matrix A l m) : M ⬝ (0 : matrix A m n) = 0 :=
+  begin
+    rewrite [↑mul, 2 zero_matrix],
+    repeat (apply funext; intro),
+    unfold [c_dot, row_of, col_of, transpose, c_ith],
+    have H : (λ i, M x i * 0) = (λ i, 0), from funext (λ i, !mul_zero),
+    rewrite H,
+    apply Suml_zero
+  end
+
 end matrix_arith_m_n
 
-theorem false_of_fin_zero (x : fin 0) : false :=
-  have t : empty, from equiv.fn (fin.fin_zero_equiv_empty) x,
-  empty.induction_on (λ c, false) t
+section motzkin_inversion
+variables {A : Type} [linear_ordered_ring A]
+
+/-
+  n variables
+  a strict ineqs  P : M[A]_(a, n), p : cvector a
+  b weak ineqs  Q : M[A]_(b, n), q : cvector b
+  c eqs  R : M[A]_(c, n), r : cvector c
+-/
+variables {a b c n : ℕ}
+        (P : M[A]_(a, n)) (Q : M[A]_(b, n)) (R : M[A]_(c, n))
+        (p : cvector A a) (q : cvector A b) (r : cvector A c)
+        (y : rvector A a) (z : rvector A b) (t : rvector A c)
+        (Hnny : nonneg y) (Hnnz : nonneg z)
+        (Hsum : ∀ i : fin n, r_ith (y ⬝ P) i + r_ith (z ⬝ Q) i + r_ith (t ⬝ R) i = 0)
+include Hnny Hnnz Hsum
+
+theorem motzkin_inversion_with_equalities
+        (Hor : (c_dot (y^Tr) p + c_dot (z^Tr) q + c_dot (t^Tr) r < 0) ∨
+               ((∃ i, r_ith y i > 0) ∧ c_dot (y^Tr) p + c_dot (z^Tr) q + c_dot (t^Tr) r ≤ 0)) :
+         ¬ ∃ x : cvector A n, (∀ i, c_ith (P ⬝ x) i < c_ith p i) ∧
+                              (∀ i, c_ith (Q ⬝ x) i ≤ c_ith q i) ∧
+                              (∀ i, c_ith (R ⬝ x) i = c_ith r i) :=
+  begin
+    intro Hsat,
+    cases Hsat with x Hsat,
+    cases Hsat with HsatP Hsat,
+    cases Hsat with HsatQ HsatR,
+    have Hneg : (y ⬝ P) + (z ⬝ Q) + (t ⬝ R) = 0, begin
+      change (λ a b, (y⬝P + z⬝Q + t⬝R) a b) = (λ a b, 0),
+      repeat (apply funext; intro),
+      rewrite fin.fin_one_eq_zero,
+      apply Hsum
+    end,
+    have Hr : R⬝x = r, begin
+      repeat (apply funext; intro),
+      rewrite fin.fin_one_eq_zero,
+      apply HsatR
+    end,
+    have Hneg' : ((y ⬝ P) + (z ⬝ Q) + (t ⬝ R)) ⬝ x = 0 ⬝ x, by rewrite Hneg,
+    rewrite [2 distrib_smul_right at Hneg',  -3 m_mul_assoc at Hneg', Hr at Hneg',
+            zero_smul at Hneg', zero_matrix at Hneg'],
+    have Hneg'' : (λ a b : fin 1, (y⬝(P⬝x) + z⬝(Q⬝x) + t⬝r) a b) = (λ a b : fin 1, 0), from Hneg',
+    have Heqz : (y⬝(P⬝x) + z⬝(Q⬝x) + t⬝r) !fin.zero !fin.zero = 0, by rewrite Hneg'',
+    have Heqz' : (y⬝(P⬝x)) !fin.zero !fin.zero + (z⬝(Q⬝x)) !fin.zero !fin.zero + (t⬝r) !fin.zero !fin.zero = 0,
+               from Heqz,
+    rewrite -*dot_eq_mul at Heqz',
+    apply not_lt_self (0 : A),
+    rewrite -Heqz' at {1},
+    cases Hor with Hor1 Hor2,
+    {have Hdlt : dot y (P⬝x) + dot z (Q⬝x) + dot t r ≤ dot y p + dot z q + dot t r, begin
+      apply add_le_add_right,
+      apply add_le_add,
+      apply dot_le_dot_of_nonneg_of_le,
+      exact Hnny,
+      intro i,
+      apply le_of_lt,
+      apply HsatP,
+      apply dot_le_dot_of_nonneg_of_le,
+      exact Hnnz,
+      exact HsatQ
+    end,
+    apply lt_of_le_of_lt,
+    exact Hdlt,
+    exact Hor1},
+    {cases Hor2 with Hj Hor2,
+    cases Hj with j Hj,
+    have Hdlt : dot y (P⬝x) + dot z (Q⬝x) + dot t r < dot y p + dot z q + dot t r, begin
+      apply add_lt_add_right,
+      apply add_lt_add_of_lt_of_le,
+      apply dot_lt_dot_of_nonneg_of_nonzero_of_lt,
+      exact Hnny,
+      exact Hj,
+      exact HsatP,
+      apply dot_le_dot_of_nonneg_of_le,
+      exact Hnnz,
+      exact HsatQ
+    end,
+    apply lt_of_lt_of_le,
+    exact Hdlt,
+    exact Hor2}
+  end
+
+/- these are more useful statements of the above, without the disjunctive hypothesis. -/
+theorem motzkin_inversion_with_equalities_lt
+        (Hlt : (c_dot (y^Tr) p + c_dot (z^Tr) q + c_dot (t^Tr) r < 0)) :
+         ¬ ∃ x : cvector A n, (∀ i, c_ith (P ⬝ x) i < c_ith p i) ∧
+                              (∀ i, c_ith (Q ⬝ x) i ≤ c_ith q i) ∧
+                              (∀ i, c_ith (R ⬝ x) i = c_ith r i) :=
+  begin
+    apply motzkin_inversion_with_equalities,
+    exact Hnny, exact Hnnz, exact Hsum,
+    left, exact Hlt
+  end
+
+theorem motzkin_inversion_with_equalities_le
+        (Hyp : (∃ i, r_ith y i > 0) ∧ c_dot (y^Tr) p + c_dot (z^Tr) q + c_dot (t^Tr) r ≤ 0) :
+         ¬ ∃ x : cvector A n, (∀ i, c_ith (P ⬝ x) i < c_ith p i) ∧
+                              (∀ i, c_ith (Q ⬝ x) i ≤ c_ith q i) ∧
+                              (∀ i, c_ith (R ⬝ x) i = c_ith r i) :=
+  begin
+    apply motzkin_inversion_with_equalities,
+    exact Hnny, exact Hnnz, exact Hsum,
+    right, exact Hyp
+  end
+
+end motzkin_inversion
 
 section matrix_arith_square
 open fin
@@ -386,7 +639,6 @@ theorem b_vec_dot {A : Type} [semiring A] {m : ℕ} (k : fin m) (f : fin m → A
     {rewrite [if_neg Hneq, mul_zero, zero_add, Suml_map],
     note Hlt := lt_max_of_ne_max (ne.symm Hneq),
     have Hfk : f k = f (lift_succ (fin.mk (val k) Hlt)), begin
-      congruence,
       induction k with kv Hkv,
       exact rfl
     end,
@@ -402,9 +654,8 @@ theorem b_vec_dot {A : Type} [semiring A] {m : ℕ} (k : fin m) (f : fin m → A
     have Hjk' : j ≠ mk (val k) Hlt, begin
       intro Hjk,
       apply Hnjk,
-      rewrite Hjk,
       induction k,
-      unfold [lift_succ, lift]
+      rewrite Hjk
     end,
     rewrite [if_neg Hnjk, if_neg Hjk']}
   end
@@ -425,34 +676,34 @@ theorem sq_matrix_mul_one {A : Type} [semiring A] {m : ℕ} (M : matrix A m m) :
   begin
     rewrite [↑sq_matrix_id, ↑mul],
     repeat (apply funext; intro),
-    rewrite [↑row_of, ↑cvector_of_rvector, ↑col_of, ↑c_dot, ↑c_ith, b_vec_dot]
+    rewrite [↑row_of, ↑transpose, ↑col_of, ↑c_dot, ↑c_ith, b_vec_dot]
   end
 
 theorem sq_matrix_one_mul {A : Type} [semiring A] {m : ℕ} (M : matrix A m m) : mul (sq_matrix_id A m) M = M :=
   begin
     rewrite [↑sq_matrix_id, ↑mul],
     repeat (apply funext; intro),
-    rewrite [↑row_of, ↑cvector_of_rvector, ↑col_of, ↑c_dot, ↑c_ith, b_vec_dot']
+    rewrite [↑row_of, ↑transpose, ↑col_of, ↑c_dot, ↑c_ith, b_vec_dot']
   end
 
-theorem sq_matrix_left_distrib {A : Type} [ring A] {m : ℕ} (M N O : matrix A m m) :
+theorem sq_matrix_left_distrib {A : Type} [semiring A] {m : ℕ} (M N O : matrix A m m) :
          mul M (m_add N O) = m_add (mul M N) (mul M O) :=
   begin
     rewrite [↑mul, ↑m_add],
     repeat (apply funext; intros),
-    rewrite [↑c_dot, ↑cvector_of_rvector, ↑row_of, ↑col_of, ↑c_ith, -Suml_add],
+    rewrite [↑c_dot, ↑transpose, ↑row_of, ↑col_of, ↑c_ith, -Suml_add],
     congruence,
     apply funext,
     intro,
     rewrite left_distrib
   end
 
-theorem sq_matrix_right_distrib {A : Type} [ring A] {m : ℕ} (M N O : matrix A m m) :
+theorem sq_matrix_right_distrib {A : Type} [semiring A] {m : ℕ} (M N O : matrix A m m) :
          mul (m_add N O) M = m_add (mul N M) (mul O M) :=
   begin
     rewrite [↑mul, ↑m_add],
     repeat (apply funext; intros),
-    rewrite [↑c_dot, ↑cvector_of_rvector, ↑row_of, ↑col_of, ↑c_ith, -Suml_add],
+    rewrite [↑c_dot, ↑transpose, ↑row_of, ↑col_of, ↑c_ith, -Suml_add],
     congruence,
     apply funext,
     intro,
@@ -467,27 +718,70 @@ definition m_square_ring [instance] [reducible] (A : Type) [ring A] (m : ℕ) : 
    one_mul := sq_matrix_one_mul,
    mul_one := sq_matrix_mul_one,
    left_distrib := sq_matrix_left_distrib,
-   right_distrib := by intros; apply sq_matrix_right_distrib
-  ⦄
+   right_distrib := by intros; apply sq_matrix_right_distrib⦄
 
 end matrix_arith_square
 
 
 section test
-open list rat  -- why aren't rats pretty printing right?
-definition c1 : cvector ℚ _ := cvector_of_list [3, 4, 2]
-definition c2 : rvector ℚ _ := rvector_of_list [1, 0, 2]
+open list rat int  -- why aren't rats pretty printing right?
+definition c1 : cvector ℕ  _ := cvector_of_list [3, 4, 2]
+definition c2 : rvector ℕ _ := rvector_of_list [1, 0, 2]
 
-definition m1 : matrix ℚ 2 2 := λ a b, fin.val a + fin.val b
+definition f1 : fin 2 := fin.mk 1 dec_trivial
+
+definition m1 : matrix ℤ 2 2 := λ a b, fin.val a + fin.val b
+
 eval col_of m1 (fin.mk 1 dec_trivial)
 
-eval c_dot c1 (cvector_of_rvector c2)
+definition m2 : matrix ℤ 2 2 := λ a b, fin.val a * fin.val b + 3
+
+definition m10 : matrix ℕ 10 10 := λ a b, fin.val a * fin.val b + 3
+
+definition prd := m1 * m2
+
+definition prd' := (m1 * m2) + 3
+eval prd f1 f1
+eval (m1 * m2) f1 f1
+eval (3 : matrix ℤ 2 2) f1 !fin.zero
+
+example : has_mul (matrix ℤ 2 2) := _
+check m1 * m2
+eval ((m1 * m2) )
+
+eval c_dot c1 (transpose c2)
 
 example : row_of c2 !fin.zero !fin.zero (fin.mk 1 dec_trivial) = c2 !fin.zero (fin.mk 1 dec_trivial) := rfl
 
 example : row_of c2 !fin.zero = c2 := rfl
 
 eval (c2 ⬝ c1) !fin.zero !fin.zero
+
+--example : m10 * !sq_matrix_id = m10 := dec_trivial
+
+definition poly_sum (x : ℕ) := Suml (upto 10) (λ a, (a + 3) * x)
+
+example (b : ℕ) : Suml [b, b] (λ a, a) = 0 + b + b := rfl
+
+--definition lin_poly (x : ℕ → ℕ) := 0 + 5 * x 0 + 2 * x 1 + 3 * x 2 + 11 * x 3
+
+definition lin_poly (x : ℕ → ℕ) := 0 + 11 * x 3 + 3 * x 2 + 2 * x 1 + 5 * x 0
+
+definition coeff_row : rvector ℕ _ := rvector_of_list [5, 2, 3, 11]
+
+open fin
+definition var_row (x : ℕ → ℕ) : rvector ℕ 4 := λ i j, x j
+
+example (x : ℕ → ℕ) : r_dot coeff_row (var_row x) = lin_poly x := rfl
+
+definition xs (x : ℕ) : rvector ℕ 10 := λ a b, x
+
+example (x : ℕ) : r_dot (row_of m10 (fin.mk 1 dec_trivial)) (xs x) = poly_sum x := rfl
+
+definition mep : rvector ℕ 0 := λ a b, 2
+definition map : matrix ℕ 0 3 := λ a b, 1
+
+eval (mep ⬝ map) !fin.zero !fin.zero
 
 end test
 
