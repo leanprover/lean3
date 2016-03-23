@@ -68,6 +68,14 @@ calc
   length (upto n) = length (list.upto n) : (map_val_upto n ▸ length_map fin.val (upto n))⁻¹
               ... = n                    : list.length_upto n
 
+lemma upto_ne_nil_of_ne_zero (n : nat) (Hn : n ≠ 0) : upto n ≠ [] :=
+begin
+  intro Hup,
+  apply Hn,
+  rewrite [-(@length_nil (fin n)), -Hup],
+  apply eq.symm !length_upto
+end
+
 definition is_fintype [instance] (n : nat) : fintype (fin n) :=
 fintype.mk (upto n) (nodup_upto n) (mem_upto n)
 
@@ -388,6 +396,10 @@ definition fin_zero_equiv_empty : fin 0 ≃ empty :=
   right_inv := λ e : empty, empty.rec _ e
 ⦄
 
+theorem false_of_fin_zero (x : fin 0) : false :=
+  have t : empty, from equiv.fn (fin.fin_zero_equiv_empty) x,
+  empty.induction_on (λ c, false) t
+
 definition fin_one_equiv_unit : fin 1 ≃ unit :=
 ⦃ equiv,
   to_fun  := λ f : (fin 1), unit.star,
@@ -403,6 +415,15 @@ definition fin_one_equiv_unit : fin 1 ≃ unit :=
     intro u, cases u, reflexivity
   end
 ⦄
+
+theorem fin_one_eq_zero (x : fin 1) : x = !fin.zero :=
+  begin
+    induction x with [xv, xlt],
+    unfold fin.zero,
+    congruence,
+    apply eq_zero_of_le_zero,
+    apply le_of_lt_succ xlt
+  end
 
 definition fin_sum_equiv (n m : nat) : (fin n + fin m) ≃ fin (n+m) :=
 have aux₁ : ∀ {v}, v < m → (v + n) < (n + m), from
