@@ -489,7 +489,7 @@ end join_switch
   protected definition ap_assoc_inv_glue_inl {A B : Type} (C : Type) (a : A) (b : B)
     : ap (to_inv (join.assoc A B C)) (glue a (inl b)) = ap inl (glue a b) :=
   begin
-    unfold join.assoc, unfold equiv.trans, rewrite ap_compose, krewrite join.elim_glue,
+    unfold join.assoc, rewrite ap_compose, krewrite join.elim_glue,
     rewrite ap_compose, krewrite join.elim_glue, rewrite ap_inv, krewrite join.elim_glue,
     unfold switch_coh, unfold join.symm, unfold join.swap, esimp, rewrite eq.inv_inv
   end
@@ -497,7 +497,7 @@ end join_switch
   protected definition ap_assoc_inv_glue_inr {A C : Type} (B : Type) (a : A) (c : C)
     : ap (to_inv (join.assoc A B C)) (glue a (inr c)) = glue (inl a) c :=
   begin
-    unfold join.assoc, unfold equiv.trans, rewrite ap_compose, krewrite join.elim_glue,
+    unfold join.assoc, rewrite ap_compose, krewrite join.elim_glue,
     rewrite ap_compose, krewrite join.elim_glue, rewrite ap_inv, krewrite join.elim_glue,
     unfold switch_coh, unfold join.symm, unfold join.swap, esimp, rewrite eq.inv_inv
   end

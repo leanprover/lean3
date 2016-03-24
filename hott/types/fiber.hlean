@@ -72,7 +72,7 @@ namespace fiber
 
   -- pre and post composition with equivalences
   open function
-  protected definition equiv_postcompose {B' : Type} (g : B → B') [H : is_equiv g]
+  protected definition equiv_postcompose [constructor] {B' : Type} (g : B → B') [H : is_equiv g]
     : fiber (g ∘ f) (g b) ≃ fiber f b :=
   calc
     fiber (g ∘ f) (g b) ≃ Σa : A, g (f a) = g b : fiber.sigma_char
@@ -82,7 +82,7 @@ namespace fiber
                                                   end
                     ... ≃ fiber f b             : fiber.sigma_char
 
-  protected definition equiv_precompose {A' : Type} (g : A' → A) [H : is_equiv g]
+  protected definition equiv_precompose [constructor] {A' : Type} (g : A' → A) [H : is_equiv g]
     : fiber (f ∘ g) b ≃ fiber f b :=
   calc
     fiber (f ∘ g) b ≃ Σa' : A', f (g a') = b   : fiber.sigma_char
@@ -98,7 +98,7 @@ open unit is_trunc pointed
 
 namespace fiber
 
-  definition fiber_star_equiv (A : Type) : fiber (λx : A, star) star ≃ A :=
+  definition fiber_star_equiv [constructor] (A : Type) : fiber (λx : A, star) star ≃ A :=
   begin
     fapply equiv.MK,
     { intro f, cases f with a H, exact a },
@@ -108,7 +108,7 @@ namespace fiber
       rewrite [is_set.elim H (refl star)] }
   end
 
-  definition fiber_const_equiv (A : Type) (a₀ : A) (a : A)
+  definition fiber_const_equiv [constructor] (A : Type) (a₀ : A) (a : A)
     : fiber (λz : unit, a₀) a ≃ a₀ = a :=
   calc
     fiber (λz : unit, a₀) a
@@ -131,7 +131,7 @@ namespace fiber
   variables {A : Type} {P Q : A → Type}
   variable (f : Πa, P a → Q a)
 
-  definition fiber_total_equiv {a : A} (q : Q a)
+  definition fiber_total_equiv [constructor] {a : A} (q : Q a)
     : fiber (total f) ⟨a , q⟩ ≃ fiber (f a) q :=
   calc
     fiber (total f) ⟨a , q⟩

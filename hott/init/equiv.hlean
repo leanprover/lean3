@@ -148,7 +148,7 @@ namespace is_equiv
              ap_con_eq_con_ap (right_inv f) q,inv_con_cancel_left,ap_id],
   end
 
-  definition is_equiv_ap [instance] (x y : A) : is_equiv (ap f : x = y → f x = f y) :=
+  definition is_equiv_ap [instance] [constructor] (x y : A) : is_equiv (ap f : x = y → f x = f y) :=
   adjointify
     (ap f)
     (eq_of_fn_eq_fn' f)
@@ -313,10 +313,10 @@ namespace equiv
   protected definition refl [refl] [constructor] : A ≃ A :=
   equiv.mk id !is_equiv_id
 
-  protected definition symm [symm] (f : A ≃ B) : B ≃ A :=
+  protected definition symm [symm] [constructor] (f : A ≃ B) : B ≃ A :=
   equiv.mk f⁻¹ !is_equiv_inv
 
-  protected definition trans [trans] (f : A ≃ B) (g : B ≃ C) : A ≃ C :=
+  protected definition trans [trans] [constructor] (f : A ≃ B) (g : B ≃ C) : A ≃ C :=
   equiv.mk (g ∘ f) !is_equiv_compose
 
   infixl ` ⬝e `:75 := equiv.trans
