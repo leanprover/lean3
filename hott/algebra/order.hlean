@@ -40,8 +40,20 @@ end
 structure linear_weak_order [class] (A : Type) extends weak_order A :=
 (le_total : Πa b, le a b ⊎ le b a)
 
-definition le.total [s : linear_weak_order A] (a b : A) : a ≤ b ⊎ b ≤ a :=
-!linear_weak_order.le_total
+section
+  variables [linear_weak_order A]
+
+  theorem le.total (a b : A) : a ≤ b ⊎ b ≤ a := !linear_weak_order.le_total
+
+  theorem le_of_not_ge {a b : A} (H : ¬ a ≥ b) : a ≤ b := sum.resolve_left !le.total H
+
+  definition le_by_cases (a b : A) {P : Type} (H1 : a ≤ b → P) (H2 : b ≤ a → P) : P :=
+  begin
+    cases (le.total a b) with H H,
+    { exact H1 H},
+    { exact H2 H}
+  end
+end
 
 /- strict orders -/
 
