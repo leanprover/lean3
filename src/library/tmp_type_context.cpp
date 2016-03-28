@@ -57,7 +57,7 @@ optional<level> tmp_type_context::get_assignment(level const & u) const {
     // 1- We should create the meta-variable using mk_uvar
     // 2- We create using mk_idx_metauniv, and notify this object using
     //    set_next_uvar_idx
-    lean_assert(idx < m_uassignment.size());
+    if (idx >= m_uassignment.size()) return none_level();
     return m_uassignment[idx];
 }
 
@@ -67,14 +67,13 @@ optional<expr> tmp_type_context::get_assignment(expr const & m) const {
     // 1- We should create the meta-variable using mk_mvar
     // 2- We create using mk_idx_metavar, and notify this object using
     //    set_next_mvar_idx
-    lean_assert(idx < m_eassignment.size());
+    if (idx >= m_eassignment.size()) return none_expr();
     return m_eassignment[idx];
 }
 
 void tmp_type_context::update_assignment(level const & u, level const & v) {
     unsigned idx = to_meta_idx(u);
     lean_assert(idx < m_uassignment.size()); // see comments above
-    lean_assert(!m_uassignment[idx]);
     m_uassignment[idx] = v;
     if (!m_scopes.empty())
         m_trail.emplace_back(trail_kind::Level, idx);
