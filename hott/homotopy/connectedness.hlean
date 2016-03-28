@@ -27,7 +27,7 @@ namespace is_conn
   theorem is_conn_of_le (A : Type) {n k : ℕ₋₂} (H : n ≤ k) [is_conn k A] : is_conn n A :=
   begin
     apply is_contr_equiv_closed,
-    apply trunc_trunc_equiv_left _ n k H
+    apply trunc_trunc_equiv_left _ H
   end
 
   theorem is_conn_fun_of_le {A B : Type} (f : A → B) {n k : ℕ₋₂} (H : n ≤ k)
@@ -244,14 +244,21 @@ namespace is_conn
   -- Corollary 7.5.5
   definition is_conn_homotopy (n : ℕ₋₂) {A B : Type} {f g : A → B}
     (p : f ~ g) (H : is_conn_fun n f) : is_conn_fun n g :=
-  @retract_of_conn_is_conn _ _ (arrow.arrow_hom_of_homotopy p) (arrow.is_retraction_arrow_hom_of_homotopy p) n H
+  @retract_of_conn_is_conn _ _
+    (arrow.arrow_hom_of_homotopy p) (arrow.is_retraction_arrow_hom_of_homotopy p) n H
 
   -- all types are -2-connected
   definition is_conn_minus_two (A : Type) : is_conn -2 A :=
-  is_trunc_trunc -2 A
+  _
+
+  -- the following trivial cases are solved by type class inference
+  definition is_conn_of_is_contr (k : ℕ₋₂) (A : Type) [is_contr A] : is_conn k A := _
+  definition is_conn_fun_of_is_equiv (k : ℕ₋₂) {A B : Type} (f : A → B) [is_equiv f] :
+    is_conn_fun k f :=
+  _
 
   -- Lemma 7.5.14
-  theorem is_equiv_trunc_functor_of_is_conn_fun {A B : Type} (n : ℕ₋₂) (f : A → B)
+  theorem is_equiv_trunc_functor_of_is_conn_fun [instance] {A B : Type} (n : ℕ₋₂) (f : A → B)
     [H : is_conn_fun n f] : is_equiv (trunc_functor n f) :=
   begin
     fapply adjointify,
@@ -265,7 +272,7 @@ namespace is_conn
     [H : is_conn_fun n f] : trunc n A ≃ trunc n B :=
   equiv.mk (trunc_functor n f) (is_equiv_trunc_functor_of_is_conn_fun n f)
 
-  definition is_conn_fun_trunc_functor {n k : ℕ₋₂} {A B : Type} (f : A → B) (H : k ≤ n)
+  definition is_conn_fun_trunc_functor_of_le {n k : ℕ₋₂} {A B : Type} (f : A → B) (H : k ≤ n)
     [H2 : is_conn_fun k f] : is_conn_fun k (trunc_functor n f) :=
   begin
     apply is_conn_fun.intro,
@@ -276,6 +283,22 @@ namespace is_conn
       refine is_conn_fun.elim k H2 _ _ b, intro a, exact f' (tr a)},
     { intro f', apply eq_of_homotopy, intro a,
       induction a with a, esimp, rewrite [is_conn_fun.elim_β]}
+  end
+
+  definition is_conn_fun_trunc_functor_of_ge {n k : ℕ₋₂} {A B : Type} (f : A → B) (H : n ≤ k)
+    [H2 : is_conn_fun k f] : is_conn_fun k (trunc_functor n f) :=
+  begin
+    apply is_conn_fun_of_is_equiv,
+    apply is_equiv_trunc_functor_of_le f H
+  end
+
+  -- Exercise 7.18
+  definition is_conn_fun_trunc_functor {n k : ℕ₋₂} {A B : Type} (f : A → B)
+    [H2 : is_conn_fun k f] : is_conn_fun k (trunc_functor n f) :=
+  begin
+    eapply algebra.le_by_cases k n: intro H,
+    { exact is_conn_fun_trunc_functor_of_le f H},
+    { exact is_conn_fun_trunc_functor_of_ge f H}
   end
 
 end is_conn

@@ -43,6 +43,13 @@ section
   theorem le.total (a b : A) : a ≤ b ∨ b ≤ a := !linear_weak_order.le_total
 
   theorem le_of_not_ge {a b : A} (H : ¬ a ≥ b) : a ≤ b := or.resolve_left !le.total H
+
+  theorem le_by_cases (a b : A) {P : Prop} (H1 : a ≤ b → P) (H2 : b ≤ a → P) : P :=
+  begin
+    cases (le.total a b) with H H,
+    { exact H1 H},
+    { exact H2 H}
+  end
 end
 
 /- strict orders -/

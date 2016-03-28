@@ -11,7 +11,7 @@ Properties of trunc_index, is_trunc, trunctype, trunc, and the pointed versions 
 import .pointed2 ..function algebra.order types.nat.order
 
 open eq sigma sigma.ops pi function equiv trunctype
-     is_equiv prod pointed nat is_trunc algebra
+     is_equiv prod pointed nat is_trunc algebra sum
 
   /- basic computation with ℕ₋₂, its operations and its order -/
 namespace trunc_index
@@ -64,13 +64,30 @@ namespace trunc_index
     { exfalso, apply @not_succ_le_self n, exact trunc_index.le_trans H1 H2}
   end
 
-  protected definition le_succ {n m : ℕ₋₂} (H1 : n ≤ m): n ≤ m.+1 :=
+  protected definition le_succ {n m : ℕ₋₂} (H1 : n ≤ m) : n ≤ m.+1 :=
   le.step H1
+
+  protected definition self_le_succ (n : ℕ₋₂) : n ≤ n.+1 :=
+  le.step (trunc_index.le.tr_refl n)
+
+  -- the order is total
+  protected theorem le_sum_le (n m : ℕ₋₂) : n ≤ m ⊎ m ≤ n :=
+  begin
+    induction m with m IH,
+    { exact inr !minus_two_le},
+    { cases IH with H H,
+      { exact inl (trunc_index.le_succ H)},
+      { cases H with n' H,
+        { exact inl !trunc_index.self_le_succ},
+        { exact inr (succ_le_succ H)}}}
+  end
 
 end trunc_index open trunc_index
 
-definition weak_order_trunc_index [trans_instance] [reducible] : weak_order trunc_index :=
-weak_order.mk le trunc_index.le.tr_refl @trunc_index.le_trans @trunc_index.le_antisymm
+definition linear_weak_order_trunc_index [trans_instance] [reducible] :
+  linear_weak_order trunc_index :=
+linear_weak_order.mk le trunc_index.le.tr_refl @trunc_index.le_trans @trunc_index.le_antisymm
+                     trunc_index.le_sum_le
 
 namespace trunc_index
 
@@ -198,6 +215,15 @@ namespace trunc_index
     exact le_of_succ_le_succ (le_of_succ_le_succ H)
   end
 
+  protected theorem succ_le_of_not_le {n m : ℕ₋₂} (H : ¬ n ≤ m) : m.+1 ≤ n :=
+  begin
+    cases (le.total n m) with H2 H2,
+    { exfalso, exact H H2},
+    { cases H2 with n' H2',
+      { exfalso, exact H !le.refl},
+      { exact succ_le_succ H2'}}
+  end
+
 end trunc_index open trunc_index
 
 namespace is_trunc
@@ -310,7 +336,7 @@ namespace is_trunc
   is_set_of_double_neg_elim (λa b, by_contradiction)
   end
 
-  theorem is_trunc_of_axiom_K_of_le {A : Type} (n : ℕ₋₂) (H : -1 ≤ n)
+  theorem is_trunc_of_axiom_K_of_le {A : Type} {n : ℕ₋₂} (H : -1 ≤ n)
     (K : Π(a : A), is_trunc n (a = a)) : is_trunc (n.+1) A :=
   @is_trunc_succ_intro _ _ (λa b, is_trunc_of_imp_is_trunc_of_le H (λp, eq.rec_on p !K))
 
@@ -472,7 +498,7 @@ namespace trunc
   end
 
   /- equivalences between truncated types (see also hit.trunc) -/
-  definition trunc_trunc_equiv_left [constructor] (A : Type) (n m : ℕ₋₂) (H : n ≤ m)
+  definition trunc_trunc_equiv_left [constructor] (A : Type) {n m : ℕ₋₂} (H : n ≤ m)
     : trunc n (trunc m A) ≃ trunc n A :=
   begin
     note H2 := is_trunc_of_le (trunc n A) H,
@@ -483,7 +509,7 @@ namespace trunc
     { intro x, induction x with x, induction x with x, reflexivity}
   end
 
-  definition trunc_trunc_equiv_right [constructor] (A : Type) (n m : ℕ₋₂) (H : n ≤ m)
+  definition trunc_trunc_equiv_right [constructor] (A : Type) {n m : ℕ₋₂} (H : n ≤ m)
     : trunc m (trunc n A) ≃ trunc n A :=
   begin
     apply trunc_equiv,
@@ -492,7 +518,7 @@ namespace trunc
 
   definition trunc_equiv_trunc_of_le {n m : ℕ₋₂} {A B : Type} (H : n ≤ m)
     (f : trunc m A ≃ trunc m B) : trunc n A ≃ trunc n B :=
-  (trunc_trunc_equiv_left A _ _ H)⁻¹ᵉ ⬝e trunc_equiv_trunc n f ⬝e trunc_trunc_equiv_left B _ _ H
+  (trunc_trunc_equiv_left A H)⁻¹ᵉ ⬝e trunc_equiv_trunc n f ⬝e trunc_trunc_equiv_left B H
 
   definition trunc_trunc_equiv_trunc_trunc [constructor] (n m : ℕ₋₂) (A : Type)
     : trunc n (trunc m A) ≃ trunc m (trunc n A) :=
@@ -503,6 +529,27 @@ namespace trunc
     { reflexivity},
     { reflexivity}
   end
+
+  theorem is_trunc_trunc_of_le (A : Type)
+    (n : ℕ₋₂) {m k : ℕ₋₂} (H : m ≤ k) [is_trunc n (trunc k A)] : is_trunc n (trunc m A) :=
+  begin
+    apply is_trunc_equiv_closed,
+    { apply trunc_trunc_equiv_left, exact H},
+  end
+
+  definition trunc_functor_homotopy_of_le {n k : ℕ₋₂} {A B : Type} (f : A → B) (H : n ≤ k) :
+    to_fun (trunc_trunc_equiv_left B H) ∘
+    trunc_functor n (trunc_functor k f) ∘
+    to_fun (trunc_trunc_equiv_left A H)⁻¹ᵉ ~
+      trunc_functor n f :=
+  begin
+    intro x, induction x with x, reflexivity
+  end
+
+  definition is_equiv_trunc_functor_of_le {n k : ℕ₋₂} {A B : Type} (f : A → B) (H : n ≤ k)
+    [is_equiv (trunc_functor k f)] : is_equiv (trunc_functor n f) :=
+  is_equiv_of_equiv_of_homotopy (trunc_equiv_trunc_of_le H (equiv.mk (trunc_functor k f) _))
+                                (trunc_functor_homotopy_of_le f H)
 
   /- trunc_functor preserves surjectivity -/
 
@@ -539,19 +586,19 @@ namespace trunc
     : ptrunc n X ≃* X :=
   pequiv_of_equiv (trunc_equiv n X) idp
 
-  definition ptrunc_ptrunc_pequiv_left [constructor] (A : Type*) (n m : ℕ₋₂) (H : n ≤ m)
+  definition ptrunc_ptrunc_pequiv_left [constructor] (A : Type*) {n m : ℕ₋₂} (H : n ≤ m)
     : ptrunc n (ptrunc m A) ≃* ptrunc n A :=
-  pequiv_of_equiv (trunc_trunc_equiv_left A n m H) idp
+  pequiv_of_equiv (trunc_trunc_equiv_left A H) idp
 
-  definition ptrunc_ptrunc_pequiv_right [constructor] (A : Type*) (n m : ℕ₋₂) (H : n ≤ m)
+  definition ptrunc_ptrunc_pequiv_right [constructor] (A : Type*) {n m : ℕ₋₂} (H : n ≤ m)
     : ptrunc m (ptrunc n A) ≃* ptrunc n A :=
-  pequiv_of_equiv (trunc_trunc_equiv_right A n m H) idp
+  pequiv_of_equiv (trunc_trunc_equiv_right A H) idp
 
   definition ptrunc_pequiv_ptrunc_of_le {n m : ℕ₋₂} {A B : Type*} (H : n ≤ m)
     (f : ptrunc m A ≃* ptrunc m B) : ptrunc n A ≃* ptrunc n B :=
-  (ptrunc_ptrunc_pequiv_left A _ _ H)⁻¹ᵉ* ⬝e*
+  (ptrunc_ptrunc_pequiv_left A H)⁻¹ᵉ* ⬝e*
   ptrunc_pequiv_ptrunc n f ⬝e*
-  ptrunc_ptrunc_pequiv_left B _ _ H
+  ptrunc_ptrunc_pequiv_left B H
 
   definition ptrunc_ptrunc_pequiv_ptrunc_ptrunc [constructor] (n m : ℕ₋₂) (A : Type*)
     : ptrunc n (ptrunc m A) ≃ ptrunc m (ptrunc n A) :=
