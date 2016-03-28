@@ -268,7 +268,7 @@ namespace sum
           intro x, exfalso, cases x with a'' Ha'', apply empty_of_inl_eq_inr,
           apply Hu⁻¹ ⬝ Ha'', } },
     { cases x with a' Ha', esimp, refine _ ⬝ !(to_right_inv H), apply ap H,
-      apply Ha'⁻¹ } }
+      exact sorry /-apply Ha'⁻¹-/ } }
   end
 
   definition unit_sum_equiv_cancel : A ≃ B :=

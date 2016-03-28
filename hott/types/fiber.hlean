@@ -7,7 +7,7 @@ Ported from Coq HoTT
 Theorems about fibers
 -/
 
-import .sigma .eq .pi .pointed
+import .sigma .eq .pi
 open equiv sigma sigma.ops eq pi
 
 structure fiber {A B : Type} (f : A → B) (b : B) :=

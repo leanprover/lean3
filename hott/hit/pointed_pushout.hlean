@@ -5,7 +5,7 @@ Authors: Jakob von Raumer, Floris van Doorn
 
 Pointed Pushouts
 -/
-import .pushout types.pointed2
+import .pushout types.pointed
 
 open eq pushout
 

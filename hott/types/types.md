@@ -24,10 +24,9 @@ The number systems (num, nat, int, ...) are for a large part ported from the sta
 Types in HoTT:
 
 * [eq](eq.hlean): show that functions related to the identity type are equivalences
-* [pointed](pointed.hlean): pointed types, pointed maps, pointed homotopies
+* [pointed](pointed.hlean): pointed types, pointed maps, pointed homotopies, pointed equivalences and pointed truncated types
 * [fiber](fiber.hlean)
 * [equiv](equiv.hlean)
-* [pointed2](pointed2.hlean): pointed equivalences and pointed truncated types (this is a separate file, because it depends on types.equiv)
 * [trunc](trunc.hlean): truncation levels, n-types, truncation
 * [pullback](pullback.hlean)
 * [univ](univ.hlean)

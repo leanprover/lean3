@@ -1,45 +1,17 @@
 /-
-Copyright (c) 2014 Jakob von Raumer. All rights reserved.
+Copyright (c) 2014-2016 Jakob von Raumer. All rights reserved.
 Released under Apache 2.0 license as described in the file LICENSE.
 Authors: Jakob von Raumer, Floris van Doorn
 
 Ported from Coq HoTT
+The basic definitions are in init.pointed
 -/
 
-import arity .eq .bool .unit .sigma .nat.basic prop_trunc
-open is_trunc eq prod sigma nat equiv option is_equiv bool unit algebra sigma.ops
-
-structure pointed [class] (A : Type) :=
-  (point : A)
-
-structure pType :=
-  (carrier : Type)
-  (Point   : carrier)
-
-notation `Type*` := pType
-
-section
-  universe variable u
-  structure ptrunctype (n : trunc_index) extends trunctype.{u} n, pType.{u}
-end
-
-notation n `-Type*` := ptrunctype n
-abbreviation pSet  [parsing_only] := 0-Type*
-notation `Set*` := pSet
+import .equiv .nat.basic
+open is_trunc eq prod sigma nat equiv option is_equiv bool unit algebra sigma.ops sum
 
 namespace pointed
-  attribute pType.carrier [coercion]
   variables {A B : Type}
-
-  definition pt [reducible] [unfold 2] [H : pointed A] := point A
-  definition Point [reducible] [unfold 1] (A : Type*) := pType.Point A
-  abbreviation carrier [unfold 1] (A : Type*) := pType.carrier A
-  protected definition Mk [constructor] {A : Type} (a : A) := pType.mk A a
-  protected definition MK [constructor] (A : Type) (a : A) := pType.mk A a
-  protected definition mk' [constructor] (A : Type) [H : pointed A] : Type* :=
-  pType.mk A (point A)
-  definition pointed_carrier [instance] [constructor] (A : Type*) : pointed A :=
-  pointed.mk (Point A)
 
   -- Any contractible type is pointed
   definition pointed_of_is_contr [instance] [priority 800] [constructor]
@@ -69,7 +41,19 @@ namespace pointed
   definition pprod [constructor] (A B : Type*) : Type* :=
   pointed.mk' (A × B)
 
+  definition psum [constructor] (A B : Type*) : Type* :=
+  pointed.MK (A ⊎ B) (inl pt)
+
+  definition ppi {A : Type} (P : A → Type*) : Type* :=
+  pointed.mk' (Πa, P a)
+
+  definition psigma {A : Type*} (P : A → Type*) : Type* :=
+  pointed.mk' (Σa, P a)
+
   infixr ` ×* `:35 := pprod
+  infixr ` +* `:30 := psum
+  notation `Σ*` binders `, ` r:(scoped P, psigma P) := r
+  notation `Π*` binders `, ` r:(scoped P, ppi P) := r
 
   definition pointed_fun_closed [constructor] (f : A → B) [H : pointed A] : pointed B :=
   pointed.mk (f pt)
@@ -109,8 +93,8 @@ namespace pointed
   end
 
   definition pType_eq_elim {A B : Type*} (p : A = B :> Type*)
-    : Σ(p : carrier A = carrier B :> Type), cast p pt = pt :=
-  by induction p; exact ⟨idp, idp⟩
+    : Σ(p : carrier A = carrier B :> Type), Point A =[p] Point B :=
+  by induction p; exact ⟨idp, idpo⟩
 
   protected definition pType.sigma_char.{u} : pType.{u} ≃ Σ(X : Type.{u}), X :=
   begin
@@ -125,56 +109,43 @@ namespace pointed
   pointed.Mk (none : option A)
   postfix `₊`:(max+1) := add_point
   -- the inclusion A → A₊ is called "some", the extra point "pt" or "none" ("@none A")
-
-end pointed open pointed
-
-protected definition ptrunctype.mk' [constructor] (n : trunc_index)
-  (A : Type) [pointed A] [is_trunc n A] : n-Type* :=
-ptrunctype.mk A _ pt
-
-protected definition pSet.mk [constructor] := @ptrunctype.mk (-1.+1)
-protected definition pSet.mk' [constructor] := ptrunctype.mk' (-1.+1)
-
-definition ptrunctype_of_trunctype [constructor] {n : trunc_index} (A : n-Type) (a : A) : n-Type* :=
-ptrunctype.mk A _ a
-
-definition ptrunctype_of_pType [constructor] {n : trunc_index} (A : Type*) (H : is_trunc n A)
-  : n-Type* :=
-ptrunctype.mk A _ pt
-
-definition pSet_of_Set [constructor] (A : Set) (a : A) : Set* :=
-ptrunctype.mk A _ a
-
-definition pSet_of_pType [constructor] (A : Type*) (H : is_set A) : Set* :=
-ptrunctype.mk A _ pt
-
-attribute pType._trans_to_carrier ptrunctype.to_pType ptrunctype.to_trunctype [unfold 2]
-
-definition ptrunctype_eq {n : trunc_index} {A B : n-Type*} (p : A = B :> Type) (q : cast p pt = pt)
-  : A = B :=
-begin
-  induction A with A HA a, induction B with B HB b, esimp at *,
-  induction p, induction q,
-  esimp,
-  refine ap010 (ptrunctype.mk A) _ a,
-  exact !is_prop.elim
-end
-
-definition ptrunctype_eq_of_pType_eq {n : trunc_index} {A B : n-Type*} (p : A = B :> Type*)
-  : A = B :=
-begin
-  cases pType_eq_elim p with q r,
-  exact ptrunctype_eq q r
-end
-
+end pointed
 
 namespace pointed
+  /- truncated pointed types -/
+  definition ptrunctype_eq {n : trunc_index} {A B : n-Type*}
+    (p : A = B :> Type) (q : Point A =[p] Point B) : A = B :=
+  begin
+    induction A with A HA a, induction B with B HB b, esimp at *,
+    induction q, esimp,
+    refine ap010 (ptrunctype.mk A) _ a,
+    exact !is_prop.elim
+  end
+
+  definition ptrunctype_eq_of_pType_eq {n : trunc_index} {A B : n-Type*} (p : A = B :> Type*)
+    : A = B :=
+  begin
+    cases pType_eq_elim p with q r,
+    exact ptrunctype_eq q r
+  end
 
   definition pbool [constructor] : Set* :=
   pSet.mk' bool
 
   definition punit [constructor] : Set* :=
   pSet.mk' unit
+
+  definition is_trunc_ptrunctype [instance] {n : ℕ₋₂} (A : n-Type*) : is_trunc n A :=
+  trunctype.struct A
+
+  definition ptprod [constructor] {n : ℕ₋₂} (A B : n-Type*) : n-Type* :=
+  ptrunctype.mk' n (A × B)
+
+  definition ptpi {n : ℕ₋₂} {A : Type} (P : A → n-Type*) : n-Type* :=
+  ptrunctype.mk' n (Πa, P a)
+
+  definition ptsigma {n : ℕ₋₂} {A : n-Type*} (P : A → n-Type*) : n-Type* :=
+  ptrunctype.mk' n (Σa, P a)
 
   /- properties of iterated loop space -/
   variable (A : Type*)
@@ -227,30 +198,8 @@ namespace pointed
 
 end pointed open pointed
 
-/- pointed maps -/
-structure pmap (A B : Type*) :=
-  (to_fun : A → B)
-  (resp_pt : to_fun (Point A) = Point B)
-
-namespace pointed
-  abbreviation respect_pt [unfold 3] := @pmap.resp_pt
-  notation `map₊` := pmap
-  infix ` →* `:30 := pmap
-  attribute pmap.to_fun [coercion]
-end pointed open pointed
-
-/- pointed homotopies -/
-structure phomotopy {A B : Type*} (f g : A →* B) :=
-  (homotopy : f ~ g)
-  (homotopy_pt : homotopy pt ⬝ respect_pt g = respect_pt f)
-
 namespace pointed
   variables {A B C D : Type*} {f g h : A →* B}
-
-  infix ` ~* `:50 := phomotopy
-  abbreviation to_homotopy_pt [unfold 5] := @phomotopy.homotopy_pt
-  abbreviation to_homotopy [coercion] [unfold 5] (p : f ~* g) : Πa, f a = g a :=
-  phomotopy.homotopy p
 
   /- categorical properties of pointed maps -/
 
@@ -555,5 +504,259 @@ namespace pointed
 
   infix ` ⬝*p `:75 := pconcat_eq
   infix ` ⬝p* `:75 := eq_pconcat
+
+  /- pointed equivalences -/
+
+  definition pequiv_of_pmap [constructor] (f : A →* B) (H : is_equiv f) : A ≃* B :=
+  pequiv.mk f _ (respect_pt f)
+
+  definition pequiv_of_equiv [constructor] (f : A ≃ B) (H : f pt = pt) : A ≃* B :=
+  pequiv.mk f _ H
+
+  protected definition pequiv.MK [constructor] (f : A →* B) (g : B → A)
+    (gf : Πa, g (f a) = a) (fg : Πb, f (g b) = b) : A ≃* B :=
+  pequiv.mk f (adjointify f g fg gf) (respect_pt f)
+
+  definition equiv_of_pequiv [constructor] (f : A ≃* B) : A ≃ B :=
+  equiv.mk f _
+
+  definition to_pinv [constructor] (f : A ≃* B) : B →* A :=
+  pmap.mk f⁻¹ ((ap f⁻¹ (respect_pt f))⁻¹ ⬝ left_inv f pt)
+
+  /- A version of pequiv.MK with stronger conditions.
+     The advantage of defining a pointed equivalence with this definition is that there is a
+     pointed homotopy between the inverse of the resulting equivalence and the given pointed map g.
+     This is not the case when using `pequiv.MK` (if g is a pointed map),
+     that will only give an ordinary homotopy.
+  -/
+  protected definition pequiv.MK2 [constructor] (f : A →* B) (g : B →* A)
+    (gf : g ∘* f ~* !pid) (fg : f ∘* g ~* !pid) : A ≃* B :=
+  pequiv.MK f g gf fg
+
+  definition to_pmap_pequiv_MK2 [constructor] (f : A →* B) (g : B →* A)
+    (gf : g ∘* f ~* !pid) (fg : f ∘* g ~* !pid) : pequiv.MK2 f g gf fg ~* f :=
+  phomotopy.mk (λb, idp) !idp_con
+
+  definition to_pinv_pequiv_MK2 [constructor] (f : A →* B) (g : B →* A)
+    (gf : g ∘* f ~* !pid) (fg : f ∘* g ~* !pid) : to_pinv (pequiv.MK2 f g gf fg) ~* g :=
+  phomotopy.mk (λb, idp)
+    abstract [irreducible] begin
+      esimp, unfold [adjointify_left_inv'],
+      note H := to_homotopy_pt gf, note H2 := to_homotopy_pt fg,
+      note H3 := eq_top_of_square (natural_square_tr (to_homotopy fg) (respect_pt f)),
+      rewrite [▸* at *, H, H3, H2, ap_id, - +con.assoc, ap_compose' f g, con_inv,
+               - ap_inv, - +ap_con g],
+      apply whisker_right, apply ap02 g,
+      rewrite [ap_con, - + con.assoc, +ap_inv, +inv_con_cancel_right, con.left_inv],
+    end end
+
+  definition pua {A B : Type*} (f : A ≃* B) : A = B :=
+  pType_eq (equiv_of_pequiv f) !respect_pt
+
+  protected definition pequiv.refl [refl] [constructor] (A : Type*) : A ≃* A :=
+  pequiv_of_pmap !pid !is_equiv_id
+
+  protected definition pequiv.rfl [constructor] : A ≃* A :=
+  pequiv.refl A
+
+  protected definition pequiv.symm [symm] (f : A ≃* B) : B ≃* A :=
+  pequiv_of_pmap (to_pinv f) !is_equiv_inv
+
+  protected definition pequiv.trans [trans] (f : A ≃* B) (g : B ≃* C) : A ≃* C :=
+  pequiv_of_pmap (pcompose g f) !is_equiv_compose
+
+  postfix `⁻¹ᵉ*`:(max + 1) := pequiv.symm
+  infix ` ⬝e* `:75 := pequiv.trans
+
+  definition pequiv_change_fun [constructor] (f : A ≃* B) (f' : A →* B) (Heq : f ~ f') : A ≃* B :=
+  pequiv_of_pmap f' (is_equiv.homotopy_closed f Heq)
+
+  definition pequiv_change_inv [constructor] (f : A ≃* B) (f' : B →* A) (Heq : to_pinv f ~ f')
+    : A ≃* B :=
+  pequiv.MK f f' (to_left_inv (equiv_change_inv f Heq)) (to_right_inv (equiv_change_inv f Heq))
+
+  definition pequiv_rect' (f : A ≃* B) (P : A → B → Type)
+    (g : Πb, P (f⁻¹ b) b) (a : A) : P a (f a) :=
+  left_inv f a ▸ g (f a)
+
+  definition pequiv_of_eq [constructor] {A B : Type*} (p : A = B) : A ≃* B :=
+  pequiv_of_pmap (pcast p) !is_equiv_tr
+
+  definition peconcat_eq {A B C : Type*} (p : A ≃* B) (q : B = C) : A ≃* C :=
+  p ⬝e* pequiv_of_eq q
+
+  definition eq_peconcat {A B C : Type*} (p : A = B) (q : B ≃* C) : A ≃* C :=
+  pequiv_of_eq p ⬝e* q
+
+  definition eq_of_pequiv {A B : Type*} (p : A ≃* B) : A = B :=
+  pType_eq (equiv_of_pequiv p) !respect_pt
+
+  definition peap {A B : Type*} (F : Type* → Type*) (p : A ≃* B) : F A ≃* F B :=
+  pequiv_of_pmap (pcast (ap F (eq_of_pequiv p))) begin cases eq_of_pequiv p, apply is_equiv_id end
+
+  definition pequiv_eq {p q : A ≃* B} (H : p = q :> (A →* B)) : p = q :=
+  begin
+    cases p with f Hf, cases q with g Hg, esimp at *,
+    exact apd011 pequiv_of_pmap H !is_prop.elim
+  end
+
+  infix ` ⬝e*p `:75 := peconcat_eq
+  infix ` ⬝pe* `:75 := eq_peconcat
+
+  local attribute pequiv.symm [constructor]
+  definition pleft_inv (f : A ≃* B) : f⁻¹ᵉ* ∘* f ~* pid A :=
+  phomotopy.mk (left_inv f)
+    abstract begin
+      esimp, symmetry, apply con_inv_cancel_left
+    end end
+
+  definition pright_inv (f : A ≃* B) : f ∘* f⁻¹ᵉ* ~* pid B :=
+  phomotopy.mk (right_inv f)
+    abstract begin
+      induction f with f H p, esimp,
+      rewrite [ap_con, +ap_inv, -adj f, -ap_compose],
+      note q := natural_square (right_inv f) p,
+      rewrite [ap_id at q],
+      apply eq_bot_of_square,
+      exact transpose q
+    end end
+
+  definition pcancel_left (f : B ≃* C) {g h : A →* B} (p : f ∘* g ~* f ∘* h) : g ~* h :=
+  begin
+    refine _⁻¹* ⬝* pwhisker_left f⁻¹ᵉ* p ⬝* _:
+    refine !passoc⁻¹* ⬝* _:
+    refine pwhisker_right _ (pleft_inv f) ⬝* _:
+    apply pid_comp
+  end
+
+
+  definition pcancel_right (f : A ≃* B) {g h : B →* C} (p : g ∘* f ~* h ∘* f) : g ~* h :=
+  begin
+    refine _⁻¹* ⬝* pwhisker_right f⁻¹ᵉ* p ⬝* _:
+    refine !passoc ⬝* _:
+    refine pwhisker_left _ (pright_inv f) ⬝* _:
+    apply comp_pid
+  end
+
+  definition phomotopy_pinv_right_of_phomotopy {f : A ≃* B} {g : B →* C} {h : A →* C}
+    (p : g ∘* f ~* h) : g ~* h ∘* f⁻¹ᵉ* :=
+  begin
+    refine _ ⬝* pwhisker_right _ p, symmetry,
+    refine !passoc ⬝* _,
+    refine pwhisker_left _ (pright_inv f) ⬝* _,
+    apply comp_pid
+  end
+
+  definition phomotopy_of_pinv_right_phomotopy {f : B ≃* A} {g : B →* C} {h : A →* C}
+    (p : g ∘* f⁻¹ᵉ* ~* h) : g ~* h ∘* f :=
+  begin
+    refine _ ⬝* pwhisker_right _ p, symmetry,
+    refine !passoc ⬝* _,
+    refine pwhisker_left _ (pleft_inv f) ⬝* _,
+    apply comp_pid
+  end
+
+  definition pinv_right_phomotopy_of_phomotopy {f : A ≃* B} {g : B →* C} {h : A →* C}
+    (p : h ~* g ∘* f) : h ∘* f⁻¹ᵉ* ~* g :=
+  (phomotopy_pinv_right_of_phomotopy p⁻¹*)⁻¹*
+
+  definition phomotopy_of_phomotopy_pinv_right {f : B ≃* A} {g : B →* C} {h : A →* C}
+    (p : h ~* g ∘* f⁻¹ᵉ*) : h ∘* f ~* g :=
+  (phomotopy_of_pinv_right_phomotopy p⁻¹*)⁻¹*
+
+  definition phomotopy_pinv_left_of_phomotopy {f : B ≃* C} {g : A →* B} {h : A →* C}
+    (p : f ∘* g ~* h) : g ~* f⁻¹ᵉ* ∘* h :=
+  begin
+    refine _ ⬝* pwhisker_left _ p, symmetry,
+    refine !passoc⁻¹* ⬝* _,
+    refine pwhisker_right _ (pleft_inv f) ⬝* _,
+    apply pid_comp
+  end
+
+  definition phomotopy_of_pinv_left_phomotopy {f : C ≃* B} {g : A →* B} {h : A →* C}
+    (p : f⁻¹ᵉ* ∘* g ~* h) : g ~* f ∘* h :=
+  begin
+    refine _ ⬝* pwhisker_left _ p, symmetry,
+    refine !passoc⁻¹* ⬝* _,
+    refine pwhisker_right _ (pright_inv f) ⬝* _,
+    apply pid_comp
+  end
+
+  definition pinv_left_phomotopy_of_phomotopy {f : B ≃* C} {g : A →* B} {h : A →* C}
+    (p : h ~* f ∘* g) : f⁻¹ᵉ* ∘* h ~* g :=
+  (phomotopy_pinv_left_of_phomotopy p⁻¹*)⁻¹*
+
+  definition phomotopy_of_phomotopy_pinv_left {f : C ≃* B} {g : A →* B} {h : A →* C}
+    (p : h ~* f⁻¹ᵉ* ∘* g) : f ∘* h ~* g :=
+  (phomotopy_of_pinv_left_phomotopy p⁻¹*)⁻¹*
+
+  /- pointed equivalences between particular pointed types -/
+
+  definition loopn_pequiv_loopn [constructor] (n : ℕ) (f : A ≃* B) : Ω[n] A ≃* Ω[n] B :=
+  pequiv.MK2 (apn n f) (apn n f⁻¹ᵉ*)
+  abstract begin
+    induction n with n IH,
+    { apply pleft_inv},
+    { replace nat.succ n with n + 1,
+      rewrite [+apn_succ],
+      refine !ap1_compose⁻¹* ⬝* _,
+      refine ap1_phomotopy IH ⬝* _,
+      apply ap1_id}
+  end end
+  abstract begin
+    induction n with n IH,
+    { apply pright_inv},
+    { replace nat.succ n with n + 1,
+      rewrite [+apn_succ],
+      refine !ap1_compose⁻¹* ⬝* _,
+      refine ap1_phomotopy IH ⬝* _,
+      apply ap1_id}
+  end end
+
+  definition loop_pequiv_loop [constructor] (f : A ≃* B) : Ω A ≃* Ω B :=
+  loopn_pequiv_loopn 1 f
+
+  definition to_pmap_loopn_pequiv_loopn [constructor] (n : ℕ) (f : A ≃* B)
+    : loopn_pequiv_loopn n f ~* apn n f :=
+  !to_pmap_pequiv_MK2
+
+  definition to_pinv_loopn_pequiv_loopn [constructor] (n : ℕ) (f : A ≃* B)
+    : (loopn_pequiv_loopn n f)⁻¹ᵉ* ~* apn n f⁻¹ᵉ* :=
+  !to_pinv_pequiv_MK2
+
+  definition loopn_pequiv_loopn_con (n : ℕ) (f : A ≃* B) (p q : Ω[n+1] A)
+    : loopn_pequiv_loopn (n+1) f (p ⬝ q) =
+    loopn_pequiv_loopn (n+1) f p ⬝ loopn_pequiv_loopn (n+1) f q :=
+  ap1_con (loopn_pequiv_loopn n f) p q
+
+  definition loopn_pequiv_loopn_rfl (n : ℕ) :
+    loopn_pequiv_loopn n (@pequiv.refl A) = @pequiv.refl (Ω[n] A) :=
+  begin
+    apply pequiv_eq, apply eq_of_phomotopy,
+    exact !to_pmap_loopn_pequiv_loopn ⬝* apn_pid n,
+  end
+
+  definition pmap_functor [constructor] {A A' B B' : Type*} (f : A' →* A) (g : B →* B') :
+    ppmap A B →* ppmap A' B' :=
+  pmap.mk (λh, g ∘* h ∘* f)
+    abstract begin
+      fapply pmap_eq,
+      { esimp, intro a, exact respect_pt g},
+      { rewrite [▸*, ap_constant], apply idp_con}
+    end end
+
+/-
+  definition pmap_pequiv_pmap {A A' B B' : Type*} (f : A ≃* A') (g : B ≃* B') :
+    ppmap A B ≃* ppmap A' B' :=
+  pequiv.MK (pmap_functor f⁻¹ᵉ* g) (pmap_functor f g⁻¹ᵉ*)
+    abstract begin
+      intro a, esimp, apply pmap_eq,
+      { esimp, },
+      { }
+    end end
+    abstract begin
+
+    end end
+-/
 
 end pointed

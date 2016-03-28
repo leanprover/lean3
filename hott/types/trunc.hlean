@@ -8,7 +8,7 @@ Properties of trunc_index, is_trunc, trunctype, trunc, and the pointed versions 
 
 -- NOTE: the fact that (is_trunc n A) is a mere proposition is proved in .prop_trunc
 
-import .pointed2 ..function algebra.order types.nat.order
+import .pointed ..function algebra.order types.nat.order
 
 open eq sigma sigma.ops pi function equiv trunctype
      is_equiv prod pointed nat is_trunc algebra sum
