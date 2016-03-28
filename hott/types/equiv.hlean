@@ -64,13 +64,13 @@ namespace is_equiv
            (λH, by induction H; reflexivity)
 
   protected definition sigma_char' : (is_equiv f) ≃
-  (Σ(u : Σ(g : B → A), f ∘ g ~ id), Σ(η : u.1 ∘ f ~ id), Π(a : A), u.2 (f a) = ap f (η a)) :=
+  (Σ(u : Σ(g : B → A), f ∘ g ~ id) (η : u.1 ∘ f ~ id), Π(a : A), u.2 (f a) = ap f (η a)) :=
   calc
     (is_equiv f) ≃
       (Σ(g : B → A) (ε : f ∘ g ~ id) (η : g ∘ f ~ id), Π(a : A), ε (f a) = ap f (η a))
           : is_equiv.sigma_char
     ... ≃ (Σ(u : Σ(g : B → A), f ∘ g ~ id), Σ(η : u.1 ∘ f ~ id), Π(a : A), u.2 (f a) = ap f (η a))
-          : {sigma_assoc_equiv (λu, Σ(η : u.1 ∘ f ~ id), Π(a : A), u.2 (f a) = ap f (η a))}
+          : sigma_assoc_equiv (λu, Σ(η : u.1 ∘ f ~ id), Π(a : A), u.2 (f a) = ap f (η a))
 
   local attribute is_contr_right_inverse [instance] [priority 1600]
   local attribute is_contr_right_coherence [instance] [priority 1600]

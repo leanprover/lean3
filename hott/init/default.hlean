@@ -10,7 +10,7 @@ import init.bool init.num init.relation init.wf
 import init.types init.connectives
 import init.trunc init.path init.equiv init.util
 import init.ua init.funext
-import init.hedberg init.nat init.hit init.pathover
+import init.hedberg init.nat init.hit init.pathover init.pointed
 
 namespace core
   export bool unit

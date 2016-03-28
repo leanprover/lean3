@@ -28,6 +28,7 @@ HoTT basics:
 * [hedberg](hedberg.hlean)
 * [trunc](trunc.hlean)
 * [equiv](equiv.hlean)
+* [pointed](pointed.hlean)
 * [ua](ua.hlean) (declaration of the univalence axiom, and some basic properties)
 * [funext](funext.hlean) (proof of equivalence of certain notions of function exensionality, and a proof that function extensionality follows from univalence)
 
