@@ -68,7 +68,6 @@ namespace arrow
           ⬝ is_retraction.right_inverse_cod r (g a)))
       (fiber.mk a (refl (g a)))
       (is_retraction.right_inverse_dom r a), -- everything but this field should be inferred
-    unfold fiber.point_eq,
     rewrite [is_retraction.cohere r a],
     apply inv_con_cancel_right
   end

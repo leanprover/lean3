@@ -644,6 +644,10 @@ class rewrite_fn {
         // TODO(Leo): should we add add an option that will not try to fold recursive applications
         if (to_unfold) {
             lean_assert(occs);
+            for (name const & n : to_unfold) {
+                if (is_projection(m_env, n))
+                    throw_rewrite_exception(sstream() << "invalid 'unfold', '" << n << "' is a projection");
+            }
             auto new_e = unfold_rec(m_env, force_unfold, e, to_unfold, *occs);
             if (!new_e)
                 return none_expr();

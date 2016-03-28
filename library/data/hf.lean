@@ -69,7 +69,7 @@ notation [priority finset.prio] a ∉ b := ¬ mem a b
 
 lemma insert_lt_of_not_mem {a s : hf} : a ∉ s → s < insert a s :=
 begin
-  unfold [insert, of_finset, equiv.to_fun, finset_nat_equiv_nat, mem, to_finset, equiv.inv],
+  unfold [insert, of_finset, finset_nat_equiv_nat, mem, to_finset, equiv.inv],
   intro h,
   rewrite [finset.to_nat_insert h],
   rewrite [to_nat_of_nat, -zero_add s at {1}],
@@ -80,7 +80,7 @@ end
 lemma insert_lt_insert_of_not_mem_of_not_mem_of_lt {a s₁ s₂ : hf}
       : a ∉ s₁ → a ∉ s₂ → s₁ < s₂ → insert a s₁ < insert a s₂ :=
 begin
-  unfold [insert, of_finset, equiv.to_fun, finset_nat_equiv_nat, mem, to_finset, equiv.inv],
+  unfold [insert, of_finset, finset_nat_equiv_nat, mem, to_finset, equiv.inv],
   intro h₁ h₂ h₃,
   rewrite [finset.to_nat_insert h₁],
   rewrite [finset.to_nat_insert h₂, *to_nat_of_nat],

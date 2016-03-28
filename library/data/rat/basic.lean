@@ -97,7 +97,7 @@ definition smul (a : ℤ) (b : prerat) (H : a > 0) : prerat :=
 prerat.mk (a * num b) (a * denom b) (mul_pos H (denom_pos b))
 
 theorem of_int_add (a b : ℤ) : of_int (a + b) ≡ add (of_int a) (of_int b) :=
-by esimp [equiv, num, denom, one, add, of_int]; rewrite [*int.mul_one]
+by esimp [equiv, one, add, of_int]; rewrite [*int.mul_one]
 
 theorem of_int_mul (a b : ℤ) : of_int (a * b) ≡ mul (of_int a) (of_int b) :=
 !equiv.refl
@@ -114,7 +114,7 @@ definition inv : prerat → prerat
 | inv (prerat.mk -[1+n] d dp)       := prerat.mk (-d) (nat.succ n) !of_nat_succ_pos
 
 theorem equiv_zero_of_num_eq_zero {a : prerat} (H : num a = 0) : a ≡ zero :=
-by rewrite [↑equiv, H, ↑zero, ↑num, ↑of_int, *zero_mul]
+by rewrite [↑equiv, H, ↑zero, ↑of_int, *zero_mul]
 
 theorem num_eq_zero_of_equiv_zero {a : prerat} : a ≡ zero → num a = 0 :=
 by rewrite [↑equiv, ↑zero, ↑of_int, mul_one, zero_mul]; intro H; exact H
@@ -256,7 +256,7 @@ theorem mul_inv_cancel : ∀{a : prerat}, ¬ a ≡ zero → mul a (inv a) ≡ on
       calc
         mul a (inv a) ≡ mul a ia : mul_equiv_mul !equiv.refl (inv_of_neg an_neg adp)
                   ... ≡ one      : begin
-                                     esimp [equiv, num, denom, one, mul, of_int],
+                                     esimp [equiv, one, mul, of_int],
                                      rewrite [*int.mul_one, *int.one_mul, mul.comm,
                                               neg_mul_comm]
                                    end)
@@ -266,7 +266,7 @@ theorem mul_inv_cancel : ∀{a : prerat}, ¬ a ≡ zero → mul a (inv a) ≡ on
       calc
         mul a (inv a) ≡ mul a ia : mul_equiv_mul !equiv.refl (inv_of_pos an_pos adp)
                   ... ≡ one      : begin
-                                     esimp [equiv, num, denom, one, mul, of_int],
+                                     esimp [equiv, one, mul, of_int],
                                      rewrite [*int.mul_one, *int.one_mul, mul.comm]
                                    end)
 
