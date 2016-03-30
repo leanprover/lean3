@@ -231,31 +231,31 @@ namespace sum
     esimp[unit_sum_equiv_cancel_map], apply sum.rec,
     { intro x, cases x with u Hu, esimp, apply sum.rec,
       { intro x, exfalso, cases x with u' Hu', apply empty_of_inl_eq_inr,
-        calc inl ⋆ = (to_fun H)⁻¹ (H (inl ⋆)) : (to_left_inv H (inl ⋆))⁻¹
-               ... = (to_fun H)⁻¹ (inl u') : ap (to_fun H)⁻¹ Hu'
-               ... = (to_fun H)⁻¹ (inl u) : {!is_prop.elim}
-               ... = (to_fun H)⁻¹ (H (inr _)) : {Hu⁻¹}
+        calc inl ⋆ = H⁻¹ (H (inl ⋆)) : (to_left_inv H (inl ⋆))⁻¹
+               ... = H⁻¹ (inl u')    : ap H⁻¹ Hu'
+               ... = H⁻¹ (inl u)     : {!is_prop.elim}
+               ... = H⁻¹ (H (inr _)) : {Hu⁻¹}
                ... = inr _ : to_left_inv H },
-      { intro x, cases x with b' Hb', esimp, cases sum.mem_cases ((to_fun H)⁻¹ (inr b)) with x x,
+      { intro x, cases x with b' Hb', esimp, cases sum.mem_cases (H⁻¹ (inr b)) with x x,
         { cases x with u' Hu', cases u', apply eq_of_inr_eq_inr,
           calc inr b' = H (inl ⋆)       : Hb'⁻¹
-                  ... = H ((to_fun H)⁻¹ (inr b)) : (ap (to_fun H) Hu')⁻¹
+                  ... = H (H⁻¹ (inr b)) : (ap H Hu')⁻¹
                   ... = inr b           : to_right_inv H (inr b)},
         { exfalso, cases x with a Ha, apply empty_of_inl_eq_inr,
           cases u, apply concat, apply Hu⁻¹, apply concat, rotate 1, apply !(to_right_inv H),
-          apply ap (to_fun H),
+          apply ap H,
           apply concat, rotate 1, apply Ha⁻¹, apply ap inr, esimp,
           apply sum.rec, intro x, exfalso, apply empty_of_inl_eq_inr,
           apply concat, exact x.2⁻¹, apply Ha,
           intro x, cases x with a' Ha', esimp, apply eq_of_inr_eq_inr, apply Ha'⁻¹ ⬝ Ha } } },
     { intro x, cases x with b' Hb', esimp, apply eq_of_inr_eq_inr, refine Hb'⁻¹ ⬝ _,
-      cases sum.mem_cases ((to_fun H)⁻¹ (inr b)) with x x,
-      { cases x with u Hu, esimp, cases sum.mem_cases ((to_fun H)⁻¹ (inl ⋆)) with x x,
+      cases sum.mem_cases (H⁻¹ (inr b)) with x x,
+      { cases x with u Hu, esimp, cases sum.mem_cases (H⁻¹ (inl ⋆)) with x x,
         { cases x with u' Hu', exfalso, apply empty_of_inl_eq_inr,
-          calc inl ⋆ = H ((to_fun H)⁻¹ (inl ⋆))  : (to_right_inv H (inl ⋆))⁻¹
+          calc inl ⋆ = H (H⁻¹ (inl ⋆))  : (to_right_inv H (inl ⋆))⁻¹
                  ... = H (inl u')       : ap H Hu'
                  ... = H (inl u)        : by rewrite [is_prop.elim u' u]
-                 ... = H ((to_fun H)⁻¹ (inr b)) : ap H Hu⁻¹
+                 ... = H (H⁻¹ (inr b))  : ap H Hu⁻¹
                  ... = inr b            : to_right_inv H (inr b) },
       { cases x with a Ha, exfalso, apply empty_of_inl_eq_inr,
         apply concat, rotate 1, exact Hb',
