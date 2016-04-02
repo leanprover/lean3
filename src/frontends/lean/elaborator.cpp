@@ -505,7 +505,7 @@ pair<expr, expr> elaborator::ensure_fun(expr f, constraint_seq & cs) {
                 coes  = get_coercions_to_fun(env(), f_type);
             }
             if (is_nil(coes)) {
-                throw_kernel_exception(env(), f, [=](formatter const & fmt) { return pp_function_expected(fmt, f); });
+                throw_kernel_exception(env(), f, [=](formatter const & fmt) { return pp_function_expected(fmt, f, f_type); });
             } else if (is_nil(tail(coes))) {
                 expr old_f = f;
                 f = mk_coercion_app(head(coes), f);
@@ -514,9 +514,9 @@ pair<expr, expr> elaborator::ensure_fun(expr f, constraint_seq & cs) {
                 save_coercion_info(old_f, f);
                 lean_assert(is_pi(f_type));
             } else {
-                old_local_context ctx      = m_context;
-                justification j        = mk_justification(f, [=](formatter const & fmt, substitution const & subst, bool) {
-                        return pp_function_expected(fmt, substitution(subst).instantiate(f));
+                old_local_context ctx = m_context;
+                justification j = mk_justification(f, [=](formatter const & fmt, substitution const & subst, bool) {
+                        return pp_function_expected(fmt, substitution(subst).instantiate(f), substitution(subst).instantiate(f_type));
                     });
                 auto choice_fn = [=](expr const & meta, expr const &, substitution const &) {
                     flet<old_local_context> save1(m_context,      ctx);

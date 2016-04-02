@@ -17,8 +17,12 @@ format pp_type_expected(formatter const & fmt, expr const & e) {
     return compose(format("type expected at"), pp_indent_expr(fmt, e));
 }
 
-format pp_function_expected(formatter const & fmt, expr const & e) {
-    return compose(format("function expected at"), pp_indent_expr(fmt, e));
+format pp_function_expected(formatter const & fmt, expr const & e, expr const & e_type) {
+    format r;
+    r = compose(format("function expected at"), pp_indent_expr(fmt, e));
+    r += line();
+    r += compose(format("which has type"), pp_indent_expr(fmt, e_type));
+    return r;
 }
 
 MK_THREAD_LOCAL_GET_DEF(list<options>, get_distinguishing_pp_options)

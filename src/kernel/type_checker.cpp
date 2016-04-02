@@ -126,11 +126,11 @@ pair<expr, constraint_seq> type_checker::ensure_pi_core(expr e, expr const & s) 
     } else if (auto m = is_stuck(ecs.first)) {
         expr r             = mk_pi_for(*m);
         justification j    = mk_justification(s, [=](formatter const & fmt, substitution const & subst, bool) {
-                return pp_function_expected(fmt, substitution(subst).instantiate(s));
+                return pp_function_expected(fmt, substitution(subst).instantiate(s), substitution(subst).instantiate(ecs.first));
             });
         return to_ecs(r, mk_eq_cnstr(ecs.first, r, j), ecs.second);
     } else {
-        throw_kernel_exception(m_env, s, [=](formatter const & fmt) { return pp_function_expected(fmt, s); });
+        throw_kernel_exception(m_env, s, [=](formatter const & fmt) { return pp_function_expected(fmt, s, ecs.first); });
     }
 }
 

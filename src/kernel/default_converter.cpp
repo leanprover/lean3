@@ -340,7 +340,7 @@ bool default_converter::try_eta_expansion_core(expr const & t, expr const & s, c
         } else if (auto m = m_tc->is_stuck(s_type)) {
             expr r              = mk_pi_for(*m);
             justification j     = mk_justification(s, [=](formatter const & fmt, substitution const & subst, bool) {
-                    return pp_function_expected(fmt, substitution(subst).instantiate(s));
+                    return pp_function_expected(fmt, substitution(subst).instantiate(s), substitution(subst).instantiate(s_type));
                 });
             aux_cs += mk_eq_cnstr(s_type, r, j);
             s_type  = r;
