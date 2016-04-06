@@ -5,7 +5,7 @@ Authors: Jacob Gross, Jeremy Avigad
 
 Sigma algebras.
 -/
-import data.set data.nat theories.topology.basic
+import data.set data.nat theories.topology.continuous ..move
 open eq.ops set nat
 
 structure sigma_algebra [class] (X : Type) :=
@@ -65,13 +65,47 @@ theorem measurable_insert {x : X} {s : set X} (Hx : measurable '{x}) (Hs : measu
 
 end measure_theory
 
+/- Measurable functions -/
+
+namespace measure_theory
+  open sigma_algebra function
+  variables {X Y Z : Type} {M : sigma_algebra X} {N : sigma_algebra Y} {L : sigma_algebra Z}
+
+  definition measurable_fun (f : X → Y) (M : sigma_algebra X) (N : sigma_algebra Y) :=
+  ∀ ⦃s⦄, s ∈ sets Y → f '- s ∈ sets X
+
+  theorem measurable_fun_id : measurable_fun (@id X) M M :=
+  take s, suppose s ∈ sets X, this
+
+  theorem measurable_fun_comp {f : X → Y} {g : Y → Z} (Hf : measurable_fun f M N)
+      (Hg : measurable_fun g N L) :
+    measurable_fun (g ∘ f) M L :=
+  take s, assume Hs, Hf (Hg Hs)
+
+  section
+    open classical
+
+    theorem measurable_fun_const (c : Y) :
+      measurable_fun (λ x : X, c) M N :=
+    take s, assume Hs,
+    if cs : c ∈ s then
+      have (λx, c) '- s = @univ X, from eq_univ_of_forall (take x, mem_preimage cs),
+      by rewrite this; apply measurable_univ
+    else
+      have (λx, c) '- s = (∅ : set X),
+        from eq_empty_of_forall_not_mem (take x, assume H, cs (mem_of_mem_preimage H)),
+      by rewrite this; apply measurable_empty
+end
+
+end measure_theory
+
 /-
 -- Properties of sigma algebras
 -/
 
 namespace sigma_algebra
 open measure_theory
-variable {X : Type}
+variables {X : Type}
 
 protected theorem eq {M N : sigma_algebra X} (H : @sets X M = @sets X N) :
   M = N :=
@@ -107,6 +141,21 @@ end
 theorem measurable_generated_by {G : set (set X)} :
    ∀₀ s ∈ G, @measurable _ (sigma_algebra.generated_by G) s :=
 λ s H, sets_generated_by.generators_mem H
+
+section
+  variables {Y : Type} {M : sigma_algebra X}
+
+  theorem measurable_fun_generated_by (f : X → Y) (G : set (set Y))
+    (Hg : ∀₀ g ∈ G, f '- g ∈ sets X) : measurable_fun f M (sigma_algebra.generated_by G) :=
+  begin
+    intro A HA,
+    induction HA with Hg A s setsG pre s' HsetsG HsetsG',
+      exact Hg A,
+      exact measurable_univ,
+      rewrite [preimage_compl]; exact measurable_compl pre,
+      rewrite [preimage_Union]; exact measurable_cUnion HsetsG'
+  end
+end
 
 /- The collection of sigma algebras forms a complete lattice. -/
 
@@ -237,12 +286,46 @@ section
   variable {X}
   definition borel (s : set X) : Prop := @measurable _ (borel_algebra X) s
 
-  theorem borel_of_open {s : set X} (H : Open s) : borel s :=
+  theorem borel_of_Open {s : set X} (H : Open s) : borel s :=
   sigma_algebra.measurable_generated_by H
 
   theorem borel_of_closed {s : set X} (H : closed s) : borel s :=
-  have borel (-s), from borel_of_open H,
+  have borel (-s), from borel_of_Open H,
   @measurable_of_measurable_compl _ (borel_algebra X) _ this
+end
+
+/- borel functions -/
+
+section
+  open topology function
+  variables {X Y Z : Type} [topology X] [topology Y] [topology Z]
+
+  definition borel_fun (f : X → Y) := ∀ ⦃s⦄, Open s → borel (f '- s)
+
+  theorem borel_fun_id : borel_fun (@id X) := λ s Os, borel_of_Open Os
+
+  theorem borel_fun_of_continuous {f : X → Y} (H : continuous f) : borel_fun f :=
+  λ s Os, borel_of_Open (H Os)
+
+  theorem borel_fun_const (c : Y) : borel_fun (λ x : X, c) :=
+  borel_fun_of_continuous (continuous_const c)
+
+  theorem measurable_fun_of_borel_fun {f : X → Y} (H : borel_fun f) :
+    measurable_fun f (borel_algebra X) (borel_algebra Y) :=
+  sigma_algebra.measurable_fun_generated_by f (opens Y) H
+
+  theorem borel_fun_of_measurable_fun {f : X → Y}
+      (H : measurable_fun f (borel_algebra X) (borel_algebra Y)) :
+    borel_fun f :=
+  λ s Os, H (borel_of_Open Os)
+
+  theorem borel_fun_iff (f : X → Y) :
+    borel_fun f ↔ measurable_fun f (borel_algebra X) (borel_algebra Y) :=
+  iff.intro measurable_fun_of_borel_fun borel_fun_of_measurable_fun
+
+  theorem borel_fun_comp {f : X → Y} {g : Y → Z} (Hf : borel_fun f) (Hg : borel_fun g) :
+    borel_fun (g ∘ f) :=
+  λ s Os, measurable_fun_of_borel_fun Hf (Hg Os)
 end
 
 end measure_theory
