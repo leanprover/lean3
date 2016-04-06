@@ -287,9 +287,10 @@ include Tm Tn
 definition continuous_at (f : M → N) (x : M) :=
   ∀ U : set N, f x ∈ U → Open U → ∃ V : set M, x ∈ V ∧ Open V ∧ f 'V ⊆ U
 
+/-
 definition continuous (f : M → N) :=
   ∀ x : M, continuous_at f x
-
+-/
 end continuity
 
 section boundary
