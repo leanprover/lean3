@@ -5,7 +5,7 @@ Author: Jeremy Avigad
 
 Metric spaces.
 -/
-import data.real.complete data.pnat data.list.sort ..topology.basic data.set
+import data.real.complete data.pnat data.list.sort ..topology.continuous data.set
 open nat real eq.ops classical
 
 structure metric_space [class] (M : Type) : Type :=
@@ -667,26 +667,25 @@ theorem continuous_at_intro {f : M → N} {x : M}
         continuous_at f x :=
   begin
     rewrite ↑continuous_at,
-    intros U HfU Uopen,
+    intros U Uopen HfU,
     cases ex_Open_ball_subset_of_Open_of_nonempty Uopen HfU with r Hr,
     cases Hr with Hr HUr,
     cases H Hr with δ Hδ,
     cases Hδ with Hδ Hx'δ,
     existsi open_ball x δ,
     split,
+    apply open_ball_open,
+    split,
     apply mem_open_ball,
     exact Hδ,
-    split,
-    apply open_ball_open,
     intro y Hy,
+    apply mem_preimage,
     apply HUr,
     cases Hy with y' Hy',
-    cases Hy' with Hy' Hfy',
-    cases Hy' with _ Hy',
     rewrite dist_comm at Hy',
     note Hy'' := Hx'δ Hy',
     apply and.intro !mem_univ,
-    rewrite [-Hfy', dist_comm],
+    rewrite dist_comm,
     exact Hy''
   end
 
@@ -695,9 +694,9 @@ theorem continuous_at_elim {f : M → N} {x : M} (Hfx : continuous_at f x) :
   begin
     intros ε Hε,
     rewrite [↑continuous_at at Hfx],
-    cases Hfx (open_ball (f x) ε) (mem_open_ball _ Hε) !open_ball_open with V HV,
-    cases HV with HVx HV,
-    cases HV with HV HVf,
+    cases @Hfx (open_ball (f x) ε) !open_ball_open (mem_open_ball _ Hε) with V HV,
+    cases HV with HV HVx,
+    cases HVx with HVx HVf,
     cases ex_Open_ball_subset_of_Open_of_nonempty HV HVx with δ Hδ,
     cases Hδ with Hδ Hδx,
     existsi δ,
@@ -707,13 +706,10 @@ theorem continuous_at_elim {f : M → N} {x : M} (Hfx : continuous_at f x) :
     rewrite dist_comm,
     apply and.right,
     apply HVf,
-    existsi x',
-    split,
     apply Hδx,
     apply and.intro !mem_univ,
     rewrite dist_comm,
     apply Hx',
-    apply rfl
   end
 
 theorem continuous_at_of_converges_to_at {f : M → N} {x : M} (Hf : f ⟶ f x at x) :

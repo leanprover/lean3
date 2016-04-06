@@ -243,12 +243,12 @@ continuous_of_continuous_on_univ (continuous_on_const c univ)
 
 /- continuity at a point -/
 
-definition continuous_at' (f : X → Y) (x : X) : Prop :=
+definition continuous_at (f : X → Y) (x : X) : Prop :=
 ∀ ⦃t : set Y⦄, Open t → f x ∈ t → ∃ u, Open u ∧ x ∈ u ∧ u ⊆ f '- t
 
 theorem continuous_at_of_continuous_at_on {f : X → Y} {x : X} {s : set X}
     (Os : Open s) (xs : x ∈ s) (H : continuous_at_on f x s) :
-  continuous_at' f x :=
+  continuous_at f x :=
 take t, assume Ot fxt,
 obtain u Ou xu xssub, from H Ot fxt,
 exists.intro (u ∩ s) (and.intro (Open_inter Ou Os)
@@ -256,11 +256,11 @@ exists.intro (u ∩ s) (and.intro (Open_inter Ou Os)
 
 theorem continuous_at_of_continuous_at_on_univ {f : X → Y} {x : X}
     (H : continuous_at_on f x univ) :
-  continuous_at' f x :=
+  continuous_at f x :=
 continuous_at_of_continuous_at_on Open_univ !mem_univ H
 
 theorem continuous_at_on_univ_of_continuous_at {f : X → Y} {x : X}
-    (H : continuous_at' f x) :
+    (H : continuous_at f x) :
   continuous_at_on f x univ :=
 take t, assume Ot fxt,
 obtain u Ou xu usub, from H Ot fxt,
@@ -268,7 +268,7 @@ have u ∩ univ ⊆ f '- t, by rewrite inter_univ; apply usub,
 exists.intro u (and.intro Ou (and.intro xu this))
 
 theorem continuous_at_iff_continuous_at_on_univ (f : X → Y) (x : X) :
-  continuous_at' f x ↔ continuous_at_on f x univ :=
+  continuous_at f x ↔ continuous_at_on f x univ :=
 iff.intro continuous_at_on_univ_of_continuous_at continuous_at_of_continuous_at_on_univ
 
 
