@@ -14,6 +14,14 @@ structure topology [class] (X : Type) :=
   (sUnion_mem_opens : ∀ {S : set (set X)}, S ⊆ opens → ⋃₀ S ∈ opens)
   (inter_mem_opens : ∀₀ s ∈ opens, ∀₀ t ∈ opens, s ∩ t ∈ opens)
 
+-- the bundled version
+structure TopologicalSpace : Type :=
+(carrier : Type) (struct : topology carrier)
+
+attribute TopologicalSpace.carrier [coercion]
+attribute TopologicalSpace.struct [instance]
+
+
 namespace topology
 
 variables {X : Type} [topology X]
