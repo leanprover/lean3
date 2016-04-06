@@ -127,13 +127,13 @@ static void display_help(std::ostream & out) {
     std::cout << "  --debug=tag       enable assertions with the given tag\n";
         )
     std::cout << "  -D name=value     set a configuration option (see set_option command)\n";
-    std::cout << "  --dir=directory   display information about identifier or token in the given posivition\n";
+    std::cout << "  --dir=directory   base directory for relative imports\n";
     std::cout << "Frontend query interface:\n";
     std::cout << "  --line=value      line number for query\n";
     std::cout << "  --col=value       column number for query\n";
     std::cout << "  --goal            display goal at close to given position\n";
-    std::cout << "  --hole            display type of the \"hole\" in the given posivition\n";
-    std::cout << "  --info            display information about identifier or token in the given posivition\n";
+    std::cout << "  --hole            display type of the \"hole\" in the given position\n";
+    std::cout << "  --info            display information about identifier or token in the given position\n";
     std::cout << "Exporting data:\n";
     std::cout << "  --export=file -E  export final environment as textual low-level file\n";
     std::cout << "  --export-all=file -A  export final environment (and all dependencies) as textual low-level file\n";
