@@ -84,8 +84,6 @@
 (defun company-lean--import-candidates (prefix)
   (let* ((cur-dir (f-dirname (buffer-file-name)))
          (parent-dir (f-parent cur-dir))
-         (project-dir (f--traverse-upwards (f-exists? (f-expand ".project" it))
-                                           (f-dirname (buffer-file-name))))
          (candidates
           (cond
            ;; prefix = ".."

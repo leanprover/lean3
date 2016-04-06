@@ -150,6 +150,7 @@ will be flushed everytime it's executed."
           (pcase (lean-choose-minor-mode-based-on-extension)
             (`standard "--lean")
             (`hott     "--hlean")))
+         (default-directory (or (lean-project-find-root) default-directory))
          (process-args (append `(,process-name
                                  ,process-buffer-name
                                  ,(lean-get-executable lean-executable-name)
