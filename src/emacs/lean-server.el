@@ -12,6 +12,7 @@
 (require 'lean-variable)
 (require 'lean-cmd)
 (require 'lean-info)
+(require 'lean-project)
 (require 'lean-util)
 
 ;; Parameters
@@ -175,6 +176,7 @@
   ;; (message "lean-server-create-process")
   (let* ((type (or type (lean-choose-minor-mode-based-on-extension)))
          (process-connection-type nil)
+         (default-directory (or (lean-project-find-root) default-directory))
          (p (apply 'start-process
                    (append (list (lean-server-process-name type)
                                  (lean-server-buffer-name type)
