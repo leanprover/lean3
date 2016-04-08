@@ -23,6 +23,7 @@ Author: Leonardo de Moura
 #include "library/compiler/init_module.h"
 #include "frontends/lean/init_module.h"
 #include "frontends/smt2/init_module.h"
+#include "backends/init_module.h"
 #include "init/init.h"
 
 namespace lean {
@@ -39,6 +40,9 @@ void initialize() {
     initialize_library_core_module();
     initialize_vm_core_module();
     initialize_library_module();
+    initialize_tactic_module();
+    initialize_blast_module();
+    initialize_definitional_module();
     initialize_compiler_module();
     initialize_tactic_module();
     initialize_constructions_module();
@@ -46,6 +50,7 @@ void initialize() {
     initialize_inductive_compiler_module();
     initialize_frontend_lean_module();
     initialize_frontend_smt2_module();
+    initialize_backends_module();
     initialize_vm_module();
 }
 void finalize() {
