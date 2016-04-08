@@ -250,6 +250,7 @@ int main(int argc, char ** argv) {
     bool make_mode          = false;
     unsigned trust_lvl      = LEAN_BELIEVER_TRUST_LEVEL+1;
     bool smt2               = false;
+    bool compile            = false;
     bool only_deps          = false;
     unsigned num_threads    = 0;
 #if defined(LEAN_MULTI_THREAD)
@@ -336,6 +337,10 @@ int main(int argc, char ** argv) {
 #if defined(LEAN_DEBUG)
         case 'B':
             lean::enable_debug(optarg);
+        case 'C':
+            break;
+            main_fn = std::string(optarg);
+            compile = true;
             break;
 #endif
         case 'A':
@@ -484,6 +489,32 @@ int main(int argc, char ** argv) {
             } catch (exception & ex) {
                 ok = false;
                 message_builder(env, ios, mod.first, {1, 0}, ERROR).set_exception(ex).report();
+  }
+}
+            if (ok && compile && default_k == input_kind::Lean) {
+            // TODO : @jroesch print error if try to do
+            // extraction in the HoTT core, not sure how
+            // to implement a sophisticated usage analysis
+            // to do erasure.
+            lean::c_backend backend(env, main_fn);
+            backend.generate_code(optional<std::string>());
+        }
+        if (ok && server && (default_k == input_kind::Lean || default_k == input_kind::HLean)) {
+            signal(SIGINT, on_ctrl_c);
+            ios.set_option(lean::name("pp", "beta"), true);
+            lean::server Sv(env, ios, base_dir, num_threads);
+            if (!Sv(std::cin))
+                ok = false;
+        }
+
+        if (save_cache) {
+            exclusive_file_lock cache_lock(cache_name);
+            std::ofstream out(cache_name, std::ofstream::binary);
+            cache.save(out);
+        }
+        if (export_objects && ok) {
+            exclusive_file_lock output_lock(output);
+            std::ofstream out(output, std::ofstream::binary);
             }
         }
 
