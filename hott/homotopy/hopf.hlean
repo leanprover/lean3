@@ -69,14 +69,14 @@ section
     { fapply equiv.MK
              (λz : A × A, (z.1 * z.2, z.2))
              (λz : A × A, ((λx, x * z.2)⁻¹ z.1, z.2)),
-      { intro z, induction z with u v, esimp, 
+      { intro z, induction z with u v, esimp,
         exact prod_eq (right_inv (λx, x * v) u) idp },
       { intro z, induction z with a b, esimp,
         exact prod_eq (left_inv (λx, x * b) a) idp } },
-    { exact erfl },
-    { exact erfl },
-    { intro z, reflexivity },
-    { intro z, reflexivity }
+    { reflexivity },
+    { reflexivity },
+    { reflexivity },
+    { reflexivity }
   end
 end
 

@@ -137,10 +137,10 @@ namespace sum
   equiv.mk _ (is_equiv_sum_functor f g)
 
   definition sum_equiv_sum_left [constructor] (g : B ≃ B') : A + B ≃ A + B' :=
-  sum_equiv_sum equiv.refl g
+  sum_equiv_sum equiv.rfl g
 
   definition sum_equiv_sum_right [constructor] (f : A ≃ A') : A + B ≃ A' + B :=
-  sum_equiv_sum f equiv.refl
+  sum_equiv_sum f equiv.rfl
 
   definition flip [unfold 3] : A + B → B + A
   | flip (inl a) := inr a

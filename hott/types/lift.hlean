@@ -73,7 +73,7 @@ namespace lift
   equiv.mk _ (is_equiv_lift_functor f)
 
   definition lift_equiv_lift_refl (A : Type) : lift_equiv_lift (erfl : A ≃ A) = erfl :=
-  by apply equiv_eq'; intro z; induction z with a; reflexivity
+  by apply equiv_eq; intro z; induction z with a; reflexivity
 
   definition lift_inv_functor [unfold_full] (a : A) : A' :=
   down (g (up a))
@@ -119,7 +119,7 @@ namespace lift
              intro f, apply equiv_eq, reflexivity
            end end
            abstract begin
-             intro g, apply equiv_eq, esimp, apply eq_of_homotopy, intro z,
+             intro g, apply equiv_eq', esimp, apply eq_of_homotopy, intro z,
              induction z with a, esimp, apply lift.eta
            end end
 
@@ -134,12 +134,12 @@ namespace lift
       exact _,
     { intro p, induction p,
       esimp [lift_eq_lift_equiv,equiv.trans,equiv.symm,eq_equiv_equiv],
-      rewrite [equiv_of_eq_refl,lift_equiv_lift_refl],
+      rewrite [equiv_of_eq_refl, lift_equiv_lift_refl],
       apply ua_refl}
   end
 
   definition plift [constructor] (A : pType.{u}) : pType.{max u v} :=
-  pType.mk (lift A) (up pt)
+  pointed.MK (lift A) (up pt)
 
   definition plift_functor [constructor] {A B : Type*} (f : A →* B) : plift A →* plift B :=
   pmap.mk (lift_functor f) (ap up (respect_pt f))

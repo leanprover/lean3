@@ -176,7 +176,7 @@ namespace pi
     (f : Π(b : B a), C ⟨a, b⟩) (g : Π(b' : B a'), C ⟨a', b'⟩) :
     (Π(b : B a), (sigma_eq p !pathover_tr) ▸ (f b) = g (p ▸ b)) ≃
     (Π(b : B a), p ▸D (f b) = g (p ▸ b)) :=
-  eq.rec_on p (λg, !equiv.refl) g
+  eq.rec_on p (λg, !equiv.rfl) g
   end
 
   /- Functorial action -/
@@ -234,7 +234,7 @@ namespace pi
 
   definition pi_equiv_pi_right [constructor] {P Q : A → Type} (g : Πa, P a ≃ Q a)
     : (Πa, P a) ≃ (Πa, Q a) :=
-  pi_equiv_pi equiv.refl g
+  pi_equiv_pi equiv.rfl g
 
   /- Equivalence if one of the types is contractible -/
 

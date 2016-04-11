@@ -3,7 +3,7 @@ Copyright (c) 2015 Floris van Doorn. All rights reserved.
 Released under Apache 2.0 license as described in the file LICENSE.
 Authors: Floris van Doorn
 
-Declaration of the pushout
+Declaration and properties of the pushout
 -/
 
 import .quotient types.sigma types.arrow_2
@@ -83,6 +83,11 @@ parameters {TL BL TR : Type} (f : TL → BL) (g : TL → TR)
     (Pglue : Π(x : TL), Pinl (f x) ≃ Pinr (g x)) (x : TL)
     : transport (elim_type Pinl Pinr Pglue) (glue x) = Pglue x :=
   !elim_type_eq_of_rel_fn
+
+  theorem elim_type_glue_inv (Pinl : BL → Type) (Pinr : TR → Type)
+    (Pglue : Π(x : TL), Pinl (f x) ≃ Pinr (g x)) (x : TL)
+    : transport (elim_type Pinl Pinr Pglue) (glue x)⁻¹ = to_inv (Pglue x) :=
+  !elim_type_eq_of_rel_inv
 
   protected definition rec_prop {P : pushout → Type} [H : Πx, is_prop (P x)]
     (Pinl : Π(x : BL), P (inl x)) (Pinr : Π(x : TR), P (inr x)) (y : pushout) :=

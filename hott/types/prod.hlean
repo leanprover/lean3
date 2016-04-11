@@ -155,10 +155,10 @@ namespace prod
   equiv.mk (prod_functor f g) _
 
   definition prod_equiv_prod_left [constructor] (g : B ≃ B') : A × B ≃ A × B' :=
-  prod_equiv_prod equiv.refl g
+  prod_equiv_prod equiv.rfl g
 
   definition prod_equiv_prod_right [constructor] (f : A ≃ A') : A × B ≃ A' × B :=
-  prod_equiv_prod f equiv.refl
+  prod_equiv_prod f equiv.rfl
 
   /- Symmetry -/
 

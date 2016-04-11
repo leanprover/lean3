@@ -92,7 +92,6 @@ namespace eq
   definition inv_con_inv_left (p : y = x) (q : y = z) : (p⁻¹ ⬝ q)⁻¹ = q⁻¹ ⬝ p :=
   by induction q; induction p; reflexivity
 
-  -- universe metavariables
   definition inv_con_inv_right (p : x = y) (q : z = y) : (p ⬝ q⁻¹)⁻¹ = q ⬝ p⁻¹ :=
   by induction q; induction p; reflexivity
 
@@ -444,6 +443,14 @@ namespace eq
     p⁻¹ ▸ p ▸ z = z :=
   (con_tr p p⁻¹ z)⁻¹ ⬝ ap (λr, transport P r z) (con.right_inv p)
 
+  definition cast_cast_inv {A : Type} {P : A → Type} {x y : A} (p : x = y) (z : P y) :
+    cast (ap P p) (cast (ap P p⁻¹) z) = z :=
+  by induction p; reflexivity
+
+  definition cast_inv_cast {A : Type} {P : A → Type} {x y : A} (p : x = y) (z : P x) :
+    cast (ap P p⁻¹) (cast (ap P p) z) = z :=
+  by induction p; reflexivity
+
   definition con_con_tr {P : A → Type}
       {x y z w : A} (p : x = y) (q : y = z) (r : z = w) (u : P x) :
     ap (λe, e ▸ u) (con.assoc' p q r) ⬝ (con_tr (p ⬝ q) r u) ⬝
@@ -513,6 +520,10 @@ namespace eq
 
   definition fn_tr_eq_tr_fn {P Q : A → Type} {x y : A} (p : x = y) (f : Πx, P x → Q x) (z : P x) :
     f y (p ▸ z) = p ▸ f x z :=
+  by induction p; reflexivity
+
+  definition fn_cast_eq_cast_fn {A : Type} {P Q : A → Type} {x y : A} (p : x = y)
+    (f : Πx, P x → Q x) (z : P x) : f y (cast (ap P p) z) = cast (ap Q p) (f x z) :=
   by induction p; reflexivity
 
   /- Transporting in particular fibrations -/

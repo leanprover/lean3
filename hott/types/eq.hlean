@@ -456,13 +456,13 @@ namespace eq
     parameters {A : Type} (a₀ : A) (code : A → Type) (H : is_contr (Σa, code a))
       (p : (center (Σa, code a)).1 = a₀)
     include p
-    definition encode {a : A} (q : a₀ = a) : code a :=
+    protected definition encode {a : A} (q : a₀ = a) : code a :=
     (p ⬝ q) ▸ (center (Σa, code a)).2
 
-    definition decode' {a : A} (c : code a) : a₀ = a :=
+    protected definition decode' {a : A} (c : code a) : a₀ = a :=
     (is_prop.elim ⟨a₀, encode idp⟩ ⟨a, c⟩)..1
 
-    definition decode {a : A} (c : code a) : a₀ = a :=
+    protected definition decode {a : A} (c : code a) : a₀ = a :=
     (decode' (encode idp))⁻¹ ⬝ decode' c
 
     definition total_space_method (a : A) : (a₀ = a) ≃ code a :=

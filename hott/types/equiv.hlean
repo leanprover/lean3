@@ -208,17 +208,17 @@ namespace equiv
       : equiv.mk f H = equiv.mk f' H' :=
   apd011 equiv.mk p !is_prop.elim
 
-  definition equiv_eq {f f' : A ≃ B} (p : to_fun f = to_fun f') : f = f' :=
+  definition equiv_eq' {f f' : A ≃ B} (p : to_fun f = to_fun f') : f = f' :=
   by (cases f; cases f'; apply (equiv_mk_eq p))
 
-  definition equiv_eq' {f f' : A ≃ B} (p : to_fun f ~ to_fun f') : f = f' :=
-  by apply equiv_eq;apply eq_of_homotopy p
+  definition equiv_eq {f f' : A ≃ B} (p : to_fun f ~ to_fun f') : f = f' :=
+  by apply equiv_eq'; apply eq_of_homotopy p
 
   definition trans_symm (f : A ≃ B) (g : B ≃ C) : (f ⬝e g)⁻¹ᵉ = g⁻¹ᵉ ⬝e f⁻¹ᵉ :> (C ≃ A) :=
-  equiv_eq idp
+  equiv_eq' idp
 
   definition symm_symm (f : A ≃ B) : f⁻¹ᵉ⁻¹ᵉ = f :> (A ≃ B) :=
-  equiv_eq idp
+  equiv_eq' idp
 
   protected definition equiv.sigma_char [constructor]
     (A B : Type) : (A ≃ B) ≃ Σ(f : A → B), is_equiv f :=
@@ -235,7 +235,7 @@ namespace equiv
     (f = f') ≃ (to_fun !equiv.sigma_char f = to_fun !equiv.sigma_char f')
                 : eq_equiv_fn_eq (to_fun !equiv.sigma_char)
          ... ≃ ((to_fun !equiv.sigma_char f).1 = (to_fun !equiv.sigma_char f').1 ) : equiv_subtype
-         ... ≃ (to_fun f = to_fun f') : equiv.refl
+         ... ≃ (to_fun f = to_fun f') : equiv.rfl
 
   definition is_equiv_ap_to_fun (f f' : A ≃ B)
     : is_equiv (ap to_fun : f = f' → to_fun f = to_fun f') :=
@@ -275,5 +275,20 @@ namespace equiv
   definition is_trunc_equiv (n : trunc_index) (A B : Type)
   [HA : is_trunc n A] [HB : is_trunc n B] : is_trunc n (A ≃ B) :=
   by cases n; apply !is_contr_equiv; apply !is_trunc_succ_equiv
+
+  definition eq_of_fn_eq_fn'_idp {A B : Type} (f : A → B) [is_equiv f] (x : A)
+    : eq_of_fn_eq_fn' f (idpath (f x)) = idpath x :=
+  !con.left_inv
+
+  definition eq_of_fn_eq_fn'_con {A B : Type} (f : A → B) [is_equiv f] {x y z : A}
+    (p : f x = f y) (q : f y = f z)
+    : eq_of_fn_eq_fn' f (p ⬝ q) = eq_of_fn_eq_fn' f p ⬝ eq_of_fn_eq_fn' f q :=
+  begin
+    unfold eq_of_fn_eq_fn',
+    refine _ ⬝ !con.assoc, apply whisker_right,
+    refine _ ⬝ !con.assoc⁻¹ ⬝ !con.assoc⁻¹, apply whisker_left,
+    refine !ap_con ⬝ _, apply whisker_left,
+    refine !con_inv_cancel_left⁻¹
+  end
 
 end equiv

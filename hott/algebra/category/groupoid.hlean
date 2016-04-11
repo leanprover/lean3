@@ -23,12 +23,13 @@ namespace category
   precategory.rec_on C groupoid.mk' H
 
   -- We can turn each group into a groupoid on the unit type
-  definition groupoid_of_group.{l} (A : Type.{l}) [G : group A] : groupoid.{0 l} unit :=
+  definition groupoid_of_group.{l} [constructor] (A : Type.{l}) [G : group A] :
+    groupoid.{0 l} unit :=
   begin
     fapply groupoid.mk, fapply precategory.mk,
       intros, exact A,
       intros, apply (@group.is_set_carrier A G),
-      intros [a, b, c, g, h], exact (@group.mul A G g h),
+      intros a b c g h, exact (@group.mul A G g h),
       intro a, exact (@group.one A G),
       intros, exact (@group.mul_assoc A G h g f)⁻¹,
       intros, exact (@group.one_mul A G f),
@@ -38,8 +39,7 @@ namespace category
         apply mul.right_inv,
   end
 
-  definition hom_group {A : Type} [G : groupoid A] (a : A) :
-    group (hom a a) :=
+  definition hom_group [constructor] {A : Type} [G : groupoid A] (a : A) : group (hom a a) :=
   begin
     fapply group.mk,
       intro f g, apply (comp f g),
@@ -64,15 +64,19 @@ namespace category
 
   attribute Groupoid.struct [instance] [coercion]
 
-  definition Groupoid.to_Precategory [coercion] [reducible] (C : Groupoid) : Precategory :=
+  definition Groupoid.to_Precategory [coercion] [reducible] [unfold 1] (C : Groupoid)
+    : Precategory :=
   Precategory.mk (Groupoid.carrier C) _
 
-  definition groupoid.Mk [reducible] := Groupoid.mk
-  definition groupoid.MK [reducible] (C : Precategory) (H : Π (a b : C) (f : a ⟶ b), is_iso f)
-    : Groupoid :=
+  attribute Groupoid._trans_of_to_Precategory_1 [unfold 1]
+
+  definition groupoid.Mk [reducible] [constructor] := Groupoid.mk
+  definition groupoid.MK [reducible] [constructor] (C : Precategory)
+    (H : Π (a b : C) (f : a ⟶ b), is_iso f) : Groupoid :=
   Groupoid.mk C (groupoid.mk C H)
 
-  definition Groupoid.eta (C : Groupoid) : Groupoid.mk C C = C :=
+  definition Groupoid.eta [unfold 1] (C : Groupoid) : Groupoid.mk C C = C :=
   Groupoid.rec (λob c, idp) C
+
 
 end category

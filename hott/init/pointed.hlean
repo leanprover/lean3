@@ -40,6 +40,11 @@ open pointed
 section
   universe variable u
   structure ptrunctype (n : trunc_index) extends trunctype.{u} n, pType.{u}
+
+  definition is_trunc_ptrunctype [instance] {n : ℕ₋₂} (X : ptrunctype n)
+    : is_trunc n (ptrunctype.to_pType X) :=
+  trunctype.struct X
+
 end
 
 notation n `-Type*` := ptrunctype n
