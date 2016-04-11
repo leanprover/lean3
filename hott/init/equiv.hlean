@@ -276,6 +276,12 @@ namespace is_equiv
   !ap_eq_of_fn_eq_fn'
 
   end
+
+  -- This is inv_commute' for A ≡ unit
+  definition inv_commute1' {B C : Type} (f : B → C) [is_equiv f] (h : B → B) (h' : C → C)
+    (p : Π(b : B), f (h b) = h' (f b)) (c : C) : f⁻¹ (h' c) = h (f⁻¹ c) :=
+  eq_of_fn_eq_fn' f (right_inv f (h' c) ⬝ ap h' (right_inv f c)⁻¹ ⬝ (p (f⁻¹ c))⁻¹)
+
 end is_equiv
 open is_equiv
 
@@ -310,8 +316,11 @@ namespace equiv
   definition to_left_inv [reducible] [unfold 3] (f : A ≃ B) (a : A) : f⁻¹ (f a) = a :=
   left_inv f a
 
-  protected definition refl [refl] [constructor] : A ≃ A :=
+  protected definition rfl [refl] [constructor] : A ≃ A :=
   equiv.mk id !is_equiv_id
+
+  protected definition refl [constructor] [reducible] (A : Type) : A ≃ A :=
+  @equiv.rfl A
 
   protected definition symm [symm] [constructor] (f : A ≃ B) : B ≃ A :=
   equiv.mk f⁻¹ !is_equiv_inv
@@ -322,7 +331,7 @@ namespace equiv
   infixl ` ⬝e `:75 := equiv.trans
   postfix `⁻¹ᵉ`:(max + 1) := equiv.symm
     -- notation for inverse which is not overloaded
-  abbreviation erfl [constructor] := @equiv.refl
+  abbreviation erfl [constructor] := @equiv.rfl
 
   definition to_inv_trans [reducible] [unfold_full] (f : A ≃ B) (g : B ≃ C)
     : to_inv (f ⬝e g) = to_fun (g⁻¹ᵉ ⬝e f⁻¹ᵉ) :=
@@ -394,6 +403,10 @@ namespace equiv
   definition fun_commute_of_inv_commute (p : Π⦃a : A⦄ (c : C (g' a)), f⁻¹ (h' c) = h (f⁻¹ c))
     {a : A} (b : B (g' a)) : f (h b) = h' (f b) :=
   fun_commute_of_inv_commute' @f @h @h' p b
+
+  definition inv_commute1 {B C : Type} (f : B ≃ C) (h : B → B) (h' : C → C)
+    (p : Π(b : B), f (h b) =   h' (f b)) (c : C) : f⁻¹ (h' c) = h (f⁻¹ c) :=
+  inv_commute1' (to_fun f) h h' p c
 
   end
 

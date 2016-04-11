@@ -120,7 +120,7 @@ namespace univ
                                                    (λb, !sigma_assoc_equiv⁻¹ᵉ)
       ... ≃ Σb (Y : Type*), Y = fiber f b      : sigma_equiv_sigma_right
                                      (λb, sigma_equiv_sigma (pType.sigma_char)⁻¹ᵉ
-                                                            (λv, sigma.rec_on v (λx y, equiv.refl)))
+                                                            (λv, sigma.rec_on v (λx y, equiv.rfl)))
       ... ≃ Σ(Y : Type*) b, Y = fiber f b      : sigma_comm_equiv
       ... ≃ pullback pType.carrier (fiber f) : !pullback.sigma_char⁻¹ᵉ
         )

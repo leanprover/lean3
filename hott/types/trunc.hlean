@@ -298,6 +298,48 @@ namespace is_trunc
       { apply minus_one_le_succ}}
   end
 
+  /- univalence for truncated types -/
+  definition teq_equiv_equiv {n : ℕ₋₂} {A B : n-Type} : (A = B) ≃ (A ≃ B) :=
+  trunctype_eq_equiv n A B ⬝e eq_equiv_equiv A B
+
+  definition tua {n : ℕ₋₂} {A B : n-Type} (f : A ≃ B) : A = B :=
+  (trunctype_eq_equiv n A B)⁻¹ᶠ (ua f)
+
+  definition tua_refl {n : ℕ₋₂} (A : n-Type) : tua (@erfl A) = idp :=
+  begin
+    refine ap (trunctype_eq_equiv n A A)⁻¹ᶠ (ua_refl A) ⬝ _,
+    esimp, refine ap (eq_of_fn_eq_fn _) _ ⬝ !eq_of_fn_eq_fn'_idp ,
+    esimp, apply ap (dpair_eq_dpair idp), apply is_prop.elim
+  end
+
+  definition tua_trans {n : ℕ₋₂} {A B C : n-Type} (f : A ≃ B) (g : B ≃ C)
+    : tua (f ⬝e g) = tua f ⬝ tua g :=
+  begin
+    refine ap (trunctype_eq_equiv n A C)⁻¹ᶠ (ua_trans f g) ⬝ _,
+    esimp, refine ap (eq_of_fn_eq_fn _) _ ⬝ !eq_of_fn_eq_fn'_con,
+    refine _ ⬝ !dpair_eq_dpair_con,
+    apply ap (dpair_eq_dpair _), apply is_prop.elim
+  end
+
+  definition tua_symm {n : ℕ₋₂} {A B : n-Type} (f : A ≃ B) : tua f⁻¹ᵉ = (tua f)⁻¹ :=
+  begin
+    apply eq_inv_of_con_eq_idp',
+    refine !tua_trans⁻¹ ⬝ _,
+    refine ap tua _ ⬝ !tua_refl,
+    apply equiv_eq, exact to_right_inv f
+  end
+
+  definition tcast [unfold 4] {n : ℕ₋₂} {A B : n-Type} (p : A = B) (a : A) : B :=
+  cast (ap trunctype.carrier p) a
+
+  theorem tcast_tua_fn {n : ℕ₋₂} {A B : n-Type} (f : A ≃ B) : tcast (tua f) = to_fun f :=
+  begin
+    cases A with A HA, cases B with B HB, esimp at *,
+    induction f using rec_on_ua_idp, esimp,
+    have HA = HB, from !is_prop.elim, cases this,
+    exact ap tcast !tua_refl
+  end
+
   /- theorems about decidable equality and axiom K -/
   theorem is_set_of_axiom_K {A : Type} (K : Π{a : A} (p : a = a), p = idp) : is_set A :=
   is_set.mk _ (λa b p q, eq.rec K q p)

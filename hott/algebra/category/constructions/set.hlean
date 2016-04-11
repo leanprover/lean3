@@ -44,7 +44,7 @@ namespace category
       : is_equiv (@iso_of_equiv A B) :=
     adjointify _ (λf, equiv_of_iso f)
                  (λf, proof iso_eq idp qed)
-                 (λf, equiv_eq idp)
+                 (λf, equiv_eq' idp)
 
     local attribute is_equiv_iso_of_equiv [instance]
 
@@ -60,7 +60,7 @@ namespace category
                            (ap10 (to_right_inverse f))
                            (ap10 (to_left_inverse  f)) qed)
              (λf, proof iso_eq idp qed)
-             (λf, proof equiv_eq idp qed)
+             (λf, proof equiv_eq' idp qed)
 
     definition equiv_eq_iso (A B : set) : (A ≃ B) = (A ≅ B) :=
     ua !equiv_equiv_iso

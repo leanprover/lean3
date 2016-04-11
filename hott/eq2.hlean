@@ -118,5 +118,13 @@ namespace eq
     con_tr idp q u = ap (λp, p ▸ u) (idp_con q) :=
   by induction q;reflexivity
 
+  definition transport_eq_Fl_idp_left {A B : Type} {a : A} {b : B} (f : A → B) (q : f a = b)
+    : transport_eq_Fl idp q = !idp_con⁻¹ :=
+  by induction q; reflexivity
+
+  definition whisker_left_idp_con_eq_assoc
+    {A : Type} {a₁ a₂ a₃ : A} (p : a₁ = a₂) (q : a₂ = a₃)
+    : whisker_left p (idp_con q)⁻¹ = con.assoc p idp q :=
+  by induction q; reflexivity
 
 end eq

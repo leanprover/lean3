@@ -332,6 +332,7 @@ namespace simple_two_quotient
 end
 end simple_two_quotient
 
+export [unfold] simple_two_quotient
 attribute simple_two_quotient.j simple_two_quotient.incl0 [constructor]
 attribute simple_two_quotient.rec simple_two_quotient.elim [unfold 8] [recursor 8]
 --attribute simple_two_quotient.elim_type [unfold 9] -- TODO
@@ -370,8 +371,8 @@ namespace two_quotient
     { exact P0 a},
     { exact P1 s},
     { exact abstract [irreducible] begin induction q with a a' t t' q,
-      rewrite [elimo_con (simple_two_quotient.incl1 R Q2) P1,
-               elimo_inv (simple_two_quotient.incl1 R Q2) P1,
+      rewrite [elimo_trans (simple_two_quotient.incl1 R Q2) P1,
+               elimo_symm (simple_two_quotient.incl1 R Q2) P1,
                -whisker_right_eq_of_con_inv_eq_idp (simple_two_quotient.incl2 R Q2 (Qmk R q)),
                change_path_con],
       xrewrite [change_path_cono],
@@ -430,7 +431,7 @@ namespace two_quotient
     {P1 : Π⦃a a' : A⦄ (s : R a a'), P0 a = P0 a'}
     (P2 : Π⦃a a' : A⦄ ⦃t t' : T a a'⦄ (q : Q t t'), e_closure.elim P1 t = e_closure.elim P1 t')
     ⦃a a' : A⦄ (t : T a a') : ap (elim P0 P1 P2) (inclt t) = e_closure.elim P1 t :=
-  !elim_inclt
+  ap_e_closure_elim_h incl1 (elim_incl1 P2) t
 
   theorem elim_incl2 {P : Type} (P0 : A → P)
     (P1 : Π⦃a a' : A⦄ (s : R a a'), P0 a = P0 a')

@@ -6,26 +6,26 @@ Authors: Floris van Doorn
 homotopy groups of a pointed space
 -/
 
-import .trunc_group .hott types.trunc
+import .trunc_group types.trunc .group_theory
 
 open nat eq pointed trunc is_trunc algebra
 
 namespace eq
 
-  definition phomotopy_group [constructor] (n : ℕ) (A : Type*) : Set* :=
+  definition phomotopy_group [reducible] [constructor] (n : ℕ) (A : Type*) : Set* :=
   ptrunc 0 (Ω[n] A)
 
   definition homotopy_group [reducible] (n : ℕ) (A : Type*) : Type :=
   phomotopy_group n A
 
-  notation `π*[`:95  n:0    `] `:0 A:95 := phomotopy_group n A
-  notation `π[`:95 n:0 `] `:0 A:95 := homotopy_group n A
+  notation `π*[`:95 n:0 `] `:0 := phomotopy_group n
+  notation `π[`:95  n:0 `] `:0 :=  homotopy_group n
 
-  definition group_homotopy_group [instance] [constructor] (n : ℕ) (A : Type*)
+  definition group_homotopy_group [instance] [constructor] [reducible] (n : ℕ) (A : Type*)
     : group (π[succ n] A) :=
   trunc_group concat inverse idp con.assoc idp_con con_idp con.left_inv
 
-  definition comm_group_homotopy_group [constructor] (n : ℕ) (A : Type*)
+  definition comm_group_homotopy_group [constructor] [reducible] (n : ℕ) (A : Type*)
     : comm_group (π[succ (succ n)] A) :=
   trunc_comm_group concat inverse idp con.assoc idp_con con_idp con.left_inv eckmann_hilton
 
@@ -43,7 +43,15 @@ namespace eq
   notation `πg[`:95  n:0 ` +1] `:0 A:95 := ghomotopy_group n A
   notation `πag[`:95 n:0 ` +2] `:0 A:95 := cghomotopy_group n A
 
-  prefix `π₁`:95 := fundamental_group
+  notation `π₁` := fundamental_group
+
+  definition tr_mul_tr {n : ℕ} {A : Type*} (p q : Ω[n + 1] A) :
+    tr p *[πg[n+1] A] tr q = tr (p ⬝ q) :=
+  by reflexivity
+
+  definition tr_mul_tr' {n : ℕ} {A : Type*} (p q : Ω[succ n] A)
+    : tr p *[π[succ n] A] tr q = tr (p ⬝ q) :=
+  idp
 
   definition phomotopy_group_pequiv [constructor] (n : ℕ) {A B : Type*} (H : A ≃* B)
     : π*[n] A ≃* π*[n] B :=
@@ -105,8 +113,8 @@ namespace eq
   definition homotopy_group_functor (n : ℕ) {A B : Type*} (f : A →* B) : π[n] A → π[n] B :=
   phomotopy_group_functor n f
 
-  notation `π→*[`:95 n:0 `] `:0 f:95 := phomotopy_group_functor n f
-  notation `π→[`:95  n:0 `] `:0 f:95 :=  homotopy_group_functor n f
+  notation `π→*[`:95 n:0 `] `:0 := phomotopy_group_functor n
+  notation `π→[`:95  n:0 `] `:0 :=  homotopy_group_functor n
 
   definition tinverse [constructor] {X : Type*} : π*[1] X →* π*[1] X :=
   ptrunc_functor 0 pinverse
@@ -132,7 +140,36 @@ namespace eq
     apply ap tr, apply apn_con
   end
 
+  open group function
 
+  /- some homomorphisms -/
 
+  definition is_homomorphism_cast_loop_space_succ_eq_in {A : Type*} (n : ℕ) :
+    is_homomorphism
+      (cast (ap (trunc 0 ∘ pointed.carrier) (loop_space_succ_eq_in A (succ n)))
+        : πg[n+1+1] A → πg[n+1] Ω A) :=
+  begin
+    intro g h, induction g with g, induction h with h,
+    xrewrite [tr_mul_tr, - + fn_cast_eq_cast_fn _ (λn, tr), tr_mul_tr, ↑cast, -tr_compose,
+              loop_space_succ_eq_in_concat, - + tr_compose],
+  end
+
+  definition is_homomorphism_inverse (A : Type*) (n : ℕ)
+    : is_homomorphism (λp, p⁻¹ : πag[n+2] A → πag[n+2] A) :=
+  begin
+    intro g h, rewrite mul.comm,
+    induction g with g, induction h with h,
+    exact ap tr !con_inv
+  end
+
+  definition homotopy_group_homomorphism [constructor] (n : ℕ) {A B : Type*} (f : A →* B)
+    : πg[n+1] A →g πg[n+1] B :=
+  begin
+    fconstructor,
+    { exact phomotopy_group_functor (n+1) f},
+    { apply phomotopy_group_functor_mul}
+  end
+
+  notation `π→g[`:95  n:0 ` +1] `:0 f:95 := homotopy_group_homomorphism n f
 
 end eq

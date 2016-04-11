@@ -383,3 +383,35 @@ namespace iso
   by rewrite [-comp_inverse_cancel_right r q, H, comp_inverse_cancel_right _ q]
   end
 end iso
+
+namespace iso
+
+  /- precomposition and postcomposition by an iso is an equivalence -/
+
+  definition is_equiv_postcompose [constructor] {ob : Type} [precategory ob] {a b c : ob}
+    (g : b ⟶ c) [is_iso g] : is_equiv (λ(f : a ⟶ b), g ∘ f) :=
+  begin
+    fapply adjointify,
+    { exact λf', g⁻¹ ∘ f'},
+    { intro f', apply comp_inverse_cancel_left},
+    { intro f, apply inverse_comp_cancel_left}
+  end
+
+  definition equiv_postcompose [constructor] {ob : Type} [precategory ob] {a b c : ob}
+    (g : b ⟶ c) [is_iso g] : (a ⟶ b) ≃ (a ⟶ c) :=
+  equiv.mk (λ(f : a ⟶ b), g ∘ f) (is_equiv_postcompose g)
+
+  definition is_equiv_precompose [constructor] {ob : Type} [precategory ob] {a b c : ob}
+    (f : a ⟶ b) [is_iso f] : is_equiv (λ(g : b ⟶ c), g ∘ f) :=
+  begin
+    fapply adjointify,
+    { exact λg', g' ∘ f⁻¹},
+    { intro g', apply comp_inverse_cancel_right},
+    { intro g, apply inverse_comp_cancel_right}
+  end
+
+  definition equiv_precompose [constructor] {ob : Type} [precategory ob] {a b c : ob}
+    (f : a ⟶ b) [is_iso f] : (b ⟶ c) ≃ (a ⟶ c) :=
+  equiv.mk (λ(g : b ⟶ c), g ∘ f) (is_equiv_precompose f)
+
+end iso

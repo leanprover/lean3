@@ -69,6 +69,10 @@ namespace susp
     (a : A) : transport (susp.elim_type PN PS Pm) (merid a) = Pm a :=
   !elim_type_glue
 
+  theorem elim_type_merid_inv {A : Type} (PN : Type) (PS : Type) (Pm : A → PN ≃ PS)
+    (a : A) : transport (susp.elim_type PN PS Pm) (merid a)⁻¹ = to_inv (Pm a) :=
+  !elim_type_glue_inv
+
   protected definition merid_square {a a' : A} (p : a = a')
     : square (merid a) (merid a') idp idp :=
   by cases p; apply vrefl
@@ -198,12 +202,12 @@ namespace susp
 end susp
 
 open susp
-definition psusp [constructor] (X : Type) : pType :=
+definition psusp [constructor] (X : Type) : Type* :=
 pointed.mk' (susp X)
 
 namespace susp
   open pointed
-  variables {X Y Z : pType}
+  variables {X Y Z : Type*}
 
   definition psusp_functor (f : X →* Y) : psusp X →* psusp Y :=
   begin
@@ -234,7 +238,7 @@ namespace susp
 
   -- adjunction from Coq-HoTT
 
-  definition loop_susp_unit [constructor] (X : pType) : X →* Ω(psusp X) :=
+  definition loop_susp_unit [constructor] (X : Type*) : X →* Ω(psusp X) :=
   begin
     fconstructor,
     { intro x, exact merid x ⬝ (merid pt)⁻¹},
@@ -263,7 +267,7 @@ namespace susp
       xrewrite [idp_con_idp, -ap_compose (concat idp)]},
   end
 
-  definition loop_susp_counit [constructor] (X : pType) : psusp (Ω X) →* X :=
+  definition loop_susp_counit [constructor] (X : Type*) : psusp (Ω X) →* X :=
   begin
     fconstructor,
     { intro x, induction x, exact pt, exact pt, exact a},
@@ -284,7 +288,7 @@ namespace susp
     { reflexivity}
   end
 
-  definition loop_susp_counit_unit (X : pType)
+  definition loop_susp_counit_unit (X : Type*)
     : ap1 (loop_susp_counit X) ∘* loop_susp_unit (Ω X) ~* pid (Ω X) :=
   begin
     induction X with X x, fconstructor,
@@ -298,7 +302,7 @@ namespace susp
       xrewrite [ap_con_right_inv (susp.elim x x (λa, a)) (merid idp),idp_con_idp,-ap_compose]}
   end
 
-  definition loop_susp_unit_counit (X : pType)
+  definition loop_susp_unit_counit (X : Type*)
     : loop_susp_counit (psusp X) ∘* psusp_functor (loop_susp_unit X) ~* pid (psusp X) :=
   begin
     induction X with X x, fconstructor,
@@ -311,7 +315,7 @@ namespace susp
     { reflexivity}
   end
 
-  definition susp_adjoint_loop (X Y : pType) : map₊ (pointed.mk' (susp X)) Y ≃ map₊ X (Ω Y) :=
+  definition susp_adjoint_loop (X Y : Type*) : pointed.mk' (susp X) →* Y ≃ X →* Ω Y :=
   begin
     fapply equiv.MK,
     { intro f, exact ap1 f ∘* loop_susp_unit X},

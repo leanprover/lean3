@@ -7,7 +7,7 @@ Ported from Coq HoTT
 Theorems about fibers
 -/
 
-import .sigma .eq .pi
+import .sigma .eq .pi cubical.squareover
 open equiv sigma sigma.ops eq pi
 
 structure fiber {A B : Type} (f : A → B) (b : B) :=
@@ -42,6 +42,20 @@ namespace fiber
   definition fiber_eq {x y : fiber f b} (p : point x = point y)
     (q : point_eq x = ap f p ⬝ point_eq y) : x = y :=
   to_inv !fiber_eq_equiv ⟨p, q⟩
+
+  definition fiber_pathover {X : Type} {A B : X → Type} {x₁ x₂ : X} {p : x₁ = x₂}
+    {f : Πx, A x → B x} {b : Πx, B x} {v₁ : fiber (f x₁) (b x₁)} {v₂ : fiber (f x₂) (b x₂)}
+    (q : point v₁ =[p] point v₂)
+    (r : squareover B hrfl (pathover_idp_of_eq (point_eq v₁)) (pathover_idp_of_eq (point_eq v₂))
+                           (apo f q) (apd b p))
+    : v₁ =[p] v₂ :=
+  begin
+    apply pathover_of_fn_pathover_fn (λa, !fiber.sigma_char), esimp,
+    fapply sigma_pathover: esimp,
+    { exact q},
+    { induction v₁ with a₁ p₁, induction v₂ with a₂ p₂, esimp at *, induction q, esimp at *,
+      apply pathover_idp_of_eq, apply eq_of_vdeg_square, apply square_of_squareover_ids r}
+  end
 
   open is_trunc
   definition fiber_pr1 (B : A → Type) (a : A) : fiber (pr1 : (Σa, B a) → A) a ≃ B a :=

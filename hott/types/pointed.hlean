@@ -318,7 +318,7 @@ namespace pointed
   definition apn_succ [unfold_full] (n : ℕ) (f : map₊ A B) : Ω→[n + 1] f = ap1 (Ω→[n] f) := idp
 
   definition pcast [constructor] {A B : Type*} (p : A = B) : A →* B :=
-  proof pmap.mk (cast (ap pType.carrier p)) (by induction p; reflexivity) qed
+  pmap.mk (cast (ap pType.carrier p)) (by induction p; reflexivity)
 
   definition pinverse [constructor] {X : Type*} : Ω X →* Ω X :=
   pmap.mk eq.inverse idp
@@ -439,6 +439,9 @@ namespace pointed
     : f ~* h :=
   phomotopy_of_eq p ⬝* q
 
+  infix ` ⬝*p `:75 := pconcat_eq
+  infix ` ⬝p* `:75 := eq_pconcat
+
   definition pwhisker_left [constructor] (h : B →* C) (p : f ~* g) : h ∘* f ~* h ∘* g :=
   phomotopy.mk (λa, ap h (p a))
     abstract begin
@@ -508,8 +511,12 @@ namespace pointed
   theorem apn_inv (n : ℕ)  (f : A →* B) (p : Ω[n+1] A) : apn (n+1) f p⁻¹ = (apn (n+1) f p)⁻¹ :=
   by rewrite [+apn_succ, ap1_inv]
 
-  infix ` ⬝*p `:75 := pconcat_eq
-  infix ` ⬝p* `:75 := eq_pconcat
+  definition pinverse_pinverse (A : Type*) : pinverse ∘* pinverse ~* pid (Ω A) :=
+  begin
+    fapply phomotopy.mk,
+    { apply inv_inv},
+    { reflexivity}
+  end
 
   /- pointed equivalences -/
 
@@ -528,6 +535,10 @@ namespace pointed
 
   definition to_pinv [constructor] (f : A ≃* B) : B →* A :=
   pmap.mk f⁻¹ ((ap f⁻¹ (respect_pt f))⁻¹ ⬝ left_inv f pt)
+
+  definition to_pmap_pequiv_of_pmap {A B : Type*} (f : A →* B) (H : is_equiv f)
+    : pequiv.to_pmap (pequiv_of_pmap f H) = f :=
+  by cases f; reflexivity
 
   /-
      A version of pequiv.MK with stronger conditions.
@@ -570,10 +581,14 @@ namespace pointed
   pequiv_of_pmap (to_pinv f) !is_equiv_inv
 
   protected definition pequiv.trans [trans] (f : A ≃* B) (g : B ≃* C) : A ≃* C :=
-  pequiv_of_pmap (pcompose g f) !is_equiv_compose
+  pequiv_of_pmap (g ∘* f) !is_equiv_compose
 
   postfix `⁻¹ᵉ*`:(max + 1) := pequiv.symm
   infix ` ⬝e* `:75 := pequiv.trans
+
+  definition to_pmap_pequiv_trans {A B C : Type*} (f : A ≃* B) (g : B ≃* C)
+    : pequiv.to_pmap (f ⬝e* g) = g ∘* f :=
+  !to_pmap_pequiv_of_pmap
 
   definition pequiv_change_fun [constructor] (f : A ≃* B) (f' : A →* B) (Heq : f ~ f') : A ≃* B :=
   pequiv_of_pmap f' (is_equiv.homotopy_closed f Heq)
@@ -736,14 +751,14 @@ namespace pointed
   ap1_con (loopn_pequiv_loopn n f) p q
 
   definition loopn_pequiv_loopn_rfl (n : ℕ) (A : Type*) :
-    loopn_pequiv_loopn n (@pequiv.refl A) = @pequiv.refl (Ω[n] A) :=
+    loopn_pequiv_loopn n (pequiv.refl A) = pequiv.refl (Ω[n] A) :=
   begin
     apply pequiv_eq, apply eq_of_phomotopy,
     exact !to_pmap_loopn_pequiv_loopn ⬝* apn_pid n,
   end
 
   definition loop_pequiv_loop_rfl (A : Type*) :
-    loop_pequiv_loop (@pequiv.refl A) = @pequiv.refl (Ω A) :=
+    loop_pequiv_loop (pequiv.refl A) = pequiv.refl (Ω A) :=
   loopn_pequiv_loopn_rfl 1 A
 
   definition pmap_functor [constructor] {A A' B B' : Type*} (f : A' →* A) (g : B →* B') :
@@ -754,6 +769,9 @@ namespace pointed
       { esimp, intro a, exact respect_pt g},
       { rewrite [▸*, ap_constant], apply idp_con}
     end end
+
+  definition pequiv_pinverse (A : Type*) : Ω A ≃* Ω A :=
+  pequiv_of_pmap pinverse !is_equiv_eq_inverse
 
 /- -- TODO
   definition pmap_pequiv_pmap {A A' B B' : Type*} (f : A ≃* A') (g : B ≃* B') :

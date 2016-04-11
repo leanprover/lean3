@@ -67,7 +67,7 @@ namespace sphere_index
   | sp_refl : le a a
   | step : Π {b}, le a b → le a (b.+1)
 
-  infix `+1+`:65 := sphere_index.add_plus_one
+  infix ` +1+ `:65 := sphere_index.add_plus_one
 
   definition has_add_sphere_index [instance] [priority 2000] [reducible] : has_add ℕ₋₁ :=
   has_add.mk sphere_index.add
@@ -75,7 +75,7 @@ namespace sphere_index
   definition has_le_sphere_index [instance] : has_le ℕ₋₁ :=
   has_le.mk sphere_index.le
 
-  definition of_nat [coercion] [reducible] (n : nat) : ℕ₋₁ :=
+  definition of_nat [coercion] [reducible] (n : ℕ) : ℕ₋₁ :=
   (nat.rec_on n -1 (λ n k, k.+1)).+1
 
   definition sub_one [reducible] (n : ℕ) : ℕ₋₁ :=
