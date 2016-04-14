@@ -59,7 +59,7 @@ namespace susp
 
   protected definition elim_type (PN : Type) (PS : Type) (Pm : A → PN ≃ PS)
     (x : susp A) : Type :=
-  susp.elim PN PS (λa, ua (Pm a)) x
+  pushout.elim_type (λx, PN) (λx, PS) Pm x
 
   protected definition elim_type_on [reducible] (x : susp A)
     (PN : Type) (PS : Type)  (Pm : A → PN ≃ PS) : Type :=
@@ -67,7 +67,7 @@ namespace susp
 
   theorem elim_type_merid (PN : Type) (PS : Type) (Pm : A → PN ≃ PS)
     (a : A) : transport (susp.elim_type PN PS Pm) (merid a) = Pm a :=
-  by rewrite [tr_eq_cast_ap_fn,↑susp.elim_type,elim_merid];apply cast_ua_fn
+  !elim_type_glue
 
   protected definition merid_square {a a' : A} (p : a = a')
     : square (merid a) (merid a') idp idp :=
@@ -134,8 +134,7 @@ namespace susp
 
     protected definition flattening : sigma P ≃ pushout F G :=
     begin
-      apply equiv.trans (pushout.flattening (λ(a : A), star) (λ(a : A), star)
-        (λx, unit.cases_on x PN) (λx, unit.cases_on x PS) Pm),
+      apply equiv.trans !pushout.flattening,
       fapply pushout.equiv,
       { exact sigma.equiv_prod A PN },
       { apply sigma.sigma_unit_left },
