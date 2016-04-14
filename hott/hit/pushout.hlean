@@ -71,8 +71,9 @@ parameters {TL BL TR : Type} (f : TL → BL) (g : TL → TR)
   end
 
   protected definition elim_type (Pinl : BL → Type) (Pinr : TR → Type)
-    (Pglue : Π(x : TL), Pinl (f x) ≃ Pinr (g x)) (y : pushout) : Type :=
-  elim Pinl Pinr (λx, ua (Pglue x)) y
+    (Pglue : Π(x : TL), Pinl (f x) ≃ Pinr (g x)) : pushout → Type :=
+  quotient.elim_type (sum.rec Pinl Pinr)
+    begin intro v v' r, induction r, apply Pglue end
 
   protected definition elim_type_on [reducible] (y : pushout) (Pinl : BL → Type)
     (Pinr : TR → Type) (Pglue : Π(x : TL), Pinl (f x) ≃ Pinr (g x)) : Type :=
@@ -81,7 +82,7 @@ parameters {TL BL TR : Type} (f : TL → BL) (g : TL → TR)
   theorem elim_type_glue (Pinl : BL → Type) (Pinr : TR → Type)
     (Pglue : Π(x : TL), Pinl (f x) ≃ Pinr (g x)) (x : TL)
     : transport (elim_type Pinl Pinr Pglue) (glue x) = Pglue x :=
-  by rewrite [tr_eq_cast_ap_fn,↑elim_type,elim_glue];apply cast_ua_fn
+  !elim_type_eq_of_rel_fn
 
   protected definition rec_prop {P : pushout → Type} [H : Πx, is_prop (P x)]
     (Pinl : Π(x : BL), P (inl x)) (Pinr : Π(x : TR), P (inr x)) (y : pushout) :=
@@ -150,37 +151,9 @@ namespace pushout
     local abbreviation G : sigma (Pinl ∘ f) → sigma Pinr :=
     λz, ⟨ g z.1 , Pglue z.1 z.2 ⟩
 
-    local abbreviation Pglue' : Π ⦃a a' : A⦄,
-      R a a' → sum.rec Pinl Pinr a ≃ sum.rec Pinl Pinr a' :=
-    @pushout_rel.rec TL BL TR f g
-     (λ ⦃a a' ⦄ (r : R a a'),
-       (sum.rec Pinl Pinr a) ≃ (sum.rec Pinl Pinr a')) Pglue
-
     protected definition flattening : sigma P ≃ pushout F G :=
     begin
-      have H : Πz, P z ≃ quotient.elim_type (sum.rec Pinl Pinr) Pglue' z,
-      begin
-        intro z, apply equiv_of_eq,
-        have H1 : pushout.elim_type Pinl Pinr Pglue
-                  = quotient.elim_type (sum.rec Pinl Pinr) Pglue',
-        begin
-        change
-      quotient.rec (sum.rec Pinl Pinr)
-        (λa a' r, pushout_rel.cases_on r (λx, pathover_of_eq (ua (Pglue x))))
-    = quotient.rec (sum.rec Pinl Pinr)
-        (λa a' r, pathover_of_eq (ua (pushout_rel.cases_on r Pglue))),
-          have H2 : Π⦃a a'⦄ r : pushout_rel f g a a',
-      pushout_rel.cases_on r (λx, pathover_of_eq (ua (Pglue x)))
-    = pathover_of_eq (ua (pushout_rel.cases_on r Pglue))
-      :> sum.rec Pinl Pinr a =[eq_of_rel (pushout_rel f g) r]
-         sum.rec Pinl Pinr a',
-          begin intros a a' r, cases r, reflexivity end,
-          rewrite (eq_of_homotopy3 H2)
-        end,
-        apply ap10 H1
-      end,
-      apply equiv.trans (sigma_equiv_sigma_right H),
-      apply equiv.trans (quotient.flattening.flattening_lemma R (sum.rec Pinl Pinr) Pglue'),
+      apply equiv.trans !quotient.flattening.flattening_lemma,
       fapply equiv.MK,
       { intro q, induction q with z z z' fr,
         { induction z with a p, induction a with x x,
