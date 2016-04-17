@@ -526,6 +526,7 @@ int main(int argc, char ** argv) {
             // to implement a sophisticated usage analysis
             // to do erasure.
             lean::c_backend backend(env, main_fn);
+            backend.generate_code(optional<std::string>());
         }
         if (ok && server && (default_k == input_kind::Lean || default_k == input_kind::HLean)) {
             signal(SIGINT, on_ctrl_c);

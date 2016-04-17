@@ -8,25 +8,20 @@ Author: Jared Roesch
 
 #include <iostream>
 #include "kernel/environment.h"
+#include "backend.h"
 #include "simple_expr.h"
 
 namespace lean  {
-    struct proc {
-        name m_name;
-        simple_expr m_body;
-        proc(name m_name, simple_expr body) : m_name(m_name), m_body(body) {}
-    };
-
-    class c_backend {
-        environment const & m_env;
-        std::vector<proc> m_procs;
+    class c_backend : backend {
     public:
         c_backend(environment const & env, optional<std::string> main_fn);
-        simple_expr compile_expr(expr const & e);
-        simple_expr compile_expr(expr const & e, std::vector<binding> & bindings);
-        simple_expr compile_expr_app(expr const & e, std::vector<binding> & bindings);
-        simple_expr compile_error(std::string s);
-        void compile_decl(declaration const & d);
-        void add_proc(proc p);
+        virtual void generate_code(optional<std::string> output_path);
+        virtual void generate_proc(std::ostream& os, proc const & p);
+        virtual void generate_simple_expr(std::ostream& os, simple_expr const & se);
+        void generate_binding(std::ostream& os, pair<name, shared_ptr<simple_expr>> & p);
+        void generate_simple_expr_let(std::ostream& os, simple_expr const & se);
+        void generate_simple_expr_call(std::ostream& os, simple_expr const & se);
+        void generate_simple_expr_error(std::ostream& os, simple_expr const & se);
+        void generate_simple_expr_var(std::ostream& os, simple_expr const & se);
     };
 }
