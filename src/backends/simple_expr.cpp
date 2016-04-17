@@ -21,4 +21,11 @@ namespace lean {
         se.display(os);
         return os;
     }
+
+    name var_name(simple_expr const & se) {
+        // assert it is teh right type
+        //auto ref = static_cast<simple_expr_var const &>(se);
+        //return ref.m_name;
+        return name("a_var");
+    }
 }
