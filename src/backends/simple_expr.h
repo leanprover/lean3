@@ -64,6 +64,18 @@ namespace lean  {
     inline bool simple_is_let(simple_expr const & e) {
         return e.kind() == simple_expr_kind::Let;
     }
+
+    inline bool simple_is_call(simple_expr const & e) {
+        return e.kind() == simple_expr_kind::Call;
+    }
+
+    inline bool simple_is_error(simple_expr const & e) {
+        return e.kind() == simple_expr_kind::Error;
+    }
+
+    inline bool simple_is_var(simple_expr const & e) {
+        return e.kind() == simple_expr_kind::SVar;
+    }
     // inline bool is_var(expr_ptr e)         { return e->kind() == expr_kind::Var; }
     // inline bool is_constant(expr_ptr e)    { return e->kind() == expr_kind::Constant; }
     // inline bool is_local(expr_ptr e)       { return e->kind() == expr_kind::Local; }
@@ -85,11 +97,24 @@ namespace lean  {
     // inline expr_mlocal *      to_mlocal(expr_ptr e)     { lean_assert(is_mlocal(e));      return static_cast<expr_mlocal*>(e); }
     // inline expr_local *       to_local(expr_ptr e)      { lean_assert(is_local(e));       return static_cast<expr_local*>(e); }
     // inline expr_mlocal *      to_metavar(expr_ptr e)    { lean_assert(is_metavar(e));     return static_cast<expr_mlocal*>(e); }
+    inline simple_expr_call const * to_simple_call(simple_expr const * e) {
+        lean_assert(simple_is_call(*e));
+        return static_cast<simple_expr_call const *>(e);
+    }
+
     inline simple_expr_let const * to_simple_let(simple_expr const * e) {
         lean_assert(simple_is_let(*e));
         return static_cast<simple_expr_let const *>(e);
     }
-    // inline expr_macro *       to_macro(expr_ptr e)      { lean_assert(is_macro(e));       return static_cast<expr_macro*>(e); }
 
-    name var_name(simple_expr const & se);
+    inline simple_expr_error const * to_simple_error(simple_expr const * e) {
+        lean_assert(simple_is_error(*e));
+        return static_cast<simple_expr_error const *>(e);
+    }
+
+    inline simple_expr_var const * to_simple_var(simple_expr const * e) {
+        lean_assert(simple_is_var(*e));
+        return static_cast<simple_expr_var const *>(e);
+    }
+    // inline expr_macro *       to_macro(expr_ptr e)      { lean_assert(is_macro(e));       return static_cast<expr_macro*>(e); }
 }
