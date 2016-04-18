@@ -13,6 +13,15 @@ Author: Jared Roesch
 namespace lean  {
     using std::shared_ptr;
 
+    struct ctor {
+        int m_ctor_index;
+        name m_name;
+        int m_arity;
+        
+        ctor(int m_ctor_index, name m_name, int m_arity)
+            : m_ctor_index(m_ctor_index), m_name(m_name), m_arity(m_arity) {}
+    };
+
     struct proc {
         name m_name;
         std::vector<name> m_args;
@@ -22,11 +31,12 @@ namespace lean  {
             : m_name(m_name), m_args(args), m_body(body) {}
     };
 
-    // Represents a code generation backend.
+    // Represents a code generation backend
     class backend {
     protected:
         environment const & m_env;
         std::vector<proc> m_procs;
+        std::vector<ctor> m_ctors;
     public:
         backend(environment const & env, optional<std::string> main_fn);
         // This inteface is used for lowering core expressions down to

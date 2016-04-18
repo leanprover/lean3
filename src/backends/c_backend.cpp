@@ -26,7 +26,9 @@ c_backend::c_backend(environment const & env, optional<std::string> main_fn)
 // Not really sure if this is suffcient mangling. I can polish this
 // over time, first attempt to is to get a linked executable.
 void mangle_name(std::ostream& os, name const & n) {
-    if (n.is_anonymous()) {
+    if (n == name("main")) {
+        os << "___lean__main";
+    } else if (n.is_anonymous()) {
         os << "anon_name?";
     } else if (n.is_string()) {
         auto s = n.to_string("_");
@@ -40,12 +42,14 @@ void mangle_name(std::ostream& os, name const & n) {
 }
 
 void generate_includes(std::ostream& os) {
-    os << "#include \"lean/runtime.h\"" << std::endl << std::endl;
+    os << "#include \"lean_runtime.h\"" << std::endl << std::endl;
 }
 
-void generate_main(std::ostream& os) {
+void generate_main(std::ostream& os, std::string main_fn) {
     os << "int main() {" << std::endl;
-    os << std::setw(4) << "run_main(___main);" << std::endl;
+    os << std::setw(4) << "run_main(";
+    mangle_name(os, main_fn);
+    os << ");" << std::endl;
     os << std::setw(4) << "return 0;" << std::endl;
     os << "}" << std::endl;
 }
@@ -53,17 +57,59 @@ void generate_main(std::ostream& os) {
 void c_backend::generate_code(optional<std::string> output_path) {
     std::fstream fs("out.cpp", std::ios_base::out);
     generate_includes(fs);
+    // First generate code for constructors.
+    for (auto ctor : this->m_ctors) {
+        generate_ctor(fs, ctor);
+        fs << std::endl;
+    }
+
+    // Then generate code for procs.
     for (auto proc : this->m_procs) {
         this->generate_proc(fs, proc);
         fs << std::endl;
     }
-    generate_main(fs);
+
+    // Finally generate the shim for main.
+    generate_main(fs, "main");
     fs.flush();
     fs.close();
 }
 
+void c_backend::generate_ctor(std::ostream& os, ctor const & c) {
+    os << LEAN_OBJ_TYPE << " ";
+    mangle_name(os, c.m_name);
+    os  << "(";
+
+    // auto comma = false;
+    //
+    // for (auto arg : p.m_args) {
+    //     if (comma) {
+    //         os << ", ";
+    //     } else {
+    //         comma = true;
+    //     }
+    //     os << LEAN_OBJ_TYPE << " ";
+    //     mangle_name(os, arg);
+    // }
+    //
+    os << ") {" << std::endl;
+
+    os << "return lean::mk_obj(";
+    os << c.m_ctor_index;
+    os << ");";
+
+    // os << std::left << std::setw(4);
+    // os.flush();
+    // this->generate_simple_expr(os, *p.m_body);
+    // //os.width(0);
+    //
+    os << std::endl << "}" << std::endl;
+}
+
 void c_backend::generate_proc(std::ostream& os, proc const & p) {
-    os << LEAN_OBJ_TYPE << " " << p.m_name << "(";
+    os << LEAN_OBJ_TYPE << " ";
+    mangle_name(os, p.m_name);
+    os << "(";
 
     auto comma = false;
 
@@ -102,7 +148,7 @@ void c_backend::generate_simple_expr_call(std::ostream& os, simple_expr const & 
 
     mangle_name(os, callee);
 
-    os << "(";
+    os << ".apply(";
     auto comma = false;
 
     for (auto name : args) {
@@ -134,7 +180,9 @@ void c_backend::generate_simple_expr_let(std::ostream& os, simple_expr const & s
     for (auto binding : bindings) {
         this->generate_binding(os, binding);
     }
+    os << "return ";
     this->generate_simple_expr(os, *body);
+    os << ";";
 }
 
 void c_backend::generate_simple_expr(std::ostream& os, simple_expr const & se) {
