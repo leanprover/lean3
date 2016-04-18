@@ -18,36 +18,36 @@ Author: Jared Roesch
 
 namespace lean {
 
-void print_decl(environment const & env, declaration const & d) {
-    if (d.is_axiom()) {
-        std::cout << "axiom: " << std::endl;
-        std::cout << d.get_name() << std::endl;
-    } else if (d.is_definition()) {
-        std::cout << "def: "
-        << d.get_name()
-        << " : " << d.get_type() << " := "
-        << d.get_value() << std::endl;
-    } else if (d.is_constant_assumption()) {
-        // bool is_definition() const;
-        // bool is_axiom() const;
-        // bool is_theorem() const;
-        // bool is_constant_assumption() const;
-
-        std::cout << "constant assumption: " << std::endl;
-        std::cout << d.get_name() << " : " << d.get_type() << std::endl;
-        bool is_inductive;
-
-        if (inductive::is_intro_rule(env, d.get_name())) {
-            is_inductive = true;
-        } else {
-            is_inductive = false;
-        }
-        std::cout << is_inductive << std::endl;
-
-    } else if (d.is_theorem()) {
-        std::cout << "theorem" << std::endl;
-    }
-}
+// void print_decl(environment const & env, declaration const & d) {
+//     if (d.is_axiom()) {
+//         std::cout << "axiom: " << std::endl;
+//         std::cout << d.get_name() << std::endl;
+//     } else if (d.is_definition()) {
+//         std::cout << "def: "
+//         << d.get_name()
+//         << " : " << d.get_type() << " := "
+//         << d.get_value() << std::endl;
+//     } else if (d.is_constant_assumption()) {
+//         // bool is_definition() const;
+//         // bool is_axiom() const;
+//         // bool is_theorem() const;
+//         // bool is_constant_assumption() const;
+//
+//         std::cout << "constant assumption: " << std::endl;
+//         std::cout << d.get_name() << " : " << d.get_type() << std::endl;
+//         bool is_inductive;
+//
+//         if (inductive::is_intro_rule(env, d.get_name())) {
+//             is_inductive = true;
+//         } else {
+//             is_inductive = false;
+//         }
+//         std::cout << is_inductive << std::endl;
+//
+//     } else if (d.is_theorem()) {
+//         std::cout << "theorem" << std::endl;
+//     }
+// }
 
 backend::backend(environment const & env, optional<std::string> main_fn)
     : m_env(env) {
@@ -81,16 +81,13 @@ void backend::compile_decl(declaration const & d) {
         auto p = proc(d.get_name(), args, se);
         this->add_proc(p);
     } else if (d.is_constant_assumption()) {
-        std::cout << "constant assumption: " << std::endl;
-        std::cout << d.get_name() << " : " << d.get_type() << std::endl;
-        bool is_inductive;
-
-        if (inductive::is_intro_rule(this->m_env, d.get_name())) {
-            is_inductive = true;
+        if (auto n = inductive::is_intro_rule(this->m_env, d.get_name())) {
+            auto ind = inductive::is_inductive_decl(this->m_env, n.value());
+            std::cout << "inductive type " << n.value() << std::endl;
+            this->m_ctors.push_back(ctor(0, d.get_name(), 0));
         } else {
-            is_inductive = false;
+            std::cout << "unhandled constant assumption: " << std::endl;
         }
-        std::cout << is_inductive << std::endl;
     } else if (d.is_theorem()) {
         std::cout << "theorem" << std::endl;
     } else {
