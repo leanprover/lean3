@@ -47,7 +47,7 @@ void generate_includes(std::ostream& os) {
 
 void generate_main(std::ostream& os, std::string main_fn) {
     os << "int main() {" << std::endl;
-    os << std::setw(4) << "run_main(";
+    os << std::setw(4) << "lean::run_lean_main(";
     mangle_name(os, main_fn);
     os << ");" << std::endl;
     os << std::setw(4) << "return 0;" << std::endl;
@@ -76,34 +76,45 @@ void c_backend::generate_code(optional<std::string> output_path) {
 }
 
 void c_backend::generate_ctor(std::ostream& os, ctor const & c) {
-    os << LEAN_OBJ_TYPE << " ";
-    mangle_name(os, c.m_name);
-    os  << "(";
+    if (c.m_arity == 0) {
+        os << "static ";
+        os << LEAN_OBJ_TYPE << " ";
+        mangle_name(os, c.m_name);
+        os  << " = ";
 
-    // auto comma = false;
-    //
-    // for (auto arg : p.m_args) {
-    //     if (comma) {
-    //         os << ", ";
-    //     } else {
-    //         comma = true;
-    //     }
-    //     os << LEAN_OBJ_TYPE << " ";
-    //     mangle_name(os, arg);
-    // }
-    //
-    os << ") {" << std::endl;
+        os << "lean::mk_obj(";
+        os << c.m_ctor_index;
+        os << ");" << std::endl;
+    } else {
+        os << LEAN_OBJ_TYPE << " ";
+        mangle_name(os, c.m_name);
+        os  << "(";
 
-    os << "return lean::mk_obj(";
-    os << c.m_ctor_index;
-    os << ");";
+        // auto comma = false;
+        //
+        // for (auto arg : p.m_args) {
+        //     if (comma) {
+        //         os << ", ";
+        //     } else {
+        //         comma = true;
+        //     }
+        //     os << LEAN_OBJ_TYPE << " ";
+        //     mangle_name(os, arg);
+        // }
+        //
+        os << ") {" << std::endl;
 
-    // os << std::left << std::setw(4);
-    // os.flush();
-    // this->generate_simple_expr(os, *p.m_body);
-    // //os.width(0);
-    //
-    os << std::endl << "}" << std::endl;
+        os << "return lean::mk_obj(";
+        os << c.m_ctor_index;
+        os << ");";
+
+        // os << std::left << std::setw(4);
+        // os.flush();
+        // this->generate_simple_expr(os, *p.m_body);
+        // //os.width(0);
+        //
+        os << std::endl << "}" << std::endl;
+    }
 }
 
 void c_backend::generate_proc(std::ostream& os, proc const & p) {
