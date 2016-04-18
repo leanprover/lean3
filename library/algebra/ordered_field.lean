@@ -371,6 +371,21 @@ section linear_ordered_field
     apply (not_le_of_gt (and.left Hc)) (iff.mpr !le_add_iff_sub_right_le Hc')
   end
 
+theorem mul_div_self_add_lt {b c d : A} (Hb : b > 0) (Hc : c > 0) (Hd : d > 0) : c * (b / (c + d)) < b :=
+  begin
+    rewrite -mul_div_assoc,
+    apply div_lt_of_mul_lt_of_pos,
+    apply add_pos,
+    repeat assumption,
+    rewrite mul.comm,
+    apply mul_lt_mul_of_pos_left,
+    apply lt_add_of_pos_right,
+    repeat assumption
+  end
+
+theorem mul_div_add_self_lt {b c d : A} (Hb : b > 0) (Hc : c > 0) (Hd : d > 0) : d * (b / (c + d)) < b :=
+  by rewrite add.comm; apply mul_div_self_add_lt; repeat assumption
+
 end linear_ordered_field
 
 structure discrete_linear_ordered_field [class] (A : Type) extends linear_ordered_field A,
@@ -571,6 +586,6 @@ section discrete_linear_ordered_field
       div_nonneg_of_nonneg_of_pos Ha Hgt
     else
       have b = 0, from eq_of_le_of_ge (le_of_not_gt Hgt) Hb,
-      by+ rewrite [this, div_zero]; apply le.refl
+      by rewrite [this, div_zero]; apply le.refl
 
 end discrete_linear_ordered_field
