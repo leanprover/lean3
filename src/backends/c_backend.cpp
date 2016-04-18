@@ -6,6 +6,7 @@ Author: Jared Roesch
 */
 #include <fstream>
 #include <iostream>
+#include <iomanip>
 #include <utility>
 #include "c_backend.h"
 #include "kernel/environment.h"
@@ -20,16 +21,41 @@ namespace lean {
 c_backend::c_backend(environment const & env, optional<std::string> main_fn)
     : backend(env, main_fn) {}
 
+// Not really sure if this is suffcient mangling. I can polish this
+// over time, first attempt to is to get a linked executable.
 void mangle_name(std::ostream& os, name const & n) {
-    os << n;
+    if (n.is_anonymous()) {
+        os << "anon_name?";
+    } else if (n.is_string()) {
+        auto s = n.to_string("_");
+        os << s;
+    } else if (n.is_numeral()) {
+        auto s = n.to_string("_");
+        os << "__lean_nv_" << s;
+    } else {
+        lean_unreachable();
+    }
+}
+
+void generate_includes(std::ostream& os) {
+    os << "#include \"runtime.h\"" << std::endl << std::endl;
+}
+
+void generate_main(std::ostream& os) {
+    os << "int main() {" << std::endl;
+    os << std::setw(4) << "run_main(___main);" << std::endl;
+    os << std::setw(4) << "return 0;" << std::endl;
+    os << "}" << std::endl;
 }
 
 void c_backend::generate_code(optional<std::string> output_path) {
     std::fstream fs("out.c", std::ios_base::out);
+    generate_includes(fs);
     for (auto proc : this->m_procs) {
         this->generate_proc(fs, proc);
         fs << std::endl;
     }
+    generate_main(fs);
     fs.flush();
     fs.close();
 }
@@ -50,27 +76,43 @@ void c_backend::generate_proc(std::ostream& os, proc const & p) {
     }
 
     os << ") {" << std::endl;
-
+    os << std::left << std::setw(4);
+    os.flush();
     this->generate_simple_expr(os, *p.m_body);
+    //os.width(0);
 
     os << std::endl << "}" << std::endl;
 }
 
 void c_backend::generate_simple_expr_var(std::ostream& os, simple_expr const & se) {
-    auto n = var_name(se);
+    auto n = to_simple_var(&se)->m_name;
     mangle_name(os, n);
 }
 
 void c_backend::generate_simple_expr_error(std::ostream& os, simple_expr const & se) {
-    // auto n = var_name(se);
-    // mangle_name(os, n);
-    os << "error(msg)";
+    auto msg = to_simple_error(&se)->m_error_msg;
+    os << "error(\"" << msg.c_str() << "\")";
 }
 
 void c_backend::generate_simple_expr_call(std::ostream& os, simple_expr const & se) {
-    // auto n = var_name(se);
-    // mangle_name(os, n);
-    os << "call(args)";
+    auto args = to_simple_call(&se)->m_args;
+    auto callee = to_simple_call(&se)->m_name;
+
+    mangle_name(os, callee);
+
+    os << "(";
+    auto comma = false;
+
+    for (auto name : args) {
+        if (comma) {
+            os << ", ";
+        } else {
+            comma = true;
+        }
+        mangle_name(os, name);
+    }
+
+    os << ")";
 }
 
 void c_backend::generate_binding(std::ostream& os, pair<name, shared_ptr<simple_expr>> & p) {
