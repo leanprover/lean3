@@ -5,7 +5,7 @@ Author: Robert Y. Lewis
 
 Bounded linear operators
 -/
-import .normed_space .real_limit algebra.module
+import .normed_space .real_limit algebra.module algebra.homomorphism
 open real nat classical
 noncomputable theory
 
@@ -15,7 +15,7 @@ namespace analysis
 section bdd_lin_op
 set_option pp.universes true
 structure is_bdd_linear_map [class] {V W : Type} [normed_vector_space V] [normed_vector_space W] (f : V → W)
-          extends is_linear_map ℝ f :=
+          extends is_module_hom ℝ f :=
   (op_norm : ℝ) (op_norm_pos : op_norm > 0) (op_norm_bound : ∀ v : V, ∥f v∥ ≤ op_norm * ∥v∥)
 
 theorem is_bdd_linear_map_id (V : Type) [normed_vector_space V] : is_bdd_linear_map (λ x : V, x) :=
@@ -48,10 +48,10 @@ theorem is_bdd_linear_map_add [instance] {V W : Type} [normed_vector_space V] [n
   begin
     fapply is_bdd_linear_map.mk,
     {intros,
-    rewrite [linear_map_additive ℝ f, linear_map_additive ℝ g],
+    rewrite [hom_add f, hom_add g],-- (this takes 4 seconds!!)rewrite [2 hom_add],
     simp},
     {intros,
-    rewrite [linear_map_homogeneous f, linear_map_homogeneous g, smul_left_distrib]},
+    rewrite [hom_smul f, hom_smul g, smul_left_distrib]},
     {exact is_bdd_linear_map.op_norm _ _ f + is_bdd_linear_map.op_norm _ _ g},
     {apply add_pos,
     repeat apply is_bdd_linear_map.op_norm_pos},
@@ -76,9 +76,10 @@ theorem is_bdd_linear_map_smul [instance] {V W : Type} [normed_vector_space V] [
     intro Hcnz,
     fapply is_bdd_linear_map.mk,
     {intros,
-    rewrite [linear_map_additive ℝ f, smul_left_distrib]},
+    rewrite [hom_add f, smul_left_distrib]},--rewrite [linear_map_additive ℝ f, smul_left_distrib]},
     {intros,
-    rewrite [linear_map_homogeneous f, -*mul_smul, {c * a}mul.comm]},
+    rewrite [hom_smul f, -*mul_smul, {c*r}mul.comm]},
+    --rewrite [linear_map_homogeneous f, -*mul_smul, {c * a}mul.comm]},
     {exact (abs c) * is_bdd_linear_map.op_norm _ _ f},
     {have Hpos : abs c > 0, from abs_pos_of_ne_zero Hcnz,
     apply mul_pos,
@@ -106,9 +107,9 @@ theorem is_bdd_linear_map_comp {U V W : Type} [normed_vector_space U] [normed_ve
   begin
     fapply is_bdd_linear_map.mk,
     {intros,
-    rewrite [linear_map_additive ℝ g, linear_map_additive ℝ f]},
+    rewrite [hom_add g, hom_add f]},--rewrite [linear_map_additive ℝ g, linear_map_additive ℝ f]},
     {intros,
-    rewrite [linear_map_homogeneous g, linear_map_homogeneous f]},
+    rewrite [hom_smul g, hom_smul f]},--rewrite [linear_map_homogeneous g, linear_map_homogeneous f]},
     {exact is_bdd_linear_map.op_norm _ _ f * is_bdd_linear_map.op_norm _ _ g},
     {apply mul_pos, repeat apply is_bdd_linear_map.op_norm_pos},
     {intros,
@@ -144,7 +145,7 @@ theorem bounded_linear_operator_continuous : continuous f :=
     split,
     apply div_pos_of_pos_of_pos Hε !op_norm_pos,
     intro x' Hx',
-    rewrite [-linear_map_sub f],
+    rewrite [-hom_sub f],--[-linear_map_sub f],
     apply lt_of_le_of_lt,
     apply op_norm_bound f,
     rewrite [-@mul_div_cancel' _ _ ε (op_norm f) (ne_of_gt !op_norm_pos)],
@@ -375,13 +376,11 @@ theorem continuous_at_of_diffable_at [Hf : frechet_diffable_at f x] : continuous
     apply op_norm_bound (!frechet_deriv_at),
     rewrite [-add_halves ε at {2}],
     apply add_lt_add,
-
-    exact calc
-      ε * ∥x' - x∥ < ε * min δ ((ε / 2) / (ε + op_norm (frechet_deriv_at f x))) : mul_lt_mul_of_pos_left Hx' Hε
-              ... ≤ ε * ((ε / 2) / (ε + op_norm (frechet_deriv_at f x))) :
-                                  mul_le_mul_of_nonneg_left !min_le_right (le_of_lt Hε)
-              ... < ε / 2 : mul_div_self_add_lt (div_pos_of_pos_of_pos Hε two_pos) Hε !op_norm_pos,
     let on := op_norm (frechet_deriv_at f x),
+    exact calc
+      ε * ∥x' - x∥ < ε * min δ ((ε / 2) / (ε + on)) : mul_lt_mul_of_pos_left Hx' Hε
+              ... ≤ ε * ((ε / 2) / (ε + on)) : mul_le_mul_of_nonneg_left !min_le_right (le_of_lt Hε)
+              ... < ε / 2 : mul_div_self_add_lt (div_pos_of_pos_of_pos Hε two_pos) Hε !op_norm_pos,
     exact calc
       on * ∥x' - x∥ < on * min δ ((ε / 2) / (ε + on)) : mul_lt_mul_of_pos_left Hx' !op_norm_pos
                ... ≤ on * ((ε / 2) / (ε + on)) : mul_le_mul_of_nonneg_left !min_le_right (le_of_lt !op_norm_pos)
