@@ -18,6 +18,8 @@ Author: Jared Roesch
 
 namespace lean {
 
+static const char * LEAN_OBJ_TYPE = "lean::obj";
+
 c_backend::c_backend(environment const & env, optional<std::string> main_fn)
     : backend(env, main_fn) {}
 
@@ -38,7 +40,7 @@ void mangle_name(std::ostream& os, name const & n) {
 }
 
 void generate_includes(std::ostream& os) {
-    os << "#include \"runtime.h\"" << std::endl << std::endl;
+    os << "#include \"lean/runtime.h\"" << std::endl << std::endl;
 }
 
 void generate_main(std::ostream& os) {
@@ -49,7 +51,7 @@ void generate_main(std::ostream& os) {
 }
 
 void c_backend::generate_code(optional<std::string> output_path) {
-    std::fstream fs("out.c", std::ios_base::out);
+    std::fstream fs("out.cpp", std::ios_base::out);
     generate_includes(fs);
     for (auto proc : this->m_procs) {
         this->generate_proc(fs, proc);
@@ -61,7 +63,7 @@ void c_backend::generate_code(optional<std::string> output_path) {
 }
 
 void c_backend::generate_proc(std::ostream& os, proc const & p) {
-    os << "Object " << p.m_name << "(";
+    os << LEAN_OBJ_TYPE << " " << p.m_name << "(";
 
     auto comma = false;
 
@@ -71,7 +73,7 @@ void c_backend::generate_proc(std::ostream& os, proc const & p) {
         } else {
             comma = true;
         }
-        os << "Object ";
+        os << LEAN_OBJ_TYPE << " ";
         mangle_name(os, arg);
     }
 
@@ -119,7 +121,7 @@ void c_backend::generate_binding(std::ostream& os, pair<name, shared_ptr<simple_
     auto n = p.first;
     auto se = p.second;
 
-    os << "Object ";
+    os << LEAN_OBJ_TYPE << " ";
     mangle_name(os, n);
     os << " = ";
     this->generate_simple_expr(os, *se);
