@@ -105,7 +105,7 @@ shared_ptr<simple_expr> backend::compile_body(std::vector<name> & args, expr con
         auto ex = e;
         while (is_binding(ex)) {
             expr d = instantiate_rev(binding_domain(ex), ls.size(), ls.data());
-            auto n = mk_fresh_name();
+            auto n = mk_fresh_name(); // (name const & prefix, unsigned k);
             expr l = mk_local(n, binding_name(ex), d, binding_info(ex));
             args.push_back(n);
             ls.push_back(l);
@@ -176,7 +176,7 @@ shared_ptr<simple_expr> backend::compile_expr_app(expr const & e, std::vector<bi
          names.push_back(n);
     }
 
-    auto callee_name = name("callee_thing");
+    auto callee_name = mk_fresh_name();
     this->bind_name(callee_name, f, bindings);
 
     return shared_ptr<simple_expr>(new simple_expr_call(callee_name, names));
