@@ -135,4 +135,12 @@ template<typename T>
 obj mk_closure(T fn, unsigned arity, std::initializer_list<obj> const & os) {
     return mk_closure_core(reinterpret_cast<void*>(fn), arity, os.size(), os.begin());
 }
+
+lean::obj run_lean_main(lean::obj (*main_fn)()) {
+    std::cout << "starting up" << std::endl;
+    auto main_result = main_fn();
+    std::cout << "main is done" << std::endl;
+    return main_result;
+}
+
 }
