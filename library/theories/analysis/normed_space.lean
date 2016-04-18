@@ -79,6 +79,7 @@ namespace analysis
   proposition norm_sub (u v : V) : ∥u - v∥ = ∥v - u∥ :=
     by rewrite [-norm_neg, neg_sub]
 
+
 end analysis
 
 section
@@ -127,6 +128,12 @@ section
 
   proposition norm_nonneg (u : V) : ∥ u ∥ ≥ 0 :=
   by rewrite norm_eq_dist_zero; apply !dist_nonneg
+
+  proposition norm_pos_of_ne_zero {v : V} (Hv : v ≠ 0) : ∥v∥ > 0 :=
+    by_contradiction
+      (suppose ¬ ∥v∥ > 0,
+      have ∥v∥ = 0, from eq_of_le_of_ge (le_of_not_gt this) !norm_nonneg,
+      Hv (eq_zero_of_norm_eq_zero this))
 end
 
 structure banach_space [class] (V : Type) extends nvsV : normed_vector_space V :=

@@ -11,13 +11,21 @@ noncomputable theory
 
 namespace analysis
 
+-- define bounded linear operators and basic instances
 section bdd_lin_op
-
-structure is_bdd_linear_map [class] {V W : Type} [normed_vector_space V] [normed_vector_space W] (f : V → W) extends is_linear_map ℝ f :=
+set_option pp.universes true
+structure is_bdd_linear_map [class] {V W : Type} [normed_vector_space V] [normed_vector_space W] (f : V → W)
+          extends is_linear_map ℝ f :=
   (op_norm : ℝ) (op_norm_pos : op_norm > 0) (op_norm_bound : ∀ v : V, ∥f v∥ ≤ op_norm * ∥v∥)
 
-/-theorem is_bdd_linear_map_id [instance] (V : Type) [normed_vector_space V] : is_bdd_linear_map (λ a : V, a) :=
-   sorry-/
+theorem is_bdd_linear_map_id (V : Type) [normed_vector_space V] : is_bdd_linear_map (λ x : V, x) :=
+  begin
+    fapply is_bdd_linear_map.mk,
+    repeat (intros; reflexivity),
+    exact 1,
+    exact zero_lt_one,
+    intro, rewrite one_mul, apply le.refl
+  end
 
 theorem is_bdd_linear_map_zero [instance] (V W : Type) [normed_vector_space V] [normed_vector_space W] :
         is_bdd_linear_map (λ x : V, (0 : W)) :=
@@ -83,6 +91,14 @@ theorem is_bdd_linear_map_smul [instance] {V W : Type} [normed_vector_space V] [
     apply abs_nonneg}
   end
 
+theorem is_bdd_linear_map_neg [instance] {V W : Type} [normed_vector_space V] [normed_vector_space W]
+        (f : V → W) [Hbf : is_bdd_linear_map f] : is_bdd_linear_map (λ x, -f x) :=
+  begin
+    have H : (λ x : V, -f x) = (λ x : V, (-1 : ℝ) • f x), from funext (λ x, eq.symm !neg_one_smul),
+    rewrite H,
+    apply is_bdd_linear_map_smul
+  end
+
 -- this can't be an instance because things loop
 theorem is_bdd_linear_map_comp {U V W : Type} [normed_vector_space U] [normed_vector_space V]
         [normed_vector_space W] (f : V → W) (g : U → V) [is_bdd_linear_map f] [is_bdd_linear_map g] :
@@ -108,7 +124,6 @@ theorem is_bdd_linear_map_comp {U V W : Type} [normed_vector_space U] [normed_ve
 
 variables {V W : Type}
 variables [HV : normed_vector_space V] [HW : normed_vector_space W]
---variable f : V → W --linear_operator V W
 include HV HW
 variable f : V → W
 variable [Hf : is_bdd_linear_map f]
@@ -140,22 +155,18 @@ theorem bounded_linear_operator_continuous : continuous f :=
 
 end bdd_lin_op
 
+
+-- define Frechet derivative and basic properties
+
 section frechet_deriv
 variables {V W : Type}
 variables [HV : normed_vector_space V] [HW : normed_vector_space W]
 include HV HW
 
---open topology
-
 definition is_frechet_deriv_at (f A : V → W) [is_bdd_linear_map A] (x : V) :=
   (λ h : V, ∥f (x + h) - f x - A h ∥ / ∥ h ∥) ⟶ 0 at 0
 
-example (f A : V → W) [is_bdd_linear_map A] (x : V) (H : is_frechet_deriv_at f A x) : true :=
-  begin
-    rewrite [↑is_frechet_deriv_at at H, ↑converges_to_at at H]
-  end
-
-theorem is_frechet_deriv_at_intro (f A : V → W) [is_bdd_linear_map A] (x : V)
+theorem is_frechet_deriv_at_intro {f A : V → W} [is_bdd_linear_map A] {x : V}
         (H : ∀ ⦃ε : ℝ⦄, ε > 0 →
               (∃ δ : ℝ, δ > 0 ∧ ∀ ⦃x' : V⦄, x' ≠ 0 ∧ ∥x'∥ < δ → ∥f (x + x') - f x - A x'∥ / ∥x'∥ < ε)) :
         is_frechet_deriv_at f A x :=
@@ -178,6 +189,24 @@ theorem is_frechet_deriv_at_intro (f A : V → W) [is_bdd_linear_map A] (x : V)
       rewrite [-sub_zero x'],
       apply Hx'2
     end
+  end
+
+theorem is_frechet_deriv_at_elim {f A : V → W} [is_bdd_linear_map A] {x : V} (H : is_frechet_deriv_at f A x) :
+         ∀ ⦃ε : ℝ⦄, ε > 0 →
+              (∃ δ : ℝ, δ > 0 ∧ ∀ ⦃x' : V⦄, x' ≠ 0 ∧ ∥x'∥ < δ → ∥f (x + x') - f x - A x'∥ / ∥x'∥ < ε) :=
+  begin
+    intros ε Hε,
+    cases H Hε with δ Hδ,
+    cases Hδ with Hδ Hδ',
+    existsi δ,
+    split,
+    assumption,
+    intros x' Hx',
+    rewrite [-sub_zero x' at Hx' {2}],
+    have Hδ'' : abs (∥f (x + x') - f x - A x'∥ / ∥x'∥ - 0) < ε, from Hδ' Hx',
+    have Hpos : ∥f (x + x') - f x - A x'∥ / ∥x'∥ ≥ 0, from div_nonneg_of_nonneg_of_nonneg !norm_nonneg !norm_nonneg,
+    rewrite [sub_zero at Hδ'', abs_of_nonneg Hpos at Hδ''],
+    assumption
   end
 
 structure frechet_diffable_at [class] (f : V → W) (x : V) :=
@@ -217,8 +246,8 @@ theorem frechet_deriv_at_smul {c : ℝ} {A : V → W} [is_bdd_linear_map A]
     {intro Hc,
     have Hz : c = 0, from eq_zero_of_abs_eq_zero Hc,
     have Hfz : (λ y : V, (0 : ℝ) • f y) = (λ y : V, 0), from funext (λ y, !zero_smul),
-    have Hfz' : (λ x : V, (0 : ℝ) • A x) = (λ x : V, 0), from funext (λ y, !zero_smul),
-    -- if is_frechet_deriv_at were a prop, I think we could rewrite Hfz' and apply frechet_deriv_at_const
+    --have Hfz' : (λ x : V, (0 : ℝ) • A x) = (λ x : V, 0), from funext (λ y, !zero_smul),
+    -- rewriting Hfz' produces type-incorrect term
     rewrite [Hz, Hfz, ↑is_frechet_deriv_at],
     intro ε Hε,
     existsi 1,
@@ -253,7 +282,23 @@ theorem frechet_deriv_at_smul {c : ℝ} {A : V → W} [is_bdd_linear_map A]
     end
   end
 
-theorem frechet_diffable_at_add {A B : V → W} [is_bdd_linear_map A] [is_bdd_linear_map B]
+theorem is_frechet_deriv_at_neg {A : V → W} [is_bdd_linear_map A]
+        (Hf : is_frechet_deriv_at f A x) : is_frechet_deriv_at (λ y, - f y) (λ y, - A y) x :=
+  begin
+    apply is_frechet_deriv_at_intro,
+    intros ε Hε,
+    cases is_frechet_deriv_at_elim Hf Hε with δ Hδ,
+    existsi δ,
+    split,
+    exact and.left Hδ,
+    intro x' Hx',
+    rewrite [-norm_neg, neg_sub, sub_neg_eq_add, sub_add_eq_sub_sub, sub_neg_eq_add,
+             add_sub_assoc, add.comm, -sub_eq_add_neg],
+    apply and.right Hδ,
+    assumption
+  end
+
+theorem is_frechet_deriv_at_add (A B : V → W) [is_bdd_linear_map A] [is_bdd_linear_map B]
         (Hf : is_frechet_deriv_at f A x) (Hg : is_frechet_deriv_at g B x) :
         is_frechet_deriv_at (λ y, f y + g y) (λ y, A y + B y) x :=
   begin
@@ -287,21 +332,61 @@ theorem frechet_diffable_at_add {A B : V → W} [is_bdd_linear_map A] [is_bdd_li
     apply Hle
   end
 
-/-theorem continuous_at_of_diffable_at [Hf : frechet_diffable_at f x] : continuous_at f x :=
+open topology
+
+theorem continuous_at_of_diffable_at [Hf : frechet_diffable_at f x] : continuous_at f x :=
   begin
     apply normed_vector_space.continuous_at_intro,
     intros ε Hε,
     note Hfds := frechet_deriv_spec f x Hε,
     cases Hfds with δ Hδ,
     cases Hδ with Hδ Hδ',
-    existsi δ,
+    existsi min δ ((ε / 2) / (ε + op_norm (frechet_deriv_at f x))),
     split,
-    assumption,
+    apply lt_min,
+    exact Hδ,
+    repeat apply div_pos_of_pos_of_pos,
+    exact Hε,
+    apply two_pos,
+    apply add_pos Hε !op_norm_pos,
     intro x' Hx',
-    have Hx'x : x' - x ≠ 0 ∧ dist (x' - x) 0 < δ, from sorry,
-    note Hδ'' := Hδ' Hx'x,
+    cases em (x' - x = 0) with Heq Hneq,
+    rewrite [eq_of_sub_eq_zero Heq, sub_self, norm_zero], assumption,
+    have Hx'x : x' - x ≠ 0 ∧ dist (x' - x) 0 < δ, from and.intro Hneq begin
+      change ∥(x' - x) - 0∥ < δ,
+      rewrite sub_zero,
+      apply lt_of_lt_of_le,
+      apply Hx',
+      apply min_le_left
+    end,
+    have Hx'xp : ∥x' - x∥ > 0, from norm_pos_of_ne_zero Hneq,
+    have Hδ'' : abs (∥f (x + (x' - x)) - f x - frechet_deriv_at f x (x' - x)∥ / ∥x' - x∥ - 0) < ε, from Hδ' Hx'x,
+    have Hnn : ∥f (x + (x' - x)) - f x - frechet_deriv_at f x (x' - x)∥ / ∥x' - x∥ ≥ 0,
+      from div_nonneg_of_nonneg_of_nonneg !norm_nonneg !norm_nonneg,
+    rewrite [sub_zero at Hδ'', abs_of_nonneg Hnn at Hδ'', add.comm at Hδ'', sub_add_cancel at Hδ''],
+    note H1 := lt_mul_of_div_lt_of_pos Hx'xp Hδ'',
+    have H2 : f x' - f x = f x' - f x - frechet_deriv_at f x (x' - x) + frechet_deriv_at f x (x' - x), by simp,
+    rewrite H2,
+    apply lt_of_le_of_lt,
+    apply norm_triangle,
+    apply lt.trans, --lt_of_lt_of_le,
+    apply add_lt_add_of_lt_of_le,
+    apply H1,
+    apply op_norm_bound (!frechet_deriv_at),
+    rewrite [-add_halves ε at {2}],
+    apply add_lt_add,
 
-  end-/
+    exact calc
+      ε * ∥x' - x∥ < ε * min δ ((ε / 2) / (ε + op_norm (frechet_deriv_at f x))) : mul_lt_mul_of_pos_left Hx' Hε
+              ... ≤ ε * ((ε / 2) / (ε + op_norm (frechet_deriv_at f x))) :
+                                  mul_le_mul_of_nonneg_left !min_le_right (le_of_lt Hε)
+              ... < ε / 2 : mul_div_self_add_lt (div_pos_of_pos_of_pos Hε two_pos) Hε !op_norm_pos,
+    let on := op_norm (frechet_deriv_at f x),
+    exact calc
+      on * ∥x' - x∥ < on * min δ ((ε / 2) / (ε + on)) : mul_lt_mul_of_pos_left Hx' !op_norm_pos
+               ... ≤ on * ((ε / 2) / (ε + on)) : mul_le_mul_of_nonneg_left !min_le_right (le_of_lt !op_norm_pos)
+               ... < ε / 2 : mul_div_add_self_lt (div_pos_of_pos_of_pos Hε two_pos) Hε !op_norm_pos,
+  end
 
 end frechet_deriv
 
