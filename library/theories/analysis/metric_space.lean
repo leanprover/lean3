@@ -1,8 +1,6 @@
 /-
 Copyright (c) 2015 Jeremy Avigad. All rights reserved.
 Released under Apache 2.0 license as described in the file LICENSE.
-Authors: Jeremy Avigad, Robert Lewis
-
 Metric spaces.
 -/
 import data.real.complete data.pnat ..topology.continuous ..topology.limit data.set
@@ -553,6 +551,31 @@ section continuity
 variables {M N : Type} [Hm : metric_space M] [Hn : metric_space N]
 include Hm Hn
 open topology set
+
+/-  begin
+    intros x Hx ε Hε,
+    rewrite [↑continuous_on at Hfs],
+    cases @Hfs (open_ball (f x) ε) !open_ball_open with t Ht,
+    cases Ht with Ht Htx,
+
+    cases @Hfx (open_ball (f x) ε) !open_ball_open (mem_open_ball _ Hε) with V HV,
+    cases HV with HV HVx,
+    cases HVx with HVx HVf,
+    cases ex_Open_ball_subset_of_Open_of_nonempty HV HVx with δ Hδ,
+    cases Hδ with Hδ Hδx,
+    existsi δ,
+    split,
+    exact Hδ,
+    intro x' Hx',
+    rewrite dist_comm,
+    apply and.right,
+    apply HVf,
+    apply Hδx,
+    apply and.intro !mem_univ,
+    rewrite dist_comm,
+    apply Hx',
+  end-/
+
 /- continuity at a point -/
 
 -- the ε - δ definition of continuity is equivalent to the topological definition
@@ -598,7 +621,88 @@ theorem continuous_at_elim {f : M → N} {x : M} (Hfx : continuous_at f x) :
     apply Hx',
   end
 
+--<<<<<<< HEAD
 theorem continuous_at_of_converges_to_at {f : M → N} {x : M} (Hf : f ⟶ f x [at x]) :
+/-=======
+theorem continuous_at_on_intro {f : M → N} {x : M} {s : set M}
+        (H : ∀ ⦃ε⦄, ε > 0 → ∃ δ, δ > 0 ∧ ∀₀ x' ∈ s, dist x' x < δ → dist (f x') (f x) < ε) :
+        continuous_at_on f x s :=
+  begin
+    intro t HOt Hfxt,
+    cases ex_Open_ball_subset_of_Open_of_nonempty HOt Hfxt with ε Hε,
+    cases H (and.left Hε) with δ Hδ,
+    existsi (open_ball x δ),
+    split,
+    apply open_ball_open,
+    split,
+    apply mem_open_ball,
+    apply and.left Hδ,
+    intro x' Hx',
+    apply mem_preimage,
+    apply mem_of_subset_of_mem,
+    apply and.right Hε,
+    apply and.intro !mem_univ,
+    rewrite dist_comm,
+    apply and.right Hδ,
+    apply and.right Hx',
+    rewrite dist_comm,
+    apply and.right (and.left Hx')
+  end
+
+theorem continuous_at_on_elim {f : M → N} {x : M} {s : set M} (Hfs : continuous_at_on f x s) :
+         ∀ ⦃ε⦄, ε > 0 → ∃ δ, δ > 0 ∧ ∀₀ x' ∈ s, dist x' x < δ → dist (f x') (f x) < ε :=
+  begin
+    intro ε Hε,
+    unfold continuous_at_on at Hfs,
+    cases @Hfs (open_ball (f x) ε) !open_ball_open (mem_open_ball _ Hε) with u Hu,
+    cases Hu with Huo Hu,
+    cases Hu with Hxu Hu,
+    cases ex_Open_ball_subset_of_Open_of_nonempty Huo Hxu with δ Hδ,
+    existsi δ,
+    split,
+    exact and.left Hδ,
+    intros x' Hx's Hx'x,
+    have Hims : f ' (u ∩ s) ⊆ open_ball (f x) ε, begin
+      apply subset.trans (image_subset f Hu),
+      apply image_preimage_subset
+    end,
+    have Hx'int : x' ∈ u ∩ s, begin
+      apply and.intro,
+      apply mem_of_subset_of_mem,
+      apply and.right Hδ,
+      apply and.intro !mem_univ,
+      rewrite dist_comm,
+      repeat assumption
+    end,
+    have Hxx' : f x' ∈ open_ball (f x) ε, begin
+      apply mem_of_subset_of_mem,
+      apply Hims,
+      apply mem_image_of_mem,
+      apply Hx'int
+    end,
+    rewrite dist_comm,
+    apply and.right Hxx'
+  end
+
+theorem continuous_on_intro {f : M → N} {s : set M}
+        (H : ∀ x, ∀ ⦃ε⦄, ε > 0 → ∃ δ, δ > 0 ∧ ∀₀ x' ∈ s, dist x' x < δ → dist (f x') (f x) < ε) :
+        continuous_on f s :=
+  begin
+    apply continuous_on_of_forall_continuous_at_on,
+    intro x,
+    apply continuous_at_on_intro,
+    apply H
+  end
+
+theorem continuous_on_elim {f : M → N} {s : set M} (Hfs : continuous_on f s) :
+        ∀₀ x ∈ s, ∀ ⦃ε⦄, ε > 0 → ∃ δ, δ > 0 ∧ ∀₀ x' ∈ s, dist x' x < δ → dist (f x') (f x) < ε :=
+  begin
+    intros x Hx,
+    exact continuous_at_on_elim (continuous_at_on_of_continuous_on Hfs Hx)
+  end-/
+
+--theorem continuous_at_of_converges_to_at {f : M → N} {x : M} (Hf : f ⟶ f x at x) :
+-->>>>>>> feat(theories/analysis): intro/elim rules for continuous_on, etc
   continuous_at f x :=
 continuous_at_intro
 (take ε, suppose ε > 0,
@@ -619,7 +723,7 @@ approaches_at_intro
     obtain δ [δpos Hδ], from continuous_at_elim Hf this,
     exists.intro δ (and.intro δpos (λ x' Hx' xnex', Hδ x' Hx')))
 
-definition continuous (f : M → N) : Prop := ∀ x, continuous_at f x
+--definition continuous (f : M → N) : Prop := ∀ x, continuous_at f x
 
 theorem converges_seq_comp_of_converges_seq_of_cts (X : ℕ → M) [HX : converges_seq X] {f : M → N}
                                          (Hf : continuous f) :
@@ -629,7 +733,7 @@ theorem converges_seq_comp_of_converges_seq_of_cts (X : ℕ → M) [HX : converg
     existsi f xlim,
     apply approaches_at_infty_intro,
     intros ε Hε,
-    let Hcont := (continuous_at_elim (Hf xlim)) Hε,
+    let Hcont := (continuous_at_elim (forall_continuous_at_of_continuous Hf xlim)) Hε,
     cases Hcont with δ Hδ,
     cases approaches_at_infty_dest Hxlim (and.left Hδ) with B HB,
     existsi B,
@@ -641,6 +745,7 @@ theorem converges_seq_comp_of_converges_seq_of_cts (X : ℕ → M) [HX : converg
 omit Hn
 theorem id_continuous : continuous (λ x : M, x) :=
   begin
+    apply continuous_of_forall_continuous_at,
     intros x,
     apply continuous_at_intro,
     intro ε Hε,

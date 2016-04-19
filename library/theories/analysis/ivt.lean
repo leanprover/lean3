@@ -6,7 +6,7 @@ Authors: Robert Y. Lewis
 The intermediate value theorem.
 -/
 import .real_limit
-open real analysis set classical
+open real analysis set classical topology
 noncomputable theory
 
 private definition inter_sup (a b : ℝ) (f : ℝ → ℝ) := sup {x | x < b ∧ f x < 0}
