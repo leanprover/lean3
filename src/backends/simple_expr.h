@@ -48,8 +48,13 @@ namespace lean  {
     struct simple_expr_call : simple_expr {
         name m_name;
         std::vector<name> m_args;
+        int m_direct;
         simple_expr_call(name m_name, std::vector<name> m_args)
-            : m_name(m_name), m_args(m_args) {
+            : m_name(m_name), m_args(m_args), m_direct(0) {
+            this->m_kind = simple_expr_kind::Call;
+        }
+        simple_expr_call(name m_name, std::vector<name> m_args, int direct)
+            : m_name(m_name), m_args(m_args), m_direct(direct) {
             this->m_kind = simple_expr_kind::Call;
         }
         virtual simple_expr_kind kind() const { return simple_expr_kind::Call; }

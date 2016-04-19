@@ -90,29 +90,41 @@ void c_backend::generate_ctor(std::ostream& os, ctor const & c) {
         mangle_name(os, c.m_name);
         os  << "(";
 
-        // auto comma = false;
-        //
-        // for (auto arg : p.m_args) {
-        //     if (comma) {
-        //         os << ", ";
-        //     } else {
-        //         comma = true;
-        //     }
-        //     os << LEAN_OBJ_TYPE << " ";
-        //     mangle_name(os, arg);
-        // }
-        //
+        auto comma = false;
+
+        std::vector<name> args;
+
+        for (int i = 0; i < c.m_arity; i++) {
+            std::string s = "f";
+            s += ((char)(i + 48));
+            auto arg = name(s.c_str());
+            if (comma) {
+                os << ", ";
+            } else {
+                comma = true;
+            }
+            os << LEAN_OBJ_TYPE << " ";
+            mangle_name(os, arg);
+            args.push_back(arg);
+        }
+
         os << ") {" << std::endl;
 
         os << "return lean::mk_obj(";
         os << c.m_ctor_index;
-        os << ");";
+        os << ", { ";
 
-        // os << std::left << std::setw(4);
-        // os.flush();
-        // this->generate_simple_expr(os, *p.m_body);
-        // //os.width(0);
-        //
+        comma = false;
+        for (auto arg : args) {
+            if (comma) {
+                os << ", ";
+            } else {
+                comma = true;
+            }
+            mangle_name(os, arg);
+        }
+        os << " });";
+
         os << std::endl << "}" << std::endl;
     }
 }
@@ -156,10 +168,16 @@ void c_backend::generate_simple_expr_error(std::ostream& os, simple_expr const &
 void c_backend::generate_simple_expr_call(std::ostream& os, simple_expr const & se) {
     auto args = to_simple_call(&se)->m_args;
     auto callee = to_simple_call(&se)->m_name;
+    auto direct = to_simple_call(&se)->m_direct;
 
     mangle_name(os, callee);
 
-    os << ".apply(";
+    if (!direct) {
+        os << ".apply(";
+    } else {
+        os << "(";
+    }
+
     auto comma = false;
 
     for (auto name : args) {
