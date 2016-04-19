@@ -6,11 +6,13 @@ Author: Jared Roesch
 */
 #include <iostream>
 #include <memory>
+#include <tuple>
 #include <utility>
 #include "backend.h"
 #include "kernel/environment.h"
 #include "kernel/inductive/inductive.h"
 #include "kernel/instantiate.h"
+#include "kernel/type_checker.h"
 #include "used_names.h"
 #include "util/fresh_name.h"
 #include "util/name.h"
@@ -82,9 +84,46 @@ void backend::compile_decl(declaration const & d) {
         this->add_proc(p);
     } else if (d.is_constant_assumption()) {
         if (auto n = inductive::is_intro_rule(this->m_env, d.get_name())) {
-            auto ind = inductive::is_inductive_decl(this->m_env, n.value());
-            std::cout << "inductive type " << n.value() << std::endl;
-            this->m_ctors.push_back(ctor(0, d.get_name(), 0));
+            auto tup = inductive::is_inductive_decl(this->m_env, n.value());
+            if (tup) {
+                auto inductive_types = std::get<2>(tup.value());
+                inductive::inductive_decl ind_ty;
+                for (auto it : inductive_types) {
+                    if (n.value() == inductive::inductive_decl_name(it)) {
+                      ind_ty = it;
+                    }
+                }
+
+                auto intro_rules = inductive::inductive_decl_intros(ind_ty);
+
+                int ctor_index = -1;
+                int arity = 0;
+
+                int i = 0;
+                for (auto intro : intro_rules) {
+                      std::cout << "intro_rule: " << intro << std::endl;
+                      std::cout << "kind: " << intro.kind() << std::endl;
+                      auto intro_n = inductive::intro_rule_name(intro);
+                      auto intro_ty = inductive::intro_rule_type(intro);
+                      std::cout << "type: " << intro_ty << std::endl;
+
+                      if (intro_n == d.get_name()) {
+                          ctor_index = i;
+                          while (is_pi(intro_ty)) {
+                              arity += 1;
+                              intro_ty = binding_body(intro_ty);
+                          }
+                          break;
+                      }
+
+                      i += 1;
+                }
+
+                std::cout << "inductive type " << n.value() << std::endl;
+                this->m_ctors.push_back(ctor(ctor_index, d.get_name(), arity));
+            } else {
+                throw "don't work";
+            }
         } else {
             std::cout << "unhandled constant assumption: " << std::endl;
         }
@@ -173,10 +212,14 @@ shared_ptr<simple_expr> backend::compile_expr_app(expr const & e, std::vector<bi
          names.push_back(n);
     }
 
-    auto callee_name = mk_fresh_name();
-    this->bind_name(callee_name, f, bindings);
-
-    return shared_ptr<simple_expr>(new simple_expr_call(callee_name, names));
+    if (is_constant(f)) {
+        auto callee_name = const_name(f);
+        return shared_ptr<simple_expr>(new simple_expr_call(callee_name, names, 1));
+    } else {
+        auto callee_name = mk_fresh_name();
+        this->bind_name(callee_name, f, bindings);
+        return shared_ptr<simple_expr>(new simple_expr_call(callee_name, names));
+    }
 }
 
 shared_ptr<simple_expr> backend::compile_expr_macro(expr const & e, std::vector<binding> & bindings) {
