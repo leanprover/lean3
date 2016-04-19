@@ -6,7 +6,7 @@ Authors: Robert Y. Lewis, Jeremy Avigad
 The square root function.
 -/
 import .ivt
-open analysis real classical
+open analysis real classical topology
 noncomputable theory
 
 private definition sqr_lb (x : ℝ) : ℝ := 0

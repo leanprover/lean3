@@ -6,14 +6,13 @@ Author: Robert Y. Lewis
 Bounded linear operators
 -/
 import .normed_space .real_limit algebra.module algebra.homomorphism
-open real nat classical
+open real nat classical topology
 noncomputable theory
 
 namespace analysis
 
 -- define bounded linear operators and basic instances
 section bdd_lin_op
-set_option pp.universes true
 structure is_bdd_linear_map [class] {V W : Type} [normed_vector_space V] [normed_vector_space W] (f : V → W)
           extends is_module_hom ℝ f :=
   (op_norm : ℝ) (op_norm_pos : op_norm > 0) (op_norm_bound : ∀ v : V, ∥f v∥ ≤ op_norm * ∥v∥)
@@ -31,13 +30,11 @@ theorem is_bdd_linear_map_zero [instance] (V W : Type) [normed_vector_space V] [
         is_bdd_linear_map (λ x : V, (0 : W)) :=
   begin
     fapply is_bdd_linear_map.mk,
-    intros,
+    all_goals intros,
     rewrite zero_add,
-    intros,
     rewrite smul_zero,
     exact 1,
     exact zero_lt_one,
-    intros,
     rewrite [norm_zero, one_mul],
     apply norm_nonneg
   end
@@ -47,16 +44,14 @@ theorem is_bdd_linear_map_add [instance] {V W : Type} [normed_vector_space V] [n
         is_bdd_linear_map (λ x, f x + g x) :=
   begin
     fapply is_bdd_linear_map.mk,
-    {intros,
-    rewrite [hom_add f, hom_add g],-- (this takes 4 seconds!!)rewrite [2 hom_add],
+    all_goals intros,
+    {rewrite [hom_add f, hom_add g],-- (this takes 4 seconds: rewrite [2 hom_add])
     simp},
-    {intros,
-    rewrite [hom_smul f, hom_smul g, smul_left_distrib]},
+    {rewrite [hom_smul f, hom_smul g, smul_left_distrib]},
     {exact is_bdd_linear_map.op_norm _ _ f + is_bdd_linear_map.op_norm _ _ g},
     {apply add_pos,
     repeat apply is_bdd_linear_map.op_norm_pos},
-    {intro,
-    apply le.trans,
+    {apply le.trans,
     apply norm_triangle,
     rewrite right_distrib,
     apply add_le_add,
@@ -75,18 +70,15 @@ theorem is_bdd_linear_map_smul [instance] {V W : Type} [normed_vector_space V] [
     apply is_bdd_linear_map_zero},
     intro Hcnz,
     fapply is_bdd_linear_map.mk,
-    {intros,
-    rewrite [hom_add f, smul_left_distrib]},--rewrite [linear_map_additive ℝ f, smul_left_distrib]},
-    {intros,
-    rewrite [hom_smul f, -*mul_smul, {c*r}mul.comm]},
-    --rewrite [linear_map_homogeneous f, -*mul_smul, {c * a}mul.comm]},
+    all_goals intros,
+    {rewrite [hom_add f, smul_left_distrib]},
+    {rewrite [hom_smul f, -*mul_smul, {c*r}mul.comm]},
     {exact (abs c) * is_bdd_linear_map.op_norm _ _ f},
     {have Hpos : abs c > 0, from abs_pos_of_ne_zero Hcnz,
     apply mul_pos,
     assumption,
     apply is_bdd_linear_map.op_norm_pos},
-    {intro,
-    rewrite [norm_smul, mul.assoc],
+    {rewrite [norm_smul, mul.assoc],
     apply mul_le_mul_of_nonneg_left,
     apply is_bdd_linear_map.op_norm_bound,
     apply abs_nonneg}
@@ -106,14 +98,12 @@ theorem is_bdd_linear_map_comp {U V W : Type} [normed_vector_space U] [normed_ve
         is_bdd_linear_map (λ u, f (g u)) :=
   begin
     fapply is_bdd_linear_map.mk,
-    {intros,
-    rewrite [hom_add g, hom_add f]},--rewrite [linear_map_additive ℝ g, linear_map_additive ℝ f]},
-    {intros,
-    rewrite [hom_smul g, hom_smul f]},--rewrite [linear_map_homogeneous g, linear_map_homogeneous f]},
+    all_goals intros,
+    {rewrite [hom_add g, hom_add f]},
+    {rewrite [hom_smul g, hom_smul f]},
     {exact is_bdd_linear_map.op_norm _ _ f * is_bdd_linear_map.op_norm _ _ g},
     {apply mul_pos, repeat apply is_bdd_linear_map.op_norm_pos},
-    {intros,
-    apply le.trans,
+    {apply le.trans,
     apply is_bdd_linear_map.op_norm_bound _ _ f,
     apply le.trans,
     apply mul_le_mul_of_nonneg_left,
@@ -138,6 +128,7 @@ theorem op_norm_bound (v : V) : ∥f v∥ ≤ (op_norm f) * ∥v∥ := is_bdd_li
 
 theorem bounded_linear_operator_continuous : continuous f :=
   begin
+    apply continuous_of_forall_continuous_at,
     intro x,
     apply normed_vector_space.continuous_at_intro,
     intro ε Hε,
@@ -145,7 +136,7 @@ theorem bounded_linear_operator_continuous : continuous f :=
     split,
     apply div_pos_of_pos_of_pos Hε !op_norm_pos,
     intro x' Hx',
-    rewrite [-hom_sub f],--[-linear_map_sub f],
+    rewrite [-hom_sub f],
     apply lt_of_le_of_lt,
     apply op_norm_bound f,
     rewrite [-@mul_div_cancel' _ _ ε (op_norm f) (ne_of_gt !op_norm_pos)],
@@ -283,7 +274,7 @@ theorem frechet_deriv_at_smul {c : ℝ} {A : V → W} [is_bdd_linear_map A]
     end
   end
 
-theorem is_frechet_deriv_at_neg {A : V → W} [is_bdd_linear_map A]
+theorem frechet_deriv_at_neg {A : V → W} [is_bdd_linear_map A]
         (Hf : is_frechet_deriv_at f A x) : is_frechet_deriv_at (λ y, - f y) (λ y, - A y) x :=
   begin
     apply is_frechet_deriv_at_intro,
@@ -299,11 +290,10 @@ theorem is_frechet_deriv_at_neg {A : V → W} [is_bdd_linear_map A]
     assumption
   end
 
-theorem is_frechet_deriv_at_add (A B : V → W) [is_bdd_linear_map A] [is_bdd_linear_map B]
+theorem frechet_deriv_at_add (A B : V → W) [is_bdd_linear_map A] [is_bdd_linear_map B]
         (Hf : is_frechet_deriv_at f A x) (Hg : is_frechet_deriv_at g B x) :
         is_frechet_deriv_at (λ y, f y + g y) (λ y, A y + B y) x :=
   begin
-    rewrite ↑is_frechet_deriv_at,
     have Hle : ∀ h, ∥f (x + h) + g (x + h) - (f x + g x) - (A h + B h)∥ / ∥h∥ ≤
                   ∥f (x + h) - f x - A h∥ / ∥h∥ + ∥g (x + h) - g x - B h∥ / ∥h∥, begin
       intro h,
@@ -344,13 +334,13 @@ theorem continuous_at_of_diffable_at [Hf : frechet_diffable_at f x] : continuous
     cases Hδ with Hδ Hδ',
     existsi min δ ((ε / 2) / (ε + op_norm (frechet_deriv_at f x))),
     split,
-    apply lt_min,
+    {apply lt_min,
     exact Hδ,
     repeat apply div_pos_of_pos_of_pos,
     exact Hε,
     apply two_pos,
-    apply add_pos Hε !op_norm_pos,
-    intro x' Hx',
+    apply add_pos Hε !op_norm_pos},
+    {intro x' Hx',
     cases em (x' - x = 0) with Heq Hneq,
     rewrite [eq_of_sub_eq_zero Heq, sub_self, norm_zero], assumption,
     have Hx'x : x' - x ≠ 0 ∧ dist (x' - x) 0 < δ, from and.intro Hneq begin
@@ -366,11 +356,12 @@ theorem continuous_at_of_diffable_at [Hf : frechet_diffable_at f x] : continuous
       from div_nonneg_of_nonneg_of_nonneg !norm_nonneg !norm_nonneg,
     rewrite [sub_zero at Hδ'', abs_of_nonneg Hnn at Hδ'', add.comm at Hδ'', sub_add_cancel at Hδ''],
     note H1 := lt_mul_of_div_lt_of_pos Hx'xp Hδ'',
-    have H2 : f x' - f x = f x' - f x - frechet_deriv_at f x (x' - x) + frechet_deriv_at f x (x' - x), by simp,
+    have H2 : f x' - f x = f x' - f x - frechet_deriv_at f x (x' - x) + frechet_deriv_at f x (x' - x),
+      by rewrite sub_add_cancel,  --by simp, (simp takes .5 seconds to do this!)
     rewrite H2,
     apply lt_of_le_of_lt,
     apply norm_triangle,
-    apply lt.trans, --lt_of_lt_of_le,
+    apply lt.trans,
     apply add_lt_add_of_lt_of_le,
     apply H1,
     apply op_norm_bound (!frechet_deriv_at),
@@ -384,7 +375,7 @@ theorem continuous_at_of_diffable_at [Hf : frechet_diffable_at f x] : continuous
     exact calc
       on * ∥x' - x∥ < on * min δ ((ε / 2) / (ε + on)) : mul_lt_mul_of_pos_left Hx' !op_norm_pos
                ... ≤ on * ((ε / 2) / (ε + on)) : mul_le_mul_of_nonneg_left !min_le_right (le_of_lt !op_norm_pos)
-               ... < ε / 2 : mul_div_add_self_lt (div_pos_of_pos_of_pos Hε two_pos) Hε !op_norm_pos,
+               ... < ε / 2 : mul_div_add_self_lt (div_pos_of_pos_of_pos Hε two_pos) Hε !op_norm_pos}
   end
 
 end frechet_deriv

@@ -508,19 +508,32 @@ end xn
 /- continuity on the reals -/
 
 section continuous
+open topology
+variable {f : ℝ → ℝ}
 
-theorem continuous_real_elim {f : ℝ → ℝ} (H : continuous f) :
+theorem continuous_real_elim (H : continuous f) :
   ∀ x : ℝ, ∀ ⦃ε : ℝ⦄, ε > 0 → ∃ δ : ℝ, δ > 0 ∧ ∀ x' : ℝ,
     abs (x' - x) < δ → abs (f x' - f x) < ε :=
-take x, continuous_at_elim (H x)
+take x, continuous_at_elim (forall_continuous_at_of_continuous H x)
 
-theorem continuous_real_intro {f : ℝ → ℝ}
+theorem continuous_real_intro
   (H : ∀ x : ℝ, ∀ ⦃ε : ℝ⦄, ε > 0 → ∃ δ : ℝ, δ > 0 ∧ ∀ x' : ℝ,
     abs (x' - x) < δ → abs (f x' - f x) < ε) :
   continuous f :=
-take x, continuous_at_intro (H x)
+continuous_of_forall_continuous_at (take x, continuous_at_intro (H x))
 
-theorem pos_on_nbhd_of_cts_of_pos {f : ℝ → ℝ} (Hf : continuous f) {b : ℝ} (Hb : f b > 0) :
+section
+open set
+variable {s : set ℝ}
+--theorem continuous_on_real_elim (H : continuous_on f s) :
+--  ∀₀ x ∈ s, x = x := sorry
+
+end
+
+variable (Hf : continuous f)
+include Hf
+
+theorem pos_on_nbhd_of_cts_of_pos {b : ℝ} (Hb : f b > 0) :
                 ∃ δ : ℝ, δ > 0 ∧ ∀ y, abs (y - b) < δ → f y > 0 :=
   begin
     let Hcont := continuous_real_elim Hf b Hb,
@@ -535,7 +548,7 @@ theorem pos_on_nbhd_of_cts_of_pos {f : ℝ → ℝ} (Hf : continuous f) {b : ℝ
     assumption
   end
 
-theorem neg_on_nbhd_of_cts_of_neg {f : ℝ → ℝ} (Hf : continuous f) {b : ℝ} (Hb : f b < 0) :
+theorem neg_on_nbhd_of_cts_of_neg {b : ℝ} (Hb : f b < 0) :
                 ∃ δ : ℝ, δ > 0 ∧ ∀ y, abs (y - b) < δ → f y < 0 :=
   begin
     let Hcont := continuous_real_elim Hf b (neg_pos_of_neg Hb),
@@ -551,11 +564,11 @@ theorem neg_on_nbhd_of_cts_of_neg {f : ℝ → ℝ} (Hf : continuous f) {b : ℝ
     assumption
   end
 
-theorem continuous_neg_of_continuous {f : ℝ → ℝ} (Hcon : continuous f) : continuous (λ x, - f x) :=
+theorem continuous_neg_of_continuous : continuous (λ x, - f x) :=
   begin
     apply continuous_real_intro,
     intros x ε Hε,
-    cases continuous_real_elim Hcon x Hε with δ Hδ,
+    cases continuous_real_elim Hf x Hε with δ Hδ,
     cases Hδ with Hδ₁ Hδ₂,
     existsi δ,
     split,
@@ -566,12 +579,12 @@ theorem continuous_neg_of_continuous {f : ℝ → ℝ} (Hcon : continuous f) : c
     exact HD
   end
 
-theorem continuous_offset_of_continuous {f : ℝ → ℝ} (Hcon : continuous f) (a : ℝ) :
+theorem continuous_offset_of_continuous (a : ℝ) :
         continuous (λ x, (f x) + a) :=
   begin
     apply continuous_real_intro,
     intros x ε Hε,
-    cases continuous_real_elim Hcon x Hε with δ Hδ,
+    cases continuous_real_elim Hf x Hε with δ Hδ,
     cases Hδ with Hδ₁ Hδ₂,
     existsi δ,
     split,
@@ -582,14 +595,16 @@ theorem continuous_offset_of_continuous {f : ℝ → ℝ} (Hcon : continuous f) 
     assumption
   end
 
-theorem continuous_mul_of_continuous {f g : ℝ → ℝ} (Hconf : continuous f) (Hcong : continuous g) :
+theorem continuous_mul_of_continuous {g : ℝ → ℝ} (Hcong : continuous g) :
         continuous (λ x, f x * g x) :=
   begin
+    apply continuous_of_forall_continuous_at,
     intro x,
     apply continuous_at_of_converges_to_at,
     apply mul_converges_to_at,
     all_goals apply converges_to_at_of_continuous_at,
-    apply Hconf,
+    all_goals apply forall_continuous_at_of_continuous,
+    apply Hf,
     apply Hcong
   end
 
