@@ -271,6 +271,25 @@ theorem continuous_at_iff_continuous_at_on_univ (f : X → Y) (x : X) :
   continuous_at f x ↔ continuous_at_on f x univ :=
 iff.intro continuous_at_on_univ_of_continuous_at continuous_at_of_continuous_at_on_univ
 
+theorem continuous_of_forall_continuous_at {f : X → Y} (H : ∀ x : X, continuous_at f x) :
+        continuous f :=
+  begin
+    apply continuous_of_continuous_on_univ,
+    apply continuous_on_of_forall_continuous_at_on,
+    intro,
+    apply continuous_at_on_univ_of_continuous_at,
+    apply H
+  end
+
+theorem forall_continuous_at_of_continuous {f : X → Y} (H : continuous f) :
+        ∀ x : X, continuous_at f x :=
+  begin
+    intro,
+    apply continuous_at_of_continuous_at_on_univ,
+    apply continuous_at_on_of_continuous_on,
+    apply continuous_on_univ_of_continuous H,
+    apply mem_univ
+  end
 
 /- The Category TOP -/
 
