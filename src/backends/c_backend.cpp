@@ -19,6 +19,7 @@ Author: Jared Roesch
 namespace lean {
 
 static const char * LEAN_OBJ_TYPE = "lean::obj";
+static const char * LEAN_ERR = "lean::runtime_error";
 
 c_backend::c_backend(environment const & env, optional<std::string> main_fn)
     : backend(env, main_fn) {}
@@ -162,7 +163,7 @@ void c_backend::generate_simple_expr_var(std::ostream& os, simple_expr const & s
 
 void c_backend::generate_simple_expr_error(std::ostream& os, simple_expr const & se) {
     auto msg = to_simple_error(&se)->m_error_msg;
-    os << "error(\"" << msg.c_str() << "\")";
+    os << LEAN_ERR << "(\"" << msg.c_str() << "\")";
 }
 
 void c_backend::generate_simple_expr_call(std::ostream& os, simple_expr const & se) {

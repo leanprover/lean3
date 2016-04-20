@@ -20,37 +20,6 @@ Author: Jared Roesch
 
 namespace lean {
 
-// void print_decl(environment const & env, declaration const & d) {
-//     if (d.is_axiom()) {
-//         std::cout << "axiom: " << std::endl;
-//         std::cout << d.get_name() << std::endl;
-//     } else if (d.is_definition()) {
-//         std::cout << "def: "
-//         << d.get_name()
-//         << " : " << d.get_type() << " := "
-//         << d.get_value() << std::endl;
-//     } else if (d.is_constant_assumption()) {
-//         // bool is_definition() const;
-//         // bool is_axiom() const;
-//         // bool is_theorem() const;
-//         // bool is_constant_assumption() const;
-//
-//         std::cout << "constant assumption: " << std::endl;
-//         std::cout << d.get_name() << " : " << d.get_type() << std::endl;
-//         bool is_inductive;
-//
-//         if (inductive::is_intro_rule(env, d.get_name())) {
-//             is_inductive = true;
-//         } else {
-//             is_inductive = false;
-//         }
-//         std::cout << is_inductive << std::endl;
-//
-//     } else if (d.is_theorem()) {
-//         std::cout << "theorem" << std::endl;
-//     }
-// }
-
 backend::backend(environment const & env, optional<std::string> main_fn)
     : m_env(env) {
     auto main_name = name(main_fn.value());
@@ -168,7 +137,20 @@ shared_ptr<simple_expr> backend::compile_expr(expr const & e, std::vector<bindin
     std::cout << "exp: " << e << std::endl;
     switch (e.kind()) {
         case expr_kind::Local:
-            return shared_ptr<simple_expr>(new simple_expr_error("local"));
+            return this->compile_expr_local(e);
+        case expr_kind::Constant:
+            return this->compile_expr_const(e);
+        case expr_kind::Macro:
+            return this->compile_expr_macro(e, bindings);
+        case expr_kind::Lambda:
+            return this->compile_expr_lambda(e, bindings);
+        case expr_kind::App:
+            return this->compile_expr_app(e, bindings);
+        case expr_kind::Pi:
+            std::cout<< "pi: not supported" << std::endl;
+            break;
+        case expr_kind::Let:
+            break;
         case expr_kind::Meta:
             std::cout << "meta: not supported" << std::endl;
             break;
@@ -177,19 +159,6 @@ shared_ptr<simple_expr> backend::compile_expr(expr const & e, std::vector<bindin
             break;
         case expr_kind::Sort:
             std::cout<< "sort: not supported" << std::endl;
-            break;
-        case expr_kind::Constant:
-            return this->compile_expr_const(e);
-        case expr_kind::Macro:
-            return this->compile_expr_macro(e, bindings);
-        case expr_kind::Lambda:
-            return this->compile_expr_lambda(e, bindings);
-        case expr_kind::Pi:
-            std::cout<< "pi: not supported" << std::endl;
-            break;
-        case expr_kind::App:
-            return this->compile_expr_app(e, bindings);
-        case expr_kind::Let:
             break;
     }
     throw new std::string("app: not supported");
@@ -234,6 +203,10 @@ shared_ptr<simple_expr> backend::compile_expr_lambda(expr const & e, std::vector
     return shared_ptr<simple_expr>(new simple_expr_error(std::string("macro_here")));
 }
 
+shared_ptr<simple_expr> backend::compile_expr_local(expr const & e) {
+    name n = name(mlocal_name(e));
+    return shared_ptr<simple_expr>(new simple_expr_var(n));
+}
 
 shared_ptr<simple_expr> backend::compile_error(std::string msg) {
     return shared_ptr<simple_expr>(new simple_expr_error(msg));

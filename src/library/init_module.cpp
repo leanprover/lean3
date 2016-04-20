@@ -50,6 +50,7 @@ Author: Leonardo de Moura
 #include "library/unification_hint.h"
 #include "library/defeq_simp_lemmas.h"
 #include "library/defeq_simplifier.h"
+#include "library/extern.h"
 
 namespace lean {
 void initialize_library_module() {
@@ -75,6 +76,7 @@ void initialize_library_module() {
     initialize_private();
     initialize_scoped_ext();
     initialize_reducible();
+    initialize_extern();
     initialize_aliases();
     initialize_coercion();
     initialize_unifier_plugin();
