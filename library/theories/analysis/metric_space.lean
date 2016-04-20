@@ -347,6 +347,7 @@ have aux : (λ n, X (k + n)) = (λ n, X (n + k)), from funext (take n, by rewrit
 by rewrite aux at H; exact converges_to_seq_of_converges_to_seq_offset H
 -/
 
+--<<<<<<< HEAD
 proposition bounded_of_converges_seq {X : ℕ → M} {x : M} (H : X ⟶ x [at ∞]) :
             ∃ K : ℝ, ∀ n : ℕ, dist (X n) x ≤ K :=
   have eventually (λ n, dist (X n) x < 1) [at ∞],
@@ -362,6 +363,66 @@ proposition bounded_of_converges_seq {X : ℕ → M} {x : M} (H : X ⟶ x [at �
       else
         show dist (X n) x ≤ K,
           from le.trans (le_of_lt (HN n (le_of_not_gt Hn))) !le_max_left)
+--=======
+/-proposition converges_to_seq_of_converges_to_seq_offset_succ
+    {X : ℕ → M} {y : M} (H : (λ n, X (succ n)) ⟶ y in ℕ) :
+  X ⟶ y in ℕ :=
+@converges_to_seq_of_converges_to_seq_offset M _ X y 1 H
+
+proposition converges_to_seq_offset_iff (X : ℕ → M) (y : M) (k : ℕ) :
+  ((λ n, X (n + k)) ⟶ y in ℕ) ↔ (X ⟶ y in ℕ) :=
+iff.intro converges_to_seq_of_converges_to_seq_offset !converges_to_seq_offset
+
+proposition converges_to_seq_offset_left_iff (X : ℕ → M) (y : M) (k : ℕ) :
+  ((λ n, X (k + n)) ⟶ y in ℕ) ↔ (X ⟶ y in ℕ) :=
+iff.intro converges_to_seq_of_converges_to_seq_offset_left !converges_to_seq_offset_left
+
+proposition converges_to_seq_offset_succ_iff (X : ℕ → M) (y : M) :
+  ((λ n, X (succ n)) ⟶ y in ℕ) ↔ (X ⟶ y in ℕ) :=
+iff.intro converges_to_seq_of_converges_to_seq_offset_succ !converges_to_seq_offset_succ
+
+section
+open list
+private definition r_trans : transitive (@le ℝ _) := λ a b c, !le.trans
+private definition r_refl : reflexive (@le ℝ _) := λ a, !le.refl
+
+proposition bounded_of_converges_seq {X : ℕ → M} {x : M} (H : X ⟶ x in ℕ) :
+            ∃ K : ℝ, ∀ n : ℕ, dist (X n) x ≤ K :=
+  begin
+    cases H zero_lt_one with N HN,
+    cases em (N = 0),
+    existsi 1,
+    intro n,
+    apply le_of_lt,
+    apply HN,
+    rewrite a,
+    apply zero_le,
+    let l := map (λ n : ℕ, -dist (X n) x) (upto N),
+    have Hnenil : l ≠ nil, from (map_ne_nil_of_ne_nil _ (upto_ne_nil_of_ne_zero a)),
+    existsi max (-list.min (λ a b : ℝ, le a b) l Hnenil) 1,
+    intro n,
+    have Hsmn : ∀ m : ℕ, m < N → dist (X m) x ≤ max (-list.min (λ a b : ℝ, le a b) l Hnenil) 1, begin
+      intro m Hm,
+      apply le.trans,
+      rotate 1,
+      apply le_max_left,
+      note Hall := min_lemma real.le_total r_trans r_refl Hnenil,
+      have Hmem : -dist (X m) x ∈ (map (λ (n : ℕ), -dist (X n) x) (upto N)), from mem_map _ (mem_upto_of_lt Hm),
+      note Hallm' := of_mem_of_all Hmem Hall,
+      apply le_neg_of_le_neg,
+      exact Hallm'
+    end,
+    cases em (n < N) with Elt Ege,
+    apply Hsmn,
+    exact Elt,
+    apply le_of_lt,
+    apply lt_of_lt_of_le,
+    apply HN,
+    apply le_of_not_gt Ege,
+    apply le_max_right
+  end
+end
+>>>>>>> feat(library/analysis): basic properties about real derivatives-/
 
 /- cauchy sequences -/
 
@@ -552,32 +613,6 @@ variables {M N : Type} [Hm : metric_space M] [Hn : metric_space N]
 include Hm Hn
 open topology set
 
-/-  begin
-    intros x Hx ε Hε,
-    rewrite [↑continuous_on at Hfs],
-    cases @Hfs (open_ball (f x) ε) !open_ball_open with t Ht,
-    cases Ht with Ht Htx,
-
-    cases @Hfx (open_ball (f x) ε) !open_ball_open (mem_open_ball _ Hε) with V HV,
-    cases HV with HV HVx,
-    cases HVx with HVx HVf,
-    cases ex_Open_ball_subset_of_Open_of_nonempty HV HVx with δ Hδ,
-    cases Hδ with Hδ Hδx,
-    existsi δ,
-    split,
-    exact Hδ,
-    intro x' Hx',
-    rewrite dist_comm,
-    apply and.right,
-    apply HVf,
-    apply Hδx,
-    apply and.intro !mem_univ,
-    rewrite dist_comm,
-    apply Hx',
-  end-/
-
-/- continuity at a point -/
-
 -- the ε - δ definition of continuity is equivalent to the topological definition
 theorem continuous_at_intro {f : M → N} {x : M}
         (H : ∀ ⦃ε⦄, ε > 0 → ∃ δ, δ > 0 ∧ ∀ ⦃x'⦄, dist x' x < δ → dist (f x') (f x) < ε) :
@@ -726,7 +761,7 @@ approaches_at_intro
 --definition continuous (f : M → N) : Prop := ∀ x, continuous_at f x
 
 theorem converges_seq_comp_of_converges_seq_of_cts (X : ℕ → M) [HX : converges_seq X] {f : M → N}
-                                         (Hf : continuous f) :
+        (Hf : continuous f) :
         converges_seq (λ n, f (X n)) :=
   begin
     cases HX with xlim Hxlim,
