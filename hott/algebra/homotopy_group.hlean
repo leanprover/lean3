@@ -8,7 +8,7 @@ homotopy groups of a pointed space
 
 import .trunc_group types.trunc .group_theory
 
-open nat eq pointed trunc is_trunc algebra
+open nat eq pointed trunc is_trunc algebra group function equiv unit
 
 namespace eq
 
@@ -64,8 +64,7 @@ namespace eq
     exact loopn_pequiv_loopn k (pequiv_of_eq begin rewrite [trunc_index.zero_add] end)
   end
 
-  open equiv unit
-  theorem trivial_homotopy_of_is_set (A : Type*) [H : is_set A] (n : ℕ) : πg[n+1] A = G0 :=
+  theorem trivial_homotopy_of_is_set (A : Type*) [H : is_set A] (n : ℕ) : πg[n+1] A ≃g G0 :=
   begin
     apply trivial_group_of_is_contr,
     apply is_trunc_trunc_of_is_trunc,
@@ -80,31 +79,14 @@ namespace eq
 
   definition ghomotopy_group_succ_out (A : Type*) (n : ℕ) : πg[n +1] A = π₁ Ω[n] A := idp
 
-  definition ghomotopy_group_succ_in (A : Type*) (n : ℕ) : πg[succ n +1] A = πg[n +1] Ω A :=
+  definition ghomotopy_group_succ_in (A : Type*) (n : ℕ) : πg[succ n +1] A ≃g πg[n +1] Ω A :=
   begin
-    fapply Group_eq,
+    fapply isomorphism_of_equiv,
     { apply equiv_of_eq, exact ap (ptrunc 0) (loop_space_succ_eq_in A (succ n))},
     { exact abstract [irreducible] begin refine trunc.rec _, intro p, refine trunc.rec _, intro q,
       rewrite [▸*,-+tr_eq_cast_ap, +trunc_transport], refine !trunc_transport ⬝ _, apply ap tr,
       apply loop_space_succ_eq_in_concat end end},
   end
-
-  definition homotopy_group_add (A : Type*) (n m : ℕ) : πg[n+m +1] A = πg[n +1] Ω[m] A :=
-  begin
-    revert A, induction m with m IH: intro A,
-    { reflexivity},
-    { esimp [iterated_ploop_space, nat.add], refine !ghomotopy_group_succ_in ⬝ _, refine !IH ⬝ _,
-      exact ap (ghomotopy_group n) !loop_space_succ_eq_in⁻¹}
-  end
-
-  theorem trivial_homotopy_add_of_is_set_loop_space {A : Type*} {n : ℕ} (m : ℕ)
-    (H : is_set (Ω[n] A)) : πg[m+n+1] A = G0 :=
-  !homotopy_group_add ⬝ !trivial_homotopy_of_is_set
-
-  theorem trivial_homotopy_le_of_is_set_loop_space {A : Type*} {n : ℕ} (m : ℕ) (H1 : n ≤ m)
-    (H2 : is_set (Ω[n] A)) : πg[m+1] A = G0 :=
-  obtain (k : ℕ) (p : n + k = m), from le.elim H1,
-  ap (λx, πg[x+1] A) (p⁻¹ ⬝ add.comm n k) ⬝ trivial_homotopy_add_of_is_set_loop_space k H2
 
   definition phomotopy_group_functor [constructor] (n : ℕ) {A B : Type*} (f : A →* B)
     : π*[n] A →* π*[n] B :=
@@ -140,7 +122,39 @@ namespace eq
     apply ap tr, apply apn_con
   end
 
-  open group function
+  definition homotopy_group_homomorphism [constructor] (n : ℕ) {A B : Type*} (f : A →* B)
+    : πg[n+1] A →g πg[n+1] B :=
+  begin
+    fconstructor,
+    { exact phomotopy_group_functor (n+1) f},
+    { apply phomotopy_group_functor_mul}
+  end
+
+  definition homotopy_group_isomorphism_of_pequiv [constructor] (n : ℕ) {A B : Type*} (f : A ≃* B)
+    : πg[n+1] A ≃g πg[n+1] B :=
+  begin
+    apply isomorphism.mk (homotopy_group_homomorphism n f),
+    esimp, apply is_equiv_trunc_functor, apply is_equiv_apn,
+  end
+
+  definition homotopy_group_add (A : Type*) (n m : ℕ) : πg[n+m +1] A ≃g πg[n +1] Ω[m] A :=
+  begin
+    revert A, induction m with m IH: intro A,
+    { reflexivity},
+    { esimp [iterated_ploop_space, nat.add], refine !ghomotopy_group_succ_in ⬝g _, refine !IH ⬝g _,
+      apply homotopy_group_isomorphism_of_pequiv,
+      exact pequiv_of_eq !loop_space_succ_eq_in⁻¹}
+  end
+
+  theorem trivial_homotopy_add_of_is_set_loop_space {A : Type*} {n : ℕ} (m : ℕ)
+    (H : is_set (Ω[n] A)) : πg[m+n+1] A ≃g G0 :=
+  !homotopy_group_add ⬝g !trivial_homotopy_of_is_set
+
+  theorem trivial_homotopy_le_of_is_set_loop_space {A : Type*} {n : ℕ} (m : ℕ) (H1 : n ≤ m)
+    (H2 : is_set (Ω[n] A)) : πg[m+1] A ≃g G0 :=
+  obtain (k : ℕ) (p : n + k = m), from le.elim H1,
+  isomorphism_of_eq (ap (λx, πg[x+1] A) (p⁻¹ ⬝ add.comm n k)) ⬝g
+  trivial_homotopy_add_of_is_set_loop_space k H2
 
   /- some homomorphisms -/
 
@@ -160,14 +174,6 @@ namespace eq
     intro g h, rewrite mul.comm,
     induction g with g, induction h with h,
     exact ap tr !con_inv
-  end
-
-  definition homotopy_group_homomorphism [constructor] (n : ℕ) {A B : Type*} (f : A →* B)
-    : πg[n+1] A →g πg[n+1] B :=
-  begin
-    fconstructor,
-    { exact phomotopy_group_functor (n+1) f},
-    { apply phomotopy_group_functor_mul}
   end
 
   notation `π→g[`:95  n:0 ` +1] `:0 f:95 := homotopy_group_homomorphism n f
