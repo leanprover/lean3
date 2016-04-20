@@ -17,7 +17,7 @@ structure is_bdd_linear_map [class] {V W : Type} [normed_vector_space V] [normed
           extends is_module_hom ℝ f :=
   (op_norm : ℝ) (op_norm_pos : op_norm > 0) (op_norm_bound : ∀ v : V, ∥f v∥ ≤ op_norm * ∥v∥)
 
-theorem is_bdd_linear_map_id (V : Type) [normed_vector_space V] : is_bdd_linear_map (λ x : V, x) :=
+theorem is_bdd_linear_map_id [instance] (V : Type) [normed_vector_space V] : is_bdd_linear_map (λ x : V, x) :=
   begin
     fapply is_bdd_linear_map.mk,
     repeat (intros; reflexivity),
@@ -218,7 +218,7 @@ theorem frechet_deriv_spec [Hf : frechet_diffable_at f x] :
         (λ h : V, ∥f (x + h) - f x - (frechet_deriv_at f x h) ∥ / ∥ h ∥) ⟶ 0 at 0 :=
   frechet_diffable_at.is_fr_der _ _ f x
 
-theorem frechet_deriv_at_const {w : W} : is_frechet_deriv_at (λ v : V, w) (λ v : V, 0) x :=
+theorem frechet_deriv_at_const (w : W) : is_frechet_deriv_at (λ v : V, w) (λ v : V, 0) x :=
   begin
     intros ε Hε,
     existsi 1,

@@ -405,7 +405,15 @@ section limit_operations_continuous
 variables {f g h : ℝ → ℝ}
 variables {a b x y : ℝ}
 
+--<<<<<<< HEAD
 theorem mul_converges_to_at (Hf : f ⟶ a [at x]) (Hg : g ⟶ b [at x]) : (λ z, f z * g z) ⟶ a * b [at x] :=
+/-=======
+theorem converges_to_at_real_intro (Hf : ∀ ⦃ε⦄, ε > 0 →
+        (∃ δ, δ > 0 ∧ ∀ ⦃x'⦄, x' ≠ x ∧ abs (x' - x) < δ → abs (f x' - y) < ε)) :
+        converges_to_at f y x := Hf
+
+theorem mul_converges_to_at (Hf : f ⟶ a at x) (Hg : g ⟶ b at x) : (λ z, f z * g z) ⟶ a * b at x :=
+>>>>>>> feat(library/analysis): basic properties about real derivatives-/
   begin
     apply converges_to_at_of_all_conv_seqs,
     intro X HX,
