@@ -7,8 +7,8 @@ Declaration of the circle
 -/
 
 import .sphere
-import types.bool types.int.hott types.equiv
-import algebra.homotopy_group algebra.hott .connectedness
+import types.int.hott
+import algebra.homotopy_group .connectedness
 
 open eq susp bool sphere_index is_equiv equiv is_trunc is_conn pi algebra
 
@@ -293,7 +293,7 @@ namespace circle
   preserve_binary_of_inv_preserve base_eq_base_equiv concat (@add ℤ _) decode_add p q
 
   --the carrier of π₁(S¹) is the set-truncation of base = base.
-  open algebra trunc
+  open algebra trunc group
 
   definition fg_carrier_equiv_int : π[1](S¹.) ≃ ℤ :=
   trunc_equiv_trunc 0 base_eq_base_equiv ⬝e @(trunc_equiv 0 ℤ) proof _ qed
@@ -301,16 +301,16 @@ namespace circle
   definition con_comm_base (p q : base = base) : p ⬝ q = q ⬝ p :=
   eq_of_fn_eq_fn base_eq_base_equiv (by esimp;rewrite [+encode_con,add.comm])
 
-  definition fundamental_group_of_circle : π₁(S¹.) = gℤ :=
+  definition fundamental_group_of_circle : π₁(S¹.) ≃g gℤ :=
   begin
-    apply (Group_eq fg_carrier_equiv_int),
+    apply (isomorphism_of_equiv fg_carrier_equiv_int),
     intros g h,
     induction g with g', induction h with h',
     apply encode_con,
   end
 
   open nat
-  definition homotopy_group_of_circle (n : ℕ) : πg[n+1 +1] S¹. = G0 :=
+  definition homotopy_group_of_circle (n : ℕ) : πg[n+1 +1] S¹. ≃g G0 :=
   begin
     refine @trivial_homotopy_add_of_is_set_loop_space S¹. 1 n _,
     apply is_trunc_equiv_closed_rev, apply base_eq_base_equiv
