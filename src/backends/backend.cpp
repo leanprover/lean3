@@ -52,7 +52,7 @@ namespace lean {
 // }
 
 backend::backend(environment const & env, optional<std::string> main_fn)
-    : m_env(env) {
+    : m_env(env), m_tc(m_env) {
     auto main_name = name(main_fn.value());
     auto main = env.get(main_name);
     // print_decl(env, main);
@@ -124,14 +124,15 @@ void backend::compile_decl(declaration const & d) {
             } else {
                 throw "don't work";
             }
+        } else if (this->m_env.is_recursor(d.get_name())) {
+            std::cout << "unhandled recursor: " << d.get_name() << std::endl;
         } else {
-            std::cout << "unhandled constant assumption: " << std::endl;
+            std::cout << "unhandled constant assumption: " << d.get_name() << std::endl;
         }
     } else if (d.is_theorem()) {
         std::cout << "theorem" << std::endl;
     } else {
         std::cout << "unhandled case" << d.get_name() << std::endl;
-
     }
 }
 
@@ -143,7 +144,11 @@ shared_ptr<simple_expr> backend::compile_body(std::vector<name> & args, expr con
             expr d = instantiate_rev(binding_domain(ex), ls.size(), ls.data());
             auto n = mk_fresh_name(); // (name const & prefix, unsigned k);
             expr l = mk_local(n, binding_name(ex), d, binding_info(ex));
-            args.push_back(n);
+            // If the type is erasible we will remove it from the arguments
+            // list.
+            if (!is_erasible(binding_domain(ex))) {
+                args.push_back(n);
+            }
             ls.push_back(l);
             ex = binding_body(ex);
         }
@@ -190,6 +195,15 @@ shared_ptr<simple_expr> backend::compile_expr(expr const & e, std::vector<bindin
         case expr_kind::App:
             return this->compile_expr_app(e, bindings);
         case expr_kind::Let:
+            std::cout << "meta: not supported" << std::endl;
+            break;
+        case expr_kind::Meta:
+            std::cout << "meta: not supported" << std::endl;
+            break;
+        case expr_kind::Var:
+            std::cout<< "var: not supported" << std::endl;
+            break;
+            std::cout<< "sort: not supported" << std::endl;
             break;
     }
     throw new std::string("app: not supported");
@@ -207,12 +221,35 @@ shared_ptr<simple_expr> backend::compile_expr_app(expr const & e, std::vector<bi
     std::vector<name> names;
     for (unsigned i = 0; i < nargs; i++) {
          std::cout << args[i] << std::endl;
-         auto n = mk_fresh_name();
-         this->bind_name(n, args[i], bindings);
-         names.push_back(n);
+         auto ty = m_tc.check_ignore_undefined_universes(args[i]);
+         std::cout << "argument type: " << ty.first << std::endl;
+         // If the argument is erasible, we should complete the
+         // erasure here, by omitting the compiled argument.
+         if (!is_erasible(ty.first)) {
+             // If the argument is a constant we don't need to generate
+             // a fresh binding.
+             if (is_constant(args[i])) {
+                 names.push_back(const_name(args[i]));
+             } else if (is_local(args[i])) {
+                 names.push_back(mlocal_name(args[i]));
+             } else if (is_var(args[i])) {
+                 names.push_back(name("v"));
+             } else {
+                 auto n = mk_fresh_name();
+                 this->bind_name(n, args[i], bindings);
+                 names.push_back(n);
+             }
+        }
     }
 
-    if (is_constant(f)) {
+    std::vector<expr> eargs;
+    for (auto arg : args) {
+        eargs.push_back(arg);
+    }
+
+    if (is_constant(f) && this->m_env.is_recursor(const_name(f))) {
+        return compile_recursor(const_name(f), eargs, bindings);
+    } else if (is_constant(f)) {
         auto callee_name = const_name(f);
         return shared_ptr<simple_expr>(new simple_expr_call(callee_name, names, 1));
     } else {
@@ -222,16 +259,46 @@ shared_ptr<simple_expr> backend::compile_expr_app(expr const & e, std::vector<bi
     }
 }
 
+shared_ptr<simple_expr> backend::compile_recursor(
+    name const & recursor_name,
+    std::vector<expr> & args,
+    std::vector<binding> & bindings) {
+        lean_assert(m_env.is_recursor(recursor_name));
+        auto major_index = inductive::get_elim_major_idx(m_env, recursor_name);
+        auto scrutinee = args[major_index.value()];
+        std::vector<shared_ptr<simple_expr>> cases;
+        if (is_constant(scrutinee)) {
+            auto n = const_name(scrutinee);
+            return shared_ptr<simple_expr>(new simple_expr_switch(n, cases));
+        } else {
+            auto n = mk_fresh_name();
+            this->bind_name(n, scrutinee, bindings);
+            return shared_ptr<simple_expr>(new simple_expr_switch(n, cases));
+        }
+}
+
 shared_ptr<simple_expr> backend::compile_expr_macro(expr const & e, std::vector<binding> & bindings) {
-    auto def = macro_def(e);
-    std::cout << "macro: not supported(";
-    def.display(std::cout);
-    std::cout << ")" << std::endl;
-    return shared_ptr<simple_expr>(new simple_expr_error(std::string("macro_here")));
+    std::cout << e << std::endl;
+    // Eventually do efficent replacement here.
+    //
+    // Expand it and then compile the resulting
+    // expression.
+    auto expanded_expr = m_tc.expand_macro(e);
+    if (expanded_expr) {
+        return compile_expr(expanded_expr.value(), bindings);
+    } else {
+        throw "macro expansion failed";
+    }
 }
 
 shared_ptr<simple_expr> backend::compile_expr_lambda(expr const & e, std::vector<binding> & bindings) {
-    return shared_ptr<simple_expr>(new simple_expr_error(std::string("macro_here")));
+    name closure_name = mk_fresh_name(); // "anonymous_closure");
+    std::vector<name> args;
+    auto se = this->compile_body(args, e);
+    auto p = proc(closure_name, args, se);
+    this->add_proc(p);
+
+    return shared_ptr<simple_expr>(new simple_expr_var(closure_name));
 }
 
 
@@ -253,6 +320,21 @@ shared_ptr<simple_expr> let_binding(std::vector<binding> bindings, shared_ptr<si
         return se;
     } else {
         return std::shared_ptr<simple_expr>(new simple_expr_let(bindings, se));
+    }
+}
+
+bool is_erasible(expr const & e) {
+    std::cout << "erase: " << e << std::endl;
+    if (is_sort(e)) {
+        return true;
+    } else if (is_pi(e)) {
+        auto co_domain = e;
+        while (is_pi(co_domain)) {
+            co_domain = binding_body(co_domain);
+        }
+        return is_sort(co_domain);
+    } else {
+        return false;
     }
 }
 

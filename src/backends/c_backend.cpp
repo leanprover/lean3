@@ -63,6 +63,12 @@ void c_backend::generate_code(optional<std::string> output_path) {
         fs << std::endl;
     }
 
+    // Generate a declaration for each procedure.
+    for (auto proc : this->m_procs) {
+        this->generate_decl(fs, proc);
+        fs << std::endl;
+    }
+
     // Then generate code for procs.
     for (auto proc : this->m_procs) {
         this->generate_proc(fs, proc);
@@ -155,6 +161,26 @@ void c_backend::generate_proc(std::ostream& os, proc const & p) {
     os << std::endl << "}" << std::endl;
 }
 
+void c_backend::generate_decl(std::ostream& os, proc const & p) {
+    os << LEAN_OBJ_TYPE << " ";
+    mangle_name(os, p.m_name);
+    os << "(";
+
+    auto comma = false;
+
+    for (auto arg : p.m_args) {
+        if (comma) {
+            os << ", ";
+        } else {
+            comma = true;
+        }
+        os << LEAN_OBJ_TYPE << " ";
+        mangle_name(os, arg);
+    }
+
+    os << ");" << std::endl;
+}
+
 void c_backend::generate_simple_expr_var(std::ostream& os, simple_expr const & se) {
     auto n = to_simple_var(&se)->m_name;
     mangle_name(os, n);
@@ -214,6 +240,22 @@ void c_backend::generate_simple_expr_let(std::ostream& os, simple_expr const & s
     os << ";";
 }
 
+void c_backend::generate_simple_expr_switch(std::ostream& os, simple_expr const & se) {
+    auto scrutinee = to_simple_switch(&se)->m_scrutinee;
+    auto cases = to_simple_switch(&se)->m_cases;
+    os << "switch (";
+    mangle_name(os, scrutinee);
+    os << ".cidx()) {" << std::endl;
+    int i = 0;
+    for (auto c : cases) {
+        os << "case " << i << ": {" << std::endl;
+        generate_simple_expr(os, *c);
+        os << "}";
+
+    }
+    os << "}";
+}
+
 void c_backend::generate_simple_expr(std::ostream& os, simple_expr const & se) {
     switch (se.kind()) {
         case simple_expr_kind::SVar:
@@ -227,6 +269,9 @@ void c_backend::generate_simple_expr(std::ostream& os, simple_expr const & se) {
             break;
         case simple_expr_kind::Error:
             generate_simple_expr_error(os, se);
+            break;
+        case simple_expr_kind::Switch:
+            generate_simple_expr_switch(os, se);
             break;
     }
 }
