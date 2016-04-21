@@ -8,6 +8,7 @@ Author: Jared Roesch
 
 #include <iostream>
 #include "kernel/environment.h"
+#include "kernel/type_checker.h"
 #include "simple_expr.h"
 
 namespace lean  {
@@ -35,6 +36,7 @@ namespace lean  {
     class backend {
     protected:
         environment const & m_env;
+        type_checker m_tc;
         std::vector<proc> m_procs;
         std::vector<ctor> m_ctors;
     public:
@@ -49,6 +51,8 @@ namespace lean  {
         shared_ptr<simple_expr> compile_expr_macro(expr const & e, std::vector<binding> & bindings);
         shared_ptr<simple_expr> compile_expr_app(expr const & e, std::vector<binding> & bindings);
         shared_ptr<simple_expr> compile_expr_const(expr const & e);
+        shared_ptr<simple_expr> compile_expr_local(expr const & e);
+        shared_ptr<simple_expr> compile_recursor(name const & n, std::vector<expr> & args, std::vector<binding> & bindings);
         shared_ptr<simple_expr> compile_error(std::string s);
         // The code generator interface, to add a new backend simply subclass
         // this type and declare the below methods.
