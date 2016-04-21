@@ -4,13 +4,13 @@ Released under Apache 2.0 license as described in the file LICENSE.
 
 Author: Jared Roesch
 */
-#pragma once
 
 #include <iostream>
 #include <utility>
 #include "used_names.h"
 #include "kernel/environment.h"
 #include "kernel/inductive/inductive.h"
+#include "kernel/type_checker.h"
 #include "util/name.h"
 #include "util/name_set.h"
 
@@ -70,8 +70,13 @@ void used_defs::names_in_expr(expr const & e) {
         case expr_kind::Constant:
             this->add_name(const_name(e));
             break;
-        case expr_kind::Macro:
+        case expr_kind::Macro: {
+            type_checker tc(m_env);
+            auto expanded_macro = tc.expand_macro(e);
+            lean_assert(expanded_macro);
+            names_in_expr(expanded_macro.value());
             break;
+        }
         case expr_kind::Lambda:
         case expr_kind::Pi:
             this->names_in_expr(binding_domain(e));

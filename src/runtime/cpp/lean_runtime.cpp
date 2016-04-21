@@ -66,6 +66,15 @@ void * alloc_obj(unsigned n) {
     return g_obj_pool->allocate(n);
 }
 
+obj_cell::obj_cell(void* raw_ptr):
+    m_rc(0), m_kind(static_cast<unsigned>(obj_kind::RawPtr)), m_size(20), m_cidx(0) {
+    std::cout << raw_ptr << std::endl;
+    void ** mem = field_addr();
+    std::cout << raw_ptr << std::endl;
+    *mem = raw_ptr;
+    std::cout << *mem << std::endl;
+}
+
 obj_cell::obj_cell(unsigned cidx, unsigned sz, obj const * fs):
     m_rc(0), m_kind(static_cast<unsigned>(obj_kind::Constructor)), m_size(sz), m_cidx(cidx) {
     static_assert(sizeof(obj_cell) % sizeof(void*) == 0); // make sure the hack used to store obj_cell fields satisfies alignment constraints. // NOLINT
@@ -213,6 +222,11 @@ void obj_cell::dealloc() {
         // We need this catch, because push_back may fail when expanding the buffer.
         // In this case, we avoid the crash, and "accept" the memory leak.
     }
+}
+
+obj mk_raw_ptr(void * raw_ptr) {
+    void * mem = alloc_obj(1);
+    return obj(new (mem) obj_cell(raw_ptr));
 }
 
 obj mk_obj(unsigned cidx, unsigned n, obj const * fs) {

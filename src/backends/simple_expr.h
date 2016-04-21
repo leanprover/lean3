@@ -18,6 +18,7 @@ namespace lean  {
         SVar,
         Let,
         Call,
+        Switch,
         Error,
     };
 
@@ -60,6 +61,16 @@ namespace lean  {
         virtual simple_expr_kind kind() const { return simple_expr_kind::Call; }
     };
 
+    struct simple_expr_switch : simple_expr {
+        name m_scrutinee;
+        std::vector<shared_ptr<simple_expr>> m_cases;
+        simple_expr_switch(name m_scrutinee, std::vector<shared_ptr<simple_expr>> m_cases)
+            : m_scrutinee(m_scrutinee), m_cases(m_cases) {
+                this->m_kind = simple_expr_kind::Switch;
+        }
+        virtual simple_expr_kind kind() const { return simple_expr_kind::Switch; }
+    };
+
     struct simple_expr_error : simple_expr {
         std::string m_error_msg;
         simple_expr_error(std::string msg) : m_error_msg(msg) {}
@@ -81,27 +92,11 @@ namespace lean  {
     inline bool simple_is_var(simple_expr const & e) {
         return e.kind() == simple_expr_kind::SVar;
     }
-    // inline bool is_var(expr_ptr e)         { return e->kind() == expr_kind::Var; }
-    // inline bool is_constant(expr_ptr e)    { return e->kind() == expr_kind::Constant; }
-    // inline bool is_local(expr_ptr e)       { return e->kind() == expr_kind::Local; }
-    // inline bool is_metavar(expr_ptr e)     { return e->kind() == expr_kind::Meta; }
-    // inline bool is_macro(expr_ptr e)       { return e->kind() == expr_kind::Macro; }
-    // inline bool is_app(expr_ptr e)         { return e->kind() == expr_kind::App; }
-    // inline bool is_lambda(expr_ptr e)      { return e->kind() == expr_kind::Lambda; }
-    // inline bool is_pi(expr_ptr e)          { return e->kind() == expr_kind::Pi; }
-    // inline bool is_let(expr_ptr e)         { return e->kind() == expr_kind::Let; }
-    // inline bool is_sort(expr_ptr e)        { return e->kind() == expr_kind::Sort; }
-    // inline bool is_binding(expr_ptr e)     { return is_lambda(e) || is_pi(e); }
-    // inline bool is_mlocal(expr_ptr e)      { return is_metavar(e) || is_local(e); }
-    //
-    // inline expr_var *         to_var(expr_ptr e)        { lean_assert(is_var(e));         return static_cast<expr_var*>(e); }
-    // inline expr_const *       to_constant(expr_ptr e)   { lean_assert(is_constant(e));    return static_cast<expr_const*>(e); }
-    // inline expr_app *         to_app(expr_ptr e)        { lean_assert(is_app(e));         return static_cast<expr_app*>(e); }
-    // inline expr_binding *     to_binding(expr_ptr e)    { lean_assert(is_binding(e));     return static_cast<expr_binding*>(e); }
-    // inline expr_sort *        to_sort(expr_ptr e)       { lean_assert(is_sort(e));        return static_cast<expr_sort*>(e); }
-    // inline expr_mlocal *      to_mlocal(expr_ptr e)     { lean_assert(is_mlocal(e));      return static_cast<expr_mlocal*>(e); }
-    // inline expr_local *       to_local(expr_ptr e)      { lean_assert(is_local(e));       return static_cast<expr_local*>(e); }
-    // inline expr_mlocal *      to_metavar(expr_ptr e)    { lean_assert(is_metavar(e));     return static_cast<expr_mlocal*>(e); }
+
+    inline bool simple_is_switch(simple_expr const & e) {
+        return e.kind() == simple_expr_kind::Switch;
+    }
+
     inline simple_expr_call const * to_simple_call(simple_expr const * e) {
         lean_assert(simple_is_call(*e));
         return static_cast<simple_expr_call const *>(e);
@@ -121,5 +116,9 @@ namespace lean  {
         lean_assert(simple_is_var(*e));
         return static_cast<simple_expr_var const *>(e);
     }
-    // inline expr_macro *       to_macro(expr_ptr e)      { lean_assert(is_macro(e));       return static_cast<expr_macro*>(e); }
+
+    inline simple_expr_switch const * to_simple_switch(simple_expr const * e) {
+        lean_assert(simple_is_switch(*e));
+        return static_cast<simple_expr_switch const *>(e);
+    }
 }
