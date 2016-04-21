@@ -331,8 +331,7 @@ namespace eq
     (s : square q r p idp) : q =[p] r :=
   eq_pathover (ap_id p ⬝ph s ⬝hp (ap_constant p a₀)⁻¹)
 
-  definition loop_pathover {p : a = a'} {b : B} {q : a = a} {r : a' = a'}
-    (s : square q r p p) : q =[p] r :=
+  definition loop_pathover {p : a = a'} {q : a = a} {r : a' = a'} (s : square q r p p) : q =[p] r :=
   eq_pathover (ap_id p ⬝ph s ⬝hp (ap_id p)⁻¹)
 
   /- interaction of equivalences with operations on squares -/
