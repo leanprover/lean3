@@ -6,7 +6,7 @@ Authors: Jakob von Raumer, Floris van Doorn
 Ported from Coq HoTT
 -/
 
-import .iso algebra.group
+import .iso algebra.bundled
 
 open eq is_trunc iso category algebra nat unit
 
@@ -22,21 +22,22 @@ namespace category
     (H : Π (a b : ob) (f : a ⟶ b), is_iso f) : groupoid ob :=
   precategory.rec_on C groupoid.mk' H
 
-  -- We can turn each group into a groupoid on the unit type
   definition groupoid_of_group.{l} [constructor] (A : Type.{l}) [G : group A] :
     groupoid.{0 l} unit :=
   begin
-    fapply groupoid.mk, fapply precategory.mk,
-      intros, exact A,
-      intros, apply (@group.is_set_carrier A G),
-      intros a b c g h, exact (@group.mul A G g h),
-      intro a, exact (@group.one A G),
-      intros, exact (@group.mul_assoc A G h g f)⁻¹,
-      intros, exact (@group.one_mul A G f),
-      intros, exact (@group.mul_one A G f),
-      intros, esimp [precategory.mk], apply is_iso.mk,
-        apply mul.left_inv,
-        apply mul.right_inv,
+    fapply groupoid.mk; fapply precategory.mk: intros,
+      { exact A},
+      { exact _},
+      { exact a_2 * a_1},
+      { exact 1},
+      { apply mul.assoc},
+      { apply mul_one},
+      { apply one_mul},
+      { esimp [precategory.mk],
+        fapply is_iso.mk,
+        { exact f⁻¹},
+        { apply mul.right_inv},
+        { apply mul.left_inv}},
   end
 
   definition hom_group [constructor] {A : Type} [G : groupoid A] (a : A) : group (hom a a) :=
@@ -78,5 +79,7 @@ namespace category
   definition Groupoid.eta [unfold 1] (C : Groupoid) : Groupoid.mk C C = C :=
   Groupoid.rec (λob c, idp) C
 
+  definition Groupoid_of_Group [constructor] (G : Group) : Groupoid :=
+  Groupoid.mk unit (groupoid_of_group G)
 
 end category
