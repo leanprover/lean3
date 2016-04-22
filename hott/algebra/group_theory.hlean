@@ -144,6 +144,10 @@ namespace group
   definition equiv_of_isomorphism [constructor] (φ : G₁ ≃g G₂) : G₁ ≃ G₂ :=
   equiv.mk φ _
 
+  definition pequiv_of_isomorphism [constructor] (φ : G₁ ≃g G₂) :
+    pType_of_Group G₁ ≃* pType_of_Group G₂ :=
+  pequiv.mk φ _ (respect_one φ)
+
   definition isomorphism_of_equiv [constructor] (φ : G₁ ≃ G₂)
     (p : Πg₁ g₂, φ (g₁ * g₂) = φ g₁ * φ g₂) : G₁ ≃g G₂ :=
   isomorphism.mk (homomorphism.mk φ p) !to_is_equiv
@@ -171,8 +175,18 @@ namespace group
   definition isomorphism.trans [trans] [constructor] (φ : G₁ ≃g G₂) (ψ : G₂ ≃g G₃) : G₁ ≃g G₃ :=
   isomorphism.mk (ψ ∘g φ) !is_equiv_compose
 
+  definition isomorphism.eq_trans [trans] [constructor]
+     {G₁ G₂ G₃ : Group} (φ : G₁ = G₂) (ψ : G₂ ≃g G₃) : G₁ ≃g G₃ :=
+  proof isomorphism.trans (isomorphism_of_eq φ) ψ qed
+
+  definition isomorphism.trans_eq [trans] [constructor]
+    {G₁ G₂ G₃ : Group} (φ : G₁ ≃g G₂) (ψ : G₂ = G₃) : G₁ ≃g G₃ :=
+  isomorphism.trans φ (isomorphism_of_eq ψ)
+
   postfix `⁻¹ᵍ`:(max + 1) := isomorphism.symm
   infixl ` ⬝g `:75 := isomorphism.trans
+  infixl ` ⬝gp `:75 := isomorphism.trans_eq
+  infixl ` ⬝pg `:75 := isomorphism.eq_trans
 
   -- TODO
   -- definition Group_univalence (G₁ G₂ : Group) : (G₁ ≃g G₂) ≃ (G₁ = G₂) :=
@@ -256,5 +270,32 @@ namespace group
 
   definition trivial_group_of_is_contr' (G : Group) [H : is_contr G] : G = G0 :=
   eq_of_isomorphism (trivial_group_of_is_contr G)
+
+  /-
+    A group where the point in the pointed type corresponds with 1 in the group.
+    We need this structure when we are given a pointed type, and want to say that there is a group
+    structure on it which is compatible with the point. This is used in chain complexes.
+  -/
+  structure pgroup [class] (X : Type*) extends semigroup X, has_inv X :=
+    (pt_mul : Πa, mul pt a = a)
+    (mul_pt : Πa, mul a pt = a)
+    (mul_left_inv_pt : Πa, mul (inv a) a = pt)
+
+  definition group_of_pgroup [reducible] [instance] (X : Type*) [H : pgroup X]
+    : group X :=
+  ⦃group, H,
+          one := pt,
+          one_mul := pgroup.pt_mul ,
+          mul_one := pgroup.mul_pt,
+          mul_left_inv := pgroup.mul_left_inv_pt⦄
+
+  definition pgroup_of_group (X : Type*) [H : group X] (p : one = pt :> X) : pgroup X :=
+  begin
+    cases X with X x, esimp at *, induction p,
+    exact ⦃pgroup, H,
+            pt_mul := one_mul,
+            mul_pt := mul_one,
+            mul_left_inv_pt := mul.left_inv⦄
+  end
 
 end group

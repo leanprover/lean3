@@ -285,8 +285,8 @@ namespace circle
   definition base_eq_base_equiv [constructor] : base = base ≃ ℤ :=
   circle_eq_equiv base
 
-  definition decode_add (a b : ℤ) : circle.decode a ⬝ circle.decode b = circle.decode (a +[ℤ] b) :=
-  !power_con_power
+  definition decode_add (a b : ℤ) : circle.decode (a +[ℤ] b) = circle.decode a ⬝ circle.decode b :=
+  !power_con_power⁻¹
 
   definition encode_con (p q : base = base)
     : circle.encode (p ⬝ q) = circle.encode p +[ℤ] circle.encode q :=

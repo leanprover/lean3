@@ -249,7 +249,33 @@ namespace prod
 end prod
 
 attribute prod.is_trunc_prod [instance] [priority 1510]
-definition tprod [constructor] {n : trunc_index} (A B : n-Type) : n-Type :=
-trunctype.mk (A × B) _
 
-infixr `×t`:30 := tprod
+namespace prod
+  /- pointed products -/
+  open pointed
+  definition pointed_prod [instance] [constructor] (A B : Type) [H1 : pointed A] [H2 : pointed B]
+      : pointed (A × B) :=
+  pointed.mk (pt,pt)
+
+  definition pprod [constructor] (A B : Type*) : Type* :=
+  pointed.mk' (A × B)
+
+  infixr ` ×* `:35 := pprod
+
+  definition ppr1 [constructor] {A B : Type*} : A ×* B →* A :=
+  pmap.mk pr1 idp
+
+  definition ppr2 [constructor] {A B : Type*} : A ×* B →* B :=
+  pmap.mk pr2 idp
+
+  definition tprod [constructor] {n : trunc_index} (A B : n-Type) : n-Type :=
+  trunctype.mk (A × B) _
+
+  infixr `×t`:30 := tprod
+
+  definition ptprod [constructor] {n : ℕ₋₂} (A B : n-Type*) : n-Type* :=
+  ptrunctype.mk' n (A × B)
+
+
+
+end prod

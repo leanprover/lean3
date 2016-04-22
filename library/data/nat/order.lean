@@ -228,6 +228,12 @@ lt.base n
 lemma lt_succ_of_lt {i j : nat} : i < j → i < succ j :=
 assume Plt, lt.trans Plt (self_lt_succ j)
 
+lemma one_le_succ (n : ℕ) : 1 ≤ succ n :=
+nat.succ_le_succ !zero_le
+
+lemma two_le_succ_succ (n : ℕ) : 2 ≤ succ (succ n) :=
+nat.succ_le_succ !one_le_succ
+
 /- increasing and decreasing functions -/
 
 section

@@ -3,7 +3,7 @@ Copyright (c) 2015 Ulrik Buchholtz. All rights reserved.
 Released under Apache 2.0 license as described in the file LICENSE.
 Authors: Ulrik Buchholtz, Floris van Doorn
 -/
-import types.trunc types.arrow_2 types.fiber
+import types.trunc types.arrow_2 types.lift
 
 open eq is_trunc is_equiv nat equiv trunc function fiber funext pi
 
@@ -199,7 +199,7 @@ namespace is_conn
         (fiber (λs x, s (Point A)) (λx, p))
         (fiber (λs, s (Point A)) p)
         k
-        (equiv.symm (fiber.equiv_postcompose (to_fun (arrow_unit_left (P (Point A))))))
+        (equiv.symm (fiber.equiv_postcompose _ (arrow_unit_left (P (Point A))) _))
         (is_conn_fun.elim_general n k (is_conn_fun_from_unit n A (Point A)) P (λx, p))
     end
   end is_conn
@@ -251,6 +251,21 @@ namespace is_conn
   definition is_conn_minus_two (A : Type) : is_conn -2 A :=
   _
 
+  -- merely inhabited types are -1-connected
+  definition is_conn_minus_one (A : Type) (a : ∥ A ∥) : is_conn -1 A :=
+  is_contr.mk a (is_prop.elim _)
+
+  definition is_conn_trunc [instance] (A : Type) (n k : ℕ₋₂) [H : is_conn n A]
+    : is_conn n (trunc k A) :=
+  begin
+    apply is_trunc_equiv_closed, apply trunc_trunc_equiv_trunc_trunc
+  end
+
+  open pointed
+  definition is_conn_ptrunc [instance] (A : Type*) (n k : ℕ₋₂) [H : is_conn n A]
+    : is_conn n (ptrunc k A) :=
+  is_conn_trunc A n k
+
   -- the following trivial cases are solved by type class inference
   definition is_conn_of_is_contr (k : ℕ₋₂) (A : Type) [is_contr A] : is_conn k A := _
   definition is_conn_fun_of_is_equiv (k : ℕ₋₂) {A B : Type} (f : A → B) [is_equiv f] :
@@ -299,6 +314,14 @@ namespace is_conn
     eapply algebra.le_by_cases k n: intro H,
     { exact is_conn_fun_trunc_functor_of_le f H},
     { exact is_conn_fun_trunc_functor_of_ge f H}
+  end
+
+  open lift
+  definition is_conn_fun_lift_functor (n : ℕ₋₂) {A B : Type} (f : A → B) [is_conn_fun n f] :
+    is_conn_fun n (lift_functor f) :=
+  begin
+    intro b, cases b with b, apply is_trunc_equiv_closed_rev,
+    { apply trunc_equiv_trunc, apply fiber_lift_functor}
   end
 
 end is_conn

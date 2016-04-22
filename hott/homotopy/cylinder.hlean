@@ -117,6 +117,7 @@ namespace cylinder
   definition fseg (a : A) : fbase (f a) = ftop a :=
   fiber_eq (seg a) !elim_seg⁻¹
 
+-- TODO: define the induction principle for "fcylinder"
 --   set_option pp.notation false
 --   -- The induction principle for the dependent mapping cylinder (TODO)
 --   protected definition frec {P : Π(b), fcylinder f b → Type}
