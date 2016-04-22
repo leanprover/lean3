@@ -131,6 +131,7 @@ namespace is_equiv
   definition is_equiv_inv [instance] [constructor] : is_equiv f⁻¹ :=
   adjointify f⁻¹ f (left_inv f) (right_inv f)
 
+  -- The 2-out-of-3 properties
   definition cancel_right (g : B → C) [Hgf : is_equiv (g ∘ f)] : (is_equiv g) :=
   have Hfinv : is_equiv f⁻¹, from is_equiv_inv f,
   @homotopy_closed _ _ _ _ (is_equiv_compose f⁻¹ (g ∘ f)) (λb, ap g (@right_inv _ _ f _ b))
@@ -142,28 +143,24 @@ namespace is_equiv
   definition eq_of_fn_eq_fn' {x y : A} (q : f x = f y) : x = y :=
   (left_inv f x)⁻¹ ⬝ ap f⁻¹ q ⬝ left_inv f y
 
-  theorem ap_eq_of_fn_eq_fn' {x y : A} (q : f x = f y) : ap f (eq_of_fn_eq_fn' f q) = q :=
-  begin
-    rewrite [↑eq_of_fn_eq_fn',+ap_con,ap_inv,-+adj,-ap_compose,con.assoc,
-             ap_con_eq_con_ap (right_inv f) q,inv_con_cancel_left,ap_id],
-  end
+  definition ap_eq_of_fn_eq_fn' {x y : A} (q : f x = f y) : ap f (eq_of_fn_eq_fn' f q) = q :=
+  !ap_con ⬝ whisker_right !ap_con _
+          ⬝ ((!ap_inv ⬝ inverse2 (adj f _)⁻¹)
+            ◾ (inverse (ap_compose f f⁻¹ _))
+            ◾ (adj f _)⁻¹)
+          ⬝ con_ap_con_eq_con_con (right_inv f) _ _
+          ⬝ whisker_right !con.left_inv _
+          ⬝ !idp_con
+
+  definition eq_of_fn_eq_fn'_ap {x y : A} (q : x = y) : eq_of_fn_eq_fn' f (ap f q) = q :=
+  by induction q; apply con.left_inv
 
   definition is_equiv_ap [instance] [constructor] (x y : A) : is_equiv (ap f : x = y → f x = f y) :=
   adjointify
     (ap f)
     (eq_of_fn_eq_fn' f)
-    abstract (λq, !ap_con
-      ⬝ whisker_right !ap_con _
-      ⬝ ((!ap_inv ⬝ inverse2 (adj f _)⁻¹)
-        ◾ (inverse (ap_compose f f⁻¹ _))
-        ◾ (adj f _)⁻¹)
-      ⬝ con_ap_con_eq_con_con (right_inv f) _ _
-      ⬝ whisker_right !con.left_inv _
-      ⬝ !idp_con) end
-    abstract (λp, whisker_right (whisker_left _ (ap_compose f⁻¹ f _)⁻¹) _
-      ⬝ con_ap_con_eq_con_con (left_inv f) _ _
-      ⬝ whisker_right !con.left_inv _
-      ⬝ !idp_con) end
+    (ap_eq_of_fn_eq_fn' f)
+    (eq_of_fn_eq_fn'_ap f)
 
   -- The function equiv_rect says that given an equivalence f : A → B,
   -- and a hypothesis from B, one may always assume that the hypothesis

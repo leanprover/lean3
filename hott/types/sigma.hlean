@@ -491,3 +491,28 @@ end sigma
 
 attribute sigma.is_trunc_sigma [instance] [priority 1490]
 attribute sigma.is_trunc_subtype [instance] [priority 1200]
+
+namespace sigma
+
+  /- pointed sigma type -/
+  open pointed
+
+  definition pointed_sigma [instance] [constructor] {A : Type} (P : A → Type) [G : pointed A]
+      [H : pointed (P pt)] : pointed (Σx, P x) :=
+  pointed.mk ⟨pt,pt⟩
+
+  definition psigma [constructor] {A : Type*} (P : A → Type*) : Type* :=
+  pointed.mk' (Σa, P a)
+
+  notation `Σ*` binders `, ` r:(scoped P, psigma P) := r
+
+  definition ppr1 [constructor] {A : Type*} {B : A → Type*} : (Σ*(x : A), B x) →* A :=
+  pmap.mk pr1 idp
+
+  definition ppr2 [unfold_full] {A : Type*} {B : A → Type*} (v : (Σ*(x : A), B x)) : B (ppr1 v) :=
+  pr2 v
+
+  definition ptsigma [constructor] {n : ℕ₋₂} {A : n-Type*} (P : A → n-Type*) : n-Type* :=
+  ptrunctype.mk' n (Σa, P a)
+
+end sigma

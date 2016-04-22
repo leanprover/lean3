@@ -15,11 +15,11 @@ section
   universe variable l
   variables {A B : Type.{l}}
 
-  definition is_equiv_cast_of_eq [constructor] (H : A = B) : is_equiv (cast H) :=
+  definition is_equiv_cast [constructor] (H : A = B) : is_equiv (cast H) :=
   is_equiv_tr (λX, X) H
 
   definition equiv_of_eq [constructor] (H : A = B) : A ≃ B :=
-  equiv.mk _ (is_equiv_cast_of_eq H)
+  equiv.mk _ (is_equiv_cast H)
 
   definition equiv_of_eq_refl [reducible] [unfold_full] (A : Type)
     : equiv_of_eq (refl A) = equiv.refl A :=

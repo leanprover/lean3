@@ -16,9 +16,10 @@ The following files are [ported](../port.md) from the standard library. If anyth
 * [ordered_field](ordered_field.hlean)
 * [bundled](bundled.hlean) : bundled versions of the algebraic structures
 
-Files which are HoTT specific:
+Files which are not ported from the standard library:
 
 * [hott](hott.hlean) : Basic theorems about the algebraic hierarchy specific to HoTT
+* [group_theory](group_theory.hlean) : Basic theorems about group homomorphisms and isomorphisms
 * [trunc_group](trunc_group.hlean) : truncate an infinity-group to a group
 * [homotopy_group](homotopy_group.hlean) : homotopy groups of a pointed type
 * [e_closure](e_closure.hlean) : the type of words formed by a relation

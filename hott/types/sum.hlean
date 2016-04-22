@@ -353,6 +353,15 @@ namespace sum
            begin intro v, induction v with b x, induction b, all_goals reflexivity end
            begin intro z, induction z with a b, all_goals reflexivity end
 
+  /- pointed sums. We arbitrarily choose (inl pt) as basepoint for the sum -/
+
+  open pointed
+  definition psum [constructor] (A B : Type*) : Type* :=
+  pointed.MK (A ⊎ B) (inl pt)
+
+  infixr ` +* `:30 := psum
+
+
 end sum
 open sum pi
 

@@ -55,7 +55,7 @@ section
   variables [H : h_space A] [K : is_conn 0 A]
   include H K
 
-  definition hopf : susp A → Type :=
+  definition hopf [unfold 4] : susp A → Type :=
   susp.elim_type A A (λa, equiv.mk (λx, a * x) !is_equiv_mul_left)
 
   /- Lemma 8.5.7. The total space is A * A -/
@@ -185,11 +185,11 @@ section
   equiv.MK encode decode' encode_decode' decode_encode
 
   definition main_lemma_point
-    : pointed.MK (trunc 1 (Ω(psusp A))) (tr idp) ≃* pointed.MK A 1 :=
+    : ptrunc 1 (Ω(psusp A)) ≃* pointed.MK A 1 :=
   pointed.pequiv_of_equiv main_lemma idp
 
-  protected definition delooping : (tr north = tr north :> trunc 2 (susp A)) ≃ A :=
-  (tr_eq_tr_equiv 1 north north) ⬝e main_lemma
+  protected definition delooping : Ω (ptrunc 2 (psusp A)) ≃* pointed.MK A 1 :=
+  loop_ptrunc_pequiv 1 (psusp A) ⬝e* main_lemma_point
 
 end
 

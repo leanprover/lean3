@@ -75,14 +75,25 @@ namespace sphere_index
   definition has_le_sphere_index [instance] : has_le ℕ₋₁ :=
   has_le.mk sphere_index.le
 
-  definition of_nat [coercion] [reducible] (n : ℕ) : ℕ₋₁ :=
-  (nat.rec_on n -1 (λ n k, k.+1)).+1
-
   definition sub_one [reducible] (n : ℕ) : ℕ₋₁ :=
   nat.rec_on n -1 (λ n k, k.+1)
 
   postfix `..-1`:(max+1) := sub_one
+
+  definition of_nat [coercion] [reducible] (n : ℕ) : ℕ₋₁ :=
+  n..-1.+1
+
   -- we use a double dot to distinguish with the notation .-1 in trunc_index (of type ℕ → ℕ₋₂)
+
+  definition add_one [reducible] (n : ℕ₋₁) : ℕ :=
+  sphere_index.rec_on n 0 (λ n k, nat.succ k)
+
+  definition add_plus_one_of_nat (n m : ℕ) : (n +1+ m) = sphere_index.of_nat (n + m + 1) :=
+  begin
+    induction m with m IH,
+    { reflexivity },
+    { exact ap succ IH}
+  end
 
   definition succ_sub_one (n : ℕ) : (nat.succ n)..-1 = n :> ℕ₋₁ :=
   idp
@@ -145,13 +156,35 @@ namespace sphere_index
   protected definition le_succ {n m : ℕ₋₁} (H1 : n ≤[ℕ₋₁] m): n ≤[ℕ₋₁] m.+1 :=
   le.step H1
 
+  definition add_plus_one_minus_one (n : ℕ₋₁) : n +1+ -1 = n := idp
+  definition add_plus_one_succ (n m : ℕ₋₁) : n +1+ (m.+1) = (n +1+ m).+1 := idp
+  definition minus_one_add_plus_one (n : ℕ₋₁) : -1 +1+ n = n :=
+  begin induction n with n IH, reflexivity, exact ap succ IH end
+  definition succ_add_plus_one (n m : ℕ₋₁) : (n.+1) +1+ m = (n +1+ m).+1 :=
+  begin induction m with m IH, reflexivity, exact ap succ IH end
+
+  definition sphere_index_of_nat_add_one (n : ℕ₋₁) : sphere_index.of_nat (add_one n) = n.+1 :=
+  begin induction n with n IH, reflexivity, exact ap succ IH end
+
+  definition add_one_succ (n : ℕ₋₁) : add_one (n.+1) = succ (add_one n) :=
+  by reflexivity
+
+  definition add_one_sub_one (n : ℕ) : add_one (n..-1) = n :=
+  begin induction n with n IH, reflexivity, exact ap nat.succ IH end
+
+  definition add_one_of_nat (n : ℕ) : add_one n = nat.succ n :=
+  ap nat.succ (add_one_sub_one n)
+
+  definition sphere_index.of_nat_succ (n : ℕ)
+    : sphere_index.of_nat (nat.succ n) = (sphere_index.of_nat n).+1 :=
+  begin induction n with n IH, reflexivity, exact ap succ IH end
+
   /-
     warning: if this coercion is available, the coercion ℕ → ℕ₋₂ is the composition of the coercions
     ℕ → ℕ₋₁ → ℕ₋₂. We don't want this composition as coercion, because it has worse computational
     properties. You can rewrite it with trans_to_of_sphere_index_eq defined below.
   -/
   attribute trunc_index.of_sphere_index [coercion]
-
 
 end sphere_index open sphere_index
 
@@ -197,13 +230,18 @@ namespace trunc_index
     : trunc_index._trans_to_of_sphere_index n = of_nat n :> ℕ₋₂ :=
   of_sphere_index_of_nat n
 
+  definition trunc_index_of_nat_add_one (n : ℕ₋₁)
+    : trunc_index.of_nat (add_one n) = (of_sphere_index n).+1 :=
+  begin induction n with n IH, reflexivity, exact ap succ IH end
+
+  definition of_sphere_index_succ (n : ℕ₋₁) : of_sphere_index (n.+1) = (of_sphere_index n).+1 :=
+  begin induction n with n IH, reflexivity, exact ap succ IH end
+
 end trunc_index
 
 open sphere_index equiv
 
-definition sphere : ℕ₋₁ → Type₀
-| -1   := empty
-| n.+1 := susp (sphere n)
+definition sphere (n : ℕ₋₁) : Type₀ := iterate_susp (add_one n) empty
 
 namespace sphere
 
@@ -214,6 +252,7 @@ namespace sphere
   pointed.mk base
   definition psphere [constructor] (n : ℕ) : Type* := pointed.mk' (sphere n)
 
+
   namespace ops
     abbreviation S := sphere
     notation `S.` := psphere
@@ -221,13 +260,22 @@ namespace sphere
   open sphere.ops
 
   definition sphere_minus_one : S -1 = empty := idp
-  definition sphere_succ (n : ℕ₋₁) : S n.+1 = susp (S n) := idp
+  definition sphere_succ [unfold_full] (n : ℕ₋₁) : S n.+1 = susp (S n) := idp
+  definition psphere_succ [unfold_full] (n : ℕ) : S. (n + 1) = psusp (S. n) := idp
+  definition psphere_eq_iterate_susp (n : ℕ)
+    : S. n = pointed.MK (iterate_susp (succ n) empty) !north :=
+  begin
+    esimp,
+    apply ap (λx, pointed.MK (susp x) (@north x)); apply ap (λx, iterate_susp x empty),
+    apply add_one_sub_one
+  end
+
 
   definition equator (n : ℕ) : map₊ (S. n) (Ω (S. (succ n))) :=
   pmap.mk (λa, merid a ⬝ (merid base)⁻¹) !con.right_inv
 
   definition surf {n : ℕ} : Ω[n] S. n :=
-  nat.rec_on n (proof base qed)
+  nat.rec_on n (proof @base 0 qed)
                (begin intro m s, refine cast _ (apn m (equator m) s),
                       exact ap carrier !loop_space_succ_eq_in⁻¹ end)
 

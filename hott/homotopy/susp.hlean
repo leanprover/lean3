@@ -354,4 +354,29 @@ namespace susp
     apply psusp_functor_compose
   end
 
+  definition iterate_susp (n : ℕ) (A : Type) : Type := iterate susp n A
+  definition iterate_psusp (n : ℕ) (A : Type*) : Type* := iterate (λX, psusp X) n A
+
+  open is_conn trunc_index nat
+  definition iterate_susp_succ (n : ℕ) (A : Type) :
+    iterate_susp (succ n) A = susp (iterate_susp n A) :=
+  idp
+
+  definition is_conn_iterate_susp [instance] (n : ℕ₋₂) (m : ℕ) (A : Type)
+    [H : is_conn n A] : is_conn (n + m) (iterate_susp m A) :=
+  begin induction m with m IH, exact H, exact @is_conn_susp _ _ IH end
+
+  definition is_conn_iterate_psusp [instance] (n : ℕ₋₂) (m : ℕ) (A : Type*)
+    [H : is_conn n A] : is_conn (n + m) (iterate_psusp m A) :=
+  begin induction m with m IH, exact H, exact @is_conn_susp _ _ IH end
+
+  -- Separate cases for n = 0, which comes up often
+  definition is_conn_iterate_susp_zero [instance] (m : ℕ) (A : Type)
+    [H : is_conn 0 A] : is_conn m (iterate_susp m A) :=
+  begin induction m with m IH, exact H, exact @is_conn_susp _ _ IH end
+
+  definition is_conn_iterate_psusp_zero [instance] (m : ℕ) (A : Type*)
+    [H : is_conn 0 A] : is_conn m (iterate_psusp m A) :=
+  begin induction m with m IH, exact H, exact @is_conn_susp _ _ IH end
+
 end susp

@@ -5,7 +5,7 @@ Authors: Jakob von Raumer, Ulrik Buchholtz
 
 The Wedge Sum of Two pType Types
 -/
-import hit.pointed_pushout .connectedness
+import hit.pointed_pushout .connectedness types.unit
 
 open eq pushout pointed unit trunc_index
 

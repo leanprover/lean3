@@ -79,15 +79,16 @@ namespace fiber
   definition pointed_fiber [constructor] (f : A → B) (a : A) : Type* :=
   pointed.Mk (fiber.mk a (idpath (f a)))
 
-  definition is_trunc_fun [reducible] (n : trunc_index) (f : A → B) :=
+  definition is_trunc_fun [reducible] (n : ℕ₋₂) (f : A → B) :=
   Π(b : B), is_trunc n (fiber f b)
 
   definition is_contr_fun [reducible] (f : A → B) := is_trunc_fun -2 f
 
   -- pre and post composition with equivalences
   open function
-  protected definition equiv_postcompose [constructor] {B' : Type} (g : B → B') [H : is_equiv g]
-    : fiber (g ∘ f) (g b) ≃ fiber f b :=
+  variable (f)
+  protected definition equiv_postcompose [constructor] {B' : Type} (g : B ≃ B') --[H : is_equiv g]
+    (b : B) : fiber (g ∘ f) (g b) ≃ fiber f b :=
   calc
     fiber (g ∘ f) (g b) ≃ Σa : A, g (f a) = g b : fiber.sigma_char
                     ... ≃ Σa : A, f a = b       : begin
@@ -96,12 +97,12 @@ namespace fiber
                                                   end
                     ... ≃ fiber f b             : fiber.sigma_char
 
-  protected definition equiv_precompose [constructor] {A' : Type} (g : A' → A) [H : is_equiv g]
-    : fiber (f ∘ g) b ≃ fiber f b :=
+  protected definition equiv_precompose [constructor] {A' : Type} (g : A' ≃ A) --[H : is_equiv g]
+    (b : B) : fiber (f ∘ g) b ≃ fiber f b :=
   calc
     fiber (f ∘ g) b ≃ Σa' : A', f (g a') = b   : fiber.sigma_char
                 ... ≃ Σa : A, f a = b          : begin
-                                                   apply sigma_equiv_sigma (equiv.mk g H),
+                                                   apply sigma_equiv_sigma g,
                                                    intro a', apply erfl
                                                  end
                 ... ≃ fiber f b                : fiber.sigma_char

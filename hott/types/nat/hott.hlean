@@ -119,4 +119,29 @@ namespace nat
   definition pointed_nat [instance] [constructor] : pointed ℕ :=
   pointed.mk 0
 
+  open sigma sum
+  definition eq_even_or_eq_odd (n : ℕ) : (Σk, 2 * k = n) ⊎ (Σk, 2 * k + 1 = n) :=
+  begin
+    induction n with n IH,
+    { exact inl ⟨0, idp⟩},
+    { induction IH with H H: induction H with k p: induction p,
+      { exact inr ⟨k, idp⟩},
+      { refine inl ⟨k+1, idp⟩}}
+  end
+
+  definition rec_on_even_odd {P : ℕ → Type} (n : ℕ) (H : Πk, P (2 * k)) (H2 : Πk, P (2 * k + 1))
+    : P n :=
+  begin
+    cases eq_even_or_eq_odd n with v v: induction v with k p: induction p,
+    { exact H k},
+    { exact H2 k}
+  end
+
+  /- this inequality comes up a couple of times when using the freudenthal suspension theorem -/
+  definition add_mul_le_mul_add (n m k : ℕ) : n + (succ m) * k ≤ (succ m) * (n + k) :=
+  calc
+    n + (succ m) * k ≤ (m * n + n) + (succ m) * k : add_le_add_right !le_add_left _
+      ... = (succ m) * n + (succ m) * k : by rewrite -succ_mul
+      ... = (succ m) * (n + k) : !left_distrib⁻¹
+
 end nat

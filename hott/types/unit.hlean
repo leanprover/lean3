@@ -6,7 +6,7 @@ Authors: Floris van Doorn
 Theorems about the unit type
 -/
 
-open equiv option eq
+open equiv option eq pointed is_trunc
 
 namespace unit
 
@@ -24,6 +24,13 @@ namespace unit
 
   -- equivalences involving unit and other type constructors are in the file
   -- of the other constructor
+
+  /- pointed and truncated unit -/
+
+  definition punit [constructor] : Set* :=
+  pSet.mk' unit
+
+  notation `unit*` := punit
 
 end unit
 
