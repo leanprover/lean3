@@ -21,7 +21,7 @@ namespace lean {
 static const char * LEAN_OBJ_TYPE = "lean::obj";
 
 c_backend::c_backend(environment const & env, optional<std::string> main_fn)
-    : backend(env, main_fn) {}
+    : backend(env, main_fn), m_emitter("out.cpp") {}
 
 // Not really sure if this is suffcient mangling. I can polish this
 // over time, first attempt to is to get a linked executable.
@@ -55,7 +55,8 @@ void generate_main(std::ostream& os, std::string main_fn) {
 }
 
 void c_backend::generate_code(optional<std::string> output_path) {
-    std::fstream fs("out.cpp", std::ios_base::out);
+    std::ostream & fs = reinterpret_cast<std::ostream &>(this->m_emitter.m_output_stream);
+
     generate_includes(fs);
     // First generate code for constructors.
     for (auto ctor : this->m_ctors) {
@@ -78,7 +79,6 @@ void c_backend::generate_code(optional<std::string> output_path) {
     // Finally generate the shim for main.
     generate_main(fs, "main");
     fs.flush();
-    fs.close();
 }
 
 void c_backend::generate_ctor(std::ostream& os, ctor const & c) {
@@ -155,8 +155,8 @@ void c_backend::generate_proc(std::ostream& os, proc const & p) {
     os << ") {" << std::endl;
     os << std::left << std::setw(4);
     os.flush();
-    this->generate_simple_expr(os, *p.m_body);
-    //os.width(0);
+    auto result = this->generate_simple_expr(os, *p.m_body);
+    os << "return " << result << ";";
 
     os << std::endl << "}" << std::endl;
 }
@@ -191,7 +191,7 @@ void c_backend::generate_simple_expr_error(std::ostream& os, simple_expr const &
     os << "error(\"" << msg.c_str() << "\")";
 }
 
-void c_backend::generate_simple_expr_call(std::ostream& os, simple_expr const & se) {
+name c_backend::generate_simple_expr_call(std::ostream& os, simple_expr const & se) {
     auto args = to_simple_call(&se)->m_args;
     auto callee = to_simple_call(&se)->m_name;
     auto direct = to_simple_call(&se)->m_direct;
@@ -229,7 +229,7 @@ void c_backend::generate_binding(std::ostream& os, pair<name, shared_ptr<simple_
     os << ";" << std::endl;
 }
 
-void c_backend::generate_simple_expr_let(std::ostream& os, simple_expr const & se) {
+name c_backend::generate_simple_expr_let(std::ostream& os, simple_expr const & se) {
     auto bindings = to_simple_let(&se)->m_bindings;
     auto body = to_simple_let(&se)->m_body;
     for (auto binding : bindings) {
@@ -240,7 +240,7 @@ void c_backend::generate_simple_expr_let(std::ostream& os, simple_expr const & s
     os << ";";
 }
 
-void c_backend::generate_simple_expr_switch(std::ostream& os, simple_expr const & se) {
+name c_backend::generate_simple_expr_switch(std::ostream& os, simple_expr const & se) {
     auto scrutinee = to_simple_switch(&se)->m_scrutinee;
     auto cases = to_simple_switch(&se)->m_cases;
     os << "switch (";
@@ -256,7 +256,7 @@ void c_backend::generate_simple_expr_switch(std::ostream& os, simple_expr const 
     os << "}";
 }
 
-void c_backend::generate_simple_expr(std::ostream& os, simple_expr const & se) {
+name c_backend::generate_simple_expr(std::ostream& os, simple_expr const & se) {
     switch (se.kind()) {
         case simple_expr_kind::SVar:
             generate_simple_expr_var(os, se);

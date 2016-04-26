@@ -55,10 +55,8 @@ backend::backend(environment const & env, optional<std::string> main_fn)
     : m_env(env), m_tc(m_env) {
     auto main_name = name(main_fn.value());
     auto main = env.get(main_name);
-    // print_decl(env, main);
     used_defs used_names(env);
     used_names.names_in_decl(main);
-    std::cout << "-----------debug---------------" << main_fn.value() << std::endl;
     auto decls_to_compile = std::vector<declaration>();
     used_names.m_used_names.for_each([&] (name const &n) {
         decls_to_compile.push_back(env.get(n));
@@ -66,7 +64,6 @@ backend::backend(environment const & env, optional<std::string> main_fn)
 
     for (auto decl : decls_to_compile) {
         this->compile_decl(decl);
-        //print_decl(env, decl);
     }
 }
 
@@ -206,6 +203,7 @@ shared_ptr<simple_expr> backend::compile_expr(expr const & e, std::vector<bindin
             std::cout<< "sort: not supported" << std::endl;
             break;
     }
+    // Catch-all exeception TODO: make this a real exception w/ error reporting
     throw new std::string("app: not supported");
 }
 
