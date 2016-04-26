@@ -16,9 +16,9 @@ set_option class.force_new true
 
 namespace group
 
-  definition pointed_Group [instance] (G : Group) : pointed G := pointed.mk one
-  definition pType_of_Group [reducible] (G : Group) : Type* := pointed.mk' G
-  definition Set_of_Group (G : Group) : Set := trunctype.mk G _
+  definition pointed_Group [instance] [constructor] (G : Group) : pointed G := pointed.mk 1
+  definition pType_of_Group [constructor] [reducible] (G : Group) : Type* := pointed.MK G 1
+  definition Set_of_Group [constructor] (G : Group) : Set := trunctype.mk G _
 
   definition Group_of_CommGroup [coercion] [constructor] (G : CommGroup) : Group :=
   Group.mk G _
@@ -112,9 +112,8 @@ namespace group
     apply is_trunc_equiv_closed_rev, exact H
   end
 
-  local attribute group_pType_of_Group pointed.mk' [reducible]
   definition pmap_of_homomorphism [constructor] /- φ -/ : pType_of_Group G₁ →* pType_of_Group G₂ :=
-  pmap.mk φ (respect_one φ)
+  pmap.mk φ begin esimp, exact respect_one φ end
 
   definition homomorphism_eq (p : group_fun φ₁ ~ group_fun φ₂) : φ₁ = φ₂ :=
   begin
@@ -146,7 +145,7 @@ namespace group
 
   definition pequiv_of_isomorphism [constructor] (φ : G₁ ≃g G₂) :
     pType_of_Group G₁ ≃* pType_of_Group G₂ :=
-  pequiv.mk φ _ (respect_one φ)
+  pequiv.mk φ begin esimp, exact _ end begin esimp, exact respect_one φ end
 
   definition isomorphism_of_equiv [constructor] (φ : G₁ ≃ G₂)
     (p : Πg₁ g₂, φ (g₁ * g₂) = φ g₁ * φ g₂) : G₁ ≃g G₂ :=

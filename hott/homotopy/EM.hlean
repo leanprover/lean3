@@ -93,7 +93,6 @@ namespace EM
 
 end EM
 
--- attribute EM.rec EM.elim [recursor 7]
 attribute EM.base [constructor]
 attribute EM.rec EM.elim [unfold 7] [recursor 7]
 attribute EM.rec_on EM.elim_on [unfold 4]
@@ -126,8 +125,6 @@ namespace EM
   proposition is_conn_pEM1 [instance] (G : Group) : is_conn 0 (pEM1 G) :=
   is_conn_EM1 G
 
-  -- TODO: prove this using truncated Whitehead.
-
   definition EM1_map [unfold 7] {G : Group} {X : Type*} (e : Ω X ≃ G)
     (r : Πp q, e (p ⬝ q) = e p * e q) [is_conn 0 X] [is_trunc 1 X] : EM1 G → X :=
   begin
@@ -136,22 +133,6 @@ namespace EM
     { note p := e⁻¹ᵉ g, exact p},
     { exact inv_preserve_binary e concat mul r g h}
   end
-
-  -- TODO
-  -- definition EM1_equiv {G : Group} {X : Type*} (e : Ω X ≃ G)
-  --   (r : Πp q, e (p ⬝ q) = e p * e q) [is_conn 0 X] [is_trunc 1 X] : EM1 G ≃ X :=
-  -- begin
-  --   apply equiv.mk (EM1_map e r),
-  --   apply whiteheads_principle 1,
-  --   { apply is_equiv_of_is_contr},
-  --   { intro x n, cases n with n,
-  --     { exact sorry},
-  --     { apply @is_equiv_of_is_contr, do 2 exact sorry}}
-  -- end
-
-  -- definition pequiv_pEM1 {G : Group} {X : Type*} (e : π₁ X ≃g G) [is_conn 0 X] [is_trunc 1 X]
-  --   : X ≃* pEM1 G :=
-  -- sorry
 
 end EM
 
@@ -222,7 +203,7 @@ namespace EM
 
   definition is_trunc_EMadd1 (G : CommGroup) (n : ℕ) : is_trunc (n+1) (EMadd1 G n) := _
 
-  /- K(G, n+1) -/
+  /- K(G, n) -/
   definition EM (G : CommGroup) : ℕ → Type*
   | 0     := pType_of_Group G
   | (k+1) := EMadd1 G k

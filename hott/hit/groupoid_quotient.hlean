@@ -192,7 +192,7 @@ section
   end
 
   local abbreviation encode [unfold_full] := @groupoid_quotient.encode G a
-  local abbreviation decode [unfold 3] := @groupoid_quotient.decode G a
+  local abbreviation decode [unfold_full] := @groupoid_quotient.decode G a
 
   protected definition decode_encode (x : groupoid_quotient G) (p : elt a = x) :
     decode x (encode x p) = p :=

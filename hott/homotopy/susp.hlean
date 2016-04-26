@@ -155,7 +155,7 @@ namespace susp
   variables {A B : Type} (f : A → B)
   include f
 
-  protected definition functor : susp A → susp B :=
+  protected definition functor [unfold 4] : susp A → susp B :=
   begin
     intro x, induction x with a,
     { exact north },
@@ -167,7 +167,7 @@ namespace susp
   include Hf
 
   open is_equiv
-  protected definition is_equiv_functor [instance] : is_equiv (susp.functor f) :=
+  protected definition is_equiv_functor [instance] [constructor] : is_equiv (susp.functor f) :=
   adjointify (susp.functor f) (susp.functor f⁻¹)
   abstract begin
     intro sb, induction sb with b, do 2 reflexivity,
@@ -209,18 +209,18 @@ namespace susp
   open pointed
   variables {X Y Z : Type*}
 
-  definition psusp_functor (f : X →* Y) : psusp X →* psusp Y :=
+  definition psusp_functor [constructor] (f : X →* Y) : psusp X →* psusp Y :=
   begin
     fconstructor,
     { exact susp.functor f },
     { reflexivity }
   end
 
-  definition is_equiv_psusp_functor (f : X →* Y) [Hf : is_equiv f]
+  definition is_equiv_psusp_functor [constructor] (f : X →* Y) [Hf : is_equiv f]
     : is_equiv (psusp_functor f) :=
   susp.is_equiv_functor f
 
-  definition psusp_equiv (f : X ≃* Y) : psusp X ≃* psusp Y :=
+  definition psusp_equiv [constructor] (f : X ≃* Y) : psusp X ≃* psusp Y :=
   pequiv_of_equiv (susp.equiv f) idp
 
   definition psusp_functor_compose (g : Y →* Z) (f : X →* Y)
@@ -231,7 +231,7 @@ namespace susp
       { reflexivity },
       { reflexivity },
       { apply eq_pathover, apply hdeg_square,
-        rewrite [▸*,ap_compose' _ (psusp_functor f),↑psusp_functor],
+        rewrite [▸*,ap_compose' _ (psusp_functor f)],
         krewrite +susp.elim_merid } },
     { reflexivity }
   end
@@ -263,7 +263,6 @@ namespace susp
       rewrite inverse2_right_inv,
       refine _ ⬝ !con.assoc',
       rewrite [ap_con_right_inv],
-      unfold psusp_functor,
       xrewrite [idp_con_idp, -ap_compose (concat idp)]},
   end
 
@@ -315,7 +314,7 @@ namespace susp
     { reflexivity}
   end
 
-  definition susp_adjoint_loop (X Y : Type*) : pointed.mk' (susp X) →* Y ≃ X →* Ω Y :=
+  definition susp_adjoint_loop [constructor] (X Y : Type*) : psusp X →* Y ≃ X →* Ω Y :=
   begin
     fapply equiv.MK,
     { intro f, exact ap1 f ∘* loop_susp_unit X},
