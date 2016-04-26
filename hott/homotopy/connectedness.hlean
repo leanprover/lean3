@@ -142,8 +142,7 @@ namespace is_conn
       : is_conn_fun n (const A unit.star) → is_conn n A :=
     begin
       intro H, unfold is_conn_fun at H,
-      rewrite [-(ua (fiber.fiber_star_equiv A))],
-      exact (H unit.star)
+      exact is_conn_equiv_closed n (fiber.fiber_star_equiv A) _,
     end
 
     -- now maps from unit

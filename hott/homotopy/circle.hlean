@@ -16,16 +16,16 @@ definition circle : Type₀ := sphere 1
 
 namespace circle
   notation `S¹` := circle
-  definition base1 : circle := !north
-  definition base2 : circle := !south
+  definition base1 : S¹ := !north
+  definition base2 : S¹ := !south
   definition seg1 : base1 = base2 := merid !north
   definition seg2 : base1 = base2 := merid !south
 
-  definition base : circle := base1
+  definition base : S¹ := base1
   definition loop : base = base := seg2 ⬝ seg1⁻¹
 
-  definition rec2 {P : circle → Type} (Pb1 : P base1) (Pb2 : P base2)
-    (Ps1 : Pb1 =[seg1] Pb2) (Ps2 : Pb1 =[seg2] Pb2) (x : circle) : P x :=
+  definition rec2 {P : S¹ → Type} (Pb1 : P base1) (Pb2 : P base2)
+    (Ps1 : Pb1 =[seg1] Pb2) (Ps2 : Pb1 =[seg2] Pb2) (x : S¹) : P x :=
   begin
     induction x with b,
     { exact Pb1},
@@ -36,24 +36,24 @@ namespace circle
       { cases y}},
   end
 
-  definition rec2_on [reducible] {P : circle → Type} (x : circle) (Pb1 : P base1) (Pb2 : P base2)
+  definition rec2_on [reducible] {P : S¹ → Type} (x : S¹) (Pb1 : P base1) (Pb2 : P base2)
     (Ps1 : Pb1 =[seg1] Pb2) (Ps2 : Pb1 =[seg2] Pb2) : P x :=
   circle.rec2 Pb1 Pb2 Ps1 Ps2 x
 
-  theorem rec2_seg1 {P : circle → Type} (Pb1 : P base1) (Pb2 : P base2)
+  theorem rec2_seg1 {P : S¹ → Type} (Pb1 : P base1) (Pb2 : P base2)
     (Ps1 : Pb1 =[seg1] Pb2) (Ps2 : Pb1 =[seg2] Pb2)
       : apd (rec2 Pb1 Pb2 Ps1 Ps2) seg1 = Ps1 :=
   !rec_merid
 
-  theorem rec2_seg2 {P : circle → Type} (Pb1 : P base1) (Pb2 : P base2)
+  theorem rec2_seg2 {P : S¹ → Type} (Pb1 : P base1) (Pb2 : P base2)
     (Ps1 : Pb1 =[seg1] Pb2) (Ps2 : Pb1 =[seg2] Pb2)
       : apd (rec2 Pb1 Pb2 Ps1 Ps2) seg2 = Ps2 :=
   !rec_merid
 
-  definition elim2 {P : Type} (Pb1 Pb2 : P) (Ps1 Ps2 : Pb1 = Pb2) (x : circle) : P :=
+  definition elim2 {P : Type} (Pb1 Pb2 : P) (Ps1 Ps2 : Pb1 = Pb2) (x : S¹) : P :=
   rec2 Pb1 Pb2 (pathover_of_eq Ps1) (pathover_of_eq Ps2) x
 
-  definition elim2_on [reducible] {P : Type} (x : circle) (Pb1 Pb2 : P)
+  definition elim2_on [reducible] {P : Type} (x : S¹) (Pb1 Pb2 : P)
     (Ps1 : Pb1 = Pb2) (Ps2 : Pb1 = Pb2) : P :=
   elim2 Pb1 Pb2 Ps1 Ps2 x
 
@@ -71,10 +71,10 @@ namespace circle
     rewrite [▸*,-apd_eq_pathover_of_eq_ap,↑elim2,rec2_seg2],
   end
 
-  definition elim2_type (Pb1 Pb2 : Type) (Ps1 Ps2 : Pb1 ≃ Pb2) (x : circle) : Type :=
+  definition elim2_type (Pb1 Pb2 : Type) (Ps1 Ps2 : Pb1 ≃ Pb2) (x : S¹) : Type :=
   elim2 Pb1 Pb2 (ua Ps1) (ua Ps2) x
 
-  definition elim2_type_on [reducible] (x : circle) (Pb1 Pb2 : Type) (Ps1 Ps2 : Pb1 ≃ Pb2)
+  definition elim2_type_on [reducible] (x : S¹) (Pb1 Pb2 : Type) (Ps1 Ps2 : Pb1 ≃ Pb2)
     : Type :=
   elim2_type Pb1 Pb2 Ps1 Ps2 x
 
@@ -86,8 +86,8 @@ namespace circle
     : transport (elim2_type Pb1 Pb2 Ps1 Ps2) seg2 = Ps2 :=
   by rewrite [tr_eq_cast_ap_fn,↑elim2_type,elim2_seg2];apply cast_ua_fn
 
-  protected definition rec {P : circle → Type} (Pbase : P base) (Ploop : Pbase =[loop] Pbase)
-    (x : circle) : P x :=
+  protected definition rec {P : S¹ → Type} (Pbase : P base) (Ploop : Pbase =[loop] Pbase)
+    (x : S¹) : P x :=
   begin
     fapply (rec2_on x),
     { exact Pbase},
@@ -96,7 +96,7 @@ namespace circle
     { apply pathover_tr_of_pathover, exact Ploop}
   end
 
-  protected definition rec_on [reducible] {P : circle → Type} (x : circle) (Pbase : P base)
+  protected definition rec_on [reducible] {P : S¹ → Type} (x : S¹) (Pbase : P base)
     (Ploop : Pbase =[loop] Pbase) : P x :=
   circle.rec Pbase Ploop x
 
@@ -108,7 +108,7 @@ namespace circle
   definition con_refl {A : Type} {x y : A} (p : x = y) : p ⬝ refl _ = p :=
   eq.rec_on p idp
 
-  theorem rec_loop {P : circle → Type} (Pbase : P base) (Ploop : Pbase =[loop] Pbase) :
+  theorem rec_loop {P : S¹ → Type} (Pbase : P base) (Ploop : Pbase =[loop] Pbase) :
     apd (circle.rec Pbase Ploop) loop = Ploop :=
   begin
     rewrite [↑loop,apd_con,↑circle.rec,↑circle.rec2_on,↑base,rec2_seg2,apd_inv,rec2_seg1],
@@ -116,10 +116,10 @@ namespace circle
   end
 
   protected definition elim {P : Type} (Pbase : P) (Ploop : Pbase = Pbase)
-    (x : circle) : P :=
+    (x : S¹) : P :=
   circle.rec Pbase (pathover_of_eq Ploop) x
 
-  protected definition elim_on [reducible] {P : Type} (x : circle) (Pbase : P)
+  protected definition elim_on [reducible] {P : Type} (x : S¹) (Pbase : P)
     (Ploop : Pbase = Pbase) : P :=
   circle.elim Pbase Ploop x
 
@@ -155,10 +155,10 @@ namespace circle
   end
 
   protected definition elim_type (Pbase : Type) (Ploop : Pbase ≃ Pbase)
-    (x : circle) : Type :=
+    (x : S¹) : Type :=
   circle.elim Pbase (ua Ploop) x
 
-  protected definition elim_type_on [reducible] (x : circle) (Pbase : Type)
+  protected definition elim_type_on [reducible] (x : S¹) (Pbase : Type)
     (Ploop : Pbase ≃ Pbase) : Type :=
   circle.elim_type Pbase Ploop x
 
@@ -230,7 +230,7 @@ namespace circle
       ... = ap (circle.elim a p) (refl base) : by rewrite H,
   eq_bnot_ne_idp H2
 
-  definition nonidp (x : circle) : x = x :=
+  definition nonidp (x : S¹) : x = x :=
   begin
     induction x,
     { exact loop},
@@ -244,7 +244,7 @@ namespace circle
 
   open int
 
-  protected definition code [unfold 1] (x : circle) : Type₀ :=
+  protected definition code [unfold 1] (x : S¹) : Type₀ :=
   circle.elim_type_on x ℤ equiv_succ
 
   definition transport_code_loop (a : ℤ) : transport circle.code loop a = succ a :=
@@ -253,10 +253,10 @@ namespace circle
   definition transport_code_loop_inv (a : ℤ) : transport circle.code loop⁻¹ a = pred a :=
   ap10 !elim_type_loop_inv a
 
-  protected definition encode [unfold 2] {x : circle} (p : base = x) : circle.code x :=
+  protected definition encode [unfold 2] {x : S¹} (p : base = x) : circle.code x :=
   transport circle.code p (of_num 0)
 
-  protected definition decode [unfold 1] {x : circle} : circle.code x → base = x :=
+  protected definition decode [unfold 1] {x : S¹} : circle.code x → base = x :=
   begin
     induction x,
     { exact power loop},
@@ -264,7 +264,7 @@ namespace circle
       rewrite [power_con,transport_code_loop]}
   end
 
-  definition circle_eq_equiv [constructor] (x : circle) : (base = x) ≃ circle.code x :=
+  definition circle_eq_equiv [constructor] (x : S¹) : (base = x) ≃ circle.code x :=
   begin
     fapply equiv.MK,
     { exact circle.encode},
@@ -334,7 +334,7 @@ namespace circle
     { intro x, apply is_trunc_equiv_closed_rev, apply eq_equiv_Z}
   end
 
-  proposition is_conn_circle [instance] : is_conn 0 circle :=
+  proposition is_conn_circle [instance] : is_conn 0 S¹ :=
   sphere.is_conn_sphere -1.+2
 
   definition circle_turn [reducible] (x : S¹) : x = x :=
