@@ -22,7 +22,7 @@ The rows indicate the chapters, the columns the sections.
 | Ch 5  | - | . | ½ | - | - | . | . | ½ |   |    |    |    |    |    |    |
 | Ch 6  | . | + | + | + | + | + | + | + | ¾ | ¼  | ¾  | +  | .  |    |    |
 | Ch 7  | + | + | + | - | ¾ | - | - |   |   |    |    |    |    |    |    |
-| Ch 8  | + | + | + | - | ¾ | ¼ | - | - | ½ | -  |    |    |    |    |    |
+| Ch 8  | + | + | + | + | ¾ | ¾ | - | ¾ | ½ | ¼  |    |    |    |    |    |
 | Ch 9  | ¾ | + | + | ½ | ¾ | ½ | - | - | - |    |    |    |    |    |    |
 | Ch 10 | ¼ | - | - | - | - |   |   |   |   |    |    |    |    |    |    |
 | Ch 11 | - | - | - | - | - | - |   |   |   |    |    |    |    |    |    |
@@ -148,13 +148,13 @@ Every file is in the folder [homotopy](homotopy/homotopy.md)
 - 8.1 (π_1(S^1)): [circle](homotopy/circle.hlean) (only the encode-decode proof)
 - 8.2 (Connectedness of suspensions): [susp](homotopy/susp.hlean) (different proof of Theorem 8.2.1)
 - 8.3 (πk≤n of an n-connected space and π_{k<n}(S^n)): [homotopy_group](homotopy/homotopy_group.hlean)
-- 8.4 (Fiber sequences and the long exact sequence): not formalized
+- 8.4 (Fiber sequences and the long exact sequence): Mostly in [homotopy.chain_complex](homotopy/chain_complex.hlean), [homotopy.LES_of_homotopy_groups](homotopy/LES_of_homotopy_groups.hlean). Definitions 8.4.1 and 8.4.2 in [types.pointed](types/pointed.hlean), Corollary 8.4.8 in [homotopy.homotopy_group](homotopy/homotopy_group.hlean).
 - 8.5 (The Hopf fibration): [circle](homotopy/circle.hlean) (multiplication on the circle, Lemma 8.5.8), [join](homotopy/join.hlean) (join is associative, Lemma 8.5.9), [hopf](homotopy/hopf.hlean) (The Hopf construction, Lemmas 8.5.5 and 8.5.7), [complex_hopf](homotopy/complex_hopf.hlean) (the H-space structure on the circle and the complex Hopf fibration)
-- 8.6 (The Freudenthal suspension theorem): [connectedness](homotopy/connectedness.hlean) (Lemma 8.6.1), [wedge](homotopy/wedge.hlean) (Wedge connectivity, Lemma 8.6.2), the rest is not formalized
+- 8.6 (The Freudenthal suspension theorem): [connectedness](homotopy/connectedness.hlean) (Lemma 8.6.1), [wedge](homotopy/wedge.hlean) (Wedge connectivity, Lemma 8.6.2). Corollary 8.6.14 is proven directly in [homotopy.freudenthal](homotopy/freudenthal.hlean), however, we don't prove it as a Corollary of Theorem 8.6.4, which is not proven. Stability of iterated suspensions is also in [homotopy.freudenthal](homotopy/freudenthal.hlean). The homotopy groups of spheres in this section are computed in [homotopy.sphere2](homotopy/sphere2.hlean).
 - 8.7 (The van Kampen theorem): not formalized
-- 8.8 (Whitehead’s theorem and Whitehead’s principle): not formalized
+- 8.8 (Whitehead’s theorem and Whitehead’s principle): 8.8.1 and 8.8.2 at the bottom of [types.trunc](types/trunc.hlean), 8.8.3 in [homotopy.homotopy_group](homotopy/homotopy_group.hlean).
 - 8.9 (A general statement of the encode-decode method): One variation of the encode-decode method is in [types.eq](types/eq.hlean).
-- 8.10 (Additional Results): not formalized
+- 8.10 (Additional Results): Theorem 8.10.3 is formalized in [homotopy.EM](homotopy/EM.hlean).
 
 Chapter 9: Category theory
 ---------
