@@ -10,7 +10,9 @@ Author: Leonardo de Moura
 #include <gmp.h>
 
 namespace lean {
+
 class obj;
+
 enum class obj_kind { Constructor, Closure, MPN, RawPtr };
 
 class obj_cell {
@@ -159,4 +161,9 @@ obj runtime_error(const char * msg) {
     exit(1);
 }
 
+obj nothing_error() {
+    runtime_error("nothing can not be evaluted");
+}
+
+static lean::obj nothing = lean::mk_closure(nothing_error, 0, nullptr);
 }
