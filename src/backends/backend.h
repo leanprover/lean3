@@ -58,7 +58,7 @@ namespace lean  {
         // this type and declare the below methods.
         virtual void generate_code(optional<std::string> output_path) = 0;
         virtual void generate_proc(std::ostream& os, proc const & p) = 0;
-        virtual void generate_simple_expr(std::ostream& os, simple_expr const & se) = 0;
+        virtual name generate_simple_expr(std::ostream& os, simple_expr const & se) = 0;
         virtual void generate_binding(std::ostream& os, pair<name, shared_ptr<simple_expr>> & p) = 0;
 
         // Utility methods for interacting with the state encapsulated by this
