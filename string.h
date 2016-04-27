@@ -27,9 +27,11 @@ lean::obj string_to_raw_string(lean::obj rw, lean::obj string) {
     return lean::mk_obj(0, { rw, rw, rw, rs });
 }
 
-lean::obj raw_print(lean::obj rw, lean::obj rs) {
+lean::obj raw_print_impl(lean::obj rw, lean::obj rs) {
     auto unit = lean::mk_obj(0);
     auto ptr = (char *)rs.raw_ptr();
     std::cout << ptr;
     return lean::mk_obj(0, { rw, rw, rw, unit });
 }
+
+static lean::obj raw_print = mk_closure(raw_print_impl, 2, 0, nullptr);

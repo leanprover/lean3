@@ -163,7 +163,8 @@ obj runtime_error(const char * msg) {
 
 obj nothing_error() {
     runtime_error("nothing can not be evaluted");
+    exit(1);
 }
 
-static lean::obj nothing = lean::mk_closure(nothing_error, 0, nullptr);
+static lean::obj nothing = lean::mk_closure(nothing_error, 0, 0, nullptr);
 }
