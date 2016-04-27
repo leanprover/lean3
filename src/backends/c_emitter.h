@@ -17,8 +17,7 @@ namespace lean  {
 
     class c_emitter {
     public:
-        std::ostream m_output_stream;
-        c_emitter();
+        std::unique_ptr<std::ostream> m_output_stream;
         c_emitter(std::string output_path);
         void emit_return(simple_expr const & se);
     };
