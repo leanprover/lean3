@@ -21,7 +21,7 @@ namespace lean {
 static const char * LEAN_OBJ_TYPE = "lean::obj";
 
 c_backend::c_backend(environment const & env, optional<std::string> main_fn)
-    : backend(env, main_fn), m_emitter("out.cpp") {}
+    : backend(env, main_fn), m_emitter("out.cpp"), m_return(false) {}
 
 // Not really sure if this is suffcient mangling. I can polish this
 // over time, first attempt to is to get a linked executable.
@@ -43,19 +43,23 @@ void mangle_name(std::ostream& os, name const & n) {
 
 void generate_includes(std::ostream& os) {
     os << "#include \"lean_runtime.h\"" << std::endl << std::endl;
+    os << "#include \"string.h\"" << std::endl << std::endl;
 }
 
 void generate_main(std::ostream& os, std::string main_fn) {
     os << "int main() {" << std::endl;
     os << std::setw(4) << "lean::run_lean_main(";
     mangle_name(os, main_fn);
+    os << "_direct";
     os << ");" << std::endl;
     os << std::setw(4) << "return 0;" << std::endl;
     os << "}" << std::endl;
 }
 
 void c_backend::generate_code(optional<std::string> output_path) {
-    std::ostream & fs = reinterpret_cast<std::ostream &>(this->m_emitter.m_output_stream);
+    // auto fs_ptr = m_emitter.m_output_stream.get();
+    //std::ostream & fs = reinterpret_cast<std::ostream &>(fs_ptr);
+    std::fstream fs("out.cpp", std::ios_base::out);
 
     generate_includes(fs);
     // First generate code for constructors.
@@ -94,6 +98,7 @@ void c_backend::generate_ctor(std::ostream& os, ctor const & c) {
     } else {
         os << LEAN_OBJ_TYPE << " ";
         mangle_name(os, c.m_name);
+        os << "_direct";
         os  << "(";
 
         auto comma = false;
@@ -138,6 +143,7 @@ void c_backend::generate_ctor(std::ostream& os, ctor const & c) {
 void c_backend::generate_proc(std::ostream& os, proc const & p) {
     os << LEAN_OBJ_TYPE << " ";
     mangle_name(os, p.m_name);
+    os << "_direct";
     os << "(";
 
     auto comma = false;
@@ -155,8 +161,9 @@ void c_backend::generate_proc(std::ostream& os, proc const & p) {
     os << ") {" << std::endl;
     os << std::left << std::setw(4);
     os.flush();
-    auto result = this->generate_simple_expr(os, *p.m_body);
-    os << "return " << result << ";";
+
+    m_return = true;
+    this->generate_simple_expr(os, *p.m_body);
 
     os << std::endl << "}" << std::endl;
 }
@@ -164,6 +171,7 @@ void c_backend::generate_proc(std::ostream& os, proc const & p) {
 void c_backend::generate_decl(std::ostream& os, proc const & p) {
     os << LEAN_OBJ_TYPE << " ";
     mangle_name(os, p.m_name);
+    os << "_direct";
     os << "(";
 
     auto comma = false;
@@ -179,6 +187,16 @@ void c_backend::generate_decl(std::ostream& os, proc const & p) {
     }
 
     os << ");" << std::endl;
+
+    os << "static ";
+    os << LEAN_OBJ_TYPE << " ";
+    mangle_name(os, p.m_name);
+    os << " = ";
+    os << "mk_closure(";
+    mangle_name(os, p.m_name);
+    os << "_direct";
+    os << ", ";
+    os << "0, 0, nullptr);";
 }
 
 void c_backend::generate_simple_expr_var(std::ostream& os, simple_expr const & se) {
@@ -191,16 +209,17 @@ void c_backend::generate_simple_expr_error(std::ostream& os, simple_expr const &
     os << "error(\"" << msg.c_str() << "\")";
 }
 
-name c_backend::generate_simple_expr_call(std::ostream& os, simple_expr const & se) {
+void c_backend::generate_simple_expr_call(std::ostream& os, simple_expr const & se) {
     auto args = to_simple_call(&se)->m_args;
     auto callee = to_simple_call(&se)->m_name;
     auto direct = to_simple_call(&se)->m_direct;
 
-    mangle_name(os, callee);
-
     if (!direct) {
+        mangle_name(os, callee);
         os << ".apply(";
     } else {
+        mangle_name(os, callee);
+        os << "_direct";
         os << "(";
     }
 
@@ -229,18 +248,23 @@ void c_backend::generate_binding(std::ostream& os, pair<name, shared_ptr<simple_
     os << ";" << std::endl;
 }
 
-name c_backend::generate_simple_expr_let(std::ostream& os, simple_expr const & se) {
+void c_backend::generate_simple_expr_let(std::ostream& os, simple_expr const & se) {
+    auto should_return = m_return;
+
     auto bindings = to_simple_let(&se)->m_bindings;
     auto body = to_simple_let(&se)->m_body;
+
     for (auto binding : bindings) {
+        // We shouldn't return out of any rhs of a let binding.
+        m_return = false;
         this->generate_binding(os, binding);
     }
-    os << "return ";
+
+    m_return = should_return;
     this->generate_simple_expr(os, *body);
-    os << ";";
 }
 
-name c_backend::generate_simple_expr_switch(std::ostream& os, simple_expr const & se) {
+void c_backend::generate_simple_expr_switch(std::ostream& os, simple_expr const & se) {
     auto scrutinee = to_simple_switch(&se)->m_scrutinee;
     auto cases = to_simple_switch(&se)->m_cases;
     os << "switch (";
@@ -251,24 +275,46 @@ name c_backend::generate_simple_expr_switch(std::ostream& os, simple_expr const 
         os << "case " << i << ": {" << std::endl;
         generate_simple_expr(os, *c);
         os << "}";
-
     }
+    os << "default:\n";
+    os << LEAN_ERR << "(\"" << "recursor-compilation-failure" << "\");" << std::endl;
+    os << "break;\n";
     os << "}";
 }
 
-name c_backend::generate_simple_expr(std::ostream& os, simple_expr const & se) {
+void c_backend::generate_simple_expr(std::ostream& os, simple_expr const & se) {
+    auto is_return = m_return;
+
     switch (se.kind()) {
         case simple_expr_kind::SVar:
-            generate_simple_expr_var(os, se);
+            if (is_return) {
+                os << "return ";
+                generate_simple_expr_var(os, se);
+                os << ";";
+            } else {
+                generate_simple_expr_var(os, se);
+            }
             break;
         case simple_expr_kind::Call:
-            generate_simple_expr_call(os, se);
+            if (is_return) {
+                os << "return ";
+                generate_simple_expr_call(os, se);
+                os << ";";
+            } else {
+                generate_simple_expr_call(os, se);
+            }
             break;
         case simple_expr_kind::Let:
             generate_simple_expr_let(os, se);
             break;
         case simple_expr_kind::Error:
-            generate_simple_expr_error(os, se);
+            if (is_return) {
+                os << "return ";
+                generate_simple_expr_error(os, se);
+                os << ";";
+            } else {
+                generate_simple_expr_error(os, se);
+            }
             break;
         case simple_expr_kind::Switch:
             generate_simple_expr_switch(os, se);
