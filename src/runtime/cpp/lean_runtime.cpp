@@ -67,12 +67,9 @@ void * alloc_obj(unsigned n) {
 }
 
 obj_cell::obj_cell(void* raw_ptr):
-    m_rc(0), m_kind(static_cast<unsigned>(obj_kind::RawPtr)), m_size(20), m_cidx(0) {
-    std::cout << raw_ptr << std::endl;
+    m_rc(0), m_kind(static_cast<unsigned>(obj_kind::RawPtr)), m_size(1), m_cidx(0) {
     void ** mem = field_addr();
-    std::cout << raw_ptr << std::endl;
-    *mem = raw_ptr;
-    std::cout << *mem << std::endl;
+    new (mem) (void*)(raw_ptr);
 }
 
 obj_cell::obj_cell(unsigned cidx, unsigned sz, obj const * fs):
@@ -211,10 +208,16 @@ void obj_cell::dealloc() {
             case obj_kind::Closure:
                 DEC_FIELDS(it, todo);
                 it->~obj_cell();
-                g_obj_pool->recycle(it, sz+1);
+                // trying to recycle closures and raw ptrs causes crashes
+                // g_obj_pool->recycle(it, sz+1);
                 break;
             case obj_kind::MPN:
                 // TODO(Leo):
+                break;
+            case obj_kind::RawPtr:
+                // Eventually support attaching a finalizer/destructor
+                it->~obj_cell();
+                // g_obj_pool->recycle(it, sz);
                 break;
             }
         }

@@ -14,7 +14,6 @@ Author: Jared Roesch
 
 namespace lean  {
     class c_backend : backend {
-        c_emitter m_emitter;
         bool m_return;
     public:
         c_backend(environment const & env, optional<std::string> main_fn);

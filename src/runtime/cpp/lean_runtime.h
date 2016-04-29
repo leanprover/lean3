@@ -150,10 +150,7 @@ obj mk_closure(T fn, unsigned arity, std::initializer_list<obj> const & os) {
 }
 
 obj run_lean_main(obj (*main_fn)()) {
-    std::cout << "starting up" << std::endl;
-    auto main_result = main_fn();
-    std::cout << "main is done" << std::endl;
-    return main_result;
+    return main_fn();
 }
 
 obj runtime_error(const char * msg) {
