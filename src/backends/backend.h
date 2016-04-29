@@ -30,6 +30,7 @@ namespace lean  {
 
         proc(name m_name, std::vector<name> args, shared_ptr<simple_expr> body)
             : m_name(m_name), m_args(args), m_body(body) {}
+        proc() : m_name(), m_args(), m_body(nullptr) {}
     };
 
     // Represents a code generation backend
@@ -37,7 +38,8 @@ namespace lean  {
     protected:
         environment const & m_env;
         type_checker m_tc;
-        std::vector<proc> m_procs;
+        name_map<proc> m_procs;
+        // TODO: convert this to be a map as well.
         std::vector<ctor> m_ctors;
     public:
         backend(environment const & env, optional<std::string> main_fn);
@@ -52,7 +54,8 @@ namespace lean  {
         shared_ptr<simple_expr> compile_expr_app(expr const & e, std::vector<binding> & bindings);
         shared_ptr<simple_expr> compile_expr_const(expr const & e);
         shared_ptr<simple_expr> compile_expr_local(expr const & e);
-        shared_ptr<simple_expr> compile_recursor(name const & n, std::vector<expr> & args, std::vector<binding> & bindings);
+        // Generate a procedure corresponding to the recursor.
+        void compile_recursor(name const & n);
         shared_ptr<simple_expr> compile_error(std::string s);
         // The code generator interface, to add a new backend simply subclass
         // this type and declare the below methods.
@@ -66,6 +69,8 @@ namespace lean  {
         void bind_name(name n, expr const & e, std::vector<binding> & bindings);
         void compile_decl(declaration const & d);
         void add_proc(proc p);
+        name fresh_name();
+        name fresh_name_with_prefix(name const & prefix);
     };
 
     shared_ptr<simple_expr> let_binding(std::vector<binding> bindings, shared_ptr<simple_expr> se);
