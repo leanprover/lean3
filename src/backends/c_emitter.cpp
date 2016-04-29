@@ -18,11 +18,6 @@ Author: Jared Roesch
 
 namespace lean {
 
-c_emitter::c_emitter(std::string output_file) {
-    this->m_output_stream =
-    std::unique_ptr<std::ostream>(new std::fstream(output_file, std::ios_base::out));
-}
-
 void c_emitter::emit_return(simple_expr const & se) {
 
 }

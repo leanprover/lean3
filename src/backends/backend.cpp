@@ -107,7 +107,10 @@ void backend::compile_decl(declaration const & d) {
                       if (intro_n == d.get_name()) {
                           ctor_index = i;
                           while (is_pi(intro_ty)) {
-                              arity += 1;
+                              auto arg_ty = binding_domain(intro_ty);
+                              if (!is_erasible(arg_ty)) {
+                                  arity += 1;
+                              }
                               intro_ty = binding_body(intro_ty);
                           }
                           break;
@@ -204,7 +207,7 @@ shared_ptr<simple_expr> backend::compile_expr(expr const & e, std::vector<bindin
             break;
     }
     // Catch-all exeception TODO: make this a real exception w/ error reporting
-    throw new std::string("app: not supported");
+    throw new std::string("internal error: should of matched an above case");
 }
 
 shared_ptr<simple_expr> backend::compile_expr_const(expr const & e) {
@@ -240,13 +243,10 @@ shared_ptr<simple_expr> backend::compile_expr_app(expr const & e, std::vector<bi
         }
     }
 
-    std::vector<expr> eargs;
-    for (auto arg : args) {
-        eargs.push_back(arg);
-    }
-
     if (is_constant(f) && this->m_env.is_recursor(const_name(f))) {
-        return compile_recursor(const_name(f), eargs, bindings);
+        compile_recursor(const_name(f));
+        auto callee_name = const_name(f);
+        return shared_ptr<simple_expr>(new simple_expr_call(callee_name, names, 1));
     } else if (is_constant(f)) {
         auto callee_name = const_name(f);
         return shared_ptr<simple_expr>(new simple_expr_call(callee_name, names, 1));
@@ -257,26 +257,61 @@ shared_ptr<simple_expr> backend::compile_expr_app(expr const & e, std::vector<bi
     }
 }
 
-shared_ptr<simple_expr> backend::compile_recursor(
-    name const & recursor_name,
-    std::vector<expr> & args,
-    std::vector<binding> & bindings) {
-        lean_assert(m_env.is_recursor(recursor_name));
-        auto major_index = inductive::get_elim_major_idx(m_env, recursor_name);
-        auto scrutinee = args[major_index.value()];
-        std::vector<shared_ptr<simple_expr>> cases;
-        if (is_constant(scrutinee)) {
-            auto n = const_name(scrutinee);
-            return shared_ptr<simple_expr>(new simple_expr_switch(n, cases));
-        } else {
-            auto n = mk_fresh_name();
-            this->bind_name(n, scrutinee, bindings);
-            return shared_ptr<simple_expr>(new simple_expr_switch(n, cases));
-        }
+void backend::compile_recursor(name const & recursor_name) {
+    std::cout << "compiling recursor: " << recursor_name << std::endl;
+    lean_assert(m_env.is_recursor(recursor_name));
+
+    // We unconditionally call this function, if we have already
+    // generated a computational representation of the recursor
+    // we just return.
+    if (this->m_procs.contains(recursor_name)) {
+        return;
+    }
+
+    auto inductive_ty = inductive::is_elim_rule(m_env, recursor_name).value();
+
+    // Grab the number of parameters
+    auto opt_num_params = inductive::get_num_params(m_env, inductive_ty);
+    unsigned int num_params;
+    if (opt_num_params) {
+        num_params = opt_num_params.value();
+    } else {
+        num_params = 0u;
+    }
+
+    auto opt_minor_premises =
+        inductive::get_num_minor_premises(m_env, inductive_ty);
+
+    unsigned int num_minor_premises;
+    if (opt_minor_premises) {
+        num_minor_premises = opt_minor_premises.value();
+    } else {
+        num_minor_premises = 0u;
+    }
+
+    auto num_of_rec_args = num_minor_premises + 1;
+
+    std::vector<name> args;
+    for (unsigned int i = 0; i < num_of_rec_args; i++) {
+        args.push_back(this->fresh_name_with_prefix("arg"));
+    }
+
+    // Get the scrutinee of our 'match'.
+    auto scrutinee_name = args[num_of_rec_args - 1];
+
+    std::vector<shared_ptr<simple_expr>> cases;
+
+    std::cout << "num params: " << num_params << std::endl;
+    std::cout << "num premises: " << num_minor_premises << std::endl;
+
+    std::vector<name> recursor_args;
+    auto se = shared_ptr<simple_expr>(new simple_expr_switch(scrutinee_name, cases));
+    auto p = proc(recursor_name, args, se);
+    this->add_proc(p);
+    std::cout << "done with recursor" << std::endl;
 }
 
 shared_ptr<simple_expr> backend::compile_expr_macro(expr const & e, std::vector<binding> & bindings) {
-    std::cout << e << std::endl;
     // Eventually do efficent replacement here.
     //
     // Expand it and then compile the resulting
@@ -290,7 +325,7 @@ shared_ptr<simple_expr> backend::compile_expr_macro(expr const & e, std::vector<
 }
 
 shared_ptr<simple_expr> backend::compile_expr_lambda(expr const & e, std::vector<binding> & bindings) {
-    name closure_name = mk_fresh_name(); // "anonymous_closure");
+    name closure_name = this->fresh_name(); // "anonymous_closure");
     std::vector<name> args;
     auto se = this->compile_body(args, e);
     auto p = proc(closure_name, args, se);
@@ -310,7 +345,15 @@ void backend::bind_name(name n, expr const & e, std::vector<binding> & bindings)
 }
 
 void backend::add_proc(proc p) {
-    this->m_procs.push_back(p);
+    this->m_procs.insert(p.m_name, p);
+}
+
+name backend::fresh_name() {
+    return mk_fresh_name();
+}
+
+name backend::fresh_name_with_prefix(name const & prefix) {
+    return mk_tagged_fresh_name(prefix);
 }
 
 shared_ptr<simple_expr> let_binding(std::vector<binding> bindings, shared_ptr<simple_expr> se) {

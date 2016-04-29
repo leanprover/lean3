@@ -21,7 +21,7 @@ namespace lean {
 static const char * LEAN_OBJ_TYPE = "lean::obj";
 
 c_backend::c_backend(environment const & env, optional<std::string> main_fn)
-    : backend(env, main_fn), m_emitter("out.cpp"), m_return(false) {}
+    : backend(env, main_fn), m_return(false) {}
 
 // Not really sure if this is suffcient mangling. I can polish this
 // over time, first attempt to is to get a linked executable.
@@ -60,6 +60,7 @@ void c_backend::generate_code(optional<std::string> output_path) {
     // auto fs_ptr = m_emitter.m_output_stream.get();
     //std::ostream & fs = reinterpret_cast<std::ostream &>(fs_ptr);
     std::fstream fs("out.cpp", std::ios_base::out);
+    c_emitter emitter(fs);
 
     generate_includes(fs);
     // First generate code for constructors.
@@ -69,16 +70,16 @@ void c_backend::generate_code(optional<std::string> output_path) {
     }
 
     // Generate a declaration for each procedure.
-    for (auto proc : this->m_procs) {
-        this->generate_decl(fs, proc);
+    this->m_procs.for_each([&] (name const &n, proc const & p) {
+        this->generate_decl(fs, p);
         fs << std::endl;
-    }
+    });
 
     // Then generate code for procs.
-    for (auto proc : this->m_procs) {
-        this->generate_proc(fs, proc);
+    this->m_procs.for_each([&] (name const &n, proc const & p) {
+        this->generate_proc(fs, p);
         fs << std::endl;
-    }
+    });
 
     // Finally generate the shim for main.
     generate_main(fs, "main");
