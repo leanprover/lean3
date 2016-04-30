@@ -13,6 +13,7 @@ Author: Jared Roesch
 #include "kernel/inductive/inductive.h"
 #include "kernel/instantiate.h"
 #include "kernel/type_checker.h"
+#include "library/trace.h"
 #include "used_names.h"
 #include "util/fresh_name.h"
 #include "util/name.h"
@@ -170,7 +171,9 @@ shared_ptr<simple_expr> backend::compile_expr(expr const & e) {
 }
 
 shared_ptr<simple_expr> backend::compile_expr(expr const & e, std::vector<binding> & bindings) {
-    std::cout << "exp: " << e << std::endl;
+    lean_trace(name({"backend", "compiler_expr"}),
+               tout() << "expr: " << e << "\n";);
+
     switch (e.kind()) {
         case expr_kind::Local:
             return shared_ptr<simple_expr>(new simple_expr_error("local"));
@@ -220,6 +223,10 @@ shared_ptr<simple_expr> backend::compile_expr_app(expr const & e, std::vector<bi
     expr const & f = get_app_args(e, args);
     unsigned nargs = args.size();
     std::vector<name> names;
+
+    // First we loop over the arguments, un-rolling each sub-expression into
+    // a sequence of bindings, we also store the set of names we will apply
+    // the function to.
     for (unsigned i = 0; i < nargs; i++) {
          std::cout << args[i] << std::endl;
          auto ty = m_tc.check_ignore_undefined_universes(args[i]);
@@ -233,8 +240,6 @@ shared_ptr<simple_expr> backend::compile_expr_app(expr const & e, std::vector<bi
                  names.push_back(const_name(args[i]));
              } else if (is_local(args[i])) {
                  names.push_back(mlocal_name(args[i]));
-             } else if (is_var(args[i])) {
-                 names.push_back(name("v"));
              } else {
                  auto n = mk_fresh_name();
                  this->bind_name(n, args[i], bindings);
@@ -243,6 +248,14 @@ shared_ptr<simple_expr> backend::compile_expr_app(expr const & e, std::vector<bi
         }
     }
 
+    // We now need to handle the function itself, if the applied term is
+    // a recursor we will ensure we have emitted a compiled recursor,
+    // and then compile a direct call to it.
+    //
+    // If `f` is just a constant we will directly call it.
+    //
+    // Finally if `f` is any other kind of expresion we will bind it to
+    // a name and then invoke that name.
     if (is_constant(f) && this->m_env.is_recursor(const_name(f))) {
         compile_recursor(const_name(f));
         auto callee_name = const_name(f);
@@ -258,7 +271,9 @@ shared_ptr<simple_expr> backend::compile_expr_app(expr const & e, std::vector<bi
 }
 
 void backend::compile_recursor(name const & recursor_name) {
-    std::cout << "compiling recursor: " << recursor_name << std::endl;
+    lean_trace(name({"backend", "compile_recursor"}),
+               tout() << "compiling recursor: " << recursor_name << "\n";);
+
     lean_assert(m_env.is_recursor(recursor_name));
 
     // We unconditionally call this function, if we have already
@@ -365,7 +380,9 @@ shared_ptr<simple_expr> let_binding(std::vector<binding> bindings, shared_ptr<si
 }
 
 bool is_erasible(expr const & e) {
-    std::cout << "erase: " << e << std::endl;
+    lean_trace(name({"backend", "is_erasible"}),
+              tout() << "erase: " << e << "\n";);
+              
     if (is_sort(e)) {
         return true;
     } else if (is_pi(e)) {
