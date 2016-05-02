@@ -28,5 +28,7 @@ namespace lean  {
         void generate_simple_expr_call(std::ostream& os, simple_expr const & se);
         void generate_simple_expr_error(std::ostream& os, simple_expr const & se);
         void generate_simple_expr_var(std::ostream& os, simple_expr const & se);
+        void generate_simple_expr_project(std::ostream& os, simple_expr const & se);
+        void generate_simple_expr_closure_alloc(std::ostream& os, simple_expr const & se);
     };
 }

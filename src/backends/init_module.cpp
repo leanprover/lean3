@@ -6,11 +6,15 @@ Author: Jared Roesch
 */
 
 #include <iostream>
+#include "library/trace.h"
 
 namespace lean {
 
 void initialize_backends_module() {
     // std::cout << "init backend" << std::endl;
+    register_trace_class("backend");
+    register_trace_class({"backend", "compile"});
+    register_trace_class("c_backend");
 }
 
 void finalize_backends_module() {

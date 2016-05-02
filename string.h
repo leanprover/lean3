@@ -16,7 +16,7 @@ char lean_char_to_raw_char(lean::obj c) {
 
 // Take the inductive type that Lean uses to represent a string
 // and convert it to a raw character.
-lean::obj string_to_raw_string_direct(lean::obj rw, lean::obj string) {
+lean::obj string_to_raw_string_fn_ptr(lean::obj rw, lean::obj string) {
     std::string *raw_string = new std::string;
     auto cursor = string;
     while (cursor.cidx() == 1) {
@@ -27,11 +27,17 @@ lean::obj string_to_raw_string_direct(lean::obj rw, lean::obj string) {
     return lean::mk_obj(0, { rw, rs });
 }
 
-lean::obj raw_print_impl(lean::obj rw, lean::obj rs) {
+lean::obj raw_print_fn_ptr(lean::obj rw, lean::obj rs) {
     auto unit = lean::mk_obj(0);
     auto ptr = (char *)rs.raw_ptr();
     std::cout << ptr;
     return lean::mk_obj(0, { rw, rw, rw, unit });
 }
 
-static lean::obj raw_print = mk_closure(raw_print_impl, 2, 0, nullptr);
+static lean::obj raw_print = mk_closure(raw_print_fn_ptr, 2, 0, nullptr);
+
+lean::obj run_io_main(lean::obj io_action) {
+    std::cout << "io_main" << std::endl;
+    auto real_world = lean::mk_obj(0);
+    return io_action[0].apply(real_world);
+}
