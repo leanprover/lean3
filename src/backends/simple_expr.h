@@ -20,6 +20,8 @@ namespace lean  {
         Call,
         Switch,
         Error,
+        Project,
+        ClosureAlloc,
     };
 
     struct simple_expr {
@@ -61,6 +63,19 @@ namespace lean  {
         virtual simple_expr_kind kind() const { return simple_expr_kind::Call; }
     };
 
+    struct simple_expr_closure_alloc : simple_expr {
+        name m_name;
+        std::vector<name> m_free_vars;
+
+        simple_expr_closure_alloc(name m_name, std::vector<name> m_free_vars)
+            : m_name(m_name), m_free_vars(m_free_vars) {
+            this->m_kind = simple_expr_kind::ClosureAlloc;
+        }
+        
+        virtual simple_expr_kind kind() const { return simple_expr_kind::ClosureAlloc; }
+    };
+
+
     struct simple_expr_switch : simple_expr {
         name m_scrutinee;
         std::vector<shared_ptr<simple_expr>> m_cases;
@@ -69,6 +84,16 @@ namespace lean  {
                 this->m_kind = simple_expr_kind::Switch;
         }
         virtual simple_expr_kind kind() const { return simple_expr_kind::Switch; }
+    };
+
+    struct simple_expr_project : simple_expr {
+        name m_name;
+        int m_index;
+        simple_expr_project(name m_name, int m_index)
+            : m_name(m_name), m_index(m_index) {
+                this->m_kind = simple_expr_kind::Project;
+        }
+        virtual simple_expr_kind kind() const { return simple_expr_kind::Project; }
     };
 
     struct simple_expr_error : simple_expr {
@@ -97,6 +122,14 @@ namespace lean  {
         return e.kind() == simple_expr_kind::Switch;
     }
 
+    inline bool simple_is_project(simple_expr const & e) {
+        return e.kind() == simple_expr_kind::Project;
+    }
+
+    inline bool simple_is_closure_alloc(simple_expr const & e) {
+        return e.kind() == simple_expr_kind::ClosureAlloc;
+    }
+
     inline simple_expr_call const * to_simple_call(simple_expr const * e) {
         lean_assert(simple_is_call(*e));
         return static_cast<simple_expr_call const *>(e);
@@ -120,5 +153,15 @@ namespace lean  {
     inline simple_expr_switch const * to_simple_switch(simple_expr const * e) {
         lean_assert(simple_is_switch(*e));
         return static_cast<simple_expr_switch const *>(e);
+    }
+
+    inline simple_expr_project const * to_simple_project(simple_expr const * e) {
+        lean_assert(simple_is_project(*e));
+        return static_cast<simple_expr_project const *>(e);
+    }
+
+    inline simple_expr_closure_alloc const * to_simple_closure_alloc(simple_expr const * e) {
+        lean_assert(simple_is_closure_alloc(*e));
+        return static_cast<simple_expr_closure_alloc const *>(e);
     }
 }
