@@ -9,6 +9,7 @@ Author: Jared Roesch
 #include <utility>
 #include "used_names.h"
 #include "kernel/environment.h"
+#include "kernel/instantiate.h"
 #include "kernel/inductive/inductive.h"
 #include "kernel/type_checker.h"
 #include "util/name.h"
@@ -78,10 +79,21 @@ void used_defs::names_in_expr(expr const & e) {
             break;
         }
         case expr_kind::Lambda:
-        case expr_kind::Pi:
-            this->names_in_expr(binding_domain(e));
-            this->names_in_expr(binding_body(e));
+        case expr_kind::Pi: {
+            buffer<expr> ls;
+            auto ex = e;
+            while (is_binding(ex)) {
+                expr d = instantiate_rev(binding_domain(ex), ls.size(), ls.data());
+                this->names_in_expr(d);
+                auto n = mk_fresh_name(); // (name const & prefix, unsigned k);
+                expr l = mk_local(n, binding_name(ex), d, binding_info(ex));
+                ls.push_back(l);
+                ex = binding_body(ex);
+            }
+            ex = instantiate_rev(ex, ls.size(), ls.data());
+            this->names_in_expr(ex);
             break;
+        }
         case expr_kind::App:
             this->names_in_expr(app_fn(e));
             this->names_in_expr(app_arg(e));

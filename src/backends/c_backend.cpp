@@ -27,7 +27,7 @@ c_backend::c_backend(environment const & env, optional<std::string> main_fn)
 // over time, first attempt to is to get a linked executable.
 void mangle_name(std::ostream& os, name const & n) {
     if (n == name("main")) {
-        os << "___lean__main";
+        os << LEAN_MAIN;
     } else if (n.is_anonymous()) {
         os << "anon_name?";
     } else if (n.is_string()) {
@@ -35,10 +35,15 @@ void mangle_name(std::ostream& os, name const & n) {
         os << s;
     } else if (n.is_numeral()) {
         auto s = n.to_string("_");
-        os << "__lean_nv_" << s;
+        os << LEAN_FRESH_N_PREFIX << s;
     } else {
         lean_unreachable();
     }
+}
+
+void mangle_name_fn_ptr(std::ostream& os, name const & n) {
+    mangle_name(os, n);
+    os << LEAN_FN_PTR_SUFFIX;
 }
 
 void generate_includes(std::ostream& os) {
@@ -50,7 +55,7 @@ void generate_main(std::ostream& os, std::string main_fn) {
     os << "int main() {" << std::endl;
     os << std::setw(4) << "lean::run_lean_main(";
     mangle_name(os, main_fn);
-    os << "_direct";
+    os << LEAN_FN_PTR_SUFFIX;
     os << ");" << std::endl;
     os << std::setw(4) << "return 0;" << std::endl;
     os << "}" << std::endl;
@@ -98,8 +103,7 @@ void c_backend::generate_ctor(std::ostream& os, ctor const & c) {
         os << ");" << std::endl;
     } else {
         os << LEAN_OBJ_TYPE << " ";
-        mangle_name(os, c.m_name);
-        os << "_direct";
+        mangle_name_fn_ptr(os, c.m_name);
         os  << "(";
 
         auto comma = false;
@@ -143,8 +147,7 @@ void c_backend::generate_ctor(std::ostream& os, ctor const & c) {
 
 void c_backend::generate_proc(std::ostream& os, proc const & p) {
     os << LEAN_OBJ_TYPE << " ";
-    mangle_name(os, p.m_name);
-    os << "_direct";
+    mangle_name_fn_ptr(os, p.m_name);
     os << "(";
 
     auto comma = false;
@@ -171,8 +174,7 @@ void c_backend::generate_proc(std::ostream& os, proc const & p) {
 
 void c_backend::generate_decl(std::ostream& os, proc const & p) {
     os << LEAN_OBJ_TYPE << " ";
-    mangle_name(os, p.m_name);
-    os << "_direct";
+    mangle_name_fn_ptr(os, p.m_name);
     os << "(";
 
     auto comma = false;
@@ -194,10 +196,11 @@ void c_backend::generate_decl(std::ostream& os, proc const & p) {
     mangle_name(os, p.m_name);
     os << " = ";
     os << "mk_closure(";
-    mangle_name(os, p.m_name);
-    os << "_direct";
+    mangle_name_fn_ptr(os, p.m_name);
     os << ", ";
-    os << "0, 0, nullptr);";
+    os << p.arity();
+    os << ", 0, nullptr);";
+    os << "\n";
 }
 
 void c_backend::generate_simple_expr_var(std::ostream& os, simple_expr const & se) {
@@ -215,12 +218,16 @@ void c_backend::generate_simple_expr_call(std::ostream& os, simple_expr const & 
     auto callee = to_simple_call(&se)->m_name;
     auto direct = to_simple_call(&se)->m_direct;
 
+    if (args.size() == 0) {
+        mangle_name(os, callee);
+        return;
+    }
+
     if (!direct) {
         mangle_name(os, callee);
         os << ".apply(";
     } else {
-        mangle_name(os, callee);
-        os << "_direct";
+        mangle_name_fn_ptr(os, callee);
         os << "(";
     }
 
@@ -273,14 +280,43 @@ void c_backend::generate_simple_expr_switch(std::ostream& os, simple_expr const 
     os << ".cidx()) {" << std::endl;
     int i = 0;
     for (auto c : cases) {
-        os << "case " << i << ": {" << std::endl;
+        os << "case " << i << ": {\n" << std::endl;
         generate_simple_expr(os, *c);
-        os << "}";
+        os << "}\n";
     }
     os << "default:\n";
-    os << LEAN_ERR << "(\"" << "recursor-compilation-failure" << "\");" << std::endl;
-    os << "break;\n";
+    os << "return " << LEAN_ERR << "(\"" << "recursor-compilation-failure" << "\");" << std::endl;
+    os << "}\n";
+}
+
+void c_backend::generate_simple_expr_project(std::ostream& os, simple_expr const & se) {
+    auto projection = to_simple_project(&se);
+    mangle_name(os, projection->m_name);
+    os << "[";
+    os << projection->m_index;
+    os << "]";
+}
+
+void c_backend::generate_simple_expr_closure_alloc(std::ostream& os, simple_expr const & se) {
+    auto closure_alloc = to_simple_closure_alloc(&se);
+    os << "lean::mk_closure(";
+    mangle_name_fn_ptr(os, closure_alloc->m_name);
+    os << ",";
+    os << closure_alloc->m_free_vars.size();
+    os << ",";
+    os << "{";
+    auto comma = false;
+    for (auto fv : closure_alloc->m_free_vars) {
+        if (comma) {
+            os << ",";
+            mangle_name(os, fv);
+        } else {
+            comma = true;
+            mangle_name(os, fv);
+        }
+    }
     os << "}";
+    os << ")";
 }
 
 void c_backend::generate_simple_expr(std::ostream& os, simple_expr const & se) {
@@ -319,6 +355,12 @@ void c_backend::generate_simple_expr(std::ostream& os, simple_expr const & se) {
             break;
         case simple_expr_kind::Switch:
             generate_simple_expr_switch(os, se);
+            break;
+        case simple_expr_kind::Project:
+            generate_simple_expr_project(os, se);
+            break;
+        case simple_expr_kind::ClosureAlloc:
+            generate_simple_expr_closure_alloc(os, se);
             break;
     }
 }
