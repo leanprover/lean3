@@ -199,10 +199,10 @@ Inductive definitions
 
 Inductive datatype declarations have the following form:
 ```
-#IND <name:nidx> <numParams:integer> <lpNames:nidx>* | <type:eidx> <numIntroRules:integer>
-#IR <irName:nidx> <irType:eidx>
+#IND <numParams:integer> <lpNames:nidx>* | <indName:nidx> <indType:eidx> <numIntroRules:integer>
+#INTRO <irName:nidx> <irType:eidx>
 ...
-#IR <irName:nidx> <irType:eidx>
+#INTRO <irName:nidx> <irType:eidx>
 ```
 For example, the following inductive type declaration
 ```lean
