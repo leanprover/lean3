@@ -594,38 +594,38 @@ more like proofs found in text books.
 The expression =trivial= is a proof term for =true=, and =false_elim a H=
 produces a proof for =a= from =H : false=.
 
-*** Rewrite rules
+# *** Rewrite rules
 
-*WARNING: We did not port this section to Lean 0.2 yet*
+# *WARNING: We did not port this section to Lean 0.2 yet*
 
-The Lean kernel also contains many theorems that are meant to be used as rewriting/simplification rules.
-The conclusion of these theorems is of the form =t = s= or =t ↔ s=. For example, =and_id a= is proof term for
-=a ∧ a ↔ a=. The Lean simplifier can use these theorems to automatically create proof terms for us.
-The expression =(by simp [rule-set])= is similar to =_=, but it tells Lean to synthesize the proof term using the simplifier
-using the rewrite rule set named =[rule-set]=. In the following example, we create a simple rewrite rule set
-and use it to prove a theorem that would be quite tedious to prove by hand.
+# The Lean kernel also contains many theorems that are meant to be used as rewriting/simplification rules.
+# The conclusion of these theorems is of the form =t = s= or =t ↔ s=. For example, =and_id a= is proof term for
+# =a ∧ a ↔ a=. The Lean simplifier can use these theorems to automatically create proof terms for us.
+# The expression =(by simp [rule-set])= is similar to =_=, but it tells Lean to synthesize the proof term using the simplifier
+# using the rewrite rule set named =[rule-set]=. In the following example, we create a simple rewrite rule set
+# and use it to prove a theorem that would be quite tedious to prove by hand.
 
-#+BEGIN_SRC
-  -- import module that defines several tactics/strategies including "simp"
-  import tactic
-  -- create a rewrite rule set with name 'simple'
-  rewrite_set simple
-  -- add some theorems to the rewrite rule set 'simple'
-  add_rewrite and_id and_truer and_truel and_comm and.assoc and_left_comm iff_id : simple
-  theorem th1 (a b : Bool) : a ∧ b ∧ true ∧ b ∧ true ∧ b ↔ a ∧ b
-  := (by simp simple)
-#+END_SRC
+# #+BEGIN_SRC
+#   -- import module that defines several tactics/strategies including "simp"
+#   import tactic
+#   -- create a rewrite rule set with name 'simple'
+#   rewrite_set simple
+#   -- add some theorems to the rewrite rule set 'simple'
+#   add_rewrite and_id and_truer and_truel and_comm and.assoc and_left_comm iff_id : simple
+#   theorem th1 (a b : Bool) : a ∧ b ∧ true ∧ b ∧ true ∧ b ↔ a ∧ b
+#   := (by simp simple)
+# #+END_SRC
 
-In Lean, we can combine manual and automated proofs in a natural way. We can manually write the proof
-skeleton and use the =by= construct to invoke automated proof engines like the simplifier for filling the
-tedious steps. Here is a very simple example.
+# In Lean, we can combine manual and automated proofs in a natural way. We can manually write the proof
+# skeleton and use the =by= construct to invoke automated proof engines like the simplifier for filling the
+# tedious steps. Here is a very simple example.
 
-#+BEGIN_SRC
-   theorem th2 (a b : Prop) : a ∧ b ↔ b ∧ a
-   := iff.intro
-        (fun H : a ∧ b, (by simp simple))
-        (fun H : b ∧ a, (by simp simple))
-#+END_SRC
+# #+BEGIN_SRC
+#    theorem th2 (a b : Prop) : a ∧ b ↔ b ∧ a
+#    := iff.intro
+#         (fun H : a ∧ b, (by simp simple))
+#         (fun H : b ∧ a, (by simp simple))
+# #+END_SRC
 
 ** Dependent functions and quantifiers
 
