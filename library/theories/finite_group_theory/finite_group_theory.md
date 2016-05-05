@@ -1,5 +1,5 @@
-theories.group_theory
-=====================
+theories.finite_group_theory
+============================
 
 Group theory (especially finite group theory).
 
