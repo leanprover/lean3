@@ -73,7 +73,7 @@ namespace sigma
 
   /- the uncurried version of sigma_eq. We will prove that this is an equivalence -/
 
-  definition sigma_eq_unc : Π (pq : Σ(p : u.1 = v.1), u.2 =[p] v.2), u = v
+  definition sigma_eq_unc [unfold 5] : Π (pq : Σ(p : u.1 = v.1), u.2 =[p] v.2), u = v
   | sigma_eq_unc ⟨pq₁, pq₂⟩ := sigma_eq pq₁ pq₂
 
   definition dpair_sigma_eq_unc : Π (pq : Σ(p : u.1 = v.1), u.2 =[p] v.2),
@@ -96,14 +96,15 @@ namespace sigma
       : transport (λx, B' x.1) (@sigma_eq_unc A B u v pq) = transport B' pq.1 :=
   destruct pq tr_pr1_sigma_eq
 
-  definition is_equiv_sigma_eq [instance] (u v : Σa, B a)
+  definition is_equiv_sigma_eq [instance] [constructor] (u v : Σa, B a)
       : is_equiv (@sigma_eq_unc A B u v) :=
   adjointify sigma_eq_unc
              (λp, ⟨p..1, p..2⟩)
              sigma_eq_eta_unc
              dpair_sigma_eq_unc
 
-  definition sigma_eq_equiv (u v : Σa, B a) : (u = v) ≃ (Σ(p : u.1 = v.1),  u.2 =[p] v.2) :=
+  definition sigma_eq_equiv [constructor] (u v : Σa, B a)
+    : (u = v) ≃ (Σ(p : u.1 = v.1),  u.2 =[p] v.2) :=
   (equiv.mk sigma_eq_unc _)⁻¹ᵉ
 
   definition dpair_eq_dpair_con (p1 : a  = a' ) (q1 : b  =[p1] b' )
@@ -243,7 +244,7 @@ namespace sigma
 
   definition sigma_equiv_sigma_right [constructor] {B' : A → Type} (Hg : Π a, B a ≃ B' a)
     : (Σa, B a) ≃ Σa, B' a :=
-  sigma_equiv_sigma equiv.refl Hg
+  sigma_equiv_sigma equiv.rfl Hg
 
   definition sigma_equiv_sigma_left [constructor] (Hf : A ≃ A') :
       (Σa, B a) ≃ (Σa', B (to_inv Hf a')) :=
@@ -307,7 +308,7 @@ namespace sigma
   calc
     (Σa a', C (a, a')) ≃ Σu, C u          : assoc_equiv_prod
                    ... ≃ Σv, C (flip v)   : sigma_equiv_sigma !prod_comm_equiv
-                                              (λu, prod.destruct u (λa a', equiv.refl))
+                                              (λu, prod.destruct u (λa a', equiv.rfl))
                    ... ≃ Σa' a, C (a, a') : assoc_equiv_prod
 
   definition sigma_comm_equiv [constructor] (C : A → A' → Type)
@@ -447,15 +448,17 @@ namespace sigma
   notation [parsing_only] `{` binder `|` r:(scoped:1 P, subtype P) `}` := r
 
   /- To prove equality in a subtype, we only need equality of the first component. -/
-  definition subtype_eq [H : Πa, is_prop (B a)] {u v : {a | B a}} : u.1 = v.1 → u = v :=
+  definition subtype_eq [unfold_full] [H : Πa, is_prop (B a)] {u v : {a | B a}} :
+    u.1 = v.1 → u = v :=
   sigma_eq_unc ∘ inv pr1
 
-  definition is_equiv_subtype_eq [H : Πa, is_prop (B a)] (u v : {a | B a})
+  definition is_equiv_subtype_eq [constructor] [H : Πa, is_prop (B a)] (u v : {a | B a})
       : is_equiv (subtype_eq : u.1 = v.1 → u = v) :=
   !is_equiv_compose
   local attribute is_equiv_subtype_eq [instance]
 
-  definition equiv_subtype [H : Πa, is_prop (B a)] (u v : {a | B a}) : (u.1 = v.1) ≃ (u = v) :=
+  definition equiv_subtype [constructor] [H : Πa, is_prop (B a)] (u v : {a | B a}) :
+    (u.1 = v.1) ≃ (u = v) :=
   equiv.mk !subtype_eq _
 
   definition subtype_eq_inv {A : Type} {B : A → Type} [H : Πa, is_prop (B a)] (u v : Σa, B a)
@@ -488,3 +491,28 @@ end sigma
 
 attribute sigma.is_trunc_sigma [instance] [priority 1490]
 attribute sigma.is_trunc_subtype [instance] [priority 1200]
+
+namespace sigma
+
+  /- pointed sigma type -/
+  open pointed
+
+  definition pointed_sigma [instance] [constructor] {A : Type} (P : A → Type) [G : pointed A]
+      [H : pointed (P pt)] : pointed (Σx, P x) :=
+  pointed.mk ⟨pt,pt⟩
+
+  definition psigma [constructor] {A : Type*} (P : A → Type*) : Type* :=
+  pointed.mk' (Σa, P a)
+
+  notation `Σ*` binders `, ` r:(scoped P, psigma P) := r
+
+  definition ppr1 [constructor] {A : Type*} {B : A → Type*} : (Σ*(x : A), B x) →* A :=
+  pmap.mk pr1 idp
+
+  definition ppr2 [unfold_full] {A : Type*} {B : A → Type*} (v : (Σ*(x : A), B x)) : B (ppr1 v) :=
+  pr2 v
+
+  definition ptsigma [constructor] {n : ℕ₋₂} {A : n-Type*} (P : A → n-Type*) : n-Type* :=
+  ptrunctype.mk' n (Σa, P a)
+
+end sigma

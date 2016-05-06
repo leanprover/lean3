@@ -73,7 +73,7 @@ namespace lift
   equiv.mk _ (is_equiv_lift_functor f)
 
   definition lift_equiv_lift_refl (A : Type) : lift_equiv_lift (erfl : A ≃ A) = erfl :=
-  by apply equiv_eq'; intro z; induction z with a; reflexivity
+  by apply equiv_eq; intro z; induction z with a; reflexivity
 
   definition lift_inv_functor [unfold_full] (a : A) : A' :=
   down (g (up a))
@@ -119,7 +119,7 @@ namespace lift
              intro f, apply equiv_eq, reflexivity
            end end
            abstract begin
-             intro g, apply equiv_eq, esimp, apply eq_of_homotopy, intro z,
+             intro g, apply equiv_eq', esimp, apply eq_of_homotopy, intro z,
              induction z with a, esimp, apply lift.eta
            end end
 
@@ -134,17 +134,45 @@ namespace lift
       exact _,
     { intro p, induction p,
       esimp [lift_eq_lift_equiv,equiv.trans,equiv.symm,eq_equiv_equiv],
-      rewrite [equiv_of_eq_refl,lift_equiv_lift_refl],
+      rewrite [equiv_of_eq_refl, lift_equiv_lift_refl],
       apply ua_refl}
   end
 
   definition plift [constructor] (A : pType.{u}) : pType.{max u v} :=
-  pType.mk (lift A) (up pt)
+  pointed.MK (lift A) (up pt)
 
   definition plift_functor [constructor] {A B : Type*} (f : A →* B) : plift A →* plift B :=
   pmap.mk (lift_functor f) (ap up (respect_pt f))
 
   -- is_trunc_lift is defined in init.trunc
+
+  definition pup [constructor] {A : Type*} : A →* plift A :=
+  pmap.mk up idp
+
+  definition pdown [constructor] {A : Type*} : plift A →* A :=
+  pmap.mk down idp
+
+  definition plift_functor_phomotopy [constructor] {A B : Type*} (f : A →* B)
+    : pdown ∘* plift_functor f ∘* pup ~* f :=
+  begin
+    fapply phomotopy.mk,
+    { reflexivity},
+    { esimp, refine !idp_con ⬝ _, refine _ ⬝ ap02 down !idp_con⁻¹,
+      refine _ ⬝ !ap_compose, exact !ap_id⁻¹}
+  end
+
+  definition pequiv_plift [constructor] (A : Type*) : A ≃* plift A :=
+  pequiv_of_equiv (equiv_lift A) idp
+
+  definition fiber_lift_functor {A B : Type} (f : A → B) (b : B) :
+    fiber (lift_functor f) (up b) ≃ fiber f b :=
+  begin
+    fapply equiv.MK: intro v; cases v with a p,
+    { cases a with a, exact fiber.mk a (eq_of_fn_eq_fn' up p)},
+    { exact fiber.mk (up a) (ap up p)},
+    { esimp, apply ap (fiber.mk a), apply eq_of_fn_eq_fn'_ap},
+    { cases a with a, esimp, apply ap (fiber.mk (up a)), apply ap_eq_of_fn_eq_fn'}
+  end
 
 
 end lift

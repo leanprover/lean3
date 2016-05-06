@@ -59,7 +59,7 @@ namespace susp
 
   protected definition elim_type (PN : Type) (PS : Type) (Pm : A → PN ≃ PS)
     (x : susp A) : Type :=
-  susp.elim PN PS (λa, ua (Pm a)) x
+  pushout.elim_type (λx, PN) (λx, PS) Pm x
 
   protected definition elim_type_on [reducible] (x : susp A)
     (PN : Type) (PS : Type)  (Pm : A → PN ≃ PS) : Type :=
@@ -67,7 +67,11 @@ namespace susp
 
   theorem elim_type_merid (PN : Type) (PS : Type) (Pm : A → PN ≃ PS)
     (a : A) : transport (susp.elim_type PN PS Pm) (merid a) = Pm a :=
-  by rewrite [tr_eq_cast_ap_fn,↑susp.elim_type,elim_merid];apply cast_ua_fn
+  !elim_type_glue
+
+  theorem elim_type_merid_inv {A : Type} (PN : Type) (PS : Type) (Pm : A → PN ≃ PS)
+    (a : A) : transport (susp.elim_type PN PS Pm) (merid a)⁻¹ = to_inv (Pm a) :=
+  !elim_type_glue_inv
 
   protected definition merid_square {a a' : A} (p : a = a')
     : square (merid a) (merid a') idp idp :=
@@ -134,8 +138,7 @@ namespace susp
 
     protected definition flattening : sigma P ≃ pushout F G :=
     begin
-      apply equiv.trans (pushout.flattening (λ(a : A), star) (λ(a : A), star)
-        (λx, unit.cases_on x PN) (λx, unit.cases_on x PS) Pm),
+      apply equiv.trans !pushout.flattening,
       fapply pushout.equiv,
       { exact sigma.equiv_prod A PN },
       { apply sigma.sigma_unit_left },
@@ -199,12 +202,12 @@ namespace susp
 end susp
 
 open susp
-definition psusp [constructor] (X : Type) : pType :=
+definition psusp [constructor] (X : Type) : Type* :=
 pointed.mk' (susp X)
 
 namespace susp
   open pointed
-  variables {X Y Z : pType}
+  variables {X Y Z : Type*}
 
   definition psusp_functor (f : X →* Y) : psusp X →* psusp Y :=
   begin
@@ -235,7 +238,7 @@ namespace susp
 
   -- adjunction from Coq-HoTT
 
-  definition loop_susp_unit [constructor] (X : pType) : X →* Ω(psusp X) :=
+  definition loop_susp_unit [constructor] (X : Type*) : X →* Ω(psusp X) :=
   begin
     fconstructor,
     { intro x, exact merid x ⬝ (merid pt)⁻¹},
@@ -264,7 +267,7 @@ namespace susp
       xrewrite [idp_con_idp, -ap_compose (concat idp)]},
   end
 
-  definition loop_susp_counit [constructor] (X : pType) : psusp (Ω X) →* X :=
+  definition loop_susp_counit [constructor] (X : Type*) : psusp (Ω X) →* X :=
   begin
     fconstructor,
     { intro x, induction x, exact pt, exact pt, exact a},
@@ -285,7 +288,7 @@ namespace susp
     { reflexivity}
   end
 
-  definition loop_susp_counit_unit (X : pType)
+  definition loop_susp_counit_unit (X : Type*)
     : ap1 (loop_susp_counit X) ∘* loop_susp_unit (Ω X) ~* pid (Ω X) :=
   begin
     induction X with X x, fconstructor,
@@ -299,7 +302,7 @@ namespace susp
       xrewrite [ap_con_right_inv (susp.elim x x (λa, a)) (merid idp),idp_con_idp,-ap_compose]}
   end
 
-  definition loop_susp_unit_counit (X : pType)
+  definition loop_susp_unit_counit (X : Type*)
     : loop_susp_counit (psusp X) ∘* psusp_functor (loop_susp_unit X) ~* pid (psusp X) :=
   begin
     induction X with X x, fconstructor,
@@ -312,7 +315,7 @@ namespace susp
     { reflexivity}
   end
 
-  definition susp_adjoint_loop (X Y : pType) : map₊ (pointed.mk' (susp X)) Y ≃ map₊ X (Ω Y) :=
+  definition susp_adjoint_loop (X Y : Type*) : pointed.mk' (susp X) →* Y ≃ X →* Ω Y :=
   begin
     fapply equiv.MK,
     { intro f, exact ap1 f ∘* loop_susp_unit X},
@@ -350,5 +353,30 @@ namespace susp
     apply pwhisker_left,
     apply psusp_functor_compose
   end
+
+  definition iterate_susp (n : ℕ) (A : Type) : Type := iterate susp n A
+  definition iterate_psusp (n : ℕ) (A : Type*) : Type* := iterate (λX, psusp X) n A
+
+  open is_conn trunc_index nat
+  definition iterate_susp_succ (n : ℕ) (A : Type) :
+    iterate_susp (succ n) A = susp (iterate_susp n A) :=
+  idp
+
+  definition is_conn_iterate_susp [instance] (n : ℕ₋₂) (m : ℕ) (A : Type)
+    [H : is_conn n A] : is_conn (n + m) (iterate_susp m A) :=
+  begin induction m with m IH, exact H, exact @is_conn_susp _ _ IH end
+
+  definition is_conn_iterate_psusp [instance] (n : ℕ₋₂) (m : ℕ) (A : Type*)
+    [H : is_conn n A] : is_conn (n + m) (iterate_psusp m A) :=
+  begin induction m with m IH, exact H, exact @is_conn_susp _ _ IH end
+
+  -- Separate cases for n = 0, which comes up often
+  definition is_conn_iterate_susp_zero [instance] (m : ℕ) (A : Type)
+    [H : is_conn 0 A] : is_conn m (iterate_susp m A) :=
+  begin induction m with m IH, exact H, exact @is_conn_susp _ _ IH end
+
+  definition is_conn_iterate_psusp_zero [instance] (m : ℕ) (A : Type*)
+    [H : is_conn 0 A] : is_conn m (iterate_psusp m A) :=
+  begin induction m with m IH, exact H, exact @is_conn_susp _ _ IH end
 
 end susp

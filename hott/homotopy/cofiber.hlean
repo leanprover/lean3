@@ -5,7 +5,7 @@ Authors: Jakob von Raumer
 
 The Cofiber Type
 -/
-import hit.pointed_pushout function .susp
+import hit.pointed_pushout function .susp types.unit
 
 open eq pushout unit pointed is_trunc is_equiv susp unit
 

@@ -7,6 +7,14 @@ Temporary file; move in Lean3.
 import data.set algebra.order_bigops
 import data.finset data.list.sort
 
+-- move to algebra.ring
+
+  theorem mul_two {A : Type} [semiring A] (a : A) : a * 2 = a + a :=
+  by rewrite [-one_add_one_eq_two, left_distrib, +mul_one]
+
+  theorem two_mul {A : Type} [semiring A] (a : A) : 2 * a = a + a :=
+  by rewrite [-one_add_one_eq_two, right_distrib, +one_mul]
+
 -- move to data.set
 
 namespace set

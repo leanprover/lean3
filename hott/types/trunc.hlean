@@ -298,6 +298,51 @@ namespace is_trunc
       { apply minus_one_le_succ}}
   end
 
+  /- univalence for truncated types -/
+  definition teq_equiv_equiv {n : ℕ₋₂} {A B : n-Type} : (A = B) ≃ (A ≃ B) :=
+  trunctype_eq_equiv n A B ⬝e eq_equiv_equiv A B
+
+  definition tua {n : ℕ₋₂} {A B : n-Type} (f : A ≃ B) : A = B :=
+  (trunctype_eq_equiv n A B)⁻¹ᶠ (ua f)
+
+  definition tua_refl {n : ℕ₋₂} (A : n-Type) : tua (@erfl A) = idp :=
+  begin
+    refine ap (trunctype_eq_equiv n A A)⁻¹ᶠ (ua_refl A) ⬝ _,
+    esimp, refine ap (eq_of_fn_eq_fn _) _ ⬝ !eq_of_fn_eq_fn'_idp ,
+    esimp, apply ap (dpair_eq_dpair idp), apply is_prop.elim
+  end
+
+  definition tua_trans {n : ℕ₋₂} {A B C : n-Type} (f : A ≃ B) (g : B ≃ C)
+    : tua (f ⬝e g) = tua f ⬝ tua g :=
+  begin
+    refine ap (trunctype_eq_equiv n A C)⁻¹ᶠ (ua_trans f g) ⬝ _,
+    esimp, refine ap (eq_of_fn_eq_fn _) _ ⬝ !eq_of_fn_eq_fn'_con,
+    refine _ ⬝ !dpair_eq_dpair_con,
+    apply ap (dpair_eq_dpair _), apply is_prop.elim
+  end
+
+  definition tua_symm {n : ℕ₋₂} {A B : n-Type} (f : A ≃ B) : tua f⁻¹ᵉ = (tua f)⁻¹ :=
+  begin
+    apply eq_inv_of_con_eq_idp',
+    refine !tua_trans⁻¹ ⬝ _,
+    refine ap tua _ ⬝ !tua_refl,
+    apply equiv_eq, exact to_right_inv f
+  end
+
+  definition tcast [unfold 4] {n : ℕ₋₂} {A B : n-Type} (p : A = B) (a : A) : B :=
+  cast (ap trunctype.carrier p) a
+
+  definition ptcast [constructor] {n : ℕ₋₂} {A B : n-Type*} (p : A = B) : A →* B :=
+  pcast (ap ptrunctype.to_pType p)
+
+  theorem tcast_tua_fn {n : ℕ₋₂} {A B : n-Type} (f : A ≃ B) : tcast (tua f) = to_fun f :=
+  begin
+    cases A with A HA, cases B with B HB, esimp at *,
+    induction f using rec_on_ua_idp, esimp,
+    have HA = HB, from !is_prop.elim, cases this,
+    exact ap tcast !tua_refl
+  end
+
   /- theorems about decidable equality and axiom K -/
   theorem is_set_of_axiom_K {A : Type} (K : Π{a : A} (p : a = a), p = idp) : is_set A :=
   is_set.mk _ (λa b p q, eq.rec K q p)
@@ -537,6 +582,12 @@ namespace trunc
     { apply trunc_trunc_equiv_left, exact H},
   end
 
+  definition trunc_functor_homotopy [unfold 7] {X Y : Type} (n : ℕ₋₂) {f g : X → Y}
+    (p : f ~ g) (x : trunc n X) : trunc_functor n f x = trunc_functor n g x :=
+  begin
+    induction x with x, esimp, exact ap tr (p x)
+  end
+
   definition trunc_functor_homotopy_of_le {n k : ℕ₋₂} {A B : Type} (f : A → B) (H : n ≤ k) :
     to_fun (trunc_trunc_equiv_left B H) ∘
     trunc_functor n (trunc_functor k f) ∘
@@ -559,16 +610,9 @@ namespace trunc
     cases n with n: intro b,
     { exact tr (fiber.mk !center !is_prop.elim)},
     { refine @trunc.rec _ _ _ _ _ b, {intro x, exact is_trunc_of_le _ !minus_one_le_succ},
-      clear b, intro b, induction H b with v, induction v with a p,
+      clear b, intro b, induction H b with a p,
       exact tr (fiber.mk (tr a) (ap tr p))}
   end
-
-  /- the image of a map is the (-1)-truncated fiber -/
-  definition image [constructor] {A B : Type} (f : A → B) (b : B) : Prop := ∥ fiber f b ∥
-
-  definition image.mk [constructor] {A B : Type} {f : A → B} {b : B} (a : A) (p : f a = b)
-    : image f b :=
-  tr (fiber.mk a p)
 
   /- truncation of pointed types and its functorial action -/
   definition ptrunc [constructor] (n : ℕ₋₂) (X : Type*) : n-Type* :=
@@ -624,6 +668,24 @@ namespace trunc
       rewrite succ_add_nat}
   end
 
+  definition iterated_loop_ptrunc_pequiv_con {n : ℕ₋₂} {k : ℕ} {A : Type*}
+    (p q : Ω[succ k] (ptrunc (n+succ k) A)) :
+    iterated_loop_ptrunc_pequiv n (succ k) A (p ⬝ q) =
+    trunc_concat (iterated_loop_ptrunc_pequiv n (succ k) A p)
+                 (iterated_loop_ptrunc_pequiv n (succ k) A q)  :=
+  begin
+    refine _ ⬝ loop_ptrunc_pequiv_con _ _,
+    exact ap !loop_ptrunc_pequiv !loop_pequiv_loop_con
+  end
+
+  definition iterated_loop_ptrunc_pequiv_inv_con {n : ℕ₋₂} {k : ℕ} {A : Type*}
+    (p q : ptrunc n (Ω[succ k] A)) :
+    (iterated_loop_ptrunc_pequiv n (succ k) A)⁻¹ᵉ* (trunc_concat p q) =
+    (iterated_loop_ptrunc_pequiv n (succ k) A)⁻¹ᵉ* p ⬝
+    (iterated_loop_ptrunc_pequiv n (succ k) A)⁻¹ᵉ* q :=
+  equiv.inv_preserve_binary (iterated_loop_ptrunc_pequiv n (succ k) A) concat trunc_concat
+    (@iterated_loop_ptrunc_pequiv_con n k A) p q
+
   definition ptrunc_functor_pcompose [constructor] {X Y Z : Type*} (n : ℕ₋₂) (g : Y →* Z)
     (f : X →* Y) : ptrunc_functor n (g ∘* f) ~* ptrunc_functor n g ∘* ptrunc_functor n f :=
   begin
@@ -650,16 +712,73 @@ namespace trunc
     { induction p, reflexivity},
   end
 
+  definition ptrunc_functor_phomotopy [constructor] {X Y : Type*} (n : ℕ₋₂) {f g : X →* Y}
+    (p : f ~* g) : ptrunc_functor n f ~* ptrunc_functor n g :=
+  begin
+    fapply phomotopy.mk,
+    { exact trunc_functor_homotopy n p},
+    { esimp, refine !ap_con⁻¹ ⬝ _, exact ap02 tr !to_homotopy_pt},
+  end
+
+  definition pcast_ptrunc [constructor] (n : ℕ₋₂) {A B : Type*} (p : A = B) :
+    pcast (ap (ptrunc n) p) ~* ptrunc_functor n (pcast p) :=
+  begin
+    fapply phomotopy.mk,
+    { intro a, induction p, esimp, exact !trunc_functor_id⁻¹},
+    { induction p, reflexivity}
+  end
+
 end trunc open trunc
 
+/- some consequences for properties about functions (surjectivity etc.) -/
 namespace function
   variables {A B : Type}
   definition is_surjective_of_is_equiv [instance] (f : A → B) [H : is_equiv f] : is_surjective f :=
-  λb, begin esimp, apply center end
+  λb, begin esimp, apply center, apply is_trunc_trunc_of_is_trunc end
 
   definition is_equiv_equiv_is_embedding_times_is_surjective [constructor] (f : A → B)
     : is_equiv f ≃ (is_embedding f × is_surjective f) :=
   equiv_of_is_prop (λH, (_, _))
                     (λP, prod.rec_on P (λH₁ H₂, !is_equiv_of_is_surjective_of_is_embedding))
+
+  /-
+    Theorem 8.8.1:
+    A function is an equivalence if it's an embedding and it's action on sets is an surjection
+  -/
+  definition is_equiv_of_is_surjective_trunc_of_is_embedding {A B : Type} (f : A → B)
+    [H : is_embedding f] [H' : is_surjective (trunc_functor 0 f)] : is_equiv f :=
+  have is_surjective f,
+  begin
+    intro b,
+    induction H' (tr b) with a p,
+    induction a with a, esimp at p,
+    induction (tr_eq_tr_equiv _ _ _ p) with q,
+    exact image.mk a q
+  end,
+  is_equiv_of_is_surjective_of_is_embedding f
+
+  /-
+    Corollary 8.8.2:
+    A function f is an equivalence if Ωf and trunc_functor 0 f are equivalences
+  -/
+  definition is_equiv_of_is_equiv_ap1_of_is_equiv_trunc {A B : Type} (f : A → B)
+    [H : Πa, is_equiv (ap1 (pmap_of_map f a))] [H' : is_equiv (trunc_functor 0 f)] :
+    is_equiv f :=
+  have is_embedding f,
+  begin
+    intro a a',
+    apply is_equiv_of_imp_is_equiv,
+    intro p,
+    note q := ap (@tr 0 _) p,
+    note r := @(eq_of_fn_eq_fn' (trunc_functor 0 f)) _ (tr a) (tr a') q,
+    induction (tr_eq_tr_equiv _ _ _ r) with s,
+    induction s,
+    apply is_equiv.homotopy_closed (ap1 (pmap_of_map f a)),
+    intro p, apply idp_con
+  end,
+  is_equiv_of_is_surjective_trunc_of_is_embedding f
+
+  -- Whitehead's principle itself is in homotopy.homotopy_group, since it needs the definition of
+  -- a homotopy group.
 
 end function

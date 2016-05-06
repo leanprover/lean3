@@ -1,7 +1,7 @@
 /-
 Copyright (c) 2015 Haitao Zhang. All rights reserved.
 Released under Apache 2.0 license as described in the file LICENSE.
-Authors: Haitao Zhang, Leonardo de Moura, Jakob von Raumer
+Authors: Haitao Zhang, Leonardo de Moura, Jakob von Raumer, Floris van Doorn
 
 Finite ordinal types.
 -/
@@ -577,4 +577,54 @@ begin
     have fin m ≃ fin n, from unit_sum_equiv_cancel this,
     apply ap nat.succ, apply IH _ this },
 end
+
+  definition cyclic_succ {n : ℕ} (x : fin n) : fin n :=
+  begin
+    cases n with n,
+    { exfalso, apply not_lt_zero _ (is_lt x)},
+    { exact
+      if H : val x = n
+        then fin.mk 0 !zero_lt_succ
+        else fin.mk (nat.succ (val x))
+               (succ_lt_succ (lt_of_le_of_ne (le_of_lt_succ (is_lt x)) H))}
+  end
+
+  /-
+    We want to say that fin (succ n) always has a 0 and 1. However, we want a bit more, because
+    sometimes we want a zero of (fin a) where a is either
+    - equal to a successor, but not definitionally a successor (e.g. (0 : fin (3 + n)))
+    - definitionally equal to a successor, but not in a way that type class inference can infer.
+      (e.g. (0 : fin 4). Note that 4 is bit0 (bit0 one), but (bit0 x) (defined as x + x),
+        is not always a successor)
+    To solve this we use an auxillary class `is_succ` which can solve whether a number is a
+    successor.
+  -/
+
+  inductive is_succ [class] : ℕ → Type :=
+  | mk : Π(n : ℕ), is_succ (nat.succ n)
+
+  attribute is_succ.mk [instance]
+
+  definition is_succ_add_right [instance] (n m : ℕ) [H : is_succ m] : is_succ (n+m) :=
+  by induction H with m; constructor
+
+  definition is_succ_add_left [instance] (n m : ℕ) [H : is_succ n] : is_succ (n+m) :=
+  by induction H with n; cases m with m: constructor
+
+  definition is_succ_bit0 [instance] (n : ℕ) [H : is_succ n] : is_succ (bit0 n) :=
+  by induction H with n; constructor
+
+  /- this is a version of `madd` which might compute better -/
+  protected definition add {n : ℕ} (x y : fin n) : fin n :=
+  iterate cyclic_succ (val y) x
+
+  definition has_zero_fin [instance] (n : ℕ) [H : is_succ n] : has_zero (fin n) :=
+  by induction H with n; exact has_zero.mk (fin.zero n)
+
+  definition has_one_fin [instance] (n : ℕ) [H : is_succ n] : has_one (fin n) :=
+  by induction H with n; exact has_one.mk (cyclic_succ (fin.zero n))
+
+  definition has_add_fin [instance] (n : ℕ) : has_add (fin n) :=
+  has_add.mk fin.add
+
 end fin

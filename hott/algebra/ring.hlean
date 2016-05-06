@@ -61,6 +61,13 @@ section semiring
 
   theorem distrib_three_right (a b c d : A) : (a + b + c) * d = a * d + b * d + c * d :=
     by rewrite *right_distrib
+
+  theorem mul_two : a * 2 = a + a :=
+  by rewrite [-one_add_one_eq_two, left_distrib, +mul_one]
+
+  theorem two_mul : 2 * a = a + a :=
+  by rewrite [-one_add_one_eq_two, right_distrib, +one_mul]
+
 end semiring
 
 /- comm semiring -/

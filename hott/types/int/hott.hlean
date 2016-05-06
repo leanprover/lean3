@@ -14,7 +14,7 @@ namespace int
 
   section
   open algebra
-  definition group_integers : Group :=
+  definition group_integers [constructor] : Group :=
   Group.mk ℤ (group_of_add_group _)
 
   notation `gℤ` := group_integers

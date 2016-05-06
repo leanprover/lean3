@@ -15,14 +15,14 @@ section
   universe variable l
   variables {A B : Type.{l}}
 
-  definition is_equiv_cast_of_eq [constructor] (H : A = B) : is_equiv (cast H) :=
+  definition is_equiv_cast [constructor] (H : A = B) : is_equiv (cast H) :=
   is_equiv_tr (λX, X) H
 
   definition equiv_of_eq [constructor] (H : A = B) : A ≃ B :=
-  equiv.mk _ (is_equiv_cast_of_eq H)
+  equiv.mk _ (is_equiv_cast H)
 
   definition equiv_of_eq_refl [reducible] [unfold_full] (A : Type)
-    : equiv_of_eq (refl A) = equiv.refl :=
+    : equiv_of_eq (refl A) = equiv.refl A :=
   idp
 
 
@@ -75,7 +75,7 @@ namespace equiv
 
   -- a variant where we immediately recurse on the equality in the new goal
   definition rec_on_ua_idp [recursor] {A : Type} {P : Π{B}, A ≃ B → Type} {B : Type}
-    (f : A ≃ B) (H : P equiv.refl) : P f :=
+    (f : A ≃ B) (H : P equiv.rfl) : P f :=
   rec_on_ua f (λq, eq.rec_on q H)
 
   -- a variant where (equiv_of_eq (ua f)) will be replaced by f in the new goal
@@ -85,7 +85,7 @@ namespace equiv
 
   -- a variant where we do both
   definition rec_on_ua_idp' {A : Type} {P : Π{B}, A ≃ B → A = B → Type} {B : Type}
-    (f : A ≃ B) (H : P equiv.refl idp) : P f (ua f) :=
+    (f : A ≃ B) (H : P equiv.rfl idp) : P f (ua f) :=
   rec_on_ua' f (λq, eq.rec_on q H)
 
   definition ua_refl (A : Type) : ua erfl = idpath A :=

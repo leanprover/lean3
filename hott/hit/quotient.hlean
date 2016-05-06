@@ -58,6 +58,11 @@ namespace quotient
     : transport (quotient.elim_type Pc Pp) (eq_of_rel R H) = to_fun (Pp H) :=
   by rewrite [tr_eq_cast_ap_fn, ↑quotient.elim_type, elim_eq_of_rel];apply cast_ua_fn
 
+  theorem elim_type_eq_of_rel_inv (Pc : A → Type)
+    (Pp : Π⦃a a' : A⦄ (H : R a a'), Pc a ≃ Pc a') {a a' : A} (H : R a a')
+    : transport (quotient.elim_type Pc Pp) (eq_of_rel R H)⁻¹ = to_inv (Pp H) :=
+  by rewrite [tr_eq_cast_ap_fn, ↑quotient.elim_type, ap_inv, elim_eq_of_rel];apply cast_ua_inv_fn
+
   theorem elim_type_eq_of_rel.{u} (Pc : A → Type.{u})
     (Pp : Π⦃a a' : A⦄ (H : R a a'), Pc a ≃ Pc a') {a a' : A} (H : R a a') (p : Pc a)
     : transport (quotient.elim_type Pc Pp) (eq_of_rel R H) p = to_fun (Pp H) p :=

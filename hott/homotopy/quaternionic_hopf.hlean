@@ -18,10 +18,10 @@ namespace hopf
   ⦃ involutive_neg, neg := empty.elim, neg_neg := by intro a; induction a ⦄
 
   definition involutive_neg_circle [instance] : involutive_neg circle :=
-  involutive_neg_susp
+  by change involutive_neg (susp (susp empty)); exact _
 
   definition has_star_circle [instance] : has_star circle :=
-  has_star_susp
+  by change has_star (susp (susp empty)); exact _
 
   -- this is the "natural" conjugation defined using the base-loop recursor
   definition circle_star [reducible] : S¹ → S¹ :=
@@ -80,7 +80,7 @@ namespace hopf
     induction x,
     { apply inverse, exact circle_mul_base (y*) },
     { apply eq_pathover, induction y,
-      { exact natural_square_tr 
+      { exact natural_square_tr
           (λa : S¹, ap (λb : S¹, b*) (circle_mul_base a)) loop },
       { apply is_prop.elimo } }
   end

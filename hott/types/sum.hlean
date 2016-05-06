@@ -137,10 +137,10 @@ namespace sum
   equiv.mk _ (is_equiv_sum_functor f g)
 
   definition sum_equiv_sum_left [constructor] (g : B ≃ B') : A + B ≃ A + B' :=
-  sum_equiv_sum equiv.refl g
+  sum_equiv_sum equiv.rfl g
 
   definition sum_equiv_sum_right [constructor] (f : A ≃ A') : A + B ≃ A' + B :=
-  sum_equiv_sum f equiv.refl
+  sum_equiv_sum f equiv.rfl
 
   definition flip [unfold 3] : A + B → B + A
   | flip (inl a) := inr a
@@ -352,6 +352,15 @@ namespace sum
            sum_of_sigma_bool
            begin intro v, induction v with b x, induction b, all_goals reflexivity end
            begin intro z, induction z with a b, all_goals reflexivity end
+
+  /- pointed sums. We arbitrarily choose (inl pt) as basepoint for the sum -/
+
+  open pointed
+  definition psum [constructor] (A B : Type*) : Type* :=
+  pointed.MK (A ⊎ B) (inl pt)
+
+  infixr ` +* `:30 := psum
+
 
 end sum
 open sum pi

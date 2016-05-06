@@ -176,7 +176,7 @@ namespace pi
     (f : Π(b : B a), C ⟨a, b⟩) (g : Π(b' : B a'), C ⟨a', b'⟩) :
     (Π(b : B a), (sigma_eq p !pathover_tr) ▸ (f b) = g (p ▸ b)) ≃
     (Π(b : B a), p ▸D (f b) = g (p ▸ b)) :=
-  eq.rec_on p (λg, !equiv.refl) g
+  eq.rec_on p (λg, !equiv.rfl) g
   end
 
   /- Functorial action -/
@@ -234,7 +234,7 @@ namespace pi
 
   definition pi_equiv_pi_right [constructor] {P Q : A → Type} (g : Πa, P a ≃ Q a)
     : (Πa, P a) ≃ (Πa, Q a) :=
-  pi_equiv_pi equiv.refl g
+  pi_equiv_pi equiv.rfl g
 
   /- Equivalence if one of the types is contractible -/
 
@@ -341,3 +341,22 @@ namespace pi
 end pi
 
 attribute pi.is_trunc_pi [instance] [priority 1520]
+
+namespace pi
+
+  /- pointed pi types -/
+  open pointed
+
+  definition pointed_pi [instance] [constructor] {A : Type} (P : A → Type) [H : Πx, pointed (P x)]
+      : pointed (Πx, P x) :=
+  pointed.mk (λx, pt)
+
+  definition ppi [constructor] {A : Type} (P : A → Type*) : Type* :=
+  pointed.mk' (Πa, P a)
+
+  notation `Π*` binders `, ` r:(scoped P, ppi P) := r
+
+  definition ptpi [constructor] {n : ℕ₋₂} {A : Type} (P : A → n-Type*) : n-Type* :=
+  ptrunctype.mk' n (Πa, P a)
+
+end pi

@@ -38,14 +38,14 @@ namespace pi
 
   variable (A)
   definition arrow_equiv_arrow_right [constructor] (f1 : B ≃ B') : (A → B) ≃ (A → B') :=
-  arrow_equiv_arrow_rev equiv.refl f1
+  arrow_equiv_arrow_rev equiv.rfl f1
 
   variables {A} (B)
   definition arrow_equiv_arrow_left_rev [constructor] (f0 : A' ≃ A) : (A → B) ≃ (A' → B) :=
-  arrow_equiv_arrow_rev f0 equiv.refl
+  arrow_equiv_arrow_rev f0 equiv.rfl
 
   definition arrow_equiv_arrow_left [constructor] (f0 : A ≃ A') : (A → B) ≃ (A' → B) :=
-  arrow_equiv_arrow f0 equiv.refl
+  arrow_equiv_arrow f0 equiv.rfl
 
   variables {B}
   definition arrow_equiv_arrow_right' [constructor] (f1 : A → (B ≃ B')) : (A → B) ≃ (A → B') :=

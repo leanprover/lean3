@@ -13,9 +13,22 @@ open equiv sigma sigma.ops eq trunc is_trunc pi is_equiv fiber prod
 
 variables {A B : Type} (f : A → B) {b : B}
 
+/- the image of a map is the (-1)-truncated fiber -/
+definition image' [constructor] (f : A → B) (b : B) : Type := ∥ fiber f b ∥
+definition is_prop_image' [instance] (f : A → B) (b : B) : is_prop (image' f b) := !is_trunc_trunc
+definition image [constructor] (f : A → B) (b : B) : Prop := Prop.mk (image' f b) _
+
+definition image.mk [constructor] {f : A → B} {b : B} (a : A) (p : f a = b)
+  : image f b :=
+tr (fiber.mk a p)
+
+protected definition image.rec [unfold 8] [recursor 8] {f : A → B} {b : B} {P : image' f b → Type}
+  [H : Πv, is_prop (P v)] (H : Π(a : A) (p : f a = b), P (image.mk a p)) (v : image' f b) : P v :=
+begin unfold [image'] at *, induction v with v, induction v with a p, exact H a p end
+
 definition is_embedding [class] (f : A → B) := Π(a a' : A), is_equiv (ap f : a = a' → f a = f a')
 
-definition is_surjective [class] (f : A → B) := Π(b : B), ∥ fiber f b ∥
+definition is_surjective [class] (f : A → B) := Π(b : B), image f b
 
 definition is_split_surjective [class] (f : A → B) := Π(b : B), fiber f b
 
@@ -114,13 +127,13 @@ namespace function
   λb, tr (H b)
 
   definition is_prop_is_surjective [instance] : is_prop (is_surjective f) :=
-  by unfold is_surjective; exact _
+  begin unfold is_surjective, exact _ end
 
   definition is_surjective_cancel_right {A B C : Type} (g : B → C) (f : A → B)
     [H : is_surjective (g ∘ f)] : is_surjective g :=
   begin
     intro c,
-    induction H c with v, induction v with a p,
+    induction H c with a p,
     exact tr (fiber.mk (f a) p)
   end
 

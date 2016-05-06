@@ -302,6 +302,10 @@ namespace is_trunc
     (f : A → B) (g : B → A) : is_equiv f :=
   is_equiv.mk f g (λb, !is_prop.elim) (λa, !is_prop.elim) (λa, !is_set.elim)
 
+  definition is_equiv_of_is_contr [constructor] [HA : is_contr A] [HB : is_contr B]
+    (f : A → B) : is_equiv f :=
+  is_equiv.mk f (λx, !center) (λb, !is_prop.elim) (λa, !is_prop.elim) (λa, !is_set.elim)
+
   definition equiv_of_is_prop [constructor] [HA : is_prop A] [HB : is_prop B]
     (f : A → B) (g : B → A) : A ≃ B :=
   equiv.mk f (is_equiv_of_is_prop f g)

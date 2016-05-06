@@ -35,25 +35,23 @@ section
   definition merid_pt : merid pt = idp :=
   incl2 R Q Qmk
 
-  -- protected definition rec {P : red_susp → Type} (Pb : P base) (Pm : Π(a : A), Pb =[merid a] Pb)
-  --   (Pe : Pm pt =[merid_pt] idpo) (x : red_susp) : P x :=
-  -- begin
-  --   induction x,
-  -- end
+  protected definition rec {P : red_susp → Type} (Pb : P base) (Pm : Π(a : A), Pb =[merid a] Pb)
+    (Pe : change_path merid_pt (Pm pt) = idpo) (x : red_susp) : P x :=
+  begin
+    induction x,
+    { induction a, exact Pb},
+    { induction s, exact Pm a},
+    { induction q, esimp, exact Pe}
+  end
 
-  -- protected definition rec_on [reducible] {P : red_susp → Type} (x : red_susp) (Pb : P base)
-  --   (Pm : Π(a : A), Pb =[merid a] Pb) (Pe : Pm pt =[merid_pt] idpo) : P x :=
-  -- rec Pb Pm Pe x
+  protected definition rec_on [reducible] {P : red_susp → Type} (x : red_susp) (Pb : P base)
+    (Pm : Π(a : A), Pb =[merid a] Pb) (Pe : change_path merid_pt (Pm pt) = idpo) : P x :=
+  red_susp.rec Pb Pm Pe x
 
-  -- definition rec_merid {P : red_susp → Type} (Pb : P base) (Pm : Π(a : A), Pb =[merid a] Pb)
-  --   (Pe : Pm pt =[merid_pt] idpo) (a : A)
-  --   : apd (rec Pb Pm Pe) (merid a) = Pm a :=
-  -- !rec_incl1
-
-  -- theorem elim_merid_pt {P : red_susp → Type} (Pb : P base) (Pm : Π(a : A), Pb =[merid a] Pb)
-  --   (Pe : Pm pt =[merid_pt] idpo)
-  --   : square (ap02 (rec Pb Pm Pe) merid_pt) Pe (rec_merid Pe pt) idp :=
-  -- !rec_incl2
+  definition rec_merid {P : red_susp → Type} (Pb : P base) (Pm : Π(a : A), Pb =[merid a] Pb)
+    (Pe : change_path merid_pt (Pm pt) = idpo) (a : A)
+    : apd (rec Pb Pm Pe) (merid a) = Pm a :=
+  !rec_incl1
 
   protected definition elim {P : Type} (Pb : P) (Pm : Π(a : A), Pb = Pb)
     (Pe : Pm pt = idp) (x : red_susp) : P :=
@@ -81,7 +79,7 @@ end
 end red_susp
 
 attribute red_susp.base [constructor]
-attribute /-red_susp.rec-/ red_susp.elim [unfold 6] [recursor 6]
+attribute red_susp.rec red_susp.elim [unfold 6] [recursor 6]
 --attribute red_susp.elim_type [unfold 9]
-attribute /-red_susp.rec_on-/ red_susp.elim_on [unfold 3]
+attribute red_susp.rec_on red_susp.elim_on [unfold 3]
 --attribute red_susp.elim_type_on [unfold 6]

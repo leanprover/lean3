@@ -168,6 +168,17 @@ namespace bool
     { intro b, cases b, reflexivity, reflexivity},
   end
 
+  /- pointed and truncated bool -/
+  open pointed
+  definition pointed_bool [instance] [constructor] : pointed bool :=
+  pointed.mk ff
+
+  definition pbool [constructor] : Set* :=
+  pSet.mk' bool
+
   definition tbool [constructor] : Set := trunctype.mk bool _
+
+  notation `bool*` := pbool
+
 
 end bool

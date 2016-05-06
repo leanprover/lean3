@@ -24,3 +24,4 @@ Files in this folder:
 The following hits have also 2-constructors. They are defined only using quotients.
 * [two_quotient](two_quotient.hlean): Quotients where you can also specify 2-paths. These are used for all hits which have 2-constructors, and they are almost fully general for such hits, as long as they are nonrecursive
 * [refl_quotient](refl_quotient.hlean): Quotients where you can also specify 2-paths
+* [groupoid_quotient](groupoid_quotient.hlean): The realization or quotient of a groupoid.

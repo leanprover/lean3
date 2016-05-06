@@ -62,6 +62,11 @@ namespace eq
     (p ⬝ q) ⬝ r = p ⬝ (q ⬝ r) :=
   by induction r; reflexivity
 
+  definition con.assoc5 {a₁ a₂ a₃ a₄ a₅ a₆ : A}
+    (p₁ : a₁ = a₂) (p₂ : a₂ = a₃) (p₃ : a₃ = a₄) (p₄ : a₄ = a₅) (p₅ : a₅ = a₆) :
+    p₁ ⬝ (p₂ ⬝ p₃ ⬝ p₄) ⬝ p₅ = (p₁ ⬝ p₂) ⬝ p₃ ⬝ (p₄ ⬝ p₅) :=
+  by induction p₅; induction p₄; induction p₃; reflexivity
+
   -- The left inverse law.
   definition con.right_inv [unfold 4] (p : x = y) : p ⬝ p⁻¹ = idp :=
   by induction p; reflexivity
@@ -92,7 +97,6 @@ namespace eq
   definition inv_con_inv_left (p : y = x) (q : y = z) : (p⁻¹ ⬝ q)⁻¹ = q⁻¹ ⬝ p :=
   by induction q; induction p; reflexivity
 
-  -- universe metavariables
   definition inv_con_inv_right (p : x = y) (q : z = y) : (p ⬝ q⁻¹)⁻¹ = q ⬝ p⁻¹ :=
   by induction q; induction p; reflexivity
 
@@ -444,6 +448,14 @@ namespace eq
     p⁻¹ ▸ p ▸ z = z :=
   (con_tr p p⁻¹ z)⁻¹ ⬝ ap (λr, transport P r z) (con.right_inv p)
 
+  definition cast_cast_inv {A : Type} {P : A → Type} {x y : A} (p : x = y) (z : P y) :
+    cast (ap P p) (cast (ap P p⁻¹) z) = z :=
+  by induction p; reflexivity
+
+  definition cast_inv_cast {A : Type} {P : A → Type} {x y : A} (p : x = y) (z : P x) :
+    cast (ap P p⁻¹) (cast (ap P p) z) = z :=
+  by induction p; reflexivity
+
   definition con_con_tr {P : A → Type}
       {x y z w : A} (p : x = y) (q : y = z) (r : z = w) (u : P x) :
     ap (λe, e ▸ u) (con.assoc' p q r) ⬝ (con_tr (p ⬝ q) r u) ⬝
@@ -479,6 +491,11 @@ namespace eq
   -- using the following notation
   notation p ` ▸D `:65 x:64 := transportD _ p _ x
 
+  -- transporting over 2 one-dimensional paths
+  definition transport11 {A B : Type} (P : A → B → Type) {a a' : A} {b b' : B}
+    (p : a = a') (q : b = b') (z : P a b) : P a' b' :=
+  transport (P a') q (p ▸ z)
+
   -- Transporting along higher-dimensional paths
   definition transport2 [unfold 7] (P : A → Type) {x y : A} {p q : x = y} (r : p = q) (z : P x) :
     p ▸ z = q ▸ z :=
@@ -513,6 +530,10 @@ namespace eq
 
   definition fn_tr_eq_tr_fn {P Q : A → Type} {x y : A} (p : x = y) (f : Πx, P x → Q x) (z : P x) :
     f y (p ▸ z) = p ▸ f x z :=
+  by induction p; reflexivity
+
+  definition fn_cast_eq_cast_fn {A : Type} {P Q : A → Type} {x y : A} (p : x = y)
+    (f : Πx, P x → Q x) (z : P x) : f y (cast (ap P p) z) = cast (ap Q p) (f x z) :=
   by induction p; reflexivity
 
   /- Transporting in particular fibrations -/
@@ -723,3 +744,14 @@ namespace eq
   by induction r2; induction r1; induction p1; reflexivity
 
 end eq
+
+/-
+  an auxillary namespace for concatenation and inversion for homotopies. We put this is a separate
+  namespace because ⁻¹ʰ is also used as the inverse of a homomorphism
+-/
+
+open eq
+namespace homotopy
+  infix ` ⬝h `:75 := homotopy.trans
+  postfix `⁻¹ʰ`:(max+1) := homotopy.symm
+end homotopy

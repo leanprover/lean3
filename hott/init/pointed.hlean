@@ -40,6 +40,11 @@ open pointed
 section
   universe variable u
   structure ptrunctype (n : trunc_index) extends trunctype.{u} n, pType.{u}
+
+  definition is_trunc_ptrunctype [instance] {n : ℕ₋₂} (X : ptrunctype n)
+    : is_trunc n (ptrunctype.to_pType X) :=
+  trunctype.struct X
+
 end
 
 notation n `-Type*` := ptrunctype n
@@ -69,6 +74,11 @@ namespace pointed
   ptrunctype.mk A _ pt
 
   attribute ptrunctype._trans_of_to_pType ptrunctype.to_pType ptrunctype.to_trunctype [unfold 2]
+
+  -- Any contractible type is pointed
+  definition pointed_of_is_contr [instance] [priority 800] [constructor]
+    (A : Type) [H : is_contr A] : pointed A :=
+  pointed.mk !center
 
 end pointed
 
@@ -106,5 +116,4 @@ namespace pointed
   infix ` ≃* `:25 := pequiv
   attribute pequiv.to_pmap [coercion]
   attribute pequiv.to_is_equiv [instance]
-
 end pointed

@@ -77,11 +77,4 @@ namespace algebra
     (resp_mul : Π(g h : G), f (g * h) = f g * f h) : G = H :=
   Group_eq_of_eq (ua f) (λg h, !cast_ua ⬝ resp_mul g h ⬝ ap011 mul !cast_ua⁻¹ !cast_ua⁻¹)
 
-  definition trivial_group_of_is_contr (G : Group) [H : is_contr G] : G = G0 :=
-  begin
-    fapply Group_eq,
-    { apply equiv_unit_of_is_contr},
-    { intros, reflexivity}
-  end
-
 end algebra
