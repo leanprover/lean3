@@ -49,9 +49,11 @@ namespace lean  {
                 free_vars(app_arg(e), ns);
                 break;
             }
-            case expr_kind::Let:
-                std::cout << "meta: not supported" << std::endl;
+            case expr_kind::Let: {
+                free_vars(let_value(e), ns);
+                free_vars(let_body(e), ns);
                 break;
+            }
             case expr_kind::Constant:
             case expr_kind::Var:
             case expr_kind::Meta:
