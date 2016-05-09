@@ -18,7 +18,7 @@ char lean_char_to_raw_char(lean::obj c) {
 // and convert it to a raw character.
 lean::obj string_to_raw_string_fn_ptr(lean::obj rw, lean::obj string) {
     std::cout << "string to raw string" << std::endl;
-    std::string *raw_string = new std::string;
+    std::string *raw_string = new std::string("");
     auto cursor = string;
     while (cursor.cidx() == 1) {
         *raw_string += lean_char_to_raw_char(cursor[0]);

@@ -114,7 +114,7 @@ backend::backend(environment const & env, optional<std::string> main_fn)
 
 void backend::compile_decl(declaration const & d) {
     if (d.is_axiom() && is_extern(this->m_env, d.get_name())) {
-        std::cout << "axiom: " << std::endl;
+        std::cout << "extern: " << std::endl;
         std::cout << d.get_name() << std::endl;
     } else if (d.is_definition()) {
         auto ty = d.get_type();
@@ -225,7 +225,7 @@ shared_ptr<simple_expr> backend::compile_expr(expr const & e) {
 shared_ptr<simple_expr> backend::compile_expr(expr const & e, std::vector<binding> & bindings) {
     lean_trace(name({"backend", "compiler"}),
                tout() << "expr: " << e << "\n";);
-    std::cout << "expr: " << e << "\n";
+    // std::cout << "expr: " << e << "\n";
     switch (e.kind()) {
         case expr_kind::Local:
             return shared_ptr<simple_expr>(new simple_expr_error("local"));
@@ -239,22 +239,22 @@ shared_ptr<simple_expr> backend::compile_expr(expr const & e, std::vector<bindin
             std::cout<< "sort: not supported" << std::endl;
             break;
         case expr_kind::Constant:
-            std::cout << "compile constant" << std::endl;
+            // std::cout << "compile constant" << std::endl;
             return this->compile_expr_const(e);
         case expr_kind::Macro:
-            std::cout << "compile macro" << std::endl;
+            // std::cout << "compile macro" << std::endl;
             return this->compile_expr_macro(e, bindings);
         case expr_kind::Lambda:
-            std::cout << "compile lambda" << std::endl;
+            // std::cout << "compile lambda" << std::endl;
             return this->compile_expr_lambda(e, bindings);
         case expr_kind::Pi:
             std::cout<< "pi: not supported" << std::endl;
             break;
         case expr_kind::App:
-            std::cout << "compile app" << std::endl;
+            // std::cout << "compile app" << std::endl;
             return this->compile_expr_app(e, bindings);
         case expr_kind::Let:
-            std::cout << "compile let" << std::endl;
+            // std::cout << "compile let" << std::endl;
             return this->compile_expr_let(e, bindings);
         case expr_kind::Pi:
             throw not_supported("pi: not supported");
@@ -312,6 +312,10 @@ shared_ptr<simple_expr> backend::compile_expr_app(expr const & e, std::vector<bi
     unsigned nargs = args.size();
     std::vector<name> names;
 
+    auto ty = m_tc.check_ignore_undefined_universes(f).first;
+
+    std::cout << "fn (" << f << ") ty: " << ty << std::endl;
+
     // First we loop over the arguments, un-rolling each sub-expression into
     // a sequence of bindings, we also store the set of names we will apply
     // the function to.
@@ -347,7 +351,7 @@ shared_ptr<simple_expr> backend::compile_expr_app(expr const & e, std::vector<bi
     if (is_constant(f) && this->m_env.is_recursor(const_name(f))) {
         compile_recursor(f);
         auto callee_name = const_name(f);
-        return shared_ptr<simple_expr>(new simple_expr_call(callee_name, names, 1));
+        return shared_ptr<simple_expr>(new simple_expr_call(callee_name, names, 0));
     } else if (is_constant(f) &&
                (inductive::is_intro_rule(this->m_env, const_name(f)) ||
                is_extern(this->m_env, const_name(f)))) {
@@ -435,7 +439,7 @@ void backend::compile_recursor(expr const & recursor_expr) {
     auto rec_us = param_names_to_levels(rec_decl.get_univ_params());
     auto rec_app = mk_constant(recursor_name, rec_us);
     auto elim_prefix = mk_app(rec_app, ls);
-    std::cout << "elim_applied: " << elim_prefix << std::endl;
+    // std::cout << "elim_applied: " << elim_prefix << std::endl;
 
     auto intro_rules =
         inductive::inductive_decl_intros(inductive_ty);
@@ -563,10 +567,10 @@ shared_ptr<simple_expr> backend::compile_expr_lambda(expr const & e, std::vector
     buffer<name> fvs;
     free_vars(e, fvs);
 
-    std::cout << "lambda_to_compile: " << e <<  std::endl;
-    for (auto fv : fvs) {
-        std::cout << "freevar: " << fv << std::endl;
-    }
+    // std::cout << "lambda_to_compile: " << e <<  std::endl;
+    // for (auto fv : fvs) {
+        // std::cout << "freevar: " << fv << std::endl;
+    // }
 
     // The free variables become arguments for the function pointer we are
     // about to generate, and also must be bound when we allocate a fresh
