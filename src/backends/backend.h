@@ -28,11 +28,14 @@ namespace lean  {
         name m_name;
         std::vector<name> m_args;
         shared_ptr<simple_expr> m_body;
+        int m_arity;
 
         proc(name m_name, std::vector<name> args, shared_ptr<simple_expr> body)
-            : m_name(m_name), m_args(args), m_body(body) {}
-        proc() : m_name(), m_args(), m_body(nullptr) {}
-        int arity() const { return this->m_args.size(); }
+            : m_name(m_name), m_args(args), m_body(body) {
+                m_arity = args.size();
+            }
+        proc() : m_name(), m_args(), m_body(nullptr), m_arity(0) {}
+        int arity() const { return m_arity; }
     };
 
     // Represents a code generation backend

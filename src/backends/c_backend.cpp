@@ -224,6 +224,9 @@ void c_backend::generate_simple_expr_call(std::ostream& os, simple_expr const & 
     auto callee = to_simple_call(&se)->m_name;
     auto direct = to_simple_call(&se)->m_direct;
 
+    // auto proc = this->m_procs.find(callee);
+    auto arity = 1000; // proc->arity();
+
     if (args.size() == 0) {
         mangle_name(os, callee);
         return;
@@ -239,6 +242,7 @@ void c_backend::generate_simple_expr_call(std::ostream& os, simple_expr const & 
 
     auto comma = false;
 
+    int i = 0;
     for (auto name : args) {
         if (comma) {
             os << ", ";
@@ -246,6 +250,11 @@ void c_backend::generate_simple_expr_call(std::ostream& os, simple_expr const & 
             comma = true;
         }
         mangle_name(os, name);
+        i += 1;
+        if (i == arity) {
+            mangle_name(os, callee);
+            os << ").apply(";
+        }
     }
 
     os << ")";
