@@ -66,12 +66,13 @@ namespace lean  {
     struct simple_expr_closure_alloc : simple_expr {
         name m_name;
         std::vector<name> m_free_vars;
+        int m_arity;
 
-        simple_expr_closure_alloc(name m_name, std::vector<name> m_free_vars)
-            : m_name(m_name), m_free_vars(m_free_vars) {
+        simple_expr_closure_alloc(name m_name, std::vector<name> m_free_vars, int m_arity)
+            : m_name(m_name), m_free_vars(m_free_vars), m_arity(m_arity) {
             this->m_kind = simple_expr_kind::ClosureAlloc;
         }
-        
+
         virtual simple_expr_kind kind() const { return simple_expr_kind::ClosureAlloc; }
     };
 

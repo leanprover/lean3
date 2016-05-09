@@ -21,7 +21,7 @@ structure IO (a : Type) : Type :=
 attribute RealWorld [extern]
 attribute string_to_raw_string [extern]
 attribute raw_print [extern]
- 
+
  -- definition functorIO [instance] : functor IO :=
  -- {| functor IO,
  --    map := λ (a b: Type) (f: a → b) (x: IO a),
@@ -47,9 +47,11 @@ definition return {T : Type} (x : T) : IO T :=
 
 definition bind {A B} (action : IO A) (f : A -> IO B) : IO B :=
    IO.mk (λ rw,
-     match IO.runIO action rw with
-     | prod.mk rw' res := IO.runIO (f res) rw'
-    end)
+     -- use let bindings to get around code generation issue
+     let a' := IO.runIO action in
+     match a' rw with
+     | prod.mk rw' res := let a'' := IO.runIO (f res) in a'' rw'
+     end)
 
 structure ToString [class] (A : Type) :=
   (to_string : A → string)
@@ -78,4 +80,3 @@ definition ToString_poly_list [instance] (A : Type) [tsA : ToString A] : ToStrin
 
 definition print_line {A} [ts : ToString A] (a : A) : IO unit :=
   print_string (ToString.to_string a)
-

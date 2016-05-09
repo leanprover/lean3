@@ -9,6 +9,7 @@ Author: Jared Roesch
 #include <iostream>
 #include "kernel/environment.h"
 #include "kernel/type_checker.h"
+#include "backend_exception.h"
 #include "simple_expr.h"
 
 namespace lean  {
@@ -53,6 +54,7 @@ namespace lean  {
         shared_ptr<simple_expr> compile_expr_lambda(expr const & e, std::vector<binding> & bindings);
         shared_ptr<simple_expr> compile_expr_macro(expr const & e, std::vector<binding> & bindings);
         shared_ptr<simple_expr> compile_expr_app(expr const & e, std::vector<binding> & bindings);
+        shared_ptr<simple_expr> compile_expr_let(expr const & e, std::vector<binding> & bindings);
         shared_ptr<simple_expr> compile_expr_const(expr const & e);
         shared_ptr<simple_expr> compile_expr_local(expr const & e);
         // Generate a procedure corresponding to the recursor.
@@ -69,6 +71,7 @@ namespace lean  {
         // object.
         void bind_name(name n, expr const & e, std::vector<binding> & bindings);
         void compile_decl(declaration const & d);
+        void compile_intro_rule(declaration const & d);
         void add_proc(proc p);
         name fresh_name();
         name fresh_name_with_prefix(name const & prefix);

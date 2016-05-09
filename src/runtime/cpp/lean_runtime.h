@@ -149,8 +149,15 @@ obj mk_closure(T fn, unsigned arity, std::initializer_list<obj> const & os) {
     return mk_closure_core(reinterpret_cast<void*>(fn), arity, os.size(), os.begin());
 }
 
+// The optimizer should eventually take of this.
+lean::obj run_io_main(lean::obj io_action) {
+    std::cout << "io_main" << std::endl;
+    auto real_world = lean::mk_obj(0);
+    return io_action[0].apply(real_world);
+}
+
 obj run_lean_main(obj (*main_fn)()) {
-    return main_fn();
+    return run_io_main(main_fn());
 }
 
 obj runtime_error(const char * msg) {
