@@ -390,10 +390,6 @@ obj obj::apply(obj const & a1, obj const & a2) const {
         default: return mk_closure(*this, a1, a2).apply();
         }
     } else if (ar < size() + 2) {
-        switch (size() + 2 - ar) {
-        case 1:  return this->apply(a1).apply(a2);
-        default: return mk_closure(*this, a1, a2).apply(); // not sure if right
-        }
         return this->apply(a1).apply(a2);
     } else {
         return mk_closure(*this, a1, a2);
@@ -411,6 +407,13 @@ obj obj::apply(obj const & a1, obj const & a2, obj const & a3) const {
         case 7:  return FN7(fld(0), fld(1), fld(2), fld(3), a1, a2, a3);
         case 8:  return FN8(fld(0), fld(1), fld(2), fld(3), fld(4), a1, a2, a3);
         default: return mk_closure(*this, a1, a2, a3).apply();
+        }
+    } else if (ar < size() + 3) {
+        switch (ar) {
+            case 1: return this->apply(a1).apply(a2, a3);
+            case 2: return this->apply(a1, a2).apply(a3);
+            // Not sure if this last case is right
+            default: return mk_closure(*this, a1, a2, a3).apply();
         }
     } else {
         return mk_closure(*this, a1, a2, a3);
