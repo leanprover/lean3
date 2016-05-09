@@ -166,6 +166,10 @@ void c_backend::generate_proc(std::ostream& os, proc const & p) {
     os << std::left << std::setw(4);
     os.flush();
 
+    os << "std::cout << " << "\"";
+    mangle_name_fn_ptr(os, p.m_name);
+    os << "\"" << " << std::endl;\n";
+
     m_return = true;
     this->generate_simple_expr(os, *p.m_body);
 
@@ -302,7 +306,7 @@ void c_backend::generate_simple_expr_closure_alloc(std::ostream& os, simple_expr
     os << "lean::mk_closure(";
     mangle_name_fn_ptr(os, closure_alloc->m_name);
     os << ",";
-    os << closure_alloc->m_free_vars.size();
+    os << closure_alloc->m_arity;
     os << ",";
     os << "{";
     auto comma = false;

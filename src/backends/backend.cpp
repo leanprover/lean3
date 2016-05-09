@@ -1,10 +1,11 @@
-    /*
+/*
 Copyright (c) 2016 Microsoft Corporation. All rights reserved.
 Released under Apache 2.0 license as described in the file LICENSE.
 
 Author: Jared Roesch
 */
 #include <iostream>
+#include <sstream>
 #include <memory>
 #include <tuple>
 #include <utility>
@@ -65,10 +66,20 @@ std::vector<name> to_vector(buffer<name> & names) {
     return rs;
 }
 
+backend_exception not_supported(char const * msg) {
+    return backend_exception(msg);
+}
+
+backend_exception internal_error(char const * msg) {
+    return backend_exception(msg);
+}
+
 backend::backend(environment const & env, optional<std::string> main_fn)
     : m_env(env), m_tc(m_env) {
     auto main_name = name(main_fn.value());
     auto main = env.get(main_name);
+
+    // Compute the live set of names.
     used_defs used_names(env);
     used_names.names_in_decl(main);
     auto decls_to_compile = std::vector<declaration>();
@@ -76,13 +87,32 @@ backend::backend(environment const & env, optional<std::string> main_fn)
         decls_to_compile.push_back(env.get(n));
     });
 
+    // Perform the expr -> expr optimizations.
+
+    bool error_occured = false;
+
+    // Compile the decls into simple_exprs and procs.
     for (auto decl : decls_to_compile) {
-        this->compile_decl(decl);
+        try {
+            this->compile_decl(decl);
+        } catch (const backend_exception & e) {
+            std::cout << e.what() << std::endl;
+            error_occured = true;
+        } catch (backend_exception * e) {
+            std::cout << e->what() << std::endl;
+            error_occured = true;
+        }
     }
+
+    // if (error_occured) {
+    //     exit(1);
+    // }
+
+    // Perform the simple_expr -> simple_expr optimizations.
 }
 
 void backend::compile_decl(declaration const & d) {
-    if (d.is_axiom()) {
+    if (d.is_axiom() && is_extern(this->m_env, d.get_name())) {
         std::cout << "axiom: " << std::endl;
         std::cout << d.get_name() << std::endl;
     } else if (d.is_definition()) {
@@ -95,59 +125,69 @@ void backend::compile_decl(declaration const & d) {
         this->add_proc(p);
     } else if (d.is_constant_assumption()) {
         if (auto n = inductive::is_intro_rule(this->m_env, d.get_name())) {
-            auto tup = inductive::is_inductive_decl(this->m_env, n.value());
-            if (tup) {
-                auto inductive_types = std::get<2>(tup.value());
-                inductive::inductive_decl ind_ty;
-                for (auto it : inductive_types) {
-                    if (n.value() == inductive::inductive_decl_name(it)) {
-                      ind_ty = it;
-                    }
-                }
-
-                auto intro_rules = inductive::inductive_decl_intros(ind_ty);
-
-                int ctor_index = -1;
-                int arity = 0;
-
-                int i = 0;
-                for (auto intro : intro_rules) {
-                      std::cout << "intro_rule: " << intro << std::endl;
-                      std::cout << "kind: " << intro.kind() << std::endl;
-                      auto intro_n = inductive::intro_rule_name(intro);
-                      auto intro_ty = inductive::intro_rule_type(intro);
-                      std::cout << "type: " << intro_ty << std::endl;
-
-                      if (intro_n == d.get_name()) {
-                          ctor_index = i;
-                          while (is_pi(intro_ty)) {
-                              auto arg_ty = binding_domain(intro_ty);
-                              if (!is_erasible(arg_ty)) {
-                                  arity += 1;
-                              }
-                              intro_ty = binding_body(intro_ty);
-                          }
-                          break;
-                      }
-
-                      i += 1;
-                }
-
-                std::cout << "inductive type " << n.value() << std::endl;
-                this->m_ctors.push_back(ctor(ctor_index, d.get_name(), arity));
-            } else {
-                throw "don't work";
-            }
+            compile_intro_rule(d);
         } else if (this->m_env.is_recursor(d.get_name())) {
-            std::cout << "unhandled recursor: " << d.get_name() << std::endl;
+            // Not sure if we should do anything here.
+            //
+            // compile_recursor(d.get_name());
         } else {
-            std::cout << "unhandled constant assumption: " << d.get_name() << std::endl;
+            std::stringstream ss;
+            ss.str("unhandled constant assumption: ");
+            ss << d.get_name();
+            throw new backend_exception(ss.str().c_str());
         }
     } else if (d.is_theorem()) {
         std::cout << "theorem" << std::endl;
     } else {
-        std::cout << "unhandled case" << d.get_name() << std::endl;
+        std::stringstream ss;
+        ss.str("unhandled declaration: ");
+        ss << d.get_name();
+        throw new backend_exception(ss.str().c_str());
     }
+}
+
+void backend::compile_intro_rule(declaration const & d) {
+    auto n = inductive::is_intro_rule(this->m_env, d.get_name()).value();
+    auto tup = inductive::is_inductive_decl(this->m_env, n).value();
+
+    auto inductive_types = std::get<2>(tup);
+    inductive::inductive_decl ind_ty;
+    for (auto it : inductive_types) {
+        if (n == inductive::inductive_decl_name(it)) {
+            ind_ty = it;
+        }
+    }
+
+    auto intro_rules = inductive::inductive_decl_intros(ind_ty);
+
+    int ctor_index = -1;
+    int arity = 0;
+
+    int i = 0;
+    for (auto intro : intro_rules) {
+        std::cout << "intro_rule: " << intro << std::endl;
+        std::cout << "kind: " << intro.kind() << std::endl;
+        auto intro_n = inductive::intro_rule_name(intro);
+        auto intro_ty = inductive::intro_rule_type(intro);
+        std::cout << "type: " << intro_ty << std::endl;
+
+        if (intro_n == d.get_name()) {
+            ctor_index = i;
+            while (is_pi(intro_ty)) {
+                auto arg_ty = binding_domain(intro_ty);
+                if (!is_erasible(arg_ty)) {
+                    arity += 1;
+                }
+                intro_ty = binding_body(intro_ty);
+            }
+            break;
+        }
+
+        i += 1;
+    }
+
+    std::cout << "inductive type " << n << std::endl;
+    this->m_ctors.push_back(ctor(ctor_index, d.get_name(), arity));
 }
 
 shared_ptr<simple_expr> backend::compile_body(std::vector<name> & args, expr const & e) {
@@ -178,12 +218,10 @@ shared_ptr<simple_expr> backend::compile_body(std::vector<name> & args, expr con
 }
 
 shared_ptr<simple_expr> backend::compile_expr(expr const & e) {
+    // Compile the expression, gathering any bindings generated by the ANF
+    // transformation, and then bind them above the expression.
     std::vector<binding> bindings;
     auto se = compile_expr(e, bindings);
-    for (auto binding : bindings) {
-        std::cout << binding.first << " : " << binding.second << std::endl;
-    }
-
     return let_binding(bindings, se);
 }
 
@@ -215,24 +253,42 @@ shared_ptr<simple_expr> backend::compile_expr(expr const & e, std::vector<bindin
         case expr_kind::App:
             return this->compile_expr_app(e, bindings);
         case expr_kind::Let:
-            std::cout << "meta: not supported" << std::endl;
+            return this->compile_expr_let(e, bindings);
+        case expr_kind::Pi:
+            throw not_supported("pi: not supported");
             break;
         case expr_kind::Meta:
-            std::cout << "meta: not supported" << std::endl;
+            throw not_supported("meta: not supported");
             break;
         case expr_kind::Var:
-            std::cout<< "var: not supported" << std::endl;
+            throw not_supported("var: not supported");
             break;
-            std::cout<< "sort: not supported" << std::endl;
+            throw not_supported("sort: not supported");
             break;
     }
-    // Catch-all exeception TODO: make this a real exception w/ error reporting
-    throw new std::string("internal error: should of matched an above case");
+
+    throw internal_error("internal error: should of matched an above case");
 }
 
 shared_ptr<simple_expr> backend::compile_expr_const(expr const & e) {
     name n = name(const_name(e));
     return shared_ptr<simple_expr>(new simple_expr_var(n));
+}
+
+shared_ptr<simple_expr> backend::compile_expr_let(expr const & e, std::vector<binding> & bindings) {
+    lean_assert(is_let(e));
+    auto name = let_name(e);
+
+    // Probably should do erasure here.
+    auto ty = let_type(e);
+    auto value = let_value(e);
+    auto body = let_body(e);
+
+    // Just re-create the binding, and then continue compiling the body.
+    auto se = compile_expr(e, bindings);
+    bindings.push_back(binding(name, se));
+
+    return compile_expr(body, bindings);
 }
 
 shared_ptr<simple_expr> backend::compile_expr_app(expr const & e, std::vector<binding> & bindings) {
@@ -298,7 +354,7 @@ shared_ptr<simple_expr> backend::compile_expr_app(expr const & e, std::vector<bi
 void backend::compile_recursor(expr const & recursor_expr) {
     auto recursor_name = const_name(recursor_expr);
 
-    lean_trace(name({"backend", "compile_recursor"}),
+    lean_trace(name({"backend", "compile"}),
                tout() << "compiling recursor: " << recursor_name << "\n";);
 
     lean_assert(m_env.is_recursor(recursor_name));
@@ -341,7 +397,7 @@ void backend::compile_recursor(expr const & recursor_expr) {
     std::cout << "elim_ty: " << elim_ty << major_index.value() << std::endl;
 
     buffer<expr> ls;
-    int binder_no = 0;
+    unsigned int binder_no = 0;
 
     // Iterate over the type of the elminator instantiating everything with
     // fresh constants of the correct type.
@@ -441,7 +497,7 @@ void backend::compile_recursor(expr const & recursor_expr) {
     auto se = shared_ptr<simple_expr>(new simple_expr_switch(scrutinee_name, cases));
     auto p = proc(recursor_name, recursor_args, se);
     this->add_proc(p);
-    std::cout << "done with recursor" << std::endl;
+    // std::cout << "done with recursor" << std::endl;
 }
 
 shared_ptr<simple_expr> backend::compile_expr_macro(expr const & e, std::vector<binding> & bindings) {
@@ -453,7 +509,7 @@ shared_ptr<simple_expr> backend::compile_expr_macro(expr const & e, std::vector<
     if (expanded_expr) {
         return compile_expr(expanded_expr.value(), bindings);
     } else {
-        throw "macro expansion failed";
+        throw backend_exception("macro expansion failed");
     }
 }
 
@@ -465,9 +521,9 @@ shared_ptr<simple_expr> backend::compile_expr_lambda(expr const & e, std::vector
     buffer<name> fvs;
     free_vars(e, fvs);
 
-    for (auto fv : fvs) {
-        std::cout << "freevar: " << fv << std::endl;
-    }
+    // for (auto fv : fvs) {
+    //    std::cout << "freevar: " << fv << std::endl;
+    // }
 
     // The free variables become arguments for the function pointer we are
     // about to generate, and also must be bound when we allocate a fresh
@@ -479,6 +535,9 @@ shared_ptr<simple_expr> backend::compile_expr_lambda(expr const & e, std::vector
     // if need be.
     auto se = this->compile_body(args, e);
 
+    // The number of elements we added to args is the arity of the fn.
+    auto arity = args.size();
+
     // We then construct a new top-level procedure corresponding to the closure.
     auto p = proc(closure_name, args, se);
     this->add_proc(p);
@@ -488,7 +547,7 @@ shared_ptr<simple_expr> backend::compile_expr_lambda(expr const & e, std::vector
     name binding_name = this->fresh_name();
 
     auto call_expr = shared_ptr<simple_expr>(
-        new simple_expr_closure_alloc(closure_name, fv_vector));
+        new simple_expr_closure_alloc(closure_name, fv_vector, arity));
 
     bindings.push_back(binding(binding_name, call_expr));
 
