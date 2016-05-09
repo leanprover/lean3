@@ -28,39 +28,42 @@ namespace lean  {
         }
     }
 
-    void free_vars(expr const & e, name_set & ns) {
+    void free_vars(expr const & e, name_set & ns, buffer<name> & buf) {
         lean_trace(name("backend"),
             tout() << "free_vars: " << e << "\n";);
 
         switch (e.kind()) {
             case expr_kind::Local:
                 if (!is_erasible2(mlocal_type(e))) {
-                    ns.insert(mlocal_name(e));
+                    if (!ns.contains(mlocal_name(e))) {
+                        ns.insert(mlocal_name(e));
+                        buf.push_back(mlocal_name(e));
+                    }
                 }
                 break;
             case expr_kind::Macro: {
                 auto num_args = macro_num_args(e);
                 auto args = macro_args(e);
-                for (auto i = 0; i < num_args; i++) {
-                    free_vars(args[i], ns);
+                for (unsigned int i = 0; i < num_args; i++) {
+                    free_vars(args[i], ns, buf);
                 }
                 break;
             }
             case expr_kind::Pi:
             case expr_kind::Lambda: {
                 // free_vars(binding_domain(e), ns);
-                free_vars(binding_body(e), ns);
+                free_vars(binding_body(e), ns, buf);
                 break;
             }
             case expr_kind::App: {
-                free_vars(app_fn(e), ns);
-                free_vars(app_arg(e), ns);
+                free_vars(app_fn(e), ns, buf);
+                free_vars(app_arg(e), ns, buf);
                 break;
             }
             case expr_kind::Let: {
-                free_vars(let_value(e), ns);
+                free_vars(let_value(e), ns, buf);
                 // auto local = mk_local(let_name(e), let_type(e));
-                free_vars(let_body(e), ns);
+                free_vars(let_body(e), ns, buf);
                 break;
             }
             case expr_kind::Constant:
@@ -73,9 +76,6 @@ namespace lean  {
 
     void free_vars(expr const & e, buffer<name> & ns) {
         name_set name_set;
-        free_vars(e, name_set);
-        name_set.for_each([&] (name const &n) {
-            ns.push_back(n);
-        });
+        free_vars(e, name_set, ns);
     }
 }
