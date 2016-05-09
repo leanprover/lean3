@@ -18,6 +18,7 @@ Author: Jared Roesch
 #include "library/app_builder.h"
 #include "library/extern.h"
 #include "library/normalize.h"
+#include "library/let.h"
 #include "library/trace.h"
 #include "used_names.h"
 #include "util/fresh_name.h"
@@ -126,21 +127,18 @@ void backend::compile_decl(declaration const & d) {
     } else if (d.is_constant_assumption()) {
         if (auto n = inductive::is_intro_rule(this->m_env, d.get_name())) {
             compile_intro_rule(d);
-        } else if (this->m_env.is_recursor(d.get_name())) {
-            // Not sure if we should do anything here.
-            //
-            // compile_recursor(d.get_name());
-        } else {
-            std::stringstream ss;
-            ss.str("unhandled constant assumption: ");
-            ss << d.get_name();
-            throw new backend_exception(ss.str().c_str());
+        } else if (is_extern(this->m_env, d.get_name())) {
+            std::cout << "extern: " << d.get_name() << std::endl;
         }
     } else if (d.is_theorem()) {
-        std::cout << "theorem" << std::endl;
+        std::stringstream ss;
+        ss << "internal_error: should not be trying to compile a theorem (";
+        ss << d.get_name();
+        ss << ")";
+        throw new backend_exception(ss.str().c_str());
     } else {
         std::stringstream ss;
-        ss.str("unhandled declaration: ");
+        ss << "unhandled declaration: ";
         ss << d.get_name();
         throw new backend_exception(ss.str().c_str());
     }
@@ -165,11 +163,11 @@ void backend::compile_intro_rule(declaration const & d) {
 
     int i = 0;
     for (auto intro : intro_rules) {
-        std::cout << "intro_rule: " << intro << std::endl;
-        std::cout << "kind: " << intro.kind() << std::endl;
+        // std::cout << "intro_rule: " << intro << std::endl;
+        // std::cout << "kind: " << intro.kind() << std::endl;
         auto intro_n = inductive::intro_rule_name(intro);
         auto intro_ty = inductive::intro_rule_type(intro);
-        std::cout << "type: " << intro_ty << std::endl;
+        // std::cout << "type: " << intro_ty << std::endl;
 
         if (intro_n == d.get_name()) {
             ctor_index = i;
@@ -186,19 +184,18 @@ void backend::compile_intro_rule(declaration const & d) {
         i += 1;
     }
 
-    std::cout << "inductive type " << n << std::endl;
+    // std::cout << "inductive type " << n << std::endl;
     this->m_ctors.push_back(ctor(ctor_index, d.get_name(), arity));
 }
 
 shared_ptr<simple_expr> backend::compile_body(std::vector<name> & args, expr const & e) {
     lean_trace(name({"backend", "compile"}),
                tout() << "expr: " << e << "\n";);
-    register_trace_class("backend");
 
     if (is_lambda(e)) {
         buffer<expr> ls;
         auto ex = e;
-        while (is_binding(ex)) {
+        while (is_lambda(ex)) {
             expr d = instantiate_rev(binding_domain(ex), ls.size(), ls.data());
             auto n = mk_fresh_name(); // (name const & prefix, unsigned k);
             expr l = mk_local(n, binding_name(ex), d, binding_info(ex));
@@ -226,9 +223,9 @@ shared_ptr<simple_expr> backend::compile_expr(expr const & e) {
 }
 
 shared_ptr<simple_expr> backend::compile_expr(expr const & e, std::vector<binding> & bindings) {
-    lean_trace(name({"backend", "compiler_expr"}),
+    lean_trace(name({"backend", "compiler"}),
                tout() << "expr: " << e << "\n";);
-
+    std::cout << "expr: " << e << "\n";
     switch (e.kind()) {
         case expr_kind::Local:
             return shared_ptr<simple_expr>(new simple_expr_error("local"));
@@ -242,17 +239,22 @@ shared_ptr<simple_expr> backend::compile_expr(expr const & e, std::vector<bindin
             std::cout<< "sort: not supported" << std::endl;
             break;
         case expr_kind::Constant:
+            std::cout << "compile constant" << std::endl;
             return this->compile_expr_const(e);
         case expr_kind::Macro:
+            std::cout << "compile macro" << std::endl;
             return this->compile_expr_macro(e, bindings);
         case expr_kind::Lambda:
+            std::cout << "compile lambda" << std::endl;
             return this->compile_expr_lambda(e, bindings);
         case expr_kind::Pi:
             std::cout<< "pi: not supported" << std::endl;
             break;
         case expr_kind::App:
+            std::cout << "compile app" << std::endl;
             return this->compile_expr_app(e, bindings);
         case expr_kind::Let:
+            std::cout << "compile let" << std::endl;
             return this->compile_expr_let(e, bindings);
         case expr_kind::Pi:
             throw not_supported("pi: not supported");
@@ -275,20 +277,33 @@ shared_ptr<simple_expr> backend::compile_expr_const(expr const & e) {
     return shared_ptr<simple_expr>(new simple_expr_var(n));
 }
 
+shared_ptr<simple_expr> backend::compile_expr_let_impl(
+    name const & n,
+    expr const & value,
+    expr const & body,
+    std::vector<binding> & bindings) {
+
+    // Just re-create the binding, and then continue compiling the body.
+    auto se = compile_expr(value, bindings);
+    bindings.push_back(binding(n, se));
+
+    return compile_expr(body, bindings);
+}
+
 shared_ptr<simple_expr> backend::compile_expr_let(expr const & e, std::vector<binding> & bindings) {
     lean_assert(is_let(e));
-    auto name = let_name(e);
+
+    auto n = let_name(e);
 
     // Probably should do erasure here.
     auto ty = let_type(e);
     auto value = let_value(e);
     auto body = let_body(e);
 
-    // Just re-create the binding, and then continue compiling the body.
-    auto se = compile_expr(e, bindings);
-    bindings.push_back(binding(name, se));
+    lean_trace(name("backend"),
+        tout() << "let " << n << ":" <<  ty << " = " << value << "in" << body << "\n";);
 
-    return compile_expr(body, bindings);
+    return compile_expr_let_impl(n, value, body, bindings);
 }
 
 shared_ptr<simple_expr> backend::compile_expr_app(expr const & e, std::vector<binding> & bindings) {
@@ -301,9 +316,9 @@ shared_ptr<simple_expr> backend::compile_expr_app(expr const & e, std::vector<bi
     // a sequence of bindings, we also store the set of names we will apply
     // the function to.
     for (unsigned i = 0; i < nargs; i++) {
-         std::cout << args[i] << std::endl;
+         // std::cout << args[i] << std::endl;
          auto ty = m_tc.check_ignore_undefined_universes(args[i]);
-         std::cout << "argument type: " << ty.first << std::endl;
+         // std::cout << "argument type: " << ty.first << std::endl;
          // If the argument is erasible, we should complete the
          // erasure here, by omitting the compiled argument.
          if (!is_erasible(ty.first)) {
@@ -374,7 +389,7 @@ void backend::compile_recursor(expr const & recursor_expr) {
     }
 
     auto inductive_ty_name = inductive::is_elim_rule(m_env, recursor_name).value();
-    std::cout << inductive_ty_name << std::endl;
+    // std::cout << inductive_ty_name << std::endl;
 
     auto types =
         inductive::is_inductive_decl(this->m_env, inductive_ty_name).value();
@@ -394,7 +409,7 @@ void backend::compile_recursor(expr const & recursor_expr) {
     // Find where the major premise begins.
     auto major_index = inductive::get_elim_major_idx(this->m_env, recursor_name);
 
-    std::cout << "elim_ty: " << elim_ty << major_index.value() << std::endl;
+    // std::cout << "elim_ty: " << elim_ty << major_index.value() << std::endl;
 
     buffer<expr> ls;
     unsigned int binder_no = 0;
@@ -413,7 +428,7 @@ void backend::compile_recursor(expr const & recursor_expr) {
     app_builder builder(this->m_env);
 
     auto elim_prefix = mk_app(recursor_expr, ls.size(), ls.data());
-    std::cout << "elim_applied: " << elim_prefix << std::endl;
+    // std::cout << "elim_applied: " << elim_prefix << std::endl;
 
     auto intro_rules =
         inductive::inductive_decl_intros(inductive_ty);
@@ -430,7 +445,7 @@ void backend::compile_recursor(expr const & recursor_expr) {
 
     for (auto intro_n : intro_names) {
         // std::cout << "kind: " << intro.kind() << std::endl;
-        std::cout << "intro_rule: " << intro_n << std::endl;
+        // std::cout << "intro_rule: " << intro_n << std::endl;
         auto intro_decl = this->m_env.get(intro_n);
         auto intro_ty = intro_decl.get_type();
         // std::cout << "type: " << intro_ty << std::endl;
@@ -442,7 +457,7 @@ void backend::compile_recursor(expr const & recursor_expr) {
         while (is_pi(intro_ty)) {
             expr d = instantiate_rev(binding_domain(intro_ty), intro_locals.size(), intro_locals.data());
             expr l = mk_local(mk_fresh_name(), binding_name(intro_ty), d, binding_info(intro_ty));
-            std::cout << "arg" << l << d << std::endl;
+            // std::cout << "arg" << l << d << std::endl;
             intro_locals.push_back(l);
             intro_ty = binding_body(intro_ty);
         }
@@ -474,14 +489,14 @@ void backend::compile_recursor(expr const & recursor_expr) {
             field_index += 1;
         }
 
-        std::cout << "intro_app: " << applied_intro << std::endl;
+        // std::cout << "intro_app: " << applied_intro << std::endl;
 
         auto applied_rec = mk_app(elim_prefix, applied_intro);
         // auto ty = m_tc.check(applied_rec);
-        // std::cout << "applied_rec_ty: " << ty.first << std::endl;
-        std::cout << "applied_rec: " << applied_rec << std::endl;
+        // // std::cout << "applied_rec_ty: " << ty.first << std::endl;
+        // std::cout << "applied_rec: " << applied_rec << std::endl;
         auto normalized = normalize(this->m_tc, applied_rec);
-        std::cout << "applied_rec(eval): " << normalized << std::endl;
+        // std::cout << "applied_rec(eval): " << normalized << std::endl;
         auto arm_body = compile_expr(normalized);
 
         cases.push_back(let_binding(bindings, arm_body));
@@ -506,7 +521,15 @@ shared_ptr<simple_expr> backend::compile_expr_macro(expr const & e, std::vector<
     // Expand it and then compile the resulting
     // expression.
     auto expanded_expr = m_tc.expand_macro(e);
-    if (expanded_expr) {
+    auto def = macro_def(e);
+
+    // Generalize the ability to replace macros, just do let for now.
+    if (def.get_name() == name("let")) {
+        auto name = get_let_var_name(e);
+        auto value = get_let_value(e);
+        auto body = get_let_body(e);
+        return compile_expr_let_impl(name, value, body, bindings);
+    } else if (expanded_expr) {
         return compile_expr(expanded_expr.value(), bindings);
     } else {
         throw backend_exception("macro expansion failed");
@@ -521,9 +544,10 @@ shared_ptr<simple_expr> backend::compile_expr_lambda(expr const & e, std::vector
     buffer<name> fvs;
     free_vars(e, fvs);
 
-    // for (auto fv : fvs) {
-    //    std::cout << "freevar: " << fv << std::endl;
-    // }
+    std::cout << "lambda_to_compile: " << e <<  std::endl;
+    for (auto fv : fvs) {
+        std::cout << "freevar: " << fv << std::endl;
+    }
 
     // The free variables become arguments for the function pointer we are
     // about to generate, and also must be bound when we allocate a fresh

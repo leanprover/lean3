@@ -59,12 +59,12 @@ void used_defs::names_in_decl(declaration const & d) {
 }
 
 void used_defs::names_in_expr(expr const & e) {
-    std::cout << "exp: " << e << std::endl;
+    // std::cout << "exp: " << e << std::endl;
     switch (e.kind()) {
         case expr_kind::Local: case expr_kind::Meta:
             break;
         case expr_kind::Var:
-            std::cout << "var: " << e << std::endl;
+            // std::cout << "var: " << e << std::endl;
             break;
         case expr_kind::Sort:
             break;
