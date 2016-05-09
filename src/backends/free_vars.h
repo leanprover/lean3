@@ -10,6 +10,7 @@ Author: Jared Roesch
 #include "kernel/environment.h"
 #include "backend.h"
 #include "simple_expr.h"
+#include "library/trace.h"
 
 namespace lean  {
     void free_vars(expr const & e, buffer<name> & ns);

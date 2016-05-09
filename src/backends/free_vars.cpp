@@ -6,6 +6,7 @@ Author: Jared Roesch
 */
 
 #include "free_vars.h"
+#include "kernel/instantiate.h"
 #include "kernel/expr.h"
 
 namespace lean  {
@@ -27,15 +28,22 @@ namespace lean  {
         }
     }
 
-    void free_vars(expr const & e, buffer<name> & ns) {
+    void free_vars(expr const & e, name_set & ns) {
+        lean_trace(name("backend"),
+            tout() << "free_vars: " << e << "\n";);
+
         switch (e.kind()) {
             case expr_kind::Local:
                 if (!is_erasible2(mlocal_type(e))) {
-                    ns.push_back(mlocal_name(e));
+                    ns.insert(mlocal_name(e));
                 }
                 break;
             case expr_kind::Macro: {
-                // not sure what to do here: return this->compile_expr_macro(e, bindings);
+                auto num_args = macro_num_args(e);
+                auto args = macro_args(e);
+                for (auto i = 0; i < num_args; i++) {
+                    free_vars(args[i], ns);
+                }
                 break;
             }
             case expr_kind::Pi:
@@ -51,6 +59,7 @@ namespace lean  {
             }
             case expr_kind::Let: {
                 free_vars(let_value(e), ns);
+                // auto local = mk_local(let_name(e), let_type(e));
                 free_vars(let_body(e), ns);
                 break;
             }
@@ -60,5 +69,13 @@ namespace lean  {
             case expr_kind::Sort:
                 break;
         }
+    }
+
+    void free_vars(expr const & e, buffer<name> & ns) {
+        name_set name_set;
+        free_vars(e, name_set);
+        name_set.for_each([&] (name const &n) {
+            ns.push_back(n);
+        });
     }
 }

@@ -54,6 +54,13 @@ namespace lean  {
         shared_ptr<simple_expr> compile_expr_lambda(expr const & e, std::vector<binding> & bindings);
         shared_ptr<simple_expr> compile_expr_macro(expr const & e, std::vector<binding> & bindings);
         shared_ptr<simple_expr> compile_expr_app(expr const & e, std::vector<binding> & bindings);
+        // This is hack, thought we could just use kernel let bindings, but
+        // the front-end still produces macros.
+        shared_ptr<simple_expr> compile_expr_let_impl(
+            name const & n,
+            expr const & value,
+            expr const & body,
+            std::vector<binding> & bindings);
         shared_ptr<simple_expr> compile_expr_let(expr const & e, std::vector<binding> & bindings);
         shared_ptr<simple_expr> compile_expr_const(expr const & e);
         shared_ptr<simple_expr> compile_expr_local(expr const & e);
