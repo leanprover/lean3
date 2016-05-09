@@ -48,9 +48,8 @@ definition return {T : Type} (x : T) : IO T :=
 definition bind {A B} (action : IO A) (f : A -> IO B) : IO B :=
    IO.mk (λ rw,
      -- use let bindings to get around code generation issue
-     let a_p := IO.runIO action in
-     match a_p rw with
-     | prod.mk rw' res := let a_pp := IO.runIO (f res) in a_pp rw'
+     match IO.runIO action rw with
+     | prod.mk rw' res := IO.runIO (f res) rw'
      end)
 
 structure ToString [class] (A : Type) :=
