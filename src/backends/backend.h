@@ -43,6 +43,7 @@ namespace lean  {
         name_map<proc> m_procs;
         // TODO: convert this to be a map as well.
         std::vector<ctor> m_ctors;
+        bool m_debug_tracing;
     public:
         backend(environment const & env, optional<std::string> main_fn);
         // This inteface is used for lowering core expressions down to
