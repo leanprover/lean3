@@ -76,7 +76,7 @@ backend_exception internal_error(char const * msg) {
 }
 
 backend::backend(environment const & env, optional<std::string> main_fn)
-    : m_env(env), m_tc(m_env) {
+    : m_env(env), m_tc(m_env), m_debug_tracing(true) {
     auto main_name = name(main_fn.value());
     auto main = env.get(main_name);
 
@@ -317,11 +317,11 @@ shared_ptr<simple_expr> backend::compile_expr_app(expr const & e, std::vector<bi
     // the function to.
     for (unsigned i = 0; i < nargs; i++) {
          // std::cout << args[i] << std::endl;
-         auto ty = m_tc.check_ignore_undefined_universes(args[i]);
+         auto ty = m_tc.check_ignore_undefined_universes(args[i]).first;
          // std::cout << "argument type: " << ty.first << std::endl;
          // If the argument is erasible, we should complete the
          // erasure here, by omitting the compiled argument.
-         if (!is_erasible(ty.first)) {
+         if (!is_erasible(ty)) {
              // If the argument is a constant we don't need to generate
              // a fresh binding.
              if (is_constant(args[i])) {
@@ -403,14 +403,16 @@ void backend::compile_recursor(expr const & recursor_expr) {
         }
     }
 
+    auto rec_decl = this->m_env.get(recursor_name);
     // Retrieve the elminator's type.
-    auto elim_ty = this->m_env.get(recursor_name).get_type();
+    auto elim_ty = rec_decl.get_type();
+
+    auto number_of_params = inductive::get_num_params(this->m_env, inductive_ty_name).value();
 
     // Find where the major premise begins.
     auto major_index = inductive::get_elim_major_idx(this->m_env, recursor_name);
 
-    // std::cout << "elim_ty: " << elim_ty << major_index.value() << std::endl;
-
+    buffer<expr> params;
     buffer<expr> ls;
     unsigned int binder_no = 0;
 
@@ -420,6 +422,9 @@ void backend::compile_recursor(expr const & recursor_expr) {
         lean_assert(is_pi(elim_ty));
         expr d = instantiate_rev(binding_domain(elim_ty), ls.size(), ls.data());
         expr l = mk_local(mk_fresh_name(), binding_name(elim_ty), d, binding_info(elim_ty));
+        if (binder_no < number_of_params) { // add one for the motif
+            params.push_back(l);
+        }
         ls.push_back(l);
         elim_ty = binding_body(elim_ty);
         binder_no += 1;
@@ -427,8 +432,10 @@ void backend::compile_recursor(expr const & recursor_expr) {
 
     app_builder builder(this->m_env);
 
-    auto elim_prefix = mk_app(recursor_expr, ls.size(), ls.data());
-    // std::cout << "elim_applied: " << elim_prefix << std::endl;
+    auto rec_us = param_names_to_levels(rec_decl.get_univ_params());
+    auto rec_app = mk_constant(recursor_name, rec_us);
+    auto elim_prefix = mk_app(rec_app, ls);
+    std::cout << "elim_applied: " << elim_prefix << std::endl;
 
     auto intro_rules =
         inductive::inductive_decl_intros(inductive_ty);
@@ -444,11 +451,14 @@ void backend::compile_recursor(expr const & recursor_expr) {
     std::vector<shared_ptr<simple_expr>> cases;
 
     for (auto intro_n : intro_names) {
-        // std::cout << "kind: " << intro.kind() << std::endl;
-        // std::cout << "intro_rule: " << intro_n << std::endl;
+        // Get the declaration corresonding to the introduction rule.
         auto intro_decl = this->m_env.get(intro_n);
         auto intro_ty = intro_decl.get_type();
-        // std::cout << "type: " << intro_ty << std::endl;
+
+        // Apply parameters to the introduction rule's type.
+        for (auto p : params) {
+            intro_ty = instantiate(binding_body(intro_ty), p);
+        }
 
         buffer<expr> intro_locals;
 
@@ -464,11 +474,22 @@ void backend::compile_recursor(expr const & recursor_expr) {
 
         app_builder builder(this->m_env);
 
+        // Temp. if this works come up with a more elegant solution.
+        buffer<expr> locals;
+
+        for (auto p : params) {
+            locals.push_back(p);
+        }
+
+        for (auto i : intro_locals) {
+            locals.push_back(i);
+        }
+
         auto applied_intro =
             builder.mk_app(
                 intro_n,
-                intro_locals.size(),
-                intro_locals.data());
+                locals.size(),
+                locals.data());
 
         std::vector<binding> bindings;
         int field_index = 0;
@@ -488,8 +509,6 @@ void backend::compile_recursor(expr const & recursor_expr) {
 
             field_index += 1;
         }
-
-        // std::cout << "intro_app: " << applied_intro << std::endl;
 
         auto applied_rec = mk_app(elim_prefix, applied_intro);
         // auto ty = m_tc.check(applied_rec);

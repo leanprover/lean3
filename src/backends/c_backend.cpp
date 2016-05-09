@@ -166,9 +166,11 @@ void c_backend::generate_proc(std::ostream& os, proc const & p) {
     os << std::left << std::setw(4);
     os.flush();
 
-    os << "std::cout << " << "\"";
-    mangle_name_fn_ptr(os, p.m_name);
-    os << "\"" << " << std::endl;\n";
+    if (this->m_debug_tracing) {
+        os << "std::cout << " << "\"";
+        mangle_name_fn_ptr(os, p.m_name);
+        os << "\"" << " << std::endl;\n";
+    }
 
     m_return = true;
     this->generate_simple_expr(os, *p.m_body);
@@ -287,6 +289,7 @@ void c_backend::generate_simple_expr_switch(std::ostream& os, simple_expr const 
         os << "case " << i << ": {\n" << std::endl;
         generate_simple_expr(os, *c);
         os << "}\n";
+        i += 1;
     }
     os << "default:\n";
     os << "return " << LEAN_ERR << "(\"" << "recursor-compilation-failure" << "\");" << std::endl;
