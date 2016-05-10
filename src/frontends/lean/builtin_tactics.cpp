@@ -46,7 +46,7 @@ static expr parse_rparen(parser &, unsigned, expr const * args, pos_info const &
 
 static expr parse_let_tactic(parser & p, unsigned, expr const *, pos_info const & pos) {
     auto id_pos     = p.pos();
-    name id    = p.check_atomic_id_next("invalid 'let' tactic, identifier expected");
+    name id    = p.check_atomic_id_next("invalid 'let' tactic, atomic identifier expected");
     p.check_token_next(get_assign_tk(), "invalid 'let' tactic, ':=' expected");
     expr value = p.parse_tactic_expr_arg();
     // Register value as expandable local expr. Identical to let term parsing, but without surrounding mk_let.
@@ -57,7 +57,7 @@ static expr parse_let_tactic(parser & p, unsigned, expr const *, pos_info const 
 }
 
 static expr parse_note_tactic(parser & p, unsigned, expr const *, pos_info const & pos) {
-    name id    = p.check_atomic_id_next("invalid 'note' tactic, identifier expected");
+    name id    = p.check_atomic_id_next("invalid 'note' tactic, atomic identifier expected");
     p.check_token_next(get_assign_tk(), "invalid 'note' tactic, ':=' expected");
     expr value = p.parse_tactic_expr_arg();
     return p.save_pos(mk_note_tactic_expr(id, value), pos);
@@ -76,7 +76,7 @@ static expr parse_generalize_tactic(parser & p, unsigned, expr const *, pos_info
     name id;
     if (p.curr_is_token(get_as_tk())) {
         p.next();
-        id = p.check_atomic_id_next("invalid 'generalize' tactic, identifier expected");
+        id = p.check_atomic_id_next("invalid 'generalize' tactic, atomic identifier expected");
     } else {
         if (is_constant(e))
             id = const_name(e);
