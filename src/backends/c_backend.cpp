@@ -224,22 +224,33 @@ void c_backend::generate_simple_expr_call(std::ostream& os, simple_expr const & 
     auto callee = to_simple_call(&se)->m_name;
     auto direct = to_simple_call(&se)->m_direct;
 
-    // auto proc = this->m_procs.find(callee);
-    auto arity = 1000; // proc->arity();
-
-    if (args.size() == 0) {
-        mangle_name(os, callee);
-        return;
-    }
-
-    if (!direct) {
-        mangle_name(os, callee);
-        os << ".apply(";
-    } else {
+    auto opt_proc = this->m_procs.contains(callee);
+    // Here we need to decide how we to call the callee
+    // there are 3-cases with our code generation strategy.
+    //
+    // The first case is we generated a zero arity fn_ptr
+    // and we must directly call it to produce the value.
+    //
+    // The next is a call marked a direct, with a non-zero
+    // arity meaning we can directly apply it to all of its
+    // arguments.
+    //
+    // Final case is a non-zero arity, in-direct call which
+    // must be called via the `apply` method.
+    if (opt_proc && this->m_procs.find(callee)->m_arity == 0) {
         mangle_name_fn_ptr(os, callee);
-        os << "(";
+        os << "().apply(";
+    } else {
+        if (!direct) {
+            mangle_name(os, callee);
+            os << ".apply(";
+        } else {
+            mangle_name_fn_ptr(os, callee);
+            os << "(";
+        }
     }
 
+    // No matter which case we pick above we uniformly emit arguments.
     auto comma = false;
 
     int i = 0;
@@ -251,10 +262,6 @@ void c_backend::generate_simple_expr_call(std::ostream& os, simple_expr const & 
         }
         mangle_name(os, name);
         i += 1;
-        if (i == arity) {
-            mangle_name(os, callee);
-            os << ").apply(";
-        }
     }
 
     os << ")";
