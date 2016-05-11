@@ -409,12 +409,7 @@ obj obj::apply(obj const & a1, obj const & a2, obj const & a3) const {
         default: return mk_closure(*this, a1, a2, a3).apply();
         }
     } else if (ar < size() + 3) {
-        switch (ar) {
-            case 1: return this->apply(a1).apply(a2, a3);
-            case 2: return this->apply(a1, a2).apply(a3);
-            // Not sure if this last case is right
-            default: return mk_closure(*this, a1, a2, a3).apply();
-        }
+        return lean::runtime_error("apply 3");
     } else {
         return mk_closure(*this, a1, a2, a3);
     }
@@ -431,6 +426,8 @@ obj obj::apply(obj const & a1, obj const & a2, obj const & a3, obj const & a4) c
         case 8:  return FN8(fld(0), fld(1), fld(2), fld(3), a1, a2, a3, a4);
         default: return mk_closure(*this, a1, a2, a3, a4).apply();
         }
+    } else if (ar < size() + 4) {
+        return lean::runtime_error("apply 4");
     } else {
         return mk_closure(*this, a1, a2, a3, a4);
     }
