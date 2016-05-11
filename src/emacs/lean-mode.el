@@ -25,7 +25,6 @@
 (require 'lean-tags)
 (require 'lean-option)
 (require 'lean-syntax)
-(require 'lean-mmm-lua)
 (require 'lean-company)
 (require 'lean-changes)
 (require 'lean-server)
@@ -331,8 +330,6 @@ enabled and disabled respectively.")
   ;; company-mode
   (when lean-company-use
     (company-lean-hook))
-  ;; mmm-lua-mode
-  (lean-mmm-lua-hook)
   ;; choose minor mode -- Standard / HoTT
   (let ((minor-mode (lean-choose-minor-mode-based-on-extension)))
     (cond
