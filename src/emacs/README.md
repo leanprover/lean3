@@ -25,8 +25,6 @@ to use full features of ``lean-mode``.
  - [company][company]
  - [flycheck][flycheck]
  - [fill-column-indicator][fci]
- - [lua-mode][lua-mode]
- - [mmm-mode][mmm-mode]
 
 Both the optional and required packages will be installed for you
 automatically the first time you use ``lean-mode``, if you follow the
@@ -35,8 +33,6 @@ installation instructions below.
 [company]: http://company-mode.github.io/
 [flycheck]: http://www.flycheck.org/manual/latest/index.html
 [fci]: https://github.com/alpaker/Fill-Column-Indicator
-[lua-mode]: http://immerrr.github.io/lua-mode/
-[mmm-mode]: https://github.com/purcell/mmm-mode
 
 
 Installation
@@ -75,7 +71,7 @@ Put the following code in your Emacs init file:
 ;; Install required/optional packages for lean-mode
 (defvar lean-mode-required-packages
   '(company dash dash-functional flycheck f
-            fill-column-indicator s lua-mode mmm-mode))
+            fill-column-indicator s))
 (let ((need-to-refresh t))
   (dolist (p lean-mode-required-packages)
     (when (not (package-installed-p p))
@@ -215,16 +211,6 @@ You may also need to install [emacs-unicode-fonts](https://github.com/rolandwalk
 (require 'unicode-fonts)
 (unicode-fonts-setup)
    ```
-
-"Variable binding depth exceeds max-specpdl-size" Error
----------------------------------------------------------
-
-See [Issue 906](https://github.com/leanprover/lean/issues/906) for details.
-[Moritz Kiefer](https://github.com/cocreature) reported that `proofgeneral` 
-comes with an old version of `mmm-mode` (0.4.8, released in 2004) on ArchLinux
-and it caused this problem. Either removing `proofgeneral` or upgrading
-`mmm-mode` to the latest version (0.5.1 as of 2015 Dec) resolves this issue.
-
 
 Contributions
 =============
