@@ -70,7 +70,8 @@ definition print_string (s : string) : IO unit :=
 
 definition string_append : string -> string -> string
  | string_append string.empty s2 := trace "string_append_empty" s2
- | string_append (string.str c cs) s2 := string.str c (string_append cs s2)
+ | string_append (string.str c cs) s2 :=
+    trace "string_append_str" (string.str c (string_append cs s2))
 
 definition to_string_list {A} [ts : ToString A]: list A -> string
    | to_string_list (list.nil) := ""

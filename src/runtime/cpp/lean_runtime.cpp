@@ -390,7 +390,7 @@ obj obj::apply(obj const & a1, obj const & a2) const {
         default: return mk_closure(*this, a1, a2).apply();
         }
     } else if (ar < size() + 2) {
-        return this->apply(a1).apply(a2);
+        return lean::runtime_error("apply 2");
     } else {
         return mk_closure(*this, a1, a2);
     }
