@@ -48,7 +48,7 @@ void mangle_name_fn_ptr(std::ostream& os, name const & n) {
 
 void generate_includes(std::ostream& os) {
     os << "#include \"lean_runtime.h\"" << std::endl << std::endl;
-    os << "#include \"string.h\"" << std::endl << std::endl;
+    os << "#include \"run_ext.h\"" << std::endl << std::endl;
 }
 
 void generate_main(std::ostream& os, std::string main_fn) {
