@@ -312,17 +312,17 @@ shared_ptr<simple_expr> backend::compile_expr_app(expr const & e, std::vector<bi
     unsigned nargs = args.size();
     std::vector<name> names;
 
-    auto ty = m_tc.check_ignore_undefined_universes(f).first;
-
-    std::cout << "fn (" << f << ") ty: " << ty << std::endl;
+    // std::cout << "fn (" << f << ") ty: " << ty << std::endl;
 
     // First we loop over the arguments, un-rolling each sub-expression into
     // a sequence of bindings, we also store the set of names we will apply
     // the function to.
     for (unsigned i = 0; i < nargs; i++) {
-         // std::cout << args[i] << std::endl;
-         auto ty = m_tc.check_ignore_undefined_universes(args[i]).first;
-         // std::cout << "argument type: " << ty.first << std::endl;
+         std::cout << args[i] << std::endl;
+         auto ty = normalize(this->m_tc, m_tc.check_ignore_undefined_universes(args[i]).first);
+         std::cout << "argument type: " << ty << std::endl;
+         std::cout << "argument erasible: " << is_erasible(ty) << std::endl;
+
          // If the argument is erasible, we should complete the
          // erasure here, by omitting the compiled argument.
          if (!is_erasible(ty)) {
@@ -567,10 +567,10 @@ shared_ptr<simple_expr> backend::compile_expr_lambda(expr const & e, std::vector
     buffer<name> fvs;
     free_vars(e, fvs);
 
-    // std::cout << "lambda_to_compile: " << e <<  std::endl;
-    // for (auto fv : fvs) {
-        // std::cout << "freevar: " << fv << std::endl;
-    // }
+    std::cout << "lambda_to_compile: " << e <<  std::endl;
+    for (auto fv : fvs) {
+        std::cout << "freevar: " << fv << std::endl;
+    }
 
     // The free variables become arguments for the function pointer we are
     // about to generate, and also must be bound when we allocate a fresh
