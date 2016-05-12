@@ -53,3 +53,38 @@ lean::obj trace_fn_ptr(lean::obj msg, lean::obj result) {
 }
 
 static lean::obj trace = mk_closure(trace_fn_ptr, 2, 0, nullptr);
+
+size_t nat_to_size_t(lean::obj nat) {
+    size_t i = 0;
+    auto cursor = nat;
+    while (cursor.cidx() == 1) {
+        i += 1;
+        cursor = cursor[0];
+    }
+    return i;
+}
+
+lean::obj raw_allocate_fn_ptr(lean::obj rw, lean::obj size, lean::obj destructor) {
+    auto sz = nat_to_size_t(size);
+    auto ptr = lean::mk_raw_ptr(malloc(sz));
+    return lean::mk_obj(0, { rw, ptr });
+}
+
+static lean::obj raw_allocate = mk_closure(raw_allocate_fn_ptr, 3, {});
+
+lean::obj raw_get_line_fn_ptr(lean::obj rw) {
+    std::string *line = new std::string("");
+    getline(std::cin, *line);
+    auto rs = lean::mk_raw_ptr((void*)line->c_str());
+    return lean::mk_obj(0, { rw, rs });
+}
+
+static lean::obj raw_get_line = mk_closure(raw_get_line_fn_ptr, 1, {});
+
+lean::obj raw_forever_fn_ptr(lean::obj rw, lean::obj io_action) {
+    auto inner_fn = io_action[0];
+    auto pair = inner_fn.apply(rw);
+    return raw_forever_fn_ptr(pair[0], io_action);
+}
+
+static lean::obj raw_forever = mk_closure(raw_forever_fn_ptr, 1, {});

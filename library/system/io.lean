@@ -6,7 +6,7 @@ structure functor [class] (f : Type → Type) : Type :=
  (map : Π {a b: Type}, (a → b) → f a → f b)
 
 structure monad [class] (m : Type → Type) extends functor m : Type :=
- (return : Π {a:Type}, a → m a)
+ (pure : Π {a:Type}, a → m a)
  (bind : Π {a b: Type}, m a → (a → m b) → m b)
 
 constant RealWorld : Type
@@ -44,7 +44,7 @@ attribute raw_print [extern]
  --        end)
  -- |}
 
-definition return {T : Type} (x : T) : IO T :=
+definition pure {T : Type} (x : T) : IO T :=
     IO.mk (λ rw, prod.mk rw x)
 
 definition bind {A B} (action : IO A) (f : A -> IO B) : IO B :=

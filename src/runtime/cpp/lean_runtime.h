@@ -54,7 +54,7 @@ public:
              obj const & a6, obj const & a7, obj const & a8);
     unsigned get_rc() const { return atomic_load(&m_rc); }
     void inc_ref() { atomic_fetch_add_explicit(&m_rc, 1u, memory_order_relaxed); }
-    void dec_ref() { if (dec_ref_core()) { dealloc(); } }
+    void dec_ref() { /* if (dec_ref_core()) { dealloc(); } */ }
     obj_kind kind() const { return static_cast<obj_kind>(m_kind); }
     size_t cidx() const { return m_cidx; }
     unsigned size() const { return m_size; }

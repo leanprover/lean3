@@ -31,13 +31,13 @@ public:
     }
 
     void * allocate(unsigned n) {
-        if (n < LEAN_NUM_OBJ_FREE_LISTS && m_free_list[n] != nullptr) {
-            void * r = m_free_list[n];
-            m_free_list[n] = *(reinterpret_cast<void **>(r));
-            return r;
-        } else {
+        // if (n < LEAN_NUM_OBJ_FREE_LISTS && m_free_list[n] != nullptr) {
+        //     void * r = m_free_list[n];
+        //     m_free_list[n] = *(reinterpret_cast<void **>(r));
+        //     return r;
+        // } else {
             return malloc(sizeof(obj_cell) + sizeof(void*)*n); // NOLINT
-        }
+        // }
     }
 
     void recycle(void * ptr, unsigned n) {
@@ -100,6 +100,7 @@ obj_cell::obj_cell(obj_cell const & src, obj const & a1):
     copy_fields(src);
     void ** f = field_addr();
     new (f + src.m_size) obj(a1);
+    *fn_ptr_addr() = src.fn_ptr();
 }
 
 obj_cell::obj_cell(obj_cell const & src, obj const & a1, obj const & a2):
@@ -108,6 +109,7 @@ obj_cell::obj_cell(obj_cell const & src, obj const & a1, obj const & a2):
     void ** f = field_addr();
     new (f + src.m_size)     obj(a1);
     new (f + src.m_size + 1) obj(a2);
+    *fn_ptr_addr() = src.fn_ptr();
 }
 
 obj_cell::obj_cell(obj_cell const & src, obj const & a1, obj const & a2, obj const & a3):
@@ -117,6 +119,7 @@ obj_cell::obj_cell(obj_cell const & src, obj const & a1, obj const & a2, obj con
     new (f + src.m_size)     obj(a1);
     new (f + src.m_size + 1) obj(a2);
     new (f + src.m_size + 2) obj(a3);
+    *fn_ptr_addr() = src.fn_ptr();
 }
 
 obj_cell::obj_cell(obj_cell const & src, obj const & a1, obj const & a2, obj const & a3, obj const & a4):
@@ -127,6 +130,7 @@ obj_cell::obj_cell(obj_cell const & src, obj const & a1, obj const & a2, obj con
     new (f + src.m_size + 1) obj(a2);
     new (f + src.m_size + 2) obj(a3);
     new (f + src.m_size + 3) obj(a4);
+    *fn_ptr_addr() = src.fn_ptr();
 }
 
 obj_cell::obj_cell(obj_cell const & src, obj const & a1, obj const & a2, obj const & a3, obj const & a4, obj const & a5):
@@ -138,6 +142,7 @@ obj_cell::obj_cell(obj_cell const & src, obj const & a1, obj const & a2, obj con
     new (f + src.m_size + 2) obj(a3);
     new (f + src.m_size + 3) obj(a4);
     new (f + src.m_size + 4) obj(a5);
+    *fn_ptr_addr() = src.fn_ptr();
 }
 
 obj_cell::obj_cell(obj_cell const & src, obj const & a1, obj const & a2, obj const & a3, obj const & a4, obj const & a5,
@@ -151,6 +156,7 @@ obj_cell::obj_cell(obj_cell const & src, obj const & a1, obj const & a2, obj con
     new (f + src.m_size + 3) obj(a4);
     new (f + src.m_size + 4) obj(a5);
     new (f + src.m_size + 5) obj(a6);
+    *fn_ptr_addr() = src.fn_ptr();
 }
 
 obj_cell::obj_cell(obj_cell const & src, obj const & a1, obj const & a2, obj const & a3, obj const & a4, obj const & a5,
@@ -165,6 +171,7 @@ obj_cell::obj_cell(obj_cell const & src, obj const & a1, obj const & a2, obj con
     new (f + src.m_size + 4) obj(a5);
     new (f + src.m_size + 5) obj(a6);
     new (f + src.m_size + 6) obj(a7);
+    *fn_ptr_addr() = src.fn_ptr();
 }
 
 obj_cell::obj_cell(obj_cell const & src, obj const & a1, obj const & a2, obj const & a3, obj const & a4, obj const & a5,
@@ -180,6 +187,7 @@ obj_cell::obj_cell(obj_cell const & src, obj const & a1, obj const & a2, obj con
     new (f + src.m_size + 5) obj(a6);
     new (f + src.m_size + 6) obj(a7);
     new (f + src.m_size + 7) obj(a8);
+    *fn_ptr_addr() = src.fn_ptr();
 }
 
 #define DEC_FIELDS(o, todo) {                                   \
@@ -372,7 +380,8 @@ obj obj::apply(obj const & a1) const {
         default: return mk_closure(*this, a1).apply();
         }
     } else {
-        return mk_closure(*this, a1);
+        // TODO: return mk_closure(*this, a1); don't understand why this fails
+        return mk_closure(this->fn_ptr(), this->arity(), { a1 });
     }
 }
 
@@ -390,7 +399,7 @@ obj obj::apply(obj const & a1, obj const & a2) const {
         default: return mk_closure(*this, a1, a2).apply();
         }
     } else if (ar < size() + 2) {
-        return lean::runtime_error("apply 2");
+        return apply(a1).apply(a2);
     } else {
         return mk_closure(*this, a1, a2);
     }
@@ -409,7 +418,11 @@ obj obj::apply(obj const & a1, obj const & a2, obj const & a3) const {
         default: return mk_closure(*this, a1, a2, a3).apply();
         }
     } else if (ar < size() + 3) {
-        return lean::runtime_error("apply 3");
+        switch (ar - size()) {
+        case 1: return apply(a1).apply(a2, a3);
+        case 2: return apply(a1, a2).apply(a3);
+        default: return lean::runtime_error("apply3 error");
+        }
     } else {
         return mk_closure(*this, a1, a2, a3);
     }
@@ -427,7 +440,12 @@ obj obj::apply(obj const & a1, obj const & a2, obj const & a3, obj const & a4) c
         default: return mk_closure(*this, a1, a2, a3, a4).apply();
         }
     } else if (ar < size() + 4) {
-        return lean::runtime_error("apply 4");
+        switch (ar - size()) {
+        case 1: return apply(a1).apply(a2, a3, a4);
+        case 2: return apply(a1, a2).apply(a3, a4);
+        case 3: return apply(a1, a2, a3).apply(a4);
+        default: return lean::runtime_error("apply4 error");
+        }
     } else {
         return mk_closure(*this, a1, a2, a3, a4);
     }
