@@ -30,3 +30,4 @@ Types in HoTT:
 * [trunc](trunc.hlean): truncation levels, n-types, truncation
 * [pullback](pullback.hlean)
 * [univ](univ.hlean)
+* [type_functor](type_functor.hlean)

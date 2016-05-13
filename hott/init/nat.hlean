@@ -16,6 +16,10 @@ namespace nat
                        {C : ℕ → Type} (n : ℕ) (H₁ : C 0) (H₂ : Π (a : ℕ), C a → C (succ a)) : C n :=
   nat.rec H₁ H₂ n
 
+  protected definition cases [reducible] [unfold 4] {M : ℕ → Type} (mz : M zero)
+    (ms : Πn, M (succ n)) : Πn, M n :=
+  nat.rec mz (λn dummy, ms n)
+
   protected definition cases_on [reducible] [recursor] [unfold 2]
                        {C : ℕ → Type} (n : ℕ) (H₁ : C 0) (H₂ : Π (a : ℕ), C (succ a)) : C n :=
   nat.rec H₁ (λ a ih, H₂ a) n

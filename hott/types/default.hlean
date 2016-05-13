@@ -6,4 +6,4 @@ Authors: Floris van Doorn
 
 import .bool .unit .prod .sigma .pi .arrow .pointed .fiber
 import .nat .int
-import .eq .equiv .trunc
+import .eq .equiv .trunc .univ .W .type_functor
