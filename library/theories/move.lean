@@ -101,6 +101,11 @@ xs !mem_singleton
 proposition singleton_subset_iff {X : Type} (x : X) (s : set X) : '{x} ⊆ s ↔ x ∈ s :=
 iff.intro mem_of_singleton_subset singleton_subset_of_mem
 
+theorem singleton_subset {X : Type} {a : X} {s : set X} (H : a ∈ s) : '{a} ⊆ s :=
+take b, suppose b ∈ '{a},
+have b = a, from eq_of_mem_singleton this,
+show b ∈ s, by rewrite this; assumption
+
 lemma inter_eq_inter_left {X : Type} {s t u : set X} (H₁ : s ∩ t ⊆ u) (H₂ : s ∩ u ⊆ t) :
   s ∩ t = s ∩ u :=
 eq_of_subset_of_subset
@@ -328,6 +333,125 @@ and.right (inv_fun_pos (exists.intro x (and.intro xa rfl)))
 theorem inv_fun_spec' {X Y : Type} {f : X → Y} {a : set X} {dflt : X} {x : X} (xa : x ∈ a) :
   inv_fun f a dflt (f x) ∈ a :=
 and.left (inv_fun_pos (exists.intro x (and.intro xa rfl)))
+
+-- TODO: move to data.set.filter
+
+namespace filter
+  protected theorem le_iff {X : Type} (F₁ F₂ : filter X) : F₁ ≤ F₂ ↔ F₂ ⊆ F₁ := iff.refl _
+
+  -- TODO: change names of fields in filter
+  -- TODO: reorder hypotheses in eventually_of_le, and change "le" to "ge"
+  -- TODO: fix eventually_inf: implicit argument, and use implication
+  -- TODO: set: add spaces around ∀₀ x ∈ s and ∃₀ x ∈ s
+
+  theorem eventually_inf_left {X : Type} {P : X → Prop} {F₁ : filter X} (F₂ : filter X)
+    (H : eventually P F₁) : eventually P (inf F₁ F₂) :=
+  eventually_of_le H !inf_le_left
+
+  theorem eventually_inf_right {X : Type} {P : X → Prop} (F₁ : filter X) {F₂ : filter X}
+    (H : eventually P F₂) : eventually P (inf F₁ F₂) :=
+  eventually_of_le H !inf_le_right
+
+  theorem eventually_Inf {X : Type} {P : X → Prop} {S : set (filter X)} {F : filter X} (FS : F ∈ S)
+    (H : eventually P F) : eventually P (Inf S) :=
+  eventually_of_le H (Inf_le FS)
+
+  -- TODO: replace definition of Inf with this
+
+  definition Inf' {X : Type} (S : set (filter X)) : filter X :=
+  ⦃ filter,
+    sets          := { s | ∃ T : set (set X), finite T ∧ T ⊆ (⋃ F ∈ S, sets F) ∧ ⋂₀ T ⊆ s},
+    univ_mem_sets :=  abstract
+                        have H : (⋂₀ ∅) ⊆ @univ X, by rewrite sInter_empty; apply subset.refl,
+                        exists.intro ∅ (and.intro !finite_empty (and.intro (empty_subset _) H))
+                      end,
+    inter_closed  := abstract
+                       take s t, assume Hs Ht,
+                       obtain Ts finTs Tssub ITs, from Hs,
+                       obtain Tt finTt Ttsub ITt, from Ht,
+                       have H1 : finite (Ts ∪ Tt), proof finite_union Ts Tt qed,
+                       have H2 : Ts ∪ Tt ⊆ (⋃ F ∈ S, sets F), from union_subset Tssub Ttsub,
+                       have H3 : ⋂₀ (Ts ∪ Tt) ⊆ s ∩ t,
+                       begin
+                         rewrite sInter_union, apply subset_inter,
+                           {exact subset.trans (inter_subset_left _ _) ITs},
+                         exact subset.trans (inter_subset_right _ _) ITt
+                       end,
+                       exists.intro _ (and.intro H1 (and.intro H2 H3))
+                     end,
+    is_mono       := abstract
+                       take s t ssubt Hs,
+                       obtain T finT Tsub IT, from Hs,
+                       exists.intro T (and.intro finT (and.intro Tsub (subset.trans IT ssubt)))
+                     end
+  ⦄
+
+  theorem sets_Inf' {A : Type} (S : set (filter A)) :
+    sets (Inf' S) = { s | ∃ T : set (set A), finite T ∧ T ⊆ (⋃ F ∈ S, sets F) ∧ ⋂₀ T ⊆ s} :=
+  rfl
+
+  theorem sInter_mem_of_finite {A : Type} {F : filter A} {T : set (set A)} (finT : finite T)
+    (Tsub : T ⊆ sets F) : ⋂₀ T ∈ sets F :=
+  begin
+    induction finT with a T finT aninT ih,
+      {rewrite sInter_empty, apply filter.univ_mem_sets},
+    rewrite sInter_insert, apply filter.inter_closed,
+      show a ∈ sets F, from Tsub (mem_insert a T),
+    show ⋂₀ T ∈ sets F, from ih (subset.trans (subset_insert _ _) Tsub)
+  end
+
+  theorem le_Inf' {A : Type} {F : filter A} {S : set (filter A)} (H : ∀₀ G ∈ S, F ≤ G) :
+    F ≤ Inf' S :=
+  filter.le_of_subset
+    (take s, suppose s ∈ sets (Inf' S),
+      obtain (T : set (set A)) finT (Tsub : T ⊆ (⋃ G ∈ S, sets G)) (IT : ⋂₀ T ⊆ s), from this,
+      have T ⊆ sets F, from subset.trans Tsub (bUnion_subset H),
+      have ⋂₀ T ∈ sets F, from sInter_mem_of_finite finT this,
+      show s ∈ sets F, from filter.is_mono _ IT this)
+
+  theorem Inf'_le {A : Type} {F : filter A} {S : set (filter A)} (FS : F ∈ S) :
+    Inf' S ≤ F :=
+  filter.le_of_subset
+    (take s, suppose s ∈ sets F,
+      have '{s} ⊆ ⋃ G ∈ S, sets G, from singleton_subset (mem_bUnion FS this),
+      exists.intro '{s} (and.intro _
+      (and.intro this (by rewrite sInter_singleton; apply subset.refl))))
+
+  theorem Inf_eq_Inf' {A : Type} (S : set (filter A)) : Inf S = Inf' S :=
+  le.antisymm (le_Inf' (λ F FS, Inf_le FS)) (le_Inf (λ F FS, Inf'_le FS))
+
+  theorem exists_eventually_of_eventually_Inf {A : Type} {P : A → Prop} {F : filter A}
+      {S : set (filter A)} (FS : F ∈ S) (H' : eventually P (Inf S))
+      (H : ∀₀ F₁ ∈ S, ∀₀ F₂ ∈ S, ∃₀ F ∈ S, F ≤ inf F₁ F₂) :
+    ∃₀ F ∈ S, eventually P F :=
+  have P ∈ Inf' S, by rewrite -Inf_eq_Inf'; apply H',
+  have ∃ T : set (set A), finite T ∧ T ⊆ (⋃ F ∈ S, sets F) ∧ ⋂₀ T ⊆ P,
+    by rewrite sets_Inf' at this; exact this,
+  obtain T finT Tsub ITP, from this,
+  have ∃₀ F ∈ S, ⋂₀ T ∈ F,
+    begin
+      clear ITP,
+      induction finT with s T finT sninT ih,
+        {exact exists.intro F (and.intro FS (by rewrite sInter_empty; apply filter.univ_mem_sets))},
+      have ∃₀ F ∈ S, ⋂₀ T ∈ F, from ih (subset.trans (subset_insert _ _) Tsub),
+      cases this with F₁ H₁,
+      cases H₁ with F₁S ITF₁,
+      have s ∈ (⋃ F ∈ S, sets F), from Tsub !mem_insert,
+      cases this with F₂ H₂,
+      cases H₂ with F₂S sF₂,
+      cases H F₁S F₂S with F' HF',
+      cases HF' with F'S F'le,
+      existsi F', split, exact F'S,
+      show ⋂₀ insert s T ∈ sets F',
+        begin
+          rewrite sInter_insert, apply filter.inter_closed,
+            show s ∈ sets F', from filter.subset_of_le (le.trans F'le !inf_le_right) sF₂,
+          show ⋂₀ T ∈ sets F', from filter.subset_of_le (le.trans F'le !inf_le_left) ITF₁,
+        end
+    end,
+  obtain F FS IT, from this,
+  exists.intro F (and.intro FS (filter.is_mono _ ITP IT))
+end filter
 
 end set
 
