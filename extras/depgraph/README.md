@@ -3,7 +3,11 @@ Generating Dependency Graph
 
 Usage:
 
-    leandeps.py [options] dir/file
+    ./leandeps.py [options] dir/file
+
+For example:
+
+    ./leandeps.py ../../library/
 
 If argument is a directory, all source files below that directory will be included in the graph.
 
@@ -12,11 +16,12 @@ If argument is a directory, all source files below that directory will be includ
 
 If no output file is specified, `deps.gv` and `deps.gv.dot` is written to.
 
-You need the [graphviz python library][python-graphviz]. If you already have [pip][pip], you can do:
+You need [graphviz][graphviz] and the [graphviz python library][python-graphviz]. If you already have [pip][pip], you can do:
 
-    pip install graphviz
+    sudo apt-get install graphviz
+    sudo pip install graphviz
 
-The resulting `deps.gv.dot` file can be run through [dot][graphviz] (and maybe tred first) from graphviz to produce, 
+The resulting `deps.gv.dot` file can be run through tred and [dot][graphviz] from graphviz to produce,
 e.g., an svg file. For example:
 
     tred deps.gv.dot > treddeps.dot
