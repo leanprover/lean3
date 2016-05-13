@@ -3,11 +3,12 @@ The Lean Homotopy Type Theory Library
 
 The Lean Homotopy Type Theory library consists of the following directories:
 
-* [init](init/init.md) : constants and theorems needed for low-level system operations
+* [init](init/init.md) : basic definitions and theorems. These are imported in each ".hlean" file by default, unless the `prelude` command is used.
 * [types](types/types.md) : concrete datatypes and type constructors
-* [hit](hit/hit.md): higher inductive types
-* [algebra](algebra/algebra.md) : algebraic structures
-* [cubical](cubical/cubical.md): cubical types
+* [algebra](algebra/algebra.md) : algebraic structures, group theory and category theory.
+* [cubical](cubical/cubical.md) : cubical types (e.g. squares in a types, squareovers)
+* [hit](hit/hit.md): higher inductive types. Some higher inductive types which are mostly relevant in homotopy theory are in the [homotopy](homotopy/homotopy.md) folder.
+* [homotopy](homotopy/homotopy.md) : synthetic homotopy theory.
 
 The following files don't fit in any of the subfolders:
 * [prop_trunc](prop_trunc.hlean): in this file we prove that `is_trunc n A` is a mere proposition. We separate this from [types.trunc](types/trunc.hlean) to avoid circularity in imports.

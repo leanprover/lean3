@@ -6,7 +6,4 @@ Authors: Floris van Doorn
 The core of the HoTT library
 -/
 
-import types
-import cubical
-import homotopy.circle
-import algebra.hott
+import types cubical homotopy hit choice

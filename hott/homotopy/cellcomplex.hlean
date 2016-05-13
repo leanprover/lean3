@@ -10,14 +10,6 @@ open eq is_trunc is_equiv nat equiv trunc prod pushout sigma sphere_index unit
 -- where should this be?
 definition family : Type := ΣX, X → Type
 
--- this should be in init!
-namespace nat
-
-  definition cases {M : ℕ → Type} (mz : M zero) (ms : Πn, M (succ n)) : Πn, M n :=
-  nat.rec mz (λn dummy, ms n)
-
-end nat
-
 namespace cellcomplex
 
   /-
