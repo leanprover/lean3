@@ -18,7 +18,7 @@ Author: Jared Roesch
 
 namespace lean {
 
-static const char * LEAN_RUST_OBJ_TYPE = "lean::obj";
+static const char * LEAN_RUST_OBJ_TYPE = "lean::Object";
 static const char * LEAN_RUST_ERR = "lean::runtime_error";
 static const char * LEAN_RUST_FN_PTR_SUFFIX = "_fn_ptr";
 static const char * LEAN_RUST_MAIN = "___LEAN_RUST__main";
@@ -28,12 +28,12 @@ rust_backend::rust_backend(environment const & env, config & conf)
     : clike_backend(env, conf), m_return(false) {}
 
 void rust_backend::generate_includes(std::ostream& os) {
-    os << "extern crate LEAN_RUST_rts as lean;" << std::endl << std::endl;
+    os << "extern crate lean_rts as lean;" << std::endl << std::endl;
 }
 
 void rust_backend::generate_main(std::ostream& os, std::string main_fn) {
     os << "fn main() {" << std::endl;
-    os << std::setw(4) << "lean::run_LEAN_RUST_main(";
+    os << std::setw(4) << "lean::run_main(";
     mangle_name(os, main_fn);
     os << LEAN_RUST_FN_PTR_SUFFIX;
     os << ");" << std::endl;
@@ -95,7 +95,7 @@ void rust_backend::generate_ctor(std::ostream& os, ctor const & c) {
 }
 
 void rust_backend::generate_proc(std::ostream& os, proc const & p) {
-    os << LEAN_RUST_OBJ_TYPE << " ";
+    os << "fn ";
     mangle_name_fn_ptr(os, p.m_name);
     os << "(";
 
@@ -107,8 +107,8 @@ void rust_backend::generate_proc(std::ostream& os, proc const & p) {
         } else {
             comma = true;
         }
-        os << LEAN_RUST_OBJ_TYPE << " ";
         mangle_name(os, arg);
+        os << ": " << LEAN_RUST_OBJ_TYPE;
     }
 
     os << ") {" << std::endl;
@@ -128,24 +128,6 @@ void rust_backend::generate_proc(std::ostream& os, proc const & p) {
 }
 
 void rust_backend::generate_decl(std::ostream& os, proc const & p) {
-    os << LEAN_RUST_OBJ_TYPE << " ";
-    mangle_name_fn_ptr(os, p.m_name);
-    os << "(";
-
-    auto comma = false;
-
-    for (auto arg : p.m_args) {
-        if (comma) {
-            os << ", ";
-        } else {
-            comma = true;
-        }
-        os << LEAN_RUST_OBJ_TYPE << " ";
-        mangle_name(os, arg);
-    }
-
-    os << ");" << std::endl;
-
     os << "static ";
     os << LEAN_RUST_OBJ_TYPE << " ";
     mangle_name(os, p.m_name);
@@ -220,7 +202,7 @@ void rust_backend::generate_binding(std::ostream& os, pair<name, shared_ptr<simp
     auto n = p.first;
     auto se = p.second;
 
-    os << LEAN_RUST_OBJ_TYPE << " ";
+    os << "let" << " ";
     mangle_name(os, n);
     os << " = ";
     this->generate_simple_expr(os, *se);
@@ -246,19 +228,19 @@ void rust_backend::generate_simple_expr_let(std::ostream& os, simple_expr const 
 void rust_backend::generate_simple_expr_switch(std::ostream& os, simple_expr const & se) {
     auto scrutinee = to_simple_switch(&se)->m_scrutinee;
     auto cases = to_simple_switch(&se)->m_cases;
-    os << "switch (";
+    os << "match ";
     mangle_name(os, scrutinee);
-    os << ".cidx()) {" << std::endl;
+    os << ".ctor_id() {" << std::endl;
     int i = 0;
     for (auto c : cases) {
-        os << "case " << i << ": {\n" << std::endl;
+        os << i << " => {\n" << std::endl;
         generate_simple_expr(os, *c);
         os << "}\n";
         i += 1;
     }
-    os << "default:\n";
-    os << "return " << LEAN_RUST_ERR << "(\"" << "recursor-compilation-failure" << "\");" << std::endl;
-    os << "}\n";
+    os << "_ => {\n";
+    os << LEAN_RUST_ERR << "(\"" << "recursor-compilation-failure" << "\")" << std::endl;
+    os << "}}\n";
 }
 
 void rust_backend::generate_simple_expr_project(std::ostream& os, simple_expr const & se) {
