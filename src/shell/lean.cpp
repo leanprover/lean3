@@ -41,6 +41,7 @@ Author: Leonardo de Moura
 #include "frontends/lean/dependencies.h"
 #include "frontends/lean/opt_cmd.h"
 #include "backends/cpp_backend.h"
+#include "backends/rust_backend.h"
 #include "backends/config.h"
 #include "init/init.h"
 #include "shell/emscripten.h"
@@ -171,7 +172,8 @@ static struct option g_long_options[] = {
     {"discard",      no_argument,       0, 'r'},
     {"to_axiom",     no_argument,       0, 'X'},
     {"profile",      no_argument,       0, 'P'},
-    {"compile_to_c", required_argument, 0, 'C'},
+    {"compile-to",   required_argument, 0, 'C'},
+    // {"main_fn",      required_argument, 0, 'M'}, optional_arg?
 #if defined(LEAN_MULTI_THREAD)
     {"server",       no_argument,       0, 'S'},
     {"threads",      required_argument, 0, 'j'},
@@ -274,7 +276,7 @@ int main(int argc, char ** argv) {
     std::string index_name;
     optional<unsigned> line;
     optional<unsigned> column;
-    optional<std::string> main_fn;
+    optional<std::string> compiler_target;
     optional<std::string> export_txt;
     optional<std::string> export_all_txt;
     optional<std::string> base_dir;
@@ -388,7 +390,7 @@ int main(int argc, char ** argv) {
             lean::enable_debug(optarg);
             break;
         case 'C':
-            main_fn = std::string(optarg);
+            compiler_target = std::string(optarg);
             compile = true;
             break;
 #endif
@@ -527,8 +529,17 @@ int main(int argc, char ** argv) {
             // to implement a sophisticated usage analysis
             // to do erasure.
             lean::config conf((optional<std::string>()), optional<std::string>());
-            lean::cpp_backend backend(env, conf);
-            backend.generate_code();
+
+            if (compiler_target.value() == std::string("rust")) {
+                lean::rust_backend backend(env, conf);
+                backend.generate_code();
+            } else if (compiler_target.value() == std::string("cpp")) {
+                lean::cpp_backend backend(env, conf);
+                backend.generate_code();
+            } else {
+                std::cout << "unknown compiler target: " << compiler_target.value() << std::endl;
+                exit(1);
+            }
         }
         if (ok && server && (default_k == input_kind::Lean || default_k == input_kind::HLean)) {
             signal(SIGINT, on_ctrl_c);

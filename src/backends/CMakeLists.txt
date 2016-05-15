@@ -4,6 +4,7 @@ add_library(backends OBJECT
             free_vars.cpp
             backend.cpp
             cpp_backend.cpp
+            rust_backend.cpp
             init_module.cpp
             c_emitter.cpp
             clike_backend.cpp
