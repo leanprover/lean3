@@ -3,6 +3,8 @@ add_library(backends OBJECT
             simple_expr.cpp
             free_vars.cpp
             backend.cpp
-            c_backend.cpp
+            cpp_backend.cpp
             init_module.cpp
-            c_emitter.cpp)
+            c_emitter.cpp
+            clike_backend.cpp
+            config.cpp)

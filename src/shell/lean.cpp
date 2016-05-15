@@ -40,7 +40,8 @@ Author: Leonardo de Moura
 #include "frontends/lean/server.h"
 #include "frontends/lean/dependencies.h"
 #include "frontends/lean/opt_cmd.h"
-#include "backends/c_backend.h"
+#include "backends/cpp_backend.h"
+#include "backends/config.h"
 #include "init/init.h"
 #include "shell/emscripten.h"
 #include "shell/simple_pos_info_provider.h"
@@ -525,8 +526,9 @@ int main(int argc, char ** argv) {
             // extraction in the HoTT core, not sure how
             // to implement a sophisticated usage analysis
             // to do erasure.
-            lean::c_backend backend(env, main_fn);
-            backend.generate_code(optional<std::string>());
+            lean::config conf((optional<std::string>()), optional<std::string>());
+            lean::cpp_backend backend(env, conf);
+            backend.generate_code();
         }
         if (ok && server && (default_k == input_kind::Lean || default_k == input_kind::HLean)) {
             signal(SIGINT, on_ctrl_c);
