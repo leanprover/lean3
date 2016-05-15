@@ -44,6 +44,7 @@ Author: Leonardo de Moura
 #include "frontends/smt2/parser.h"
 #include "frontends/lean/json.h"
 #include "backends/cpp_backend.h"
+#include "backends/rust_backend.h"
 #include "backends/config.h"
 #include "init/init.h"
 #include "shell/simple_pos_info_provider.h"
@@ -340,8 +341,7 @@ int main(int argc, char ** argv) {
         case 'B':
             lean::enable_debug(optarg);
         case 'C':
-            break;
-            main_fn = std::string(optarg);
+            compiler_target = std::string(optarg);
             compile = true;
             break;
 #endif
@@ -499,8 +499,17 @@ int main(int argc, char ** argv) {
             // to implement a sophisticated usage analysis
             // to do erasure.
             lean::config conf((optional<std::string>()), optional<std::string>());
-            lean::cpp_backend backend(env, conf);
-            backend.generate_code();
+
+            if (compiler_target.value() == std::string("rust")) {
+                lean::rust_backend backend(env, conf);
+                backend.generate_code();
+            } else if (compiler_target.value() == std::string("cpp")) {
+                lean::cpp_backend backend(env, conf);
+                backend.generate_code();
+            } else {
+                std::cout << "unknown compiler target: " << compiler_target.value() << std::endl;
+                exit(1);
+            }
         }
         if (ok && server && (default_k == input_kind::Lean || default_k == input_kind::HLean)) {
             signal(SIGINT, on_ctrl_c);
