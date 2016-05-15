@@ -6,7 +6,7 @@ Author: Jared Roesch
 */
 #include <iostream>
 #include <utility>
-#include "c_backend.h"
+#include "cpp_backend.h"
 #include "kernel/environment.h"
 #include "kernel/inductive/inductive.h"
 #include "util/name.h"
