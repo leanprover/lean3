@@ -11,6 +11,7 @@ Author: Jared Roesch
 #include "kernel/type_checker.h"
 #include "backend_exception.h"
 #include "simple_expr.h"
+#include "config.h"
 
 namespace lean  {
     using std::shared_ptr;
@@ -47,8 +48,9 @@ namespace lean  {
         // TODO: convert this to be a map as well.
         std::vector<ctor> m_ctors;
         bool m_debug_tracing;
+        config & m_conf;
     public:
-        backend(environment const & env, optional<std::string> main_fn);
+        backend(environment const & env, config & conf);
         // This inteface is used for lowering core expressions down to
         // the simplified ANF, closure converted language for used for
         // code generation.
@@ -71,12 +73,10 @@ namespace lean  {
         // Generate a procedure corresponding to the recursor.
         void compile_recursor(expr const & e);
         shared_ptr<simple_expr> compile_error(std::string s);
+
         // The code generator interface, to add a new backend simply subclass
-        // this type and declare the below methods.
-        virtual void generate_code(optional<std::string> output_path) = 0;
-        virtual void generate_proc(std::ostream& os, proc const & p) = 0;
-        virtual void generate_simple_expr(std::ostream& os, simple_expr const & se) = 0;
-        virtual void generate_binding(std::ostream& os, pair<name, shared_ptr<simple_expr>> & p) = 0;
+        // this type and declare this methods.
+        virtual void generate_code() = 0;
 
         // Utility methods for interacting with the state encapsulated by this
         // object.

@@ -10,6 +10,7 @@ Author: Jared Roesch
 #include <tuple>
 #include <utility>
 #include "backend.h"
+#include "config.h"
 #include "free_vars.h"
 #include "kernel/environment.h"
 #include "kernel/inductive/inductive.h"
@@ -75,9 +76,9 @@ backend_exception internal_error(char const * msg) {
     return backend_exception(msg);
 }
 
-backend::backend(environment const & env, optional<std::string> main_fn)
-    : m_env(env), m_tc(m_env), m_debug_tracing(true) {
-    auto main_name = name(main_fn.value());
+backend::backend(environment const & env, config & conf)
+    : m_env(env), m_tc(m_env), m_debug_tracing(true), m_conf(conf) {
+    auto main_name = m_conf.m_main_fn;
     auto main = env.get(main_name);
 
     // Compute the live set of names.
@@ -273,6 +274,7 @@ shared_ptr<simple_expr> backend::compile_expr(expr const & e, std::vector<bindin
 }
 
 shared_ptr<simple_expr> backend::compile_expr_const(expr const & e) {
+
     name n = name(const_name(e));
     return shared_ptr<simple_expr>(new simple_expr_var(n));
 }
@@ -312,16 +314,14 @@ shared_ptr<simple_expr> backend::compile_expr_app(expr const & e, std::vector<bi
     unsigned nargs = args.size();
     std::vector<name> names;
 
-    // std::cout << "fn (" << f << ") ty: " << ty << std::endl;
-
     // First we loop over the arguments, un-rolling each sub-expression into
     // a sequence of bindings, we also store the set of names we will apply
     // the function to.
     for (unsigned i = 0; i < nargs; i++) {
-         std::cout << args[i] << std::endl;
-         auto ty = normalize(this->m_tc, m_tc.check_ignore_undefined_universes(args[i]).first);
-         std::cout << "argument type: " << ty << std::endl;
-         std::cout << "argument erasible: " << is_erasible(ty) << std::endl;
+         auto ty = m_tc.check_ignore_undefined_universes(args[i]).first;
+
+         lean_trace(name({"backend", "compiler"}),
+             tout() << args[i] << ":" << ty << "\n";);
 
          // If the argument is erasible, we should complete the
          // erasure here, by omitting the compiled argument.
