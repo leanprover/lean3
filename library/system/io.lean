@@ -1,8 +1,6 @@
-import primitive
+import .primitive
 import data.string
 import data.list
-
-open primitive
 
 /- TODO @lukenels: Separate this monad stuff out of here -/
 structure functor [class] (f : Type → Type) : Type :=
@@ -66,15 +64,23 @@ definition raw_print_io (rs : raw_string) : IO unit :=
 definition print_string (s : string) : IO unit :=
     (bind (IO.mk (fun rw, string_to_raw_string rw s)) raw_print_io)
 
--- definition string_append : string -> string -> string
---  | string_append string.empty s2 := s2
---  | string_append (string.str c cs) s2 :=
---     (string.str c (string_append cs s2))
+definition string_append : string -> string -> string
+ | string_append string.empty s2 := s2
+ | string_append (string.str c cs) s2 :=
+    (string.str c (string_append cs s2))
 
 definition to_string_list {A} [ts : ToString A]: list A -> string
    | to_string_list (list.nil) := ""
    | to_string_list (list.cons x xs) := string_append (ToString.to_string x) (to_string_list xs)
 
+definition to_string_nat : nat -> string
+  | to_string_nat nat.zero := "0"
+  | to_string_nat (nat.succ n) := string_append "1 + " (to_string_nat n)
+
+definition ToString_nat [instance] : ToString nat :=
+  {| ToString,
+     to_string := to_string_nat |}
+     
 definition ToString_poly_list [instance] (A : Type) [tsA : ToString A] : ToString (list A) :=
     {| ToString,
        to_string := to_string_list |}
