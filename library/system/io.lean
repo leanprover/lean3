@@ -1,5 +1,8 @@
+import primitive
 import data.string
 import data.list
+
+open primitive
 
 /- TODO @lukenels: Separate this monad stuff out of here -/
 structure functor [class] (f : Type → Type) : Type :=
@@ -9,13 +12,9 @@ structure monad [class] (m : Type → Type) extends functor m : Type :=
  (pure : Π {a:Type}, a → m a)
  (bind : Π {a b: Type}, m a → (a → m b) → m b)
 
-constant RealWorld : Type
 constant raw_string : Type
 constant string_to_raw_string : RealWorld -> string -> (RealWorld × raw_string)
-
 constant raw_print : RealWorld -> raw_string -> (RealWorld × unit)
-
-constant trace : forall {A : Type}, string -> A -> A
 
 structure IO (a : Type) : Type :=
   (runIO : RealWorld → RealWorld × a)
