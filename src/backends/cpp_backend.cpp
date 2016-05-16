@@ -25,11 +25,11 @@ static const char * LEAN_MAIN = "___lean__main";
 static const char * LEAN_FRESH_N_PREFIX = "__$lean$_$";
 
 cpp_backend::cpp_backend(environment const & env, config & conf)
-    : clike_backend(env, conf), m_return(false) {}
+    : clike_backend(env, conf) {}
 
 void cpp_backend::generate_includes(std::ostream& os) {
     os << "#include \"lean_runtime.h\"" << std::endl << std::endl;
-    os << "#include \"string.h\"" << std::endl << std::endl;
+    os << "#include \"run_ext.h\"" << std::endl << std::endl;
 }
 
 void cpp_backend::generate_main(std::ostream& os, std::string main_fn) {
@@ -162,7 +162,11 @@ void cpp_backend::generate_decl(std::ostream& os, proc const & p) {
 
 void cpp_backend::generate_simple_expr_var(std::ostream& os, simple_expr const & se) {
     auto n = to_simple_var(&se)->m_name;
-    mangle_name(os, n);
+    if (this->is_zero_arity_decl(n)) {
+        mangle_name_fn_ptr(os, n);
+    } else {
+        mangle_name(os, n);
+    }
 }
 
 void cpp_backend::generate_simple_expr_error(std::ostream& os, simple_expr const & se) {
@@ -211,7 +215,12 @@ void cpp_backend::generate_simple_expr_call(std::ostream& os, simple_expr const 
         } else {
             comma = true;
         }
-        mangle_name(os, name);
+        if (is_zero_arity_decl(name)) {
+            mangle_name_fn_ptr(os, name);
+            os << "()";
+        } else {
+            mangle_name(os, name);
+        }
         i += 1;
     }
 
@@ -291,6 +300,14 @@ void cpp_backend::generate_simple_expr_closure_alloc(std::ostream& os, simple_ex
     }
     os << "}";
     os << ")";
+}
+
+bool cpp_backend::is_zero_arity_decl(name const & n) {
+    if (this->m_procs.contains(n)) {
+        return this->m_procs.find(n)->m_args.size() == 0;
+    } else {
+        return false;
+    }
 }
 
 }

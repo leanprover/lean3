@@ -48,7 +48,7 @@ backend_exception internal_error(char const * msg) {
 }
 
 backend::backend(environment const & env, config & conf)
-    : m_env(env), m_tc(m_env), m_debug_tracing(true), m_conf(conf) {
+    : m_env(env), m_tc(m_env), m_debug_tracing(false), m_conf(conf) {
     auto main_name = m_conf.m_main_fn;
     auto main = env.get(main_name);
 

@@ -29,9 +29,9 @@ lean::obj string_to_raw_string_fn_ptr(lean::obj rw, lean::obj string) {
 }
 
 lean::obj raw_print_fn_ptr(lean::obj rw, lean::obj rs) {
-    std::cout << "raw_print_fn_ptr" << std::endl;
+    // std::cout << "raw_print_fn_ptr" << std::endl;
     auto unit = lean::mk_obj(0);
-    std::cout << "raw_ptr" << std::endl;
+    // std::cout << "raw_ptr" << std::endl;
     auto ptr = (char *)rs.raw_ptr();
     std::cout << ptr;
     return lean::mk_obj(0, { rw, unit });

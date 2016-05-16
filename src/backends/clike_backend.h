@@ -18,8 +18,8 @@ namespace lean  {
     // A helper class for backend's that generate code similar to C,
     // for example a C, CPP, Go, or Rust backend would ideally use this.
     class clike_backend : public backend {
-        bool m_return;
     public:
+        bool m_return;
         clike_backend(environment const & env, config & conf);
         virtual void generate_code();
         virtual void generate_main(std::ostream& os, std::string main_fn) = 0;

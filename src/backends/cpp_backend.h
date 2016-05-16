@@ -15,7 +15,6 @@ Author: Jared Roesch
 
 namespace lean  {
     class cpp_backend : public clike_backend {
-        bool m_return;
     public:
         cpp_backend(environment const & env, config & conf);
         virtual void generate_includes(std::ostream& os);
@@ -31,5 +30,7 @@ namespace lean  {
         virtual void generate_simple_expr_var(std::ostream& os, simple_expr const & se);
         virtual void generate_simple_expr_project(std::ostream& os, simple_expr const & se);
         virtual void generate_simple_expr_closure_alloc(std::ostream& os, simple_expr const & se);
+        // Helper methods
+        bool is_zero_arity_decl(name const & n);
     };
 }

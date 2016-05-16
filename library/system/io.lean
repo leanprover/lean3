@@ -65,13 +65,12 @@ definition raw_print_io (rs : raw_string) : IO unit :=
       IO.mk (fun rw, raw_print rw rs)
 
 definition print_string (s : string) : IO unit :=
-   trace "print_string"
     (bind (IO.mk (fun rw, string_to_raw_string rw s)) raw_print_io)
 
-definition string_append : string -> string -> string
- | string_append string.empty s2 := trace "string_append_empty" s2
- | string_append (string.str c cs) s2 :=
-    trace "string_append_str" (string.str c (string_append cs s2))
+-- definition string_append : string -> string -> string
+--  | string_append string.empty s2 := s2
+--  | string_append (string.str c cs) s2 :=
+--     (string.str c (string_append cs s2))
 
 definition to_string_list {A} [ts : ToString A]: list A -> string
    | to_string_list (list.nil) := ""
