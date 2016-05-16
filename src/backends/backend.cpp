@@ -82,6 +82,15 @@ backend::backend(environment const & env, config & conf)
     // }
 
     // Perform the simple_expr -> simple_expr optimizations.
+
+    // My handling of zero-arity things is insuffcient, after
+    // lowering/erasure we should do a second pass that turns
+    // and global variables of zero-arity into the appropriate
+    // static variable or fn_ptr invocation.
+    //
+    // In doing this we should also clean up the emitter finally,
+    // and maybe write a second pass for marking expressions as
+    // terminal for targets that must know explicit returns.
 }
 
 void backend::compile_decl(declaration const & d) {
