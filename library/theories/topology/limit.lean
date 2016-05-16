@@ -62,7 +62,7 @@ and iff rules. Again, see also specific versions for metric spaces, normed space
 Note that the filters at_infty and at_ninfty don't rely on topological notions at all, only the
 existence of a suitable order.
 -/
-import data.set data.nat algebra.interval
+import data.set data.nat algebra.interval .basic
 import theories.move   -- TODO: remove after move to Lean 3
 open set function set.filter interval
 
@@ -263,6 +263,7 @@ section linorderX
     (assume H, obtain x Hx, from H, eventually_at_infty Hx)
 end linorderX
 
+
 /- at_ninfty -/
 
 section linorderX
@@ -315,7 +316,8 @@ section linorderX
     (assume H, obtain x Hx, from H, eventually_at_ninfty Hx)
 end linorderX
 
-/- approaches infty -/
+
+/- approaches_infty -/
 
 section approaches_infty
   variable [linear_strong_order_pair Y]
@@ -355,7 +357,8 @@ section approaches_infty
       eventually_mpr H (eventually_mpr this (eventually_of_forall _ (take x, le.trans))))
 end approaches_infty
 
-/- approaches ninfty -/
+
+/- approaches_ninfty -/
 
 section approaches_ninfty
   variable [linear_strong_order_pair Y]
@@ -394,5 +397,202 @@ section approaches_ninfty
       eventually_mpr H (eventually_mpr this (eventually_of_forall _
         (take x H₁ H₂, le.trans H₂ H₁))))
 end approaches_ninfty
+
+
+/- the nhds filter -/
+
+open topology
+
+section nhds_filter
+  variables [topology X] {P : X → Prop}
+
+  definition nhds (x : X) : filter X := Inf (principal ' {s | Open s ∧ x ∈ s})
+
+  proposition eventually_nhds {x : X} {s : set X} (Os : Open s) (xs : x ∈ s) (H : ∀₀ x ∈ s, P x) :
+    eventually P (nhds x) :=
+  eventually_Inf (mem_image_of_mem _ (and.intro Os xs)) (eventually_principal H)
+
+  proposition eventually_mem_nhds {x : X} {s : set X} (Os : Open s) (xs : x ∈ s) :
+    eventually (λ x, x ∈ s) (nhds x) :=
+  eventually_nhds Os xs (λ x Hx, Hx)
+
+  proposition exists_of_eventually_nhds {x : X} (H : eventually P (nhds x)) :
+    ∃ s, Open s ∧ x ∈ s ∧ ∀₀ x ∈ s, P x :=
+  let princS := principal ' {s | Open s ∧ x ∈ s} in
+  have principal univ ∈ princS,
+    from mem_image_of_mem principal (and.intro Open_univ !mem_univ),
+  have ∃₀ F ∈ princS, eventually P F, from
+    exists_eventually_of_eventually_Inf this H
+     (λ F₁ (F₁mem : F₁ ∈ princS) F₂ (F₂mem : F₂ ∈ princS),
+       obtain s₁ [[Os₁ xs₁] (F₁eq : principal s₁ = F₁)], from F₁mem,
+       obtain s₂ [[Os₂ xs₂] (F₂eq : principal s₂ = F₂)], from F₂mem,
+       have F₁ ⊓ F₂ ∈ princS,
+         begin
+          rewrite [-F₁eq, -F₂eq, principal_inf_principal],
+          exact mem_image_of_mem _ (and.intro (Open_inter Os₁ Os₂) (mem_inter xs₁ xs₂))
+         end,
+       show ∃₀ F ∈ princS, F ≤ F₁ ⊓ F₂, from exists.intro _ (and.intro this !le.refl)),
+  obtain F [Fmem ePF], from this,
+  obtain s [[Os xs] (Feq : principal s = F)], from Fmem,
+  exists.intro s (and.intro Os (and.intro xs
+    (subset_of_eventually_principal (by rewrite Feq; exact ePF))))
+
+  proposition eventually_nhds_iff (x : X) :
+    eventually P (nhds x) ↔ ∃ s, Open s ∧ x ∈ s ∧ ∀₀ x ∈ s, P x :=
+  iff.intro exists_of_eventually_nhds
+    (assume H, obtain s [Os [xs Hs]], from H, eventually_nhds Os xs Hs)
+end nhds_filter
+
+
+/- the at_within filter -/
+
+section at_within
+  variables [topology X] {P : X → Prop}
+
+  definition at_within (x : X) (s : set X) : filter X := inf (nhds x) (principal (s \ '{x}))
+
+  notation [at x ` within ` s] := at_within x s
+
+  proposition eventually_at_within {x : X} {s t : set X} (Os : Open s) (xs : x ∈ s)
+      (Hs : ∀₀ y ∈ s, y ≠ x → y ∈ t → P y) :
+    eventually P [at x within t] :=
+  have H₁ : eventually (λ y, y ≠ x → y ∈ t → P y) (nhds x),
+    from eventually_nhds Os xs Hs,
+  eventually_inf H₁ _ (mem_principal _)
+    (take y, assume Hy,
+      have H : y ∈ t \ '{x}, from and.right Hy,
+      have H' : y ≠ x, from suppose y = x,
+        have y ∈ '{x}, from mem_singleton_of_eq this,
+        show false, from and.right H this,
+      show P y, from and.left Hy `y ≠ x` (and.left H))
+
+  proposition exists_of_eventually_at_within {x : X} {t : set X}
+     (H : eventually P [at x within t]) :
+    ∃ s, Open s ∧ x ∈ s ∧ ∀₀ y ∈ s, y ≠ x → y ∈ t → P y :=
+  obtain P₁ [eP₁nhds [P₂ [eP₂princ (H' : P ⊇ P₁ ∩ P₂)]]], from exists_of_eventually_inf H,
+  obtain s [Os [xs Hs]], from exists_of_eventually_nhds eP₁nhds,
+  have Ht : ∀₀ y ∈ t \ '{x}, P₂ y, from subset_of_eventually_principal eP₂princ,
+  exists.intro s (and.intro Os (and.intro xs
+    (take y, assume ys ynex yt,
+      have y ∉ '{x}, from assume ymem, ynex (eq_of_mem_singleton ymem),
+      show P y, from H' (and.intro (Hs y ys) (Ht (mem_diff yt this))))))
+
+  theorem eventually_at_within_iff (x : X) {s : set X} :
+    eventually P [at x within s] ↔ ∃ t, Open t ∧ x ∈ t ∧ ∀₀ y ∈ t, y ≠ x → y ∈ s → P y :=
+  iff.intro exists_of_eventually_at_within
+    (assume H, obtain t [Ot [xt Ht]], from H, eventually_at_within Ot xt Ht)
+
+  abbreviation at_elt (x : X) : filter X := at_within x univ
+
+  notation [at x] := at_elt x
+
+  proposition eventually_at {x : X} {s : set X} (Os : Open s) (xs : x ∈ s)
+      (Hs : ∀₀ y ∈ s, y ≠ x → P y) :
+    eventually P [at x] :=
+  eventually_at_within Os xs (take y, assume ys ynex yuniv, Hs ys ynex)
+
+  proposition exists_of_eventually_at {x : X} (H : eventually P [at x]) :
+    ∃ s, Open s ∧ x ∈ s ∧ ∀₀ y ∈ s, y ≠ x → P y :=
+  obtain s [Os [xs Hs]], from exists_of_eventually_at_within H,
+  exists.intro s (and.intro Os (and.intro xs (λ y ys ynex, Hs y ys ynex trivial)))
+
+  proposition eventually_at_iff (x : X) :
+    eventually P [at x] ↔ ∃ s, Open s ∧ x ∈ s ∧ ∀₀ y ∈ s, y ≠ x → P y :=
+  iff.intro exists_of_eventually_at
+    (assume H, obtain s [Os [xs Hs]], from H, eventually_at Os xs Hs)
+
+  proposition at_within_eq_of_Open {x : X} {s : set X} (Os : Open s) (xs : x ∈ s) :
+    [at x within s] = [at x] :=
+  filter.eq (ext (take P, iff.intro
+    (assume H,
+      obtain t [Ot [xt Ht]], from exists_of_eventually_at_within H,
+      eventually_at (Open_inter Os Ot) (mem_inter xs xt)
+        (λ y Hy yne, Ht _ (and.right Hy) yne (and.left Hy)))
+    (assume H,
+      obtain t [Ot [xt Ht]], from exists_of_eventually_at H,
+      eventually_at_within (Open_inter Os Ot) (mem_inter xs xt)
+        (λ y Hy yne ys, Ht _ (and.right Hy) yne))))
+end at_within
+
+
+/- at_left and at_right -/
+
+section at_left_at_right
+  variables [topology X] [linear_strong_order_pair X] {P : X → Prop}
+
+  abbreviation at_left (x : X) : filter X := [at x within '(-∞, x)]
+  abbreviation at_right (x : X) : filter X := [at x within '(x, ∞)]
+
+  notation [at x`-]` := at_left x
+  notation [at x`+]` := at_right x
+
+  proposition eventually_at_left {x : X} {s : set X} (Os : Open s) (xs : x ∈ s)
+      (H : ∀₀ y ∈ s, y < x → P y) :
+    eventually P [at x-] :=
+  eventually_at_within Os xs (take y, assume ys ynex yltx, H ys yltx)
+
+  proposition exists_of_eventually_at_left {x : X} (H : eventually P [at x-]) :
+    ∃ s, Open s ∧ x ∈ s ∧ ∀₀ y ∈ s, y < x → P y :=
+  obtain s [Os [xs Hs]], from exists_of_eventually_at_within H,
+  exists.intro s (and.intro Os (and.intro xs
+    (take y, assume ys yltx,
+      show P y, from Hs y ys (ne_of_lt yltx) yltx)))
+
+  variable (P)
+  proposition eventually_at_left_iff (x : X) :
+    eventually P [at x-] ↔ ∃ s, Open s ∧ x ∈ s ∧ ∀₀ y ∈ s, y < x → P y :=
+  iff.intro exists_of_eventually_at_left
+    (take H, obtain s [Os [xs Hs]], from H, eventually_at_left Os xs Hs)
+
+  variable {P}
+  proposition eventually_at_right {x : X} {s : set X} (Os : Open s) (xs : x ∈ s)
+      (H : ∀₀ y ∈ s, y > x → P y) :
+    eventually P [at x+] :=
+  eventually_at_within Os xs (take y, assume ys ynex yltx, H ys yltx)
+
+  proposition exists_of_eventually_at_right {x : X} (H : eventually P [at x+]) :
+    ∃ s, Open s ∧ x ∈ s ∧ ∀₀ y ∈ s, y > x → P y :=
+  obtain s [Os [xs Hs]], from exists_of_eventually_at_within H,
+  exists.intro s (and.intro Os (and.intro xs
+    (take y, assume ys yltx,
+      show P y, from Hs y ys (ne_of_gt yltx) yltx)))
+
+  variable (P)
+  proposition eventually_at_right_iff (x : X) :
+    eventually P [at x+] ↔ ∃ s, Open s ∧ x ∈ s ∧ ∀₀ y ∈ s, y > x → P y :=
+  iff.intro exists_of_eventually_at_right
+    (take H, obtain s [Os [xs Hs]], from H, eventually_at_right Os xs Hs)
+end at_left_at_right
+
+
+/- approaches -/
+
+section approaches
+  variables [topology Y]
+  variables {F : filter X} {f : X → Y} {y : Y}
+
+  abbreviation approaches (f : X → Y) (y : Y) : filter X → Prop := tendsto f (nhds y)
+
+  notation f ⟶ y := approaches f y
+
+  proposition approaches_intro (H : ∀ s, Open s → y ∈ s → eventually (λ x, f x ∈ s) F) :
+    (f ⟶ y) F :=
+  tendsto_of_forall_eventually
+    (take P, assume eventuallyP,
+      obtain s [Os [(ys : y ∈ s) (H' : ∀₀ y' ∈ s, P y')]],
+        from exists_of_eventually_nhds eventuallyP,
+      have eventually (λ x, P (f x)) F, from eventually_mono (H s Os ys) (λ x Hx, H' Hx),
+      show eventually P (mapfilter f F), from eventually_mapfilter this)
+
+  proposition approaches_elim (H : (f ⟶ y) F) {s : set Y} (Os : Open s) (ys : y ∈ s) :
+    eventually (λ x, f x ∈ s) F :=
+  have eventually (λ y', y' ∈ s) (mapfilter f F),
+    from eventually_mapfilter_of_tendsto H (eventually_mem_nhds Os ys),
+  eventually_of_eventually_mapfilter this
+
+  variables (F f y)
+  proposition approaches_iff : (f ⟶ y) F ↔ (∀ s, Open s → y ∈ s → eventually (λ x, f x ∈ s) F) :=
+  iff.intro approaches_elim approaches_intro
+end approaches
 
 end topology
