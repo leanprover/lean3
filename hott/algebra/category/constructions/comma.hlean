@@ -123,7 +123,7 @@ namespace category
     (mor2 g ∘ mor2 f)
     (by rewrite [+respect_comp,-assoc,coh,assoc,coh,-assoc])
 
-  local infix `∘∘`:60 := comma_compose
+  local infix ` ∘∘ `:60 := comma_compose
 
   definition comma_id : comma_morphism x x :=
   comma_morphism.mk id id (by rewrite [+respect_id,id_left,id_right])
