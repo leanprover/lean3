@@ -69,6 +69,4 @@ namespace category
   { intro b₁ b₂ p, induction p, induction b₁: esimp: apply id_comp_eq_comp_id},
   end
 
-
-
 end category

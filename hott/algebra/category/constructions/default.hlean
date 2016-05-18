@@ -5,3 +5,4 @@ Authors: Floris van Doorn
 -/
 
 import .functor .set .opposite .product .comma .sum .discrete .indiscrete .terminal .initial .order
+       .pushout .fundamental_groupoid

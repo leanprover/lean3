@@ -10,11 +10,13 @@ Common categories and constructions on categories. The following files are in th
 * [product](product.hlean) : Product category
 * [comma](comma.hlean) : Comma category
 * [cone](cone.hlean) : Cone category
+* [pushout](pushout.hlean) : Pushout of categories, pushout of groupoids. Also more generally the category formed by a (quotient of) paths in a graph
+* [fundamental_groupoid](fundamental_groupoid.hlean) : The fundamental groupoid of a type
 
 Discrete, indiscrete or finite categories:
 
 * [finite_cats](finite_cats.hlean) : Some finite categories, which are diagrams of common limits (the diagram for the pullback or the equalizer). Also contains a general construction of categories where you give some generators for the morphisms, with the condition that you cannot compose two of thosex
-* [discrete](discrete.hlean)
+* [discrete](discrete.hlean) : Discrete category. Also the groupoid formed by a 1-type
 * [indiscrete](indiscrete.hlean)
 * [terminal](terminal.hlean)
 * [initial](initial.hlean)

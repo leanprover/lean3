@@ -494,5 +494,4 @@ namespace eq
     { reflexivity}
   end
 
-
 end eq
