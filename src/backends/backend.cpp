@@ -318,7 +318,7 @@ shared_ptr<simple_expr> backend::compile_expr_app(expr const & e, std::vector<bi
     // a sequence of bindings, we also store the set of names we will apply
     // the function to.
     for (unsigned i = 0; i < nargs; i++) {
-         auto ty = m_tc.check_ignore_undefined_universes(args[i]).first;
+         auto ty = m_tc.check_ignore_undefined_universes(args[i]);
 
          lean_trace(name({"backend", "compiler"}),
              tout() << args[i] << ":" << ty << "\n";);
@@ -518,7 +518,7 @@ void backend::compile_recursor(expr const & recursor_expr) {
         // auto ty = m_tc.check(applied_rec);
         // // std::cout << "applied_rec_ty: " << ty.first << std::endl;
         // std::cout << "applied_rec: " << applied_rec << std::endl;
-        auto normalized = normalize(this->m_tc, applied_rec);
+        auto normalized = normalize(this->m_env, applied_rec);
         // std::cout << "applied_rec(eval): " << normalized << std::endl;
         auto arm_body = compile_expr(normalized);
 
