@@ -446,7 +446,45 @@ end is_trunc open is_trunc
 
 namespace trunc
   universe variable u
-  variable {A : Type.{u}}
+  variables {n : ℕ₋₂} {A : Type.{u}} {B : Type} {a₁ a₂ a₃ a₄ : A}
+
+  definition trunc_functor2 [unfold 6 7] {n : ℕ₋₂} {A B C : Type} (f : A → B → C)
+    (x : trunc n A) (y : trunc n B) : trunc n C :=
+  by induction x with a; induction y with b; exact tr (f a b)
+
+  definition tconcat [unfold 6 7] (p : trunc n (a₁ = a₂)) (q : trunc n (a₂ = a₃)) :
+    trunc n (a₁ = a₃) :=
+  trunc_functor2 concat p q
+
+  definition tinverse [unfold 5] (p : trunc n (a₁ = a₂)) : trunc n (a₂ = a₁) :=
+  trunc_functor _ inverse p
+
+  definition tidp [reducible] [constructor] : trunc n (a₁ = a₁) :=
+  tr idp
+
+  definition tassoc (p : trunc n (a₁ = a₂)) (q : trunc n (a₂ = a₃))
+    (r : trunc n (a₃ = a₄)) : tconcat (tconcat p q) r = tconcat p (tconcat q r) :=
+  by induction p; induction q; induction r; exact ap tr !con.assoc
+
+  definition tidp_tcon (p : trunc n (a₁ = a₂)) : tconcat tidp p = p :=
+  by induction p; exact ap tr !idp_con
+
+  definition tcon_tidp (p : trunc n (a₁ = a₂)) : tconcat p tidp = p :=
+  by induction p; reflexivity
+
+  definition left_tinv (p : trunc n (a₁ = a₂)) : tconcat (tinverse p) p = tidp :=
+  by induction p; exact ap tr !con.left_inv
+
+  definition right_tinv (p : trunc n (a₁ = a₂)) : tconcat p (tinverse p) = tidp :=
+  by induction p; exact ap tr !con.right_inv
+
+  definition tap [unfold 7] (f : A → B) (p : trunc n (a₁ = a₂)) : trunc n (f a₁ = f a₂) :=
+  trunc_functor _ (ap f) p
+
+  definition tap_tidp (f : A → B) : tap f (@tidp n A a₁) = tidp := idp
+  definition tap_tcon (f : A → B) (p : trunc n (a₁ = a₂)) (q : trunc n (a₂ = a₃)) :
+    tap f (tconcat p q) = tconcat (tap f p) (tap f q) :=
+  by induction p; induction q; exact ap tr !ap_con
 
   /- characterization of equality in truncated types -/
   protected definition code [unfold 3 4] (n : ℕ₋₂) (aa aa' : trunc n.+1 A) : trunctype.{u} n :=
@@ -483,22 +521,14 @@ namespace trunc
     : (tr a = tr a' :> trunc n.+1 A) ≃ trunc n (a = a') :=
   !trunc_eq_equiv
 
-  /- encode preserves concatenation -/
-  definition trunc_functor2 [unfold 6 7] {n : ℕ₋₂} {A B C : Type} (f : A → B → C)
-    (x : trunc n A) (y : trunc n B) : trunc n C :=
-  by induction x with a; induction y with b; exact tr (f a b)
-
-  definition trunc_concat [unfold 6 7] {n : ℕ₋₂} {A : Type} {a₁ a₂ a₃ : A}
-    (p : trunc n (a₁ = a₂)) (q : trunc n (a₂ = a₃)) : trunc n (a₁ = a₃) :=
-  trunc_functor2 concat p q
-
   definition code_mul {n : ℕ₋₂} {aa₁ aa₂ aa₃ : trunc n.+1 A}
     (g : trunc.code n aa₁ aa₂) (h : trunc.code n aa₂ aa₃) : trunc.code n aa₁ aa₃ :=
   begin
     induction aa₁ with a₁, induction aa₂ with a₂, induction aa₃ with a₃,
-    esimp at *, apply trunc_concat g h,
+    esimp at *, apply tconcat g h,
   end
 
+  /- encode preserves concatenation -/
   definition encode_con' {n : ℕ₋₂} {aa₁ aa₂ aa₃ : trunc n.+1 A} (p : aa₁ = aa₂) (q : aa₂ = aa₃)
     : trunc.encode (p ⬝ q) = code_mul (trunc.encode p) (trunc.encode q) :=
   begin
@@ -507,7 +537,7 @@ namespace trunc
 
   definition encode_con {n : ℕ₋₂} {a₁ a₂ a₃ : A} (p : tr a₁ = tr a₂ :> trunc (n.+1) A)
     (q : tr a₂ = tr a₃ :> trunc (n.+1) A)
-    : trunc.encode (p ⬝ q) = trunc_concat (trunc.encode p) (trunc.encode q) :=
+    : trunc.encode (p ⬝ q) = tconcat (trunc.encode p) (trunc.encode q) :=
   encode_con' p q
 
   /- the principle of unique choice -/
@@ -654,7 +684,7 @@ namespace trunc
 
   definition loop_ptrunc_pequiv_con {n : ℕ₋₂} {A : Type*} (p q : Ω (ptrunc (n+1) A)) :
     loop_ptrunc_pequiv n A (p ⬝ q) =
-      trunc_concat (loop_ptrunc_pequiv n A p) (loop_ptrunc_pequiv n A q) :=
+      tconcat (loop_ptrunc_pequiv n A p) (loop_ptrunc_pequiv n A q) :=
   encode_con p q
 
   definition iterated_loop_ptrunc_pequiv (n : ℕ₋₂) (k : ℕ) (A : Type*) :
@@ -671,8 +701,8 @@ namespace trunc
   definition iterated_loop_ptrunc_pequiv_con {n : ℕ₋₂} {k : ℕ} {A : Type*}
     (p q : Ω[succ k] (ptrunc (n+succ k) A)) :
     iterated_loop_ptrunc_pequiv n (succ k) A (p ⬝ q) =
-    trunc_concat (iterated_loop_ptrunc_pequiv n (succ k) A p)
-                 (iterated_loop_ptrunc_pequiv n (succ k) A q)  :=
+    tconcat (iterated_loop_ptrunc_pequiv n (succ k) A p)
+            (iterated_loop_ptrunc_pequiv n (succ k) A q)  :=
   begin
     refine _ ⬝ loop_ptrunc_pequiv_con _ _,
     exact ap !loop_ptrunc_pequiv !loop_pequiv_loop_con
@@ -680,10 +710,10 @@ namespace trunc
 
   definition iterated_loop_ptrunc_pequiv_inv_con {n : ℕ₋₂} {k : ℕ} {A : Type*}
     (p q : ptrunc n (Ω[succ k] A)) :
-    (iterated_loop_ptrunc_pequiv n (succ k) A)⁻¹ᵉ* (trunc_concat p q) =
+    (iterated_loop_ptrunc_pequiv n (succ k) A)⁻¹ᵉ* (tconcat p q) =
     (iterated_loop_ptrunc_pequiv n (succ k) A)⁻¹ᵉ* p ⬝
     (iterated_loop_ptrunc_pequiv n (succ k) A)⁻¹ᵉ* q :=
-  equiv.inv_preserve_binary (iterated_loop_ptrunc_pequiv n (succ k) A) concat trunc_concat
+  equiv.inv_preserve_binary (iterated_loop_ptrunc_pequiv n (succ k) A) concat tconcat
     (@iterated_loop_ptrunc_pequiv_con n k A) p q
 
   definition ptrunc_functor_pcompose [constructor] {X Y Z : Type*} (n : ℕ₋₂) (g : Y →* Z)
@@ -729,6 +759,32 @@ namespace trunc
   end
 
 end trunc open trunc
+
+/- The truncated encode-decode method -/
+namespace eq
+
+  definition truncated_encode {k : ℕ₋₂} {A : Type} {a₀ a : A} {code : A → Type}
+    [Πa, is_trunc k (code a)] (c₀ : code a₀) (p : trunc k (a₀ = a)) : code a :=
+  begin
+    induction p with p,
+    exact transport code p c₀
+  end
+
+  definition truncated_encode_decode_method {k : ℕ₋₂} {A : Type} (a₀ a : A) (code : A → Type)
+    [Πa, is_trunc k (code a)] (c₀ : code a₀)
+    (decode : Π(a : A) (c : code a), trunc k (a₀ = a))
+    (encode_decode : Π(a : A) (c : code a), truncated_encode c₀ (decode a c) = c)
+    (decode_encode : decode a₀ c₀ = tr idp) : trunc k (a₀ = a) ≃ code a :=
+  begin
+    fapply equiv.MK,
+    { exact truncated_encode c₀},
+    { apply decode},
+    { intro c, apply encode_decode},
+    { intro p, induction p with p, induction p, exact decode_encode},
+  end
+
+end eq
+
 
 /- some consequences for properties about functions (surjectivity etc.) -/
 namespace function

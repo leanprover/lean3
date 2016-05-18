@@ -156,6 +156,52 @@ namespace indexed_list
     { rewrite [cons_append, +reverse_cons, append_concat, v_0]}
   end
 
+  definition realize (P : A → A → Type) (f : Π⦃a a'⦄, R a a' → P a a') (ρ : Πa, P a a)
+    (c : Π⦃a₁ a₂ a₃⦄, P a₁ a₂ → P a₂ a₃ → P a₁ a₃)
+    ⦃a a' : A⦄ (l : indexed_list R a a') : P a a' :=
+  begin
+    induction l,
+    { exact ρ a},
+    { exact c v_0 (f r)}
+  end
+
+  definition realize_nil (P : A → A → Type) (f : Π⦃a a'⦄, R a a' → P a a') (ρ : Πa, P a a)
+    (c : Π⦃a₁ a₂ a₃⦄, P a₁ a₂ → P a₂ a₃ → P a₁ a₃) (a : A) :
+    realize P f ρ c nil = ρ a :=
+  idp
+
+  definition realize_cons (P : A → A → Type) (f : Π⦃a a'⦄, R a a' → P a a') (ρ : Πa, P a a)
+    (c : Π⦃a₁ a₂ a₃⦄, P a₁ a₂ → P a₂ a₃ → P a₁ a₃)
+    ⦃a₁ a₂ a₃ : A⦄ (r : R a₂ a₃) (l : indexed_list R a₁ a₂) :
+    realize P f ρ c (r :: l) = c (realize P f ρ c l) (f r) :=
+  idp
+
+  theorem realize_singleton {P : A → A → Type} {f : Π⦃a a'⦄, R a a' → P a a'} {ρ : Πa, P a a}
+    {c : Π⦃a₁ a₂ a₃⦄, P a₁ a₂ → P a₂ a₃ → P a₁ a₃}
+    (id_left : Π⦃a₁ a₂⦄ (p : P a₁ a₂), c (ρ a₁) p = p)
+    ⦃a₁ a₂ : A⦄ (r : R a₁ a₂) :
+    realize P f ρ c [r] = f r :=
+  id_left (f r)
+
+  theorem realize_pair {P : A → A → Type} {f : Π⦃a a'⦄, R a a' → P a a'} {ρ : Πa, P a a}
+    {c : Π⦃a₁ a₂ a₃⦄, P a₁ a₂ → P a₂ a₃ → P a₁ a₃}
+    (id_left : Π⦃a₁ a₂⦄ (p : P a₁ a₂), c (ρ a₁) p = p)
+    ⦃a₁ a₂ a₃ : A⦄ (r₂ : R a₂ a₃) (r₁ : R a₁ a₂) :
+    realize P f ρ c [r₂, r₁] = c (f r₁) (f r₂) :=
+  ap (λx, c x (f r₂)) (realize_singleton id_left r₁)
+
+  theorem realize_append {P : A → A → Type} {f : Π⦃a a'⦄, R a a' → P a a'} {ρ : Πa, P a a}
+    {c : Π⦃a₁ a₂ a₃⦄, P a₁ a₂ → P a₂ a₃ → P a₁ a₃}
+    (assoc : Π⦃a₁ a₂ a₃ a₄⦄ (p : P a₁ a₂) (q : P a₂ a₃) (r : P a₃ a₄), c (c p q) r = c p (c q r))
+    (id_right : Π⦃a₁ a₂⦄ (p : P a₁ a₂), c p (ρ a₂) = p)
+    ⦃a₁ a₂ a₃ : A⦄ (l₂ : indexed_list R a₂ a₃) (l₁ : indexed_list R a₁ a₂) :
+    realize P f ρ c (l₂ ++ l₁) = c (realize P f ρ c l₁) (realize P f ρ c l₂) :=
+  begin
+    induction l₂,
+    { exact !id_right⁻¹},
+    { rewrite [cons_append, +realize_cons, v_0, assoc]}
+  end
+
   inductive indexed_list_rel {A : Type} {R : A → A → Type}
     (Q : Π⦃a a' : A⦄, indexed_list R a a' → indexed_list R a a' → Type)
     : Π⦃a a' : A⦄, indexed_list R a a' → indexed_list R a a' → Type :=
@@ -248,6 +294,23 @@ namespace indexed_list
       refine rtrans _ a, apply rel_respect_append_left,
       exact rel_respect_append_right _ (ri r)}
   end
+
+  definition realize_eq {P : A → A → Type} {f : Π⦃a a'⦄, R a a' → P a a'} {ρ : Πa, P a a}
+    {c : Π⦃a₁ a₂ a₃⦄, P a₁ a₂ → P a₂ a₃ → P a₁ a₃}
+    (assoc : Π⦃a₁ a₂ a₃ a₄⦄ (p : P a₁ a₂) (q : P a₂ a₃) (r : P a₃ a₄), c (c p q) r = c p (c q r))
+    (id_right : Π⦃a₁ a₂⦄ (p : P a₁ a₂), c p (ρ a₂) = p)
+    (resp_rel : Π⦃a₁ a₂⦄ {l₁ l₂ : indexed_list R a₁ a₂}, Q l₁ l₂ →
+      realize P f ρ c l₁ = realize P f ρ c l₂)
+    ⦃a a' : A⦄ {l l' : indexed_list R a a'} (H : indexed_list_rel Q l l') :
+    realize P f ρ c l = realize P f ρ c l' :=
+  begin
+    induction H,
+    { reflexivity},
+    { rewrite [+realize_append assoc id_right], apply ap (c _), exact resp_rel q},
+    { exact ap (λx, c x (f r)) v_0},
+    { exact v_0 ⬝ v_1}
+  end
+
 
 end indexed_list
 namespace indexed_list
@@ -347,7 +410,6 @@ namespace indexed_list
   end
 
 
-
 end indexed_list
 open indexed_list
 
@@ -355,10 +417,10 @@ namespace category
 
   inductive pushout_prehom_index {C D E : Precategory} (F : C ⇒ D) (G : C ⇒ E) :
     D + E → D + E → Type :=
-  | il : Π{d d' : D} (f : d ⟶ d'), pushout_prehom_index F G (inl d) (inl d')
-  | ir : Π{e e' : E} (g : e ⟶ e'), pushout_prehom_index F G (inr e) (inr e')
-  | lr : Π{c c' : C} (h : c ⟶ c'), pushout_prehom_index F G (inl (F c)) (inr (G c'))
-  | rl : Π{c c' : C} (h : c ⟶ c'), pushout_prehom_index F G (inr (G c)) (inl (F c'))
+  | iD : Π{d d' : D} (f : d ⟶ d'), pushout_prehom_index F G (inl d) (inl d')
+  | iE : Π{e e' : E} (g : e ⟶ e'), pushout_prehom_index F G (inr e) (inr e')
+  | DE : Π(c : C), pushout_prehom_index F G (inl (F c)) (inr (G c))
+  | ED : Π(c : C), pushout_prehom_index F G (inr (G c)) (inl (F c))
 
   open pushout_prehom_index
 
@@ -368,15 +430,13 @@ namespace category
   inductive pushout_hom_rel_index {C D E : Precategory} (F : C ⇒ D) (G : C ⇒ E) :
     Π⦃x x' : D + E⦄, pushout_prehom F G x x' → pushout_prehom F G x x' → Type :=
   | DD  : Π{d₁ d₂ d₃ : D} (g : d₂ ⟶ d₃) (f : d₁ ⟶ d₂),
-      pushout_hom_rel_index F G [il F G g, il F G f] [il F G (g ∘ f)]
+      pushout_hom_rel_index F G [iD F G g, iD F G f] [iD F G (g ∘ f)]
   | EE  : Π{e₁ e₂ e₃ : E} (g : e₂ ⟶ e₃) (f : e₁ ⟶ e₂),
-      pushout_hom_rel_index F G [ir F G g, ir F G f] [ir F G (g ∘ f)]
-  | DED : Π{c₁ c₂ c₃ : C} (g : c₂ ⟶ c₃) (f : c₁ ⟶ c₂),
-      pushout_hom_rel_index F G [rl F G g, lr F G f] [il F G (to_fun_hom F (g ∘ f))]
-  | EDE : Π{c₁ c₂ c₃ : C} (g : c₂ ⟶ c₃) (f : c₁ ⟶ c₂),
-      pushout_hom_rel_index F G [lr F G g, rl F G f] [ir F G (to_fun_hom G (g ∘ f))]
-  | idD : Π(d : D), pushout_hom_rel_index F G [il F G (ID d)] nil
-  | idE : Π(e : E), pushout_hom_rel_index F G [ir F G (ID e)] nil
+      pushout_hom_rel_index F G [iE F G g, iE F G f] [iE F G (g ∘ f)]
+  | DED : Π(c : C), pushout_hom_rel_index F G [ED F G c, DE F G c] nil
+  | EDE : Π(c : C), pushout_hom_rel_index F G [DE F G c, ED F G c] nil
+  | idD : Π(d : D), pushout_hom_rel_index F G [iD F G (ID d)] nil
+  | idE : Π(e : E), pushout_hom_rel_index F G [iE F G (ID e)] nil
 
   open pushout_hom_rel_index
   -- section
@@ -450,10 +510,10 @@ namespace category
     pushout_prehom_index F G x' x :=
   begin
     induction i,
-    { exact il F G f⁻¹},
-    { exact ir F G g⁻¹},
-    { exact rl F G h⁻¹},
-    { exact lr F G h⁻¹},
+    { exact iD F G f⁻¹},
+    { exact iE F G g⁻¹},
+    { exact ED F G c},
+    { exact DE F G c},
   end
 
   open indexed_list.indexed_list_rel
@@ -461,14 +521,9 @@ namespace category
     (q : pushout_hom_rel_index F G l l') : indexed_list_rel (pushout_hom_rel_index F G)
       (reverse (pushout_index_inv F G) l) (reverse (pushout_index_inv F G) l') :=
   begin
-    induction q: apply indexed_list_rel_of_Q; rewrite reverse_singleton; try rewrite reverse_pair;
-    try rewrite reverse_nil; esimp,
-    { rewrite [comp_inverse], constructor},
-    { rewrite [comp_inverse], constructor},
-    { rewrite [-respect_inv, comp_inverse], constructor},
-    { rewrite [-respect_inv, comp_inverse], constructor},
-    { rewrite [id_inverse], constructor},
-    { rewrite [id_inverse], constructor}
+    induction q: apply indexed_list_rel_of_Q;
+    try rewrite reverse_singleton; try rewrite reverse_pair; try rewrite reverse_nil; esimp;
+    try rewrite [comp_inverse]; try rewrite [id_inverse]; constructor,
   end
 
   theorem pushout_index_li (i : pushout_prehom_index F G x x') :
@@ -479,10 +534,8 @@ namespace category
       rewrite [comp.left_inverse], exact indexed_list_rel_of_Q !idD},
     { refine rtrans (indexed_list_rel_of_Q !EE) _,
       rewrite [comp.left_inverse], exact indexed_list_rel_of_Q !idE},
-    { refine rtrans (indexed_list_rel_of_Q !DED) _,
-      rewrite [comp.left_inverse, respect_id], exact indexed_list_rel_of_Q !idD},
-    { refine rtrans (indexed_list_rel_of_Q !EDE) _,
-      rewrite [comp.left_inverse, respect_id], exact indexed_list_rel_of_Q !idE}
+    { exact indexed_list_rel_of_Q !DED},
+    { exact indexed_list_rel_of_Q !EDE}
   end
 
   theorem pushout_index_ri (i : pushout_prehom_index F G x x') :
@@ -493,10 +546,8 @@ namespace category
       rewrite [comp.right_inverse], exact indexed_list_rel_of_Q !idD},
     { refine rtrans (indexed_list_rel_of_Q !EE) _,
       rewrite [comp.right_inverse], exact indexed_list_rel_of_Q !idE},
-    { refine rtrans (indexed_list_rel_of_Q !EDE) _,
-      rewrite [comp.right_inverse, respect_id], exact indexed_list_rel_of_Q !idE},
-    { refine rtrans (indexed_list_rel_of_Q !DED) _,
-      rewrite [comp.right_inverse, respect_id], exact indexed_list_rel_of_Q !idD}
+    { exact indexed_list_rel_of_Q !EDE},
+    { exact indexed_list_rel_of_Q !DED}
   end
 
   definition Groupoid_pushout [constructor] : Groupoid :=
