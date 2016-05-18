@@ -128,7 +128,7 @@ namespace set_quotient
     set_quotient R → set_quotient S :=
   set_quotient.elim (class_of ∘ f) (λa a' r, eq_of_rel (H r))
 
-  definition quotient_binary_map [unfold 10 11] (f : A → B → C)
+  definition quotient_binary_map [unfold 11 12] (f : A → B → C)
     (H : Π{a a'} (r : R a a') {b b'} (s : S b b'), T (f a b) (f a' b'))
     [HR : is_reflexive R] [HS : is_reflexive S] :
     set_quotient R → set_quotient S → set_quotient T :=
