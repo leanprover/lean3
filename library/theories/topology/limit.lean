@@ -51,7 +51,7 @@ In terms of sets, this is equivalent to
 
   ∀ s : set Y, s ∈ sets F₂ → f '- s ∈ sets F₁
 
-so one option is to use "tendsto_intro" "tendsto_elim" and "tendsto_iff" to unpack meanings
+so one option is to use "tendsto_intro" "tendsto_dest" and "tendsto_iff" to unpack meanings
 in terms of "eventually", and then use the intro and elim rules of "eventually". For specific
 topologies -- for example, those given by a metric space or norm -- see the specialized
 intro and elim rules for eventually in those files.
@@ -61,6 +61,9 @@ and iff rules. Again, see also specific versions for metric spaces, normed space
 
 Note that the filters at_infty and at_ninfty don't rely on topological notions at all, only the
 existence of a suitable order.
+
+We mark tendsto as irreducible after defining the intro and elim rules, because otherwise
+tactics seem to unfold too much.
 -/
 import data.set data.nat algebra.interval .basic
 import theories.move   -- TODO: remove after move to Lean 3
@@ -142,73 +145,107 @@ le_inf (mapfilter_le_mapfilter f !inf_le_left) (mapfilter_le_mapfilter f !inf_le
 
 definition tendsto (f : X → Y) (F₂ : filter Y) (F₁ : filter X) : Prop := mapfilter f F₁ ≤ F₂
 
-theorem tendsto_of_forall_eventually {F₂ : filter Y} {F₁ : filter X} {f : X → Y}
+theorem tendsto_intro' {F₂ : filter Y} {F₁ : filter X} {f : X → Y}
     (H : ∀ P, eventually P F₂ → eventually P (mapfilter f F₁)) :
   tendsto f F₂ F₁ := H
 
-theorem eventually_mapfilter_of_tendsto {F₂ : filter Y} {F₁ : filter X} {f : X → Y}
+theorem tendsto_intro {F₂ : filter Y} {F₁ : filter X} {f : X → Y}
+    (H : ∀ P, eventually P F₂ → eventually (λ x, P (f x)) F₁) :
+  tendsto f F₂ F₁ := H
+
+theorem tendsto_dest' {F₂ : filter Y} {F₁ : filter X} {f : X → Y}
     {P : Y → Prop} (H : tendsto f F₂ F₁) (H' : eventually P F₂) :
   eventually P (mapfilter f F₁) := H H'
 
-theorem tendsto_iff (F₂ : filter Y) (F₁ : filter X) (f : X → Y) :
+theorem tendsto_dest {F₂ : filter Y} {F₁ : filter X} {f : X → Y}
+    {P : Y → Prop} (H : tendsto f F₂ F₁) (H' : eventually P F₂) :
+  eventually (λ x, P (f x)) F₁ := eventually_of_eventually_mapfilter (tendsto_dest' H H')
+
+theorem tendsto_iff' (F₂ : filter Y) (F₁ : filter X) (f : X → Y) :
   tendsto f F₂ F₁ ↔ (∀ P, eventually P F₂ → eventually P (mapfilter f F₁)) :=
 iff.refl _
 
-theorem tendsto_iff' (F₂ : filter Y) (F₁ : filter X) (f : X → Y) :
+theorem tendsto_iff (F₂ : filter Y) (F₁ : filter X) (f : X → Y) :
   tendsto f F₂ F₁ ↔ (∀ P, eventually P F₂ → eventually (λ x, P (f x)) F₁) :=
 iff.refl _
 
 theorem tendsto_comp {f : X → Y} {g : Y → Z} {F₁ : filter X} {F₂ : filter Y} {F₃ : filter Z}
   (Hf : tendsto f F₂ F₁) (Hg : tendsto g F₃ F₂) : tendsto (g ∘ f) F₃ F₁ :=
-tendsto_of_forall_eventually
-  (take P, suppose eventually P F₃,
-    have eventually P (mapfilter g F₂), from Hg this,
-    have eventually (λ y, P (g y)) F₂, from eventually_of_eventually_mapfilter this,
-    have eventually (λ y, P (g y)) (mapfilter f F₁), from Hf this,
-    show eventually P (mapfilter g (mapfilter f F₁)), from eventually_mapfilter this)
+tendsto_intro (take P, suppose eventually P F₃,
+    have eventually (λ y, P (g y)) F₂, from tendsto_dest Hg this,
+    show eventually (λ x, P (g (f x))) F₁, from tendsto_dest Hf this)
 
-theorem tendsto_of_ge {f : X → Y} {F₂ F₂' : filter Y} {F₁ : filter X}
-  (HF₂ : F₂' ≥ F₂) (H : tendsto f F₂ F₁) : tendsto f F₂' F₁ :=
+theorem tendsto_of_le_left {f : X → Y} {F₂ F₂' : filter Y} {F₁ : filter X}
+  (HF₂ : F₂ ≤ F₂') (H : tendsto f F₂ F₁) : tendsto f F₂' F₁ :=
 take P, suppose eventually P F₂',
 have eventually P F₂, from eventually_of_le this HF₂,
 show eventually P (mapfilter f F₁), from H this
 
-theorem tendsto_of_le {f : X → Y} {F₂ : filter Y} {F₁ F₁' : filter X}
+theorem tendsto_of_le_right {f : X → Y} {F₂ : filter Y} {F₁ F₁' : filter X}
   (HF₁ : F₁' ≤ F₁) (H : tendsto f F₂ F₁) : tendsto f F₂ F₁' :=
 take P, suppose eventually P F₂,
 have eventually P (mapfilter f F₁), from H this,
 show eventually P (mapfilter f F₁'), from eventually_of_le this (mapfilter_le_mapfilter _ HF₁)
 
-theorem tendsto_of_ge_of_le {f : X → Y} {F₂ F₂' : filter Y} {F₁ F₁' : filter X}
-  (HF₂ : F₂' ≥ F₂) (HF₁ : F₁' ≤ F₁) (H : tendsto f F₂ F₁) : tendsto f F₂' F₁' :=
-tendsto_of_ge HF₂ (tendsto_of_le HF₁ H)
+theorem tendsto_of_le_of_le {f : X → Y} {F₂ F₂' : filter Y} {F₁ F₁' : filter X}
+  (HF₂ : F₂ ≤ F₂') (HF₁ : F₁' ≤ F₁) (H : tendsto f F₂ F₁) : tendsto f F₂' F₁' :=
+tendsto_of_le_left HF₂ (tendsto_of_le_right HF₁ H)
 
-theorem tendsto_id {F : filter X} : tendsto (λx, x) F F :=
+theorem tendsto_id {F : filter X} : tendsto (λ x, x) F F :=
 take P, assume H, H
 
-theorem tendsto_inf_left {f : X → Y} {F : filter Y} (F₁ : filter X) {F₂ : filter X}
-    (H : tendsto f F F₁) :
-  tendsto f F (inf F₁ F₂) :=
-tendsto_of_le !inf_le_left H
+theorem tendsto_inf_left {f : X → Y} {F₂ : filter Y} (F₁ : filter X) {F₁' : filter X}
+    (H : tendsto f F₂ F₁) :
+  tendsto f F₂ (inf F₁ F₁') :=
+tendsto_of_le_right !inf_le_left H
 
-theorem tendsto_inf_right {f : X → Y} {F : filter Y} {F₁ : filter X} (F₂ : filter X)
-    (H : tendsto f F F₂) :
-  tendsto f F (inf F₁ F₂) :=
-tendsto_of_le !inf_le_right H
+theorem tendsto_inf_right {f : X → Y} {F₂ : filter Y} {F₁ : filter X} (F₁' : filter X)
+    (H : tendsto f F₂ F₁') :
+  tendsto f F₂ (inf F₁ F₁') :=
+tendsto_of_le_right !inf_le_right H
 
-theorem tendsto_sup_left {f : X → Y} (F₁ : filter Y) {F₂ : filter Y} {F : filter X}
-    (H : tendsto f F₁ F) :
-  tendsto f (sup F₁ F₂) F :=
-tendsto_of_ge !le_sup_left H
+theorem tendsto_inf {f : X → Y} {F₂ F₂' : filter Y} {F₁ : filter X}
+    (H₁ : tendsto f F₂ F₁) (H₂ : tendsto f F₂' F₁) :
+  tendsto f (inf F₂ F₂') F₁ :=
+tendsto_intro (take P, suppose eventually P (inf F₂ F₂'),
+  obtain S [eSF₂ [T [eTF₂' STsubP]]], from exists_of_eventually_inf this,
+  have HS : eventually (λ x, S (f x)) F₁, from tendsto_dest H₁ eSF₂,
+  have HT : eventually (λ x, T (f x)) F₁, from tendsto_dest H₂ eTF₂',
+  have HST : eventually (λ x, S (f x) ∧ T (f x)) F₁, from eventually_and HS HT,
+  have H' : ∀ x, S (f x) ∧ T (f x) → P (f x), from take x, STsubP (f x),
+  show eventually (λ x, P (f x)) F₁, from eventually_mono HST H')
 
-theorem tendsto_sup_right {f : X → Y} {F₁ : filter Y} (F₂ : filter Y) {F : filter X}
-    (H : tendsto f F₂ F) :
-  tendsto f (sup F₁ F₂) F :=
-tendsto_of_ge !le_sup_right H
+theorem tendsto_of_tendsto_inf_left {f : X → Y} {F₂ F₂' : filter Y} {F₁ : filter X}
+    (H : tendsto f (inf F₂ F₂') F₁) :
+  tendsto f F₂ F₁ :=
+tendsto_of_le_left !inf_le_left H
+
+theorem tendsto_of_tendsto_inf_right {f : X → Y} {F₂ F₂' : filter Y} {F₁ : filter X}
+    (H : tendsto f (inf F₂ F₂') F₁) :
+  tendsto f F₂' F₁ :=
+tendsto_of_le_left !inf_le_right H
+
+theorem tendsto_inf_iff (f : X → Y) (F₂ F₂' : filter Y) (F₁ : filter X) :
+  tendsto f (inf F₂ F₂') F₁ ↔ tendsto f F₂ F₁ ∧ tendsto f F₂' F₁ :=
+iff.intro
+  (λ H, and.intro (tendsto_of_tendsto_inf_left H) (tendsto_of_tendsto_inf_right H))
+  (λ H, tendsto_inf (and.left H) (and.right H))
+
+theorem tendsto_sup_left {f : X → Y} (F₂ : filter Y) {F₂' : filter Y} {F₁ : filter X}
+    (H : tendsto f F₂ F₁) :
+  tendsto f (sup F₂ F₂') F₁ :=
+tendsto_of_le_left !le_sup_left H
+
+theorem tendsto_sup_right {f : X → Y} (F₂ : filter Y) {F₂' : filter Y} {F₁ : filter X}
+    (H : tendsto f F₂' F₁) :
+  tendsto f (sup F₂ F₂') F₁ :=
+tendsto_of_le_left !le_sup_right H
 
 theorem tendsto_comp_iff_tendsto_mapfilter (f : X → Y) (g : Y → Z) (F₁ : filter X) (F₂ : filter Z) :
   tendsto (g ∘ f) F₂ F₁ ↔ tendsto g F₂ (mapfilter f F₁) :=
 !iff.refl
+
+attribute tendsto [irreducible]
 
 
 /- at_infty -/
@@ -224,14 +261,14 @@ section linorderX
     (principal '[x₂, ∞)) ≤ (principal '[x₁, ∞)) :=
   principal_le_principal (show '[x₂, ∞) ⊆ '[x₁, ∞), from λ y Hy, le.trans H Hy)
 
-  theorem eventually_at_infty {P : X → Prop} {x : X} (H : ∀ y, y ≥ x → P y) :
-    eventually P at_infty :=
+  theorem eventually_at_infty_intro {P : X → Prop} {x : X} (H : ∀ y, y ≥ x → P y) :
+    eventually P [at ∞] :=
   have H' : eventually P (principal '[x, ∞)), from eventually_principal H,
   have principal '[x, ∞) ∈ (λ x : X, principal '[x, ∞)) ' univ, from mem_image_of_mem _ !mem_univ,
   eventually_Inf this H'
 
-  theorem exists_forall_ge_imp_of_eventually_at_infty {P : X → Prop} [inhabited X]
-      (H : eventually P at_infty) :
+  theorem eventually_at_infty_dest {P : X → Prop} [inhabited X]
+      (H : eventually P [at ∞]) :
     ∃ x, ∀ y, y ≥ x → P y :=
   let S := (λ x : X, principal '[x, ∞)) ' univ in
   have H' : ∀₀ F₁ ∈ S, ∀₀ F₂ ∈ S, ∃₀ F ∈ S, F ≤ F₁ ⊓ F₂,
@@ -258,9 +295,9 @@ section linorderX
   exists.intro x this
 
   theorem eventually_at_infty_iff (P : X → Prop) [inhabited X] :
-    eventually P at_infty ↔ ∃ x, ∀ y, y ≥ x → P y :=
-  iff.intro exists_forall_ge_imp_of_eventually_at_infty
-    (assume H, obtain x Hx, from H, eventually_at_infty Hx)
+    eventually P [at ∞] ↔ ∃ x, ∀ y, y ≥ x → P y :=
+  iff.intro eventually_at_infty_dest
+    (assume H, obtain x Hx, from H, eventually_at_infty_intro Hx)
 end linorderX
 
 
@@ -277,14 +314,14 @@ section linorderX
     (principal '(-∞, x₁]) ≤ (principal '(-∞, x₂]) :=
   principal_le_principal (show '(-∞, x₁] ⊆ '(-∞, x₂], from λ y Hy, le.trans Hy H)
 
-  theorem eventually_at_ninfty {P : X → Prop} {x : X} (H : ∀ y, y ≤ x → P y) :
-    eventually P at_ninfty :=
+  theorem eventually_at_ninfty_intro {P : X → Prop} {x : X} (H : ∀ y, y ≤ x → P y) :
+    eventually P [at -∞] :=
   have H' : eventually P (principal '(-∞, x]), from eventually_principal H,
   have principal '(-∞, x] ∈ (λ x : X, principal '(-∞, x]) ' univ, from mem_image_of_mem _ !mem_univ,
   eventually_Inf this H'
 
-  theorem exists_forall_le_imp_of_eventually_at_ninfty {P : X → Prop} [inhabited X]
-      (H : eventually P at_ninfty) :
+  theorem eventually_at_ninfty_dest {P : X → Prop} [inhabited X]
+      (H : eventually P [at -∞]) :
     ∃ x, ∀ y, y ≤ x → P y :=
   let S := (λ x : X, principal '(-∞, x]) ' univ in
   have H' : ∀₀ F₁ ∈ S, ∀₀ F₂ ∈ S, ∃₀ F ∈ S, F ≤ F₁ ⊓ F₂,
@@ -311,9 +348,9 @@ section linorderX
   exists.intro x this
 
   theorem eventually_at_ninfty_iff (P : X → Prop) [inhabited X] :
-    eventually P at_ninfty ↔ ∃ x, ∀ y, y ≤ x → P y :=
-  iff.intro exists_forall_le_imp_of_eventually_at_ninfty
-    (assume H, obtain x Hx, from H, eventually_at_ninfty Hx)
+    eventually P [at -∞] ↔ ∃ x, ∀ y, y ≤ x → P y :=
+  iff.intro eventually_at_ninfty_dest
+    (assume H, obtain x Hx, from H, eventually_at_ninfty_intro Hx)
 end linorderX
 
 
@@ -322,39 +359,47 @@ end linorderX
 section approaches_infty
   variable [linear_strong_order_pair Y]
 
-  abbreviation approaches_infty (f : X → Y) := tendsto f at_infty
+  abbreviation approaches_infty (f : X → Y) := tendsto f [at ∞]
 
-  notation f ` ⟶ ` ∞   := tendsto f at_infty
-  notation f ` ⟶ ` -∞  := tendsto f at_ninfty
+  notation f ` ⟶ ` ∞   := tendsto f [at ∞]
 
-  theorem approaches_infty_intro [inhabited Y] {f : X → Y} {F : filter X}
+  section
+  open classical
+
+  theorem approaches_infty_intro {f : X → Y} {F : filter X}
       (H : ∀ y, eventually (λ x, f x ≥ y) F) :
     (f ⟶ ∞) F :=
-  tendsto_of_forall_eventually
-    (take P,
-      suppose eventually P at_infty,
-      obtain z (Hz : ∀ y, y ≥ z → P y), from exists_forall_ge_imp_of_eventually_at_infty this,
-      have ∀ x, f x ≥ z → P (f x), from take x, Hz (f x),
-      have eventually (λ x, P (f x)) F, from eventually_mono (H z) this,
-      show eventually P (mapfilter f F), from eventually_mapfilter this)
+  tendsto_intro
+    (take P, assume eP : eventually P [at ∞],
+      if H' : nonempty Y then
+        have inhabited Y, from inhabited_of_nonempty H',
+        obtain z (Hz : ∀ y, y ≥ z → P y), from eventually_at_infty_dest eP,
+        have ∀ x, f x ≥ z → P (f x), from take x, Hz (f x),
+        show eventually (λ x, P (f x)) F, from eventually_mono (H z) this
+      else
+        show eventually (λ x, P (f x)) F, from eventually_of_forall F
+          take x, absurd (nonempty.intro (f x)) H')
+  end
 
-  theorem approaches_infty_elim {f : X → Y} {F : filter X} (H : (f ⟶ ∞) F) (y : Y) :
+  theorem approaches_infty_dest {f : X → Y} {F : filter X} (H : (f ⟶ ∞) F) (y : Y) :
     eventually (λ x, f x ≥ y) F :=
-  have eventually (λ x, x ≥ y) at_infty, from eventually_at_infty (take x, suppose x ≥ y, this),
-  have eventually (λ x, x ≥ y) (mapfilter f F), from H this,
-  show eventually (λ x, f x ≥ y) F, from eventually_of_eventually_mapfilter this
+  have eventually (λ x, x ≥ y) [at ∞],
+    from eventually_at_infty_intro (take x, suppose x ≥ y, this),
+  show eventually (λ x, f x ≥ y) F, from tendsto_dest H this
 
-  theorem approaches_infty_iff [inhabited Y] (f : X → Y) (F : filter X) :
+  theorem approaches_infty_iff (f : X → Y) (F : filter X) :
     (f ⟶ ∞) F ↔ ∀ y, eventually (λ x, f x ≥ y) F :=
-  iff.intro approaches_infty_elim approaches_infty_intro
+  iff.intro approaches_infty_dest approaches_infty_intro
 
-  theorem approaches_infty_of_eventually_ge [inhabited Y] {f g : X → Y} {F : filter X}
+  theorem approaches_infty_of_eventually_ge {f g : X → Y} {F : filter X}
       (H : eventually (λ x, f x ≥ g x) F) (H' : (g ⟶ ∞) F) :
     (f ⟶ ∞) F :=
   approaches_infty_intro (take y,
-    have eventually (λ x, g x ≥ y) F, from approaches_infty_elim H' y,
-    show eventually (λ x, f x ≥ y) F, from
-      eventually_mpr H (eventually_mpr this (eventually_of_forall _ (take x, le.trans))))
+    have eventually (λ x, g x ≥ y) F, from approaches_infty_dest H' y,
+    show eventually (λ x, f x ≥ y) F,
+      from eventually_mpr H (eventually_mpr this (eventually_of_forall _ (take x, le.trans))))
+
+  theorem id_approaches_infty_at_infty : @id Y ⟶ ∞ [at ∞] := tendsto_id
 end approaches_infty
 
 
@@ -363,39 +408,48 @@ end approaches_infty
 section approaches_ninfty
   variable [linear_strong_order_pair Y]
 
-  abbreviation approaches_ninfty (f : X → Y) := tendsto f at_ninfty
+  abbreviation approaches_ninfty (f : X → Y) := tendsto f [at -∞]
 
-  notation f ` ⟶ ` -∞  := tendsto f at_ninfty
+  notation f ` ⟶ ` -∞  := tendsto f [at -∞]
 
-  theorem approaches_ninfty_intro [inhabited Y] {f : X → Y} {F : filter X}
+  section
+  open classical
+
+  theorem approaches_ninfty_intro {f : X → Y} {F : filter X}
       (H : ∀ y, eventually (λ x, f x ≤ y) F) :
     (f ⟶ -∞) F :=
-  tendsto_of_forall_eventually
-    (take P,
-      suppose eventually P at_ninfty,
-      obtain z (Hz : ∀ y, y ≤ z → P y), from exists_forall_le_imp_of_eventually_at_ninfty this,
-      have ∀ x, f x ≤ z → P (f x), from take x, Hz (f x),
-      have eventually (λ x, P (f x)) F, from eventually_mono (H z) this,
-      show eventually P (mapfilter f F), from eventually_mapfilter this)
+  tendsto_intro
+    (take P, assume eP : eventually P [at -∞],
+      if H' : nonempty Y then
+        have inhabited Y, from inhabited_of_nonempty H',
+        obtain z (Hz : ∀ y, y ≤ z → P y), from eventually_at_ninfty_dest eP,
+        have ∀ x, f x ≤ z → P (f x), from take x, Hz (f x),
+        show eventually (λ x, P (f x)) F, from eventually_mono (H z) this
+      else
+        show eventually (λ x, P (f x)) F, from eventually_of_forall F
+          take x, absurd (nonempty.intro (f x)) H')
+  end
 
-  theorem approaches_ninfty_elim {f : X → Y} {F : filter X} (H : (f ⟶ -∞) F) (y : Y) :
+  theorem approaches_ninfty_dest {f : X → Y} {F : filter X} (H : (f ⟶ -∞) F) (y : Y) :
     eventually (λ x, f x ≤ y) F :=
-  have eventually (λ x, x ≤ y) at_ninfty, from eventually_at_ninfty (take x, suppose x ≤ y, this),
-  have eventually (λ x, x ≤ y) (mapfilter f F), from H this,
-  show eventually (λ x, f x ≤ y) F, from eventually_of_eventually_mapfilter this
+  have eventually (λ x, x ≤ y) [at -∞],
+    from eventually_at_ninfty_intro (take x, suppose x ≤ y, this),
+  show eventually (λ x, f x ≤ y) F, from tendsto_dest H this
 
-  theorem approaches_ninfty_iff [inhabited Y] (f : X → Y) (F : filter X) :
+  theorem approaches_ninfty_iff (f : X → Y) (F : filter X) :
     (f ⟶ -∞) F ↔ ∀ y, eventually (λ x, f x ≤ y) F :=
-  iff.intro approaches_ninfty_elim approaches_ninfty_intro
+  iff.intro approaches_ninfty_dest approaches_ninfty_intro
 
-  theorem approaches_ninfty_of_eventually_le [inhabited Y] {f g : X → Y} {F : filter X}
+  theorem approaches_ninfty_of_eventually_le {f g : X → Y} {F : filter X}
       (H : eventually (λ x, f x ≤ g x) F) (H' : (g ⟶ -∞) F) :
     (f ⟶ -∞) F :=
   approaches_ninfty_intro (take y,
-    have eventually (λ x, g x ≤ y) F, from approaches_ninfty_elim H' y,
-    show eventually (λ x, f x ≤ y) F, from
-      eventually_mpr H (eventually_mpr this (eventually_of_forall _
-        (take x H₁ H₂, le.trans H₂ H₁))))
+    have eventually (λ x, g x ≤ y) F, from approaches_ninfty_dest H' y,
+    show eventually (λ x, f x ≤ y) F,
+      from eventually_mpr H (eventually_mpr this
+        (eventually_of_forall _ (take x H₁ H₂, le.trans H₂ H₁))))
+
+  theorem id_approaches_ninfty_at_ninfty : @id Y ⟶ -∞ [at -∞] := tendsto_id
 end approaches_ninfty
 
 
@@ -408,15 +462,16 @@ section nhds_filter
 
   definition nhds (x : X) : filter X := Inf (principal ' {s | Open s ∧ x ∈ s})
 
-  proposition eventually_nhds {x : X} {s : set X} (Os : Open s) (xs : x ∈ s) (H : ∀₀ x ∈ s, P x) :
+  proposition eventually_nhds_intro {x : X} {s : set X}
+      (Os : Open s) (xs : x ∈ s) (H : ∀₀ x ∈ s, P x) :
     eventually P (nhds x) :=
   eventually_Inf (mem_image_of_mem _ (and.intro Os xs)) (eventually_principal H)
 
   proposition eventually_mem_nhds {x : X} {s : set X} (Os : Open s) (xs : x ∈ s) :
     eventually (λ x, x ∈ s) (nhds x) :=
-  eventually_nhds Os xs (λ x Hx, Hx)
+  eventually_nhds_intro Os xs (λ x Hx, Hx)
 
-  proposition exists_of_eventually_nhds {x : X} (H : eventually P (nhds x)) :
+  proposition eventually_nhds_elim {x : X} (H : eventually P (nhds x)) :
     ∃ s, Open s ∧ x ∈ s ∧ ∀₀ x ∈ s, P x :=
   let princS := principal ' {s | Open s ∧ x ∈ s} in
   have principal univ ∈ princS,
@@ -439,8 +494,8 @@ section nhds_filter
 
   proposition eventually_nhds_iff (x : X) :
     eventually P (nhds x) ↔ ∃ s, Open s ∧ x ∈ s ∧ ∀₀ x ∈ s, P x :=
-  iff.intro exists_of_eventually_nhds
-    (assume H, obtain s [Os [xs Hs]], from H, eventually_nhds Os xs Hs)
+  iff.intro eventually_nhds_elim
+    (assume H, obtain s [Os [xs Hs]], from H, eventually_nhds_intro Os xs Hs)
 end nhds_filter
 
 
@@ -453,11 +508,19 @@ section at_within
 
   notation [at x ` within ` s] := at_within x s
 
-  proposition eventually_at_within {x : X} {s t : set X} (Os : Open s) (xs : x ∈ s)
+  proposition at_within_le_nhds (x : X) (s : set X) : [at x within s] ≤ nhds x :=
+  inf_le_left _ _
+
+  proposition at_within_le_at_within (x : X) {s t : set X} (H : s ⊆ t) :
+    [at x within s] ≤ [at x within t] :=
+  have s \ '{x} ⊆ t \ '{x}, by rewrite diff_eq; apply inter_subset_inter_right _ H,
+  le_inf (inf_le_left _ _) (le.trans !inf_le_right (principal_le_principal this))
+
+  proposition eventually_at_within_intro {x : X} {s t : set X} (Os : Open s) (xs : x ∈ s)
       (Hs : ∀₀ y ∈ s, y ≠ x → y ∈ t → P y) :
     eventually P [at x within t] :=
   have H₁ : eventually (λ y, y ≠ x → y ∈ t → P y) (nhds x),
-    from eventually_nhds Os xs Hs,
+    from eventually_nhds_intro Os xs Hs,
   eventually_inf H₁ _ (mem_principal _)
     (take y, assume Hy,
       have H : y ∈ t \ '{x}, from and.right Hy,
@@ -466,11 +529,11 @@ section at_within
         show false, from and.right H this,
       show P y, from and.left Hy `y ≠ x` (and.left H))
 
-  proposition exists_of_eventually_at_within {x : X} {t : set X}
+  proposition eventually_at_within_dest {x : X} {t : set X}
      (H : eventually P [at x within t]) :
     ∃ s, Open s ∧ x ∈ s ∧ ∀₀ y ∈ s, y ≠ x → y ∈ t → P y :=
   obtain P₁ [eP₁nhds [P₂ [eP₂princ (H' : P ⊇ P₁ ∩ P₂)]]], from exists_of_eventually_inf H,
-  obtain s [Os [xs Hs]], from exists_of_eventually_nhds eP₁nhds,
+  obtain s [Os [xs Hs]], from eventually_nhds_elim eP₁nhds,
   have Ht : ∀₀ y ∈ t \ '{x}, P₂ y, from subset_of_eventually_principal eP₂princ,
   exists.intro s (and.intro Os (and.intro xs
     (take y, assume ys ynex yt,
@@ -479,39 +542,55 @@ section at_within
 
   theorem eventually_at_within_iff (x : X) {s : set X} :
     eventually P [at x within s] ↔ ∃ t, Open t ∧ x ∈ t ∧ ∀₀ y ∈ t, y ≠ x → y ∈ s → P y :=
-  iff.intro exists_of_eventually_at_within
-    (assume H, obtain t [Ot [xt Ht]], from H, eventually_at_within Ot xt Ht)
+  iff.intro eventually_at_within_dest
+    (assume H, obtain t [Ot [xt Ht]], from H, eventually_at_within_intro Ot xt Ht)
+
+  theorem eventually_at_within_of_subset {x : X} {s t : set X} (ssubt : s ⊆ t)
+      (H : eventually P [at x within t]) :
+    eventually P [at x within s] :=
+  eventually_of_le H (at_within_le_at_within x ssubt)
 
   abbreviation at_elt (x : X) : filter X := at_within x univ
 
   notation [at x] := at_elt x
 
-  proposition eventually_at {x : X} {s : set X} (Os : Open s) (xs : x ∈ s)
+  proposition eventually_at_intro {x : X} {s : set X} (Os : Open s) (xs : x ∈ s)
       (Hs : ∀₀ y ∈ s, y ≠ x → P y) :
     eventually P [at x] :=
-  eventually_at_within Os xs (take y, assume ys ynex yuniv, Hs ys ynex)
+  eventually_at_within_intro Os xs (take y, assume ys ynex yuniv, Hs ys ynex)
 
-  proposition exists_of_eventually_at {x : X} (H : eventually P [at x]) :
+  proposition eventually_at_dest {x : X} (H : eventually P [at x]) :
     ∃ s, Open s ∧ x ∈ s ∧ ∀₀ y ∈ s, y ≠ x → P y :=
-  obtain s [Os [xs Hs]], from exists_of_eventually_at_within H,
+  obtain s [Os [xs Hs]], from eventually_at_within_dest H,
   exists.intro s (and.intro Os (and.intro xs (λ y ys ynex, Hs y ys ynex trivial)))
 
   proposition eventually_at_iff (x : X) :
     eventually P [at x] ↔ ∃ s, Open s ∧ x ∈ s ∧ ∀₀ y ∈ s, y ≠ x → P y :=
-  iff.intro exists_of_eventually_at
-    (assume H, obtain s [Os [xs Hs]], from H, eventually_at Os xs Hs)
+  iff.intro eventually_at_dest
+    (assume H, obtain s [Os [xs Hs]], from H, eventually_at_intro Os xs Hs)
+
+  proposition eventually_at_within_of_eventually_at {x : X} (s : set X) (H : eventually P [at x]) :
+    eventually P [at x within s] :=
+  eventually_at_within_of_subset (subset_univ s) H
 
   proposition at_within_eq_of_Open {x : X} {s : set X} (Os : Open s) (xs : x ∈ s) :
     [at x within s] = [at x] :=
   filter.eq (ext (take P, iff.intro
     (assume H,
-      obtain t [Ot [xt Ht]], from exists_of_eventually_at_within H,
-      eventually_at (Open_inter Os Ot) (mem_inter xs xt)
+      obtain t [Ot [xt Ht]], from eventually_at_within_dest H,
+      eventually_at_intro (Open_inter Os Ot) (mem_inter xs xt)
         (λ y Hy yne, Ht _ (and.right Hy) yne (and.left Hy)))
     (assume H,
-      obtain t [Ot [xt Ht]], from exists_of_eventually_at H,
-      eventually_at_within (Open_inter Os Ot) (mem_inter xs xt)
+      obtain t [Ot [xt Ht]], from eventually_at_dest H,
+      eventually_at_within_intro (Open_inter Os Ot) (mem_inter xs xt)
         (λ y Hy yne ys, Ht _ (and.right Hy) yne))))
+
+  proposition tendsto_at_within_of_subset {f : X → Y} {F : filter Y} {x : X } {s t : set X}
+      (ssubt : s ⊆ t) (H : tendsto f F [at x within t]) :
+    tendsto f F [at x within s] :=
+  tendsto_intro (take P eP,
+    have eventually (λ x, P (f x)) [at x within t], from tendsto_dest H eP,
+    show eventually (λ x, P (f x)) [at x within s], from eventually_at_within_of_subset ssubt this)
 end at_within
 
 
@@ -526,14 +605,14 @@ section at_left_at_right
   notation [at x`-]` := at_left x
   notation [at x`+]` := at_right x
 
-  proposition eventually_at_left {x : X} {s : set X} (Os : Open s) (xs : x ∈ s)
+  proposition eventually_at_left_intro {x : X} {s : set X} (Os : Open s) (xs : x ∈ s)
       (H : ∀₀ y ∈ s, y < x → P y) :
     eventually P [at x-] :=
-  eventually_at_within Os xs (take y, assume ys ynex yltx, H ys yltx)
+  eventually_at_within_intro Os xs (take y, assume ys ynex yltx, H ys yltx)
 
-  proposition exists_of_eventually_at_left {x : X} (H : eventually P [at x-]) :
+  proposition eventually_at_left_dest {x : X} (H : eventually P [at x-]) :
     ∃ s, Open s ∧ x ∈ s ∧ ∀₀ y ∈ s, y < x → P y :=
-  obtain s [Os [xs Hs]], from exists_of_eventually_at_within H,
+  obtain s [Os [xs Hs]], from eventually_at_within_dest H,
   exists.intro s (and.intro Os (and.intro xs
     (take y, assume ys yltx,
       show P y, from Hs y ys (ne_of_lt yltx) yltx)))
@@ -541,18 +620,18 @@ section at_left_at_right
   variable (P)
   proposition eventually_at_left_iff (x : X) :
     eventually P [at x-] ↔ ∃ s, Open s ∧ x ∈ s ∧ ∀₀ y ∈ s, y < x → P y :=
-  iff.intro exists_of_eventually_at_left
-    (take H, obtain s [Os [xs Hs]], from H, eventually_at_left Os xs Hs)
+  iff.intro eventually_at_left_dest
+    (take H, obtain s [Os [xs Hs]], from H, eventually_at_left_intro Os xs Hs)
 
   variable {P}
-  proposition eventually_at_right {x : X} {s : set X} (Os : Open s) (xs : x ∈ s)
+  proposition eventually_at_right_intro {x : X} {s : set X} (Os : Open s) (xs : x ∈ s)
       (H : ∀₀ y ∈ s, y > x → P y) :
     eventually P [at x+] :=
-  eventually_at_within Os xs (take y, assume ys ynex yltx, H ys yltx)
+  eventually_at_within_intro Os xs (take y, assume ys ynex yltx, H ys yltx)
 
-  proposition exists_of_eventually_at_right {x : X} (H : eventually P [at x+]) :
+  proposition eventually_at_right_dest {x : X} (H : eventually P [at x+]) :
     ∃ s, Open s ∧ x ∈ s ∧ ∀₀ y ∈ s, y > x → P y :=
-  obtain s [Os [xs Hs]], from exists_of_eventually_at_within H,
+  obtain s [Os [xs Hs]], from eventually_at_within_dest H,
   exists.intro s (and.intro Os (and.intro xs
     (take y, assume ys yltx,
       show P y, from Hs y ys (ne_of_gt yltx) yltx)))
@@ -560,8 +639,8 @@ section at_left_at_right
   variable (P)
   proposition eventually_at_right_iff (x : X) :
     eventually P [at x+] ↔ ∃ s, Open s ∧ x ∈ s ∧ ∀₀ y ∈ s, y > x → P y :=
-  iff.intro exists_of_eventually_at_right
-    (take H, obtain s [Os [xs Hs]], from H, eventually_at_right Os xs Hs)
+  iff.intro eventually_at_right_dest
+    (take H, obtain s [Os [xs Hs]], from H, eventually_at_right_intro Os xs Hs)
 end at_left_at_right
 
 
@@ -577,22 +656,160 @@ section approaches
 
   proposition approaches_intro (H : ∀ s, Open s → y ∈ s → eventually (λ x, f x ∈ s) F) :
     (f ⟶ y) F :=
-  tendsto_of_forall_eventually
+  tendsto_intro
     (take P, assume eventuallyP,
       obtain s [Os [(ys : y ∈ s) (H' : ∀₀ y' ∈ s, P y')]],
-        from exists_of_eventually_nhds eventuallyP,
-      have eventually (λ x, P (f x)) F, from eventually_mono (H s Os ys) (λ x Hx, H' Hx),
-      show eventually P (mapfilter f F), from eventually_mapfilter this)
+        from eventually_nhds_elim eventuallyP,
+      show eventually (λ x, P (f x)) F, from eventually_mono (H s Os ys) (λ x Hx, H' Hx))
 
   proposition approaches_elim (H : (f ⟶ y) F) {s : set Y} (Os : Open s) (ys : y ∈ s) :
     eventually (λ x, f x ∈ s) F :=
-  have eventually (λ y', y' ∈ s) (mapfilter f F),
-    from eventually_mapfilter_of_tendsto H (eventually_mem_nhds Os ys),
-  eventually_of_eventually_mapfilter this
+  tendsto_dest H (eventually_mem_nhds Os ys)
 
   variables (F f y)
   proposition approaches_iff : (f ⟶ y) F ↔ (∀ s, Open s → y ∈ s → eventually (λ x, f x ∈ s) F) :=
   iff.intro approaches_elim approaches_intro
 end approaches
+
+/-
+  Properties of convergence at infty on nat and real (and more generally ordered semigroups)
+-/
+
+section
+  open nat
+
+  proposition eventually_at_infty_of_eventually_succ_at_infty {P : ℕ → Prop}
+    (H : eventually (λ n, P (succ n)) [at ∞]) : eventually P [at ∞] :=
+  obtain x (Hx : ∀ y, y ≥ x → P (succ y)), from eventually_at_infty_dest H,
+  eventually_at_infty_intro (take y, suppose y > x,
+    have y ≥ succ x, from succ_le_of_lt this,
+    have pred y ≥ pred (succ x), from pred_le_pred this,
+    have pred y ≥ x, by rewrite pred_succ at this; assumption,
+    have P (succ (pred y)), from Hx _ this,
+    show P y,
+      by rewrite (succ_pred_of_pos (lt_of_lt_of_le !zero_lt_succ `succ x ≤ y`)) at this; assumption)
+
+  proposition eventually_succ_at_infty {P : ℕ → Prop}
+    (H : eventually (λ n, P n) [at ∞]) : eventually (λ n, P (succ n)) [at ∞] :=
+  obtain x (Hx : ∀ y, y ≥ x → P y), from eventually_at_infty_dest H,
+  eventually_at_infty_intro (take y, suppose y > x,
+    show P (succ y), from Hx _ (le_of_lt (lt.trans this !lt_succ_self)))
+
+  proposition eventually_succ_at_infty_iff (P : ℕ → Prop) :
+    (eventually (λ n, P (succ n)) [at ∞]) ↔ (eventually P [at ∞]) :=
+  iff.intro eventually_at_infty_of_eventually_succ_at_infty eventually_succ_at_infty
+
+  proposition tendsto_succ_at_infty {f : ℕ → Y} {F : filter Y} (H : tendsto f F [at ∞]) :
+    tendsto (λ n, f (succ n)) F [at ∞] :=
+  tendsto_intro (take P, suppose eventually P F,
+    eventually_succ_at_infty (tendsto_dest H this))
+
+  proposition tendsto_at_infty_of_tendsto_succ_at_infty {f : ℕ → Y} {F : filter Y}
+      (H : tendsto (λ n, f (succ n)) F [at ∞]) :
+    tendsto f F [at ∞] :=
+  tendsto_intro (take P, suppose eventually P F,
+    eventually_at_infty_of_eventually_succ_at_infty (tendsto_dest H this))
+
+  proposition tendsto_succ_at_infty_iff (f : ℕ → Y) (F : filter Y) :
+    (tendsto (λ n, f (succ n)) F [at ∞]) ↔ (tendsto f F [at ∞]) :=
+  iff.intro tendsto_at_infty_of_tendsto_succ_at_infty tendsto_succ_at_infty
+
+  proposition succ_approaches_infty_at_infty : (λ n, succ n) ⟶ ∞ [at ∞] :=
+  tendsto_succ_at_infty id_approaches_infty_at_infty
+
+  -- alterantive proof:
+  --  approaches_infty_intro (take n,
+  --    eventually_at_infty_intro (take y, suppose y ≥ n,
+  --      show succ y ≥ n, from le.trans this (le_of_lt (lt_succ_self y))))
+
+  -- another alternative proof:
+  --  approaches_infty_of_eventually_ge
+  --    (eventually_of_forall _ (λ x, le_of_lt (lt_succ_self x))
+  --    id_approaches_infty_at_infty
+
+  -- TODO: for these next proofs: we should unify nat and group cases, with a class
+  -- with the axiom x ≤ y → y - x + x = y.
+  -- in the meanwhile, put ' on these versions
+
+  -- TODO: add_left versions
+
+  proposition eventually_at_infty_of_eventually_add_right_at_infty' {P : ℕ → Prop} {k : ℕ}
+    (H : eventually (λ n, P (n + k)) [at ∞]) : eventually P [at ∞] :=
+  obtain x (Hx : ∀ y, y ≥ x → P (y + k)), from eventually_at_infty_dest H,
+  eventually_at_infty_intro (take y, suppose y ≥ x + k,
+    have y - k ≥ x, from nat.le_sub_of_add_le this,
+    have H' : P (y - k + k), from Hx _ this,
+    have y ≥ k, from le.trans !le_add_left `x + k ≤ y`,
+    show P y, by rewrite [nat.sub_add_cancel this at H']; exact H')
+
+  proposition eventually_add_right_at_infty' {P : ℕ → Prop} (k : ℕ)
+    (H : eventually (λ n, P n) [at ∞]) : eventually (λ n, P (n + k)) [at ∞] :=
+  obtain x (Hx : ∀ y, y ≥ x → P y), from eventually_at_infty_dest H,
+  eventually_at_infty_intro (take y, suppose y ≥ x,
+    have y + k ≥ x, from le.trans this !le_add_right,
+    show P (y + k), from Hx _ this)
+
+  proposition eventually_add_right_at_infty_iff' (k : ℕ) (P : ℕ → Prop) :
+    (eventually (λ n, P (n + k)) [at ∞]) ↔ (eventually P [at ∞]) :=
+  iff.intro eventually_at_infty_of_eventually_add_right_at_infty' (eventually_add_right_at_infty' k)
+
+  proposition tendsto_add_right_at_infty' {f : ℕ → Y} {F : filter Y}
+      (H : tendsto f F [at ∞]) (k : ℕ) :
+    tendsto (λ n, f (n + k)) F [at ∞] :=
+  tendsto_intro (take P, suppose eventually P F,
+    eventually_add_right_at_infty' k (tendsto_dest H this))
+
+  proposition tendsto_at_infty_of_tendsto_add_right_at_infty' {f : ℕ → Y} {F : filter Y} {k : ℕ}
+      (H : tendsto (λ n, f (n + k)) F [at ∞]) :
+    tendsto f F [at ∞] :=
+  tendsto_intro (take P, suppose eventually P F,
+    eventually_at_infty_of_eventually_add_right_at_infty' (tendsto_dest H this))
+
+  proposition tendsto_add_right_at_infty_iff' (f : ℕ → Y) (F : filter Y) (k : ℕ) :
+    (tendsto (λ n, f (n + k)) F [at ∞]) ↔ (tendsto f F [at ∞]) :=
+  iff.intro tendsto_at_infty_of_tendsto_add_right_at_infty' (λ H, tendsto_add_right_at_infty' H k)
+end
+
+section
+  -- TODO: move to algebra?
+  private proposition inhabited_of_has_zero [trans_instance] (H : has_zero X) : inhabited X :=
+  inhabited.mk 0
+
+  variable [decidable_linear_ordered_comm_group X]
+
+  proposition eventually_at_infty_of_eventually_add_right_at_infty {P : X → Prop} {k : X}
+    (H : eventually (λ n, P (n + k)) [at ∞]) : eventually P [at ∞] :=
+  obtain x (Hx : ∀ y, y ≥ x → P (y + k)), from eventually_at_infty_dest H,
+  eventually_at_infty_intro (take y, suppose y ≥ x + k,
+    have y - k ≥ x, from le_sub_right_of_add_le this,
+    have H' : P (y - k + k), from Hx _ this,
+    show P y, by rewrite [sub_add_cancel at H']; exact H')
+
+  proposition eventually_add_right_at_infty {P : X → Prop} (k : X)
+    (H : eventually (λ n, P n) [at ∞]) : eventually (λ n, P (n + k)) [at ∞] :=
+  have eventually (λ n, P (n + -k + k)) [at ∞],
+    from eventually_congr (take x, by rewrite [neg_add_cancel_right]) H,
+  eventually_at_infty_of_eventually_add_right_at_infty this
+
+  proposition eventually_add_right_at_infty_iff (k : X) (P : X → Prop) :
+    (eventually (λ n, P (n + k)) [at ∞]) ↔ (eventually P [at ∞]) :=
+  iff.intro eventually_at_infty_of_eventually_add_right_at_infty (eventually_add_right_at_infty k)
+
+  proposition tendsto_add_right_at_infty {f : X → Y} {F : filter Y}
+      (H : tendsto f F [at ∞]) (k : X) :
+    tendsto (λ n, f (n + k)) F [at ∞] :=
+  tendsto_intro (take P, suppose eventually P F,
+    eventually_add_right_at_infty k (tendsto_dest H this))
+
+  proposition tendsto_at_infty_of_tendsto_add_right_at_infty {f : X → Y} {F : filter Y} {k : X}
+      (H : tendsto (λ n, f (n + k)) F [at ∞]) :
+    tendsto f F [at ∞] :=
+  tendsto_intro (take P, suppose eventually P F,
+    eventually_at_infty_of_eventually_add_right_at_infty (tendsto_dest H this))
+
+  proposition tendsto_add_right_at_infty_iff (f : X → Y) (F : filter Y) (k : X) :
+    (tendsto (λ n, f (n + k)) F [at ∞]) ↔ (tendsto f F [at ∞]) :=
+  iff.intro tendsto_at_infty_of_tendsto_add_right_at_infty (λ H, tendsto_add_right_at_infty H k)
+end
 
 end topology
