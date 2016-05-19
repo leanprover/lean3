@@ -52,17 +52,17 @@ In terms of sets, this is equivalent to
   ∀ s : set Y, s ∈ sets F₂ → f '- s ∈ sets F₁
 
 so one option is to use "tendsto_intro" "tendsto_dest" and "tendsto_iff" to unpack meanings
-in terms of "eventually", and then use the intro and elim rules of "eventually". For specific
+in terms of "eventually", and then use the intro and dest rules of "eventually". For specific
 topologies -- for example, those given by a metric space or norm -- see the specialized
-intro and elim rules for eventually in those files.
+intro and dest rules for eventually in those files.
 
-For "approaches", "approaches_infty", and "approaches_ninfty", there are specific intro, elim,
+For "approaches", "approaches_infty", and "approaches_ninfty", there are specific intro, dest,
 and iff rules. Again, see also specific versions for metric spaces, normed spaces, etc.
 
 Note that the filters at_infty and at_ninfty don't rely on topological notions at all, only the
 existence of a suitable order.
 
-We mark tendsto as irreducible after defining the intro and elim rules, because otherwise
+We mark tendsto as irreducible after defining the intro and dest rules, because otherwise
 tactics seem to unfold too much.
 -/
 import data.set data.nat algebra.interval .basic
@@ -244,6 +244,21 @@ tendsto_of_le_left !le_sup_right H
 theorem tendsto_comp_iff_tendsto_mapfilter (f : X → Y) (g : Y → Z) (F₁ : filter X) (F₂ : filter Z) :
   tendsto (g ∘ f) F₂ F₁ ↔ tendsto g F₂ (mapfilter f F₁) :=
 !iff.refl
+
+theorem eventually_of_tendsto_principal {f : X → Y} {F : filter X} {s : set Y}
+    (H : tendsto f (principal s) F) :
+  eventually (λ x, f x ∈ s) F :=
+tendsto_dest H (eventually_principal (subset.refl _))
+
+theorem tendsto_principal {f : X → Y} {F : filter X} {s : set Y} (H : eventually (λ x, f x ∈ s) F) :
+  tendsto f (principal s) F :=
+tendsto_intro (take P, assume ePF,
+  have ∀₀ x ∈ s, P x, from subset_of_eventually_principal ePF,
+  eventually_mono H (λ x Hfx, this Hfx))
+
+theorem tendsto_principal_iff (f : X → Y) (F : filter X) (s : set Y) :
+  tendsto f (principal s) F ↔ eventually (λ x, f x ∈ s) F :=
+iff.intro eventually_of_tendsto_principal tendsto_principal
 
 attribute tendsto [irreducible]
 
@@ -471,7 +486,7 @@ section nhds_filter
     eventually (λ x, x ∈ s) (nhds x) :=
   eventually_nhds_intro Os xs (λ x Hx, Hx)
 
-  proposition eventually_nhds_elim {x : X} (H : eventually P (nhds x)) :
+  proposition eventually_nhds_dest {x : X} (H : eventually P (nhds x)) :
     ∃ s, Open s ∧ x ∈ s ∧ ∀₀ x ∈ s, P x :=
   let princS := principal ' {s | Open s ∧ x ∈ s} in
   have principal univ ∈ princS,
@@ -494,7 +509,7 @@ section nhds_filter
 
   proposition eventually_nhds_iff (x : X) :
     eventually P (nhds x) ↔ ∃ s, Open s ∧ x ∈ s ∧ ∀₀ x ∈ s, P x :=
-  iff.intro eventually_nhds_elim
+  iff.intro eventually_nhds_dest
     (assume H, obtain s [Os [xs Hs]], from H, eventually_nhds_intro Os xs Hs)
 end nhds_filter
 
@@ -533,7 +548,7 @@ section at_within
      (H : eventually P [at x within t]) :
     ∃ s, Open s ∧ x ∈ s ∧ ∀₀ y ∈ s, y ≠ x → y ∈ t → P y :=
   obtain P₁ [eP₁nhds [P₂ [eP₂princ (H' : P ⊇ P₁ ∩ P₂)]]], from exists_of_eventually_inf H,
-  obtain s [Os [xs Hs]], from eventually_nhds_elim eP₁nhds,
+  obtain s [Os [xs Hs]], from eventually_nhds_dest eP₁nhds,
   have Ht : ∀₀ y ∈ t \ '{x}, P₂ y, from subset_of_eventually_principal eP₂princ,
   exists.intro s (and.intro Os (and.intro xs
     (take y, assume ys ynex yt,
@@ -659,7 +674,7 @@ section approaches
   tendsto_intro
     (take P, assume eventuallyP,
       obtain s [Os [(ys : y ∈ s) (H' : ∀₀ y' ∈ s, P y')]],
-        from eventually_nhds_elim eventuallyP,
+        from eventually_nhds_dest eventuallyP,
       show eventually (λ x, P (f x)) F, from eventually_mono (H s Os ys) (λ x Hx, H' Hx))
 
   proposition approaches_elim (H : (f ⟶ y) F) {s : set Y} (Os : Open s) (ys : y ∈ s) :
@@ -669,6 +684,25 @@ section approaches
   variables (F f y)
   proposition approaches_iff : (f ⟶ y) F ↔ (∀ s, Open s → y ∈ s → eventually (λ x, f x ∈ s) F) :=
   iff.intro approaches_elim approaches_intro
+
+  proposition tendsto_comp_of_approaches_of_tendsto_at_within
+      {f : X → Y} {g : Y → Z} {s : set Y} {y : Y} {F₁ : filter X} {F₃ : filter Z}
+      (Hf₁ : (f ⟶ y) F₁) (Hf₂ : eventually (λ x, f x ∈ s ∧ f x ≠ y) F₁)
+      (Hg : tendsto g F₃ [at y within s]) :
+    tendsto (g ∘ f) F₃ F₁ :=
+  have eventually (λ x, f x ∈ s \ '{y}) F₁,
+    from eventually_congr (take x, by rewrite [mem_diff_iff, mem_singleton_iff]) Hf₂,
+  have tendsto f [at y within s] F₁, from tendsto_inf Hf₁ (tendsto_principal this),
+  tendsto_comp this Hg
+
+  proposition tendsto_comp_of_approaches_of_tendsto_at
+      {f : X → Y} {g : Y → Z} {y : Y} {F₁ : filter X} {F₃ : filter Z}
+      (Hf₁ : (f ⟶ y) F₁) (Hf₂ : eventually (λ x, f x ≠ y) F₁)
+      (Hg : tendsto g F₃ [at y]) :
+    tendsto (g ∘ f) F₃ F₁ :=
+  have eventually (λ x, f x ∈ univ ∧ f x ≠ y) F₁,
+    from eventually_congr (take x, by rewrite [mem_univ_iff, true_and]) Hf₂,
+  tendsto_comp_of_approaches_of_tendsto_at_within Hf₁ this Hg
 end approaches
 
 /-

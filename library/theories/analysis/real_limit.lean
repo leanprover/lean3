@@ -6,7 +6,7 @@ Authors: Jeremy Avigad, Robert Y. Lewis
 Instantiates the reals as a Banach space.
 -/
 import .metric_space data.real.complete data.set .normed_space
-open real classical analysis nat
+open real classical analysis nat topology
 noncomputable theory
 
 /- sup and inf -/
@@ -152,15 +152,15 @@ theorem dist_eq_abs (x y : real) : dist x y = abs (x - y) := rfl
 
 proposition converges_to_seq_real_intro {X : ℕ → ℝ} {y : ℝ}
     (H : ∀ ⦃ε : ℝ⦄, ε > 0 → ∃ N : ℕ, ∀ {n}, n ≥ N → abs (X n - y) < ε) :
-  (X ⟶ y in ℕ) := H
+  (X ⟶ y [at ∞]) := approaches_at_infty_intro H
 
-proposition converges_to_seq_real_elim {X : ℕ → ℝ} {y : ℝ} (H : X ⟶ y in ℕ) :
-    ∀ ⦃ε : ℝ⦄, ε > 0 → ∃ N : ℕ, ∀ {n}, n ≥ N → abs (X n - y) < ε := H
+proposition converges_to_seq_real_elim {X : ℕ → ℝ} {y : ℝ} (H : X ⟶ y [at ∞]) :
+    ∀ ⦃ε : ℝ⦄, ε > 0 → ∃ N : ℕ, ∀ {n}, n ≥ N → abs (X n - y) < ε := approaches_at_infty_dest H
 
 proposition converges_to_seq_real_intro' {X : ℕ → ℝ} {y : ℝ}
     (H : ∀ ⦃ε : ℝ⦄, ε > 0 → ∃ N : ℕ, ∀ {n}, n ≥ N → abs (X n - y) ≤ ε) :
-  converges_to_seq X y :=
-converges_to_seq.intro H
+  (X ⟶ y [at ∞]) :=
+approaches_at_infty_intro' H
 
 open pnat subtype
 local postfix ⁻¹ := pnat.inv
@@ -205,7 +205,8 @@ theorem converges_seq_of_cauchy {X : ℕ → ℝ} (H : cauchy X) : converges_seq
 obtain l Nb (conv : converges_to_with_rate (r_seq_of X) l Nb),
   from converges_to_with_rate_of_cauchy H,
 exists.intro l
-  (take ε : ℝ,
+  (approaches_at_infty_intro
+    take ε : ℝ,
     suppose ε > 0,
     obtain (k' : ℕ) (Hn : 1 / succ k' < ε), from archimedean_small `ε > 0`,
     let k : ℕ+ := tag (succ k') !succ_pos,
@@ -254,22 +255,23 @@ section limit_operations
 variables {X Y : ℕ → ℝ}
 variables {x y : ℝ}
 
-proposition mul_left_converges_to_seq (c : ℝ) (HX : X ⟶ x in ℕ) :
-  (λ n, c * X n) ⟶ c * x in ℕ :=
+proposition mul_left_converges_to_seq (c : ℝ) (HX : X ⟶ x [at ∞]) :
+  (λ n, c * X n) ⟶ c * x [at ∞] :=
 smul_converges_to_seq c HX
 
-proposition mul_right_converges_to_seq (c : ℝ) (HX : X ⟶ x in ℕ) :
-  (λ n, X n * c) ⟶ x * c in ℕ :=
+proposition mul_right_converges_to_seq (c : ℝ) (HX : X ⟶ x [at ∞]) :
+  (λ n, X n * c) ⟶ x * c [at ∞] :=
 have (λ n, X n * c) = (λ n, c * X n), from funext (take x, !mul.comm),
 by rewrite [this, mul.comm]; apply mul_left_converges_to_seq c HX
 
-theorem converges_to_seq_squeeze (HX : X ⟶ x in ℕ) (HY : Y ⟶ x in ℕ) {Z : ℕ → ℝ} (HZX : ∀ n, X n ≤ Z n)
-        (HZY : ∀ n, Z n ≤ Y n) : Z ⟶ x in ℕ :=
+theorem converges_to_seq_squeeze (HX : X ⟶ x [at ∞]) (HY : Y ⟶ x [at ∞]) {Z : ℕ → ℝ} (HZX : ∀ n, X n ≤ Z n)
+        (HZY : ∀ n, Z n ≤ Y n) : Z ⟶ x [at ∞] :=
   begin
+    apply approaches_at_infty_intro,
     intros ε Hε,
     have Hε4 : ε / 4 > 0, from div_pos_of_pos_of_pos Hε four_pos,
-    cases HX Hε4 with N1 HN1,
-    cases HY Hε4 with N2 HN2,
+    cases approaches_at_infty_dest HX Hε4 with N1 HN1,
+    cases approaches_at_infty_dest HY Hε4 with N2 HN2,
     existsi max N1 N2,
     intro n Hn,
     have HXY : abs (Y n - X n) < ε / 2, begin
@@ -307,11 +309,12 @@ theorem converges_to_seq_squeeze (HX : X ⟶ x in ℕ) (HY : Y ⟶ x in ℕ) {Z 
     exact H
   end
 
-proposition converges_to_seq_of_abs_sub_converges_to_seq (Habs : (λ n, abs (X n - x)) ⟶ 0 in ℕ) :
-            X ⟶ x in ℕ :=
+proposition converges_to_seq_of_abs_sub_converges_to_seq (Habs : (λ n, abs (X n - x)) ⟶ 0 [at ∞]) :
+            X ⟶ x [at ∞] :=
   begin
+    apply approaches_at_infty_intro,
     intros ε Hε,
-    cases Habs Hε with N HN,
+    cases approaches_at_infty_dest Habs Hε with N HN,
     existsi N,
     intro n Hn,
     have Hn' : abs (abs (X n - x) - 0) < ε, from HN Hn,
@@ -319,19 +322,20 @@ proposition converges_to_seq_of_abs_sub_converges_to_seq (Habs : (λ n, abs (X n
     exact Hn'
   end
 
-proposition abs_sub_converges_to_seq_of_converges_to_seq (HX : X ⟶ x in ℕ) :
-            (λ n, abs (X n - x)) ⟶ 0 in ℕ :=
+proposition abs_sub_converges_to_seq_of_converges_to_seq (HX : X ⟶ x [at ∞]) :
+            (λ n, abs (X n - x)) ⟶ 0 [at ∞] :=
   begin
+    apply approaches_at_infty_intro,
     intros ε Hε,
-    cases HX Hε with N HN,
+    cases approaches_at_infty_dest HX Hε with N HN,
     existsi N,
     intro n Hn,
     have Hn' : abs (abs (X n - x) - 0) < ε, by rewrite [sub_zero, abs_abs]; apply HN Hn,
     exact Hn'
   end
 
-proposition mul_converges_to_seq (HX : X ⟶ x in ℕ) (HY : Y ⟶ y in ℕ) :
-            (λ n, X n * Y n) ⟶ x * y in ℕ :=
+proposition mul_converges_to_seq (HX : X ⟶ x [at ∞]) (HY : Y ⟶ y [at ∞]) :
+            (λ n, X n * Y n) ⟶ x * y [at ∞] :=
     have Hbd : ∃ K : ℝ, ∀ n : ℕ, abs (X n) ≤ K, begin
       cases bounded_of_converges_seq HX with K HK,
       existsi K + abs x,
@@ -358,12 +362,12 @@ proposition mul_converges_to_seq (HX : X ⟶ x in ℕ) (HY : Y ⟶ y in ℕ) :
       rewrite [-mul_sub_right_distrib, abs_mul, mul.comm],
       apply le.refl
     end,
-    have Hdifflim : (λ n, abs (X n * Y n - x * y)) ⟶ 0 in ℕ, begin
+    have Hdifflim : (λ n, abs (X n * Y n - x * y)) ⟶ 0 [at ∞], begin
       apply converges_to_seq_squeeze,
       rotate 2,
       intro, apply abs_nonneg,
       apply Habsle,
-      apply converges_to_seq_constant,
+      apply approaches_constant,
       rewrite -{0}zero_add,
       apply add_converges_to_seq,
       krewrite -(mul_zero K),
@@ -380,15 +384,15 @@ proposition mul_converges_to_seq (HX : X ⟶ x in ℕ) (HY : Y ⟶ y in ℕ) :
 
 -- TODO: converges_to_seq_div, converges_to_seq_mul_left_iff, etc.
 
-proposition abs_converges_to_seq_zero (HX : X ⟶ 0 in ℕ) : (λ n, abs (X n)) ⟶ 0 in ℕ :=
+proposition abs_converges_to_seq_zero (HX : X ⟶ 0 [at ∞]) : (λ n, abs (X n)) ⟶ 0 [at ∞] :=
 norm_converges_to_seq_zero HX
 
-proposition converges_to_seq_zero_of_abs_converges_to_seq_zero (HX : (λ n, abs (X n)) ⟶ 0 in ℕ) :
-  X ⟶ 0 in ℕ :=
+proposition converges_to_seq_zero_of_abs_converges_to_seq_zero (HX : (λ n, abs (X n)) ⟶ 0 [at ∞]) :
+  X ⟶ 0 [at ∞] :=
 converges_to_seq_zero_of_norm_converges_to_seq_zero HX
 
 proposition abs_converges_to_seq_zero_iff (X : ℕ → ℝ) :
-  ((λ n, abs (X n)) ⟶ 0 in ℕ) ↔ (X ⟶ 0 in ℕ) :=
+  ((λ n, abs (X n)) ⟶ 0 [at ∞]) ↔ (X ⟶ 0 [at ∞]) :=
 iff.intro converges_to_seq_zero_of_abs_converges_to_seq_zero abs_converges_to_seq_zero
 
 -- TODO: products of two sequences, converges_seq, limit_seq
@@ -401,15 +405,17 @@ section limit_operations_continuous
 variables {f g : ℝ → ℝ}
 variables {a b x y : ℝ}
 
-theorem mul_converges_to_at (Hf : f ⟶ a at x) (Hg : g ⟶ b at x) : (λ z, f z * g z) ⟶ a * b at x :=
+theorem mul_converges_to_at (Hf : f ⟶ a [at x]) (Hg : g ⟶ b [at x]) : (λ z, f z * g z) ⟶ a * b [at x] :=
   begin
     apply converges_to_at_of_all_conv_seqs,
     intro X HX,
     apply mul_converges_to_seq,
-    note Hfc := all_conv_seqs_of_converges_to_at Hf,
-    apply Hfc _ HX,
-    note Hgb := all_conv_seqs_of_converges_to_at Hg,
-    apply Hgb _ HX
+    apply comp_approaches_at_infty Hf,
+    apply and.right (HX 0),
+    apply (set.filter.eventually_of_forall _ (λ n, and.left (HX n))),
+    apply comp_approaches_at_infty Hg,
+    apply and.right (HX 0),
+    apply (set.filter.eventually_of_forall _ (λ n, and.left (HX n)))
   end
 
 end limit_operations_continuous
@@ -421,8 +427,9 @@ open real set
 variable {X : ℕ → ℝ}
 
 proposition converges_to_seq_sup_of_nondecreasing (nondecX : nondecreasing X) {b : ℝ}
-    (Hb : ∀ i, X i ≤ b) : X ⟶ sup (X ' univ) in ℕ :=
-let sX := sup (X ' univ) in
+    (Hb : ∀ i, X i ≤ b) : X ⟶ sup (X ' univ) [at ∞] :=
+approaches_at_infty_intro
+(let sX := sup (X ' univ) in
 have Xle : ∀ i, X i ≤ sX, from
   take i,
   have ∀ x, x ∈ X ' univ → x ≤ b, from
@@ -446,10 +453,10 @@ exists.intro i
     have sX - ε < X j, from lt_of_lt_of_le (by rewrite Hi; apply H₂x') (nondecX Hj),
     have sX < X j + ε, from lt_add_of_sub_lt_right this,
     have sX - X j < ε, from sub_lt_left_of_lt_add this,
-    show (abs (X j - sX)) < ε, by rewrite eq₁; exact this)
+    show (abs (X j - sX)) < ε, by rewrite eq₁; exact this))
 
 proposition converges_to_seq_inf_of_nonincreasing (nonincX : nonincreasing X) {b : ℝ}
-    (Hb : ∀ i, b ≤ X i) : X ⟶ inf (X ' univ) in ℕ :=
+    (Hb : ∀ i, b ≤ X i) : X ⟶ inf (X ' univ) [at ∞] :=
 have H₁ : ∃ x, x ∈ X ' univ, from exists.intro (X 0) (mem_image_of_mem X !mem_univ),
 have H₂ : ∀ x, x ∈ X ' univ → b ≤ x, from
   (take x, assume H,
@@ -460,8 +467,9 @@ have H₃ : {x : ℝ | -x ∈ X ' univ} = {x : ℝ | x ∈ (λ n, -X n) ' univ},
                        ... = {x : ℝ | x ∈ (λ n, -X n) ' univ} : image_comp,
 have H₄ : ∀ i, - X i ≤ - b, from take i, neg_le_neg (Hb i),
 begin
+  apply iff.mp !neg_converges_to_seq_iff,
   -- need krewrite here
-  krewrite [-neg_converges_to_seq_iff, -sup_neg H₁ H₂, H₃, -nondecreasing_neg_iff at nonincX],
+  krewrite [-sup_neg H₁ H₂, H₃, -nondecreasing_neg_iff at nonincX],
   apply converges_to_seq_sup_of_nondecreasing nonincX H₄
 end
 
@@ -473,8 +481,8 @@ section xn
 open nat set
 
 theorem pow_converges_to_seq_zero {x : ℝ} (H : abs x < 1) :
-  (λ n, x^n) ⟶ 0 in ℕ :=
-suffices H' : (λ n, (abs x)^n) ⟶ 0 in ℕ, from
+  (λ n, x^n) ⟶ 0 [at ∞] :=
+suffices H' : (λ n, (abs x)^n) ⟶ 0 [at ∞], from
   have (λ n, (abs x)^n) = (λ n, abs (x^n)), from funext (take n, eq.symm !abs_pow),
     by rewrite this at H'; exact converges_to_seq_zero_of_abs_converges_to_seq_zero H',
 let  aX := (λ n, (abs x)^n),
@@ -488,12 +496,12 @@ have noninc_aX : nonincreasing aX, from
       have (abs x) * (abs x)^i ≤ (abs x)^i, by krewrite one_mul at this; exact this,
       show (abs x) ^ (succ i) ≤ (abs x)^i, by rewrite pow_succ; apply this),
 have bdd_aX : ∀ i, 0 ≤ aX i, from take i, !pow_nonneg_of_nonneg !abs_nonneg,
-have aXconv : aX ⟶ iaX in ℕ, proof converges_to_seq_inf_of_nonincreasing noninc_aX bdd_aX qed,
-have asXconv : asX ⟶ iaX in ℕ, from converges_to_seq_offset_succ aXconv,
-have asXconv' : asX ⟶ (abs x) * iaX in ℕ, from mul_left_converges_to_seq (abs x) aXconv,
-have iaX = (abs x) * iaX, from converges_to_seq_unique asXconv asXconv',
+have aXconv : aX ⟶ iaX [at ∞], proof converges_to_seq_inf_of_nonincreasing noninc_aX bdd_aX qed,
+have asXconv : asX ⟶ iaX [at ∞], from tendsto_succ_at_infty aXconv,
+have asXconv' : asX ⟶ (abs x) * iaX [at ∞], from mul_left_converges_to_seq (abs x) aXconv,
+have iaX = (abs x) * iaX, from sorry, -- converges_to_seq_unique asXconv asXconv',
 have iaX = 0, from eq_zero_of_mul_eq_self_left (ne_of_lt H) (eq.symm this),
-show aX ⟶ 0 in ℕ, begin rewrite -this, exact aXconv end --from this ▸ aXconv
+show aX ⟶ 0 [at ∞], begin rewrite -this, exact aXconv end --from this ▸ aXconv
 
 end xn
 
