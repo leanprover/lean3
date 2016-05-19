@@ -125,31 +125,28 @@ section
           from (@right_inv _ _ (@equiv_of_eq A B) (univalence A B) w'),
         have invs_eq : (to_fun eq')⁻¹ = (to_fun w')⁻¹,
           from inv_eq eq' w' eqretr,
+        have eqfin1 : Π(p : A = B), (to_fun (equiv_of_eq p)) ∘ ((to_fun (equiv_of_eq p))⁻¹ ∘ x) = x,
+          by intro p; induction p; reflexivity,
         have eqfin : (to_fun eq') ∘ ((to_fun eq')⁻¹ ∘ x) = x,
-          from (λ p,
-            (@eq.rec_on Type.{l} A
-              (λ B' p', Π (x' : C → B'), (to_fun (equiv_of_eq p'))
-                ∘ ((to_fun (equiv_of_eq p'))⁻¹ ∘ x') = x')
-              B p (λ x', idp))
-            ) eqinv x,
+          from eqfin1 eqinv,
         have eqfin' : (to_fun w') ∘ ((to_fun eq')⁻¹ ∘ x) = x,
-          from eqretr ▸ eqfin,
-        have eqfin'' : (to_fun w') ∘ ((to_fun w')⁻¹ ∘ x) = x,
-          from invs_eq ▸ eqfin',
-        eqfin''
+          from ap (λu, u ∘ _) eqretr⁻¹ ⬝ eqfin,
+        show (to_fun w') ∘ ((to_fun w')⁻¹ ∘ x) = x,
+          from ap (λu, _ ∘ (u ∘ _)) invs_eq⁻¹ ⬝ eqfin'
       )
       (λ (x : C → A),
         have eqretr : eq' = w',
           from (@right_inv _ _ (@equiv_of_eq A B) (univalence A B) w'),
         have invs_eq : (to_fun eq')⁻¹ = (to_fun w')⁻¹,
           from inv_eq eq' w' eqretr,
+        have eqfin1 : Π(p : A = B), (to_fun (equiv_of_eq p))⁻¹ ∘ ((to_fun (equiv_of_eq p)) ∘ x) = x,
+          by intro p; induction p; reflexivity,
         have eqfin : (to_fun eq')⁻¹ ∘ ((to_fun eq') ∘ x) = x,
-          from (λ p, eq.rec_on p idp) eqinv,
+          from eqfin1 eqinv,
         have eqfin' : (to_fun eq')⁻¹ ∘ ((to_fun w') ∘ x) = x,
-          from eqretr ▸ eqfin,
-        have eqfin'' : (to_fun w')⁻¹ ∘ ((to_fun w') ∘ x) = x,
-          from invs_eq ▸ eqfin',
-        eqfin''
+          from ap (λu, _ ∘ (u ∘ _)) eqretr⁻¹ ⬝ eqfin,
+        show (to_fun w')⁻¹ ∘ ((to_fun w') ∘ x) = x,
+          from ap (λu, u ∘ _) invs_eq⁻¹ ⬝ eqfin'
       )
 
   -- We are ready to prove functional extensionality,

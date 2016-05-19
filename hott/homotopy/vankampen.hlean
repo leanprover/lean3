@@ -7,7 +7,7 @@ Authors: Floris van Doorn
 import hit.pushout algebra.category.constructions.pushout algebra.category.constructions.type
        algebra.category.functor.equivalence
 
-open eq pushout category functor sum iso indexed_list set_quotient is_trunc trunc pi quotient
+open eq pushout category functor sum iso paths set_quotient is_trunc trunc pi quotient
      is_equiv
 
 namespace pushout
@@ -18,14 +18,9 @@ namespace pushout
   definition pushout_of_sum [unfold 6] (x : BL + TR) : pushout f g :=
   quotient.class_of _ x
 
-  local notation `C` := Groupoid_pushout (fundamental_groupoid_functor f)
-                                         (fundamental_groupoid_functor g)
-
-  local notation `R` := pushout_prehom_index (fundamental_groupoid_functor f)
-                                             (fundamental_groupoid_functor g)
-
-  local notation `Q` := pushout_hom_rel_index (fundamental_groupoid_functor f)
-                                              (fundamental_groupoid_functor g)
+  local notation `C` := Groupoid_pushout      (fundamental_groupoid BL) (fundamental_groupoid TR) f g
+  local notation `R` := pushout_prehom_index  (fundamental_groupoid BL) (fundamental_groupoid TR) f g
+  local notation `Q` := pushout_hom_rel_index (fundamental_groupoid BL) (fundamental_groupoid TR) f g
 
   protected definition code [unfold 7] (x : BL + TR) (y : pushout f g) : Type.{max u v w} :=
   begin
@@ -61,7 +56,7 @@ namespace pushout
     { exact tr (glue c)⁻¹},
   end
 
-  definition decode_list ⦃x x' : BL + TR⦄ (l : indexed_list R x x') :
+  definition decode_list ⦃x x' : BL + TR⦄ (l : paths R x x') :
     trunc 0 (pushout_of_sum x = pushout_of_sum x') :=
   realize (λa a', trunc 0 (pushout_of_sum a = pushout_of_sum a'))
           decode_reduction_rule
@@ -71,7 +66,7 @@ namespace pushout
   definition decode_list_nil (x : BL + TR) : decode_list (@nil _ _ x) = tidp :=
   idp
 
-  definition decode_list_cons ⦃x₁ x₂ x₃ : BL + TR⦄ (r : R x₂ x₃) (l : indexed_list R x₁ x₂) :
+  definition decode_list_cons ⦃x₁ x₂ x₃ : BL + TR⦄ (r : R x₂ x₃) (l : paths R x₁ x₂) :
     decode_list (r :: l) = tconcat (decode_list l) (decode_reduction_rule r) :=
   idp
 
@@ -83,12 +78,12 @@ namespace pushout
     decode_list [r₂, r₁] = tconcat (decode_reduction_rule r₁) (decode_reduction_rule r₂) :=
   realize_pair (λa b p, tidp_tcon p) r₂ r₁
 
-  definition decode_list_append ⦃x₁ x₂ x₃ : BL + TR⦄ (l₂ : indexed_list R x₂ x₃)
-    (l₁ : indexed_list R x₁ x₂) :
+  definition decode_list_append ⦃x₁ x₂ x₃ : BL + TR⦄ (l₂ : paths R x₂ x₃)
+    (l₁ : paths R x₁ x₂) :
     decode_list (l₂ ++ l₁) = tconcat (decode_list l₁) (decode_list l₂) :=
   realize_append (λa b c d, tassoc) (λa b, tcon_tidp) l₂ l₁
 
-  theorem decode_list_rel ⦃x x' : BL + TR⦄ {l l' : indexed_list R x x'} (H : Q l l') :
+  theorem decode_list_rel ⦃x x' : BL + TR⦄ {l l' : paths R x x'} (H : Q l l') :
     decode_list l = decode_list l' :=
   begin
     induction H,
@@ -199,9 +194,9 @@ namespace pushout
     have is_prop (encode (decode_reduction_rule r) = class_of [r]), from !is_trunc_eq,
     induction r,
     { induction f_1 with p, induction p, symmetry, apply eq_of_rel,
-      apply tr, apply indexed_list_rel_of_Q, apply idD},
+      apply tr, apply paths_rel_of_Q, apply idD},
     { induction g_1 with p, induction p, symmetry, apply eq_of_rel,
-      apply tr, apply indexed_list_rel_of_Q, apply idE},
+      apply tr, apply paths_rel_of_Q, apply idE},
     { refine !elim_type_eq_of_rel ⬝ _, apply eq_of_rel, apply tr, rewrite [append_nil]},
     { refine !elim_type_eq_of_rel_inv' ⬝ _, apply eq_of_rel, apply tr, rewrite [append_nil]}
   end
