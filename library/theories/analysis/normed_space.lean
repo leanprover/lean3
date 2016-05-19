@@ -6,7 +6,7 @@ Author: Jeremy Avigad
 Normed spaces.
 -/
 import algebra.module .metric_space
-open real nat classical
+open real nat classical topology analysis
 noncomputable theory
 
 structure has_norm [class] (M : Type) : Type :=
@@ -116,8 +116,9 @@ section
 
   open nat
 
-  proposition converges_to_seq_norm_elim {X : ℕ → V} {x : V} (H : X ⟶ x in ℕ) :
-    ∀ {ε : ℝ}, ε > 0 → ∃ N₁ : ℕ, ∀ {n : ℕ}, n ≥ N₁ → ∥ X n - x ∥ < ε := H
+  proposition converges_to_seq_norm_elim {X : ℕ → V} {x : V} (H : X ⟶ x [at ∞]) :
+    ∀ {ε : ℝ}, ε > 0 → ∃ N₁ : ℕ, ∀ {n : ℕ}, n ≥ N₁ → ∥ X n - x ∥ < ε :=
+  approaches_at_infty_dest H
 
   proposition dist_eq_norm_sub (u v : V) : dist u v = ∥ u - v ∥ := rfl
 
@@ -145,8 +146,9 @@ variable [normed_vector_space V]
 variables {X Y : ℕ → V}
 variables {x y : V}
 
-proposition add_converges_to_seq (HX : X ⟶ x in ℕ) (HY : Y ⟶ y in ℕ) :
-  (λ n, X n + Y n) ⟶ x + y in ℕ :=
+proposition add_converges_to_seq (HX : X ⟶ x [at ∞]) (HY : Y ⟶ y [at ∞]) :
+  (λ n, X n + Y n) ⟶ x + y [at ∞] :=
+approaches_at_infty_intro
 take ε : ℝ, suppose ε > 0,
 have e2pos : ε / 2 > 0, from  div_pos_of_pos_of_pos `ε > 0` two_pos,
 obtain (N₁ : ℕ) (HN₁ : ∀ {n}, n ≥ N₁ → ∥ X n - x ∥ < ε / 2),
@@ -167,8 +169,9 @@ exists.intro N
         ... < ε / 2 + ε / 2               : add_lt_add (HN₁ ngtN₁) (HN₂ ngtN₂)
         ... = ε                           : add_halves)
 
-private lemma smul_converges_to_seq_aux {c : ℝ} (cnz : c ≠ 0) (HX : X ⟶ x in ℕ) :
-  (λ n, c • X n) ⟶ c • x in ℕ :=
+private lemma smul_converges_to_seq_aux {c : ℝ} (cnz : c ≠ 0) (HX : X ⟶ x [at ∞]) :
+  (λ n, c • X n) ⟶ c • x [at ∞] :=
+approaches_at_infty_intro
 take ε : ℝ, suppose ε > 0,
 have abscpos : abs c > 0, from abs_pos_of_ne_zero cnz,
 have epos : ε / abs c > 0, from div_pos_of_pos_of_pos `ε > 0` abscpos,
@@ -183,16 +186,17 @@ exists.intro N
         ... < abs c * (ε / abs c)    : mul_lt_mul_of_pos_left H abscpos
         ... = ε                      : mul_div_cancel' (ne_of_gt abscpos))
 
-proposition smul_converges_to_seq (c : ℝ) (HX : X ⟶ x in ℕ) :
-  (λ n, c • X n) ⟶ c • x in ℕ :=
+proposition smul_converges_to_seq (c : ℝ) (HX : X ⟶ x [at ∞]) :
+  (λ n, c • X n) ⟶ c • x [at ∞] :=
 by_cases
   (assume cz : c = 0,
     have (λ n, c • X n) = (λ n, 0), from funext (take x, by rewrite [cz, zero_smul]),
-    begin rewrite [this, cz, zero_smul], apply converges_to_seq_constant end)
+    begin rewrite [this, cz, zero_smul], apply approaches_constant end)
   (suppose c ≠ 0, smul_converges_to_seq_aux this HX)
 
-proposition neg_converges_to_seq (HX : X ⟶ x in ℕ) :
-  (λ n, - X n) ⟶ - x in ℕ :=
+proposition neg_converges_to_seq (HX : X ⟶ x [at ∞]) :
+  (λ n, - X n) ⟶ - x [at ∞] :=
+approaches_at_infty_intro
 take ε, suppose ε > 0,
 obtain N (HN : ∀ {n}, n ≥ N → norm (X n - x) < ε), from converges_to_seq_norm_elim HX this,
 exists.intro N
@@ -201,16 +205,17 @@ exists.intro N
     show norm (- X n - (- x)) < ε,
       by rewrite [-neg_neg_sub_neg, *neg_neg, norm_neg]; exact HN `n ≥ N`)
 
-proposition neg_converges_to_seq_iff : ((λ n, - X n) ⟶ - x in ℕ) ↔ (X ⟶ x in ℕ) :=
+proposition neg_converges_to_seq_iff : ((λ n, - X n) ⟶ - x [at ∞]) ↔ (X ⟶ x [at ∞]) :=
 have aux : X = λ n, (- (- X n)), from funext (take n, by rewrite neg_neg),
 iff.intro
-  (assume H : (λ n, -X n)⟶ -x in ℕ,
-    show X ⟶ x in ℕ, by rewrite [aux, -neg_neg x]; exact neg_converges_to_seq H)
+  (assume H : (λ n, -X n)⟶ -x [at ∞],
+    show X ⟶ x [at ∞], by rewrite [aux, -neg_neg x]; exact neg_converges_to_seq H)
   neg_converges_to_seq
 
-proposition norm_converges_to_seq_zero (HX : X ⟶ 0 in ℕ) : (λ n, norm (X n)) ⟶ 0 in ℕ :=
+proposition norm_converges_to_seq_zero (HX : X ⟶ 0 [at ∞]) : (λ n, norm (X n)) ⟶ 0 [at ∞] :=
+approaches_at_infty_intro
 take ε, suppose ε > 0,
-obtain N (HN : ∀ n, n ≥ N → norm (X n - 0) < ε), from HX `ε > 0`,
+obtain N (HN : ∀ n, n ≥ N → norm (X n - 0) < ε), from approaches_at_infty_dest HX `ε > 0`,
 exists.intro N
   (take n, assume Hn : n ≥ N,
     have norm (X n) < ε, begin rewrite -(sub_zero (X n)), apply HN n Hn end,
@@ -218,10 +223,11 @@ exists.intro N
       by rewrite [sub_zero, abs_of_nonneg !norm_nonneg]; apply this)
 
 proposition converges_to_seq_zero_of_norm_converges_to_seq_zero
-    (HX : (λ n, norm (X n)) ⟶ 0 in ℕ) :
-  X ⟶ 0 in ℕ :=
+    (HX : (λ n, norm (X n)) ⟶ 0 [at ∞]) :
+  X ⟶ 0 [at ∞] :=
+approaches_at_infty_intro
 take ε, suppose ε > 0,
-obtain N (HN : ∀ n, n ≥ N → abs (norm (X n) - 0) < ε), from HX `ε > 0`,
+obtain N (HN : ∀ n, n ≥ N → abs (norm (X n) - 0) < ε), from approaches_at_infty_dest HX `ε > 0`,
 exists.intro (N : ℕ)
   (take n : ℕ, assume Hn : n ≥ N,
     have HN' : abs (norm (X n) - 0) < ε, from HN n Hn,
@@ -231,7 +237,7 @@ exists.intro (N : ℕ)
       by rewrite sub_zero; apply this)
 
 proposition norm_converges_to_seq_zero_iff (X : ℕ → V) :
-  ((λ n, norm (X n)) ⟶ 0 in ℕ) ↔ (X ⟶ 0 in ℕ) :=
+  ((λ n, norm (X n)) ⟶ 0 [at ∞]) ↔ (X ⟶ 0 [at ∞]) :=
 iff.intro converges_to_seq_zero_of_norm_converges_to_seq_zero norm_converges_to_seq_zero
 
 end analysis
