@@ -23,6 +23,7 @@ Files which are not ported from the standard library:
 * [trunc_group](trunc_group.hlean) : truncate an infinity-group to a group
 * [homotopy_group](homotopy_group.hlean) : homotopy groups of a pointed type
 * [e_closure](e_closure.hlean) : the type of words formed by a relation
+* [graph](graph.hlean) : definition and operations on paths in a graph.
 
 Subfolders (not ported):
 

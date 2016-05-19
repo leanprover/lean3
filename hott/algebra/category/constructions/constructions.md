@@ -10,7 +10,8 @@ Common categories and constructions on categories. The following files are in th
 * [product](product.hlean) : Product category
 * [comma](comma.hlean) : Comma category
 * [cone](cone.hlean) : Cone category
-* [pushout](pushout.hlean) : Pushout of categories, pushout of groupoids. Also more generally the category formed by a (quotient of) paths in a graph
+* [pushout](pushout.hlean) : Categorical structure of paths in a graph and quotients of them.
+  Pushout of categories, pushout of groupoids.
 * [fundamental_groupoid](fundamental_groupoid.hlean) : The fundamental groupoid of a type
 
 Discrete, indiscrete or finite categories:
