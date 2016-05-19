@@ -57,7 +57,7 @@ eq_of_dist_eq_zero (eq_zero_of_nonneg_of_forall_le !dist_nonneg H)
 
 definition open_ball (x : M) (ε : ℝ) := {y | dist y x < ε}
 
-theorem open_ball_empty_of_nonpos (x : M) {ε : ℝ} (Hε : ε ≤ 0) : open_ball x ε = ∅ :=
+theorem open_ball_eq_empty_of_nonpos (x : M) {ε : ℝ} (Hε : ε ≤ 0) : open_ball x ε = ∅ :=
   begin
     apply eq_empty_of_forall_not_mem,
     intro y Hlt,
@@ -65,11 +65,11 @@ theorem open_ball_empty_of_nonpos (x : M) {ε : ℝ} (Hε : ε ≤ 0) : open_bal
     apply lt_of_lt_of_le Hlt Hε
   end
 
-theorem radius_pos_of_nonempty {x : M} {ε : ℝ} {u : M} (Hu : u ∈ open_ball x ε) : ε > 0 :=
+theorem pos_of_mem_open_ball {x : M} {ε : ℝ} {u : M} (Hu : u ∈ open_ball x ε) : ε > 0 :=
   begin
     apply lt_of_not_ge,
     intro Hge,
-    note Hop := open_ball_empty_of_nonpos x Hge,
+    note Hop := open_ball_eq_empty_of_nonpos x Hge,
     rewrite Hop at Hu,
     apply not_mem_empty _ Hu
   end
@@ -77,205 +77,94 @@ theorem radius_pos_of_nonempty {x : M} {ε : ℝ} {u : M} (Hu : u ∈ open_ball 
 theorem mem_open_ball (x : M) {ε : ℝ} (H : ε > 0) : x ∈ open_ball x ε :=
   show dist x x < ε, by rewrite dist_self; assumption
 
-definition closed_ball (x : M) (ε : ℝ) := {y | dist x y ≤ ε}
+definition closed_ball (x : M) (ε : ℝ) := {y | dist y x ≤ ε}
 
-theorem closed_ball_eq_compl (x : M) (ε : ℝ) : closed_ball x ε = - {y | dist x y > ε} :=
-  begin
-    apply ext,
-    intro y,
-    apply iff.intro,
-    intro Hle,
-    apply mem_compl,
-    intro Hgt,
-    apply not_le_of_gt Hgt Hle,
-    intro Hx,
-    note Hx' := not_mem_of_mem_compl Hx,
-    apply le_of_not_gt,
-    intro Hgt,
-    apply Hx',
-    exact Hgt
-  end
+theorem closed_ball_eq_compl (x : M) (ε : ℝ) : closed_ball x ε = - {y | dist y x > ε} :=
+ext (take y, iff.intro
+  (suppose dist y x ≤ ε, not_lt_of_ge this)
+  (suppose ¬ dist y x > ε, le_of_not_gt this))
 
 variable (M)
 
-definition open_sets_basis :=
-  image (λ pair : M × ℝ, open_ball (pr1 pair) (pr2 pair)) univ
+definition open_sets_basis : set (set M) := { s | ∃ x, ∃ ε, s = open_ball x ε }
 
-definition metric_topology [instance] : topology M :=
-  topology.generated_by (open_sets_basis M)
+definition metric_topology [instance] : topology M := topology.generated_by (open_sets_basis M)
 
 variable {M}
 
 theorem open_ball_mem_open_sets_basis (x : M) (ε : ℝ) : open_ball x ε ∈ open_sets_basis M :=
-  mem_image !mem_univ rfl
+  exists.intro x (exists.intro ε rfl)
 
-theorem open_ball_open (x : M) (ε : ℝ) : Open (open_ball x ε) :=
+theorem Open_open_ball (x : M) (ε : ℝ) : Open (open_ball x ε) :=
   by apply generators_mem_topology_generated_by; apply open_ball_mem_open_sets_basis
 
-theorem closed_ball_closed (x : M) {ε : ℝ} (H : ε > 0) : closed (closed_ball x ε) :=
-  begin
-    apply iff.mpr !closed_iff_Open_compl,
-    rewrite closed_ball_eq_compl,
-    rewrite compl_compl,
-    apply Open_of_forall_exists_Open_nbhd,
-    intro y Hxy,
-    existsi open_ball y (dist x y - ε),
-    split,
-    apply open_ball_open,
-    split,
-    apply mem_open_ball,
-    apply sub_pos_of_lt Hxy,
-    intros y' Hxy'd,
-    apply lt_of_not_ge,
-    intro Hxy',
-    apply not_lt_self (dist x y),
-    exact calc
-      dist x y ≤ dist x y' + dist y' y      : dist_triangle
-           ... ≤ ε         + dist y' y      : add_le_add_right Hxy'
-           ... < ε         + (dist x y - ε) : add_lt_add_left Hxy'd
-           ... = dist x y                   : by rewrite [add.comm, sub_add_cancel]
-  end
+theorem closed_closed_ball (x : M) {ε : ℝ} (H : ε > 0) : closed (closed_ball x ε) :=
+Open_of_forall_exists_Open_nbhd
+  (take y, suppose ¬ dist y x ≤ ε,
+    have dist y x > ε, from lt_of_not_ge this,
+    let B := open_ball y (dist y x - ε) in
+    have y ∈ B, from mem_open_ball y (sub_pos_of_lt this),
+    have B ⊆ - closed_ball x ε, from
+      take y',
+      assume Hy'y : dist y' y < dist y x - ε,
+      assume Hy'x : dist y' x ≤ ε,
+      show false, from not_lt_self (dist y x)
+        (calc
+          dist y x ≤ dist y y' + dist y' x   : dist_triangle
+            ... < dist y x - ε + dist y' x   : by rewrite dist_comm; apply add_lt_add_right Hy'y
+            ... ≤ dist y x - ε + ε           : add_le_add_left Hy'x
+            ... = dist y x                   : by rewrite [sub_add_cancel]),
+    exists.intro B (and.intro (Open_open_ball _ _) (and.intro `y ∈ B` this)))
 
-private theorem not_mem_open_basis_of_boundary_pt {s : set M} (a : s ∈ open_sets_basis M) {x : M}
-          (Hbd : ∀ ε : ℝ, ε > 0 → ∃ v : M, v ∉ s ∧ dist x v < ε) : ¬ x ∈ s :=
-  begin
-    intro HxU,
-    cases a with pr Hpr,
-    cases pr with y r,
-    cases Hpr with _ Hs,
-    rewrite -Hs at HxU,
-    have H : dist x y < r, from HxU,
-    cases Hbd _ (sub_pos_of_lt H) with v Hv,
-    cases Hv with Hv Hvdist,
-    apply Hv,
-    rewrite -Hs,
-    apply lt_of_le_of_lt,
-    apply dist_triangle,
-    exact x,
-    esimp,
-    rewrite dist_comm,
-    exact add_lt_of_lt_sub_right Hvdist
-  end
+proposition open_ball_subset_open_ball_of_le (x : M) {r₁ r₂ : ℝ} (H : r₁ ≤ r₂) :
+  open_ball x r₁ ⊆ open_ball x r₂ :=
+take y, assume ymem, lt_of_lt_of_le ymem H
 
-private theorem not_mem_intersect_of_boundary_pt {s t : set M} (a : Open s) (a_1 : Open t) {x : M}
-        (v_0 : (x ∈ s → ¬ (∀ (ε : ℝ), ε > 0 → (∃ (v : M), v ∉ s ∧ dist x v < ε))))
-        (v_1 : (x ∈ t → ¬ (∀ (ε : ℝ), ε > 0 → (∃ (v : M), v ∉ t ∧ dist x v < ε))))
-        (Hbd : ∀ (ε : ℝ), ε > 0 → (∃ (v : M), v ∉ s ∩ t ∧ dist x v < ε)) : ¬ (x ∈ s ∩ t) :=
-  begin
-    intro HxU,
-    have Hxs : x ∈ s, from mem_of_mem_inter_left HxU,
-    have Hxt : x ∈ t, from mem_of_mem_inter_right HxU,
-    note Hsih := exists_not_of_not_forall (v_0 Hxs),
-    note Htih := exists_not_of_not_forall (v_1 Hxt),
-    cases Hsih with ε1 Hε1,
-    cases Htih with ε2 Hε2,
-    note Hε1' := and_not_of_not_implies Hε1,
-    note Hε2' := and_not_of_not_implies Hε2,
-    cases Hε1' with Hε1p Hε1',
-    cases Hε2' with Hε2p Hε2',
-    note Hε1'' := forall_not_of_not_exists Hε1',
-    note Hε2'' := forall_not_of_not_exists Hε2',
-    have Hmin : min ε1 ε2 > 0, from lt_min Hε1p Hε2p,
-    cases Hbd _ Hmin with v Hv,
-    cases Hv with Hvint Hvdist,
-    note Hε1v := Hε1'' v,
-    note Hε2v := Hε2'' v,
-    cases em (v ∉ s) with Hnm Hmem,
-    apply Hε1v,
-    split,
-    exact Hnm,
-    apply lt_of_lt_of_le Hvdist,
-    apply min_le_left,
-    apply Hε2v,
-    have Hmem' : v ∈ s, from not_not_elim Hmem,
-    note Hnm := not_mem_of_mem_of_not_mem_inter_left Hmem' Hvint,
-    split,
-    exact Hnm,
-    apply lt_of_lt_of_le Hvdist,
-    apply min_le_right
-  end
-
-private theorem not_mem_sUnion_of_boundary_pt {S : set (set M)} (a : ∀₀ s ∈ S, Open s) {x : M}
-        (v_0 : ∀ ⦃x_1 : set M⦄,
-           x_1 ∈ S → x ∈ x_1 → ¬ (∀ (ε : ℝ), ε > 0 → (∃ (v : M), v ∉ x_1 ∧ dist x v < ε)))
-        (Hbd : ∀ (ε : ℝ), ε > 0 → (∃ (v : M), v ∉ ⋃₀ S ∧ dist x v < ε)) : ¬ x ∈ ⋃₀ S :=
-  begin
-    intro HxU,
-    have Hex : ∃₀ s ∈ S, x ∈ s, from HxU,
-    cases Hex with s Hs,
-    cases Hs with Hs Hxs,
-    cases exists_not_of_not_forall (v_0 Hs Hxs) with ε Hε,
-    cases and_not_of_not_implies Hε with Hεp Hv,
-    cases Hbd _ Hεp with v Hv',
-    cases Hv' with Hvnm Hdist,
-    apply Hv,
-    existsi v,
-    split,
-    apply not_mem_of_not_mem_sUnion Hvnm Hs,
-    exact Hdist
-  end
-
-/-
-   this should be doable by showing that the open-ball boundary definition
-   is equivalent to topology.on_boundary, and applying topology.not_open_of_on_boundary.
-   But the induction hypotheses don't work out nicely.
--/
-
-theorem not_open_of_ex_boundary_pt {U : set M} {x : M} (HxU : x ∈ U)
-        (Hbd : ∀ ε : ℝ, ε > 0 → ∃ v : M, v ∉ U ∧ dist x v < ε) : ¬ Open U :=
-  begin
-    intro HUopen,
-    induction HUopen,
-    {apply not_mem_open_basis_of_boundary_pt a Hbd HxU},
-    {cases Hbd 1 zero_lt_one with v Hv,
-    cases Hv with Hv _,
-    exact Hv !mem_univ},
-    {apply not_mem_intersect_of_boundary_pt a a_1 v_0 v_1 Hbd HxU},
-    {apply not_mem_sUnion_of_boundary_pt a v_0 Hbd HxU}
-  end
-
-theorem exists_Open_ball_subset_of_Open_of_mem {U : set M} (HU : Open U) {x : M} (Hx : x ∈ U) :
+theorem exists_open_ball_subset_of_Open_of_mem {U : set M} (HU : Open U) {x : M} (Hx : x ∈ U) :
         ∃ (r : ℝ), r > 0 ∧ open_ball x r ⊆ U :=
-  begin
-    let balloon := {r ∈ univ | r > 0 ∧ open_ball x r ⊆ U},
-    cases em (balloon = ∅),
-    have H : ∀ r : ℝ, r > 0 → ∃ v : M, v ∉ U ∧ dist x v < r, begin
-      intro r Hr,
-      note Hor := not_or_not_of_not_and (forall_not_of_sep_empty a (mem_univ r)),
-      note Hor' := or.neg_resolve_left Hor Hr,
-      apply exists_of_not_forall_not,
-      intro Hall,
-      apply Hor',
-      intro y Hy,
-      cases not_or_not_of_not_and (Hall y) with Hmem Hge,
-      apply not_not_elim Hmem,
-      rewrite dist_comm at Hge,
-      apply absurd Hy Hge
-    end,
-    apply absurd HU,
-    apply not_open_of_ex_boundary_pt Hx H,
-    cases exists_mem_of_ne_empty a with r Hr,
-    cases Hr with _ Hr,
-    cases Hr with Hrpos HxrU,
-    existsi r,
-    split,
-    repeat assumption
-  end
-
+begin
+  induction HU with s sbasis s t sbasis tbasis ihs iht S Sbasis ihS,
+    {cases sbasis with x' aux, cases aux with ε seq,
+      have x ∈ open_ball x' ε, by rewrite -seq; exact Hx,
+      have εpos : ε > 0, from pos_of_mem_open_ball this,
+      have ε - dist x x' > 0, from sub_pos_of_lt `x ∈ open_ball x' ε`,
+      existsi (ε - dist x x'), split, exact this, rewrite seq,
+      show open_ball x (ε - dist x x') ⊆ open_ball x' ε, from
+        take y, suppose dist y x < ε - dist x x',
+        calc
+          dist y x' ≤ dist y x + dist x x'      : dist_triangle
+                ... < ε - dist x x' + dist x x' : add_lt_add_right this
+                ... = ε                         : sub_add_cancel},
+    {existsi 1, split, exact zero_lt_one, exact subset_univ _},
+    {cases ihs (and.left Hx) with rs aux, cases aux with rspos ballrs_sub,
+      cases iht (and.right Hx) with rt aux, cases aux with rtpos ballrt_sub,
+      let rmin := min rs rt,
+      existsi rmin, split, exact lt_min rspos rtpos,
+      have open_ball x rmin ⊆ s,
+        from subset.trans (open_ball_subset_open_ball_of_le x !min_le_left) ballrs_sub,
+      have open_ball x rmin ⊆ t,
+        from subset.trans (open_ball_subset_open_ball_of_le x !min_le_right) ballrt_sub,
+      show open_ball x (min rs rt) ⊆ s ∩ t,
+        by apply subset_inter; repeat assumption},
+  cases Hx with s aux, cases aux with sS xs,
+  cases (ihS sS xs) with r aux, cases aux with rpos ballr_sub,
+  existsi r, split, exact rpos,
+  show open_ball x r ⊆ ⋃₀ S, from subset.trans ballr_sub (subset_sUnion_of_mem sS)
+end
 
 /- limits in metric spaces -/
 
 proposition eventually_nhds_intro {P : M → Prop} {ε : ℝ} (εpos : ε > 0) {x : M}
     (H : ∀ x', dist x' x < ε → P x') :
   eventually P (nhds x) :=
-topology.eventually_nhds_intro (open_ball_open x ε) (mem_open_ball x εpos) H
+topology.eventually_nhds_intro (Open_open_ball x ε) (mem_open_ball x εpos) H
 
 proposition eventually_nhds_dest {P : M → Prop} {x : M} (H : eventually P (nhds x)) :
   ∃ ε, ε > 0 ∧ ∀ x', dist x' x < ε → P x' :=
 obtain s [(Os : Open s) [(xs : x ∈ s) (Hs : ∀₀ x' ∈ s, P x')]],
   from topology.eventually_nhds_dest H,
 obtain ε [(εpos : ε > 0) (Hε : open_ball x ε ⊆ s)],
-  from exists_Open_ball_subset_of_Open_of_mem Os xs,
+  from exists_open_ball_subset_of_Open_of_mem Os xs,
 exists.intro ε (and.intro εpos
   (take x', suppose dist x' x < ε,
     have x' ∈ s, from Hε this,
@@ -293,7 +182,7 @@ eventually_nhds_intro εpos (λ x' H, H)
 proposition eventually_at_within_intro {P : M → Prop} {ε : ℝ} (εpos : ε > 0) {x : M} {s : set M}
   (H : ∀₀ x' ∈ s, dist x' x < ε → x' ≠ x → P x') :
  eventually P [at x within s] :=
-topology.eventually_at_within_intro (open_ball_open x ε) (mem_open_ball x εpos)
+topology.eventually_at_within_intro (Open_open_ball x ε) (mem_open_ball x εpos)
   (λ x' x'mem x'ne x's, H x's x'mem x'ne)
 
 proposition eventually_at_within_dest {P : M → Prop} {x : M} {s : set M}
@@ -302,7 +191,7 @@ proposition eventually_at_within_dest {P : M → Prop} {x : M} {s : set M}
 obtain t [(Ot : Open t) [(xt : x ∈ t) (Ht : ∀₀ x' ∈ t, x' ≠ x → x' ∈ s → P x')]],
   from topology.eventually_at_within_dest H,
 obtain ε [(εpos : ε > 0) (Hε : open_ball x ε ⊆ t)],
-  from exists_Open_ball_subset_of_Open_of_mem Ot xt,
+  from exists_open_ball_subset_of_Open_of_mem Ot xt,
 exists.intro ε (and.intro εpos
   (take x', assume x's distx'x x'nex,
     have x' ∈ t, from Hε distx'x,
@@ -316,7 +205,7 @@ iff.intro eventually_at_within_dest
 proposition eventually_at_intro {P : M → Prop} {ε : ℝ} (εpos : ε > 0) {x : M}
     (H : ∀ x', dist x' x < ε → x' ≠ x → P x') :
  eventually P [at x] :=
-topology.eventually_at_intro (open_ball_open x ε) (mem_open_ball x εpos)
+topology.eventually_at_intro (Open_open_ball x ε) (mem_open_ball x εpos)
   (λ x' x'mem x'ne, H x' x'mem x'ne)
 
 proposition eventually_at_dest {P : M → Prop} {x : M} (H : eventually P [at x]) :
@@ -662,13 +551,13 @@ theorem continuous_at_intro {f : M → N} {x : M}
   begin
     rewrite ↑continuous_at,
     intros U Uopen HfU,
-    cases exists_Open_ball_subset_of_Open_of_mem Uopen HfU with r Hr,
+    cases exists_open_ball_subset_of_Open_of_mem Uopen HfU with r Hr,
     cases Hr with Hr HUr,
     cases H Hr with δ Hδ,
     cases Hδ with Hδ Hx'δ,
     existsi open_ball x δ,
     split,
-    apply open_ball_open,
+    apply Open_open_ball,
     split,
     apply mem_open_ball,
     exact Hδ,
@@ -684,10 +573,10 @@ theorem continuous_at_elim {f : M → N} {x : M} (Hfx : continuous_at f x) :
   begin
     intros ε Hε,
     rewrite [↑continuous_at at Hfx],
-    cases @Hfx (open_ball (f x) ε) !open_ball_open (mem_open_ball _ Hε) with V HV,
+    cases @Hfx (open_ball (f x) ε) !Open_open_ball (mem_open_ball _ Hε) with V HV,
     cases HV with HV HVx,
     cases HVx with HVx HVf,
-    cases exists_Open_ball_subset_of_Open_of_mem HV HVx with δ Hδ,
+    cases exists_open_ball_subset_of_Open_of_mem HV HVx with δ Hδ,
     cases Hδ with Hδ Hδx,
     existsi δ,
     split,
