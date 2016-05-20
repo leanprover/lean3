@@ -20,6 +20,7 @@ Files in this folder:
 * [pushout](pushout.hlean): Pushouts, defined using quotients
 * [coeq](coeq.hlean): Co-equalizers, defined using quotients
 * [set_quotient](set_quotient.hlean): Set-quotients, defined using quotients and set-truncation
+* [prop_trunc](prop_trunc.hlean): The construction of the propositional truncation from quotients.
 
 The following hits have also 2-constructors. They are defined only using quotients.
 * [two_quotient](two_quotient.hlean): Quotients where you can also specify 2-paths. These are used for all hits which have 2-constructors, and they are almost fully general for such hits, as long as they are nonrecursive

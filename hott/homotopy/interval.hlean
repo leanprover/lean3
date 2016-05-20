@@ -62,9 +62,11 @@ namespace interval
   definition is_contr_interval [instance] [priority 900] : is_contr interval :=
   is_contr.mk zero (λx, interval.rec_on x idp seg !pathover_eq_r_idp)
 
-  open is_equiv equiv
   definition naive_funext_of_interval : naive_funext :=
   λA P f g p, ap (λ(i : interval) (x : A), interval.elim_on i (f x) (g x) (p x)) seg
+
+  definition funext_of_interval : funext :=
+  funext_from_naive_funext naive_funext_of_interval
 
 end interval open interval
 
