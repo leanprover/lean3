@@ -112,14 +112,6 @@ struct unfold_hint_config {
 template class scoped_ext<unfold_hint_config>;
 typedef scoped_ext<unfold_hint_config> unfold_hint_ext;
 
-environment add_unfold_hint(environment const & env, name const & n, list<unsigned> const & idxs, name const & ns, bool persistent) {
-    lean_assert(idxs);
-    declaration const & d = env.get(n);
-    if (!d.is_definition())
-        throw exception("invalid [unfold] hint, declaration must be a non-opaque definition");
-    return unfold_hint_ext::add_entry(env, get_dummy_ios(), mk_add_unfold_entry(n, idxs), ns, persistent);
-}
-
 list<unsigned> has_unfold_hint(environment const & env, name const & d) {
     unfold_hint_state const & s = unfold_hint_ext::get_state(env);
     if (auto it = s.m_unfold.find(d))
@@ -130,6 +122,15 @@ list<unsigned> has_unfold_hint(environment const & env, name const & d) {
 
 environment erase_unfold_hint(environment const & env, name const & n, name const & ns, bool persistent) {
     return unfold_hint_ext::add_entry(env, get_dummy_ios(), mk_erase_unfold_entry(n), ns, persistent);
+}
+
+environment add_unfold_hint(environment const & env, name const & n, list<unsigned> const & idxs, name const & ns, bool persistent) {
+    if (!idxs)
+        return erase_unfold_hint(env, n, ns, persistent);
+    declaration const & d = env.get(n);
+    if (!d.is_definition())
+        throw exception("invalid [unfold] hint, declaration must be a non-opaque definition");
+    return unfold_hint_ext::add_entry(env, get_dummy_ios(), mk_add_unfold_entry(n, idxs), ns, persistent);
 }
 
 environment add_unfold_full_hint(environment const & env, name const & n, name const & ns, bool persistent) {
