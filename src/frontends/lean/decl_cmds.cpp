@@ -18,6 +18,7 @@ Author: Leonardo de Moura
 #include "library/private.h"
 #include "library/protected.h"
 #include "library/noncomputable.h"
+#include "library/normalize.h"
 #include "library/placeholder.h"
 #include "library/locals.h"
 #include "library/explicit.h"
@@ -536,9 +537,19 @@ static expr get_equation_fn(buffer<expr> const & fns, name const & fn_name, pos_
     throw_invalid_equation_lhs(fn_name, lhs_pos);
 }
 
-static void parse_equations_core(parser & p, buffer<expr> const & fns, buffer<expr> & eqns, bool bar_only = false) {
+/** Saves the index range of function parameters that are part of the pattern */
+struct equation_pattern_range {
+    unsigned start;
+    unsigned length;
+    bool explicit_fn;
+};
+
+/* returns range of the first equation, or none for multiple fns */
+static optional<equation_pattern_range>
+parse_equations_core(parser & p, buffer<expr> const & fns, buffer<expr> & eqns, bool bar_only = false) {
     for (expr const & fn : fns)
         p.add_local(fn);
+    equation_pattern_range range = { 0, 0, true };
     while (true) {
         expr lhs;
         unsigned prev_num_undef_ids = p.get_num_undef_ids();
@@ -558,6 +569,8 @@ static void parse_equations_core(parser & p, buffer<expr> const & fns, buffer<ex
                     fn = get_explicit_arg(fn);
                 if (is_local(fn) && is_equation_fn(fns, local_pp_name(fn))) {
                     lhs_args.push_back(first);
+                    if (!range.length) // touch only for first equation
+                        range.explicit_fn = false;
                 } else if (fns.size() == 1) {
                     lhs_args.push_back(p.save_pos(mk_explicit(fns[0]), lhs_pos));
                     lhs_args.push_back(first);
@@ -569,6 +582,7 @@ static void parse_equations_core(parser & p, buffer<expr> const & fns, buffer<ex
             while (!p.curr_is_token(get_assign_tk()))
                 lhs_args.push_back(p.parse_expr(get_max_prec()));
             lean_assert(lhs_args.size() > 0);
+            range.length = lhs_args.size() - 1; // first arg is the function
             lhs = lhs_args[0];
             for (unsigned i = 1; i < lhs_args.size(); i++)
                 lhs = copy_tag(lhs_args[i], mk_app(lhs, lhs_args[i]));
@@ -593,13 +607,16 @@ static void parse_equations_core(parser & p, buffer<expr> const & fns, buffer<ex
             break;
         p.next();
     }
+    return fns.size() == 1 ? some(std::move(range)) : optional<equation_pattern_range>();
 }
 
-expr parse_equations(parser & p, name const & n, expr const & type, buffer<name> & auxs,
+std::tuple<expr, optional<equation_pattern_range>>
+parse_equations(parser & p, name const & n, expr const & type, buffer<name> & auxs,
                      optional<local_environment> const & lenv, buffer<expr> const & ps,
                      pos_info const & def_pos) {
     buffer<expr> fns;
     buffer<expr> eqns;
+    optional<equation_pattern_range> range;
     {
         parser::local_scope scope1(p, lenv);
         for (expr const & param : ps)
@@ -624,7 +641,20 @@ expr parse_equations(parser & p, name const & n, expr const & type, buffer<name>
             p.next();
             eqns.push_back(Fun(fns, mk_no_equation(), p));
         } else {
-            parse_equations_core(p, fns, eqns);
+            range = parse_equations_core(p, fns, eqns);
+            if (range) {
+                range->start = ps.size();
+                if (!range->explicit_fn) {
+                    // add implicit parameters to length
+                    expr t = type;
+                    for (int i = (int)range->length; i >= 0; i--) {
+                        while (!is_explicit(binding_info(t))) {
+                            t = binding_body(t);
+                            range->length++;
+                        }
+                    }
+                }
+            }
         }
     }
     if (p.curr_is_token(get_wf_tk())) {
@@ -632,9 +662,9 @@ expr parse_equations(parser & p, name const & n, expr const & type, buffer<name>
         p.next();
         expr R   = p.save_pos(mk_expr_placeholder(), pos);
         expr Hwf = p.parse_expr();
-        return p.save_pos(mk_equations(fns.size(), eqns.size(), eqns.data(), R, Hwf), def_pos);
+        return { p.save_pos(mk_equations(fns.size(), eqns.size(), eqns.data(), R, Hwf), def_pos), range };
     } else {
-        return p.save_pos(mk_equations(fns.size(), eqns.size(), eqns.data()), def_pos);
+        return { p.save_pos(mk_equations(fns.size(), eqns.size(), eqns.data()), def_pos), range };
     }
 }
 
@@ -733,6 +763,7 @@ class definition_cmd_fn {
     expr              m_value;
     level_param_names m_ls;
     pos_info          m_end_pos;
+    optional<equation_pattern_range> m_pattern_range;
 
     expr              m_pre_type;
     expr              m_pre_value;
@@ -788,8 +819,9 @@ class definition_cmd_fn {
             save_checkpoint();
             if (is_curr_with_or_comma_or_bar(m_p)) {
                 allow_nested_decls_scope scope2(is_definition());
-                m_value = parse_equations(m_p, m_name, m_type, m_aux_decls,
-                                          optional<local_environment>(), buffer<expr>(), m_pos);
+                std::tie(m_value, m_pattern_range) =
+                        parse_equations(m_p, m_name, m_type, m_aux_decls,
+                                        optional<local_environment>(), buffer<expr>(), m_pos);
             } else if (!is_definition() && !m_p.curr_is_token(get_assign_tk())) {
                 check_end_of_theorem(m_p);
                 m_value = m_p.save_pos(mk_expr_placeholder(), pos);
@@ -811,7 +843,8 @@ class definition_cmd_fn {
                 save_checkpoint();
                 if (is_curr_with_or_comma_or_bar(m_p)) {
                     allow_nested_decls_scope scope2(is_definition());
-                    m_value = parse_equations(m_p, m_name, type, m_aux_decls, lenv, ps, m_pos);
+                    std::tie(m_value, m_pattern_range) =
+                            parse_equations(m_p, m_name, type, m_aux_decls, lenv, ps, m_pos);
                 } else if (!is_definition() && !m_p.curr_is_token(get_assign_tk())) {
                     check_end_of_theorem(m_p);
                     m_value = m_p.save_pos(mk_expr_placeholder(), pos);
@@ -892,6 +925,8 @@ class definition_cmd_fn {
             buffer<expr> locals;
             collect_locals(m_type, m_value, m_p, locals);
             m_type = Pi_as_is(locals, m_type, m_p);
+            if (m_pattern_range)
+                m_pattern_range->start += locals.size();
             buffer<expr> new_locals;
             new_locals.append(locals);
             erase_local_binder_info(new_locals);
@@ -988,6 +1023,11 @@ class definition_cmd_fn {
             if (m_kind == Abbreviation || m_kind == LocalAbbreviation) {
                 bool persistent = m_kind == Abbreviation;
                 m_env = add_abbreviation(m_env, real_n, m_attributes.is_parsing_only(), get_namespace(m_env), persistent);
+            }
+            if (m_pattern_range && m_env.get(real_n).is_definition()) {
+                auto idxs = mk_list_range(m_pattern_range->start,
+                                          m_pattern_range->start + m_pattern_range->length);
+                m_env = add_unfold_hint(m_env, real_n, idxs, get_namespace(m_env), true);
             }
             m_env = m_attributes.apply(m_env, m_p.ios(), real_n, get_namespace(m_env));
         }
@@ -1091,8 +1131,8 @@ class definition_cmd_fn {
 
     void elaborate() {
         if (!try_cache()) {
-            expr pre_type  = m_type;
-            expr pre_value = m_value;
+            m_pre_type  = m_type;
+            m_pre_value = m_value;
             level_param_names new_ls;
             m_p.remove_proof_state_info(m_pos, m_p.pos());
             if (!m_aux_decls.empty()) {
@@ -1124,7 +1164,7 @@ class definition_cmd_fn {
                         }
                         cd = check(mk_axiom(m_real_name, new_ls, m_type));
                         m_env = module::add(m_env, cd);
-                        m_p.cache_definition(m_real_name, pre_type, pre_value, new_ls, m_type, m_value);
+                        m_p.cache_definition(m_real_name, m_pre_type, m_pre_value, new_ls, m_type, m_value);
                     }
                 }
             } else {
@@ -1135,7 +1175,7 @@ class definition_cmd_fn {
                 expr new_val = extract_nested(m_value);
                 m_env = module::add(m_env, check(mk_definition(m_env, m_real_name, new_ls, m_type, new_val)));
                 // Remark: we cache the definition with the nested declarations.
-                m_p.cache_definition(m_real_name, pre_type, pre_value, new_ls, m_type, m_value);
+                m_p.cache_definition(m_real_name, m_pre_type, m_pre_value, new_ls, m_type, m_value);
             }
         }
     }

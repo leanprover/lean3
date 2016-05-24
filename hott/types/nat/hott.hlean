@@ -82,13 +82,13 @@ namespace nat
       { exfalso, apply lt.irrefl, apply lt_of_le_of_lt H H'}}
   end
 
-  protected definition code [reducible] [unfold 1 2] : ℕ → ℕ → Type₀
+  protected definition code [reducible] : ℕ → ℕ → Type₀
   | code 0        0        := unit
   | code 0        (succ m) := empty
   | code (succ n) 0        := empty
   | code (succ n) (succ m) := code n m
 
-  protected definition refl : Πn, nat.code n n
+  protected definition refl [unfold] : Πn, nat.code n n
   | refl 0        := star
   | refl (succ n) := refl n
 

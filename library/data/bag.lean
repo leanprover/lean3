@@ -267,7 +267,7 @@ private definition max_count (l₁ l₂ : list A) : list A → list A
 | []     := []
 | (a::l) := if list.count a l₁ ≥ list.count a l₂ then gen (list.count a l₁) a ++ max_count l else gen (list.count a l₂) a ++ max_count l
 
-private definition min_count (l₁ l₂ : list A) : list A → list A
+private definition min_count [unfold] (l₁ l₂ : list A) : list A → list A
 | []     := []
 | (a::l) := if list.count a l₁ ≤ list.count a l₂ then gen (list.count a l₁) a ++ min_count l else gen (list.count a l₂) a ++ min_count l
 
@@ -391,14 +391,14 @@ perm.induction_on h
   (λ x y l l₁ l₂, by_cases
     (suppose i₁ : list.count x l₁ ≥ list.count x l₂, by_cases
       (suppose i₂ : list.count y l₁ ≥ list.count y l₂,
-        begin unfold max_count, unfold max_count, rewrite [*if_pos i₁, *if_pos i₂], apply perm_app_left_comm end)
+        begin unfold max_count, rewrite [*if_pos i₁, *if_pos i₂], apply perm_app_left_comm end)
       (suppose i₂ : ¬ list.count y l₁ ≥ list.count y l₂,
-        begin unfold max_count, unfold max_count, rewrite [*if_pos i₁, *if_neg i₂], apply perm_app_left_comm end))
+        begin unfold max_count, rewrite [*if_pos i₁, *if_neg i₂], apply perm_app_left_comm end))
     (suppose i₁ : ¬ list.count x l₁ ≥ list.count x l₂, by_cases
       (suppose i₂ : list.count y l₁ ≥ list.count y l₂,
-        begin unfold max_count, unfold max_count, rewrite [*if_neg i₁, *if_pos i₂], apply perm_app_left_comm end)
+        begin unfold max_count, rewrite [*if_neg i₁, *if_pos i₂], apply perm_app_left_comm end)
       (suppose i₂ : ¬ list.count y l₁ ≥ list.count y l₂,
-        begin unfold max_count, unfold max_count, rewrite [*if_neg i₁, *if_neg i₂], apply perm_app_left_comm end)))
+        begin unfold max_count, rewrite [*if_neg i₁, *if_neg i₂], apply perm_app_left_comm end)))
   (λ s₁ s₂ s₃ p₁ p₂ ih₁ ih₂ l₁ l₂, perm.trans (ih₁ l₁ l₂) (ih₂ l₁ l₂))
 
 private lemma perm_max_count {l₁ l₂ l₃ r₁ r₂ r₃ : list A} (p₁ : l₁ ~ r₁) (p₂ : l₂ ~ r₂) (p₃ : l₃ ~ r₃) : max_count l₁ l₂ l₃ ~ max_count r₁ r₂ r₃ :=

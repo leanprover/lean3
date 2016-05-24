@@ -414,7 +414,7 @@ theorem list_powerset_eq_list_powerset_of_perm {l₁ l₂ : list A} (p : l₁ ~ 
 perm.induction_on p
   rfl
   (λ x l₁ l₂ p ih, by rewrite [↑list_powerset, ih])
-  (λ x y l, by rewrite [↑list_powerset, ↑list_powerset, *image_union, image_insert_comm,
+  (λ x y l, by rewrite [↑list_powerset, *image_union, image_insert_comm,
                         *union_assoc, union_left_comm (finset.image (finset.insert x) _)])
   (λ l₁ l₂ l₃ p₁ p₂ r₁ r₂, eq.trans r₁ r₂)
 

@@ -450,7 +450,7 @@ lemma dmap_nodup_of_dinj {p : A → Prop} [h : decidable_pred p] {f : Π a, p a 
 end nodup
 
 /- upto -/
-definition upto : nat → list nat
+definition upto [unfold] : nat → list nat
 | 0     := []
 | (n+1) := n :: upto n
 

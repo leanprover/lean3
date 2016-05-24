@@ -175,7 +175,7 @@ theorem neg_mul_infty {x : real} (H : x < 0) : x * ∞ = -∞ :=
 by rewrite [ereal.mul_comm, infty_mul_neg H]
 
 private theorem infty_mul_zero : ∞ * 0 = 0 :=
-by rewrite [*ereal.mul_def, ↑ereal.mul, ereal.zero_def, ↑blow_up, if_pos rfl]
+by rewrite [*ereal.mul_def, ↑ereal.mul, ereal.zero_def, if_pos rfl]
 
 private theorem zero_mul_infty : 0 * ∞ = 0 :=
 by rewrite [ereal.mul_comm, infty_mul_zero]
@@ -225,11 +225,11 @@ by rewrite [ereal.mul_comm, ereal.mul_zero]
 private theorem aux3 : ∀ u, ∞ * (∞ * u) = ∞ * u
 | ∞           := rfl
 | (of_real x) := if H : x = 0 then
-                   by rewrite [*ereal.mul_def, ↑ereal.mul, ↑blow_up, *H, *if_pos rfl]
+                   by rewrite [*ereal.mul_def, ↑ereal.mul, *H, *if_pos rfl]
                  else if H1 : x > 0 then
-                   by rewrite [*ereal.mul_def, ↑ereal.mul, ↑blow_up, if_neg H, if_pos H1]
+                   by rewrite [*ereal.mul_def, ↑ereal.mul, if_neg H, if_pos H1]
                  else
-                   by rewrite [*ereal.mul_def, ↑ereal.mul, ↑blow_up, if_neg H, if_neg H1]
+                   by rewrite [*ereal.mul_def, ↑ereal.mul, if_neg H, if_neg H1]
 | -∞          := rfl
 
 private theorem aux4 (x y : real) : ∞ * x * y = ∞ * (x * y) :=

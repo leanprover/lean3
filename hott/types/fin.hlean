@@ -315,7 +315,7 @@ end
 definition mk_pred (i : nat) (h : succ i < succ n) : fin n :=
 mk i (lt_of_succ_lt_succ h)
 
-definition succ : fin n → fin (succ n)
+definition succ [unfold] : fin n → fin (succ n)
 | (mk v h) := mk (nat.succ v) (succ_lt_succ h)
 
 lemma val_succ : Π (i : fin n), val (succ i) = nat.succ (val i)

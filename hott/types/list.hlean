@@ -193,7 +193,7 @@ calc
 
 theorem length_reverse : ∀ (l : list T), length (reverse l) = length l
 | []      := rfl
-| (x::xs) := begin unfold reverse, rewrite [length_concat, length_cons, length_reverse] end
+| (x::xs) := begin unfold reverse, rewrite [length_concat, length_reverse] end
 
 /- head and tail -/
 

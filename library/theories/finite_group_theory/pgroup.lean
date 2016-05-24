@@ -255,6 +255,8 @@ funext take s, subtype.eq begin rewrite [↑rotl_peo_seq, ↑rotl_perm, rotl_seq
 lemma rotl_peo_seq_id {n : nat} : rotl_peo_seq A n (succ n) = id :=
 funext take s, subtype.eq begin rewrite [↑rotl_peo_seq, -rotl_perm_pow_eq, rotl_perm_pow_eq_one] end
 
+local attribute rotl [unfold]
+
 lemma rotl_peo_seq_compose {n i j : nat} :
   (rotl_peo_seq A n i) ∘ (rotl_peo_seq A n j) = rotl_peo_seq A n (j + i) :=
 funext take s, subtype.eq begin rewrite [↑rotl_peo_seq, ↑rotl_perm, ↑rotl_fun, comp.assoc, rotl_compose] end
