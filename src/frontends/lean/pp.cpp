@@ -292,6 +292,7 @@ void pretty_fn::set_options_core(options const & _o) {
     m_numerals        = get_pp_numerals(o);
     m_abbreviations   = get_pp_abbreviations(o);
     m_preterm         = get_pp_preterm(o);
+    m_binder_types    = get_pp_binder_types(o);
     m_hide_full_terms = get_formatter_hide_full_terms(o);
     m_num_nat_coe     = m_numerals && !m_coercion;
 }
@@ -669,8 +670,10 @@ format pretty_fn::pp_binder(expr const & local) {
     if (bi != binder_info())
         r += format(open_binder_string(bi, m_unicode));
     r += format(local_pp_name(local));
-    r += space();
-    r += compose(colon(), nest(m_indent, compose(line(), pp_child(mlocal_type(local), 0).fmt())));
+    if (m_binder_types) {
+        r += space();
+        r += compose(colon(), nest(m_indent, compose(line(), pp_child(mlocal_type(local), 0).fmt())));
+    }
     if (bi != binder_info())
         r += format(close_binder_string(bi, m_unicode));
     return r;
@@ -678,13 +681,17 @@ format pretty_fn::pp_binder(expr const & local) {
 
 format pretty_fn::pp_binder_block(buffer<name> const & names, expr const & type, binder_info const & bi) {
     format r;
-    r += format(open_binder_string(bi, m_unicode));
+    if (m_binder_types || bi != binder_info())
+        r += format(open_binder_string(bi, m_unicode));
     for (name const & n : names) {
         r += format(n);
-        r += space();
     }
-    r += compose(colon(), nest(m_indent, compose(line(), pp_child(type, 0).fmt())));
-    r += format(close_binder_string(bi, m_unicode));
+    if (m_binder_types) {
+        r += space();
+        r += compose(colon(), nest(m_indent, compose(line(), pp_child(type, 0).fmt())));
+    }
+    if (m_binder_types || bi != binder_info())
+        r += format(close_binder_string(bi, m_unicode));
     return group(r);
 }
 
