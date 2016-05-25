@@ -6,7 +6,7 @@ Author: Jeremy Avigad
 Normed spaces.
 -/
 import algebra.module .metric_space
-open real nat classical topology analysis
+open real nat classical topology analysis analysis.metric_space
 noncomputable theory
 
 structure has_norm [class] (M : Type) : Type :=
@@ -79,6 +79,8 @@ namespace analysis
   proposition norm_sub (u v : V) : ∥u - v∥ = ∥v - u∥ :=
     by rewrite [-norm_neg, neg_sub]
 
+  proposition norm_ne_zero_of_ne_zero {u : V} (H : u ≠ 0) : ∥u∥ ≠ 0 :=
+  suppose ∥u∥ = 0, H (eq_zero_of_norm_eq_zero this)
 
 end analysis
 
@@ -117,7 +119,7 @@ section
 
   open nat
 
-  proposition converges_to_seq_norm_elim {X : ℕ → V} {x : V} (H : X ⟶ x [at ∞]) :
+  proposition approaches_seq_norm_elim {X : ℕ → V} {x : V} (H : X ⟶ x [at ∞]) :
     ∀ {ε : ℝ}, ε > 0 → ∃ N₁ : ℕ, ∀ {n : ℕ}, n ≥ N₁ → ∥ X n - x ∥ < ε :=
   approaches_at_infty_dest H
 
@@ -147,137 +149,274 @@ definition banach_space_to_metric_space [trans_instance] (V : Type) [bsV : banac
 ⦄
 
 namespace analysis
+
+-- unfold some common definitions fully (copied from metric space, updated for normed_space notation)
+-- TODO: copy these for ℝ as well?
+namespace normed_vector_space
+section
+open set topology set.filter
+variables {M N : Type}
+--variable [HU : normed_vector_space U]
+variable [normed_vector_space M]
+--variables {f g : U → V}
+
+section approaches
+  variables {X : Type} {F : filter X} {f : X → M} {y : M}
+
+  proposition approaches_intro (H : ∀ ε, ε > 0 → eventually (λ x, ∥(f x) - y∥ < ε) F) :
+    (f ⟶ y) F :=
+  approaches_intro H
+
+  proposition approaches_dest (H : (f ⟶ y) F) {ε : ℝ} (εpos : ε > 0) :
+    eventually (λ x, ∥(f x) - y∥ < ε) F :=
+  approaches_dest H εpos
+
+  variables (F f y)
+
+  proposition approaches_iff : ((f ⟶ y) F) ↔ (∀ ε, ε > 0 → eventually (λ x, ∥(f x) - y∥ < ε) F) :=
+  iff.intro approaches_dest approaches_intro
+
+end approaches
+
+proposition approaches_at_infty_intro {f : ℕ → M} {y : M}
+    (H : ∀ ε, ε > 0 → ∃ N, ∀ n, n ≥ N → ∥(f n) - y∥ < ε) :
+  f ⟶ y [at ∞] :=
+approaches_at_infty_intro H
+
+proposition approaches_at_infty_dest {f : ℕ → M} {y : M}
+    (H : f ⟶ y [at ∞]) ⦃ε : ℝ⦄ (εpos : ε > 0) :
+  ∃ N, ∀ ⦃n⦄, n ≥ N → ∥(f n) - y∥ < ε :=
+approaches_at_infty_dest H εpos
+
+proposition approaches_at_infty_iff (f : ℕ → M) (y : M) :
+  f ⟶ y [at ∞] ↔ (∀ ε, ε > 0 → ∃ N, ∀ ⦃n⦄, n ≥ N → ∥(f n) - y∥ < ε) :=
+iff.intro approaches_at_infty_dest approaches_at_infty_intro
+
+variable [normed_vector_space N]
+
+proposition approaches_at_dest {f : M → N} {y : N} {x : M}
+    (H : f ⟶ y [at x]) ⦃ε : ℝ⦄ (εpos : ε > 0) :
+  ∃ δ, δ > 0 ∧ ∀ ⦃x'⦄, ∥x' - x∥ < δ → x' ≠ x → ∥(f x') - y∥ < ε :=
+approaches_at_dest H εpos
+
+proposition approaches_at_intro {f : M → N} {y : N} {x : M}
+    (H : ∀ ε, ε > 0 → ∃ δ, δ > 0 ∧ ∀ ⦃x'⦄, ∥x' - x∥ < δ → x' ≠ x → ∥(f x') - y∥ < ε) :
+  f ⟶ y [at x] :=
+approaches_at_intro H
+
+proposition approaches_at_iff (f : M → N) (y : N) (x : M) : f ⟶ y [at x] ↔
+    (∀ ⦃ε⦄, ε > 0 → ∃ δ, δ > 0 ∧ ∀ ⦃x'⦄, ∥x' - x∥ < δ → x' ≠ x → ∥(f x') - y∥ < ε) :=
+iff.intro approaches_at_dest approaches_at_intro
+
+end
+end normed_vector_space
+
+
+section
 variable {V : Type}
 variable [normed_vector_space V]
+variable {A : Type}
+variables {X : A → V}
+variables {x : V}
 
-variables {X Y : ℕ → V}
-variables {x y : V}
-
-proposition add_converges_to_seq (HX : X ⟶ x [at ∞]) (HY : Y ⟶ y [at ∞]) :
-  (λ n, X n + Y n) ⟶ x + y [at ∞] :=
-approaches_at_infty_intro
-take ε : ℝ, suppose ε > 0,
-have e2pos : ε / 2 > 0, from  div_pos_of_pos_of_pos `ε > 0` two_pos,
-obtain (N₁ : ℕ) (HN₁ : ∀ {n}, n ≥ N₁ → ∥ X n - x ∥ < ε / 2),
-  from converges_to_seq_norm_elim HX e2pos,
-obtain (N₂ : ℕ) (HN₂ : ∀ {n}, n ≥ N₂ → ∥ Y n - y ∥ < ε / 2),
-  from converges_to_seq_norm_elim HY e2pos,
-let N := max N₁ N₂ in
-exists.intro N
-  (take n,
-    suppose n ≥ N,
-    have ngtN₁ : n ≥ N₁, from nat.le_trans !le_max_left `n ≥ N`,
-    have ngtN₂ : n ≥ N₂, from nat.le_trans !le_max_right `n ≥ N`,
-    show ∥ (X n + Y n) - (x + y) ∥ < ε, from calc
-      ∥ (X n + Y n) - (x + y) ∥
-            = ∥ (X n - x) + (Y n - y) ∥   : by rewrite [sub_add_eq_sub_sub, *sub_eq_add_neg,
-                                                         *add.assoc, add.left_comm (-x)]
-        ... ≤ ∥ X n - x ∥ + ∥ Y n - y ∥   : norm_triangle
-        ... < ε / 2 + ε / 2               : add_lt_add (HN₁ ngtN₁) (HN₂ ngtN₂)
-        ... = ε                           : add_halves)
-
-private lemma smul_converges_to_seq_aux {c : ℝ} (cnz : c ≠ 0) (HX : X ⟶ x [at ∞]) :
-  (λ n, c • X n) ⟶ c • x [at ∞] :=
-approaches_at_infty_intro
-take ε : ℝ, suppose ε > 0,
-have abscpos : abs c > 0, from abs_pos_of_ne_zero cnz,
-have epos : ε / abs c > 0, from div_pos_of_pos_of_pos `ε > 0` abscpos,
-obtain N (HN : ∀ {n}, n ≥ N → norm (X n - x) < ε / abs c), from converges_to_seq_norm_elim HX epos,
-exists.intro N
-  (take n,
-    suppose n ≥ N,
-    have H : norm (X n - x) < ε / abs c, from HN this,
-    show norm (c • X n - c • x) < ε, from calc
-      norm (c • X n - c • x)
-            = abs c * norm (X n - x) : by rewrite [-smul_sub_left_distrib, norm_smul]
-        ... < abs c * (ε / abs c)    : mul_lt_mul_of_pos_left H abscpos
-        ... = ε                      : mul_div_cancel' (ne_of_gt abscpos))
-
-proposition smul_converges_to_seq (c : ℝ) (HX : X ⟶ x [at ∞]) :
-  (λ n, c • X n) ⟶ c • x [at ∞] :=
-by_cases
-  (assume cz : c = 0,
-    have (λ n, c • X n) = (λ n, 0), from funext (take x, by rewrite [cz, zero_smul]),
-    begin rewrite [this, cz, zero_smul], apply approaches_constant end)
-  (suppose c ≠ 0, smul_converges_to_seq_aux this HX)
-
-proposition neg_converges_to_seq (HX : X ⟶ x [at ∞]) :
-  (λ n, - X n) ⟶ - x [at ∞] :=
-approaches_at_infty_intro
-take ε, suppose ε > 0,
-obtain N (HN : ∀ {n}, n ≥ N → norm (X n - x) < ε), from converges_to_seq_norm_elim HX this,
-exists.intro N
-  (take n,
-    suppose n ≥ N,
-    show norm (- X n - (- x)) < ε,
-      by rewrite [-neg_neg_sub_neg, *neg_neg, norm_neg]; exact HN `n ≥ N`)
-
-proposition neg_converges_to_seq_iff : ((λ n, - X n) ⟶ - x [at ∞]) ↔ (X ⟶ x [at ∞]) :=
-have aux : X = λ n, (- (- X n)), from funext (take n, by rewrite neg_neg),
-iff.intro
-  (assume H : (λ n, -X n)⟶ -x [at ∞],
-    show X ⟶ x [at ∞], by rewrite [aux, -neg_neg x]; exact neg_converges_to_seq H)
-  neg_converges_to_seq
-
-proposition norm_converges_to_seq_zero (HX : X ⟶ 0 [at ∞]) : (λ n, norm (X n)) ⟶ 0 [at ∞] :=
-approaches_at_infty_intro
-take ε, suppose ε > 0,
-obtain N (HN : ∀ n, n ≥ N → norm (X n - 0) < ε), from approaches_at_infty_dest HX `ε > 0`,
-exists.intro N
-  (take n, assume Hn : n ≥ N,
-    have norm (X n) < ε, begin rewrite -(sub_zero (X n)), apply HN n Hn end,
-    show abs (norm (X n) - 0) < ε,
-      by rewrite [sub_zero, abs_of_nonneg !norm_nonneg]; apply this)
-
-proposition converges_to_seq_zero_of_norm_converges_to_seq_zero
-    (HX : (λ n, norm (X n)) ⟶ 0 [at ∞]) :
-  X ⟶ 0 [at ∞] :=
-approaches_at_infty_intro
-take ε, suppose ε > 0,
-obtain N (HN : ∀ n, n ≥ N → abs (norm (X n) - 0) < ε), from approaches_at_infty_dest HX `ε > 0`,
-exists.intro (N : ℕ)
-  (take n : ℕ, assume Hn : n ≥ N,
-    have HN' : abs (norm (X n) - 0) < ε, from HN n Hn,
-    have norm (X n) < ε,
-      by rewrite [sub_zero at HN', abs_of_nonneg !norm_nonneg at HN']; apply HN',
-    show norm (X n - 0) < ε,
-      by rewrite sub_zero; apply this)
-
-proposition norm_converges_to_seq_zero_iff (X : ℕ → V) :
-  ((λ n, norm (X n)) ⟶ 0 [at ∞]) ↔ (X ⟶ 0 [at ∞]) :=
-iff.intro converges_to_seq_zero_of_norm_converges_to_seq_zero norm_converges_to_seq_zero
-
-end analysis
-
-namespace analysis
-variables {U V : Type}
-variable [HU : normed_vector_space U]
-variable [HV : normed_vector_space V]
-variables f g : U → V
-
-include HU HV
-
-theorem add_converges_to_at {lf lg : V} {x : U} (Hf : f ⟶ lf at x) (Hg : g ⟶ lg at x) :
-        (λ y, f y + g y) ⟶ lf + lg at x :=
+proposition neg_approaches {F} (HX : (X ⟶ x) F) :
+  ((λ n, - X n) ⟶ - x) F :=
   begin
-    apply converges_to_at_of_all_conv_seqs,
-    intro X HX,
-    apply add_converges_to_seq,
-    apply all_conv_seqs_of_converges_to_at Hf,
-    apply HX,
-    apply all_conv_seqs_of_converges_to_at Hg,
-    apply HX
+    apply normed_vector_space.approaches_intro,
+    intro ε Hε,
+    apply set.filter.eventually_mono (approaches_dest HX Hε),
+    intro x' Hx',
+    rewrite [-norm_neg, neg_neg_sub_neg],
+    apply Hx'
   end
 
-open topology
+proposition approaches_neg {F} (Hx : ((λ n, - X n) ⟶ - x) F) : (X ⟶ x) F :=
+  have aux : X = λ n, (- (- X n)), from funext (take n, by rewrite neg_neg),
+  by rewrite [aux, -neg_neg x]; exact neg_approaches Hx
 
-theorem normed_vector_space.continuous_at_intro {x : U}
+proposition neg_approaches_iff {F} : (((λ n, - X n) ⟶ - x) F) ↔ ((X ⟶ x) F) :=
+have aux : X = λ n, (- (- X n)), from funext (take n, by rewrite neg_neg),
+iff.intro approaches_neg neg_approaches
+
+proposition norm_approaches_zero_of_approaches_zero {F} (HX : (X ⟶ 0) F) : ((λ n, norm (X n)) ⟶ 0) F :=
+  begin
+    apply metric_space.approaches_intro,
+    intro ε Hε,
+    apply set.filter.eventually_mono (approaches_dest HX Hε),
+    intro x Hx,
+    change abs (∥X x∥ - 0) < ε,
+    rewrite [sub_zero, abs_of_nonneg !norm_nonneg, -sub_zero (X x)],
+    apply Hx
+  end
+
+proposition approaches_zero_of_norm_approaches_zero
+    {F} (HX : ((λ n, norm (X n)) ⟶ 0) F) :
+  (X ⟶ 0) F :=
+  begin
+    apply normed_vector_space.approaches_intro,
+    intro ε Hε,
+    apply set.filter.eventually_mono (approaches_dest HX Hε),
+    intro x Hx,
+    apply lt_of_abs_lt,
+    rewrite [sub_zero, -sub_zero ∥X x∥],
+    apply Hx
+  end
+
+proposition norm_approaches_zero_iff (X : ℕ → V) (F) :
+  (((λ n, norm (X n)) ⟶ 0) F) ↔ ((X ⟶ 0) F) :=
+iff.intro approaches_zero_of_norm_approaches_zero norm_approaches_zero_of_approaches_zero
+
+end
+
+
+section
+variables {U V : Type}
+--variable [HU : normed_vector_space U]
+variable [HV : normed_vector_space V]
+variables {f g : U → V}
+open set-- filter causes error??
+include  HV
+
+theorem add_approaches {lf lg : V} {F : filter U} (Hf : (f ⟶ lf) F) (Hg : (g ⟶ lg) F) :
+        ((λ y, f y + g y) ⟶ lf + lg) F :=
+  begin
+    apply normed_vector_space.approaches_intro,
+    intro ε Hε,
+    have e2pos : ε / 2 > 0, from div_pos_of_pos_of_pos Hε two_pos,
+    have Hfl : filter.eventually (λ x, dist (f x) lf < ε / 2) F, from approaches_dest Hf e2pos,
+    have Hgl : filter.eventually (λ x, dist (g x) lg < ε / 2) F, from approaches_dest Hg e2pos,
+    apply filter.eventually_mono,
+    apply filter.eventually_and Hfl Hgl,
+    intro x Hfg,
+    rewrite [add_sub_comm, -add_halves ε],
+    apply lt_of_le_of_lt,
+    apply norm_triangle,
+    cases Hfg with Hf' Hg',
+    apply add_lt_add,
+    exact Hf', exact Hg'
+  end
+
+theorem smul_approaches {lf : V} {F : filter U} (Hf : (f ⟶ lf) F) (s : ℝ) :
+        ((λ y, s • f y) ⟶ s • lf) F :=
+  begin
+    apply normed_vector_space.approaches_intro,
+    intro ε Hε,
+    cases em (s = 0) with seq sneq,
+    {have H : (λ x, ∥(s • f x) - (s • lf)∥ < ε) = (λ x, true),
+      begin apply funext, intro x, rewrite [seq, 2 zero_smul, sub_zero, norm_zero, eq_true], exact Hε end,
+    rewrite H,
+    apply filter.eventually_true},
+    {have e2pos : ε / abs s > 0, from div_pos_of_pos_of_pos Hε (abs_pos_of_ne_zero sneq),
+    have H : filter.eventually (λ x, ∥(f x) - lf∥ < ε / abs s) F, from approaches_dest Hf e2pos,
+    apply filter.eventually_mono H,
+    intro x Hx,
+    rewrite [-smul_sub_left_distrib, norm_smul, mul.comm],
+    apply mul_lt_of_lt_div,
+    apply abs_pos_of_ne_zero sneq,
+    apply Hx}
+  end
+
+end
+
+namespace normed_vector_space
+variables {U V : Type}
+variables [HU : normed_vector_space U] [HV : normed_vector_space V]
+variables {f g : U → V}
+include HU HV
+open set
+
+theorem continuous_at_within_intro {x : U} {s : set U}
+        (H : ∀ ⦃ε⦄, ε > 0 → ∃ δ, δ > 0 ∧ ∀ ⦃x'⦄, x' ∈ s → ∥x' - x∥ < δ → ∥(f x') - (f x)∥ < ε) :
+  continuous_at_on f x s :=
+  metric_space.continuous_at_within_intro H
+
+theorem continuous_at_on_dest {x : U} {s : set U} (Hfx : continuous_at_on f x s) :
+         ∀ ⦃ε⦄, ε > 0 → ∃ δ, δ > 0 ∧ ∀ ⦃x'⦄, x' ∈ s → ∥x' - x∥ < δ → ∥(f x') - (f x)∥ < ε :=
+  metric_space.continuous_at_on_dest Hfx
+
+theorem continuous_on_intro {s : set U}
+        (H : ∀ x ⦃ε⦄, ε > 0 → ∃ δ, δ > 0 ∧ ∀ ⦃x'⦄, x' ∈ s → ∥x' - x∥ < δ → ∥(f x') - (f x)∥ < ε) :
+        continuous_on f s :=
+  metric_space.continuous_on_intro H
+
+theorem continuous_on_dest {s : set U} (H : continuous_on f s) {x : U} (Hxs : x ∈ s) :
+        ∀ ⦃ε⦄, ε > 0 → ∃ δ, δ > 0 ∧ ∀ ⦃x'⦄, x' ∈ s → ∥x' - x∥ < δ → ∥(f x') - (f x)∥ < ε :=
+  metric_space.continuous_on_dest H Hxs
+
+theorem continuous_intro
+        (H : ∀ x ⦃ε⦄, ε > 0 → ∃ δ, δ > 0 ∧ ∀ ⦃x'⦄, ∥x' - x∥ < δ → ∥(f x') - (f x)∥ < ε) :
+        continuous f :=
+  metric_space.continuous_intro H
+
+theorem continuous_dest (H : continuous f) (x : U) :
+         ∀ ⦃ε⦄, ε > 0 → ∃ δ, δ > 0 ∧ ∀ ⦃x'⦄, ∥x' - x∥ < δ → ∥(f x') - (f x)∥ < ε :=
+  metric_space.continuous_dest H x
+
+theorem continuous_at_intro {x : U}
         (H : ∀ ε : ℝ, ε > 0 → (∃ δ : ℝ, δ > 0 ∧ ∀ x' : U, ∥x' - x∥ < δ → ∥f x' - f x∥ < ε)) :
         continuous_at f x :=
-  continuous_at_intro H
+  metric_space.continuous_at_intro H
 
-theorem normed_vector_space.continuous_at_elim {x : U} (H : continuous_at f x) :
+theorem continuous_at_dest {x : U} (H : continuous_at f x) :
          ∀ ε : ℝ, ε > 0 → (∃ δ : ℝ, δ > 0 ∧ ∀ x' : U, ∥x' - x∥ < δ → ∥f x' - f x∥ < ε) :=
-  continuous_at_elim H
+  metric_space.continuous_at_dest H
+
+end normed_vector_space
+
+section
+
+open topology
+variables {U V : Type}
+variables [HU : normed_vector_space U] [HV : normed_vector_space V]
+variables {f g : U → V}
+include HU HV
+
+theorem neg_continuous (Hf : continuous f) : continuous (λ x : U, - f x) :=
+  begin
+    apply continuous_of_forall_continuous_at,
+    intro x,
+    apply continuous_at_of_tendsto_at,
+    apply neg_approaches,
+    apply tendsto_at_of_continuous_at,
+    apply forall_continuous_at_of_continuous,
+    apply Hf
+  end
+
+theorem add_continuous (Hf : continuous f) (Hg : continuous g) : continuous (λ x, f x + g x) :=
+  begin
+    apply continuous_of_forall_continuous_at,
+    intro y,
+    apply continuous_at_of_tendsto_at,
+    apply add_approaches,
+    all_goals apply tendsto_at_of_continuous_at,
+    all_goals apply forall_continuous_at_of_continuous,
+    repeat assumption
+  end
+
+theorem sub_continuous (Hf : continuous f) (Hg : continuous g) : continuous (λ x, f x - g x) :=
+  begin
+    apply continuous_of_forall_continuous_at,
+    intro y,
+    apply continuous_at_of_tendsto_at,
+    apply add_approaches,
+    all_goals apply tendsto_at_of_continuous_at,
+    all_goals apply forall_continuous_at_of_continuous,
+    assumption,
+    apply neg_continuous,
+    assumption
+  end
+
+theorem smul_continuous (s : ℝ) (Hf : continuous f) : continuous (λ x : U, s • f x) :=
+  begin
+    apply continuous_of_forall_continuous_at,
+    intro y,
+    apply continuous_at_of_tendsto_at,
+    apply smul_approaches,
+    apply tendsto_at_of_continuous_at,
+    apply forall_continuous_at_of_continuous,
+    assumption
+  end
+
+end
 
 end analysis

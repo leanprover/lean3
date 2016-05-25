@@ -204,7 +204,7 @@ theorem intermediate_value_decr_zero {f : ℝ → ℝ} (Hf : continuous f) {a b 
   begin
     have Ha' : - f a < 0, from neg_neg_of_pos Ha,
     have Hb' : - f b > 0, from neg_pos_of_neg Hb,
-    have Hcon : continuous (λ x, - f x), from continuous_neg_of_continuous Hf,
+    have Hcon : continuous (λ x, - f x), from neg_continuous Hf,
     let Hiv := intermediate_value_incr_zero Hcon Hab Ha' Hb',
     cases Hiv with c Hc,
     existsi c,
@@ -220,7 +220,7 @@ theorem intermediate_value_incr {f : ℝ → ℝ} (Hf : continuous f) {a b : ℝ
         (Hav : f a < v) (Hbv : f b > v) : ∃ c, a < c ∧ c < b ∧ f c = v :=
   have Hav' : f a - v < 0, from sub_neg_of_lt Hav,
   have Hbv' : f b - v > 0, from sub_pos_of_lt Hbv,
-  have Hcon : continuous (λ x, f x - v), from continuous_offset_of_continuous Hf _,
+  have Hcon : continuous (λ x, f x - v), from sub_continuous Hf (continuous_const _),
   have Hiv : ∃ c, a < c ∧ c < b ∧ f c - v = 0, from intermediate_value_incr_zero Hcon Hab Hav' Hbv',
   obtain c Hc, from Hiv,
   exists.intro c
@@ -230,7 +230,7 @@ theorem intermediate_value_decr {f : ℝ → ℝ} (Hf : continuous f) {a b : ℝ
         (Hav : f a > v) (Hbv : f b < v) : ∃ c, a < c ∧ c < b ∧ f c = v :=
   have Hav' : f a - v > 0, from sub_pos_of_lt Hav,
   have Hbv' : f b - v < 0, from sub_neg_of_lt Hbv,
-  have Hcon : continuous (λ x, f x - v), from continuous_offset_of_continuous Hf _,
+  have Hcon : continuous (λ x, f x - v), from sub_continuous Hf (continuous_const _),
   have Hiv : ∃ c, a < c ∧ c < b ∧ f c - v = 0, from intermediate_value_decr_zero Hcon Hab Hav' Hbv',
   obtain c Hc, from Hiv,
   exists.intro c

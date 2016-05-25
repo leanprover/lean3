@@ -150,17 +150,19 @@ namespace analysis
 
 theorem dist_eq_abs (x y : real) : dist x y = abs (x - y) := rfl
 
-proposition converges_to_seq_real_intro {X : ℕ → ℝ} {y : ℝ}
+namespace real
+proposition approaches_at_infty_intro {X : ℕ → ℝ} {y : ℝ}
     (H : ∀ ⦃ε : ℝ⦄, ε > 0 → ∃ N : ℕ, ∀ {n}, n ≥ N → abs (X n - y) < ε) :
-  (X ⟶ y [at ∞]) := approaches_at_infty_intro H
+  (X ⟶ y [at ∞]) := metric_space.approaches_at_infty_intro H
 
-proposition converges_to_seq_real_elim {X : ℕ → ℝ} {y : ℝ} (H : X ⟶ y [at ∞]) :
-    ∀ ⦃ε : ℝ⦄, ε > 0 → ∃ N : ℕ, ∀ {n}, n ≥ N → abs (X n - y) < ε := approaches_at_infty_dest H
+proposition approaches_at_infty_dest {X : ℕ → ℝ} {y : ℝ} (H : X ⟶ y [at ∞]) :
+    ∀ ⦃ε : ℝ⦄, ε > 0 → ∃ N : ℕ, ∀ {n}, n ≥ N → abs (X n - y) < ε := metric_space.approaches_at_infty_dest H
 
-proposition converges_to_seq_real_intro' {X : ℕ → ℝ} {y : ℝ}
+proposition approaches_at_infty_intro' {X : ℕ → ℝ} {y : ℝ}
     (H : ∀ ⦃ε : ℝ⦄, ε > 0 → ∃ N : ℕ, ∀ {n}, n ≥ N → abs (X n - y) ≤ ε) :
   (X ⟶ y [at ∞]) :=
 approaches_at_infty_intro' H
+end real
 
 open pnat subtype
 local postfix ⁻¹ := pnat.inv
@@ -205,7 +207,7 @@ theorem converges_seq_of_cauchy {X : ℕ → ℝ} (H : cauchy X) : converges_seq
 obtain l Nb (conv : converges_to_with_rate (r_seq_of X) l Nb),
   from converges_to_with_rate_of_cauchy H,
 exists.intro l
-  (approaches_at_infty_intro
+  (real.approaches_at_infty_intro
     take ε : ℝ,
     suppose ε > 0,
     obtain (k' : ℕ) (Hn : 1 / succ k' < ε), from archimedean_small `ε > 0`,
@@ -249,184 +251,271 @@ definition banach_space_real [trans_instance] : banach_space ℝ :=
   complete                := λ X H, analysis.complete ℝ H
 ⦄
 
+namespace real
+open topology set
+open normed_vector_space
+
+section
+variable {f : ℝ → ℝ}
+
+theorem continuous_dest (H : continuous f) :
+  ∀ x : ℝ, ∀ ⦃ε : ℝ⦄, ε > 0 → ∃ δ : ℝ, δ > 0 ∧ ∀ x' : ℝ,
+    abs (x' - x) < δ → abs (f x' - f x) < ε :=
+normed_vector_space.continuous_dest H
+
+theorem continuous_intro
+  (H : ∀ x : ℝ, ∀ ⦃ε : ℝ⦄, ε > 0 → ∃ δ : ℝ, δ > 0 ∧ ∀ x' : ℝ,
+    abs (x' - x) < δ → abs (f x' - f x) < ε) :
+  continuous f :=
+normed_vector_space.continuous_intro H
+
+theorem continuous_at_dest {x : ℝ} (H : continuous_at f x) :
+         ∀ ε : ℝ, ε > 0 → (∃ δ : ℝ, δ > 0 ∧ ∀ x' : ℝ, abs (x' - x) < δ → abs (f x' - f x) < ε) :=
+normed_vector_space.continuous_at_dest H
+
+theorem continuous_at_intro {x : ℝ}
+  (H : ∀ ⦃ε : ℝ⦄, ε > 0 → ∃ δ : ℝ, δ > 0 ∧ ∀ x' : ℝ,
+    abs (x' - x) < δ → abs (f x' - f x) < ε) :
+  continuous_at f x :=
+normed_vector_space.continuous_at_intro H
+
+theorem continuous_at_within_intro {x : ℝ} {s : set ℝ}
+        (H : ∀ ⦃ε⦄, ε > 0 → ∃ δ, δ > 0 ∧ ∀ ⦃x'⦄, x' ∈ s → abs (x' - x) < δ → abs ((f x') - (f x)) < ε) :
+  continuous_at_on f x s :=
+normed_vector_space.continuous_at_within_intro H
+
+
+theorem continuous_at_on_dest {x : ℝ} {s : set ℝ} (Hfx : continuous_at_on f x s) :
+         ∀ ⦃ε⦄, ε > 0 → ∃ δ, δ > 0 ∧ ∀ ⦃x'⦄, x' ∈ s → abs (x' - x) < δ → abs ((f x') - (f x)) < ε :=
+normed_vector_space.continuous_at_on_dest Hfx
+
+theorem continuous_on_intro {s : set ℝ}
+        (H : ∀ x ⦃ε⦄, ε > 0 → ∃ δ, δ > 0 ∧ ∀ ⦃x'⦄, x' ∈ s → abs (x' - x) < δ → abs ((f x') - (f x)) < ε) :
+        continuous_on f s :=
+normed_vector_space.continuous_on_intro H
+
+theorem continuous_on_dest {s : set ℝ} (H : continuous_on f s) {x : ℝ} (Hxs : x ∈ s) :
+        ∀ ⦃ε⦄, ε > 0 → ∃ δ, δ > 0 ∧ ∀ ⦃x'⦄, x' ∈ s → abs (x' - x) < δ → abs ((f x') - (f x)) < ε :=
+normed_vector_space.continuous_on_dest H Hxs
+
+end
+
+section approaches
+open set.filter set topology
+  variables {X : Type} {F : filter X} {f : X → ℝ} {y : ℝ}
+
+  proposition approaches_intro (H : ∀ ε, ε > 0 → eventually (λ x, abs ((f x) - y) < ε) F) :
+    (f ⟶ y) F :=
+  normed_vector_space.approaches_intro H
+
+  proposition approaches_dest (H : (f ⟶ y) F) {ε : ℝ} (εpos : ε > 0) :
+    eventually (λ x, abs ((f x) - y) < ε) F :=
+  normed_vector_space.approaches_dest H εpos
+
+  variables (F f y)
+
+  proposition approaches_iff : ((f ⟶ y) F) ↔ (∀ ε, ε > 0 → eventually (λ x, abs ((f x) - y) < ε) F) :=
+  iff.intro approaches_dest approaches_intro
+
+end approaches
+
+proposition approaches_at_infty_intro {f : ℕ → ℝ} {y : ℝ}
+    (H : ∀ ε, ε > 0 → ∃ N, ∀ n, n ≥ N → abs ((f n) - y) < ε) :
+  f ⟶ y [at ∞] :=
+normed_vector_space.approaches_at_infty_intro H
+
+proposition approaches_at_infty_dest {f : ℕ → ℝ} {y : ℝ}
+    (H : f ⟶ y [at ∞]) ⦃ε : ℝ⦄ (εpos : ε > 0) :
+  ∃ N, ∀ ⦃n⦄, n ≥ N → abs ((f n) - y) < ε :=
+normed_vector_space.approaches_at_infty_dest H εpos
+
+proposition approaches_at_infty_iff (f : ℕ → ℝ) (y : ℝ) :
+  f ⟶ y [at ∞] ↔ (∀ ε, ε > 0 → ∃ N, ∀ ⦃n⦄, n ≥ N → abs ((f n) - y) < ε) :=
+iff.intro approaches_at_infty_dest approaches_at_infty_intro
+
+section
+variable {f : ℝ → ℝ}
+proposition approaches_at_dest  {y x : ℝ}
+    (H : f ⟶ y [at x]) ⦃ε : ℝ⦄ (εpos : ε > 0) :
+  ∃ δ, δ > 0 ∧ ∀ ⦃x'⦄, abs (x' - x) < δ → x' ≠ x → abs ((f x') - y) < ε :=
+metric_space.approaches_at_dest H εpos
+
+proposition approaches_at_intro {y x : ℝ}
+    (H : ∀ ε, ε > 0 → ∃ δ, δ > 0 ∧ ∀ ⦃x'⦄, abs (x' - x) < δ → x' ≠ x → abs ((f x') - y) < ε) :
+  f ⟶ y [at x] :=
+metric_space.approaches_at_intro H
+
+proposition approaches_at_iff (y x : ℝ) : f ⟶ y [at x] ↔
+    (∀ ⦃ε⦄, ε > 0 → ∃ δ, δ > 0 ∧ ∀ ⦃x'⦄, abs (x' - x) < δ → x' ≠ x → abs ((f x') - y) < ε) :=
+iff.intro approaches_at_dest approaches_at_intro
+
+end
+
+end real
+
 /- limits under pointwise operations -/
 
 section limit_operations
-variables {X Y : ℕ → ℝ}
+open set
+variable {A : Type}
+variables {X Y : A → ℝ}
 variables {x y : ℝ}
+variable {F : filter A}
 
-proposition mul_left_converges_to_seq (c : ℝ) (HX : X ⟶ x [at ∞]) :
-  (λ n, c * X n) ⟶ c * x [at ∞] :=
-smul_converges_to_seq c HX
+proposition mul_left_approaches (c : ℝ) (HX : (X ⟶ x) F) :
+  ((λ n, c * X n) ⟶ c * x) F :=
+smul_approaches HX c
 
-proposition mul_right_converges_to_seq (c : ℝ) (HX : X ⟶ x [at ∞]) :
-  (λ n, X n * c) ⟶ x * c [at ∞] :=
-have (λ n, X n * c) = (λ n, c * X n), from funext (take x, !mul.comm),
-by rewrite [this, mul.comm]; apply mul_left_converges_to_seq c HX
+proposition mul_right_approaches (c : ℝ) (HX : (X ⟶ x) F) :
+  ((λ n, X n * c) ⟶ x * c) F :=
+have (λ n, X n * c) = (λ n, c * X n), from funext (λ n, !mul.comm),
+by rewrite [this, mul.comm]; apply mul_left_approaches _ HX
 
-theorem converges_to_seq_squeeze (HX : X ⟶ x [at ∞]) (HY : Y ⟶ x [at ∞]) {Z : ℕ → ℝ} (HZX : ∀ n, X n ≤ Z n)
-        (HZY : ∀ n, Z n ≤ Y n) : Z ⟶ x [at ∞] :=
+theorem approaches_squeeze (HX : (X ⟶ x) F) (HY : (Y ⟶ x) F)
+        {Z : A → ℝ} (HZX : filter.eventually (λ n, X n ≤ Z n) F) (HZY : filter.eventually (λ n, Z n ≤ Y n) F) :
+        (Z ⟶ x) F :=
   begin
-    apply approaches_at_infty_intro,
-    intros ε Hε,
-    have Hε4 : ε / 4 > 0, from div_pos_of_pos_of_pos Hε four_pos,
-    cases approaches_at_infty_dest HX Hε4 with N1 HN1,
-    cases approaches_at_infty_dest HY Hε4 with N2 HN2,
-    existsi max N1 N2,
-    intro n Hn,
-    have HXY : abs (Y n - X n) < ε / 2, begin
-      apply lt_of_le_of_lt,
-      apply abs_sub_le _ x,
-      have Hε24 : ε / 2 = ε / 4 + ε / 4, from eq.symm !add_quarters,
-      rewrite Hε24,
-      apply add_lt_add,
-      apply HN2,
-      apply ge.trans Hn !le_max_right,
-      rewrite abs_sub,
-      apply HN1,
-      apply ge.trans Hn !le_max_left
-    end,
-    have HZX : abs (Z n - X n) < ε / 2, begin
-      have HZXnp : Z n - X n ≥ 0, from sub_nonneg_of_le !HZX,
-      have HXYnp : Y n - X n ≥ 0, from sub_nonneg_of_le (le.trans !HZX !HZY),
-      rewrite [abs_of_nonneg HZXnp, abs_of_nonneg HXYnp at HXY],
-      note Hgt := lt_add_of_sub_lt_right HXY,
-      have Hlt : Z n < ε / 2 + X n, from calc
-        Z n ≤ Y n : HZY
-        ... < ε / 2 + X n : Hgt,
-      apply sub_lt_right_of_lt_add Hlt
-    end,
-    have H : abs (Z n - x) < ε, begin
-      apply lt_of_le_of_lt,
-      apply abs_sub_le _ (X n),
-      apply lt.trans,
-      apply add_lt_add,
-      apply HZX,
-      apply HN1,
-      apply ge.trans Hn !le_max_left,
-      apply div_two_add_div_four_lt Hε
-    end,
-    exact H
+    apply real.approaches_intro,
+    intro ε Hε,
+    apply filter.eventually_mp,
+    rotate 1,
+    apply filter.eventually_and,
+    apply real.approaches_dest HX Hε,
+    apply real.approaches_dest HY Hε,
+    apply filter.eventually_mono,
+    apply filter.eventually_and HZX HZY,
+    intros x' Hlo Hdst,
+    change abs (Z x' - x) < ε,
+    cases em (x ≤ Z x') with HxleZ HxnleZ, -- annoying linear arith
+    {have Y x' - x = (Z x' - x) + (Y x' - Z x'), by rewrite -sub_eq_sub_add_sub,
+    have H : abs (Y x' - x) < ε, from and.right Hdst,
+    rewrite this at H,
+    have H'' : Y x' - Z x' ≥ 0, from sub_nonneg_of_le (and.right Hlo),
+    have H' : Z x' - x ≥ 0, from sub_nonneg_of_le HxleZ,
+    krewrite [abs_of_nonneg H', abs_of_nonneg (add_nonneg H' H'') at H],
+    apply lt_of_add_lt_of_nonneg_left H H''},
+    {have X x' - x = (Z x' - x) + (X x' - Z x'), by rewrite -sub_eq_sub_add_sub,
+    have H : abs (X x' - x) < ε, from and.left Hdst,
+    rewrite this at H,
+    have H' : x - Z x' > 0, from sub_pos_of_lt (lt_of_not_ge HxnleZ),
+    have H'2 : Z x' - x < 0,
+      by rewrite [-neg_neg (Z x' - x)]; apply neg_neg_of_pos; rewrite [neg_sub]; apply H',
+    have H'' : X x' - Z x' ≤ 0, from sub_nonpos_of_le (and.left Hlo),
+    krewrite [abs_of_neg H'2, abs_of_neg (add_neg_of_neg_of_nonpos H'2 H'') at H, neg_add at H],
+    apply lt_of_add_lt_of_nonneg_left H,
+    apply neg_nonneg_of_nonpos H''}
   end
 
-proposition converges_to_seq_of_abs_sub_converges_to_seq (Habs : (λ n, abs (X n - x)) ⟶ 0 [at ∞]) :
-            X ⟶ x [at ∞] :=
+proposition approaches_of_abs_sub_approaches {F} (Habs : ((λ n, abs (X n - x)) ⟶ 0) F) :
+            (X ⟶ x) F :=
   begin
-    apply approaches_at_infty_intro,
-    intros ε Hε,
-    cases approaches_at_infty_dest Habs Hε with N HN,
-    existsi N,
+    apply real.approaches_intro,
+    intro ε Hε,
+    apply set.filter.eventually_mono,
+    apply real.approaches_dest Habs Hε,
     intro n Hn,
-    have Hn' : abs (abs (X n - x) - 0) < ε, from HN Hn,
+    have Hn' : abs (abs (X n - x) - 0) < ε, from Hn,
     rewrite [sub_zero at Hn', abs_abs at Hn'],
     exact Hn'
   end
 
-proposition abs_sub_converges_to_seq_of_converges_to_seq (HX : X ⟶ x [at ∞]) :
-            (λ n, abs (X n - x)) ⟶ 0 [at ∞] :=
+proposition abs_sub_approaches_of_approaches {F} (HX : (X ⟶ x) F) :
+            ((λ n, abs (X n - x)) ⟶ 0) F :=
   begin
-    apply approaches_at_infty_intro,
+    apply real.approaches_intro,
     intros ε Hε,
-    cases approaches_at_infty_dest HX Hε with N HN,
-    existsi N,
+    apply set.filter.eventually_mono,
+    apply real.approaches_dest HX Hε,
     intro n Hn,
-    have Hn' : abs (abs (X n - x) - 0) < ε, by rewrite [sub_zero, abs_abs]; apply HN Hn,
+    have Hn' : abs (abs (X n - x) - 0) < ε, by rewrite [sub_zero, abs_abs]; apply Hn,
     exact Hn'
   end
 
-proposition mul_converges_to_seq (HX : X ⟶ x [at ∞]) (HY : Y ⟶ y [at ∞]) :
-            (λ n, X n * Y n) ⟶ x * y [at ∞] :=
-    have Hbd : ∃ K : ℝ, ∀ n : ℕ, abs (X n) ≤ K, begin
-      cases bounded_of_converges_seq HX with K HK,
-      existsi K + abs x,
-      intro n,
-      note Habs := le.trans (abs_abs_sub_abs_le_abs_sub (X n) x) !HK,
-      apply le_add_of_sub_right_le,
-      apply le.trans,
-      apply le_abs_self,
-      assumption
-    end,
-    obtain K HK, from Hbd,
-    have Habsle : ∀ n, abs (X n * Y n - x * y) ≤ K * abs (Y n - y) + abs y * abs (X n - x), begin
-      intro,
-      have Heq : X n * Y n - x * y = (X n * Y n - X n * y) + (X n * y - x * y), by
-        rewrite [-sub_add_cancel (X n * Y n) (X n * y) at {1}, sub_eq_add_neg, *add.assoc],
+proposition bounded_of_approaches_real {F} (HX : (X ⟶ x) F) :
+            ∃ K : ℝ, filter.eventually (λ n, abs (X n) ≤ K) F :=
+  begin
+    cases bounded_of_converges HX with K HK,
+    existsi K + abs x,
+    apply filter.eventually_mono HK,
+    intro x' Hx',
+    note Hle := abs_sub_abs_le_abs_sub (X x') x,
+    apply le.trans,
+    apply le_add_of_sub_right_le,
+    apply Hle,
+    apply add_le_add_right,
+    apply Hx'
+  end
+
+proposition mul_approaches {F} (HX : (X ⟶ x) F) (HY : (Y ⟶ y) F) :
+            ((λ n, X n * Y n) ⟶ x * y) F :=
+    obtain K HK, from bounded_of_approaches_real HX,
+    have Habsle : filter.eventually
+         (λ n, abs (X n * Y n - x * y) ≤ K * abs (Y n - y) + abs y * abs (X n - x)) F, begin
+      have Heq : ∀ n, X n * Y n - x * y = (X n * Y n - X n * y) + (X n * y - x * y),
+        by intro n; rewrite [-sub_add_cancel (X n * Y n) (X n * y) at {1}, sub_eq_add_neg, *add.assoc],
+      apply filter.eventually_mono HK,
+      intro x' Hx',
       apply le.trans,
       rewrite Heq,
       apply abs_add_le_abs_add_abs,
       apply add_le_add,
       rewrite [-mul_sub_left_distrib, abs_mul],
       apply mul_le_mul_of_nonneg_right,
-      apply HK,
+      apply Hx',
       apply abs_nonneg,
       rewrite [-mul_sub_right_distrib, abs_mul, mul.comm],
       apply le.refl
     end,
-    have Hdifflim : (λ n, abs (X n * Y n - x * y)) ⟶ 0 [at ∞], begin
-      apply converges_to_seq_squeeze,
+    have Hdifflim : ((λ n, abs (X n * Y n - x * y)) ⟶ 0) F, begin
+      apply approaches_squeeze,
       rotate 2,
-      intro, apply abs_nonneg,
+      intro,
+      apply filter.eventually_mono HK,
+      intro x' Hx',
+      apply abs_nonneg,
       apply Habsle,
       apply approaches_constant,
       rewrite -{0}zero_add,
-      apply add_converges_to_seq,
+      apply add_approaches,
       krewrite -(mul_zero K),
-      apply mul_left_converges_to_seq,
-      apply abs_sub_converges_to_seq_of_converges_to_seq,
+      apply mul_left_approaches,
+      apply abs_sub_approaches_of_approaches,
       exact HY,
       krewrite -(mul_zero (abs y)),
-      apply mul_left_converges_to_seq,
-      apply abs_sub_converges_to_seq_of_converges_to_seq,
+      apply mul_left_approaches,
+      apply abs_sub_approaches_of_approaches,
       exact HX
     end,
-    converges_to_seq_of_abs_sub_converges_to_seq Hdifflim
+    approaches_of_abs_sub_approaches Hdifflim
 
-
--- TODO: converges_to_seq_div, converges_to_seq_mul_left_iff, etc.
-
-proposition abs_converges_to_seq_zero (HX : X ⟶ 0 [at ∞]) : (λ n, abs (X n)) ⟶ 0 [at ∞] :=
-norm_converges_to_seq_zero HX
-
-proposition converges_to_seq_zero_of_abs_converges_to_seq_zero (HX : (λ n, abs (X n)) ⟶ 0 [at ∞]) :
-  X ⟶ 0 [at ∞] :=
-converges_to_seq_zero_of_norm_converges_to_seq_zero HX
-
-proposition abs_converges_to_seq_zero_iff (X : ℕ → ℝ) :
-  ((λ n, abs (X n)) ⟶ 0 [at ∞]) ↔ (X ⟶ 0 [at ∞]) :=
-iff.intro converges_to_seq_zero_of_abs_converges_to_seq_zero abs_converges_to_seq_zero
-
--- TODO: products of two sequences, converges_seq, limit_seq
-
-end limit_operations
-
-/- properties of converges_to_at -/
-
-section limit_operations_continuous
-variables {f g h : ℝ → ℝ}
-variables {a b x y : ℝ}
-
---<<<<<<< HEAD
-theorem mul_converges_to_at (Hf : f ⟶ a [at x]) (Hg : g ⟶ b [at x]) : (λ z, f z * g z) ⟶ a * b [at x] :=
-/-=======
-theorem converges_to_at_real_intro (Hf : ∀ ⦃ε⦄, ε > 0 →
-        (∃ δ, δ > 0 ∧ ∀ ⦃x'⦄, x' ≠ x ∧ abs (x' - x) < δ → abs (f x' - y) < ε)) :
-        converges_to_at f y x := Hf
-
-theorem mul_converges_to_at (Hf : f ⟶ a at x) (Hg : g ⟶ b at x) : (λ z, f z * g z) ⟶ a * b at x :=
->>>>>>> feat(library/analysis): basic properties about real derivatives-/
+proposition mul_approaches_zero_of_approaches_zero_of_approaches (HX : (X ⟶ 0) F) (HY : (Y ⟶ y) F) :
+            ((λ z, X z * Y z) ⟶ 0) F :=
   begin
-    apply converges_to_at_of_all_conv_seqs,
-    intro X HX,
-    apply mul_converges_to_seq,
-    apply comp_approaches_at_infty Hf,
-    apply and.right (HX 0),
-    apply (set.filter.eventually_of_forall _ (λ n, and.left (HX n))),
-    apply comp_approaches_at_infty Hg,
-    apply and.right (HX 0),
-    apply (set.filter.eventually_of_forall _ (λ n, and.left (HX n)))
+    krewrite [-zero_mul y],
+    apply mul_approaches,
+    exact HX, exact HY
   end
 
-end limit_operations_continuous
+proposition mul_approaches_zero_of_approaches_of_approaches_zero (HX : (X ⟶ y) F) (HY : (Y ⟶ 0) F) :
+            ((λ z, X z * Y z) ⟶ 0) F :=
+  begin
+    have H : (λ z, X z * Y z) = (λ z, Y z * X z), from funext (λ a, !mul.comm),
+    rewrite H,
+    exact mul_approaches_zero_of_approaches_zero_of_approaches HY HX
+  end
+
+proposition abs_approaches_zero_of_approaches_zero (HX : (X ⟶ 0) F) : ((λ n, abs (X n)) ⟶ 0) F :=
+norm_approaches_zero_of_approaches_zero HX
+
+proposition approaches_zero_of_abs_approaches_zero (HX : ((λ n, abs (X n)) ⟶ 0) F) :
+  (X ⟶ 0) F :=
+approaches_zero_of_norm_approaches_zero HX
+
+proposition abs_approaches_zero_iff :
+  ((λ n, abs (X n)) ⟶ 0) F ↔ (X ⟶ 0) F :=
+iff.intro approaches_zero_of_abs_approaches_zero abs_approaches_zero_of_approaches_zero
+end limit_operations
+
 
 /- monotone sequences -/
 
@@ -436,7 +525,7 @@ variable {X : ℕ → ℝ}
 
 proposition converges_to_seq_sup_of_nondecreasing (nondecX : nondecreasing X) {b : ℝ}
     (Hb : ∀ i, X i ≤ b) : X ⟶ sup (X ' univ) [at ∞] :=
-approaches_at_infty_intro
+real.approaches_at_infty_intro
 (let sX := sup (X ' univ) in
 have Xle : ∀ i, X i ≤ sX, from
   take i,
@@ -475,7 +564,7 @@ have H₃ : {x : ℝ | -x ∈ X ' univ} = {x : ℝ | x ∈ (λ n, -X n) ' univ},
                        ... = {x : ℝ | x ∈ (λ n, -X n) ' univ} : image_comp,
 have H₄ : ∀ i, - X i ≤ - b, from take i, neg_le_neg (Hb i),
 begin
-  apply iff.mp !neg_converges_to_seq_iff,
+  apply approaches_neg,
   -- need krewrite here
   krewrite [-sup_neg H₁ H₂, H₃, -nondecreasing_neg_iff at nonincX],
   apply converges_to_seq_sup_of_nondecreasing nonincX H₄
@@ -488,11 +577,11 @@ end monotone_sequences
 section xn
 open nat set
 
-theorem pow_converges_to_seq_zero {x : ℝ} (H : abs x < 1) :
+theorem pow_approaches_zero_at_infty {x : ℝ} (H : abs x < 1) :
   (λ n, x^n) ⟶ 0 [at ∞] :=
 suffices H' : (λ n, (abs x)^n) ⟶ 0 [at ∞], from
   have (λ n, (abs x)^n) = (λ n, abs (x^n)), from funext (take n, eq.symm !abs_pow),
-    by rewrite this at H'; exact converges_to_seq_zero_of_abs_converges_to_seq_zero H',
+    by rewrite this at H'; exact approaches_zero_of_abs_approaches_zero H',
 let  aX := (λ n, (abs x)^n),
     iaX := real.inf (aX ' univ),
     asX := (λ n, (abs x)^(succ n)) in
@@ -506,7 +595,7 @@ have noninc_aX : nonincreasing aX, from
 have bdd_aX : ∀ i, 0 ≤ aX i, from take i, !pow_nonneg_of_nonneg !abs_nonneg,
 have aXconv : aX ⟶ iaX [at ∞], proof converges_to_seq_inf_of_nonincreasing noninc_aX bdd_aX qed,
 have asXconv : asX ⟶ iaX [at ∞], from tendsto_succ_at_infty aXconv,
-have asXconv' : asX ⟶ (abs x) * iaX [at ∞], from mul_left_converges_to_seq (abs x) aXconv,
+have asXconv' : asX ⟶ (abs x) * iaX [at ∞], from mul_left_approaches (abs x) aXconv,
 have iaX = (abs x) * iaX, from sorry, -- converges_to_seq_unique asXconv asXconv',
 have iaX = 0, from eq_zero_of_mul_eq_self_left (ne_of_lt H) (eq.symm this),
 show aX ⟶ 0 [at ∞], begin rewrite -this, exact aXconv end --from this ▸ aXconv
@@ -515,36 +604,115 @@ end xn
 
 /- continuity on the reals -/
 
-section continuous
-open topology
+/-namespace real
+open topology set
+open normed_vector_space
+
+section
 variable {f : ℝ → ℝ}
 
-theorem continuous_real_elim (H : continuous f) :
+theorem continuous_dest (H : continuous f) :
   ∀ x : ℝ, ∀ ⦃ε : ℝ⦄, ε > 0 → ∃ δ : ℝ, δ > 0 ∧ ∀ x' : ℝ,
     abs (x' - x) < δ → abs (f x' - f x) < ε :=
-take x, continuous_at_elim (forall_continuous_at_of_continuous H x)
+normed_vector_space.continuous_dest H
 
-theorem continuous_real_intro
+theorem continuous_intro
   (H : ∀ x : ℝ, ∀ ⦃ε : ℝ⦄, ε > 0 → ∃ δ : ℝ, δ > 0 ∧ ∀ x' : ℝ,
     abs (x' - x) < δ → abs (f x' - f x) < ε) :
   continuous f :=
-continuous_of_forall_continuous_at (take x, continuous_at_intro (H x))
+normed_vector_space.continuous_intro H
 
-section
-open set
-variable {s : set ℝ}
---theorem continuous_on_real_elim (H : continuous_on f s) :
---  ∀₀ x ∈ s, x = x := sorry
+theorem continuous_at_dest {x : ℝ} (H : continuous_at f x) :
+         ∀ ε : ℝ, ε > 0 → (∃ δ : ℝ, δ > 0 ∧ ∀ x' : ℝ, abs (x' - x) < δ → abs (f x' - f x) < ε) :=
+normed_vector_space.continuous_at_dest H
+
+theorem continuous_at_intro {x : ℝ}
+  (H : ∀ ⦃ε : ℝ⦄, ε > 0 → ∃ δ : ℝ, δ > 0 ∧ ∀ x' : ℝ,
+    abs (x' - x) < δ → abs (f x' - f x) < ε) :
+  continuous_at f x :=
+normed_vector_space.continuous_at_intro H
+
+theorem continuous_at_within_intro {x : ℝ} {s : set ℝ}
+        (H : ∀ ⦃ε⦄, ε > 0 → ∃ δ, δ > 0 ∧ ∀ ⦃x'⦄, x' ∈ s → abs (x' - x) < δ → abs ((f x') - (f x)) < ε) :
+  continuous_at_on f x s :=
+normed_vector_space.continuous_at_within_intro H
+
+
+theorem continuous_at_on_dest {x : ℝ} {s : set ℝ} (Hfx : continuous_at_on f x s) :
+         ∀ ⦃ε⦄, ε > 0 → ∃ δ, δ > 0 ∧ ∀ ⦃x'⦄, x' ∈ s → abs (x' - x) < δ → abs ((f x') - (f x)) < ε :=
+normed_vector_space.continuous_at_on_dest Hfx
+
+theorem continuous_on_intro {s : set ℝ}
+        (H : ∀ x ⦃ε⦄, ε > 0 → ∃ δ, δ > 0 ∧ ∀ ⦃x'⦄, x' ∈ s → abs (x' - x) < δ → abs ((f x') - (f x)) < ε) :
+        continuous_on f s :=
+normed_vector_space.continuous_on_intro H
+
+theorem continuous_on_dest {s : set ℝ} (H : continuous_on f s) {x : ℝ} (Hxs : x ∈ s) :
+        ∀ ⦃ε⦄, ε > 0 → ∃ δ, δ > 0 ∧ ∀ ⦃x'⦄, x' ∈ s → abs (x' - x) < δ → abs ((f x') - (f x)) < ε :=
+normed_vector_space.continuous_on_dest H Hxs
 
 end
 
+section
+variable {f : ℕ → ℝ}
+proposition approaches_at_infty_intro {y : ℝ}
+    (H : ∀ ε, ε > 0 → ∃ N, ∀ n, n ≥ N → abs ((f n) - y) < ε) :
+  f ⟶ y [at ∞] :=
+normed_vector_space.approaches_at_infty_intro H
+
+proposition approaches_at_infty_dest {y : ℝ}
+    (H : f ⟶ y [at ∞]) ⦃ε : ℝ⦄ (εpos : ε > 0) :
+  ∃ N, ∀ ⦃n⦄, n ≥ N → abs ((f n) - y) < ε :=
+approaches_at_infty_dest H εpos
+
+proposition approaches_at_infty_iff (y : ℝ) :
+  f ⟶ y [at ∞] ↔ (∀ ε, ε > 0 → ∃ N, ∀ ⦃n⦄, n ≥ N → abs((f n) - y) < ε) :=
+iff.intro approaches_at_infty_dest approaches_at_infty_intro
+
+end
+
+section
+variable {f : ℝ → ℝ}
+proposition approaches_at_dest  {y x : ℝ}
+    (H : f ⟶ y [at x]) ⦃ε : ℝ⦄ (εpos : ε > 0) :
+  ∃ δ, δ > 0 ∧ ∀ ⦃x'⦄, abs (x' - x) < δ → x' ≠ x → abs ((f x') - y) < ε :=
+approaches_at_dest H εpos
+
+proposition approaches_at_intro {y x : ℝ}
+    (H : ∀ ε, ε > 0 → ∃ δ, δ > 0 ∧ ∀ ⦃x'⦄, abs (x' - x) < δ → x' ≠ x → abs ((f x') - y) < ε) :
+  f ⟶ y [at x] :=
+approaches_at_intro H
+
+proposition approaches_at_iff (y x : ℝ) : f ⟶ y [at x] ↔
+    (∀ ⦃ε⦄, ε > 0 → ∃ δ, δ > 0 ∧ ∀ ⦃x'⦄, abs (x' - x) < δ → x' ≠ x → abs ((f x') - y) < ε) :=
+iff.intro approaches_at_dest approaches_at_intro
+
+/-proposition approaches_seq_real_intro {X : ℕ → ℝ} {y : ℝ}
+    (H : ∀ ⦃ε : ℝ⦄, ε > 0 → ∃ N : ℕ, ∀ {n}, n ≥ N → abs (X n - y) < ε) :
+  (X ⟶ y [at ∞]) := metric_space.approaches_at_infty_intro H
+
+proposition approaches_seq_real_elim {X : ℕ → ℝ} {y : ℝ} (H : X ⟶ y [at ∞]) :
+    ∀ ⦃ε : ℝ⦄, ε > 0 → ∃ N : ℕ, ∀ {n}, n ≥ N → abs (X n - y) < ε := metric_space.approaches_at_infty_dest H
+
+proposition approaches_seq_real_intro' {X : ℕ → ℝ} {y : ℝ}
+    (H : ∀ ⦃ε : ℝ⦄, ε > 0 → ∃ N : ℕ, ∀ {n}, n ≥ N → abs (X n - y) ≤ ε) :
+  (X ⟶ y [at ∞]) :=
+approaches_at_infty_intro' H-/
+
+end
+
+end real-/
+
+section continuous
+open topology
+variable {f : ℝ → ℝ}
 variable (Hf : continuous f)
 include Hf
 
 theorem pos_on_nbhd_of_cts_of_pos {b : ℝ} (Hb : f b > 0) :
                 ∃ δ : ℝ, δ > 0 ∧ ∀ y, abs (y - b) < δ → f y > 0 :=
   begin
-    let Hcont := continuous_real_elim Hf b Hb,
+    let Hcont := real.continuous_dest Hf b Hb,
     cases Hcont with δ Hδ,
     existsi δ,
     split,
@@ -559,7 +727,7 @@ theorem pos_on_nbhd_of_cts_of_pos {b : ℝ} (Hb : f b > 0) :
 theorem neg_on_nbhd_of_cts_of_neg {b : ℝ} (Hb : f b < 0) :
                 ∃ δ : ℝ, δ > 0 ∧ ∀ y, abs (y - b) < δ → f y < 0 :=
   begin
-    let Hcont := continuous_real_elim Hf b (neg_pos_of_neg Hb),
+    let Hcont := real.continuous_dest Hf b (neg_pos_of_neg Hb),
     cases Hcont with δ Hδ,
     existsi δ,
     split,
@@ -572,66 +740,17 @@ theorem neg_on_nbhd_of_cts_of_neg {b : ℝ} (Hb : f b < 0) :
     assumption
   end
 
-theorem continuous_neg_of_continuous : continuous (λ x, - f x) :=
-  begin
-    apply continuous_real_intro,
-    intros x ε Hε,
-    cases continuous_real_elim Hf x Hε with δ Hδ,
-    cases Hδ with Hδ₁ Hδ₂,
-    existsi δ,
-    split,
-    assumption,
-    intros x' Hx',
-    let HD := Hδ₂ x' Hx',
-    rewrite [-abs_neg, neg_neg_sub_neg],
-    exact HD
-  end
-
-theorem continuous_offset_of_continuous (a : ℝ) :
-        continuous (λ x, (f x) + a) :=
-  begin
-    apply continuous_real_intro,
-    intros x ε Hε,
-    cases continuous_real_elim Hf x Hε with δ Hδ,
-    cases Hδ with Hδ₁ Hδ₂,
-    existsi δ,
-    split,
-    assumption,
-    intros x' Hx',
-    rewrite [add_sub_comm, sub_self, add_zero],
-    apply Hδ₂,
-    assumption
-  end
-
 theorem continuous_mul_of_continuous {g : ℝ → ℝ} (Hcong : continuous g) :
         continuous (λ x, f x * g x) :=
   begin
     apply continuous_of_forall_continuous_at,
     intro x,
-    apply continuous_at_of_converges_to_at,
-    apply mul_converges_to_at,
-    all_goals apply converges_to_at_of_continuous_at,
+    apply continuous_at_of_tendsto_at,
+    apply mul_approaches,
+    all_goals apply tendsto_at_of_continuous_at,
     all_goals apply forall_continuous_at_of_continuous,
     apply Hf,
     apply Hcong
   end
 
 end continuous
-
--- this can be strengthened: Hle and Hge only need to hold around x
-theorem converges_to_at_squeeze {M : Type} [Hm : metric_space M] {f g h : M → ℝ} {a : ℝ} {x : M}
-        (Hf : f ⟶ a at x) (Hh : h ⟶ a at x) (Hle : ∀ y : M, f y ≤ g y)
-        (Hge : ∀ y : M, g y ≤ h y) : g ⟶ a at x :=
-  begin
-    apply converges_to_at_of_all_conv_seqs,
-    intro X HX,
-    apply converges_to_seq_squeeze,
-    apply all_conv_seqs_of_converges_to_at Hf,
-    apply HX,
-    apply all_conv_seqs_of_converges_to_at Hh,
-    apply HX,
-    intro,
-    apply Hle,
-    intro,
-    apply Hge
-  end

@@ -2,6 +2,8 @@
 Copyright (c) 2015 Jeremy Avigad. All rights reserved.
 Released under Apache 2.0 license as described in the file LICENSE.
 Metric spaces.
+
+Authors: Jeremy Avigad, Robert Y. Lewis
 -/
 import data.real.complete data.pnat ..topology.continuous ..topology.limit data.set
 open nat real eq.ops classical set prod set.filter topology interval
@@ -215,6 +217,11 @@ proposition eventually_at_iff (P : M → Prop) (x : M) :
   eventually P [at x] ↔  ∃ ε, ε > 0 ∧ ∀ ⦃x'⦄, dist x' x < ε → x' ≠ x → P x' :=
 iff.intro eventually_at_dest (λ H, obtain ε [εpos Hε], from H, eventually_at_intro εpos Hε)
 
+end metric_space_M
+
+namespace metric_space
+variables {M : Type} [metric_space M]
+
 section approaches
   variables {X : Type} {F : filter X} {f : X → M} {y : M}
 
@@ -236,13 +243,11 @@ section approaches
   proposition approaches_iff : (f ⟶ y) F ↔ (∀ ε, ε > 0 → eventually (λ x, dist (f x) y < ε) F) :=
   iff.intro approaches_dest approaches_intro
 
-  -- TODO: prove this in greater generality in topology.limit
-  proposition approaches_constant : ((λ x, y) ⟶ y) F :=
-  approaches_intro (λ ε εpos, eventually_of_forall F (λ x,
-    show dist y y < ε, by rewrite dist_self; apply εpos))
 end approaches
 
 -- here we full unwrap two particular kinds of convergence3
+-- TODO: put these in metric space namespace? (will have similar in normed_space
+
 
 proposition approaches_at_infty_intro {f : ℕ → M} {y : M}
     (H : ∀ ε, ε > 0 → ∃ N, ∀ n, n ≥ N → dist (f n) y < ε) :
@@ -282,8 +287,13 @@ proposition approaches_at_iff (f : M → N) (y : N) (x : M) : f ⟶ y [at x] ↔
 iff.intro approaches_at_dest approaches_at_intro
 
 end metric_space_N
+end metric_space -- close namespace
 
--- TODO: remove this. It is only here temporarily, because it is used in normed_space
+section metric_space_M
+variables {M : Type} [metric_space M]
+-- TODO: remove this. It is only here temporarily, because it is used in normed_space (JA)
+-- It is used in the definition of a complete metric space below, but I think it doesn't
+-- have to be a class (RL)
 abbreviation converges_seq [class] (X : ℕ → M) : Prop := ∃ y, X ⟶ y [at ∞]
 
 -- TODO: refactor
@@ -291,7 +301,7 @@ abbreviation converges_seq [class] (X : ℕ → M) : Prop := ∃ y, X ⟶ y [at 
 definition approaches_at_infty_intro' {X : ℕ → M} {y : M}
     (H : ∀ ⦃ε : ℝ⦄, ε > 0 → ∃ N : ℕ, ∀ {n}, n ≥ N → dist (X n) y ≤ ε) :
   (X ⟶ y) [at ∞] :=
-approaches_at_infty_intro
+metric_space.approaches_at_infty_intro
 take ε, assume epos : ε > 0,
   have e2pos : ε / 2 > 0, from  div_pos_of_pos_of_pos `ε > 0` two_pos,
   obtain N HN, from H e2pos,
@@ -308,9 +318,9 @@ eq_of_forall_dist_le
   (take ε, suppose ε > 0,
     have e2pos : ε / 2 > 0, from  div_pos_of_pos_of_pos `ε > 0` two_pos,
     obtain N₁ (HN₁ : ∀ {n}, n ≥ N₁ → dist (X n) y₁ < ε / 2),
-      from approaches_at_infty_dest H₁ e2pos,
+      from metric_space.approaches_at_infty_dest H₁ e2pos,
     obtain N₂ (HN₂ : ∀ {n}, n ≥ N₂ → dist (X n) y₂ < ε / 2),
-      from approaches_at_infty_dest H₂ e2pos,
+      from metric_space.approaches_at_infty_dest H₂ e2pos,
     let N := max N₁ N₂ in
     have dN₁ : dist (X N) y₁ < ε / 2, from HN₁ !le_max_left,
     have dN₂ : dist (X N) y₂ < ε / 2, from HN₂ !le_max_right,
@@ -347,11 +357,10 @@ have aux : (λ n, X (k + n)) = (λ n, X (n + k)), from funext (take n, by rewrit
 by rewrite aux at H; exact converges_to_seq_of_converges_to_seq_offset H
 -/
 
---<<<<<<< HEAD
 proposition bounded_of_converges_seq {X : ℕ → M} {x : M} (H : X ⟶ x [at ∞]) :
             ∃ K : ℝ, ∀ n : ℕ, dist (X n) x ≤ K :=
   have eventually (λ n, dist (X n) x < 1) [at ∞],
-    from approaches_dest H zero_lt_one,
+    from metric_space.approaches_dest H zero_lt_one,
   obtain N (HN : ∀ n, n ≥ N → dist (X n) x < 1),
     from eventually_at_infty_dest this,
   let K := max 1 (Max i ∈ '(-∞, N), dist (X i) x) in
@@ -363,12 +372,22 @@ proposition bounded_of_converges_seq {X : ℕ → M} {x : M} (H : X ⟶ x [at �
       else
         show dist (X n) x ≤ K,
           from le.trans (le_of_lt (HN n (le_of_not_gt Hn))) !le_max_left)
---=======
-/-proposition converges_to_seq_of_converges_to_seq_offset_succ
-    {X : ℕ → M} {y : M} (H : (λ n, X (succ n)) ⟶ y in ℕ) :
-  X ⟶ y in ℕ :=
-@converges_to_seq_of_converges_to_seq_offset M _ X y 1 H
 
+proposition bounded_of_converges {A : Type} {X : A → M} {x : M} {F} (H : (X ⟶ x) F) :
+            ∃ K : ℝ, eventually (λ n, dist (X n) x ≤ K) F :=
+  begin
+    note H' := metric_space.approaches_dest H zero_lt_one,
+    existsi 1,
+    apply eventually_mono H',
+    intro x' Hx',
+    apply le_of_lt Hx'
+  end
+
+/-proposition converges_to_seq_of_converges_to_seq_offset_succ
+    {X : ℕ → M} {y : M} (H : (λ n, X (succ n)) ⟶ y [at ∞]) :
+  X ⟶ y [at ∞] :=
+@converges_to_seq_of_converges_to_seq_offset M _ X y 1 H-/
+/-
 proposition converges_to_seq_offset_iff (X : ℕ → M) (y : M) (k : ℕ) :
   ((λ n, X (n + k)) ⟶ y in ℕ) ↔ (X ⟶ y in ℕ) :=
 iff.intro converges_to_seq_of_converges_to_seq_offset !converges_to_seq_offset
@@ -380,49 +399,7 @@ iff.intro converges_to_seq_of_converges_to_seq_offset_left !converges_to_seq_off
 proposition converges_to_seq_offset_succ_iff (X : ℕ → M) (y : M) :
   ((λ n, X (succ n)) ⟶ y in ℕ) ↔ (X ⟶ y in ℕ) :=
 iff.intro converges_to_seq_of_converges_to_seq_offset_succ !converges_to_seq_offset_succ
-
-section
-open list
-private definition r_trans : transitive (@le ℝ _) := λ a b c, !le.trans
-private definition r_refl : reflexive (@le ℝ _) := λ a, !le.refl
-
-proposition bounded_of_converges_seq {X : ℕ → M} {x : M} (H : X ⟶ x in ℕ) :
-            ∃ K : ℝ, ∀ n : ℕ, dist (X n) x ≤ K :=
-  begin
-    cases H zero_lt_one with N HN,
-    cases em (N = 0),
-    existsi 1,
-    intro n,
-    apply le_of_lt,
-    apply HN,
-    rewrite a,
-    apply zero_le,
-    let l := map (λ n : ℕ, -dist (X n) x) (upto N),
-    have Hnenil : l ≠ nil, from (map_ne_nil_of_ne_nil _ (upto_ne_nil_of_ne_zero a)),
-    existsi max (-list.min (λ a b : ℝ, le a b) l Hnenil) 1,
-    intro n,
-    have Hsmn : ∀ m : ℕ, m < N → dist (X m) x ≤ max (-list.min (λ a b : ℝ, le a b) l Hnenil) 1, begin
-      intro m Hm,
-      apply le.trans,
-      rotate 1,
-      apply le_max_left,
-      note Hall := min_lemma real.le_total r_trans r_refl Hnenil,
-      have Hmem : -dist (X m) x ∈ (map (λ (n : ℕ), -dist (X n) x) (upto N)), from mem_map _ (mem_upto_of_lt Hm),
-      note Hallm' := of_mem_of_all Hmem Hall,
-      apply le_neg_of_le_neg,
-      exact Hallm'
-    end,
-    cases em (n < N) with Elt Ege,
-    apply Hsmn,
-    exact Elt,
-    apply le_of_lt,
-    apply lt_of_lt_of_le,
-    apply HN,
-    apply le_of_not_gt Ege,
-    apply le_max_right
-  end
-end
->>>>>>> feat(library/analysis): basic properties about real derivatives-/
+-/
 
 /- cauchy sequences -/
 
@@ -433,7 +410,7 @@ proposition cauchy_of_converges_seq {X : ℕ → M} (H : ∃ y, X ⟶ y [at ∞]
 take ε, suppose ε > 0,
   obtain y (Hy : X ⟶ y [at ∞]), from H,
   have e2pos : ε / 2 > 0, from div_pos_of_pos_of_pos `ε > 0` two_pos,
-  have eventually (λ n, dist (X n) y < ε / 2) [at ∞], from approaches_dest Hy e2pos,
+  have eventually (λ n, dist (X n) y < ε / 2) [at ∞], from metric_space.approaches_dest Hy e2pos,
   obtain N (HN : ∀ {n}, n ≥ N → dist (X n) y < ε / 2), from eventually_at_infty_dest this,
     exists.intro N
       (take m n, suppose m ≥ N, suppose n ≥ N,
@@ -452,41 +429,10 @@ end metric_space_M
 section metric_space_M_N
 variables {M N : Type} [metric_space M] [metric_space N]
 
-/-
-definition converges_to_at (f : M → N) (y : N) (x : M) :=
-∀ ⦃ε⦄, ε > 0 → ∃ δ, δ > 0 ∧ ∀ ⦃x'⦄, x' ≠ x ∧ dist x' x < δ → dist (f x') y < ε
-
-notation f `⟶` y `at` x := converges_to_at f y x
-
-theorem converges_to_at_constant (y : N) (x : M) : (λ m, y) ⟶ y at x :=
-  begin
-    intros ε Hε,
-    existsi 1,
-    split,
-    exact zero_lt_one,
-    intros x' Hx',
-    rewrite dist_self,
-    apply Hε
-  end
-
-definition converges_at [class] (f : M → N) (x : M) :=
-∃ y, converges_to_at f y x
-
-noncomputable definition limit_at (f : M → N) (x : M) [H : converges_at f x] : N :=
-some H
-
-proposition converges_to_limit_at (f : M → N) (x : M) [H : converges_at f x] :
-  (f ⟶ limit_at f x at x) :=
-some_spec H
-
--/
 
 -- TODO: refactor
 section
 open pnat rat
-private lemma of_rat_rat_of_pnat_eq_of_nat_nat_of_pnat (p : pnat) :
-        of_rat (rat_of_pnat p) = of_nat (nat_of_pnat p) :=
-  rfl
 
 theorem cnv_real_of_cnv_nat {X : ℕ → M} {c : M} (H : ∀ n : ℕ, dist (X n) c < 1 / (real.of_nat n + 1)) :
         ∀ ε : ℝ, ε > 0 → ∃ N : ℕ, ∀ n : ℕ, n ≥ N → dist (X n) c < ε :=
@@ -512,51 +458,33 @@ theorem cnv_real_of_cnv_nat {X : ℕ → M} {c : M} (H : ∀ n : ℕ, dist (X n)
     krewrite -of_rat_zero,
     apply of_rat_lt_of_rat_of_lt,
     apply rat_of_pnat_is_pos,
-    krewrite [of_rat_rat_of_pnat_eq_of_nat_nat_of_pnat, -real.of_nat_add],
+    change of_nat (nat_of_pnat p) ≤ n + 1,
+    krewrite [-real.of_nat_add],
     apply real.of_nat_le_of_nat_of_le,
     apply le_add_of_le_right,
     assumption
   end
 end
 
--- a nice illustration of the limit library: [at c] and [at ∞] can be replaced by any filters
-theorem comp_approaches_at_infty {f : M → N} {c : M} {l : N} (Hf : f ⟶ l [at c])
-    {X : ℕ → M} (HX₁ : X ⟶ c [at ∞]) (HX₂ : eventually (λ n, X n ≠ c) [at ∞]) :
-  (λ n, f (X n)) ⟶ l [at ∞] :=
-  tendsto_comp_of_approaches_of_tendsto_at HX₁ HX₂ Hf
-
--- TODO: refactor
-
+-- TODO : refactor
 theorem converges_to_at_of_all_conv_seqs {f : M → N} (c : M) (l : N)
-  (Hseq : ∀ X : ℕ → M, ((∀ n : ℕ, ((X n) ≠ c) ∧ (X ⟶ c [at ∞])) → ((λ n : ℕ, f (X n)) ⟶ l [at ∞])))
+  (Hseq : ∀ X : ℕ → M, (eventually (λ n, X n ≠ c) [at ∞] ∧ (X ⟶ c [at ∞])) → ((λ n : ℕ, f (X n)) ⟶ l [at ∞]))
   : f ⟶ l [at c] :=
-  by_contradiction
-    (assume Hnot : ¬ (f ⟶ l [at c]),
-    obtain ε Hε, from exists_not_of_not_forall (λ H, Hnot (approaches_at_intro H)),
-    let Hε' := and_not_of_not_implies Hε in
-    obtain (H1 : ε > 0) H2, from Hε',
-    have H3 : ∀ δ : ℝ, (δ > 0 → ∃ x' : M, x' ≠ c ∧ dist x' c < δ ∧ dist (f x') l ≥ ε), begin -- tedious!!
-      intros δ Hδ,
-      note Hε'' := forall_not_of_not_exists H2,
-      note H4 := forall_not_of_not_exists H2 δ,
-      have ¬ (∀ x' : M, dist x' c < δ → x' ≠ c → dist (f x') l < ε),
-        from λ H', H4 (and.intro Hδ H'),
-      note H5 := exists_not_of_not_forall this,
-      cases H5 with x' Hx',
+  begin
+    eapply by_contradiction,
+    intro Hnot,
+    cases exists_not_of_not_forall (λ H, Hnot (metric_space.approaches_at_intro H)) with ε Hε,
+    cases and_not_of_not_implies Hε with H1 H2,
+    note H3' := forall_not_of_not_exists H2,
+    have H3 : ∀ δ, δ > 0 → (∃ x', dist x' c < δ ∧ x' ≠ c ∧ dist (f x') l ≥ ε), begin
+      intro δ Hδ,
+      cases exists_not_of_not_forall (or.resolve_left (not_or_not_of_not_and' (H3' δ)) (not_not_intro Hδ))
+        with x' Hx',
       existsi x',
-      note H6 := and_not_of_not_implies Hx',
---      rewrite and.assoc at H6,
-      cases H6 with H6a H6b,
-      split,
-      cases (and_not_of_not_implies H6b),
-      assumption,
-      split,
-      assumption,
-      apply le_of_not_gt,
-      cases (and_not_of_not_implies H6b),
-      assumption
+      rewrite [2 not_implies_iff_and_not at Hx', ge_iff_not_lt],
+      exact Hx'
     end,
-    let S : ℕ → M → Prop := λ n x, 0 < dist x c ∧ dist x c < 1 / (of_nat n + 1) ∧ dist (f x) l ≥ ε in
+    let S := λ (n : ℕ) (x : M), 0 < dist x c ∧ dist x c < 1 / (of_nat n + 1) ∧ dist (f x) l ≥ ε,
     have HS : ∀ n : ℕ, ∃ m : M, S n m, begin
       intro k,
       have Hpos : 0 < of_nat k + 1, from of_nat_succ_pos k,
@@ -571,42 +499,44 @@ theorem converges_to_at_of_all_conv_seqs {f : M → N} (c : M) (l : N)
       split,
       repeat assumption
     end,
-    let X : ℕ → M := λ n, some (HS n) in
-    have H4 : ∀ n : ℕ, ((X n) ≠ c) ∧ (X ⟶ c [at ∞]), from
-      (take n, and.intro
-        (begin
-          note Hspec := some_spec (HS n),
-          esimp, esimp at Hspec,
-          cases Hspec,
-          apply ne_of_dist_pos,
-          assumption
-        end)
-        (begin
-          apply approaches_at_infty_intro,
-          apply cnv_real_of_cnv_nat,
-          intro m,
-          note Hspec := some_spec (HS m),
-          esimp, esimp at Hspec,
-          cases Hspec with Hspec1 Hspec2,
-          cases Hspec2,
-          assumption
-        end)),
-    have H5 : (λ n : ℕ, f (X n)) ⟶ l [at ∞], from Hseq X H4,
-    begin
-      note H6 := approaches_at_infty_dest H5 H1,
-      cases H6 with Q HQ,
-      note HQ' := HQ !le.refl,
-      esimp at HQ',
-      apply absurd HQ',
-      apply not_lt_of_ge,
-      note H7 := some_spec (HS Q),
-      esimp at H7,
-      cases H7 with H71 H72,
-      cases H72,
-      assumption
-    end)
+    let X := λ n, some (HS n),
+    have H4 : (eventually (λ n, X n ≠ c) [at ∞]) ∧ (X ⟶ c [at ∞]), begin
+      split,
+      {fapply @eventually_at_infty_intro,
+      exact 0,
+      intro n Hn,
+      note Hspec := some_spec (HS n),
+      esimp, esimp at Hspec,
+      cases Hspec,
+      apply ne_of_dist_pos,
+      assumption},
+      {intro,
+      apply metric_space.approaches_at_infty_intro,
+      apply cnv_real_of_cnv_nat,
+      intro m,
+      note Hspec := some_spec (HS m),
+      esimp, esimp at Hspec,
+      cases Hspec with Hspec1 Hspec2,
+      cases Hspec2,
+      assumption}
+    end,
+    have H5 : (λ n, f (X n)) ⟶ l [at ∞], from Hseq X H4,
+    note H6 := metric_space.approaches_at_infty_dest H5 H1,
+    cases H6 with Q HQ,
+    note HQ' := HQ !le.refl,
+    esimp at HQ',
+    apply absurd HQ',
+    apply not_lt_of_ge,
+    note H7 := some_spec (HS Q),
+    esimp at H7,
+    cases H7 with H71 H72,
+    cases H72,
+    assumption
+  end
 
 end metric_space_M_N
+
+namespace metric_space
 
 section continuity
 variables {M N : Type} [Hm : metric_space M] [Hn : metric_space N]
@@ -614,12 +544,12 @@ include Hm Hn
 open topology set
 
 -- the ε - δ definition of continuity is equivalent to the topological definition
-theorem continuous_at_intro {f : M → N} {x : M}
-        (H : ∀ ⦃ε⦄, ε > 0 → ∃ δ, δ > 0 ∧ ∀ ⦃x'⦄, dist x' x < δ → dist (f x') (f x) < ε) :
-        continuous_at f x :=
+
+theorem continuous_at_within_intro {f : M → N} {x : M} {s : set M}
+        (H : ∀ ⦃ε⦄, ε > 0 → ∃ δ, δ > 0 ∧ ∀ ⦃x'⦄, x' ∈ s → dist x' x < δ → dist (f x') (f x) < ε) :
+  continuous_at_on f x s :=
   begin
-    rewrite ↑continuous_at,
-    intros U Uopen HfU,
+    intro U Uopen HfU,
     cases exists_open_ball_subset_of_Open_of_mem Uopen HfU with r Hr,
     cases Hr with Hr HUr,
     cases H Hr with δ Hδ,
@@ -633,15 +563,15 @@ theorem continuous_at_intro {f : M → N} {x : M}
     intro y Hy,
     apply mem_preimage,
     apply HUr,
-    note Hy'' := Hx'δ Hy,
-    exact Hy''
+    apply Hx'δ,
+    apply and.right Hy,
+    apply and.left Hy
   end
 
-theorem continuous_at_elim {f : M → N} {x : M} (Hfx : continuous_at f x) :
-        ∀ ⦃ε⦄, ε > 0 → ∃ δ, δ > 0 ∧ ∀ ⦃x'⦄, dist x' x < δ → dist (f x') (f x) < ε :=
+theorem continuous_at_on_dest {f : M → N} {x : M} {s : set M} (Hfx : continuous_at_on f x s) :
+         ∀ ⦃ε⦄, ε > 0 → ∃ δ, δ > 0 ∧ ∀ ⦃x'⦄, x' ∈ s → dist x' x < δ → dist (f x') (f x) < ε :=
   begin
     intros ε Hε,
-    rewrite [↑continuous_at at Hfx],
     cases @Hfx (open_ball (f x) ε) !Open_open_ball (mem_open_ball _ Hε) with V HV,
     cases HV with HV HVx,
     cases HVx with HVx HVf,
@@ -650,94 +580,58 @@ theorem continuous_at_elim {f : M → N} {x : M} (Hfx : continuous_at f x) :
     existsi δ,
     split,
     exact Hδ,
-    intro x' Hx',
+    intro x' Hx's Hx',
     apply HVf,
+    apply and.intro,
     apply Hδx,
-    apply Hx',
+    exact Hx',
+    exact Hx's
   end
 
---<<<<<<< HEAD
-theorem continuous_at_of_converges_to_at {f : M → N} {x : M} (Hf : f ⟶ f x [at x]) :
-/-=======
-theorem continuous_at_on_intro {f : M → N} {x : M} {s : set M}
-        (H : ∀ ⦃ε⦄, ε > 0 → ∃ δ, δ > 0 ∧ ∀₀ x' ∈ s, dist x' x < δ → dist (f x') (f x) < ε) :
-        continuous_at_on f x s :=
-  begin
-    intro t HOt Hfxt,
-    cases ex_Open_ball_subset_of_Open_of_nonempty HOt Hfxt with ε Hε,
-    cases H (and.left Hε) with δ Hδ,
-    existsi (open_ball x δ),
-    split,
-    apply open_ball_open,
-    split,
-    apply mem_open_ball,
-    apply and.left Hδ,
-    intro x' Hx',
-    apply mem_preimage,
-    apply mem_of_subset_of_mem,
-    apply and.right Hε,
-    apply and.intro !mem_univ,
-    rewrite dist_comm,
-    apply and.right Hδ,
-    apply and.right Hx',
-    rewrite dist_comm,
-    apply and.right (and.left Hx')
-  end
+theorem continuous_at_intro {f : M → N} {x : M}
+        (H : ∀ ⦃ε⦄, ε > 0 → ∃ δ, δ > 0 ∧ ∀ ⦃x'⦄, dist x' x < δ → dist (f x') (f x) < ε) :
+        continuous_at f x :=
+  continuous_at_of_continuous_at_on_univ
+    (continuous_at_within_intro
+      (take ε, suppose ε > 0,
+      obtain δ (Hδ : δ > 0 ∧ ∀ ⦃x'⦄, dist x' x < δ → dist (f x') (f x) < ε), from H this,
+      exists.intro δ (and.intro
+      (show δ > 0, from and.left Hδ)
+      (take x' H' Hx', and.right Hδ _ Hx'))))
 
-theorem continuous_at_on_elim {f : M → N} {x : M} {s : set M} (Hfs : continuous_at_on f x s) :
-         ∀ ⦃ε⦄, ε > 0 → ∃ δ, δ > 0 ∧ ∀₀ x' ∈ s, dist x' x < δ → dist (f x') (f x) < ε :=
+theorem continuous_at_dest {f : M → N} {x : M} (Hfx : continuous_at f x) :
+        ∀ ⦃ε⦄, ε > 0 → ∃ δ, δ > 0 ∧ ∀ ⦃x'⦄, dist x' x < δ → dist (f x') (f x) < ε :=
   begin
     intro ε Hε,
-    unfold continuous_at_on at Hfs,
-    cases @Hfs (open_ball (f x) ε) !open_ball_open (mem_open_ball _ Hε) with u Hu,
-    cases Hu with Huo Hu,
-    cases Hu with Hxu Hu,
-    cases ex_Open_ball_subset_of_Open_of_nonempty Huo Hxu with δ Hδ,
+    cases continuous_at_on_dest (continuous_at_on_univ_of_continuous_at Hfx) Hε with δ Hδ,
     existsi δ,
     split,
     exact and.left Hδ,
-    intros x' Hx's Hx'x,
-    have Hims : f ' (u ∩ s) ⊆ open_ball (f x) ε, begin
-      apply subset.trans (image_subset f Hu),
-      apply image_preimage_subset
-    end,
-    have Hx'int : x' ∈ u ∩ s, begin
-      apply and.intro,
-      apply mem_of_subset_of_mem,
-      apply and.right Hδ,
-      apply and.intro !mem_univ,
-      rewrite dist_comm,
-      repeat assumption
-    end,
-    have Hxx' : f x' ∈ open_ball (f x) ε, begin
-      apply mem_of_subset_of_mem,
-      apply Hims,
-      apply mem_image_of_mem,
-      apply Hx'int
-    end,
-    rewrite dist_comm,
-    apply and.right Hxx'
+    intro x' Hx',
+    apply and.right Hδ,
+    apply mem_univ,
+    apply Hx'
   end
 
 theorem continuous_on_intro {f : M → N} {s : set M}
-        (H : ∀ x, ∀ ⦃ε⦄, ε > 0 → ∃ δ, δ > 0 ∧ ∀₀ x' ∈ s, dist x' x < δ → dist (f x') (f x) < ε) :
+        (H : ∀ x ⦃ε⦄, ε > 0 → ∃ δ, δ > 0 ∧ ∀ ⦃x'⦄, x' ∈ s → dist x' x < δ → dist (f x') (f x) < ε) :
         continuous_on f s :=
-  begin
-    apply continuous_on_of_forall_continuous_at_on,
-    intro x,
-    apply continuous_at_on_intro,
-    apply H
-  end
+  continuous_on_of_forall_continuous_at_on (λ x, continuous_at_within_intro (H x))
 
-theorem continuous_on_elim {f : M → N} {s : set M} (Hfs : continuous_on f s) :
-        ∀₀ x ∈ s, ∀ ⦃ε⦄, ε > 0 → ∃ δ, δ > 0 ∧ ∀₀ x' ∈ s, dist x' x < δ → dist (f x') (f x) < ε :=
-  begin
-    intros x Hx,
-    exact continuous_at_on_elim (continuous_at_on_of_continuous_on Hfs Hx)
-  end-/
+theorem continuous_on_dest {f : M → N} {s : set M} (H : continuous_on f s) {x : M} (Hxs : x ∈ s) :
+        ∀ ⦃ε⦄, ε > 0 → ∃ δ, δ > 0 ∧ ∀ ⦃x'⦄, x' ∈ s → dist x' x < δ → dist (f x') (f x) < ε :=
+  continuous_at_on_dest (continuous_at_on_of_continuous_on H Hxs)
 
---theorem continuous_at_of_converges_to_at {f : M → N} {x : M} (Hf : f ⟶ f x at x) :
--->>>>>>> feat(theories/analysis): intro/elim rules for continuous_on, etc
+theorem continuous_intro {f : M → N}
+        (H : ∀ x ⦃ε⦄, ε > 0 → ∃ δ, δ > 0 ∧ ∀ ⦃x'⦄, dist x' x < δ → dist (f x') (f x) < ε) :
+        continuous f :=
+  continuous_of_forall_continuous_at (λ x, continuous_at_intro (H x))
+
+theorem continuous_dest {f : M → N} (H : continuous f) (x : M) :
+         ∀ ⦃ε⦄, ε > 0 → ∃ δ, δ > 0 ∧ ∀ ⦃x'⦄, dist x' x < δ → dist (f x') (f x) < ε :=
+  continuous_at_dest (forall_continuous_at_of_continuous H x)
+
+theorem continuous_at_of_converges_to_at {f : M → N} {x : M} (Hf : f ⟶ f x [at x]) :
   continuous_at f x :=
 continuous_at_intro
 (take ε, suppose ε > 0,
@@ -755,10 +649,8 @@ theorem converges_to_at_of_continuous_at {f : M → N} {x : M} (Hf : continuous_
   f ⟶ f x [at x] :=
 approaches_at_intro
   (take ε, suppose ε > 0,
-    obtain δ [δpos Hδ], from continuous_at_elim Hf this,
+    obtain δ [δpos Hδ], from continuous_at_dest Hf this,
     exists.intro δ (and.intro δpos (λ x' Hx' xnex', Hδ x' Hx')))
-
---definition continuous (f : M → N) : Prop := ∀ x, continuous_at f x
 
 theorem converges_seq_comp_of_converges_seq_of_cts (X : ℕ → M) [HX : converges_seq X] {f : M → N}
         (Hf : continuous f) :
@@ -768,7 +660,7 @@ theorem converges_seq_comp_of_converges_seq_of_cts (X : ℕ → M) [HX : converg
     existsi f xlim,
     apply approaches_at_infty_intro,
     intros ε Hε,
-    let Hcont := (continuous_at_elim (forall_continuous_at_of_continuous Hf xlim)) Hε,
+    let Hcont := (continuous_at_dest (forall_continuous_at_of_continuous Hf xlim)) Hε,
     cases Hcont with δ Hδ,
     cases approaches_at_infty_dest Hxlim (and.left Hδ) with B HB,
     existsi B,
@@ -777,21 +669,9 @@ theorem converges_seq_comp_of_converges_seq_of_cts (X : ℕ → M) [HX : converg
     apply HB Hn
   end
 
-omit Hn
-theorem id_continuous : continuous (λ x : M, x) :=
-  begin
-    apply continuous_of_forall_continuous_at,
-    intros x,
-    apply continuous_at_intro,
-    intro ε Hε,
-    existsi ε,
-    split,
-    assumption,
-    intros,
-    assumption
-  end
-
 end continuity
+
+end metric_space
 
 end analysis
 
