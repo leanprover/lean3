@@ -146,10 +146,6 @@ end real
 
 /- the reals form a complete metric space -/
 
-namespace analysis
-
-theorem dist_eq_abs (x y : real) : dist x y = abs (x - y) := rfl
-
 namespace real
 proposition approaches_at_infty_intro {X : ℕ → ℝ} {y : ℝ}
     (H : ∀ ⦃ε : ℝ⦄, ε > 0 → ∃ N : ℕ, ∀ {n}, n ≥ N → abs (X n - y) < ε) :
@@ -163,6 +159,10 @@ proposition approaches_at_infty_intro' {X : ℕ → ℝ} {y : ℝ}
   (X ⟶ y [at ∞]) :=
 approaches_at_infty_intro' H
 end real
+
+namespace analysis
+
+theorem dist_eq_abs (x y : real) : dist x y = abs (x - y) := rfl
 
 open pnat subtype
 local postfix ⁻¹ := pnat.inv
@@ -318,20 +318,6 @@ open set.filter set topology
   iff.intro approaches_dest approaches_intro
 
 end approaches
-
-proposition approaches_at_infty_intro {f : ℕ → ℝ} {y : ℝ}
-    (H : ∀ ε, ε > 0 → ∃ N, ∀ n, n ≥ N → abs ((f n) - y) < ε) :
-  f ⟶ y [at ∞] :=
-normed_vector_space.approaches_at_infty_intro H
-
-proposition approaches_at_infty_dest {f : ℕ → ℝ} {y : ℝ}
-    (H : f ⟶ y [at ∞]) ⦃ε : ℝ⦄ (εpos : ε > 0) :
-  ∃ N, ∀ ⦃n⦄, n ≥ N → abs ((f n) - y) < ε :=
-normed_vector_space.approaches_at_infty_dest H εpos
-
-proposition approaches_at_infty_iff (f : ℕ → ℝ) (y : ℝ) :
-  f ⟶ y [at ∞] ↔ (∀ ε, ε > 0 → ∃ N, ∀ ⦃n⦄, n ≥ N → abs ((f n) - y) < ε) :=
-iff.intro approaches_at_infty_dest approaches_at_infty_intro
 
 section
 variable {f : ℝ → ℝ}
