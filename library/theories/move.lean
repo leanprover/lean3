@@ -4,7 +4,7 @@ Released under Apache 2.0 license as described in the file LICENSE.
 
 Temporary file; move in Lean3.
 -/
-import data.set algebra.order_bigops
+import data.set algebra.order_bigops algebra.ordered_field
 import data.finset data.list.sort
 import data.real
 
@@ -38,6 +38,12 @@ theorem lt_of_add_lt_of_nonneg_right {A : Type} {a b c : A} [ordered_comm_group 
 calc
     b < c - a : lt_sub_left_of_add_lt H
   ... ≤ c : sub_le_self _ Hb
+
+  theorem lt_mul_of_div_lt_of_pos {A : Type} {a b c : A} [linear_ordered_field A]
+ (Hc : c > 0) (H : a / c < b) : a < b * c :=
+    calc
+      a = a / c * c : !div_mul_cancel (ne.symm (ne_of_lt Hc))
+    ... < b * c     : mul_lt_mul_of_pos_right H Hc
 
 -- move to init.quotient
 
