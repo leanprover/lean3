@@ -11,18 +11,14 @@ noncomputable theory
 
 namespace real
 
--- move this to group
-theorem add_sub_self (a b : ℝ) : a + b - a = b :=
-  by rewrite [add_sub_assoc, add.comm, sub_add_cancel]
-
 -- make instance of const mul bdd lin op?
 
-definition derivative_at (f : ℝ → ℝ) (d x : ℝ) := is_frechet_deriv_at f (λ t, d • t) x
+definition has_deriv_at (f : ℝ → ℝ) (d x : ℝ) := has_frechet_deriv_at f (λ t, d • t) x
 
-theorem derivative_at_intro (f : ℝ → ℝ) (d x : ℝ) (H : (λ h, (f (x + h) - f x) / h) ⟶ d [at 0]) :
-        derivative_at f d x :=
+theorem has_deriv_at_intro (f : ℝ → ℝ) (d x : ℝ) (H : (λ h, (f (x + h) - f x) / h) ⟶ d [at 0]) :
+        has_deriv_at f d x :=
   begin
-    apply is_frechet_deriv_at_intro,
+    apply has_frechet_deriv_at_intro,
     intros ε Hε,
     cases approaches_at_dest H Hε with δ Hδ,
     existsi δ,
@@ -36,25 +32,25 @@ theorem derivative_at_intro (f : ℝ → ℝ) (d x : ℝ) (H : (λ h, (f (x + h)
     show abs (f (x + y) - f x - d * y) / abs y < ε, by rewrite -abs_div; apply Hδ''
   end
 
-theorem derivative_at_of_frechet_derivative_at {f g : ℝ → ℝ} [is_bdd_linear_map g] {d x : ℝ}
-        (H : is_frechet_deriv_at f g x) (Hg : g = λ x, d * x) :
-        derivative_at f d x :=
+theorem has_deriv_at_of_has_frechet_deriv_at {f g : ℝ → ℝ} [is_bdd_linear_map g] {d x : ℝ}
+        (H : has_frechet_deriv_at f g x) (Hg : g = λ x, d * x) :
+        has_deriv_at f d x :=
   by apply is_frechet_deriv_at_of_eq H Hg
 
-theorem deriv_at_const (c x : ℝ) : derivative_at (λ t, c) 0 x :=
-  derivative_at_of_frechet_derivative_at
-    (@frechet_deriv_at_const ℝ ℝ _ _ _ c)
+theorem has_deriv_at_const (c x : ℝ) : has_deriv_at (λ t, c) 0 x :=
+  has_deriv_at_of_has_frechet_deriv_at
+    (@has_frechet_deriv_at_const ℝ ℝ _ _ _ c)
     (funext (λ v, by rewrite zero_mul))
 
-theorem deriv_at_id (x : ℝ) : derivative_at (λ t, t) 1 x :=
-  derivative_at_of_frechet_derivative_at
-    (@frechet_deriv_at_id ℝ ℝ _ _ _)
+theorem has_deriv_at_id (x : ℝ) : has_deriv_at (λ t, t) 1 x :=
+  has_deriv_at_of_has_frechet_deriv_at
+    (@has_frechet_deriv_at_id ℝ ℝ _ _ _)
     (funext (λ v, by rewrite one_mul))
 
-theorem deriv_at_mul {f : ℝ → ℝ} {d x : ℝ} (H : derivative_at f d x) (c : ℝ) :
-        derivative_at (λ t, c * f t) (c * d) x :=
-  derivative_at_of_frechet_derivative_at
-    (frechet_deriv_at_smul _ _ c H)
+theorem has_deriv_at_mul {f : ℝ → ℝ} {d x : ℝ} (H : has_deriv_at f d x) (c : ℝ) :
+        has_deriv_at (λ t, c * f t) (c * d) x :=
+  has_deriv_at_of_has_frechet_deriv_at
+    (has_frechet_deriv_at_smul _ _ c H)
     (funext (λ v, by rewrite mul.assoc))
 
 end real

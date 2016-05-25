@@ -127,7 +127,7 @@ theorem op_norm_pos : op_norm f > 0 := is_bdd_linear_map.op_norm_pos _ _ f
 
 theorem op_norm_bound (v : V) : ∥f v∥ ≤ (op_norm f) * ∥v∥ := is_bdd_linear_map.op_norm_bound  _ _ f v
 
-theorem bounded_linear_operator_continuous : continuous f :=
+theorem bdd_linear_map_continuous : continuous f :=
   begin
     apply continuous_of_forall_continuous_at,
     intro x,
@@ -156,10 +156,10 @@ variables {V W : Type}
 variables [HV : normed_vector_space V] [HW : normed_vector_space W]
 include HV HW
 
-definition is_frechet_deriv_at (f A : V → W) [is_bdd_linear_map A] (x : V) :=
+definition has_frechet_deriv_at (f A : V → W) [is_bdd_linear_map A] (x : V) :=
   (λ h : V, ∥f (x + h) - f x - A h ∥ / ∥ h ∥) ⟶ 0 [at 0]
 
-lemma diff_quot_cts {f A : V → W} [HA : is_bdd_linear_map A] {y : V} (Hf : is_frechet_deriv_at f A y) :
+lemma diff_quot_cts {f A : V → W} [HA : is_bdd_linear_map A] {y : V} (Hf : has_frechet_deriv_at f A y) :
       continuous_at (λ h, ∥f (y + h) - f y - A h∥ / ∥h∥) 0 :=
   begin
     apply normed_vector_space.continuous_at_intro,
@@ -189,19 +189,19 @@ theorem is_bdd_linear_map_of_eq {A B : V → W} [HA : is_bdd_linear_map A] (HAB 
   end
 
 definition is_frechet_deriv_at_of_eq {f A : V → W} [is_bdd_linear_map A] {x : V}
-           (Hfd : is_frechet_deriv_at f A x) {B : V → W} (HAB : A = B) :
-           @is_frechet_deriv_at _ _ _ _ f B (is_bdd_linear_map_of_eq HAB) x :=
+           (Hfd : has_frechet_deriv_at f A x) {B : V → W} (HAB : A = B) :
+           @has_frechet_deriv_at _ _ _ _ f B (is_bdd_linear_map_of_eq HAB) x :=
   begin
-    unfold is_frechet_deriv_at,
+    unfold has_frechet_deriv_at,
     rewrite -HAB,
     apply Hfd
   end
 
 
-theorem is_frechet_deriv_at_intro {f A : V → W} [is_bdd_linear_map A] {x : V}
+theorem has_frechet_deriv_at_intro {f A : V → W} [is_bdd_linear_map A] {x : V}
         (H : ∀ ⦃ε : ℝ⦄, ε > 0 →
               (∃ δ : ℝ, δ > 0 ∧ ∀ ⦃x' : V⦄, x' ≠ 0 ∧ ∥x'∥ < δ → ∥f (x + x') - f x - A x'∥ / ∥x'∥ < ε)) :
-        is_frechet_deriv_at f A x :=
+        has_frechet_deriv_at f A x :=
   begin
     apply normed_vector_space.approaches_at_intro,
     intros ε Hε,
@@ -223,7 +223,7 @@ theorem is_frechet_deriv_at_intro {f A : V → W} [is_bdd_linear_map A] {x : V}
     end
   end
 
-theorem is_frechet_deriv_at_elim {f A : V → W} [is_bdd_linear_map A] {x : V} (H : is_frechet_deriv_at f A x) :
+theorem has_frechet_deriv_at_elim {f A : V → W} [is_bdd_linear_map A] {x : V} (H : has_frechet_deriv_at f A x) :
          ∀ ⦃ε : ℝ⦄, ε > 0 →
               (∃ δ : ℝ, δ > 0 ∧ ∀ ⦃x' : V⦄, x' ≠ 0 ∧ ∥x'∥ < δ → ∥f (x + x') - f x - A x'∥ / ∥x'∥ < ε) :=
   begin
@@ -242,7 +242,7 @@ theorem is_frechet_deriv_at_elim {f A : V → W} [is_bdd_linear_map A] {x : V} (
   end
 
 structure frechet_diffable_at [class] (f : V → W) (x : V) :=
-  (A : V → W) [HA : is_bdd_linear_map A] (is_fr_der : is_frechet_deriv_at f A x)
+  (A : V → W) [HA : is_bdd_linear_map A] (is_fr_der : has_frechet_deriv_at f A x)
 
 variables f g : V → W
 variable x : V
@@ -258,7 +258,7 @@ theorem frechet_deriv_spec [Hf : frechet_diffable_at f x] :
         (λ h : V, ∥f (x + h) - f x - (frechet_deriv_at f x h) ∥ / ∥ h ∥) ⟶ 0 [at 0] :=
   frechet_diffable_at.is_fr_der _ _ f x
 
-theorem frechet_deriv_at_const (w : W) : is_frechet_deriv_at (λ v : V, w) (λ v : V, 0) x :=
+theorem has_frechet_deriv_at_const (w : W) : has_frechet_deriv_at (λ v : V, w) (λ v : V, 0) x :=
   begin
     apply normed_vector_space.approaches_at_intro,
     intros ε Hε,
@@ -271,7 +271,7 @@ theorem frechet_deriv_at_const (w : W) : is_frechet_deriv_at (λ v : V, w) (λ v
     assumption
   end
 
-theorem frechet_deriv_at_id : is_frechet_deriv_at (λ v : V, v) (λ v : V, v) x :=
+theorem has_frechet_deriv_at_id : has_frechet_deriv_at (λ v : V, v) (λ v : V, v) x :=
   begin
     apply normed_vector_space.approaches_at_intro,
     intros ε Hε,
@@ -284,8 +284,8 @@ theorem frechet_deriv_at_id : is_frechet_deriv_at (λ v : V, v) (λ v : V, v) x 
     exact Hε
   end
 
-theorem frechet_deriv_at_smul (c : ℝ) {A : V → W} [is_bdd_linear_map A]
-        (Hf : is_frechet_deriv_at f A x) : is_frechet_deriv_at (λ y, c • f y) (λ y, c • A y) x :=
+theorem has_frechet_deriv_at_smul (c : ℝ) {A : V → W} [is_bdd_linear_map A]
+        (Hf : has_frechet_deriv_at f A x) : has_frechet_deriv_at (λ y, c • f y) (λ y, c • A y) x :=
   begin
     eapply @decidable.cases_on (abs c = 0),
     exact _,
@@ -329,12 +329,12 @@ theorem frechet_deriv_at_smul (c : ℝ) {A : V → W} [is_bdd_linear_map A]
     end
   end
 
-theorem frechet_deriv_at_neg {A : V → W} [is_bdd_linear_map A]
-        (Hf : is_frechet_deriv_at f A x) : is_frechet_deriv_at (λ y, - f y) (λ y, - A y) x :=
+theorem has_frechet_deriv_at_neg {A : V → W} [is_bdd_linear_map A]
+        (Hf : has_frechet_deriv_at f A x) : has_frechet_deriv_at (λ y, - f y) (λ y, - A y) x :=
   begin
-    apply is_frechet_deriv_at_intro,
+    apply has_frechet_deriv_at_intro,
     intros ε Hε,
-    cases is_frechet_deriv_at_elim Hf Hε with δ Hδ,
+    cases has_frechet_deriv_at_elim Hf Hε with δ Hδ,
     existsi δ,
     split,
     exact and.left Hδ,
@@ -345,9 +345,9 @@ theorem frechet_deriv_at_neg {A : V → W} [is_bdd_linear_map A]
     assumption
   end
 
-theorem frechet_deriv_at_add (A B : V → W) [is_bdd_linear_map A] [is_bdd_linear_map B]
-        (Hf : is_frechet_deriv_at f A x) (Hg : is_frechet_deriv_at g B x) :
-        is_frechet_deriv_at (λ y, f y + g y) (λ y, A y + B y) x :=
+theorem has_frechet_deriv_at_add (A B : V → W) [is_bdd_linear_map A] [is_bdd_linear_map B]
+        (Hf : has_frechet_deriv_at f A x) (Hg : has_frechet_deriv_at g B x) :
+        has_frechet_deriv_at (λ y, f y + g y) (λ y, A y + B y) x :=
   begin
     have Hle : ∀ h, ∥f (x + h) + g (x + h) - (f x + g x) - (A h + B h)∥ / ∥h∥ ≤
                   ∥f (x + h) - f x - A h∥ / ∥h∥ + ∥g (x + h) - g x - B h∥ / ∥h∥, begin
@@ -435,8 +435,8 @@ theorem continuous_at_of_diffable_at [Hf : frechet_diffable_at f x] : continuous
                ... < ε / 2 : mul_div_add_self_lt (div_pos_of_pos_of_pos Hε two_pos) Hε !op_norm_pos}
   end
 
-theorem continuous_at_of_is_frechet_deriv_at {A : V → W} [is_bdd_linear_map A]
-        (H : is_frechet_deriv_at f A x) : continuous_at f x :=
+theorem continuous_at_of_has_frechet_deriv_at {A : V → W} [is_bdd_linear_map A]
+        (H : has_frechet_deriv_at f A x) : continuous_at f x :=
   begin
     apply @continuous_at_of_diffable_at,
     existsi A,
@@ -454,7 +454,7 @@ lemma div_add_eq_add_mul_div {A : Type} [field A] (a b c : A) (Hb : b ≠ 0) : (
   by rewrite [-div_add_div_same, mul_div_cancel _ Hb]
 
 -- I'm not sure why smul_approaches doesn't unify where I use this?
-lemma real_limit_helper {U : Type} [normed_vector_space U] {f : U → ℝ} {a : ℝ} {x : U}
+private lemma real_limit_helper {U : Type} [normed_vector_space U] {f : U → ℝ} {a : ℝ} {x : U}
       (Hf : f ⟶ a [at x]) (c : ℝ) : (λ y, c * f y) ⟶ c * a [at x] :=
   begin
     apply smul_approaches,
@@ -471,12 +471,12 @@ variable {x : U}
 include HU HV HW HA HB
 
 -- this takes 2 seconds without clearing the contexts before simp
-theorem frechet_derivative_at_comp (Hg : is_frechet_deriv_at g B x) (Hf : is_frechet_deriv_at f A (g x)) :
-        @is_frechet_deriv_at _ _ _ _ (λ y, f (g y)) (λ y, A (B y)) !is_bdd_linear_map_comp x :=
+theorem has_frechet_deriv_at_comp (Hg : has_frechet_deriv_at g B x) (Hf : has_frechet_deriv_at f A (g x)) :
+        @has_frechet_deriv_at _ _ _ _ (λ y, f (g y)) (λ y, A (B y)) !is_bdd_linear_map_comp x :=
   begin
-    unfold is_frechet_deriv_at,
-    note Hf' := is_frechet_deriv_at_elim Hf,
-    note Hg' := is_frechet_deriv_at_elim Hg,
+    unfold has_frechet_deriv_at,
+    note Hf' := has_frechet_deriv_at_elim Hf,
+    note Hg' := has_frechet_deriv_at_elim Hg,
     have H : ∀ h, f (g (x + h)) - f (g x) - A (B h) =
              (A (g (x + h) - g x - B h)) + (-f (g x) + f (g (x + h)) + A (g x - g (x + h))),
       begin intro; rewrite [3 hom_sub A], clear [Hf, Hg, Hf', Hg'], simp end, -- .5 seconds for simp
@@ -522,6 +522,7 @@ theorem frechet_derivative_at_comp (Hg : is_frechet_deriv_at g B x) (Hf : is_fre
       rewrite [Heq', neg_add_eq_sub, *sub_self, hom_zero A, add_zero, *norm_zero, div_zero, zero_div]},
       {rewrite [div_mul_div_cancel _ _ (norm_ne_zero_of_ne_zero Hneq), *sub_eq_add_neg,
         -hom_neg A],
+      clear [Hf, Hg, Hf', Hg', Hneq],
       simp} --(.5 seconds)
     end,
     apply approaches_squeeze, -- again, by squeezing
@@ -553,7 +554,7 @@ theorem frechet_derivative_at_comp (Hg : is_frechet_deriv_at g B x) (Hf : is_fre
     have Hgcts : continuous_at (λ y, g (x + y) - g x) 0, begin
       apply normed_vector_space.continuous_at_intro,
       intro ε Hε,
-      cases normed_vector_space.continuous_at_dest (continuous_at_of_is_frechet_deriv_at g x Hg) _ Hε with δ Hδ,
+      cases normed_vector_space.continuous_at_dest (continuous_at_of_has_frechet_deriv_at g x Hg) _ Hε with δ Hδ,
       existsi δ,
       split,
       exact and.left Hδ,

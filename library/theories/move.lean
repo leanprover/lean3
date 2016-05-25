@@ -45,6 +45,10 @@ calc
       a = a / c * c : !div_mul_cancel (ne.symm (ne_of_lt Hc))
     ... < b * c     : mul_lt_mul_of_pos_right H Hc
 
+
+theorem add_sub_self {A : Type} [add_comm_group A] (a b : A) : a + b - a = b :=
+  by rewrite [add_sub_assoc, add.comm, sub_add_cancel]
+
 -- move to init.quotient
 
 namespace quot
