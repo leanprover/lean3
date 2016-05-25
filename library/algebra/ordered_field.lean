@@ -588,4 +588,18 @@ section discrete_linear_ordered_field
       have b = 0, from eq_of_le_of_ge (le_of_not_gt Hgt) Hb,
       by rewrite [this, div_zero]; apply le.refl
 
+  theorem div_le_div_of_le_of_nonneg (H : a ≤ b) (Hc : 0 ≤ c) : a / c ≤ b / c :=
+    begin
+      cases lt_or_eq_of_le Hc with Hlt Heq,
+      apply div_le_div_of_le_of_pos H Hlt,
+      rewrite [-Heq, 2 div_zero]
+    end
+
+  theorem div_le_div_of_le_of_nonpos (H : b ≤ a) (Hc : c ≤ 0) : a / c ≤ b / c :=
+    begin
+      cases lt_or_eq_of_le Hc with Hlt Heq,
+      apply div_le_div_of_le_of_neg H Hlt,
+      rewrite [Heq, 2 div_zero]
+    end
+
 end discrete_linear_ordered_field

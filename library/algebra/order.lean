@@ -135,6 +135,7 @@ section
   theorem not_lt_of_ge (H : a ≥ b) : ¬ a < b :=
   assume H1 : a < b,
   lt.irrefl _ (lt_of_le_of_lt H H1)
+
 end
 
 structure strong_order_pair [class] (A : Type) extends weak_order A, has_lt A :=
@@ -244,6 +245,26 @@ section
     (assume H', absurd (le_of_lt H') H)
     (assume H', absurd (H' ▸ !le.refl) H)
     (assume H', H')
+
+  theorem lt_iff_not_ge : a < b ↔ ¬ a ≥ b :=
+  iff.intro
+    (suppose a < b, not_le_of_gt this)
+    (suppose ¬ a ≥ b, lt_of_not_ge this)
+
+  theorem le_iff_not_gt : a ≤ b ↔ ¬ a > b :=
+  iff.intro
+    (suppose a ≤ b, not_lt_of_ge this)
+    (suppose ¬ a > b, le_of_not_gt this)
+
+  theorem gt_iff_not_le : a > b ↔ ¬ a ≤ b :=
+  iff.intro
+    (suppose a > b, not_le_of_gt this)
+    (suppose ¬ a ≤ b, lt_of_not_ge this)
+
+  theorem ge_iff_not_lt : a ≥ b ↔ ¬ a < b :=
+  iff.intro
+    (suppose a ≥ b, not_lt_of_ge this)
+    (suppose ¬ a < b, le_of_not_gt this)
 
   theorem lt_or_ge : a < b ∨ a ≥ b :=
   lt.by_cases
