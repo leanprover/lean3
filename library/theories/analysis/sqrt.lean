@@ -34,7 +34,7 @@ private theorem lb_le_ub (x : ℝ) (H : x ≥ 0) : sqr_lb x ≤ sqr_ub x :=
     apply zero_le_one
   end
 
-private lemma sqr_cts : continuous (λ x : ℝ, x * x) := continuous_mul_of_continuous id_continuous id_continuous
+private lemma sqr_cts : continuous (λ x : ℝ, x * x) := continuous_mul_of_continuous continuous_id continuous_id
 
 definition sqrt (x : ℝ) : ℝ :=
   if H : x ≥ 0 then

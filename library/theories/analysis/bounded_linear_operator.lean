@@ -6,7 +6,8 @@ Author: Robert Y. Lewis
 Bounded linear operators
 -/
 import .normed_space .real_limit algebra.module algebra.homomorphism
-open real nat classical topology
+open real nat classical topology set
+--open normed_vector_space (this confuses lots of stuff??)
 noncomputable theory
 
 namespace analysis
@@ -156,21 +157,60 @@ variables [HV : normed_vector_space V] [HW : normed_vector_space W]
 include HV HW
 
 definition is_frechet_deriv_at (f A : V → W) [is_bdd_linear_map A] (x : V) :=
-  (λ h : V, ∥f (x + h) - f x - A h ∥ / ∥ h ∥) ⟶ 0 at 0
+  (λ h : V, ∥f (x + h) - f x - A h ∥ / ∥ h ∥) ⟶ 0 [at 0]
+
+lemma diff_quot_cts {f A : V → W} [HA : is_bdd_linear_map A] {y : V} (Hf : is_frechet_deriv_at f A y) :
+      continuous_at (λ h, ∥f (y + h) - f y - A h∥ / ∥h∥) 0 :=
+  begin
+    apply normed_vector_space.continuous_at_intro,
+    intro ε Hε,
+    cases normed_vector_space.approaches_at_dest Hf Hε with δ Hδ,
+    existsi δ,
+    split,
+    exact and.left Hδ,
+    intro x' Hx',
+    cases em (x' = 0) with Heq Hneq,
+    {rewrite [Heq, norm_zero, div_zero, sub_zero, norm_zero], apply Hε},
+    {rewrite [norm_zero, div_zero],
+    apply and.right Hδ,
+    repeat assumption}
+  end
+
+theorem is_bdd_linear_map_of_eq {A B : V → W} [HA : is_bdd_linear_map A] (HAB : A = B) :
+        is_bdd_linear_map B :=
+  begin
+    fapply is_bdd_linear_map.mk,
+    all_goals try rewrite -HAB,
+    {apply hom_add},
+    {apply hom_smul},
+    {exact op_norm A},
+    {exact op_norm_pos A},
+    {rewrite -HAB, apply op_norm_bound}
+  end
+
+definition is_frechet_deriv_at_of_eq {f A : V → W} [is_bdd_linear_map A] {x : V}
+           (Hfd : is_frechet_deriv_at f A x) {B : V → W} (HAB : A = B) :
+           @is_frechet_deriv_at _ _ _ _ f B (is_bdd_linear_map_of_eq HAB) x :=
+  begin
+    unfold is_frechet_deriv_at,
+    rewrite -HAB,
+    apply Hfd
+  end
+
 
 theorem is_frechet_deriv_at_intro {f A : V → W} [is_bdd_linear_map A] {x : V}
         (H : ∀ ⦃ε : ℝ⦄, ε > 0 →
               (∃ δ : ℝ, δ > 0 ∧ ∀ ⦃x' : V⦄, x' ≠ 0 ∧ ∥x'∥ < δ → ∥f (x + x') - f x - A x'∥ / ∥x'∥ < ε)) :
         is_frechet_deriv_at f A x :=
   begin
+    apply normed_vector_space.approaches_at_intro,
     intros ε Hε,
     cases H Hε with δ Hδ,
     cases Hδ with Hδ Hδ',
     existsi δ,
     split,
     assumption,
-    intros x' Hx',
-    cases Hx' with Hx'1 Hx'2,
+    intros x' Hx'1 Hx'2,
     show abs (∥f (x + x') - f x - A x'∥ / ∥x'∥ - 0) < ε, begin
       have H : ∥f (x + x') - f x - A x'∥ / ∥x'∥ ≥ 0,
         from div_nonneg_of_nonneg_of_nonneg !norm_nonneg !norm_nonneg,
@@ -179,7 +219,7 @@ theorem is_frechet_deriv_at_intro {f A : V → W} [is_bdd_linear_map A] {x : V}
       split,
       assumption,
       rewrite [-sub_zero x'],
-      apply Hx'2
+      apply Hx'1
     end
   end
 
@@ -188,14 +228,14 @@ theorem is_frechet_deriv_at_elim {f A : V → W} [is_bdd_linear_map A] {x : V} (
               (∃ δ : ℝ, δ > 0 ∧ ∀ ⦃x' : V⦄, x' ≠ 0 ∧ ∥x'∥ < δ → ∥f (x + x') - f x - A x'∥ / ∥x'∥ < ε) :=
   begin
     intros ε Hε,
-    cases H Hε with δ Hδ,
+    cases normed_vector_space.approaches_at_dest H Hε with δ Hδ,
     cases Hδ with Hδ Hδ',
     existsi δ,
     split,
     assumption,
     intros x' Hx',
     rewrite [-sub_zero x' at Hx' {2}],
-    have Hδ'' : abs (∥f (x + x') - f x - A x'∥ / ∥x'∥ - 0) < ε, from Hδ' Hx',
+    have Hδ'' : abs (∥f (x + x') - f x - A x'∥ / ∥x'∥ - 0) < ε, from Hδ' (and.right Hx') (and.left Hx'),
     have Hpos : ∥f (x + x') - f x - A x'∥ / ∥x'∥ ≥ 0, from div_nonneg_of_nonneg_of_nonneg !norm_nonneg !norm_nonneg,
     rewrite [sub_zero at Hδ'', abs_of_nonneg Hpos at Hδ''],
     assumption
@@ -215,22 +255,36 @@ definition frechet_deriv_at_is_bdd_linear_map [instance] (f : V → W) (x : V) [
   frechet_diffable_at.HA _ _ f x
 
 theorem frechet_deriv_spec [Hf : frechet_diffable_at f x] :
-        (λ h : V, ∥f (x + h) - f x - (frechet_deriv_at f x h) ∥ / ∥ h ∥) ⟶ 0 at 0 :=
+        (λ h : V, ∥f (x + h) - f x - (frechet_deriv_at f x h) ∥ / ∥ h ∥) ⟶ 0 [at 0] :=
   frechet_diffable_at.is_fr_der _ _ f x
 
 theorem frechet_deriv_at_const (w : W) : is_frechet_deriv_at (λ v : V, w) (λ v : V, 0) x :=
   begin
+    apply normed_vector_space.approaches_at_intro,
     intros ε Hε,
     existsi 1,
     split,
     exact zero_lt_one,
-    intros x' Hx',
-    rewrite [sub_self, sub_zero, norm_zero],
-    krewrite [zero_div, dist_self],
+    intros x' Hx' _,
+    rewrite [2 sub_self, norm_zero],
+    krewrite [zero_div, sub_zero, norm_zero],
     assumption
   end
 
-theorem frechet_deriv_at_smul {c : ℝ} {A : V → W} [is_bdd_linear_map A]
+theorem frechet_deriv_at_id : is_frechet_deriv_at (λ v : V, v) (λ v : V, v) x :=
+  begin
+    apply normed_vector_space.approaches_at_intro,
+    intros ε Hε,
+    existsi 1,
+    split,
+    exact zero_lt_one,
+    intros x' Hx' _,
+    have x + x' - x - x' = 0, by simp,
+    rewrite [this, norm_zero, zero_div, sub_self, norm_zero],
+    exact Hε
+  end
+
+theorem frechet_deriv_at_smul (c : ℝ) {A : V → W} [is_bdd_linear_map A]
         (Hf : is_frechet_deriv_at f A x) : is_frechet_deriv_at (λ y, c • f y) (λ y, c • A y) x :=
   begin
     eapply @decidable.cases_on (abs c = 0),
@@ -240,31 +294,32 @@ theorem frechet_deriv_at_smul {c : ℝ} {A : V → W} [is_bdd_linear_map A]
     have Hfz : (λ y : V, (0 : ℝ) • f y) = (λ y : V, 0), from funext (λ y, !zero_smul),
     --have Hfz' : (λ x : V, (0 : ℝ) • A x) = (λ x : V, 0), from funext (λ y, !zero_smul),
     -- rewriting Hfz' produces type-incorrect term
-    rewrite [Hz, Hfz, ↑is_frechet_deriv_at],
+    rewrite [Hz, Hfz],
+    apply metric_space.approaches_at_intro,
     intro ε Hε,
     existsi 1,
     split,
     exact zero_lt_one,
-    intro x' Hx',
+    intro x' Hx' _,
     rewrite [zero_smul, *sub_zero, norm_zero],
     krewrite [zero_div, dist_self],
     exact Hε},
     intro Hcnz,
-    rewrite ↑is_frechet_deriv_at,
+    apply normed_vector_space.approaches_at_intro,
     intros ε Hε,
     have Hεc : ε / abs c > 0, from div_pos_of_pos_of_pos Hε (lt_of_le_of_ne !abs_nonneg (ne.symm Hcnz)),
-    cases Hf Hεc with δ Hδ,
+    cases normed_vector_space.approaches_at_dest Hf Hεc with δ Hδ,
     cases Hδ with Hδp Hδ,
     existsi δ,
     split,
     assumption,
-    intro x' Hx',
+    intro x' Hx' _,
     show abs ((∥c • f (x + x') - c • f x - c • A x'∥ / ∥x'∥ - 0)) < ε, begin
       rewrite [sub_zero, -2 smul_sub_left_distrib, norm_smul],
       krewrite mul_div_assoc,
       rewrite [abs_mul, abs_abs, -{ε}mul_div_cancel' Hcnz],
       apply mul_lt_mul_of_pos_left,
-      have Hδ' : abs (∥f (x + x') - f x - A x'∥ / ∥x'∥ - 0) < ε / abs c, from Hδ Hx',
+      have Hδ' : abs (∥f (x + x') - f x - A x'∥ / ∥x'∥ - 0) < ε / abs c, from Hδ Hx' a,
       rewrite sub_zero at Hδ',
       apply Hδ',
       apply lt_of_le_of_ne,
@@ -309,17 +364,19 @@ theorem frechet_deriv_at_add (A B : V → W) [is_bdd_linear_map A] [is_bdd_linea
       krewrite [Hhe, *div_zero, zero_add],
       eapply le.refl
     end,
-    have Hlimge : (λ h, ∥f (x + h) - f x - A h∥ / ∥h∥ + ∥g (x + h) - g x - B h∥ / ∥h∥) ⟶ 0 at 0, begin
+    have Hlimge : (λ h, ∥f (x + h) - f x - A h∥ / ∥h∥ + ∥g (x + h) - g x - B h∥ / ∥h∥) ⟶ 0 [at 0], begin
       rewrite [-zero_add 0],
-      apply add_converges_to_at,
+      apply add_approaches,
       apply Hf,
       apply Hg
     end,
-    have Hlimle : (λ (h : V), (0 : ℝ)) ⟶ 0 at 0, from converges_to_at_constant 0 0,
-    apply converges_to_at_squeeze Hlimle Hlimge,
+    have Hlimle : (λ (h : V), (0 : ℝ)) ⟶ 0 [at 0], by apply approaches_constant,
+    apply approaches_squeeze Hlimle Hlimge,
+    apply filter.eventually_of_forall,
     intro y,
     apply div_nonneg_of_nonneg_of_nonneg,
     repeat apply norm_nonneg,
+    apply filter.eventually_of_forall,
     apply Hle
   end
 
@@ -329,7 +386,7 @@ theorem continuous_at_of_diffable_at [Hf : frechet_diffable_at f x] : continuous
   begin
     apply normed_vector_space.continuous_at_intro,
     intros ε Hε,
-    note Hfds := frechet_deriv_spec f x Hε,
+    note Hfds := normed_vector_space.approaches_at_dest (frechet_deriv_spec f x) Hε,
     cases Hfds with δ Hδ,
     cases Hδ with Hδ Hδ',
     existsi min δ ((ε / 2) / (ε + op_norm (frechet_deriv_at f x))),
@@ -343,15 +400,15 @@ theorem continuous_at_of_diffable_at [Hf : frechet_diffable_at f x] : continuous
     {intro x' Hx',
     cases em (x' - x = 0) with Heq Hneq,
     rewrite [eq_of_sub_eq_zero Heq, sub_self, norm_zero], assumption,
-    have Hx'x : x' - x ≠ 0 ∧ dist (x' - x) 0 < δ, from and.intro Hneq begin
-      change ∥(x' - x) - 0∥ < δ,
+    have Hx'x : x' - x ≠ 0 ∧ ∥(x' - x) - 0∥ < δ, from and.intro Hneq begin
       rewrite sub_zero,
       apply lt_of_lt_of_le,
       apply Hx',
       apply min_le_left
     end,
     have Hx'xp : ∥x' - x∥ > 0, from norm_pos_of_ne_zero Hneq,
-    have Hδ'' : abs (∥f (x + (x' - x)) - f x - frechet_deriv_at f x (x' - x)∥ / ∥x' - x∥ - 0) < ε, from Hδ' Hx'x,
+    have Hδ'' : abs (∥f (x + (x' - x)) - f x - frechet_deriv_at f x (x' - x)∥ / ∥x' - x∥ - 0) < ε,
+      from Hδ' (and.right Hx'x) (and.left Hx'x),
     have Hnn : ∥f (x + (x' - x)) - f x - frechet_deriv_at f x (x' - x)∥ / ∥x' - x∥ ≥ 0,
       from div_nonneg_of_nonneg_of_nonneg !norm_nonneg !norm_nonneg,
     rewrite [sub_zero at Hδ'', abs_of_nonneg Hnn at Hδ'', add.comm at Hδ'', sub_add_cancel at Hδ''],
@@ -378,9 +435,31 @@ theorem continuous_at_of_diffable_at [Hf : frechet_diffable_at f x] : continuous
                ... < ε / 2 : mul_div_add_self_lt (div_pos_of_pos_of_pos Hε two_pos) Hε !op_norm_pos}
   end
 
+theorem continuous_at_of_is_frechet_deriv_at {A : V → W} [is_bdd_linear_map A]
+        (H : is_frechet_deriv_at f A x) : continuous_at f x :=
+  begin
+    apply @continuous_at_of_diffable_at,
+    existsi A,
+    exact H
+  end
+
 end frechet_deriv
 
-/-section comp
+section comp
+
+lemma div_mul_div_cancel {A : Type} [field A] (a b : A) {c : A} (Hc : c ≠ 0) : (a / c) * (c / b) = a / b :=
+  by rewrite [-mul_div_assoc, div_mul_cancel _ Hc]
+
+lemma div_add_eq_add_mul_div {A : Type} [field A] (a b c : A) (Hb : b ≠ 0) : (a / b) + c = (a + c * b) / b :=
+  by rewrite [-div_add_div_same, mul_div_cancel _ Hb]
+
+-- I'm not sure why smul_approaches doesn't unify where I use this?
+lemma real_limit_helper {U : Type} [normed_vector_space U] {f : U → ℝ} {a : ℝ} {x : U}
+      (Hf : f ⟶ a [at x]) (c : ℝ) : (λ y, c * f y) ⟶ c * a [at x] :=
+  begin
+    apply smul_approaches,
+    exact Hf
+  end
 
 variables {U V W : Type}
 variables [HU : normed_vector_space U] [HV : normed_vector_space V] [HW : normed_vector_space W]
@@ -388,15 +467,122 @@ variables {f : V → W} {g : U → V}
 variables {A : V → W} {B : U → V}
 variables [HA : is_bdd_linear_map A] [HB : is_bdd_linear_map B]
 variable {x : U}
+
 include HU HV HW HA HB
 
+-- this takes 2 seconds without clearing the contexts before simp
 theorem frechet_derivative_at_comp (Hg : is_frechet_deriv_at g B x) (Hf : is_frechet_deriv_at f A (g x)) :
         @is_frechet_deriv_at _ _ _ _ (λ y, f (g y)) (λ y, A (B y)) !is_bdd_linear_map_comp x :=
   begin
-    rewrite ↑is_frechet_deriv_at,
-    intros ε Hε,
+    unfold is_frechet_deriv_at,
+    note Hf' := is_frechet_deriv_at_elim Hf,
+    note Hg' := is_frechet_deriv_at_elim Hg,
+    have H : ∀ h, f (g (x + h)) - f (g x) - A (B h) =
+             (A (g (x + h) - g x - B h)) + (-f (g x) + f (g (x + h)) + A (g x - g (x + h))),
+      begin intro; rewrite [3 hom_sub A], clear [Hf, Hg, Hf', Hg'], simp end, -- .5 seconds for simp
+    have H' : (λ h, ∥f (g (x + h)) - f (g x) - A (B h)∥ / ∥h∥) =
+              (λ h, ∥(A (g (x + h) - g x - B h)) + (-f (g x) + f (g (x + h)) + A (g x - g (x + h)))∥ / ∥h∥),
+      from funext (λ h, by rewrite H),
+    rewrite H',
+    clear [H, H'],
+    apply approaches_squeeze, -- show the limit holds by bounding it by something that vanishes
+    {apply approaches_constant},
+    rotate 1,
+    {apply filter.eventually_of_forall, intro, apply div_nonneg_of_nonneg_of_nonneg, repeat apply norm_nonneg},
+    {apply filter.eventually_of_forall, intro,
+    apply div_le_div_of_le_of_nonneg,
+    apply norm_triangle,
+    apply norm_nonneg},
+    have H : (λ (y : U), (∥A (g (x + y) - g x - B y)∥ + ∥-f (g x) + f (g (x + y)) + A (g x - g (x + y))∥) / ∥y∥) =
+      (λ (y : U), (∥A (g (x + y) - g x - B y)∥ / ∥y∥ + ∥-f (g x) + f (g (x + y)) + A (g x - g (x + y))∥ / ∥y∥)),
+      from funext (λ y, by rewrite [div_add_div_same]),
+    rewrite [H, -zero_add 0], -- the function is a sum of two things that both vanish
+    clear H,
+    apply add_approaches,
+    {apply approaches_squeeze, -- show the lhs vanishes by squeezing it again
+    {apply approaches_constant},
+    rotate 1,
+    {apply filter.eventually_of_forall, intro, apply div_nonneg_of_nonneg_of_nonneg, repeat apply norm_nonneg},
+    {apply filter.eventually_of_forall, intro y,
+    show ∥A (g (x + y) - g x - B y)∥ / ∥y∥ ≤ op_norm A * (∥(g (x + y) - g x - B y)∥ / ∥y∥), begin
+      rewrite -mul_div_assoc,
+      apply div_le_div_of_le_of_nonneg,
+      apply op_norm_bound A,
+      apply norm_nonneg
+    end},
+    {rewrite [-mul_zero (op_norm A)],
+    apply real_limit_helper,
+    apply Hg}}, -- we have shown the lhs vanishes. now the rhs
+    {have H : ∀ y, (∥-f (g x) + f (g (x + y)) + A (g x - g (x + y))∥ / ∥y∥) =
+      ((∥(f (g (x + y)) - f (g x)) - A (g (x + y) - g x) ∥ / ∥g (x + y) - g x∥) * (∥g (x + y) - g x∥ / ∥y∥)),
+    begin
+      intro,
+      cases em (g (x + y) - g x = 0) with Heq Hneq,
+      {note Heq' := eq_of_sub_eq_zero Heq,
+      rewrite [Heq', neg_add_eq_sub, *sub_self, hom_zero A, add_zero, *norm_zero, div_zero, zero_div]},
+      {rewrite [div_mul_div_cancel _ _ (norm_ne_zero_of_ne_zero Hneq), *sub_eq_add_neg,
+        -hom_neg A],
+      simp} --(.5 seconds)
+    end,
+    apply approaches_squeeze, -- again, by squeezing
+    {apply approaches_constant},
+    rotate 1,
+    {apply filter.eventually_of_forall, intro, apply div_nonneg_of_nonneg_of_nonneg, repeat apply norm_nonneg},
+    {apply filter.eventually_of_forall, intro y, rewrite H,
+    apply mul_le_mul_of_nonneg_left,
+    {show ∥g (x + y) - g x∥ / ∥y∥ ≤  ∥g (x + y) - g x - B y∥ / ∥y∥ + op_norm B, begin
+      cases em (y = 0) with Heq Hneq,
+      {rewrite [Heq, norm_zero, *div_zero, zero_add], apply le_of_lt, apply op_norm_pos},
+      rewrite [div_add_eq_add_mul_div _ _ _ (norm_ne_zero_of_ne_zero Hneq)],
+      apply div_le_div_of_le_of_nonneg,
+      apply le.trans,
+      rotate 1,
+      apply add_le_add_left,
+      apply op_norm_bound,
+      apply norm_nonneg,
+      rewrite [-neg_add_cancel_right (g (x + y) - g x) (B y) at {1}, -sub_eq_add_neg],
+      apply norm_triangle
+    end},
+    {apply div_nonneg_of_nonneg_of_nonneg, repeat apply norm_nonneg}},
+    -- now to show the bounding function vanishes. it is a product of a vanishing function and a convergent one
+    apply mul_approaches_zero_of_approaches_zero_of_approaches,
+    {have H' : (λ (y : U), ∥f (g (x + y)) - f (g x) - A (g (x + y) - g x)∥ / ∥g (x + y) - g x∥) =
+            (λ (y : U), ∥f (g x + (g (x + y) - g x)) - f (g x) - A (g (x + y) - g x)∥ / ∥g (x + y) - g x∥),
+      from funext (λ y, by rewrite [add.comm (g x), sub_add_cancel]), -- first, show lhs vanishes
+    rewrite H',
+    have Hgcts : continuous_at (λ y, g (x + y) - g x) 0, begin
+      apply normed_vector_space.continuous_at_intro,
+      intro ε Hε,
+      cases normed_vector_space.continuous_at_dest (continuous_at_of_is_frechet_deriv_at g x Hg) _ Hε with δ Hδ,
+      existsi δ,
+      split,
+      exact and.left Hδ,
+      intro x' Hx',
+      rewrite [add_zero, sub_self],
+      rewrite sub_zero,
+      apply and.right Hδ,
+      have (x + x') - x = x' - 0, begin clear [Hg, Hf, Hf', Hg', H, H', Hδ, Hx'], simp end, -- (.6 seconds w/o clear, .1 with)
+      rewrite this,
+      apply Hx'
+    end,
+    have Hfcts : continuous_at (λ (x' : V), ∥f (g x + x') - f (g x) - A x'∥ / ∥x'∥) (g (x + 0) - g x), begin
+      rewrite [add_zero, sub_self],
+      apply diff_quot_cts,
+      exact Hf
+    end,
+    have Heqz : ∥f (g x + (g (x + 0) - g x)) - f (g x) - A (g (x + 0) - g x)∥ / ∥g (x + 0) - g x∥ = 0,
+      by rewrite [*add_zero, sub_self, norm_zero, div_zero],
+    apply @tendsto_comp _ _ _ (λ y, g (x + y) - g x),
+    apply tendsto_inf_left,
+    apply tendsto_at_of_continuous_at Hgcts,
+    note Hfcts' := tendsto_at_of_continuous_at Hfcts,
+    rewrite Heqz at Hfcts',
+    exact Hfcts'}, -- finally, show rhs converges to op_norm B
+    {apply add_approaches,
+    apply Hg,
+    apply approaches_constant}}
   end
 
-end comp-/
+end comp
 
 end analysis

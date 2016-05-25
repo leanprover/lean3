@@ -703,6 +703,16 @@ section approaches
   have eventually (λ x, f x ∈ univ ∧ f x ≠ y) F₁,
     from eventually_congr (take x, by rewrite [mem_univ_iff, true_and]) Hf₂,
   tendsto_comp_of_approaches_of_tendsto_at_within Hf₁ this Hg
+
+  proposition approaches_constant : ((λ x, y) ⟶ y) F :=
+  begin
+    apply approaches_intro,
+    intro s Hs Hys,
+    have H : (λ x : X, y ∈ s) = (λ x : X, true), from funext (λ x, by rewrite classical.eq_true; exact Hys),
+    rewrite H,
+    apply eventually_true
+  end
+
 end approaches
 
 /-

@@ -5,7 +5,7 @@ Authors: Jacob Gross, Jeremy Avigad
 
 Continuous functions.
 -/
-import theories.topology.basic algebra.category ..move
+import theories.topology.basic algebra.category ..move .limit
 open algebra eq.ops set topology function category sigma.ops
 
 namespace topology
@@ -290,6 +290,41 @@ theorem forall_continuous_at_of_continuous {f : X → Y} (H : continuous f) :
     apply continuous_on_univ_of_continuous H,
     apply mem_univ
   end
+
+section limit
+open set
+theorem tendsto_at_of_continuous_at {f : X → Y} {x : X} (H : continuous_at f x) :
+        (f ⟶ f x) (nhds x) :=
+  begin
+    apply approaches_intro,
+    intro s HOs Hfxs,
+    cases H HOs Hfxs with u Hu,
+    apply eventually_nhds_intro,
+    exact and.left Hu,
+    exact and.left (and.right Hu),
+    intro x' Hx',
+    apply @mem_of_mem_preimage _ _ f,
+    apply and.right (and.right Hu),
+    exact Hx'
+  end
+
+theorem continuous_at_of_tendsto_at  {f : X → Y} {x : X} (H : (f ⟶ f x) (nhds x)) :
+        continuous_at f x :=
+  begin
+    intro s HOs Hfxs,
+    cases eventually_nhds_dest (approaches_elim H HOs Hfxs) with u Hu,
+    existsi u,
+    split,
+    exact and.left Hu,
+    split,
+    exact and.left (and.right Hu),
+    intro x Hx,
+    apply mem_preimage,
+    apply and.right (and.right Hu),
+    apply Hx
+  end
+
+end limit
 
 /- The Category TOP -/
 

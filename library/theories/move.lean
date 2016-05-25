@@ -6,6 +6,7 @@ Temporary file; move in Lean3.
 -/
 import data.set algebra.order_bigops
 import data.finset data.list.sort
+import data.real
 
 -- move this to init.function
 
@@ -19,6 +20,24 @@ end
 theorem eq_of_inv_mul_eq_one {A : Type} {a b : A} [group A] (H : b⁻¹ * a = 1) : a = b :=
 have a⁻¹ * 1 = a⁻¹, by inst_simp,
 by inst_simp
+
+theorem lt_neg_self_of_neg {A : Type} {a : A} [ordered_comm_group A] (Ha : a < 0) : a < -a :=
+calc
+    a < 0  : Ha
+  ... = -0 : by rewrite neg_zero
+  ... < -a : neg_lt_neg Ha
+
+theorem lt_of_add_lt_of_nonneg_left {A : Type} {a b c : A} [ordered_comm_group A]
+        (H : a + b < c) (Hb : b ≥ 0) : a < c :=
+calc
+    a < c - b : lt_sub_right_of_add_lt H
+  ... ≤ c : sub_le_self _ Hb
+
+theorem lt_of_add_lt_of_nonneg_right {A : Type} {a b c : A} [ordered_comm_group A]
+        (H : a + b < c) (Hb : a ≥ 0) : b < c :=
+calc
+    b < c - a : lt_sub_left_of_add_lt H
+  ... ≤ c : sub_le_self _ Hb
 
 -- move to init.quotient
 
@@ -502,3 +521,18 @@ have succ (Max₀ s) ≤ Max₀ s, from le_Max₀ this,
 show false, from not_succ_le_self this
 
 end nat
+
+
+-- move to real
+
+namespace real
+theorem lt_of_abs_lt {a b : ℝ} (Ha : abs a < b) : a < b :=
+if Hnn : a ≥ 0 then
+  by rewrite [-abs_of_nonneg Hnn]; exact Ha
+else
+  have Hlt : a < 0, from lt_of_not_ge Hnn,
+  have -a < b, by rewrite [-abs_of_neg Hlt]; exact Ha,
+  calc
+    a < -a : lt_neg_self_of_neg Hlt
+  ... < b  : this
+end real
