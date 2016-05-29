@@ -107,6 +107,8 @@ parser::undef_id_to_const_scope::undef_id_to_const_scope(parser & p):
     flet<undef_id_behavior>(p.m_undef_id_behavior, undef_id_behavior::AssumeConstant) {}
 parser::undef_id_to_local_scope::undef_id_to_local_scope(parser & p):
     flet<undef_id_behavior>(p.m_undef_id_behavior, undef_id_behavior::AssumeLocal) {}
+parser::local_and_undef_id_to_local_scope::local_and_undef_id_to_local_scope(parser & p):
+    flet<undef_id_behavior>(p.m_undef_id_behavior, undef_id_behavior::AssumeLocalAndAlsoDefinedLocals) {}
 
 static name * g_tmp_prefix = nullptr;
 
@@ -1474,6 +1476,11 @@ expr parser::id_to_expr(name const & id, pos_info const & p) {
         if (ls && m_undef_id_behavior != undef_id_behavior::AssumeConstant)
             throw parser_error("invalid use of explicit universe parameter, identifier is a variable, "
                                "parameter or a constant bound to parameters in a section", p);
+        if (m_undef_id_behavior == undef_id_behavior::AssumeLocalAndAlsoDefinedLocals) {
+            expr local = mk_local(id, mk_expr_placeholder());
+            m_undef_ids.push_back(local);
+            return save_pos(local, p);
+        }
         auto r = copy_with_new_pos(*it1, p);
         save_type_info(r);
         save_identifier_info(p, id);
@@ -1523,7 +1530,7 @@ expr parser::id_to_expr(name const & id, pos_info const & p) {
     if (!r) {
         if (m_undef_id_behavior == undef_id_behavior::AssumeConstant) {
             r = save_pos(mk_constant(get_namespace(m_env) + id, ls), p);
-        } else if (m_undef_id_behavior == undef_id_behavior::AssumeLocal) {
+        } else if (m_undef_id_behavior == undef_id_behavior::AssumeLocal || m_undef_id_behavior == undef_id_behavior::AssumeLocalAndAlsoDefinedLocals) {
             expr local = mk_local(id, mk_expr_placeholder());
             m_undef_ids.push_back(local);
             r = save_pos(local, p);

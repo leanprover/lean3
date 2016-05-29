@@ -10,7 +10,7 @@ with tree_list :=
 namespace tree_list
 
 definition len {A : Type} : tree_list A → nat
-| len (nil A)    := 0
+| len (nil _)    := 0
 | len (cons t l) := len l + 1
 
 theorem len_nil {A : Type} : len (nil A) = 0 :=
