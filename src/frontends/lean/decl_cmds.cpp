@@ -544,7 +544,7 @@ static void parse_equations_core(parser & p, buffer<expr> const & fns, buffer<ex
         unsigned prev_num_undef_ids = p.get_num_undef_ids();
         buffer<expr> locals;
         {
-            parser::undef_id_to_local_scope scope2(p);
+            parser::local_and_undef_id_to_local_scope scope2(p);
             buffer<expr> lhs_args;
             auto lhs_pos = p.pos();
             if (p.curr_is_token(get_explicit_tk())) {
@@ -677,7 +677,7 @@ expr parse_match(parser & p, unsigned, expr const *, pos_info const & pos) {
             unsigned prev_num_undef_ids = p.get_num_undef_ids();
             buffer<expr> locals;
             {
-                parser::undef_id_to_local_scope scope2(p);
+                parser::local_and_undef_id_to_local_scope scope2(p);
                 auto lhs_pos = p.pos();
                 lhs = p.parse_expr();
                 lhs = p.mk_app(fn, lhs, lhs_pos);
