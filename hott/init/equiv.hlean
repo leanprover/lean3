@@ -254,6 +254,10 @@ namespace is_equiv
     (p : x = y) : (is_equiv (transport P p)) :=
   is_equiv.mk _ (transport P p⁻¹) (tr_inv_tr p) (inv_tr_tr p) (tr_inv_tr_lemma p)
 
+  -- a version where the transport is a cast. Note: A and B live in the same universe here.
+  definition is_equiv_cast [constructor] {A B : Type} (H : A = B) : is_equiv (cast H) :=
+  is_equiv_tr (λX, X) H
+
   section
   variables {A : Type} {B C : A → Type} (f : Π{a}, B a → C a) [H : Πa, is_equiv (@f a)]
             {g : A → A} {g' : A → A} (h : Π{a}, B (g' a) → B (g a)) (h' : Π{a}, C (g' a) → C (g a))
@@ -354,6 +358,10 @@ namespace equiv
 
   definition equiv_of_eq [constructor] {A B : Type} (p : A = B) : A ≃ B :=
   equiv.mk (cast p) !is_equiv_tr
+
+  definition equiv_of_eq_refl [reducible] [unfold_full] (A : Type)
+    : equiv_of_eq (refl A) = equiv.refl A :=
+  idp
 
   definition eq_of_fn_eq_fn (f : A ≃ B) {x y : A} (q : f x = f y) : x = y :=
   (left_inv f x)⁻¹ ⬝ ap f⁻¹ q ⬝ left_inv f y
