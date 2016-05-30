@@ -10,24 +10,6 @@ prelude
 import .equiv
 open eq equiv is_equiv
 
---Ensure that the types compared are in the same universe
-section
-  universe variable l
-  variables {A B : Type.{l}}
-
-  definition is_equiv_cast [constructor] (H : A = B) : is_equiv (cast H) :=
-  is_equiv_tr (λX, X) H
-
-  definition equiv_of_eq [constructor] (H : A = B) : A ≃ B :=
-  equiv.mk _ (is_equiv_cast H)
-
-  definition equiv_of_eq_refl [reducible] [unfold_full] (A : Type)
-    : equiv_of_eq (refl A) = equiv.refl A :=
-  idp
-
-
-end
-
 axiom univalence (A B : Type) : is_equiv (@equiv_of_eq A B)
 
 attribute univalence [instance]
