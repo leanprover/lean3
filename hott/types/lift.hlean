@@ -17,10 +17,10 @@ namespace lift
   protected definition eta : up (down z) = z :=
   by induction z; reflexivity
 
-  protected definition code [unfold 2 3] : lift A → lift A → Type
+  protected definition code : lift A → lift A → Type
   | code (up a) (up a') := a = a'
 
-  protected definition decode [unfold 2 3] : Π(z z' : lift A), lift.code z z' → z = z'
+  protected definition decode : Π(z z' : lift A), lift.code z z' → z = z'
   | decode (up a) (up a') := λc, ap up c
 
   variables {z z'}
@@ -51,7 +51,7 @@ namespace lift
   end
 
   variables {A' : Type} (f : A → A') (g : lift A → lift A')
-  definition lift_functor [unfold 4] : lift A → lift A'
+  definition lift_functor : lift A → lift A'
   | lift_functor (up a) := up (f a)
 
   definition is_equiv_lift_functor [constructor] [Hf : is_equiv f] : is_equiv (lift_functor f) :=

@@ -515,7 +515,7 @@ namespace chain_complex
   definition str_of_nat {n : ℕ} : ℕ → ℕ × fin (succ n) :=
   λm, (m / (succ n), mk_mod n m)
 
-  definition nat_of_str_3S [unfold 2] [reducible]
+  definition nat_of_str_3S [reducible]
     : Π(x : stratified +ℕ 2), nat_of_str x + 1 = nat_of_str (@S (stratified +ℕ 2) x)
   | (n, fin.mk 0 H) := by reflexivity
   | (n, fin.mk 1 H) := by reflexivity

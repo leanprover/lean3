@@ -20,7 +20,7 @@ namespace sigma
 
   /- Paths in a sigma-type -/
 
-  protected definition eta [unfold 3] : Π (u : Σa, B a), ⟨u.1 , u.2⟩ = u
+  protected definition eta : Π (u : Σa, B a), ⟨u.1 , u.2⟩ = u
   | eta ⟨u₁, u₂⟩ := idp
 
   definition eta2 : Π (u : Σa b, C a b), ⟨u.1, u.2.1, u.2.2⟩ = u
@@ -73,7 +73,7 @@ namespace sigma
 
   /- the uncurried version of sigma_eq. We will prove that this is an equivalence -/
 
-  definition sigma_eq_unc [unfold 5] : Π (pq : Σ(p : u.1 = v.1), u.2 =[p] v.2), u = v
+  definition sigma_eq_unc : Π (pq : Σ(p : u.1 = v.1), u.2 =[p] v.2), u = v
   | sigma_eq_unc ⟨pq₁, pq₂⟩ := sigma_eq pq₁ pq₂
 
   definition dpair_sigma_eq_unc : Π (pq : Σ(p : u.1 = v.1), u.2 =[p] v.2),

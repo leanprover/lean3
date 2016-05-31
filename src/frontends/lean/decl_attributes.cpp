@@ -82,13 +82,11 @@ void decl_attributes::parse(parser & p) {
                         break;
                     case attribute_kind::MultiParametric: {
                         buffer<unsigned> vs;
-                        while (true) {
+                        while (!p.curr_is_token(get_rbracket_tk())) {
                             unsigned v = p.parse_small_nat();
                             if (v == 0)
                                 throw parser_error("invalid attribute parameter, value must be positive", pos);
                             vs.push_back(v-1);
-                            if (p.curr_is_token(get_rbracket_tk()))
-                                break;
                         }
                         p.next();
                         m_entries = cons(entry(attr, to_list(vs)), m_entries);

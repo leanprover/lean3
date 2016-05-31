@@ -17,12 +17,12 @@ namespace sum
   protected definition eta : sum.rec inl inr z = z :=
   by induction z; all_goals reflexivity
 
-  protected definition code [unfold 3 4] : A + B → A + B → Type.{max u v}
+  protected definition code : A + B → A + B → Type.{max u v}
   | code (inl a) (inl a') := lift (a = a')
   | code (inr b) (inr b') := lift (b = b')
   | code _       _        := lift empty
 
-  protected definition decode [unfold 3 4] : Π(z z' : A + B), sum.code z z' → z = z'
+  protected definition decode : Π(z z' : A + B), sum.code z z' → z = z'
   | decode (inl a) (inl a') := λc, ap inl (down c)
   | decode (inl a) (inr b') := λc, empty.elim (down c) _
   | decode (inr b) (inl a') := λc, empty.elim (down c) _
@@ -110,7 +110,7 @@ namespace sum
   /- Functorial action -/
 
   variables {A' B' : Type} (f : A → A') (g : B → B')
-  definition sum_functor [unfold 7] : A + B → A' + B'
+  definition sum_functor : A + B → A' + B'
   | sum_functor (inl a) := inl (f a)
   | sum_functor (inr b) := inr (g b)
 
@@ -142,7 +142,7 @@ namespace sum
   definition sum_equiv_sum_right [constructor] (f : A ≃ A') : A + B ≃ A' + B :=
   sum_equiv_sum f equiv.rfl
 
-  definition flip [unfold 3] : A + B → B + A
+  definition flip : A + B → B + A
   | flip (inl a) := inr a
   | flip (inr b) := inl b
 

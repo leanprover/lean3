@@ -11,7 +11,7 @@ definition fib : nat → nat
 | 1     := 1
 | (n+2) := fib (n+1) + fib n
 
-private definition fib_fast_aux : nat → (nat × nat)
+private definition fib_fast_aux [unfold] : nat → (nat × nat)
 | 0     := (0, 1)
 | 1     := (1, 1)
 | (n+2) :=
