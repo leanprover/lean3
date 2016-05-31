@@ -73,4 +73,4 @@ Miscellaneous
 - [Library Style Conventions](doc/lean/library_style.org)
 - [Git Commit Conventions](doc/commit_convention.md)
 - [Automatic Builds](doc/make/travis.md)
-- [Syntax Highlight Lean Code in LaTeX](doc/syntax_highlight_in_latex.md)
+- [Syntax Highlight Lean Code in LaTeX](extras/latex/lstlean.md)

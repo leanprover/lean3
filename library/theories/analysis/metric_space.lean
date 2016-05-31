@@ -1,12 +1,12 @@
 /-
 Copyright (c) 2015 Jeremy Avigad. All rights reserved.
 Released under Apache 2.0 license as described in the file LICENSE.
-Author: Jeremy Avigad
+Authors: Jeremy Avigad, Robert Lewis
 
 Metric spaces.
 -/
-import data.real.complete data.pnat data.list.sort ..topology.continuous data.set
-open nat real eq.ops classical
+import data.real.complete data.pnat ..topology.continuous ..topology.limit data.set
+open nat real eq.ops classical set prod set.filter topology interval
 
 structure metric_space [class] (M : Type) : Type :=
   (dist : M → M → ℝ)
@@ -52,15 +52,248 @@ by rewrite dist_self at H1; apply not_lt_self _ H1
 proposition eq_of_forall_dist_le {x y : M} (H : ∀ ε, ε > 0 → dist x y ≤ ε) : x = y :=
 eq_of_dist_eq_zero (eq_zero_of_nonneg_of_forall_le !dist_nonneg H)
 
-/- convergence of a sequence -/
 
-definition converges_to_seq (X : ℕ → M) (y : M) : Prop :=
-∀ ⦃ε : ℝ⦄, ε > 0 → ∃ N : ℕ, ∀ ⦃n⦄, n ≥ N → dist (X n) y < ε
+/- instantiate metric space as a topology -/
 
+definition open_ball (x : M) (ε : ℝ) := {y | dist y x < ε}
+
+theorem open_ball_eq_empty_of_nonpos (x : M) {ε : ℝ} (Hε : ε ≤ 0) : open_ball x ε = ∅ :=
+  begin
+    apply eq_empty_of_forall_not_mem,
+    intro y Hlt,
+    apply not_lt_of_ge (dist_nonneg y x),
+    apply lt_of_lt_of_le Hlt Hε
+  end
+
+theorem pos_of_mem_open_ball {x : M} {ε : ℝ} {u : M} (Hu : u ∈ open_ball x ε) : ε > 0 :=
+  begin
+    apply lt_of_not_ge,
+    intro Hge,
+    note Hop := open_ball_eq_empty_of_nonpos x Hge,
+    rewrite Hop at Hu,
+    apply not_mem_empty _ Hu
+  end
+
+theorem mem_open_ball (x : M) {ε : ℝ} (H : ε > 0) : x ∈ open_ball x ε :=
+  show dist x x < ε, by rewrite dist_self; assumption
+
+definition closed_ball (x : M) (ε : ℝ) := {y | dist y x ≤ ε}
+
+theorem closed_ball_eq_compl (x : M) (ε : ℝ) : closed_ball x ε = - {y | dist y x > ε} :=
+ext (take y, iff.intro
+  (suppose dist y x ≤ ε, not_lt_of_ge this)
+  (suppose ¬ dist y x > ε, le_of_not_gt this))
+
+variable (M)
+
+definition open_sets_basis : set (set M) := { s | ∃ x, ∃ ε, s = open_ball x ε }
+
+definition metric_topology [instance] : topology M := topology.generated_by (open_sets_basis M)
+
+variable {M}
+
+theorem open_ball_mem_open_sets_basis (x : M) (ε : ℝ) : open_ball x ε ∈ open_sets_basis M :=
+  exists.intro x (exists.intro ε rfl)
+
+theorem Open_open_ball (x : M) (ε : ℝ) : Open (open_ball x ε) :=
+  by apply generators_mem_topology_generated_by; apply open_ball_mem_open_sets_basis
+
+theorem closed_closed_ball (x : M) {ε : ℝ} (H : ε > 0) : closed (closed_ball x ε) :=
+Open_of_forall_exists_Open_nbhd
+  (take y, suppose ¬ dist y x ≤ ε,
+    have dist y x > ε, from lt_of_not_ge this,
+    let B := open_ball y (dist y x - ε) in
+    have y ∈ B, from mem_open_ball y (sub_pos_of_lt this),
+    have B ⊆ - closed_ball x ε, from
+      take y',
+      assume Hy'y : dist y' y < dist y x - ε,
+      assume Hy'x : dist y' x ≤ ε,
+      show false, from not_lt_self (dist y x)
+        (calc
+          dist y x ≤ dist y y' + dist y' x   : dist_triangle
+            ... < dist y x - ε + dist y' x   : by rewrite dist_comm; apply add_lt_add_right Hy'y
+            ... ≤ dist y x - ε + ε           : add_le_add_left Hy'x
+            ... = dist y x                   : by rewrite [sub_add_cancel]),
+    exists.intro B (and.intro (Open_open_ball _ _) (and.intro `y ∈ B` this)))
+
+proposition open_ball_subset_open_ball_of_le (x : M) {r₁ r₂ : ℝ} (H : r₁ ≤ r₂) :
+  open_ball x r₁ ⊆ open_ball x r₂ :=
+take y, assume ymem, lt_of_lt_of_le ymem H
+
+theorem exists_open_ball_subset_of_Open_of_mem {U : set M} (HU : Open U) {x : M} (Hx : x ∈ U) :
+        ∃ (r : ℝ), r > 0 ∧ open_ball x r ⊆ U :=
+begin
+  induction HU with s sbasis s t sbasis tbasis ihs iht S Sbasis ihS,
+    {cases sbasis with x' aux, cases aux with ε seq,
+      have x ∈ open_ball x' ε, by rewrite -seq; exact Hx,
+      have εpos : ε > 0, from pos_of_mem_open_ball this,
+      have ε - dist x x' > 0, from sub_pos_of_lt `x ∈ open_ball x' ε`,
+      existsi (ε - dist x x'), split, exact this, rewrite seq,
+      show open_ball x (ε - dist x x') ⊆ open_ball x' ε, from
+        take y, suppose dist y x < ε - dist x x',
+        calc
+          dist y x' ≤ dist y x + dist x x'      : dist_triangle
+                ... < ε - dist x x' + dist x x' : add_lt_add_right this
+                ... = ε                         : sub_add_cancel},
+    {existsi 1, split, exact zero_lt_one, exact subset_univ _},
+    {cases ihs (and.left Hx) with rs aux, cases aux with rspos ballrs_sub,
+      cases iht (and.right Hx) with rt aux, cases aux with rtpos ballrt_sub,
+      let rmin := min rs rt,
+      existsi rmin, split, exact lt_min rspos rtpos,
+      have open_ball x rmin ⊆ s,
+        from subset.trans (open_ball_subset_open_ball_of_le x !min_le_left) ballrs_sub,
+      have open_ball x rmin ⊆ t,
+        from subset.trans (open_ball_subset_open_ball_of_le x !min_le_right) ballrt_sub,
+      show open_ball x (min rs rt) ⊆ s ∩ t,
+        by apply subset_inter; repeat assumption},
+  cases Hx with s aux, cases aux with sS xs,
+  cases (ihS sS xs) with r aux, cases aux with rpos ballr_sub,
+  existsi r, split, exact rpos,
+  show open_ball x r ⊆ ⋃₀ S, from subset.trans ballr_sub (subset_sUnion_of_mem sS)
+end
+
+/- limits in metric spaces -/
+
+proposition eventually_nhds_intro {P : M → Prop} {ε : ℝ} (εpos : ε > 0) {x : M}
+    (H : ∀ x', dist x' x < ε → P x') :
+  eventually P (nhds x) :=
+topology.eventually_nhds_intro (Open_open_ball x ε) (mem_open_ball x εpos) H
+
+proposition eventually_nhds_dest {P : M → Prop} {x : M} (H : eventually P (nhds x)) :
+  ∃ ε, ε > 0 ∧ ∀ x', dist x' x < ε → P x' :=
+obtain s [(Os : Open s) [(xs : x ∈ s) (Hs : ∀₀ x' ∈ s, P x')]],
+  from topology.eventually_nhds_dest H,
+obtain ε [(εpos : ε > 0) (Hε : open_ball x ε ⊆ s)],
+  from exists_open_ball_subset_of_Open_of_mem Os xs,
+exists.intro ε (and.intro εpos
+  (take x', suppose dist x' x < ε,
+    have x' ∈ s, from Hε this,
+    show P x', from Hs this))
+
+proposition eventually_nhds_iff (P : M → Prop) (x : M) :
+  eventually P (nhds x) ↔ (∃ ε, ε > 0 ∧ ∀ x', dist x' x < ε → P x') :=
+iff.intro eventually_nhds_dest
+  (assume H, obtain ε [εpos Hε], from H, eventually_nhds_intro εpos Hε)
+
+proposition eventually_dist_lt_nhds (x : M) {ε : ℝ} (εpos : ε > 0) :
+   eventually (λ x', dist x' x < ε) (nhds x) :=
+eventually_nhds_intro εpos (λ x' H, H)
+
+proposition eventually_at_within_intro {P : M → Prop} {ε : ℝ} (εpos : ε > 0) {x : M} {s : set M}
+  (H : ∀₀ x' ∈ s, dist x' x < ε → x' ≠ x → P x') :
+ eventually P [at x within s] :=
+topology.eventually_at_within_intro (Open_open_ball x ε) (mem_open_ball x εpos)
+  (λ x' x'mem x'ne x's, H x's x'mem x'ne)
+
+proposition eventually_at_within_dest {P : M → Prop} {x : M} {s : set M}
+    (H : eventually P [at x within s]) :
+  ∃ ε, ε > 0 ∧ ∀₀ x' ∈ s, dist x' x < ε → x' ≠ x → P x' :=
+obtain t [(Ot : Open t) [(xt : x ∈ t) (Ht : ∀₀ x' ∈ t, x' ≠ x → x' ∈ s → P x')]],
+  from topology.eventually_at_within_dest H,
+obtain ε [(εpos : ε > 0) (Hε : open_ball x ε ⊆ t)],
+  from exists_open_ball_subset_of_Open_of_mem Ot xt,
+exists.intro ε (and.intro εpos
+  (take x', assume x's distx'x x'nex,
+    have x' ∈ t, from Hε distx'x,
+    show P x', from Ht this x'nex x's))
+
+proposition eventually_at_within_iff (P : M → Prop) (x : M) (s : set M) :
+  eventually P [at x within s] ↔  ∃ ε, ε > 0 ∧ ∀₀ x' ∈ s, dist x' x < ε → x' ≠ x → P x' :=
+iff.intro eventually_at_within_dest
+  (λ H, obtain ε [εpos Hε], from H, eventually_at_within_intro εpos Hε)
+
+proposition eventually_at_intro {P : M → Prop} {ε : ℝ} (εpos : ε > 0) {x : M}
+    (H : ∀ x', dist x' x < ε → x' ≠ x → P x') :
+ eventually P [at x] :=
+topology.eventually_at_intro (Open_open_ball x ε) (mem_open_ball x εpos)
+  (λ x' x'mem x'ne, H x' x'mem x'ne)
+
+proposition eventually_at_dest {P : M → Prop} {x : M} (H : eventually P [at x]) :
+  ∃ ε, ε > 0 ∧ ∀ ⦃x'⦄, dist x' x < ε → x' ≠ x → P x' :=
+obtain ε [εpos Hε], from eventually_at_within_dest H,
+exists.intro ε (and.intro εpos (λ x', Hε x' (mem_univ x')))
+
+proposition eventually_at_iff (P : M → Prop) (x : M) :
+  eventually P [at x] ↔  ∃ ε, ε > 0 ∧ ∀ ⦃x'⦄, dist x' x < ε → x' ≠ x → P x' :=
+iff.intro eventually_at_dest (λ H, obtain ε [εpos Hε], from H, eventually_at_intro εpos Hε)
+
+section approaches
+  variables {X : Type} {F : filter X} {f : X → M} {y : M}
+
+  proposition approaches_intro (H : ∀ ε, ε > 0 → eventually (λ x, dist (f x) y < ε) F) :
+    (f ⟶ y) F :=
+  tendsto_intro
+    (take P, assume eventuallyP,
+      obtain ε [(εpos : ε > 0) (Hε : ∀ x', dist x' y < ε → P x')],
+        from eventually_nhds_dest eventuallyP,
+      show eventually (λ x, P (f x)) F,
+        from eventually_mono (H ε εpos) (λ x Hx, Hε (f x) Hx))
+
+  proposition approaches_dest (H : (f ⟶ y) F) {ε : ℝ} (εpos : ε > 0) :
+    eventually (λ x, dist (f x) y < ε) F :=
+  tendsto_dest H (eventually_dist_lt_nhds y εpos)
+
+  variables (F f y)
+
+  proposition approaches_iff : (f ⟶ y) F ↔ (∀ ε, ε > 0 → eventually (λ x, dist (f x) y < ε) F) :=
+  iff.intro approaches_dest approaches_intro
+
+  -- TODO: prove this in greater generality in topology.limit
+  proposition approaches_constant : ((λ x, y) ⟶ y) F :=
+  approaches_intro (λ ε εpos, eventually_of_forall F (λ x,
+    show dist y y < ε, by rewrite dist_self; apply εpos))
+end approaches
+
+-- here we full unwrap two particular kinds of convergence3
+
+proposition approaches_at_infty_intro {f : ℕ → M} {y : M}
+    (H : ∀ ε, ε > 0 → ∃ N, ∀ n, n ≥ N → dist (f n) y < ε) :
+  f ⟶ y [at ∞] :=
+approaches_intro (λ ε εpos, obtain N HN, from H ε εpos,
+  eventually_at_infty_intro HN)
+
+proposition approaches_at_infty_dest {f : ℕ → M} {y : M}
+    (H : f ⟶ y [at ∞]) ⦃ε : ℝ⦄ (εpos : ε > 0) :
+  ∃ N, ∀ ⦃n⦄, n ≥ N → dist (f n) y < ε :=
+have eventually (λ x, dist (f x) y < ε) [at ∞], from approaches_dest H εpos,
+eventually_at_infty_dest this
+
+proposition approaches_at_infty_iff (f : ℕ → M) (y : M) :
+  f ⟶ y [at ∞] ↔ (∀ ε, ε > 0 → ∃ N, ∀ ⦃n⦄, n ≥ N → dist (f n) y < ε) :=
+iff.intro approaches_at_infty_dest approaches_at_infty_intro
+
+section metric_space_N
+variables {N : Type} [metric_space N]
+
+proposition approaches_at_dest {f : M → N} {y : N} {x : M}
+    (H : f ⟶ y [at x]) ⦃ε : ℝ⦄ (εpos : ε > 0) :
+  ∃ δ, δ > 0 ∧ ∀ ⦃x'⦄, dist x' x < δ → x' ≠ x → dist (f x') y < ε :=
+have eventually (λ x, dist (f x) y < ε) [at x],
+  from approaches_dest H εpos,
+eventually_at_dest this
+
+proposition approaches_at_intro {f : M → N} {y : N} {x : M}
+    (H : ∀ ε, ε > 0 → ∃ δ, δ > 0 ∧ ∀ ⦃x'⦄, dist x' x < δ → x' ≠ x → dist (f x') y < ε) :
+  f ⟶ y [at x] :=
+approaches_intro (λ ε εpos,
+  obtain δ [δpos Hδ], from H ε εpos,
+  eventually_at_intro δpos Hδ)
+
+proposition approaches_at_iff (f : M → N) (y : N) (x : M) : f ⟶ y [at x] ↔
+    (∀ ⦃ε⦄, ε > 0 → ∃ δ, δ > 0 ∧ ∀ ⦃x'⦄, dist x' x < δ → x' ≠ x → dist (f x') y < ε) :=
+iff.intro approaches_at_dest approaches_at_intro
+
+end metric_space_N
+
+-- TODO: remove this. It is only here temporarily, because it is used in normed_space
+abbreviation converges_seq [class] (X : ℕ → M) : Prop := ∃ y, X ⟶ y [at ∞]
+
+-- TODO: refactor
 -- the same, with ≤ in place of <; easier to prove, harder to use
-definition converges_to_seq.intro {X : ℕ → M} {y : M}
+definition approaches_at_infty_intro' {X : ℕ → M} {y : M}
     (H : ∀ ⦃ε : ℝ⦄, ε > 0 → ∃ N : ℕ, ∀ {n}, n ≥ N → dist (X n) y ≤ ε) :
-  converges_to_seq X y :=
+  (X ⟶ y) [at ∞] :=
+approaches_at_infty_intro
 take ε, assume epos : ε > 0,
   have e2pos : ε / 2 > 0, from  div_pos_of_pos_of_pos `ε > 0` two_pos,
   obtain N HN, from H e2pos,
@@ -70,23 +303,16 @@ take ε, assume epos : ε > 0,
         dist (X n) y ≤ ε / 2 : HN _ `n ≥ N`
                  ... < ε     : div_two_lt_of_pos epos)
 
-notation X `⟶` y `in` `ℕ` := converges_to_seq X y
-
-definition converges_seq [class] (X : ℕ → M) : Prop := ∃ y, X ⟶ y in ℕ
-
-noncomputable definition limit_seq (X : ℕ → M) [H : converges_seq X] : M := some H
-
-proposition converges_to_limit_seq (X : ℕ → M) [H : converges_seq X] :
-  (X ⟶ limit_seq X in ℕ) :=
-some_spec H
-
-proposition converges_to_seq_unique {X : ℕ → M} {y₁ y₂ : M}
-  (H₁ : X ⟶ y₁ in ℕ) (H₂ : X ⟶ y₂ in ℕ) : y₁ = y₂ :=
+-- TODO: prove more generally
+proposition approaches_at_infty_unique {X : ℕ → M} {y₁ y₂ : M}
+  (H₁ : X ⟶ y₁ [at ∞]) (H₂ : X ⟶ y₂ [at ∞]) : y₁ = y₂ :=
 eq_of_forall_dist_le
   (take ε, suppose ε > 0,
     have e2pos : ε / 2 > 0, from  div_pos_of_pos_of_pos `ε > 0` two_pos,
-    obtain N₁ (HN₁ : ∀ {n}, n ≥ N₁ → dist (X n) y₁ < ε / 2), from H₁ e2pos,
-    obtain N₂ (HN₂ : ∀ {n}, n ≥ N₂ → dist (X n) y₂ < ε / 2), from H₂ e2pos,
+    obtain N₁ (HN₁ : ∀ {n}, n ≥ N₁ → dist (X n) y₁ < ε / 2),
+      from approaches_at_infty_dest H₁ e2pos,
+    obtain N₂ (HN₂ : ∀ {n}, n ≥ N₂ → dist (X n) y₂ < ε / 2),
+      from approaches_at_infty_dest H₂ e2pos,
     let N := max N₁ N₂ in
     have dN₁ : dist (X N) y₁ < ε / 2, from HN₁ !le_max_left,
     have dN₂ : dist (X N) y₂ < ε / 2, from HN₂ !le_max_right,
@@ -97,158 +323,63 @@ eq_of_forall_dist_le
              ... = ε                             : add_halves,
     show dist y₁ y₂ ≤ ε, from le_of_lt this)
 
+/- TODO: revise
+
+definition converges_seq [class] (X : ℕ → M) : Prop := ∃ y, X ⟶ y in ℕ
+
+noncomputable definition limit_seq (X : ℕ → M) [H : converges_seq X] : M := some H
+
+proposition converges_to_limit_seq (X : ℕ → M) [H : converges_seq X] :
+  (X ⟶ limit_seq X in ℕ) :=
+some_spec H
+
 proposition eq_limit_of_converges_to_seq {X : ℕ → M} {y : M} (H : X ⟶ y in ℕ) :
   y = @limit_seq M _ X (exists.intro y H) :=
 converges_to_seq_unique H (@converges_to_limit_seq M _ X (exists.intro y H))
-
-proposition converges_to_seq_constant (y : M) : (λn, y) ⟶ y in ℕ :=
-take ε, assume egt0 : ε > 0,
-exists.intro 0
-  (take n, suppose n ≥ 0,
-    calc
-      dist y y = 0 : !dist_self
-           ... < ε : egt0)
-
-proposition converges_to_seq_offset {X : ℕ → M} {y : M} (k : ℕ) (H : X ⟶ y in ℕ) :
-  (λ n, X (n + k)) ⟶ y in ℕ :=
-take ε, suppose ε > 0,
-obtain N HN, from H `ε > 0`,
-exists.intro N
-  (take n : ℕ, assume ngtN : n ≥ N,
-    show dist (X (n + k)) y < ε, from HN (n + k) (le.trans ngtN !le_add_right))
 
 proposition converges_to_seq_offset_left {X : ℕ → M} {y : M} (k : ℕ) (H : X ⟶ y in ℕ) :
   (λ n, X (k + n)) ⟶ y in ℕ :=
 have aux : (λ n, X (k + n)) = (λ n, X (n + k)), from funext (take n, by rewrite add.comm),
 by rewrite aux; exact converges_to_seq_offset k H
 
-proposition converges_to_seq_offset_succ {X : ℕ → M} {y : M} (H : X ⟶ y in ℕ) :
-  (λ n, X (succ n)) ⟶ y in ℕ :=
-converges_to_seq_offset 1 H
-
-proposition converges_to_seq_of_converges_to_seq_offset
-    {X : ℕ → M} {y : M} {k : ℕ} (H : (λ n, X (n + k)) ⟶ y in ℕ) :
-  X ⟶ y in ℕ :=
-take ε, suppose ε > 0,
-obtain N HN, from H `ε > 0`,
-exists.intro (N + k)
-  (take n : ℕ, assume nge : n ≥ N + k,
-    have n - k ≥ N, from nat.le_sub_of_add_le nge,
-    have dist (X (n - k + k)) y < ε, from HN (n - k) this,
-    show dist (X n) y < ε,
-      by rewrite [(nat.sub_add_cancel (le.trans !le_add_left nge)) at this]; exact this)
-
 proposition converges_to_seq_of_converges_to_seq_offset_left
     {X : ℕ → M} {y : M} {k : ℕ} (H : (λ n, X (k + n)) ⟶ y in ℕ) :
   X ⟶ y in ℕ :=
 have aux : (λ n, X (k + n)) = (λ n, X (n + k)), from funext (take n, by rewrite add.comm),
 by rewrite aux at H; exact converges_to_seq_of_converges_to_seq_offset H
-
-proposition converges_to_seq_of_converges_to_seq_offset_succ
-    {X : ℕ → M} {y : M} (H : (λ n, X (succ n)) ⟶ y in ℕ) :
-  X ⟶ y in ℕ :=
-@converges_to_seq_of_converges_to_seq_offset M _ X y 1 H
-
-proposition converges_to_seq_offset_iff (X : ℕ → M) (y : M) (k : ℕ) :
-  ((λ n, X (n + k)) ⟶ y in ℕ) ↔ (X ⟶ y in ℕ) :=
-iff.intro converges_to_seq_of_converges_to_seq_offset !converges_to_seq_offset
-
-proposition converges_to_seq_offset_left_iff (X : ℕ → M) (y : M) (k : ℕ) :
-  ((λ n, X (k + n)) ⟶ y in ℕ) ↔ (X ⟶ y in ℕ) :=
-iff.intro converges_to_seq_of_converges_to_seq_offset_left !converges_to_seq_offset_left
-
-proposition converges_to_seq_offset_succ_iff (X : ℕ → M) (y : M) :
-  ((λ n, X (succ n)) ⟶ y in ℕ) ↔ (X ⟶ y in ℕ) :=
-iff.intro converges_to_seq_of_converges_to_seq_offset_succ !converges_to_seq_offset_succ
-
-section
-open list
-definition r_trans : transitive (@le ℝ _) := λ a b c, !le.trans
-definition r_refl : reflexive (@le ℝ _) := λ a, !le.refl
-
-theorem dec_prf_eq (P : Prop) (H1 H2 : decidable P) : H1 = H2 :=
-  begin
-    induction H1,
-    induction H2,
-    reflexivity,
-    apply absurd a a_1,
-    induction H2,
-    apply absurd a_1 a,
-    reflexivity
-  end
-
--- there's a very ugly part of this proof.
-
-proposition bounded_of_converges_seq {X : ℕ → M} {x : M} (H : X ⟶ x in ℕ) :
-            ∃ K : ℝ, ∀ n : ℕ, dist (X n) x ≤ K :=
-  begin
-    cases H zero_lt_one with N HN,
-    cases em (N = 0),
-    existsi 1,
-    intro n,
-    apply le_of_lt,
-    apply HN,
-    rewrite a,
-    apply zero_le,
-    let l := map (λ n : ℕ, -dist (X n) x) (upto N),
-    have Hnenil : l ≠ nil, from (map_ne_nil_of_ne_nil _ (upto_ne_nil_of_ne_zero a)),
-    existsi max (-list.min (λ a b : ℝ, le a b) l Hnenil) 1,
-    intro n,
-    have Hsmn : ∀ m : ℕ, m < N → dist (X m) x ≤ max (-list.min (λ a b : ℝ, le a b) l Hnenil) 1, begin
-      intro m Hm,
-      apply le.trans,
-      rotate 1,
-      apply le_max_left,
-      note Hall := min_lemma real.le_total r_trans r_refl Hnenil,
-      have Hmem : -dist (X m) x ∈ (map (λ (n : ℕ), -dist (X n) x) (upto N)), from mem_map _ (mem_upto_of_lt Hm),
-      note Hallm' := of_mem_of_all Hmem Hall,
-      apply le_neg_of_le_neg,
-      esimp, esimp at Hallm',
-/-
-      have Heqs : (λ (a b : real), classical.prop_decidable (@le.{1} real real.real_has_le a b))
-                   =
-                   (@decidable_le.{1} real
-                     (@decidable_linear_ordered_comm_group.to_decidable_linear_order.{1} real
-                        (@decidable_linear_ordered_comm_ring.to_decidable_linear_ordered_comm_group.{1} real
-                           (@discrete_linear_ordered_field.to_decidable_linear_ordered_comm_ring.{1} real
-                             real.discrete_linear_ordered_field)))),
-      begin
-        apply funext, intro, apply funext, intro,
-        apply dec_prf_eq
-      end,
-      rewrite -Heqs,
 -/
-      exact Hallm'
-    end,
-    cases em (n < N) with Elt Ege,
-    apply Hsmn,
-    exact Elt,
-    apply le_of_lt,
-    apply lt_of_lt_of_le,
-    apply HN,
-    apply le_of_not_gt Ege,
-    apply le_max_right
-  end
-end
+
+proposition bounded_of_converges_seq {X : ℕ → M} {x : M} (H : X ⟶ x [at ∞]) :
+            ∃ K : ℝ, ∀ n : ℕ, dist (X n) x ≤ K :=
+  have eventually (λ n, dist (X n) x < 1) [at ∞],
+    from approaches_dest H zero_lt_one,
+  obtain N (HN : ∀ n, n ≥ N → dist (X n) x < 1),
+    from eventually_at_infty_dest this,
+  let K := max 1 (Max i ∈ '(-∞, N), dist (X i) x) in
+  exists.intro K
+    (take n,
+      if Hn : n < N then
+        show dist (X n) x ≤ K,
+          from le.trans (le_Max _ Hn) !le_max_right
+      else
+        show dist (X n) x ≤ K,
+          from le.trans (le_of_lt (HN n (le_of_not_gt Hn))) !le_max_left)
 
 /- cauchy sequences -/
 
 definition cauchy (X : ℕ → M) : Prop :=
 ∀ ε : ℝ, ε > 0 → ∃ N, ∀ m n, m ≥ N → n ≥ N → dist (X m) (X n) < ε
 
-proposition cauchy_of_converges_seq (X : ℕ → M) [H : converges_seq X] : cauchy X :=
+proposition cauchy_of_converges_seq {X : ℕ → M} (H : ∃ y, X ⟶ y [at ∞]) : cauchy X :=
 take ε, suppose ε > 0,
-  obtain y (Hy : converges_to_seq X y), from H,
+  obtain y (Hy : X ⟶ y [at ∞]), from H,
   have e2pos : ε / 2 > 0, from div_pos_of_pos_of_pos `ε > 0` two_pos,
-  obtain N₁ (HN₁ : ∀ {n}, n ≥ N₁ → dist (X n) y < ε / 2), from Hy e2pos,
-  obtain N₂ (HN₂ : ∀ {n}, n ≥ N₂ → dist (X n) y < ε / 2), from Hy e2pos,
-  let N := max N₁ N₂ in
+  have eventually (λ n, dist (X n) y < ε / 2) [at ∞], from approaches_dest Hy e2pos,
+  obtain N (HN : ∀ {n}, n ≥ N → dist (X n) y < ε / 2), from eventually_at_infty_dest this,
     exists.intro N
       (take m n, suppose m ≥ N, suppose n ≥ N,
-        have m ≥ N₁, from le.trans !le_max_left `m ≥ N`,
-        have n ≥ N₂, from le.trans !le_max_right `n ≥ N`,
-        have dN₁ : dist (X m) y < ε / 2, from HN₁ `m ≥ N₁`,
-        have dN₂ : dist (X n) y < ε / 2, from HN₂ `n ≥ N₂`,
+        have dN₁ : dist (X m) y < ε / 2, from HN `m ≥ N`,
+        have dN₂ : dist (X n) y < ε / 2, from HN `n ≥ N`,
         show dist (X m) (X n) < ε, from calc
           dist (X m) (X n) ≤ dist (X m) y + dist y (X n) : dist_triangle
                        ... = dist (X m) y + dist (X n) y : dist_comm
@@ -260,9 +391,9 @@ end metric_space_M
 /- convergence of a function at a point -/
 
 section metric_space_M_N
-variables {M N : Type} [strucM : metric_space M] [strucN : metric_space N]
-include strucM strucN
+variables {M N : Type} [metric_space M] [metric_space N]
 
+/-
 definition converges_to_at (f : M → N) (y : N) (x : M) :=
 ∀ ⦃ε⦄, ε > 0 → ∃ δ, δ > 0 ∧ ∀ ⦃x'⦄, x' ≠ x ∧ dist x' x < δ → dist (f x') y < ε
 
@@ -278,21 +409,14 @@ proposition converges_to_limit_at (f : M → N) (x : M) [H : converges_at f x] :
   (f ⟶ limit_at f x at x) :=
 some_spec H
 
-section
-omit strucN
-set_option pp.coercions true
---set_option pp.all true
+-/
 
+-- TODO: refactor
+section
 open pnat rat
-
-section
-omit strucM
-
 private lemma of_rat_rat_of_pnat_eq_of_nat_nat_of_pnat (p : pnat) :
         of_rat (rat_of_pnat p) = of_nat (nat_of_pnat p) :=
   rfl
-
-end
 
 theorem cnv_real_of_cnv_nat {X : ℕ → M} {c : M} (H : ∀ n : ℕ, dist (X n) c < 1 / (real.of_nat n + 1)) :
         ∀ ε : ℝ, ε > 0 → ∃ N : ℕ, ∀ n : ℕ, n ≥ N → dist (X n) c < ε :=
@@ -301,7 +425,7 @@ theorem cnv_real_of_cnv_nat {X : ℕ → M} {c : M} (H : ∀ n : ℕ, dist (X n)
     cases ex_rat_pos_lower_bound_of_pos Hε with q Hq,
     cases Hq with Hq1 Hq2,
     cases pnat_bound Hq1 with p Hp,
-    existsi nat_of_pnat p,
+    existsi pnat.nat_of_pnat p,
     intros n Hn,
     apply lt_of_lt_of_le,
     apply H,
@@ -325,49 +449,41 @@ theorem cnv_real_of_cnv_nat {X : ℕ → M} {c : M} (H : ∀ n : ℕ, dist (X n)
   end
 end
 
-theorem all_conv_seqs_of_converges_to_at {f : M → N} {c : M} {l : N} (Hconv : f ⟶ l at c) :
-        ∀ X : ℕ → M, ((∀ n : ℕ, ((X n) ≠ c) ∧ (X ⟶ c in ℕ)) → ((λ n : ℕ, f (X n)) ⟶ l in ℕ)) :=
-   begin
-     intros X HX,
-     rewrite [↑converges_to_at at Hconv, ↑converges_to_seq],
-     intros ε Hε,
-     cases Hconv Hε with δ Hδ,
-     cases Hδ with Hδ1 Hδ2,
-     cases HX 0 with _ HXlim,
-     cases HXlim Hδ1 with N1 HN1,
-     existsi N1,
-     intro n Hn,
-     apply Hδ2,
-     split,
-     apply and.left (HX _),
-     exact HN1 Hn
-   end
+-- a nice illustration of the limit library: [at c] and [at ∞] can be replaced by any filters
+theorem comp_approaches_at_infty {f : M → N} {c : M} {l : N} (Hf : f ⟶ l [at c])
+    {X : ℕ → M} (HX₁ : X ⟶ c [at ∞]) (HX₂ : eventually (λ n, X n ≠ c) [at ∞]) :
+  (λ n, f (X n)) ⟶ l [at ∞] :=
+  tendsto_comp_of_approaches_of_tendsto_at HX₁ HX₂ Hf
+
+-- TODO: refactor
 
 theorem converges_to_at_of_all_conv_seqs {f : M → N} (c : M) (l : N)
-  (Hseq : ∀ X : ℕ → M, ((∀ n : ℕ, ((X n) ≠ c) ∧ (X ⟶ c in ℕ)) → ((λ n : ℕ, f (X n)) ⟶ l in ℕ)))
-  : f ⟶ l at c :=
+  (Hseq : ∀ X : ℕ → M, ((∀ n : ℕ, ((X n) ≠ c) ∧ (X ⟶ c [at ∞])) → ((λ n : ℕ, f (X n)) ⟶ l [at ∞])))
+  : f ⟶ l [at c] :=
   by_contradiction
-    (assume Hnot : ¬ (f ⟶ l at c),
-    obtain ε Hε, from exists_not_of_not_forall Hnot,
+    (assume Hnot : ¬ (f ⟶ l [at c]),
+    obtain ε Hε, from exists_not_of_not_forall (λ H, Hnot (approaches_at_intro H)),
     let Hε' := and_not_of_not_implies Hε in
     obtain (H1 : ε > 0) H2, from Hε',
     have H3 : ∀ δ : ℝ, (δ > 0 → ∃ x' : M, x' ≠ c ∧ dist x' c < δ ∧ dist (f x') l ≥ ε), begin -- tedious!!
       intros δ Hδ,
       note Hε'' := forall_not_of_not_exists H2,
       note H4 := forall_not_of_not_exists H2 δ,
-      have ¬ (∀ x' : M, x' ≠ c ∧ dist x' c < δ → dist (f x') l < ε), from λ H', H4 (and.intro Hδ H'),
+      have ¬ (∀ x' : M, dist x' c < δ → x' ≠ c → dist (f x') l < ε),
+        from λ H', H4 (and.intro Hδ H'),
       note H5 := exists_not_of_not_forall this,
       cases H5 with x' Hx',
       existsi x',
       note H6 := and_not_of_not_implies Hx',
-      rewrite and.assoc at H6,
-      cases H6,
+--      rewrite and.assoc at H6,
+      cases H6 with H6a H6b,
       split,
+      cases (and_not_of_not_implies H6b),
       assumption,
-      cases a_1,
       split,
       assumption,
       apply le_of_not_gt,
+      cases (and_not_of_not_implies H6b),
       assumption
     end,
     let S : ℕ → M → Prop := λ n x, 0 < dist x c ∧ dist x c < 1 / (of_nat n + 1) ∧ dist (f x) l ≥ ε in
@@ -386,7 +502,7 @@ theorem converges_to_at_of_all_conv_seqs {f : M → N} (c : M) (l : N)
       repeat assumption
     end,
     let X : ℕ → M := λ n, some (HS n) in
-    have H4 : ∀ n : ℕ, ((X n) ≠ c) ∧ (X ⟶ c in ℕ), from
+    have H4 : ∀ n : ℕ, ((X n) ≠ c) ∧ (X ⟶ c [at ∞]), from
       (take n, and.intro
         (begin
           note Hspec := some_spec (HS n),
@@ -396,6 +512,7 @@ theorem converges_to_at_of_all_conv_seqs {f : M → N} (c : M) (l : N)
           assumption
         end)
         (begin
+          apply approaches_at_infty_intro,
           apply cnv_real_of_cnv_nat,
           intro m,
           note Hspec := some_spec (HS m),
@@ -404,9 +521,9 @@ theorem converges_to_at_of_all_conv_seqs {f : M → N} (c : M) (l : N)
           cases Hspec2,
           assumption
         end)),
-    have H5 : (λ n : ℕ, f (X n)) ⟶ l in ℕ, from Hseq X H4,
+    have H5 : (λ n : ℕ, f (X n)) ⟶ l [at ∞], from Hseq X H4,
     begin
-      note H6 := H5 H1,
+      note H6 := approaches_at_infty_dest H5 H1,
       cases H6 with Q HQ,
       note HQ' := HQ !le.refl,
       esimp at HQ',
@@ -419,241 +536,7 @@ theorem converges_to_at_of_all_conv_seqs {f : M → N} (c : M) (l : N)
       assumption
     end)
 
-
 end metric_space_M_N
-
-section topology
-/- A metric space is a topological space. -/
-
-open set prod topology
-
-variables {V : Type} [Vmet : metric_space V]
-include Vmet
-
-definition open_ball (x : V) (ε : ℝ) := {y ∈ univ | dist x y < ε}
-
-theorem open_ball_empty_of_nonpos (x : V) {ε : ℝ} (Hε : ε ≤ 0) : open_ball x ε = ∅ :=
-  begin
-    apply eq_empty_of_forall_not_mem,
-    intro y Hy,
-    note Hlt := and.right Hy,
-    apply not_lt_of_ge (dist_nonneg x y),
-    apply lt_of_lt_of_le Hlt Hε
-  end
-
-theorem radius_pos_of_nonempty {x : V} {ε : ℝ} {u : V} (Hu : u ∈ open_ball x ε) : ε > 0 :=
-  begin
-    apply lt_of_not_ge,
-    intro Hge,
-    note Hop := open_ball_empty_of_nonpos x Hge,
-    rewrite Hop at Hu,
-    apply not_mem_empty _ Hu
-  end
-
-theorem mem_open_ball (x : V) {ε : ℝ} (H : ε > 0) : x ∈ open_ball x ε :=
-  suffices x ∈ univ ∧ dist x x < ε, from this,
-  and.intro !mem_univ (by rewrite dist_self; assumption)
-
-definition closed_ball (x : V) (ε : ℝ) := {y ∈ univ | dist x y ≤ ε}
-
-theorem closed_ball_eq_compl (x : V) (ε : ℝ) : closed_ball x ε = -{y ∈ univ | dist x y > ε} :=
-  begin
-    apply ext,
-    intro y,
-    apply iff.intro,
-    intro Hx,
-    apply mem_compl,
-    intro Hxmem,
-    cases Hxmem with _ Hgt,
-    cases Hx with _ Hle,
-    apply not_le_of_gt Hgt Hle,
-    intro Hx,
-    note Hx' := not_mem_of_mem_compl Hx,
-    split,
-    apply mem_univ,
-    apply le_of_not_gt,
-    intro Hgt,
-    apply Hx',
-    split,
-    apply mem_univ,
-    assumption
-  end
-
-omit Vmet
-
-definition open_sets_basis (V : Type) [metric_space V] :=
-  image (λ pair : V × ℝ, open_ball (pr1 pair) (pr2 pair)) univ
-
-definition metric_topology [instance] (V : Type) [metric_space V] : topology V :=
-  topology.generated_by (open_sets_basis V)
-
-include Vmet
-
-theorem open_ball_mem_open_sets_basis (x : V) (ε : ℝ) : (open_ball x ε) ∈ (open_sets_basis V) :=
-  mem_image !mem_univ rfl
-
-theorem open_ball_open (x : V) (ε : ℝ) : Open (open_ball x ε) :=
-  by apply generators_mem_topology_generated_by; apply open_ball_mem_open_sets_basis
-
-theorem closed_ball_closed (x : V) {ε : ℝ} (H : ε > 0) : closed (closed_ball x ε) :=
-  begin
-    apply iff.mpr !closed_iff_Open_compl,
-    rewrite closed_ball_eq_compl,
-    rewrite compl_compl,
-    apply Open_of_forall_exists_Open_nbhd,
-    intro y Hy,
-    cases Hy with _ Hxy,
-    existsi open_ball y (dist x y - ε),
-    split,
-    apply open_ball_open,
-    split,
-    apply mem_open_ball,
-    apply sub_pos_of_lt Hxy,
-    intros y' Hy',
-    cases Hy' with _ Hxy'd,
-    rewrite dist_comm at Hxy'd,
-    split,
-    apply mem_univ,
-    apply lt_of_not_ge,
-    intro Hxy',
-    apply not_lt_self (dist x y),
-    exact calc
-      dist x y ≤ dist x y' + dist y' y : dist_triangle
-           ... ≤ ε         + dist y' y : add_le_add_right Hxy'
-           ... < ε    + (dist x y - ε) : add_lt_add_left Hxy'd
-           ... = dist x y              : by rewrite [add.comm, sub_add_cancel]
-  end
-
-private theorem not_mem_open_basis_of_boundary_pt {s : set V} (a : s ∈ open_sets_basis V) {x : V}
-          (Hbd : ∀ ε : ℝ, ε > 0 → ∃ v : V, v ∉ s ∧ dist x v < ε) : ¬ x ∈ s :=
-  begin
-    intro HxU,
-    cases a with pr Hpr,
-    cases pr with y r,
-    cases Hpr with _ Hs,
-    rewrite -Hs at HxU,
-    have H : dist y x < r, from and.right HxU,
-    cases Hbd _ (sub_pos_of_lt H) with v Hv,
-    cases Hv with Hv Hvdist,
-    apply Hv,
-    rewrite -Hs,
-    apply and.intro,
-    apply mem_univ,
-    apply lt_of_le_of_lt,
-    apply dist_triangle,
-    exact x,
-    esimp,
-    exact calc
-      dist y x + dist x v < dist y x + (r - dist y x) : add_lt_add_left Hvdist
-                      ... = r                         : by rewrite [add.comm, sub_add_cancel]
-  end
-
-private theorem not_mem_intersect_of_boundary_pt {s t : set V} (a : Open s) (a_1 : Open t) {x : V}
-        (v_0 : (x ∈ s → ¬ (∀ (ε : ℝ), ε > 0 → (∃ (v : V), v ∉ s ∧ dist x v < ε))))
-        (v_1 : (x ∈ t → ¬ (∀ (ε : ℝ), ε > 0 → (∃ (v : V), v ∉ t ∧ dist x v < ε))))
-        (Hbd : ∀ (ε : ℝ), ε > 0 → (∃ (v : V), v ∉ s ∩ t ∧ dist x v < ε)) : ¬ (x ∈ s ∩ t) :=
-  begin
-    intro HxU,
-    have Hxs : x ∈ s, from mem_of_mem_inter_left HxU,
-    have Hxt : x ∈ t, from mem_of_mem_inter_right HxU,
-    note Hsih := exists_not_of_not_forall (v_0 Hxs),
-    note Htih := exists_not_of_not_forall (v_1 Hxt),
-    cases Hsih with ε1 Hε1,
-    cases Htih with ε2 Hε2,
-    note Hε1' := and_not_of_not_implies Hε1,
-    note Hε2' := and_not_of_not_implies Hε2,
-    cases Hε1' with Hε1p Hε1',
-    cases Hε2' with Hε2p Hε2',
-    note Hε1'' := forall_not_of_not_exists Hε1',
-    note Hε2'' := forall_not_of_not_exists Hε2',
-    have Hmin : min ε1 ε2 > 0, from lt_min Hε1p Hε2p,
-    cases Hbd _ Hmin with v Hv,
-    cases Hv with Hvint Hvdist,
-    note Hε1v := Hε1'' v,
-    note Hε2v := Hε2'' v,
-    cases em (v ∉ s) with Hnm Hmem,
-    apply Hε1v,
-    split,
-    exact Hnm,
-    apply lt_of_lt_of_le Hvdist,
-    apply min_le_left,
-    apply Hε2v,
-    have Hmem' : v ∈ s, from not_not_elim Hmem,
-    note Hnm := not_mem_of_mem_of_not_mem_inter_left Hmem' Hvint,
-    split,
-    exact Hnm,
-    apply lt_of_lt_of_le Hvdist,
-    apply min_le_right
-  end
-
-private theorem not_mem_sUnion_of_boundary_pt {S : set (set V)} (a : ∀₀ s ∈ S, Open s) {x : V}
-        (v_0 : ∀ ⦃x_1 : set V⦄,
-           x_1 ∈ S → x ∈ x_1 → ¬ (∀ (ε : ℝ), ε > 0 → (∃ (v : V), v ∉ x_1 ∧ dist x v < ε)))
-        (Hbd : ∀ (ε : ℝ), ε > 0 → (∃ (v : V), v ∉ ⋃₀ S ∧ dist x v < ε)) : ¬ x ∈ ⋃₀ S :=
-  begin
-    intro HxU,
-    have Hex : ∃₀ s ∈ S, x ∈ s, from HxU,
-    cases Hex with s Hs,
-    cases Hs with Hs Hxs,
-    cases exists_not_of_not_forall (v_0 Hs Hxs) with ε Hε,
-    cases and_not_of_not_implies Hε with Hεp Hv,
-    cases Hbd _ Hεp with v Hv',
-    cases Hv' with Hvnm Hdist,
-    apply Hv,
-    existsi v,
-    split,
-    apply not_mem_of_not_mem_sUnion Hvnm Hs,
-    exact Hdist
-  end
-
-
-/-
-   this should be doable by showing that the open-ball boundary definition
-   is equivalent to topology.on_boundary, and applying topology.not_open_of_on_boundary.
-   But the induction hypotheses don't work out nicely.
--/
-
-theorem not_open_of_ex_boundary_pt {U : set V} {x : V} (HxU : x ∈ U)
-        (Hbd : ∀ ε : ℝ, ε > 0 → ∃ v : V, v ∉ U ∧ dist x v < ε) : ¬ Open U :=
-  begin
-    intro HUopen,
-    induction HUopen,
-    {apply not_mem_open_basis_of_boundary_pt a Hbd HxU},
-    {cases Hbd 1 zero_lt_one with v Hv,
-    cases Hv with Hv _,
-    exact Hv !mem_univ},
-    {apply not_mem_intersect_of_boundary_pt a a_1 v_0 v_1 Hbd HxU},
-    {apply not_mem_sUnion_of_boundary_pt a v_0 Hbd HxU}
-  end
-
-theorem ex_Open_ball_subset_of_Open_of_nonempty {U : set V} (HU : Open U) {x : V} (Hx : x ∈ U) :
-        ∃ (r : ℝ), r > 0 ∧ open_ball x r ⊆ U :=
-  begin
-    let balloon := {r ∈ univ | r > 0 ∧ open_ball x r ⊆ U},
-    cases em (balloon = ∅),
-    have H : ∀ r : ℝ, r > 0 → ∃ v : V, v ∉ U ∧ dist x v < r, begin
-      intro r Hr,
-      note Hor := not_or_not_of_not_and (forall_not_of_sep_empty a (mem_univ r)),
-      note Hor' := or.neg_resolve_left Hor Hr,
-      apply exists_of_not_forall_not,
-      intro Hall,
-      apply Hor',
-      intro y Hy,
-      cases not_or_not_of_not_and (Hall y) with Hmem Hge,
-      apply not_not_elim Hmem,
-      apply absurd (and.right Hy) Hge
-    end,
-    apply absurd HU,
-    apply not_open_of_ex_boundary_pt Hx H,
-    cases exists_mem_of_ne_empty a with r Hr,
-    cases Hr with _ Hr,
-    cases Hr with Hrpos HxrU,
-    existsi r,
-    split,
-    repeat assumption
-  end
-
-end topology
 
 section continuity
 variables {M N : Type} [Hm : metric_space M] [Hn : metric_space N]
@@ -668,24 +551,20 @@ theorem continuous_at_intro {f : M → N} {x : M}
   begin
     rewrite ↑continuous_at,
     intros U Uopen HfU,
-    cases ex_Open_ball_subset_of_Open_of_nonempty Uopen HfU with r Hr,
+    cases exists_open_ball_subset_of_Open_of_mem Uopen HfU with r Hr,
     cases Hr with Hr HUr,
     cases H Hr with δ Hδ,
     cases Hδ with Hδ Hx'δ,
     existsi open_ball x δ,
     split,
-    apply open_ball_open,
+    apply Open_open_ball,
     split,
     apply mem_open_ball,
     exact Hδ,
     intro y Hy,
     apply mem_preimage,
     apply HUr,
-    cases Hy with y' Hy',
-    rewrite dist_comm at Hy',
-    note Hy'' := Hx'δ Hy',
-    apply and.intro !mem_univ,
-    rewrite dist_comm,
+    note Hy'' := Hx'δ Hy,
     exact Hy''
   end
 
@@ -694,62 +573,54 @@ theorem continuous_at_elim {f : M → N} {x : M} (Hfx : continuous_at f x) :
   begin
     intros ε Hε,
     rewrite [↑continuous_at at Hfx],
-    cases @Hfx (open_ball (f x) ε) !open_ball_open (mem_open_ball _ Hε) with V HV,
+    cases @Hfx (open_ball (f x) ε) !Open_open_ball (mem_open_ball _ Hε) with V HV,
     cases HV with HV HVx,
     cases HVx with HVx HVf,
-    cases ex_Open_ball_subset_of_Open_of_nonempty HV HVx with δ Hδ,
+    cases exists_open_ball_subset_of_Open_of_mem HV HVx with δ Hδ,
     cases Hδ with Hδ Hδx,
     existsi δ,
     split,
     exact Hδ,
     intro x' Hx',
-    rewrite dist_comm,
-    apply and.right,
     apply HVf,
     apply Hδx,
-    apply and.intro !mem_univ,
-    rewrite dist_comm,
     apply Hx',
   end
 
-theorem continuous_at_of_converges_to_at {f : M → N} {x : M} (Hf : f ⟶ f x at x) :
+theorem continuous_at_of_converges_to_at {f : M → N} {x : M} (Hf : f ⟶ f x [at x]) :
   continuous_at f x :=
 continuous_at_intro
 (take ε, suppose ε > 0,
-obtain δ Hδ, from Hf this,
+obtain δ Hδ, from approaches_at_dest Hf this,
 exists.intro δ (and.intro
   (and.left Hδ)
   (take x', suppose dist x' x < δ,
    if Heq : x' = x then
      by rewrite [-Heq, dist_self]; assumption
    else
-     (suffices dist x' x < δ, from and.right Hδ x' (and.intro Heq this),
+     (suffices dist x' x < δ, from and.right Hδ x' this Heq,
       this))))
 
 theorem converges_to_at_of_continuous_at {f : M → N} {x : M} (Hf : continuous_at f x) :
-  f ⟶ f x at x :=
-take ε, suppose ε > 0,
-obtain δ Hδ, from continuous_at_elim Hf this,
-exists.intro δ (and.intro
-  (and.left Hδ)
-  (take x',
-    assume H : x' ≠ x ∧ dist x' x < δ,
-    show dist (f x') (f x) < ε, from and.right Hδ x' (and.right H)))
-
+  f ⟶ f x [at x] :=
+approaches_at_intro
+  (take ε, suppose ε > 0,
+    obtain δ [δpos Hδ], from continuous_at_elim Hf this,
+    exists.intro δ (and.intro δpos (λ x' Hx' xnex', Hδ x' Hx')))
 
 definition continuous (f : M → N) : Prop := ∀ x, continuous_at f x
 
-theorem converges_seq_comp_of_converges_seq_of_cts [instance] (X : ℕ → M) [HX : converges_seq X] {f : M → N}
+theorem converges_seq_comp_of_converges_seq_of_cts (X : ℕ → M) [HX : converges_seq X] {f : M → N}
                                          (Hf : continuous f) :
         converges_seq (λ n, f (X n)) :=
   begin
     cases HX with xlim Hxlim,
     existsi f xlim,
-    rewrite ↑converges_to_seq at *,
+    apply approaches_at_infty_intro,
     intros ε Hε,
     let Hcont := (continuous_at_elim (Hf xlim)) Hε,
     cases Hcont with δ Hδ,
-    cases Hxlim (and.left Hδ) with B HB,
+    cases approaches_at_infty_dest Hxlim (and.left Hδ) with B HB,
     existsi B,
     intro n Hn,
     apply and.right Hδ,
@@ -773,6 +644,7 @@ end continuity
 
 end analysis
 
+
 /- complete metric spaces -/
 
 structure complete_metric_space [class] (M : Type) extends metricM : metric_space M : Type :=
@@ -785,6 +657,7 @@ proposition complete (M : Type) [cmM : complete_metric_space M] {X : ℕ → M} 
 complete_metric_space.complete X H
 
 end analysis
+
 
 /- the reals form a metric space -/
 
