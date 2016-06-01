@@ -1,14 +1,14 @@
 x = y → true
 T → x = y → true
-∀ (a : T), x = a → a = y
-∀ (a : T), a = x → true
+∀ a, x = a → a = y
+∀ a, a = x → true
 T → T → x = y → true
 T → T → x = y → P y
-(∀ (x : T), P x ↔ Q x) → Q x
-Prop → (∀ (x : T), P x ↔ Q x) → Prop → Q x
-∀ (a : Prop), (∀ (x : T), P x ↔ Q x) → a ∨ Q x
-(∀ (x : T), P x ↔ Q x) → Q x
-∀ (a : T), T → (∀ (x : T), P x ↔ Q x) → Q a
-∀ (a a_1 : T), a = a_1 → P a_1
-∀ (a a_1 a_2 : T), a = a_1 → a_1 = a_2 → P a_2
-∀ (a a_1 : T), a = a_1 → (∀ (w : T), P w ↔ Q w) → Q a_1
+(∀ x, P x ↔ Q x) → Q x
+Prop → (∀ x, P x ↔ Q x) → Prop → Q x
+∀ a, (∀ x, P x ↔ Q x) → a ∨ Q x
+(∀ x, P x ↔ Q x) → Q x
+∀ a, T → (∀ x, P x ↔ Q x) → Q a
+∀ a a_1, a = a_1 → P a_1
+∀ a a_1 a_2, a = a_1 → a_1 = a_2 → P a_2
+∀ a a_1, a = a_1 → (∀ w, P w ↔ Q w) → Q a_1

@@ -1,4 +1,4 @@
 f (coe a) : B
-g (λ (x : C), coe (h x)) : B
-filter (λ (x : bool), bool_to_Prop (negb x)) [tt, ff, tt, ff] : list bool
+g (λ x, coe (h x)) : B
+filter (λ x, bool_to_Prop (negb x)) [tt, ff, tt, ff] : list bool
 [ff, ff]

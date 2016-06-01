@@ -51,7 +51,7 @@ b₂
 c₂
 -- ACK
 -- TYPE|134|38
-Π (a : A), B a → Type
+Π a, B a → Type
 -- ACK
 -- IDENTIFIER|134|38
 C

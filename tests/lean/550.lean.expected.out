@@ -32,5 +32,5 @@ rinv : func ∘ finv = id
 ⊢ inv (mk func finv linv rinv) ∘b mk func finv linv rinv = id
 550.lean:43:2: error: failed to add declaration 'bijection.inv.linv' to environment, value has metavariables
 remark: set 'formatter.hide_full_terms' to false to see the complete term
-  λ (A : Type) (f : …),
+  λ A f,
     bijection.rec_on f ?M_1

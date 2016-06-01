@@ -1,5 +1,5 @@
 f (int.of_nat a) : int
-λ (x : bv a), @g a x : bv a → bv a
+λ x, @g a x : bv a → bv a
 coe2.lean:19:6: error: type mismatch at application
   f a
 term

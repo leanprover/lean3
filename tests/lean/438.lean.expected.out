@@ -12,5 +12,5 @@ P : group P₀
 ⊢ ?M_1
 438.lean:10:2: error: failed to add declaration 'lambda_morphism.mk' to environment, type has metavariables
 remark: set 'formatter.hide_full_terms' to false to see the complete term
-  Π {P₀ : Type} {P : …},
+  Π {P₀} {P},
     ?M_2 = ?M_3 → …

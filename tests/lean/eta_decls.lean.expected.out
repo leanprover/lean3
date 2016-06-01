@@ -1,4 +1,2 @@
-to_set_union :
-  ∀ {A : Type} [deceq : decidable_eq A] (s t : finset A),
-    @eq (set A) (@ts A (@union A deceq s t)) (@set.union A (@ts A s) (@ts A t))
-to_set_empty : ∀ {A : Type}, @eq (set A) (@ts A (@empty A)) (@set.empty A)
+to_set_union : ∀ {A} [deceq] s t, @eq (set A) (@ts A (@union A deceq s t)) (@set.union A (@ts A s) (@ts A t))
+to_set_empty : ∀ {A}, @eq (set A) (@ts A (@empty A)) (@set.empty A)

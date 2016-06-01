@@ -2,7 +2,7 @@
 A B : Type₁,
 s : setoid A,
 f : A → B,
-c : ∀ (a₁ a₂ : A), a₁ ≈ a₂ → f a₁ = f a₂,
+c : ∀ a₁ a₂, a₁ ≈ a₂ → f a₁ = f a₂,
 a : A,
 g h : B → B,
 gh : g = h

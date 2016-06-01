@@ -3,6 +3,6 @@ position 55:52
 A : Type,
 B : Type,
 f : one_step_tr A → B
-⊢ Π (x y : A),
+⊢ Π x y,
     f (tr x) = f (tr y)
 END_LEAN_INFORMATION
