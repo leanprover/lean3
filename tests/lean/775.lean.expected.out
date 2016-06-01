@@ -11,13 +11,13 @@ p : P 0 (succ a)
 
 P Q : ℕ → ℕ → Prop,
 a : ℕ,
-v_0 : ∀ (m : ℕ), P a m → Q a m,
+v_0 : ∀ m, P a m → Q a m,
 p : P (succ a) 0
 ⊢ Q (succ a) 0
 
 P Q : ℕ → ℕ → Prop,
 a : ℕ,
-v_0 : ∀ (m : ℕ), P a m → Q a m,
+v_0 : ∀ m, P a m → Q a m,
 a_1 : ℕ,
 v_0_1 : P (succ a) a_1 → Q (succ a) a_1,
 p : P (succ a) (succ a_1)

@@ -1,7 +1,7 @@
 calc_assistant.lean:7:14: error: type mismatch at term
   H₁
 has type
-  ∀ (x : num),
+  ∀ x,
     b = x
 but is expected to have type
   a = b

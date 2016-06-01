@@ -3,18 +3,18 @@
 -- BEGINWAIT
 -- ENDWAIT
 -- BEGINEVAL
-my_id : Π {A : Type}, A → A
+my_id : Π {A}, A → A
 -- ENDEVAL
 -- BEGINEVAL
-my_id2 : Π {A : Type}, A → A
+my_id2 : Π {A}, A → A
 -- ENDEVAL
 -- BEGINSAVE
 -- ENDSAVE
 -- BEGINWAIT
 -- ENDWAIT
 -- BEGINEVAL
-my_id : Π {A : Type}, A → A
+my_id : Π {A}, A → A
 -- ENDEVAL
 -- BEGINEVAL
-my_id2 : Π {A : Type}, A → A
+my_id2 : Π {A}, A → A
 -- ENDEVAL

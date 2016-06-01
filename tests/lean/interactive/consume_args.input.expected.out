@@ -41,7 +41,7 @@ by
 rewrite
 -- ACK
 -- TYPE|7|42
-∀ (a_1 b_1 c_1 : ?A), (:a_1 + b_1 + c_1:) = (:a_1 + (b_1 + c_1):)
+∀ a_1 b_1 c_1, (:a_1 + b_1 + c_1:) = (:a_1 + (b_1 + c_1):)
 -- ACK
 -- IDENTIFIER|7|42
 add.assoc

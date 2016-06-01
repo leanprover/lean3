@@ -5,7 +5,7 @@
 @
 -- ACK
 -- TYPE|11|5
-∀ {A : Type} {a b c : A}, eq a b → eq b c → eq a c
+∀ {A} {a b c}, eq a b → eq b c → eq a c
 -- ACK
 -- IDENTIFIER|11|5
 eq.trans

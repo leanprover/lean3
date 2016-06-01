@@ -2,7 +2,7 @@ blast_cc_not_provable.lean:5:0: error: blast tactic failed
 strategy 'cc' failed, no proof found, final state:
 C : ℕ → Type,
 n m : ℕ,
-f : Π (n : ℕ), C n → C n,
+f : Π n, C n → C n,
 c : C n,
 d : C m,
 H.6 : f n == f m,
@@ -11,14 +11,14 @@ H.7 : c == d
 -------
 proof state:
 C : ℕ → Type,
-f : Π (n : ℕ), C n → C n,
+f : Π n, C n → C n,
 n m : ℕ,
 c : C n,
 d : C m
 ⊢ f n == f m → c == d → f n c == f m d
 blast_cc_not_provable.lean:5:0: error: don't know how to synthesize placeholder
 C : ℕ → Type,
-f : Π (n : ℕ), C n → C n,
+f : Π n, C n → C n,
 n m : ℕ,
 c : C n,
 d : C m

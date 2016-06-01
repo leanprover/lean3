@@ -2,9 +2,7 @@
 P : quotient S → Type,
 c c' : C,
 a : A
-⊢ pathover P (quotient.rec (λ (b : A), sorry) (λ (b b' : A) (H : R b b'), sorry) (f a unit.star))
-    (eq_of_rel S (S.Rmk a unit.star))
-    sorry
+⊢ pathover P (quotient.rec (λ b, sorry) (λ b b' H, sorry) (f a unit.star)) (eq_of_rel S (S.Rmk a unit.star)) sorry
 640.hlean:25:22: proof state
 P : quotient S → Type,
 c c' : C,

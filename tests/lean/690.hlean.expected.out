@@ -12,7 +12,7 @@ q : u₂ =[p] v₂
 690.hlean:12:0: error: don't know how to synthesize placeholder
 A : Type,
 B : A → Type,
-u v : Σ (a : A), B a,
+u v : Σ a, B a,
 p : u.1 = v.1,
 q : u.2 =[p] v.2
 ⊢ ⟨(sigma_eq p q)..1, (sigma_eq p q)..2⟩ = ⟨p, q⟩

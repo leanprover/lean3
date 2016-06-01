@@ -5,8 +5,7 @@ auxiliary goal at time of failure
   b r t l : z = z,
   s : square t b l r,
   e_3 : z = z
-  ⊢ Π (e_4 : eq.rec t (refl z) = idp) (e_5 : eq.rec (eq.rec b (refl z)) e_3 = idp) (e_6 : eq.rec l (refl z) = idp)
-    (e_7 : eq.rec (eq.rec r (refl z)) e_3 = idp),
+  ⊢ Π e_4 e_5 e_6 e_7,
       eq.rec (eq.rec (eq.rec (eq.rec (eq.rec (eq.rec (eq.rec s (refl z)) (refl z)) e_3) e_4) e_5) e_6)
         e_7 = square.ids →
       unit

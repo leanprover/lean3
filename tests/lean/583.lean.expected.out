@@ -10,5 +10,5 @@ P : f a⁻¹ * f a = 1
 ⊢ f a⁻¹ = (f a)⁻¹
 583.lean:27:8: error: failed to add declaration 'group_hom.hom_map_inv' to environment, value has metavariables
 remark: set 'formatter.hide_full_terms' to false to see the complete term
-  λ (A : Type) (B : Type) (s1 : …) (s2 : …) (f : …) (Hom : …) (a : A),
+  λ A B s1 s2 f Hom a,
     ?M_1 …

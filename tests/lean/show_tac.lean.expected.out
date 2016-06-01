@@ -14,5 +14,5 @@ Hb : b
 ⊢ b ∧ a
 show_tac.lean:7:0: error: failed to add declaration 'example' to environment, value has metavariables
 remark: set 'formatter.hide_full_terms' to false to see the complete term
-  λ (a b : Prop) (Hab : …),
+  λ a b Hab,
     ?M_1

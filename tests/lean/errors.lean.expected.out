@@ -5,4 +5,4 @@ errors.lean:22:12: error: unknown identifier 'b'
 tst3 : A → A → A
 foo.tst1 : ℕ → ℕ → ℕ
 foo.tst2 : ℕ → ℕ → ℕ
-foo.tst3 : Π (A : Type), A → A → A
+foo.tst3 : Π A, A → A → A
