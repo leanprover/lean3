@@ -1,4 +1,4 @@
-cmake_minimum_required(VERSION 2.8.7)
+cmake_minimum_required(VERSION 2.8.12)
 project(LEAN CXX C)
 set(LEAN_VERSION_MAJOR 0)
 set(LEAN_VERSION_MINOR 2)
