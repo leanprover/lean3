@@ -17,7 +17,7 @@ vm_obj put_str(vm_obj const & str, vm_obj const &) {
     return mk_vm_unit();
 }
 
-vm_obj put_nat(vm_obj const & n, vm_obj const &) {
+vm_obj put_nat(vm_obj const & n) {
     if (is_simple(n))
         get_global_ios().get_regular_stream() << cidx(n);
     else

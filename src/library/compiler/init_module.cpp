@@ -12,6 +12,7 @@ Author: Leonardo de Moura
 #include "library/compiler/erase_irrelevant.h"
 #include "library/compiler/simp_inductive.h"
 #include "library/compiler/vm_compiler.h"
+#include "library/compiler/native_compiler.h"
 
 namespace lean {
 void initialize_compiler_module() {
@@ -23,8 +24,10 @@ void initialize_compiler_module() {
     initialize_erase_irrelevant();
     initialize_simp_inductive();
     initialize_vm_compiler();
+    initialize_native_compiler();
 }
 void finalize_compiler_module() {
+    finalize_native_compiler();
     finalize_vm_compiler();
     finalize_simp_inductive();
     finalize_erase_irrelevant();
