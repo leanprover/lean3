@@ -10,12 +10,12 @@ Author: Leonardo de Moura
 #include "library/vm/vm_string.h"
 
 namespace lean {
-vm_obj put_str(vm_obj const & str, vm_obj const &) {
+vm_obj put_str(vm_obj const & str) {
     std::cout << to_string(str);
     return mk_vm_unit();
 }
 
-vm_obj put_nat(vm_obj const & n, vm_obj const &) {
+vm_obj put_nat(vm_obj const & n) {
     if (is_simple(n))
         std::cout << cidx(n);
     else
