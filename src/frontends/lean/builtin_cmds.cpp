@@ -118,7 +118,7 @@ environment check_cmd(parser & p) {
     auto tc = mk_type_checker(p.env());
     expr type = tc->check(e, ls).first;
     options opts          = p.ios().get_options();
-    opts                  = opts.update_if_undef(get_pp_metavar_args_name(), true);
+    opts                  = opts.update_if_undef(get_pp_metavar_args_name(), false);
     io_state new_ios(p.ios(), opts);
     auto out              = regular(p.env(), new_ios, tc->get_type_context());
     formatter fmt         = out.get_formatter();

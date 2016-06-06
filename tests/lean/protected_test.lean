@@ -1,3 +1,4 @@
+set_option pp.metavar_args true
 namespace nat
   check induction_on      -- ERROR
   check rec_on            -- ERROR
