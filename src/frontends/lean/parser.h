@@ -83,7 +83,7 @@ typedef std::vector<snapshot> snapshot_vector;
 
 enum class keep_theorem_mode { All, DiscardImported, DiscardAll };
 
-enum class undef_id_behavior { Error, AssumeConstant, AssumeLocal, AssumeLocalAndAlsoDefinedLocals };
+enum class undef_id_behavior { Error, AssumeConstant, AssumeLocal, AssumeLocalAndAlsoDefinedNonConstructors };
 
 class parser {
     environment             m_env;
@@ -533,6 +533,8 @@ public:
     public:
         in_notation_ctx(parser & p):m_ctx(p.m_scanner) {}
     };
+
+    expr mk_placeholder_local(const name &id, const pos_info &p);
 };
 
 bool parse_commands(environment & env, io_state & ios, std::istream & in, char const * strm_name, optional<std::string> const & base_dir,
