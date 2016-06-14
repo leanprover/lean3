@@ -441,13 +441,8 @@ static bool is_curr_with_or_comma_or_bar(parser & p) {
 }
 
 /**
-   For convenience, the left-hand-side of a recursive equation may contain
-   undeclared variables.
-   We use parser::undef_id_to_local_scope to force the parser to create a local constant for
-   each undefined identifier.
-
-   This method validates occurrences of these variables. They can only occur as an application
-   or macro argument.
+   This method validates occurrences of local variables (i.e., variables bound in the pattern).
+   They can only occur as an application or macro argument.
 */
 static void validate_equation_lhs(parser const & p, expr const & lhs, buffer<expr> const & locals) {
     if (is_app(lhs)) {

@@ -258,8 +258,8 @@ definition rotl : ∀ {n : nat} m : nat, fin n → fin n
 | (succ n) := take m, madd (mk_mod n (n*m))
 
 definition rotr : ∀ {n : nat} m : nat, fin n → fin n
-| (0:nat)      := take m i, elim0 i
-| (nat.succ n) := take m, madd (-(mk_mod n (n*m)))
+| 0        := take m i, elim0 i
+| (succ n) := take m, madd (-(mk_mod n (n*m)))
 
 lemma rotl_succ' {n m : nat} : rotl m = madd (mk_mod n (n*m)) := rfl
 
