@@ -122,7 +122,7 @@ private theorem s_inv_of_sep_gt_p {s : seq} (Hs : regular s) (Hsep : sep s zero)
   begin
     apply eq.trans,
     apply dif_pos Hsep,
-    apply dif_neg (pnat.not_lt_of_ge Hn)
+    apply dif_neg (not_lt_of_ge Hn)
   end
 
 private theorem s_inv_of_pos_lt_p {s : seq} (Hs : regular s) (Hpos : pos s) {n : ℕ+}
@@ -144,7 +144,7 @@ private theorem le_ps {s : seq} (Hs : regular s) (Hsep : sep s zero) (n : ℕ+) 
     end)
   else
     (begin
-      rewrite [(s_inv_of_sep_gt_p Hs Hsep (pnat.le_of_not_gt Hn)), abs_one_div],
+      rewrite [(s_inv_of_sep_gt_p Hs Hsep (le_of_not_gt Hn)), abs_one_div],
       apply div_le_pnat,
       apply ps_spec,
       rewrite pnat.mul_assoc,
@@ -194,7 +194,7 @@ theorem reg_inv_reg {s : seq} (Hs : regular s) (Hsep : sep s zero) : regular (s_
         rewrite [sub_self, abs_zero],
         apply add_invs_nonneg,
        rewrite [(s_inv_of_sep_lt_p Hs Hsep Hmlt),
-                (s_inv_of_sep_gt_p Hs Hsep (pnat.le_of_not_gt Hnlt))],
+                (s_inv_of_sep_gt_p Hs Hsep (le_of_not_gt Hnlt))],
        rewrite [(!div_sub_div Hsp Hspn), div_eq_mul_one_div, *abs_mul, *mul_one, *one_mul],
        apply le.trans,
        apply mul_le_mul,
@@ -203,7 +203,7 @@ theorem reg_inv_reg {s : seq} (Hs : regular s) (Hsep : sep s zero) : regular (s_
        apply mul_le_mul,
        rewrite -(s_inv_of_sep_lt_p Hs Hsep Hmlt),
        apply le_ps Hs Hsep,
-       rewrite  -(s_inv_of_sep_gt_p Hs Hsep (pnat.le_of_not_gt Hnlt)),
+       rewrite  -(s_inv_of_sep_gt_p Hs Hsep (le_of_not_gt Hnlt)),
        apply le_ps Hs Hsep,
        apply abs_nonneg,
        apply le_of_lt !rat_of_pnat_is_pos,
@@ -212,18 +212,18 @@ theorem reg_inv_reg {s : seq} (Hs : regular s) (Hsep : sep s zero) : regular (s_
        rewrite [right_distrib, *pnat_cancel', add.comm],
        apply add_le_add_right,
        apply inv_ge_of_le,
-       apply pnat.le_of_lt,
+       apply le_of_lt,
        apply Hmlt,
       cases em (n < ps Hs Hsep) with [Hnlt, Hnlt],
         rewrite [(s_inv_of_sep_lt_p Hs Hsep Hnlt),
-                 (s_inv_of_sep_gt_p Hs Hsep (pnat.le_of_not_gt Hmlt))],
+                 (s_inv_of_sep_gt_p Hs Hsep (le_of_not_gt Hmlt))],
         rewrite [(!div_sub_div Hspm Hsp), div_eq_mul_one_div, *abs_mul, *mul_one, *one_mul],
         apply le.trans,
         apply mul_le_mul,
         apply Hs,
         rewrite [-(mul_one 1), -(!field.div_mul_div Hspm Hsp), abs_mul],
         apply mul_le_mul,
-        rewrite -(s_inv_of_sep_gt_p Hs Hsep (pnat.le_of_not_gt Hmlt)),
+        rewrite -(s_inv_of_sep_gt_p Hs Hsep (le_of_not_gt Hmlt)),
         apply le_ps Hs Hsep,
         rewrite -(s_inv_of_sep_lt_p Hs Hsep Hnlt),
         apply le_ps Hs Hsep,
@@ -234,19 +234,19 @@ theorem reg_inv_reg {s : seq} (Hs : regular s) (Hsep : sep s zero) : regular (s_
         rewrite [right_distrib, *pnat_cancel', add.comm],
         apply rat.add_le_add_left,
         apply inv_ge_of_le,
-        apply pnat.le_of_lt,
+        apply le_of_lt,
         apply Hnlt,
-      rewrite [(s_inv_of_sep_gt_p Hs Hsep (pnat.le_of_not_gt Hnlt)),
-              (s_inv_of_sep_gt_p Hs Hsep (pnat.le_of_not_gt Hmlt))],
+      rewrite [(s_inv_of_sep_gt_p Hs Hsep (le_of_not_gt Hnlt)),
+              (s_inv_of_sep_gt_p Hs Hsep (le_of_not_gt Hmlt))],
       rewrite [(!div_sub_div Hspm Hspn), div_eq_mul_one_div, abs_mul, *one_mul, *mul_one],
       apply le.trans,
       apply mul_le_mul,
       apply Hs,
       rewrite [-(mul_one 1), -(!field.div_mul_div Hspm Hspn), abs_mul],
       apply mul_le_mul,
-      rewrite -(s_inv_of_sep_gt_p Hs Hsep (pnat.le_of_not_gt Hmlt)),
+      rewrite -(s_inv_of_sep_gt_p Hs Hsep (le_of_not_gt Hmlt)),
       apply le_ps Hs Hsep,
-      rewrite -(s_inv_of_sep_gt_p Hs Hsep (pnat.le_of_not_gt Hnlt)),
+      rewrite -(s_inv_of_sep_gt_p Hs Hsep (le_of_not_gt Hnlt)),
       apply le_ps Hs Hsep,
       apply abs_nonneg,
       apply le_of_lt !rat_of_pnat_is_pos,
@@ -262,13 +262,13 @@ theorem s_inv_ne_zero {s : seq} (Hs : regular s) (Hsep : sep s zero) (n : ℕ+) 
       rewrite (s_inv_of_sep_gt_p Hs Hsep H),
       apply one_div_ne_zero,
       apply s_ne_zero_of_ge_p,
-      apply pnat.le_trans,
+      apply le.trans,
       apply H,
       apply pnat.mul_le_mul_left
     end)
   else
     (begin
-      rewrite (s_inv_of_sep_lt_p Hs Hsep (pnat.lt_of_not_le H)),
+      rewrite (s_inv_of_sep_lt_p Hs Hsep (lt_of_not_ge H)),
       apply one_div_ne_zero,
       apply s_ne_zero_of_ge_p,
       apply pnat.mul_le_mul_left
@@ -292,10 +292,10 @@ protected theorem mul_inv {s : seq} (Hs : regular s) (Hsep : sep s zero) :
     apply Rsi,
     apply abs_nonneg,
     have Hp : (K₂ s (s_inv Hs)) * 2 * n ≥ ps Hs Hsep, begin
-      apply pnat.le_trans,
-      apply pnat.max_left,
+      apply le.trans,
+      apply le_max_left,
       rotate 1,
-      apply pnat.le_trans,
+      apply le.trans,
       apply Hn,
       apply pnat.mul_le_mul_left
     end,
@@ -315,17 +315,17 @@ protected theorem mul_inv {s : seq} (Hs : regular s) (Hsep : sep s zero) :
     apply add_le_add,
     apply inv_ge_of_le,
     apply pnat_mul_le_mul_left',
-    apply pnat.le_trans,
+    apply le.trans,
     rotate 1,
     apply Hn,
     rotate_right 1,
-    apply pnat.max_right,
+    apply le_max_right,
     apply inv_ge_of_le,
     apply pnat_mul_le_mul_left',
-    apply pnat.le_trans,
-    apply pnat.max_right,
+    apply le.trans,
+    apply le_max_right,
     rotate 1,
-    apply pnat.le_trans,
+    apply le.trans,
     apply Hn,
     apply pnat.mul_le_mul_right
    end

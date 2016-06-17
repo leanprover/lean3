@@ -11,9 +11,11 @@ are those needed for that construction.
 import data.rat.order data.nat
 open nat rat subtype eq.ops
 
+definition pnat := { n : ℕ | n > 0 }
+
 namespace pnat
 
-definition pnat := { n : ℕ | n > 0 }
+protected definition prio := num.pred nat.prio
 
 notation `ℕ+` := pnat
 
@@ -35,19 +37,19 @@ protected definition le (p q : ℕ+) := p~ ≤ q~
 
 protected definition lt (p q : ℕ+) := p~ < q~
 
-definition pnat_has_add [instance] : has_add pnat :=
+definition pnat_has_add [instance] [priority pnat.prio] : has_add pnat :=
 has_add.mk pnat.add
 
-definition pnat_has_mul [instance] : has_mul pnat :=
+definition pnat_has_mul [instance] [priority pnat.prio] : has_mul pnat :=
 has_mul.mk pnat.mul
 
-definition pnat_has_le [instance] : has_le pnat :=
+definition pnat_has_le [instance] [priority pnat.prio] : has_le pnat :=
 has_le.mk pnat.le
 
-definition pnat_has_lt [instance] : has_lt pnat :=
+definition pnat_has_lt [instance] [priority pnat.prio] : has_lt pnat :=
 has_lt.mk pnat.lt
 
-definition pnat_has_one [instance] : has_one pnat :=
+definition pnat_has_one [instance] [priority pnat.prio] : has_one pnat :=
 has_one.mk (pos (1:nat) dec_trivial)
 
 protected lemma mul_def (p q : ℕ+) : p * q = tag (p~ * q~) (mul_pos (pnat_pos p) (pnat_pos q)) :=
@@ -62,44 +64,44 @@ rfl
 protected theorem pnat.eq {p q : ℕ+} : p~ = q~ → p = q :=
 subtype.eq
 
-definition pnat_le_decidable [instance] (p q : ℕ+) : decidable (p ≤ q) :=
-begin rewrite pnat.le_def, exact nat.decidable_le p~ q~ end
+protected definition decidable_lt : decidable_rel pnat.lt :=
+λa b, nat.decidable_lt a~ b~
 
-definition pnat_lt_decidable [instance] {p q : ℕ+} : decidable (p < q) :=
-begin rewrite pnat.lt_def, exact nat.decidable_lt p~ q~ end
+protected theorem le_refl (a : ℕ+) : a ≤ a :=
+begin rewrite pnat.le_def end
 
 protected theorem le_trans {p q r : ℕ+} : p ≤ q → q ≤ r → p ≤ r :=
 begin rewrite *pnat.le_def, apply nat.le_trans end
 
-definition max (p q : ℕ+) : ℕ+ :=
-tag (max p~ q~) (lt_of_lt_of_le (!pnat_pos) (!le_max_right))
+protected theorem le_antisymm {n m : ℕ+} : n ≤ m → m ≤ n → n = m :=
+begin rewrite +pnat.le_def, intros, apply (pnat.eq (nat.le_antisymm a a_1)) end
 
-protected theorem max_right (a b : ℕ+) : max a b ≥ b :=
-begin change b ≤ max a b, rewrite pnat.le_def, apply le_max_right end
+protected theorem le_iff_lt_or_eq (m n : ℕ+) : m ≤ n ↔ m < n ∨ m = n :=
+begin
+  rewrite [pnat.lt_def, pnat.le_def], apply iff.intro,
+  { intro, apply or.elim (nat.lt_or_eq_of_le a),
+    intro, apply or.intro_left, assumption,
+    intro, apply or.intro_right, apply pnat.eq, assumption },
+  { intro, apply or.elim a, apply nat.le_of_lt, intro, rewrite a_1 }
+end
 
-protected theorem max_left (a b : ℕ+) : max a b ≥ a :=
-begin change a ≤ max a b, rewrite pnat.le_def, apply le_max_left end
+protected theorem le_total (m n : ℕ+) : m ≤ n ∨ n ≤ m :=
+begin rewrite pnat.le_def, apply nat.le_total end
 
-protected theorem max_eq_right {a b : ℕ+} (H : a < b) : max a b = b :=
-begin rewrite pnat.lt_def at H, exact pnat.eq (max_eq_right_of_lt H) end
+protected theorem lt_irrefl (a : ℕ+) : ¬ a < a :=
+begin rewrite pnat.lt_def, apply nat.lt_irrefl end
 
-protected theorem max_eq_left {a b : ℕ+} (H : ¬ a < b) : max a b = a :=
-begin rewrite pnat.lt_def at H, exact pnat.eq (max_eq_left (le_of_not_gt H)) end
-
-protected theorem le_of_lt {a b : ℕ+} : a < b → a ≤ b :=
-begin rewrite [pnat.lt_def, pnat.le_def], apply nat.le_of_lt end
-
-protected theorem not_lt_of_ge {a b : ℕ+} : a ≤ b → ¬ (b < a) :=
-begin rewrite [pnat.lt_def, pnat.le_def], apply not_lt_of_ge end
-
-protected theorem le_of_not_gt {a b : ℕ+} : ¬ a < b → b ≤ a :=
-begin rewrite [pnat.lt_def, pnat.le_def], apply le_of_not_gt end
-
-protected theorem eq_of_le_of_ge {a b : ℕ+} : a ≤ b → b ≤ a → a = b :=
-begin rewrite [+pnat.le_def], intros H1 H2, exact pnat.eq (eq_of_le_of_ge H1 H2) end
-
-protected theorem le_refl (a : ℕ+) : a ≤ a :=
-begin rewrite pnat.le_def end
+protected definition decidable_linear_order [trans_instance] : decidable_linear_order pnat :=
+⦃ decidable_linear_order,
+  le              := pnat.le,
+  le_refl         := by apply pnat.le_refl,
+  le_trans        := by apply @pnat.le_trans,
+  le_antisymm     := by apply @pnat.le_antisymm,
+  lt              := pnat.lt,
+  lt_irrefl       := by apply pnat.lt_irrefl,
+  le_iff_lt_or_eq := by apply pnat.le_iff_lt_or_eq,
+  decidable_lt    := pnat.decidable_lt,
+  le_total        := by apply pnat.le_total ⦄
 
 notation 2 := (tag 2 dec_trivial : ℕ+)
 notation 3 := (tag 3 dec_trivial : ℕ+)
@@ -272,9 +274,6 @@ end
 
 protected theorem mul_le_mul_right (p q : ℕ+) : p ≤ p * q :=
 by rewrite pnat.mul_comm; apply pnat.mul_le_mul_left
-
-theorem pnat.lt_of_not_le {p q : ℕ+} : ¬ p ≤ q → q < p :=
-begin rewrite [pnat.le_def, pnat.lt_def], apply lt_of_not_ge end
 
 protected theorem inv_cancel_left (p : ℕ+) : rat_of_pnat p * p⁻¹ = (1 : ℚ) :=
 mul_one_div_cancel (ne.symm (ne_of_lt !rat_of_pnat_is_pos))

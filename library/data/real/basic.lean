@@ -199,7 +199,7 @@ theorem eq_of_bdd {s t : seq} (Hs : regular s) (Ht : regular t)
       apply rat.le_trans,
       apply rat.add_le_add_left,
       apply add_le_add,
-      apply HNj (max j Nj) (pnat.max_right j Nj),
+      apply HNj (max j Nj) (le_max_right j Nj),
       apply Ht,
       have hsimp : ∀ m : ℕ+, n⁻¹ + m⁻¹ + (j⁻¹ + (m⁻¹ + n⁻¹)) = n⁻¹ + n⁻¹ + j⁻¹ + (m⁻¹ + m⁻¹),
         from λm, calc
@@ -211,8 +211,8 @@ theorem eq_of_bdd {s t : seq} (Hs : regular s) (Ht : regular t)
       rewrite hsimp,
       have Hms : (max j Nj)⁻¹ + (max j Nj)⁻¹ ≤ j⁻¹ + j⁻¹, begin
         apply add_le_add,
-        apply inv_ge_of_le (pnat.max_left j Nj),
-        apply inv_ge_of_le (pnat.max_left j Nj),
+        apply inv_ge_of_le (le_max_left j Nj),
+        apply inv_ge_of_le (le_max_left j Nj),
       end,
      apply (calc
        n⁻¹ + n⁻¹ + j⁻¹ + ((max j Nj)⁻¹ + (max j Nj)⁻¹) ≤ n⁻¹ + n⁻¹ + j⁻¹ + (j⁻¹ + j⁻¹) :
@@ -303,30 +303,19 @@ theorem bdd_of_regular_strict {s : seq} (H : regular s) : ∃ b : ℚ, ∀ n : �
 definition K₂ (s t : seq) := max (K s) (K t)
 
 private theorem K₂_symm (s t : seq) : K₂ s t = K₂ t s :=
-  if H : K s < K t then
-    (have H1 : K₂ s t = K t, from pnat.max_eq_right H,
-     have H2 : K₂ t s = K t, from pnat.max_eq_left (pnat.not_lt_of_ge (pnat.le_of_lt H)),
-     by rewrite [H1, -H2])
-  else
-    (have H1 : K₂ s t = K s, from pnat.max_eq_left H,
-      if J : K t < K s then
-        (have H2 : K₂ t s = K s, from pnat.max_eq_right J, by rewrite [H1, -H2])
-      else
-        (have Heq : K t = K s, from
-          pnat.eq_of_le_of_ge (pnat.le_of_not_gt H) (pnat.le_of_not_gt J),
-        by rewrite [↑K₂, Heq]))
+!max.comm
 
 theorem canon_2_bound_left (s t : seq) (Hs : regular s) (n : ℕ+) :
         abs (s n) ≤ rat_of_pnat (K₂ s t) :=
   calc
     abs (s n) ≤ rat_of_pnat (K s) : canon_bound Hs n
-    ... ≤ rat_of_pnat (K₂ s t) : rat_of_pnat_le_of_pnat_le (!pnat.max_left)
+    ... ≤ rat_of_pnat (K₂ s t) : rat_of_pnat_le_of_pnat_le (!le_max_left)
 
 theorem canon_2_bound_right (s t : seq) (Ht : regular t) (n : ℕ+) :
         abs (t n) ≤ rat_of_pnat (K₂ s t) :=
   calc
     abs (t n) ≤ rat_of_pnat (K t) : canon_bound Ht n
-    ... ≤ rat_of_pnat (K₂ s t) : rat_of_pnat_le_of_pnat_le (!pnat.max_right)
+    ... ≤ rat_of_pnat (K₂ s t) : rat_of_pnat_le_of_pnat_le (!le_max_right)
 
 definition sadd (s t : seq) : seq := λ n, (s (2 * n)) + (t (2 * n))
 
@@ -710,12 +699,12 @@ theorem s_distrib {s t u : seq} (Hs : regular s) (Ht : regular t) (Hu : regular 
     apply abs_add_le_abs_add_abs,
     apply add_le_add,
     apply HN1,
-    apply pnat.le_trans,
-    apply pnat.max_left N1 N2,
+    apply le.trans,
+    apply le_max_left N1 N2,
     apply Hn,
     apply HN2,
-    apply pnat.le_trans,
-    apply pnat.max_right N1 N2,
+    apply le.trans,
+    apply le_max_right N1 N2,
     apply Hn
   end
 
@@ -738,7 +727,7 @@ theorem mul_zero_equiv_zero {s t : seq} (Hs : regular s) (Ht : regular t) (Htz :
     have HN' : ∀ (n : ℕ+), N ≤ n → abs (t n) ≤ ε / Kq s,
       from λ n, (eq.subst (sub_zero (t n)) (HN n)),
     apply HN',
-    apply pnat.le_trans Hn,
+    apply le.trans Hn,
     apply pnat.mul_le_mul_left,
     apply abs_nonneg,
     apply le_of_lt (Kq_bound_pos Hs),
@@ -915,7 +904,7 @@ theorem zero_nequiv_one : ¬ zero ≡ one :=
       ... = abs 1 : abs_of_pos zero_lt_one
       ... ≤ 2⁻¹ : H,
     let H'' := ge_of_inv_le H',
-    apply absurd (one_lt_two) (pnat.not_lt_of_ge H'')
+    apply absurd (one_lt_two) (not_lt_of_ge H'')
   end
 
 ---------------------------------------------
