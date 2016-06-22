@@ -16,6 +16,7 @@ Author: Leonardo de Moura
 #include "library/tactic/assert_tactic.h"
 #include "library/tactic/apply_tactic.h"
 #include "library/tactic/elaborate.h"
+#include "library/tactic/defeq_simplifier/init_module.h"
 
 namespace lean {
 void initialize_tactic_module() {
@@ -31,8 +32,10 @@ void initialize_tactic_module() {
     initialize_assert_tactic();
     initialize_apply_tactic();
     initialize_elaborate();
+    initialize_defeq_simplifier_module();
 }
 void finalize_tactic_module() {
+    finalize_defeq_simplifier_module();
     finalize_elaborate();
     finalize_apply_tactic();
     finalize_assert_tactic();
