@@ -334,13 +334,13 @@ namespace category
   definition equivalence_eq {C : Category} {D : Precategory} {F F' : C ≃c D}
     (p : equivalence.to_functor F = equivalence.to_functor F') : F = F' :=
   begin
-    induction F, induction F', exact apd011 equivalence.mk p !is_prop.elim
+    induction F, induction F', exact apd011 equivalence.mk p !is_prop.elimo
   end
 
   definition isomorphism_eq {F F' : C ≅c D}
     (p : isomorphism.to_functor F = isomorphism.to_functor F') : F = F' :=
   begin
-    induction F, induction F', exact apd011 isomorphism.mk p !is_prop.elim
+    induction F, induction F', exact apd011 isomorphism.mk p !is_prop.elimo
   end
 
   definition is_equiv_isomorphism_of_equivalence [constructor] (C D : Category)

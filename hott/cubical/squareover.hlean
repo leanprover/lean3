@@ -8,7 +8,7 @@ Squareovers
 
 import .square
 
-open eq equiv is_equiv
+open eq equiv is_equiv sigma
 
 namespace eq
 
@@ -276,5 +276,25 @@ namespace eq
     {q₂₁ : b₂₀ =[p₂₁'] b₂₂} (t : squareover B (s₁₁ ⬝hp r) q₁₀ q₁₂ q₀₁ q₂₁)
   : squareover B s₁₁ q₁₀ q₁₂ q₀₁ (change_path r⁻¹ q₂₁) :=
   by induction r; exact t
+
+  /- You can construct a square in a sigma-type by giving a squareover -/
+  definition square_dpair_eq_dpair {a₀₀ a₂₀ a₀₂ a₂₂ : A}
+    {p₁₀ : a₀₀ = a₂₀} {p₀₁ : a₀₀ = a₀₂} {p₂₁ : a₂₀ = a₂₂} {p₁₂ : a₀₂ = a₂₂}
+    (s₁₁ : square p₁₀ p₁₂ p₀₁ p₂₁) {b₀₀ : B a₀₀} {b₂₀ : B a₂₀} {b₀₂ : B a₀₂} {b₂₂ : B a₂₂}
+    {q₁₀ : b₀₀ =[p₁₀] b₂₀} {q₀₁ : b₀₀ =[p₀₁] b₀₂} {q₂₁ : b₂₀ =[p₂₁] b₂₂} {q₁₂ : b₀₂ =[p₁₂] b₂₂}
+    (t₁₁ : squareover B s₁₁ q₁₀ q₁₂ q₀₁ q₂₁) :
+    square (dpair_eq_dpair p₁₀ q₁₀) (dpair_eq_dpair p₁₂ q₁₂)
+           (dpair_eq_dpair p₀₁ q₀₁) (dpair_eq_dpair p₂₁ q₂₁) :=
+  by induction t₁₁; constructor
+
+  definition sigma_square {v₀₀ v₂₀ v₀₂ v₂₂ : Σa, B a}
+    {p₁₀ : v₀₀ = v₂₀} {p₀₁ : v₀₀ = v₀₂} {p₂₁ : v₂₀ = v₂₂} {p₁₂ : v₀₂ = v₂₂}
+    (s₁₁ : square p₁₀..1 p₁₂..1 p₀₁..1 p₂₁..1)
+    (t₁₁ : squareover B s₁₁ p₁₀..2 p₁₂..2 p₀₁..2 p₂₁..2) : square p₁₀ p₁₂ p₀₁ p₂₁ :=
+  begin
+    induction v₀₀, induction v₂₀, induction v₀₂, induction v₂₂,
+    rewrite [▸* at *, -sigma_eq_eta p₁₀, -sigma_eq_eta p₁₂, -sigma_eq_eta p₀₁, -sigma_eq_eta p₂₁],
+    exact square_dpair_eq_dpair s₁₁ t₁₁
+  end
 
 end eq

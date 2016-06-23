@@ -121,8 +121,8 @@ namespace iso
       apply left_inverse_eq_right_inverse,
         apply li,
         apply ri',
-      apply is_prop.elim,
-      apply is_prop.elim,
+      apply is_prop.elimo,
+      apply is_prop.elimo,
   end
 end iso open iso
 
@@ -174,7 +174,7 @@ namespace iso
 
   definition iso_mk_eq {f f' : a ⟶ b} [H : is_iso f] [H' : is_iso f'] (p : f = f')
       : iso.mk f _ = iso.mk f' _ :=
-  apd011 iso.mk p !is_prop.elim
+  apd011 iso.mk p !is_prop.elimo
 
   variable {C}
   definition iso_eq {f f' : a ≅ b} (p : to_hom f = to_hom f') : f = f' :=

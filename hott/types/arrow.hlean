@@ -122,16 +122,20 @@ namespace pi
   definition arrow_pathover_constant_right' {B : A → Type} {C : Type}
     {f : B a → C} {g : B a' → C} {p : a = a'}
     (r : Π⦃b : B a⦄ ⦃b' : B a'⦄ (q : b =[p] b'), f b = g b') : f =[p] g :=
-  arrow_pathover (λb b' q, pathover_of_eq (r q))
+  arrow_pathover (λb b' q, pathover_of_eq p (r q))
 
   definition arrow_pathover_constant_right {B : A → Type} {C : Type} {f : B a → C}
     {g : B a' → C} {p : a = a'} (r : Π(b : B a), f b = g (p ▸ b)) : f =[p] g :=
-  arrow_pathover_left (λb, pathover_of_eq (r b))
+  arrow_pathover_left (λb, pathover_of_eq p (r b))
 
-  /- a lemma used for the flattening lemma -/
-  definition apo011_arrow_pathover_constant_right {f : D a → A'} {g : D a' → A'} {p : a = a'}
+  definition arrow_pathover_constant_right_rev {A : Type} {B : A → Type} {C : Type} {a a' : A}
+    {f : B a → C} {g : B a' → C} {p : a = a'} (r : Π(b : B a'), f (p⁻¹ ▸ b) = g b) : f =[p] g :=
+  arrow_pathover_right (λb, pathover_of_eq p (r b))
+
+  /- a lemma used for the flattening lemma, and is also used in the colimits file -/
+  definition apo11_arrow_pathover_constant_right {f : D a → A'} {g : D a' → A'} {p : a = a'}
     {q : d =[p] d'} (r : Π(d : D a), f d = g (p ▸ d))
-    : eq_of_pathover (apo11 (arrow_pathover_constant_right r) q) = r d ⬝ ap g (tr_eq_of_pathover q)
+    : apo11_constant_right (arrow_pathover_constant_right r) q = r d ⬝ ap g (tr_eq_of_pathover q)
       :=
   begin
     induction q, esimp at r,
@@ -139,7 +143,6 @@ namespace pi
     esimp [arrow_pathover_constant_right, arrow_pathover_left],
     rewrite [eq_of_homotopy_idp]
   end
-
 
   /-
      The fact that the arrow type preserves truncation level is a direct consequence

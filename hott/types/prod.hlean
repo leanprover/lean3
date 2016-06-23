@@ -212,7 +212,7 @@ namespace prod
   definition equiv_prod_rec [constructor] (P : A × B → Type) : (Πa b, P (a, b)) ≃ (Πu, P u) :=
   equiv.mk prod.rec _
 
-  definition imp_imp_equiv_prod_imp (A B C : Type) : (A → B → C) ≃ (A × B → C) :=
+  definition imp_imp_equiv_prod_imp [constructor] (A B C : Type) : (A → B → C) ≃ (A × B → C) :=
   !equiv_prod_rec
 
   definition prod_corec_unc [unfold 4] {P Q : A → Type} (u : (Πa, P a) × (Πa, Q a)) (a : A)

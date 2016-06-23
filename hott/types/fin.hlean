@@ -122,7 +122,7 @@ definition mk_mod [reducible] (n i : nat) : fin (succ n) :=
 mk (i % (succ n)) (mod_lt _ !zero_lt_succ)
 
 theorem mk_mod_zero_eq (n : nat) : mk_mod n 0 = 0 :=
-apd011 fin.mk rfl !is_prop.elim
+apd011 fin.mk rfl !is_prop.elimo
 
 variable {n : nat}
 

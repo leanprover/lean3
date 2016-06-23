@@ -52,9 +52,9 @@ namespace pointed
   definition pType_eq {A B : Type*} (f : A ≃ B) (p : f pt = pt) : A = B :=
   begin
     cases A with A a, cases B with B b, esimp at *,
-    fapply apd011 @pType.mk,
+    fapply apdt011 @pType.mk,
     { apply ua f},
-    { rewrite [cast_ua,p]},
+    { rewrite [cast_ua, p]},
   end
 
   definition pType_eq_elim {A B : Type*} (p : A = B :> Type*)
@@ -193,10 +193,10 @@ namespace pointed
   begin
     cases f with f p, cases g with g q,
     esimp at *,
-    fapply apo011 pmap.mk,
+    fapply apd011 pmap.mk,
     { exact eq_of_homotopy r},
     { apply concato_eq, apply pathover_eq_Fl, apply inv_con_eq_of_eq_con,
-      rewrite [ap_eq_ap10,↑ap10,apd10_eq_of_homotopy,s]}
+      rewrite [ap_eq_apd10, apd10_eq_of_homotopy, s]}
   end
 
   definition pmap_equiv_left (A : Type) (B : Type*) : A₊ →* B ≃ (A → B) :=
@@ -554,7 +554,7 @@ namespace pointed
     (gf : g ∘* f ~* !pid) (fg : f ∘* g ~* !pid) : to_pinv (pequiv.MK2 f g gf fg) ~* g :=
   phomotopy.mk (λb, idp)
     abstract [irreducible] begin
-      esimp, unfold [adjointify_left_inv'],
+      esimp,
       note H := to_homotopy_pt gf, note H2 := to_homotopy_pt fg,
       note H3 := eq_top_of_square (natural_square_tr (to_homotopy fg) (respect_pt f)),
       rewrite [▸* at *, H, H3, H2, ap_id, - +con.assoc, ap_compose' f g, con_inv,
@@ -614,7 +614,7 @@ namespace pointed
   definition pequiv_eq {p q : A ≃* B} (H : p = q :> (A →* B)) : p = q :=
   begin
     cases p with f Hf, cases q with g Hg, esimp at *,
-    exact apd011 pequiv_of_pmap H !is_prop.elim
+    exact apd011 pequiv_of_pmap H !is_prop.elimo
   end
 
   infix ` ⬝e*p `:75 := peconcat_eq

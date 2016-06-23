@@ -39,7 +39,7 @@ namespace join
 
   protected definition elim {P : Type} (Pinl : A → P) (Pinr : B → P)
     (Pglue : Π(x : A)(y : B), Pinl x = Pinr y) (z : join A B) : P :=
-  join.rec Pinl Pinr (λx y, pathover_of_eq (Pglue x y)) z
+  join.rec Pinl Pinr (λx y, pathover_of_eq _ (Pglue x y)) z
 
   protected definition elim_glue {P : Type} (Pinl : A → P) (Pinr : B → P)
     (Pglue : Π(x : A)(y : B), Pinl x = Pinr y) (x : A) (y : B)

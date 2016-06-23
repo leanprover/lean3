@@ -56,7 +56,7 @@ namespace functor
     {H₂ : Π(a b : C), hom a b → hom (F₂ a) (F₂ b)} (id₁ id₂ comp₁ comp₂)
     (pF : F₁ = F₂) (pH : pF ▸ H₁ = H₂)
       : functor.mk F₁ H₁ id₁ comp₁ = functor.mk F₂ H₂ id₂ comp₂ :=
-  apd01111 functor.mk pF pH !is_prop.elim !is_prop.elim
+  apdt01111 functor.mk pF pH !is_prop.elim !is_prop.elim
 
   definition functor_eq' {F₁ F₂ : C ⇒ D} : Π(p : to_fun_ob F₁ = to_fun_ob F₂),
     (transport (λx, Πa b f, hom (x a) (x b)) p @(to_fun_hom F₁) = @(to_fun_hom F₂)) → F₁ = F₂ :=
@@ -192,9 +192,9 @@ namespace functor
   definition functor_mk_eq'_idp (F : C → D) (H : Π(a b : C), hom a b → hom (F a) (F b))
     (id comp) : functor_mk_eq' id id comp comp (idpath F) (idpath H) = idp :=
   begin
-    fapply apd011 (apd01111 functor.mk idp idp),
-    apply is_set.elim,
-    apply is_set.elim
+    fapply apd011 (apdt01111 functor.mk idp idp),
+    apply is_prop.elim,
+    apply is_prop.elimo
   end
 
   definition functor_eq'_idp (F : C ⇒ D) : functor_eq' idp idp = (idpath F) :=
@@ -225,9 +225,9 @@ namespace functor
 
   theorem ap010_apd01111_functor {F₁ F₂ : C → D} {H₁ : Π(a b : C), hom a b → hom (F₁ a) (F₁ b)}
     {H₂ : Π(a b : C), hom a b → hom (F₂ a) (F₂ b)} {id₁ id₂ comp₁ comp₂}
-    (pF : F₁ = F₂) (pH : pF ▸ H₁ = H₂) (pid : cast (apd011 _ pF pH) id₁ = id₂)
-    (pcomp : cast (apd0111 _ pF pH pid) comp₁ = comp₂) (c : C)
-      : ap010 to_fun_ob (apd01111 functor.mk pF pH pid pcomp) c = ap10 pF c :=
+    (pF : F₁ = F₂) (pH : pF ▸ H₁ = H₂) (pid : cast (apdt011 _ pF pH) id₁ = id₂)
+    (pcomp : cast (apdt0111 _ pF pH pid) comp₁ = comp₂) (c : C)
+      : ap010 to_fun_ob (apdt01111 functor.mk pF pH pid pcomp) c = ap10 pF c :=
   by induction pF; induction pH; induction pid; induction pcomp; reflexivity
 
   definition ap010_functor_eq {F₁ F₂ : C ⇒ D} (p : to_fun_ob F₁ ~ to_fun_ob F₂)

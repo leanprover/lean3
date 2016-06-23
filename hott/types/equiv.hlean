@@ -81,7 +81,7 @@ namespace is_equiv
 
   definition inv_eq_inv {A B : Type} {f f' : A → B} {Hf : is_equiv f} {Hf' : is_equiv f'}
     (p : f = f') : f⁻¹ = f'⁻¹ :=
-  apd011 inv p !is_prop.elim
+  apd011 inv p !is_prop.elimo
 
   /- contractible fibers -/
   definition is_contr_fun_of_is_equiv [H : is_equiv f] : is_contr_fun f :=
@@ -99,6 +99,20 @@ namespace is_equiv
 
   definition is_equiv_equiv_is_contr_fun : is_equiv f ≃ is_contr_fun f :=
   equiv_of_is_prop _ (λH, !is_equiv_of_is_contr_fun)
+
+  theorem inv_commute'_fn {A : Type} {B C : A → Type} (f : Π{a}, B a → C a) [H : Πa, is_equiv (@f a)]
+    {g : A → A} (h : Π{a}, B a → B (g a)) (h' : Π{a}, C a → C (g a))
+    (p : Π⦃a : A⦄ (b : B a), f (h b) = h' (f b)) {a : A} (b : B a) :
+    inv_commute' @f @h @h' p (f b)
+      = (ap f⁻¹ (p b))⁻¹ ⬝ left_inv f (h b) ⬝ (ap h (left_inv f b))⁻¹ :=
+  begin
+    rewrite [↑[inv_commute',eq_of_fn_eq_fn'],+ap_con,-adj_inv f,+con.assoc,inv_con_cancel_left,
+       adj f,+ap_inv,-+ap_compose,
+       eq_bot_of_square (natural_square (λb, (left_inv f (h b))⁻¹ ⬝ ap f⁻¹ (p b)) (left_inv f b))⁻¹ʰ,
+       con_inv,inv_inv,+con.assoc],
+    do 3 apply whisker_left,
+    rewrite [con_inv_cancel_left,con.left_inv]
+  end
 
 end is_equiv
 
@@ -206,7 +220,7 @@ namespace equiv
 
   definition equiv_mk_eq {f f' : A → B} [H : is_equiv f] [H' : is_equiv f'] (p : f = f')
       : equiv.mk f H = equiv.mk f' H' :=
-  apd011 equiv.mk p !is_prop.elim
+  apd011 equiv.mk p !is_prop.elimo
 
   definition equiv_eq' {f f' : A ≃ B} (p : to_fun f = to_fun f') : f = f' :=
   by (cases f; cases f'; apply (equiv_mk_eq p))

@@ -44,7 +44,7 @@ namespace susp
 
   protected definition elim {P : Type} (PN : P) (PS : P) (Pm : A → PN = PS)
     (x : susp A) : P :=
-  susp.rec PN PS (λa, pathover_of_eq (Pm a)) x
+  susp.rec PN PS (λa, pathover_of_eq _ (Pm a)) x
 
   protected definition elim_on [reducible] {P : Type} (x : susp A)
     (PN : P) (PS : P)  (Pm : A → PN = PS) : P :=

@@ -55,7 +55,7 @@ section
 
   protected definition elim {P : Type} (Pincl : Π⦃i : I⦄ (x : A i), P)
     (Pglue : Π(j : J) (x : A (dom j)), Pincl (f j x) = Pincl x) (y : colimit) : P :=
-  rec Pincl (λj a, pathover_of_eq (Pglue j a)) y
+  rec Pincl (λj a, pathover_of_eq _ (Pglue j a)) y
 
   protected definition elim_on [reducible] {P : Type} (y : colimit)
     (Pincl : Π⦃i : I⦄ (x : A i), P)
@@ -146,7 +146,7 @@ section
 
   protected definition elim {P : Type} (Pincl : Π⦃n : ℕ⦄ (a : A n), P)
     (Pglue : Π⦃n : ℕ⦄ (a : A n), Pincl (f a) = Pincl a) : seq_colim → P :=
-  rec Pincl (λn a, pathover_of_eq (Pglue a))
+  rec Pincl (λn a, pathover_of_eq _ (Pglue a))
 
   protected definition elim_on [reducible] {P : Type} (aa : seq_colim)
     (Pincl : Π⦃n : ℕ⦄ (a : A n), P)
@@ -174,6 +174,11 @@ section
     (Pglue : Π⦃n : ℕ⦄ (a : A n), Pincl (f a) ≃ Pincl a) {n : ℕ} (a : A n)
       : transport (elim_type Pincl Pglue) (glue a) = Pglue a :=
   by rewrite [tr_eq_cast_ap_fn,↑elim_type,elim_glue]; apply cast_ua_fn
+
+  theorem elim_type_glue_inv (Pincl : Π⦃n : ℕ⦄ (a : A n), Type)
+    (Pglue : Π⦃n : ℕ⦄ (a : A n), Pincl (f a) ≃ Pincl a) {n : ℕ} (a : A n)
+    : transport (seq_colim.elim_type f Pincl Pglue) (glue a)⁻¹ = to_inv (Pglue a) :=
+  by rewrite [tr_eq_cast_ap_fn, ↑seq_colim.elim_type, ap_inv, elim_glue]; apply cast_ua_inv_fn
 
   protected definition rec_prop {P : seq_colim → Type} [H : Πx, is_prop (P x)]
     (Pincl : Π⦃n : ℕ⦄ (a : A n), P (sι a)) (aa : seq_colim) : P aa :=

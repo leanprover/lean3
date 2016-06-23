@@ -104,11 +104,12 @@ namespace eq
   by induction q; induction p; reflexivity
 
   -- Inverse is an involution.
-  definition inv_inv (p : x = y) : p⁻¹⁻¹ = p :=
+  definition inv_inv [unfold 4] (p : x = y) : p⁻¹⁻¹ = p :=
   by induction p; reflexivity
 
   -- auxiliary definition used by 'cases' tactic
-  definition elim_inv_inv {A : Type} {a b : A} {C : a = b → Type} (H₁ : a = b) (H₂ : C (H₁⁻¹⁻¹)) : C H₁ :=
+  definition elim_inv_inv [unfold 5] {A : Type} {a b : A} {C : a = b → Type}
+    (H₁ : a = b) (H₂ : C (H₁⁻¹⁻¹)) : C H₁ :=
   eq.rec_on (inv_inv H₁) H₂
 
   /- Theorems for moving things around in equations -/
@@ -240,6 +241,14 @@ namespace eq
   protected definition homotopy.trans [trans] [reducible] [unfold_full] {f g h : Πx, P x}
     (H1 : f ~ g) (H2 : g ~ h) : f ~ h :=
   λ x, H1 x ⬝ H2 x
+
+  definition hwhisker_left [unfold_full] (g : B → C) {f f' : A → B} (H : f ~ f') :
+    g ∘ f ~ g ∘ f' :=
+  λa, ap g (H a)
+
+  definition hwhisker_right [unfold_full] (f : A → B) {g g' : B → C} (H : g ~ g') :
+    g ∘ f ~ g' ∘ f :=
+  λa, H (f a)
 
   definition homotopy_of_eq {f g : Πx, P x} (H1 : f = g) : f ~ g :=
   H1 ▸ homotopy.refl f

@@ -49,7 +49,7 @@ parameters {A B : Type.{u}} (f g : A → B)
 
   protected definition elim {P : Type} (P_i : B → P)
     (Pcp : Π(x : A), P_i (f x) = P_i (g x)) (y : coeq) : P :=
-  rec P_i (λx, pathover_of_eq (Pcp x)) y
+  rec P_i (λx, pathover_of_eq _ (Pcp x)) y
 
   protected definition elim_on [reducible] {P : Type} (y : coeq) (P_i : B → P)
     (Pcp : Π(x : A), P_i (f x) = P_i (g x)) : P :=
@@ -123,12 +123,12 @@ section
       begin
         change
            quotient.rec P_i
-           (λb b' r, coeq_rel.cases_on r (λx, pathover_of_eq (ua (Pcp x))))
+           (λb b' r, coeq_rel.cases_on r (λx, pathover_of_eq _ (ua (Pcp x))))
            = quotient.rec P_i
-           (λb b' r, pathover_of_eq (ua (coeq_rel.cases_on r Pcp))),
+           (λb b' r, pathover_of_eq _ (ua (coeq_rel.cases_on r Pcp))),
         have H2 : Π⦃b b' : B⦄ (r : coeq_rel f g b b'),
-          coeq_rel.cases_on r (λx, pathover_of_eq (ua (Pcp x)))
-          = pathover_of_eq (ua (coeq_rel.cases_on r Pcp))
+          coeq_rel.cases_on r (λx, pathover_of_eq _ (ua (Pcp x)))
+          = pathover_of_eq _ (ua (coeq_rel.cases_on r Pcp))
             :> P_i b =[eq_of_rel (coeq_rel f g) r] P_i b',
         begin intros b b' r, cases r, reflexivity end,
         rewrite (eq_of_homotopy3 H2)

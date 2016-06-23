@@ -61,8 +61,9 @@ namespace eq
     : whisker_right r⁻¹ q = (whisker_right r q)⁻¹ :=
   by induction r; reflexivity
 
-  theorem ap_eq_ap10 {f g : A → B} (p : f = g) (a : A) : ap (λh, h a) p = ap10 p a :=
-  by induction p;reflexivity
+  theorem ap_eq_apd10 {B : A → Type} {f g : Πa, B a} (p : f = g) (a : A) :
+    ap (λh, h a) p = apd10 p a :=
+  by induction p; reflexivity
 
   theorem inverse2_right_inv (r : p = p') : r ◾ inverse2 r ⬝ con.right_inv p' = con.right_inv p :=
   by induction r;induction p;reflexivity

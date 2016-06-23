@@ -68,7 +68,7 @@ namespace is_equiv
   parameters {A B : Type} (f : A → B) (g : B → A)
             (ret : Πb, f (g b) = b) (sec : Πa, g (f a) = a)
 
-  definition adjointify_left_inv' (a : A) : g (f a) = a :=
+  definition adjointify_left_inv' [unfold_full] (a : A) : g (f a) = a :=
   ap g (ap f (inverse (sec a))) ⬝ ap g (ret (f a)) ⬝ sec a
 
   theorem adjointify_adj' (a : A) : ret (f a) = ap f (adjointify_left_inv' a) :=
@@ -276,6 +276,7 @@ namespace is_equiv
                        = right_inv f (h' c) ⬝ ap h' (right_inv f c)⁻¹ ⬝ (p (f⁻¹ c))⁻¹ :=
   !ap_eq_of_fn_eq_fn'
 
+  -- inv_commute'_fn is in types.equiv
   end
 
   -- This is inv_commute' for A ≡ unit

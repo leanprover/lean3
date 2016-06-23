@@ -56,7 +56,7 @@ parameters {TL BL TR : Type} (f : TL → BL) (g : TL → TR)
 
   protected definition elim {P : Type} (Pinl : BL → P) (Pinr : TR → P)
     (Pglue : Π(x : TL), Pinl (f x) = Pinr (g x)) (y : pushout) : P :=
-  rec Pinl Pinr (λx, pathover_of_eq (Pglue x)) y
+  rec Pinl Pinr (λx, pathover_of_eq _ (Pglue x)) y
 
   protected definition elim_on [reducible] {P : Type} (y : pushout) (Pinl : BL → P)
     (Pinr : TR → P) (Pglue : Π(x : TL), Pinl (f x) = Pinr (g x)) : P :=

@@ -57,7 +57,7 @@ section
 
   protected definition elim {P : Type} (Pbase : B → P) (Ptop : A → P)
     (Pseg : Π(a : A), Pbase (f a) = Ptop a) (x : cylinder) : P :=
-  rec Pbase Ptop (λa, pathover_of_eq (Pseg a)) x
+  rec Pbase Ptop (λa, pathover_of_eq _ (Pseg a)) x
 
   protected definition elim_on [reducible] {P : Type} (x : cylinder) (Pbase : B → P) (Ptop : A → P)
     (Pseg : Π(a : A), Pbase (f a) = Ptop a) : P :=

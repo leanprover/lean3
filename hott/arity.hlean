@@ -79,29 +79,29 @@ namespace eq
   definition ap01000 (f : X → Πa b c, D a b c) (Hx : x = x') : f x ~3 f x' :=
   by intros; cases Hx; reflexivity
 
-  definition apd011 (f : Πa, B a → Z) (Ha : a = a') (Hb : transport B Ha b = b')
+  definition apdt011 (f : Πa, B a → Z) (Ha : a = a') (Hb : transport B Ha b = b')
       : f a b = f a' b' :=
   by cases Ha; cases Hb; reflexivity
 
-  definition apd0111 (f : Πa b, C a b → Z) (Ha : a = a') (Hb : transport B Ha b = b')
-    (Hc : cast (apd011 C Ha Hb) c = c')
+  definition apdt0111 (f : Πa b, C a b → Z) (Ha : a = a') (Hb : transport B Ha b = b')
+    (Hc : cast (apdt011 C Ha Hb) c = c')
       : f a b c = f a' b' c' :=
   by cases Ha; cases Hb; cases Hc; reflexivity
 
-  definition apd01111 (f : Πa b c, D a b c → Z) (Ha : a = a') (Hb : transport B Ha b = b')
-    (Hc : cast (apd011 C Ha Hb) c = c') (Hd : cast (apd0111 D Ha Hb Hc) d = d')
+  definition apdt01111 (f : Πa b c, D a b c → Z) (Ha : a = a') (Hb : transport B Ha b = b')
+    (Hc : cast (apdt011 C Ha Hb) c = c') (Hd : cast (apdt0111 D Ha Hb Hc) d = d')
       : f a b c d = f a' b' c' d' :=
   by cases Ha; cases Hb; cases Hc; cases Hd; reflexivity
 
-  definition apd011111 (f : Πa b c d, E a b c d → Z) (Ha : a = a') (Hb : transport B Ha b = b')
-    (Hc : cast (apd011 C Ha Hb) c = c') (Hd : cast (apd0111 D Ha Hb Hc) d = d')
-    (He : cast (apd01111 E Ha Hb Hc Hd) e = e')
+  definition apdt011111 (f : Πa b c d, E a b c d → Z) (Ha : a = a') (Hb : transport B Ha b = b')
+    (Hc : cast (apdt011 C Ha Hb) c = c') (Hd : cast (apdt0111 D Ha Hb Hc) d = d')
+    (He : cast (apdt01111 E Ha Hb Hc Hd) e = e')
     : f a b c d e = f a' b' c' d' e' :=
   by cases Ha; cases Hb; cases Hc; cases Hd; cases He; reflexivity
 
-  definition apd0111111 (f : Πa b c d e, F a b c d e → Z) (Ha : a = a') (Hb : transport B Ha b = b')
-    (Hc : cast (apd011 C Ha Hb) c = c') (Hd : cast (apd0111 D Ha Hb Hc) d = d')
-    (He : cast (apd01111 E Ha Hb Hc Hd) e = e') (Hf : cast (apd011111 F Ha Hb Hc Hd He) ff = f')
+  definition apdt0111111 (f : Πa b c d e, F a b c d e → Z) (Ha : a = a') (Hb : transport B Ha b = b')
+    (Hc : cast (apdt011 C Ha Hb) c = c') (Hd : cast (apdt0111 D Ha Hb Hc) d = d')
+    (He : cast (apdt01111 E Ha Hb Hc Hd) e = e') (Hf : cast (apdt011111 F Ha Hb Hc Hd He) ff = f')
     : f a b c d e ff = f a' b' c' d' e' f' :=
   begin cases Ha, cases Hb, cases Hc, cases Hd, cases He, cases Hf, reflexivity end
 

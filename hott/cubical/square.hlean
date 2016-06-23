@@ -60,6 +60,10 @@ namespace eq
     : square p₁₀ p₁₄ (p₀₁ ⬝ p₀₃) (p₂₁ ⬝ p₂₃) :=
   by induction s₁₃; exact s₁₁
 
+  definition dconcat [unfold 14] {p₀₀ : a₀₀ = a} {p₂₂ : a = a₂₂}
+    (s₂₁ : square p₀₀ p₁₂ p₀₁ p₂₂) (s₁₂ : square p₁₀ p₂₂ p₀₀ p₂₁) : square p₁₀ p₁₂ p₀₁ p₂₁ :=
+  by induction s₁₂; exact s₂₁
+
   definition hinverse [unfold 10] (s₁₁ : square p₁₀ p₁₂ p₀₁ p₂₁) : square p₁₀⁻¹ p₁₂⁻¹ p₂₁ p₀₁ :=
   by induction s₁₁;exact ids
 
@@ -94,7 +98,7 @@ namespace eq
   definition transpose [unfold 10] (s₁₁ : square p₁₀ p₁₂ p₀₁ p₂₁) : square p₀₁ p₂₁ p₁₀ p₁₂ :=
   by induction s₁₁;exact ids
 
-  definition aps [unfold 12] {B : Type} (f : A → B) (s₁₁ : square p₁₀ p₁₂ p₀₁ p₂₁)
+  definition aps [unfold 12] (f : A → B) (s₁₁ : square p₁₀ p₁₂ p₀₁ p₂₁)
     : square (ap f p₁₀) (ap f p₁₂) (ap f p₀₁) (ap f p₂₁) :=
   by induction s₁₁;exact ids
 
@@ -541,15 +545,15 @@ namespace eq
 
   /- Squares having an 'ap' term on one face -/
   --TODO find better names
-  definition square_Flr_ap_idp {A B : Type} {c : B} {f : A → B} (p : Π a, f a = c)
+  definition square_Flr_ap_idp {c : B} {f : A → B} (p : Π a, f a = c)
     {a b : A} (q : a = b) : square (p a) (p b) (ap f q) idp  :=
   by induction q; apply vrfl
 
-  definition square_Flr_idp_ap {A B : Type} {c : B} {f : A → B} (p : Π a, c = f a)
+  definition square_Flr_idp_ap {c : B} {f : A → B} (p : Π a, c = f a)
     {a b : A} (q : a = b) : square (p a) (p b) idp (ap f q) :=
   by induction q; apply vrfl
 
-  definition square_ap_idp_Flr {A B : Type} {b : B} {f : A → B} (p : Π a, f a = b)
+  definition square_ap_idp_Flr {b : B} {f : A → B} (p : Π a, f a = b)
     {a b : A} (q : a = b) : square (ap f q) idp (p a) (p b) :=
   by induction q; apply hrfl
 
@@ -579,5 +583,36 @@ namespace eq
   definition vp_eq_v {p : a₀₂ = a₂₂} (r : p₁₂ = p) :
     s₁₁ ⬝vp r = s₁₁ ⬝v vdeg_square r :=
   by cases r; cases s₁₁; esimp
+
+  definition natural_square011 {A A' : Type} {B : A → Type}
+    {a a' : A} {p : a = a'} {b : B a} {b' : B a'} (q : b =[p] b')
+    {l r  : Π⦃a⦄, B a → A'} (g : Π⦃a⦄ (b : B a), l b = r b)
+    : square (apd011 l p q) (apd011 r p q) (g b) (g b') :=
+  begin
+    induction q, exact hrfl
+  end
+
+  definition natural_square0111' {A A' : Type} {B : A → Type} (C : Π⦃a⦄, B a → Type)
+    {a a' : A} {p : a = a'} {b : B a} {b' : B a'} {q : b =[p] b'}
+    {c : C b} {c' : C b'} (s : c =[apd011 C p q] c')
+    {l r  : Π⦃a⦄ {b : B a}, C b → A'}
+    (g : Π⦃a⦄ {b : B a} (c : C b), l c = r c)
+    : square (apd0111 l p q s) (apd0111 r p q s) (g c) (g c') :=
+  begin
+    induction q, esimp at s, induction s using idp_rec_on, exact hrfl
+  end
+
+  -- this can be generalized a bit, by making the domain and codomain of k different, and also have
+  -- a function at the RHS of s (similar to m)
+  definition natural_square0111 {A A' : Type} {B : A → Type} (C : Π⦃a⦄, B a → Type)
+    {a a' : A} {p : a = a'} {b : B a} {b' : B a'} {q : b =[p] b'}
+    {c : C b} {c' : C b'} (r : c =[apd011 C p q] c')
+    {k : A → A} {l : Π⦃a⦄, B a → B (k a)} (m : Π⦃a⦄ {b : B a}, C b → C (l b))
+    {f  : Π⦃a⦄ {b : B a}, C b → A'}
+    (s : Π⦃a⦄ {b : B a} (c : C b), f (m c) = f c)
+    : square (apd0111 (λa b c, f (m c)) p q r) (apd0111 f p q r) (s c) (s c') :=
+  begin
+    induction q, esimp at r, induction r using idp_rec_on, exact hrfl
+  end
 
 end eq
