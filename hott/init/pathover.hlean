@@ -59,25 +59,25 @@ namespace eq
   end
 
   definition pathover_tr [unfold 5] (p : a = a₂) (b : B a) : b =[p] p ▸ b :=
-  by cases p;constructor
+  by cases p; constructor
 
   definition tr_pathover [unfold 5] (p : a = a₂) (b : B a₂) : p⁻¹ ▸ b =[p] b :=
-  by cases p;constructor
+  by cases p; constructor
 
   definition concato [unfold 12] (r : b =[p] b₂) (r₂ : b₂ =[p₂] b₃) : b =[p ⬝ p₂] b₃ :=
-  pathover.rec_on r₂ r
+  by induction r₂; exact r
 
   definition inverseo [unfold 8] (r : b =[p] b₂) : b₂ =[p⁻¹] b :=
-  pathover.rec_on r idpo
+  by induction r; constructor
 
   definition apd [unfold 6] (f : Πa, B a) (p : a = a₂) : f a =[p] f a₂ :=
-  eq.rec_on p idpo
+  by induction p; constructor
 
   definition concato_eq [unfold 10] (r : b =[p] b₂) (q : b₂ = b₂') : b =[p] b₂' :=
-  eq.rec_on q r
+  by induction q; exact r
 
   definition eq_concato [unfold 9] (q : b = b') (r : b' =[p] b₂) : b =[p] b₂ :=
-  by induction q;exact r
+  by induction q; exact r
 
   definition change_path [unfold 9] (q : p = p') (r : b =[p] b₂) : b =[p'] b₂ :=
   q ▸ r

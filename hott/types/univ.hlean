@@ -83,7 +83,7 @@ namespace univ
     (b : B) : Type.{max u v} :=
   by induction p with A f; exact fiber f b
 
-  definition characteristic_map_inv [unfold 2] {B : Type.{u}} (P : B → Type.{max u v}) :
+  definition characteristic_map_inv [constructor] {B : Type.{u}} (P : B → Type.{max u v}) :
     Σ(A : Type.{max u v}), A → B :=
   ⟨(Σb, P b), pr1⟩
 

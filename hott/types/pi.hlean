@@ -243,7 +243,7 @@ namespace pi
   begin
     fapply equiv.MK,
     { intro f, exact f (center A)},
-    { intro b a, exact (center_eq a) ▸ b},
+    { intro b a, exact center_eq a ▸ b},
     { intro b, rewrite [prop_eq_of_is_contr (center_eq (center A)) idp]},
     { intro f, apply eq_of_homotopy, intro a, induction (center_eq a),
       rewrite [prop_eq_of_is_contr (center_eq (center A)) idp]}

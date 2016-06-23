@@ -230,15 +230,15 @@ namespace circle
       ... = ap (circle.elim a p) (refl base) : by rewrite H,
   eq_bnot_ne_idp H2
 
-  definition nonidp (x : S¹) : x = x :=
+  definition circle_turn [reducible] (x : S¹) : x = x :=
   begin
     induction x,
-    { exact loop},
-    { apply concato_eq, apply pathover_eq_lr, rewrite [con.left_inv,idp_con]}
+    { exact loop },
+    { apply eq_pathover, apply square_of_eq, rewrite ap_id }
   end
 
-  definition nonidp_neq_idp : nonidp ≠ (λx, idp) :=
-  assume H : nonidp = λx, idp,
+  definition turn_neq_idp : circle_turn ≠ (λx, idp) :=
+  assume H : circle_turn = λx, idp,
   have H2 : loop = idp, from apd10 H base,
   absurd H2 loop_neq_idp
 
@@ -254,14 +254,14 @@ namespace circle
   ap10 !elim_type_loop_inv a
 
   protected definition encode [unfold 2] {x : S¹} (p : base = x) : circle.code x :=
-  transport circle.code p (of_num 0)
+  transport circle.code p (0 : ℤ)
 
   protected definition decode [unfold 1] {x : S¹} : circle.code x → base = x :=
   begin
     induction x,
     { exact power loop},
-    { apply arrow_pathover_left, intro b, apply concato_eq, apply pathover_eq_r,
-      rewrite [power_con,transport_code_loop]}
+    { apply arrow_pathover_left, intro b, apply eq_pathover_constant_left_id_right,
+      apply square_of_eq, rewrite [idp_con, power_con,transport_code_loop]}
   end
 
   definition circle_eq_equiv [constructor] (x : S¹) : (base = x) ≃ circle.code x :=
@@ -337,13 +337,6 @@ namespace circle
   proposition is_conn_circle [instance] : is_conn 0 S¹ :=
   sphere.is_conn_sphere -1.+2
 
-  definition circle_turn [reducible] (x : S¹) : x = x :=
-  begin
-    induction x,
-    { exact loop },
-    { apply eq_pathover, apply square_of_eq, rewrite ap_id }
-  end
-
   definition circle_mul [reducible] (x y : S¹) : S¹ :=
   circle.elim y (circle_turn y) x
 
@@ -351,11 +344,10 @@ namespace circle
   begin
     induction x,
     { reflexivity },
-    { apply eq_pathover, krewrite [elim_loop,ap_id], apply hrefl }
+    { apply eq_pathover_id_right, apply hdeg_square, apply elim_loop }
   end
 
-  definition circle_base_mul [reducible] (x : S¹)
-    : circle_mul base x = x :=
+  definition circle_base_mul [reducible] (x : S¹) : circle_mul base x = x :=
   idp
 
 end circle

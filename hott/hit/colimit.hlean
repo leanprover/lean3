@@ -173,7 +173,7 @@ section
   theorem elim_type_glue (Pincl : Π⦃n : ℕ⦄ (a : A n), Type)
     (Pglue : Π⦃n : ℕ⦄ (a : A n), Pincl (f a) ≃ Pincl a) {n : ℕ} (a : A n)
       : transport (elim_type Pincl Pglue) (glue a) = Pglue a :=
-  by rewrite [tr_eq_cast_ap_fn,↑elim_type,elim_glue];apply cast_ua_fn
+  by rewrite [tr_eq_cast_ap_fn,↑elim_type,elim_glue]; apply cast_ua_fn
 
   protected definition rec_prop {P : seq_colim → Type} [H : Πx, is_prop (P x)]
     (Pincl : Π⦃n : ℕ⦄ (a : A n), P (sι a)) (aa : seq_colim) : P aa :=

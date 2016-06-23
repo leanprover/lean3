@@ -56,13 +56,13 @@ namespace quotient
   theorem elim_type_eq_of_rel_fn (Pc : A → Type)
     (Pp : Π⦃a a' : A⦄ (H : R a a'), Pc a ≃ Pc a') {a a' : A} (H : R a a')
     : transport (quotient.elim_type Pc Pp) (eq_of_rel R H) = to_fun (Pp H) :=
-  by rewrite [tr_eq_cast_ap_fn, ↑quotient.elim_type, elim_eq_of_rel];apply cast_ua_fn
+  by rewrite [tr_eq_cast_ap_fn, ↑quotient.elim_type, elim_eq_of_rel]; apply cast_ua_fn
 
   -- rename to elim_type_eq_of_rel_fn_inv
   theorem elim_type_eq_of_rel_inv (Pc : A → Type)
     (Pp : Π⦃a a' : A⦄ (H : R a a'), Pc a ≃ Pc a') {a a' : A} (H : R a a')
     : transport (quotient.elim_type Pc Pp) (eq_of_rel R H)⁻¹ = to_inv (Pp H) :=
-  by rewrite [tr_eq_cast_ap_fn, ↑quotient.elim_type, ap_inv, elim_eq_of_rel];apply cast_ua_inv_fn
+  by rewrite [tr_eq_cast_ap_fn, ↑quotient.elim_type, ap_inv, elim_eq_of_rel]; apply cast_ua_inv_fn
 
   -- remove '
   theorem elim_type_eq_of_rel_inv' (Pc : A → Type)
