@@ -27,7 +27,7 @@ section
 
   protected definition elim {P : Type} (Pt : A → P)
     (Pe : Π(a a' : A), Pt a = Pt a') (x : one_step_tr) : P :=
-  rec Pt (λa a', pathover_of_eq (Pe a a')) x
+  rec Pt (λa a', pathover_of_eq _ (Pe a a')) x
 
   theorem rec_tr_eq {P : one_step_tr → Type} (Pt : Π(a : A), P (tr a))
     (Pe : Π(a a' : A), Pt a =[tr_eq a a'] Pt a') (a a' : A)
