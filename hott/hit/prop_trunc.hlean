@@ -32,17 +32,6 @@ open eq is_trunc unit quotient seq_colim pi nat equiv sum algebra is_conn functi
   See the comment below for a sketch of the proof that (trunc A) is actually a mere proposition.
 -/
 
-
-/-
-  Call a function f weakly constant if (Πa a', f a = f a')
-  This theorem states that if f is weakly constant, then (ap f) is weakly constant.
--/
-  -- definition weakly_constant_ap {A B : Type} {f : A → B} {a a' : A} (p q : a = a')
-  --   (H : Π(a a' : A), f a = f a') : ap f p = ap f q :=
-  -- have L : Π{b c : A} {r : b = c}, (H a b)⁻¹ ⬝ H a c = ap f r, from
-  --   (λb c r, eq.rec_on r !con.left_inv),
-  -- L⁻¹ ⬝ L
-
 /- definition of "one step truncation" in terms of quotients -/
 
 namespace one_step_tr
@@ -416,7 +405,7 @@ namespace prop_trunc
 
 end prop_trunc
 
-open prop_trunc
+open prop_trunc trunc
 -- Corollaries for the actual truncation.
 namespace is_trunc
   local attribute is_prop_trunc_one_step_tr [instance]
@@ -431,8 +420,8 @@ namespace is_trunc
     { exact p a a'}
   end
 
-  example {A : Type} {P : Type} [is_set P] (f : A → P) (p : Πa a', f a = f a') (a : A) :
-    is_prop.elim_set f p (trunc.tr a) = f a :=
+  definition is_prop.elim_set_tr {A : Type} {P : Type} {H : is_set P} (f : A → P)
+    (p : Πa a', f a = f a') (a : A) : is_prop.elim_set f p (tr a) = f a :=
   by reflexivity
 
 end is_trunc
