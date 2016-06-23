@@ -1,3 +1,4 @@
+open eq
 set_option pp.universes true
 
 check @homotopy.rec_on
