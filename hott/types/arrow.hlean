@@ -54,8 +54,16 @@ namespace pi
   /- Equivalence if one of the types is contractible -/
 
   variables (A B)
+  -- we prove this separately from pi_equiv_of_is_contr_left,
+  --   because the underlying inverse function is simpler here (no transport needed)
   definition arrow_equiv_of_is_contr_left [constructor] [H : is_contr A] : (A → B) ≃ B :=
-  !pi_equiv_of_is_contr_left
+  begin
+    fapply equiv.MK,
+    { intro f, exact f (center A)},
+    { intro b a, exact b},
+    { intro b, reflexivity},
+    { intro f, apply eq_of_homotopy, intro a, exact ap f !is_prop.elim}
+  end
 
   definition arrow_equiv_of_is_contr_right [constructor] [H : is_contr B] : (A → B) ≃ unit :=
   !pi_equiv_of_is_contr_right

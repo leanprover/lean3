@@ -483,6 +483,7 @@ namespace eq
 
 
   -- Dependent transport in a doubly dependent type.
+  -- This is a special case of transporto in init.pathover
   definition transportD [unfold 6] {P : A → Type} (Q : Πa, P a → Type)
       {a a' : A} (p : a = a') (b : P a) (z : Q a b) : Q a' (p ▸ b) :=
   by induction p; exact z
@@ -492,6 +493,7 @@ namespace eq
   notation p ` ▸D `:65 x:64 := transportD _ p _ x
 
   -- transporting over 2 one-dimensional paths
+  -- This is a special case of transporto in init.pathover
   definition transport11 {A B : Type} (P : A → B → Type) {a a' : A} {b b' : B}
     (p : a = a') (q : b = b') (z : P a b) : P a' b' :=
   transport (P a') q (p ▸ z)

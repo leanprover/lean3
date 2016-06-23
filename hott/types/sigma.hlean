@@ -331,10 +331,8 @@ namespace sigma
   definition sigma_assoc_comm_equiv {A : Type} (B C : A → Type)
     : (Σ(v : Σa, B a), C v.1) ≃ (Σ(u : Σa, C a), B u.1) :=
   calc    (Σ(v : Σa, B a), C v.1)
-        ≃ (Σa (b : B a), C a)     : !sigma_assoc_equiv⁻¹ᵉ
-    ... ≃ (Σa, B a × C a)         : sigma_equiv_sigma_right (λa, !equiv_prod)
-    ... ≃ (Σa, C a × B a)         : sigma_equiv_sigma_right (λa, !prod_comm_equiv)
-    ... ≃ (Σa (c : C a), B a)     : sigma_equiv_sigma_right (λa, !equiv_prod)
+        ≃ (Σa (b : B a), C a)     : sigma_assoc_equiv
+    ... ≃ (Σa (c : C a), B a)     : sigma_equiv_sigma_right (λa, !comm_equiv_nondep)
     ... ≃ (Σ(u : Σa, C a), B u.1) : sigma_assoc_equiv
 
   /- Interaction with other type constructors -/

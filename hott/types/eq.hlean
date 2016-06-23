@@ -213,7 +213,7 @@ namespace eq
 
   /- Equivalences between path spaces -/
 
-  /- [ap_closed] is in init.equiv  -/
+  /- [is_equiv_ap] is in init.equiv  -/
 
   definition equiv_ap (f : A → B) [H : is_equiv f] (a₁ a₂ : A)
     : (a₁ = a₂) ≃ (f a₁ = f a₂) :=
