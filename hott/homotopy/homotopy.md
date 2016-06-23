@@ -23,8 +23,10 @@ folder (sorted such that files only import previous files).
 * [quaternionic_hopf](quaternionic_hopf.hlean) (the quaternionic Hopf fibration)
 * [chain_complex](chain_complex.hlean)
 * [LES_of_homotopy_groups](LES_of_homotopy_groups.hlean)
+* [vankampen](vankampen.hlean) (the Seifert-van Kampen theorem)
 * [homotopy_group](homotopy_group.hlean) (theorems about homotopy groups. The definition and basic facts about homotopy groups is in [algebra/homotopy_group](../algebra/homotopy_group.hlean))
 * [sphere2](sphere2.hlean) (calculation of the homotopy group of spheres)
+
 
 The following files depend on
 [hit.two_quotient](../hit/two_quotient.hlean) which on turn depends on
