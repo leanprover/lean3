@@ -9,6 +9,7 @@ Eilenberg MacLane spaces
 
 import hit.groupoid_quotient .hopf .freudenthal .homotopy_group
 open algebra pointed nat eq category group algebra is_trunc iso pointed unit trunc equiv is_conn
+     function is_equiv
 
 namespace EM
   open groupoid_quotient
@@ -150,7 +151,7 @@ namespace EM
       { exact abstract begin apply loop_pathover, apply square_of_eq,
           refine !resp_mul⁻¹ ⬝ _ ⬝ !resp_mul,
           exact ap pth !mul.comm end end}},
-    { refine EM.prop_rec _ x', esimp, apply resp_mul},
+    { refine EM.prop_rec _ x', apply resp_mul}
   end
 
   definition EM1_mul_one (G : CommGroup) (x : EM1 G) : EM1_mul x base = x :=
@@ -235,6 +236,52 @@ namespace EM
     { apply is_trunc_EMadd1}
   end
 
+  /- Uniqueness of K(G, 1) -/
+  definition pEM1_pmap [constructor] {G : Group} {X : Type*} (e : Ω X ≃ G)
+    (r : Πp q, e (p ⬝ q) = e p * e q) [is_conn 0 X] [is_trunc 1 X] : pEM1 G →* X :=
+  begin
+    apply pmap.mk (EM1_map e r),
+    reflexivity,
+  end
 
+  definition loop_pEM1 [constructor] (G : Group) : Ω (pEM1 G) ≃* pType_of_Group G :=
+  pequiv_of_equiv (base_eq_base_equiv G) idp
+
+  definition loop_pEM1_pmap {G : Group} {X : Type*} (e : Ω X ≃ G)
+    (r : Πp q, e (p ⬝ q) = e p * e q) [is_conn 0 X] [is_trunc 1 X] :
+    Ω→(pEM1_pmap e r) ~ e⁻¹ᵉ ∘ base_eq_base_equiv G :=
+  begin
+    apply homotopy_of_inv_homotopy_pre (base_eq_base_equiv G),
+    intro g, exact !idp_con ⬝ !elim_pth
+  end
+
+  open trunc_index
+  definition pEM1_pequiv'.{u} {G : Group.{u}} {X : pType.{u}} (e : Ω X ≃ G)
+    (r : Πp q, e (p ⬝ q) = e p * e q) [is_conn 0 X] [is_trunc 1 X] : pEM1 G ≃* X :=
+  begin
+    apply pequiv_of_pmap (pEM1_pmap e r),
+    apply whitehead_principle_pointed 1,
+    intro k, cases k with k,
+    { apply @is_equiv_of_is_contr,
+      all_goals (esimp; exact _)},
+    { cases k with k,
+      { apply is_equiv_trunc_functor, esimp,
+        apply is_equiv.homotopy_closed, rotate 1,
+        { symmetry, exact loop_pEM1_pmap _ _},
+        apply is_equiv_compose, apply to_is_equiv},
+      { apply @is_equiv_of_is_contr,
+        do 2 exact trivial_homotopy_group_of_is_trunc _ (succ_lt_succ !zero_lt_succ)}}
+  end
+
+  definition pEM1_pequiv.{u} {G : Group.{u}} {X : pType.{u}} (e : π₁ X ≃g G)
+    [is_conn 0 X] [is_trunc 1 X] : pEM1 G ≃* X :=
+  begin
+    apply pEM1_pequiv' (!trunc_equiv⁻¹ᵉ ⬝e equiv_of_isomorphism e),
+    intro p q, esimp, exact respect_mul e (tr p) (tr q)
+  end
+
+  definition KG1_pequiv.{u} {X Y : pType.{u}} (e : π₁ X ≃g π₁ Y)
+    [is_conn 0 X] [is_trunc 1 X] [is_conn 0 Y] [is_trunc 1 Y] : X ≃* Y :=
+  (pEM1_pequiv e)⁻¹ᵉ* ⬝e* pEM1_pequiv !isomorphism.refl
 
 end EM

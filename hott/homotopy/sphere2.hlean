@@ -65,11 +65,11 @@ namespace sphere
         _,
         { rewrite [▸*, LES_of_homotopy_groups_2 _ (n +[ℕ] 2)],
           have H : 1 ≤[ℕ] n + 1, from !one_le_succ,
-          apply trivial_homotopy_group_of_is_trunc _ _ _ H},
+          apply trivial_ghomotopy_group_of_is_trunc _ _ _ H},
         { refine tr_rev (λx, is_contr (ptrunctype._trans_of_to_pType x))
                         (LES_of_homotopy_groups_2 complex_phopf _) _,
           have H : 1 ≤[ℕ] n + 2, from !one_le_succ,
-          apply trivial_homotopy_group_of_is_trunc _ _ _ H},
+          apply trivial_ghomotopy_group_of_is_trunc _ _ _ H},
         { exact homomorphism.struct (homomorphism_LES_of_homotopy_groups_fun _ (n+2, 0))}}},
     { exact homomorphism.struct (homomorphism_LES_of_homotopy_groups_fun _ (n+2, 0))}
   end
@@ -96,7 +96,7 @@ namespace sphere
   theorem not_is_trunc_sphere (n : ℕ) : ¬is_trunc n (S. (succ n)) :=
   begin
     intro H,
-    note H2 := trivial_homotopy_group_of_is_trunc (S. (succ n)) n n !le.refl,
+    note H2 := trivial_ghomotopy_group_of_is_trunc (S. (succ n)) n n !le.refl,
     have H3 : is_contr ℤ, from is_trunc_equiv_closed _ (equiv_of_isomorphism (πnSn n)),
     have H4 : (0 : ℤ) ≠ (1 : ℤ), from dec_star,
     apply H4,

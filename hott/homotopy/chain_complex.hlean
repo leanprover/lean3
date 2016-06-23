@@ -517,6 +517,19 @@ namespace chain_complex
     { apply is_surjective_of_trivial X, apply H1},
   end
 
+  definition is_contr_of_is_embedding_of_is_surjective {N : succ_str} (X : chain_complex N) {n : N}
+    (H : is_exact_at X (S n)) [is_embedding (cc_to_fn X n)]
+    [H2 : is_surjective (cc_to_fn X (S (S (S n))))] : is_contr (X (S (S n))) :=
+  begin
+    apply is_contr.mk pt, intro x,
+    have p : cc_to_fn X n (cc_to_fn X (S n) x) = cc_to_fn X n pt,
+      from !cc_is_chain_complex ⬝ !respect_pt⁻¹,
+    have q : cc_to_fn X (S n) x = pt, from is_injective_of_is_embedding p,
+    induction H x q with y r,
+    induction H2 y with z s,
+    exact (cc_is_chain_complex X _ z)⁻¹ ⬝ ap (cc_to_fn X _) s ⬝ r
+  end
+
   end
 
 end chain_complex

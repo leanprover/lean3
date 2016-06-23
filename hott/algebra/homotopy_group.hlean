@@ -69,14 +69,19 @@ namespace eq
     exact loopn_pequiv_loopn k (pequiv_of_eq begin rewrite [trunc_index.zero_add] end)
   end
 
+  open trunc_index
+  definition phomotopy_group_ptrunc_of_le [constructor] {k n : ℕ} (H : k ≤ n) (A : Type*) :
+    π*[k] (ptrunc n A) ≃* π*[k] A :=
+  calc
+    π*[k] (ptrunc n A) ≃* Ω[k] (ptrunc k (ptrunc n A))
+             : phomotopy_group_pequiv_loop_ptrunc k (ptrunc n A)
+      ... ≃* Ω[k] (ptrunc k A)
+             : loopn_pequiv_loopn k (ptrunc_ptrunc_pequiv_left A (of_nat_le_of_nat H))
+      ... ≃* π*[k] A : (phomotopy_group_pequiv_loop_ptrunc k A)⁻¹ᵉ*
+
   definition phomotopy_group_ptrunc [constructor] (k : ℕ) (A : Type*) :
     π*[k] (ptrunc k A) ≃* π*[k] A :=
-  calc
-    π*[k] (ptrunc k A) ≃* Ω[k] (ptrunc k (ptrunc k A))
-             : phomotopy_group_pequiv_loop_ptrunc k (ptrunc k A)
-      ... ≃* Ω[k] (ptrunc k A)
-             : loopn_pequiv_loopn k (ptrunc_pequiv k (ptrunc k A) _)
-      ... ≃* π*[k] A : (phomotopy_group_pequiv_loop_ptrunc k A)⁻¹ᵉ*
+  phomotopy_group_ptrunc_of_le (le.refl k) A
 
   theorem trivial_homotopy_of_is_set (A : Type*) [H : is_set A] (n : ℕ) : πg[n+1] A ≃g G0 :=
   begin
@@ -149,7 +154,7 @@ namespace eq
   definition is_equiv_phomotopy_group_functor_ap1 (n : ℕ) {A B : Type*} (f : A →* B)
     [is_equiv (π→*[n + 1] f)] : is_equiv (π→*[n] (Ω→ f)) :=
   have is_equiv (pcast (phomotopy_group_succ_in B n) ∘* π→*[n + 1] f),
-  begin apply @(is_equiv_compose (π→*[n + 1] f) _) end,
+  from is_equiv_compose _ (π→*[n + 1] f),
   have is_equiv (π→*[n] (Ω→ f) ∘ pcast (phomotopy_group_succ_in A n)),
   from is_equiv.homotopy_closed _ (phomotopy_group_functor_succ_phomotopy_in n f),
   is_equiv.cancel_right (pcast (phomotopy_group_succ_in A n)) _
