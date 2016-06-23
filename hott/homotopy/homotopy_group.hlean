@@ -7,19 +7,25 @@ Authors: Floris van Doorn, Clive Newstead
 
 import .LES_of_homotopy_groups .sphere .complex_hopf
 
-open eq is_trunc trunc_index pointed algebra trunc nat is_conn fiber pointed
+open eq is_trunc trunc_index pointed algebra trunc nat is_conn fiber pointed unit
 
 namespace is_trunc
+
   -- Lemma 8.3.1
-  theorem trivial_homotopy_group_of_is_trunc (A : Type*) (n k : ℕ) [is_trunc n A] (H : n ≤ k)
-    : is_contr (πg[k+1] A) :=
+  theorem trivial_homotopy_group_of_is_trunc (A : Type*) {n k : ℕ} [is_trunc n A] (H : n < k)
+    : is_contr (π[k] A) :=
   begin
     apply is_trunc_trunc_of_is_trunc,
     apply is_contr_loop_of_is_trunc,
     apply @is_trunc_of_le A n _,
+    apply trunc_index.le_of_succ_le_succ,
     rewrite [succ_sub_two_succ k],
     exact of_nat_le_of_nat H,
   end
+
+  theorem trivial_ghomotopy_group_of_is_trunc (A : Type*) (n k : ℕ) [is_trunc n A] (H : n ≤ k)
+    : is_contr (πg[k+1] A) :=
+  trivial_homotopy_group_of_is_trunc A (lt_succ_of_le H)
 
   -- Lemma 8.3.2
   theorem trivial_homotopy_group_of_is_conn (A : Type*) {k n : ℕ} (H : k ≤ n) [is_conn n A]
@@ -109,9 +115,9 @@ namespace is_trunc
     (@is_contr_HG_fiber_of_is_connected A B n n f H !le.refl)
 
   /-
-    Theorem 8.8.3: Whitehead's principle
+    Theorem 8.8.3: Whitehead's principle and its corollaries
   -/
-  definition whiteheads_principle (n : ℕ₋₂) {A B : Type}
+  definition whitehead_principle (n : ℕ₋₂) {A B : Type}
     [HA : is_trunc n A] [HB : is_trunc n B] (f : A → B) (H' : is_equiv (trunc_functor 0 f))
     (H : Πa k, is_equiv (π→*[k + 1] (pmap_of_map f a))) : is_equiv f :=
   begin
@@ -146,6 +152,95 @@ namespace is_trunc
       { esimp, refine !idp_con⁻¹},
     end,
     apply is_equiv_of_is_equiv_ap1_of_is_equiv_trunc
+  end
+
+  definition whitehead_principle_pointed (n : ℕ₋₂) {A B : Type*}
+    [HA : is_trunc n A] [HB : is_trunc n B] [is_conn 0 A] (f : A →* B)
+    (H : Πk, is_equiv (π→*[k] f)) : is_equiv f :=
+  begin
+    apply whitehead_principle n, rexact H 0,
+    intro a k, revert a, apply is_conn.elim -1,
+    have is_equiv (π→*[k + 1] (pointed_eta_pequiv B ⬝e* (pequiv_of_eq_pt (respect_pt f))⁻¹ᵉ*)
+           ∘* π→*[k + 1] f ∘* π→*[k + 1] (pointed_eta_pequiv A)⁻¹ᵉ*),
+    begin
+      apply is_equiv_compose
+              (π→*[k + 1] (pointed_eta_pequiv B ⬝e* (pequiv_of_eq_pt (respect_pt f))⁻¹ᵉ*)),
+      apply is_equiv_compose (π→*[k + 1] f),
+      all_goals apply is_equiv_homotopy_group_functor,
+    end,
+    refine @(is_equiv.homotopy_closed _) _ this _,
+    apply to_homotopy,
+    refine pwhisker_left _ !phomotopy_group_functor_compose⁻¹* ⬝* _,
+    refine !phomotopy_group_functor_compose⁻¹* ⬝* _,
+    apply phomotopy_group_functor_phomotopy, apply phomotopy_pmap_of_map
+  end
+
+  open pointed.ops
+  definition is_contr_of_trivial_homotopy (n : ℕ₋₂) (A : Type) [is_trunc n A] [is_conn 0 A]
+    (H : Πk a, is_contr (π[k] (pointed.MK A a))) : is_contr A :=
+  begin
+    fapply is_trunc_is_equiv_closed_rev, { exact λa, ⋆},
+    apply whitehead_principle n,
+    { apply is_equiv_trunc_functor_of_is_conn_fun, apply is_conn_fun_to_unit_of_is_conn},
+    intro a k,
+    apply @is_equiv_of_is_contr,
+    refine trivial_homotopy_group_of_is_trunc _ !zero_lt_succ,
+  end
+
+  definition is_contr_of_trivial_homotopy_nat (n : ℕ) (A : Type) [is_trunc n A] [is_conn 0 A]
+    (H : Πk a, k ≤ n → is_contr (π[k] (pointed.MK A a))) : is_contr A :=
+  begin
+    apply is_contr_of_trivial_homotopy n,
+    intro k a, apply @lt_ge_by_cases _ _ n k,
+    { intro H', exact trivial_homotopy_group_of_is_trunc _ H'},
+    { intro H', exact H k a H'}
+  end
+
+  definition is_contr_of_trivial_homotopy_pointed (n : ℕ₋₂) (A : Type*) [is_trunc n A]
+    (H : Πk, is_contr (π[k] A)) : is_contr A :=
+  begin
+    have is_conn 0 A, proof H 0 qed,
+    fapply is_contr_of_trivial_homotopy n A,
+    intro k, apply is_conn.elim -1,
+    cases A with A a, exact H k
+  end
+
+  definition is_contr_of_trivial_homotopy_nat_pointed (n : ℕ) (A : Type*) [is_trunc n A]
+    (H : Πk, k ≤ n → is_contr (π[k] A)) : is_contr A :=
+  begin
+    have is_conn 0 A, proof H 0 !zero_le qed,
+    fapply is_contr_of_trivial_homotopy_nat n A,
+    intro k a H', revert a, apply is_conn.elim -1,
+    cases A with A a, exact H k H'
+  end
+
+  definition is_conn_fun_of_equiv_on_homotopy_groups.{u} (n : ℕ) {A B : Type.{u}} (f : A → B)
+    [is_equiv (trunc_functor 0 f)]
+    (H1 : Πa k, k ≤ n → is_equiv (homotopy_group_functor k (pmap_of_map f a)))
+    (H2 : Πa, is_surjective (homotopy_group_functor (succ n) (pmap_of_map f a))) : is_conn_fun n f :=
+  have H2' : Πa k, k ≤ n → is_surjective (homotopy_group_functor (succ k) (pmap_of_map f a)),
+  begin
+    intro a k H, cases H with n' H',
+    { apply H2},
+    { apply is_surjective_of_is_equiv, apply H1, exact succ_le_succ H'}
+  end,
+  have H3 : Πa, is_contr (ptrunc n (pfiber (pmap_of_map f a))),
+  begin
+    intro a, apply is_contr_of_trivial_homotopy_nat_pointed n,
+    { intro k H, apply is_trunc_equiv_closed_rev, exact phomotopy_group_ptrunc_of_le H _,
+      rexact @is_contr_of_is_embedding_of_is_surjective +3ℕ
+               (LES_of_homotopy_groups (pmap_of_map f a)) (k, 0)
+               (is_exact_LES_of_homotopy_groups _ _)
+               proof @(is_embedding_of_is_equiv _)  (H1 a k H) qed
+               proof (H2' a k H) qed}
+  end,
+  show Πb, is_contr (trunc n (fiber f b)),
+  begin
+    intro b,
+    note p := right_inv (trunc_functor 0 f) (tr b), revert p,
+    induction (trunc_functor 0 f)⁻¹ (tr b), esimp, intro p,
+    induction !tr_eq_tr_equiv p with q,
+    rewrite -q, exact H3 a
   end
 
 end is_trunc

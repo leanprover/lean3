@@ -145,6 +145,13 @@ namespace is_conn
       exact is_conn_equiv_closed n (fiber.fiber_star_equiv A) _,
     end
 
+    definition is_conn_fun_to_unit_of_is_conn [H : is_conn n A] :
+      is_conn_fun n (const A unit.star) :=
+    begin
+      intro u, induction u,
+      exact is_conn_equiv_closed n (fiber.fiber_star_equiv A)⁻¹ᵉ _,
+    end
+
     -- now maps from unit
     definition is_conn_of_map_from_unit (a₀ : A) (H : is_conn_fun n (const unit a₀))
       : is_conn n .+1 A :=
@@ -176,7 +183,7 @@ namespace is_conn
       protected definition rec : is_equiv (λs : Πa : A, P a, s (Point A)) :=
       @is_equiv_compose
         (Πa : A, P a) (unit → P (Point A)) (P (Point A))
-        (λs x, s (Point A)) (λf, f unit.star)
+        (λf, f unit.star) (λs x, s (Point A))
         (is_conn_fun.rec n (is_conn_fun_from_unit n A (Point A)) P)
         (to_is_equiv (arrow_unit_left (P (Point A))))
 

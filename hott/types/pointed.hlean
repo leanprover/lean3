@@ -29,6 +29,13 @@ namespace pointed
   notation `Ω` := ploop_space
   notation `Ω[`:95 n:0 `] `:0 A:95 := iterated_ploop_space n A
 
+  namespace ops
+    -- this is in a separate namespace because it caused type class inference to loop in some places
+    definition is_trunc_pointed_MK [instance] [priority 1100] (n : ℕ₋₂) {A : Type} (a : A)
+      [H : is_trunc n A] : is_trunc n (pointed.MK A a) :=
+    H
+  end ops
+
   definition is_trunc_loop [instance] [priority 1100] (A : Type*)
     (n : ℕ₋₂) [H : is_trunc (n.+1) A] : is_trunc n (Ω A) :=
   !is_trunc_eq
@@ -775,6 +782,21 @@ namespace pointed
   definition pequiv_of_eq_pt [constructor] {A : Type} {a a' : A} (p : a = a') :
     pointed.MK A a ≃* pointed.MK A a' :=
   pequiv_of_pmap (pmap_of_eq_pt p) !is_equiv_id
+
+  definition pointed_eta_pequiv [constructor] (A : Type*) : A ≃* pointed.MK A pt :=
+  pequiv.mk id !is_equiv_id idp
+
+  /- every pointed map is homotopic to one of the form `pmap_of_map _ _`, up to some
+     pointed equivalences -/
+  definition phomotopy_pmap_of_map {A B : Type*} (f : A →* B) :
+    (pointed_eta_pequiv B ⬝e* (pequiv_of_eq_pt (respect_pt f))⁻¹ᵉ*) ∘* f ∘*
+      (pointed_eta_pequiv A)⁻¹ᵉ* ~* pmap_of_map f pt :=
+  begin
+    fapply phomotopy.mk,
+    { reflexivity},
+    { esimp [pequiv.trans, pequiv.symm],
+      exact !con.right_inv⁻¹ ⬝ ((!idp_con⁻¹ ⬝ !ap_id⁻¹) ◾ (!ap_id⁻¹⁻² ⬝ !idp_con⁻¹)), }
+  end
 
 /- -- TODO
   definition pmap_pequiv_pmap {A A' B B' : Type*} (f : A ≃* A') (g : B ≃* B') :

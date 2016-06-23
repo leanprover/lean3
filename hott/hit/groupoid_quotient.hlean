@@ -243,3 +243,5 @@ section
 end
 
 end groupoid_quotient
+
+export [unfold] groupoid_quotient

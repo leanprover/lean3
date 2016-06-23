@@ -35,7 +35,7 @@ namespace is_equiv
   postfix [parsing_only] `⁻¹ᶠ`:std.prec.max_plus := inv
 
   section
-  variables {A B C : Type} (f : A → B) (g : B → C) {f' : A → B}
+  variables {A B C : Type} (g : B → C) (f : A → B) {f' : A → B}
 
   -- The variant of mk' where f is explicit.
   protected abbreviation mk [constructor] := @is_equiv.mk' A B f
@@ -134,11 +134,11 @@ namespace is_equiv
   -- The 2-out-of-3 properties
   definition cancel_right (g : B → C) [Hgf : is_equiv (g ∘ f)] : (is_equiv g) :=
   have Hfinv : is_equiv f⁻¹, from is_equiv_inv f,
-  @homotopy_closed _ _ _ _ (is_equiv_compose f⁻¹ (g ∘ f)) (λb, ap g (@right_inv _ _ f _ b))
+  @homotopy_closed _ _ _ _ (is_equiv_compose (g ∘ f) f⁻¹) (λb, ap g (@right_inv _ _ f _ b))
 
   definition cancel_left (g : C → A) [Hgf : is_equiv (f ∘ g)] : (is_equiv g) :=
   have Hfinv : is_equiv f⁻¹, from is_equiv_inv f,
-  @homotopy_closed _ _ _ _ (is_equiv_compose (f ∘ g) f⁻¹) (λa, left_inv f (g a))
+  @homotopy_closed _ _ _ _ (is_equiv_compose f⁻¹ (f ∘ g)) (λa, left_inv f (g a))
 
   definition eq_of_fn_eq_fn' {x y : A} (q : f x = f y) : x = y :=
   (left_inv f x)⁻¹ ⬝ ap f⁻¹ q ⬝ left_inv f y

@@ -171,11 +171,9 @@ namespace arrow
     : is_equiv (inv_commute_of_commute f f' α β) :=
   begin
     unfold inv_commute_of_commute,
-    apply @is_equiv_compose _ _ _
-      (homotopy.symm ∘ (inv_homotopy_of_homotopy_pre f (f' ∘ α) β))
-      (inv_homotopy_of_homotopy_post f' (α ∘ f⁻¹) β),
-    { apply @is_equiv_compose _ _ _
-            (inv_homotopy_of_homotopy_pre f (f' ∘ α) β) homotopy.symm,
+    apply @is_equiv_compose _ _ _ (inv_homotopy_of_homotopy_post f' (α ∘ f⁻¹) β)
+      (homotopy.symm ∘ (inv_homotopy_of_homotopy_pre f (f' ∘ α) β)),
+    { apply @is_equiv_compose _ _ _ homotopy.symm (inv_homotopy_of_homotopy_pre f (f' ∘ α) β),
       { apply inv_homotopy_of_homotopy_pre.is_equiv },
       { apply pi.is_equiv_homotopy_symm }
     },
