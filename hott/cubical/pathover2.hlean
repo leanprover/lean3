@@ -37,8 +37,8 @@ namespace eq
     : pathover_of_tr_eq r = pathover_tr p b ⬝o pathover_idp_of_eq r :=
   by induction r; induction p; reflexivity
 
-  definition apo011_eq_apo11_apd (f : Πa, B a → A') (p : a = a₂) (q : b =[p] b₂)
-      : apo011 f p q = eq_of_pathover (apo11 (apd f p) q) :=
+  definition apd011_eq_apo11_apd (f : Πa, B a → A') (p : a = a₂) (q : b =[p] b₂)
+      : apd011 f p q = apo11_constant_right (apd f p) q :=
   by induction q; reflexivity
 
   definition change_path_con (q : p = p') (q' : p' = p'') (r : b =[p] b₂) :
@@ -124,5 +124,10 @@ namespace eq
   definition cono_invo_eq_idpo {q q' : b =[p] b₂} (r : q = q')
     : change_path (con.right_inv p) (q ⬝o q'⁻¹ᵒ) = idpo :=
   by induction r; induction q; reflexivity
+
+  definition tr_eq_of_pathover_concato_eq {A : Type} {B : A → Type} {a a' : A} {p : a = a'}
+    {b : B a} {b' b'' : B a'} (q : b =[p] b') (r : b' = b'') :
+    tr_eq_of_pathover (q ⬝op r) = tr_eq_of_pathover q ⬝ r :=
+  by induction r; reflexivity
 
 end eq

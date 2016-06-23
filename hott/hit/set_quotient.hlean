@@ -49,7 +49,7 @@ section
 
   protected definition elim {P : Type} [Pt : is_set P] (Pc : A → P)
     (Pp : Π⦃a a' : A⦄ (H : R a a'), Pc a = Pc a') (x : set_quotient) : P :=
-  rec Pc (λa a' H, pathover_of_eq (Pp H)) x
+  rec Pc (λa a' H, pathover_of_eq _ (Pp H)) x
 
   protected definition elim_on [reducible] {P : Type} (x : set_quotient) [Pt : is_set P]
     (Pc : A → P) (Pp : Π⦃a a' : A⦄ (H : R a a'), Pc a = Pc a')  : P :=

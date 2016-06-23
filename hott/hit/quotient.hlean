@@ -24,7 +24,7 @@ namespace quotient
 
   protected definition elim {P : Type} (Pc : A → P) (Pp : Π⦃a a' : A⦄ (H : R a a'), Pc a = Pc a')
     (x : quotient R) : P :=
-  quotient.rec Pc (λa a' H, pathover_of_eq (Pp H)) x
+  quotient.rec Pc (λa a' H, pathover_of_eq _ (Pp H)) x
 
   protected definition elim_on [reducible] {P : Type} (x : quotient R)
     (Pc : A → P) (Pp : Π⦃a a' : A⦄ (H : R a a'), Pc a = Pc a') : P :=
@@ -178,8 +178,10 @@ namespace quotient
       (c : C a) : ap (elim @Qpt Qeq) (Peq r c) = Qeq r c :=
     begin
       refine !ap_dpair_eq_dpair ⬝ _,
-      rewrite [apo011_eq_apo11_apd, rec_eq_of_rel, ▸*, apo011_arrow_pathover_constant_right,
-               ↑elim_type_eq_of_rel', to_right_inv !pathover_equiv_tr_eq, ap_inv],
+      refine !apd011_eq_apo11_apd ⬝ _,
+      rewrite [rec_eq_of_rel, ▸*],
+      refine !apo11_arrow_pathover_constant_right ⬝ _,
+      rewrite [↑elim_type_eq_of_rel', to_right_inv !pathover_equiv_tr_eq, ap_inv],
       apply inv_con_cancel_right
     end
 

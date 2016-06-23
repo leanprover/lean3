@@ -69,7 +69,7 @@ namespace algebra
     (resp_mul : Π(g h : G), cast p (g * h) = cast p g * cast p h) : G = H :=
   begin
     cases G with Gc G, cases H with Hc H,
-    apply (apo011 mk p),
+    apply (apd011 mk p),
     exact group_pathover resp_mul
   end
 

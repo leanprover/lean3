@@ -63,7 +63,7 @@ namespace one_step_tr
 
   protected definition elim {P : Type} (Pt : A → P)
     (Pe : Π(a a' : A), Pt a = Pt a') (x : one_step_tr) : P :=
-  rec Pt (λa a', pathover_of_eq (Pe a a')) x
+  rec Pt (λa a', pathover_of_eq _ (Pe a a')) x
 
   protected definition elim_on [reducible] {P : Type} (x : one_step_tr) (Pt : A → P)
     (Pe : Π(a a' : A), Pt a = Pt a') : P :=

@@ -51,7 +51,7 @@ namespace circle
   !rec_merid
 
   definition elim2 {P : Type} (Pb1 Pb2 : P) (Ps1 Ps2 : Pb1 = Pb2) (x : S¹) : P :=
-  rec2 Pb1 Pb2 (pathover_of_eq Ps1) (pathover_of_eq Ps2) x
+  rec2 Pb1 Pb2 (pathover_of_eq _ Ps1) (pathover_of_eq _ Ps2) x
 
   definition elim2_on [reducible] {P : Type} (x : S¹) (Pb1 Pb2 : P)
     (Ps1 : Pb1 = Pb2) (Ps2 : Pb1 = Pb2) : P :=
@@ -117,7 +117,7 @@ namespace circle
 
   protected definition elim {P : Type} (Pbase : P) (Ploop : Pbase = Pbase)
     (x : S¹) : P :=
-  circle.rec Pbase (pathover_of_eq Ploop) x
+  circle.rec Pbase (pathover_of_eq _ Ploop) x
 
   protected definition elim_on [reducible] {P : Type} (x : S¹) (Pbase : P)
     (Ploop : Pbase = Pbase) : P :=
@@ -147,8 +147,8 @@ namespace circle
     rewrite [↑circle.rec2_on,rec2_seg2],
     assert l : Π(A B : Type)(a a₂ a₂' : A)(b b' : B)(p : a = a₂)(p' : a₂' = a₂)
                    (q : b = b'),
-             pathover_tr_of_pathover (pathover_of_eq q)
-           = pathover_of_eq (q ⬝ (tr_constant p' b')⁻¹)
+             pathover_tr_of_pathover (pathover_of_eq _ q)
+           = pathover_of_eq _ (q ⬝ (tr_constant p' b')⁻¹)
            :> b =[p] p' ▸ b',
     { intros, cases q, cases p', cases p, reflexivity },
     apply l

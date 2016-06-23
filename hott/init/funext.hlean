@@ -238,42 +238,65 @@ end funext
 
 open funext
 
-definition eq_equiv_homotopy : (f = g) ≃ (f ~ g) :=
-equiv.mk apd10 _
+namespace eq
+  definition eq_equiv_homotopy : (f = g) ≃ (f ~ g) :=
+  equiv.mk apd10 _
 
-definition eq_of_homotopy [reducible] : f ~ g → f = g :=
-(@apd10 A P f g)⁻¹
+  definition eq_of_homotopy [reducible] : f ~ g → f = g :=
+  (@apd10 A P f g)⁻¹
 
-definition apd10_eq_of_homotopy (p : f ~ g) : apd10 (eq_of_homotopy p) = p :=
-right_inv apd10 p
+  definition apd10_eq_of_homotopy (p : f ~ g) : apd10 (eq_of_homotopy p) = p :=
+  right_inv apd10 p
 
-definition eq_of_homotopy_apd10 (p : f = g) : eq_of_homotopy (apd10 p) = p :=
-left_inv apd10 p
+  definition eq_of_homotopy_apd10 (p : f = g) : eq_of_homotopy (apd10 p) = p :=
+  left_inv apd10 p
 
-definition eq_of_homotopy_idp (f : Π x, P x) : eq_of_homotopy (λx : A, idpath (f x)) = idpath f :=
-is_equiv.left_inv apd10 idp
+  definition eq_of_homotopy_idp (f : Π x, P x) : eq_of_homotopy (λx : A, idpath (f x)) = idpath f :=
+  is_equiv.left_inv apd10 idp
 
-definition naive_funext_of_ua : naive_funext :=
-λ A P f g h, eq_of_homotopy h
+  definition naive_funext_of_ua : naive_funext :=
+  λ A P f g h, eq_of_homotopy h
 
-protected definition homotopy.rec_on [recursor] {Q : (f ~ g) → Type} (p : f ~ g)
-  (H : Π(q : f = g), Q (apd10 q)) : Q p :=
-right_inv apd10 p ▸ H (eq_of_homotopy p)
+  protected definition homotopy.rec_on [recursor] {Q : (f ~ g) → Type} (p : f ~ g)
+    (H : Π(q : f = g), Q (apd10 q)) : Q p :=
+  right_inv apd10 p ▸ H (eq_of_homotopy p)
 
-protected definition homotopy.rec_on_idp [recursor] {Q : Π{g}, (f ~ g) → Type} {g : Π x, P x} (p : f ~ g) (H : Q (homotopy.refl f)) : Q p :=
-homotopy.rec_on p (λq, eq.rec_on q H)
+  protected definition homotopy.rec_on_idp [recursor] {Q : Π{g}, (f ~ g) → Type} {g : Π x, P x}
+    (p : f ~ g) (H : Q (homotopy.refl f)) : Q p :=
+  homotopy.rec_on p (λq, eq.rec_on q H)
 
-definition eq_of_homotopy_inv {f g : Π x, P x} (H : f ~ g)
-  : eq_of_homotopy (λx, (H x)⁻¹) = (eq_of_homotopy H)⁻¹ :=
-begin
-  apply homotopy.rec_on_idp H,
-  rewrite [+eq_of_homotopy_idp]
-end
+  protected definition homotopy.rec_on' {f f' : Πa, P a} {Q : (f ~ f') → (f = f') → Type}
+    (p : f ~ f') (H : Π(q : f = f'), Q (apd10 q) q) : Q p (eq_of_homotopy p) :=
+  begin
+    refine homotopy.rec_on p _,
+    intro q, exact (left_inv (apd10) q)⁻¹ ▸ H q
+  end
 
-definition eq_of_homotopy_con {f g h : Π x, P x} (H1 : f ~ g) (H2 : g ~ h)
-  : eq_of_homotopy (λx, H1 x ⬝ H2 x) = eq_of_homotopy H1 ⬝ eq_of_homotopy H2 :=
-begin
-  apply homotopy.rec_on_idp H1,
-  apply homotopy.rec_on_idp H2,
-  rewrite [+eq_of_homotopy_idp]
-end
+  protected definition homotopy.rec_on_idp' {f : Πa, P a} {Q : Π{g}, (f ~ g) → (f = g) → Type}
+    {g : Πa, P a} (p : f ~ g) (H : Q (homotopy.refl f) idp) : Q p (eq_of_homotopy p) :=
+  begin
+    refine homotopy.rec_on' p _, intro q, induction q, exact H
+  end
+
+  definition eq_of_homotopy_inv {f g : Π x, P x} (H : f ~ g)
+    : eq_of_homotopy (λx, (H x)⁻¹) = (eq_of_homotopy H)⁻¹ :=
+  begin
+    apply homotopy.rec_on_idp H,
+    rewrite [+eq_of_homotopy_idp]
+  end
+
+  definition eq_of_homotopy_con {f g h : Π x, P x} (H1 : f ~ g) (H2 : g ~ h)
+    : eq_of_homotopy (λx, H1 x ⬝ H2 x) = eq_of_homotopy H1 ⬝ eq_of_homotopy H2 :=
+  begin
+    apply homotopy.rec_on_idp H1,
+    apply homotopy.rec_on_idp H2,
+    rewrite [+eq_of_homotopy_idp]
+  end
+
+  definition compose_eq_of_homotopy {A B C : Type} (g : B → C) {f f' : A → B} (H : f ~ f') :
+    ap (λf, g ∘ f) (eq_of_homotopy H) = eq_of_homotopy (hwhisker_left g H) :=
+  begin
+    refine homotopy.rec_on_idp' H _, exact !eq_of_homotopy_idp⁻¹
+  end
+
+end eq

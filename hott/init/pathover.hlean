@@ -70,9 +70,6 @@ namespace eq
   definition inverseo [unfold 8] (r : b =[p] b₂) : b₂ =[p⁻¹] b :=
   by induction r; constructor
 
-  definition apd [unfold 6] (f : Πa, B a) (p : a = a₂) : f a =[p] f a₂ :=
-  by induction p; constructor
-
   definition concato_eq [unfold 10] (r : b =[p] b₂) (q : b₂ = b₂') : b =[p] b₂' :=
   by induction q; exact r
 
@@ -126,20 +123,20 @@ namespace eq
   definition eq_of_pathover {a' a₂' : A'} (q : a' =[p] a₂') : a' = a₂' :=
   by cases q;reflexivity
 
-  definition pathover_of_eq [unfold 5 8] {a' a₂' : A'} (q : a' = a₂') : a' =[p] a₂' :=
+  definition pathover_of_eq [unfold 5 8] (p : a = a₂) {a' a₂' : A'} (q : a' = a₂') : a' =[p] a₂' :=
   by cases p;cases q;constructor
 
   definition pathover_constant [constructor] (p : a = a₂) (a' a₂' : A') : a' =[p] a₂' ≃ a' = a₂' :=
   begin
     fapply equiv.MK,
     { exact eq_of_pathover},
-    { exact pathover_of_eq},
+    { exact pathover_of_eq p},
     { intro r, cases p, cases r, reflexivity},
     { intro r, cases r, reflexivity},
   end
 
   definition pathover_of_eq_tr_constant_inv (p : a = a₂) (a' : A')
-    : pathover_of_eq (tr_constant p a')⁻¹ = pathover_tr p a' :=
+    : pathover_of_eq p (tr_constant p a')⁻¹ = pathover_tr p a' :=
   by cases p; constructor
 
   definition eq_of_pathover_idp [unfold 6] {b' : B a} (q : b =[idpath a] b') : b = b' :=
@@ -155,6 +152,9 @@ namespace eq
            (to_right_inv !pathover_equiv_tr_eq)
            (to_left_inv !pathover_equiv_tr_eq)
 
+  definition eq_of_pathover_idp_pathover_of_eq {A X : Type} (x : X) {a a' : A} (p : a = a') :
+    eq_of_pathover_idp (pathover_of_eq (idpath x) p) = p :=
+  by induction p; reflexivity
 
   -- definition pathover_idp (b : B a) (b' : B a) : b =[idpath a] b' ≃ b = b' :=
   -- pathover_equiv_tr_eq idp b b'
@@ -165,7 +165,7 @@ namespace eq
   -- definition pathover_idp_of_eq [reducible] {b' : B a} (q : b = b') : b =[idpath a] b' :=
   -- to_inv !pathover_idp q
 
-  definition idp_rec_on [recursor] {P : Π⦃b₂ : B a⦄, b =[idpath a] b₂ → Type}
+  definition idp_rec_on [recursor] [unfold 7] {P : Π⦃b₂ : B a⦄, b =[idpath a] b₂ → Type}
     {b₂ : B a} (r : b =[idpath a] b₂) (H : P idpo) : P r :=
   have H2 : P (pathover_idp_of_eq (eq_of_pathover_idp r)), from
     eq.rec_on (eq_of_pathover_idp r) H,
@@ -198,17 +198,6 @@ namespace eq
     { intro q, cases q, reflexivity},
   end
 
-  definition apd_con (f : Πa, B a) (p : a = a₂) (q : a₂ = a₃)
-    : apd f (p ⬝ q) = apd f p ⬝o apd f q :=
-  by cases p; cases q; reflexivity
-
-  definition apd_inv (f : Πa, B a) (p : a = a₂) : apd f p⁻¹ = (apd f p)⁻¹ᵒ :=
-  by cases p; reflexivity
-
-  definition apd_eq_pathover_of_eq_ap (f : A → A') (p : a = a₂) :
-    apd f p = pathover_of_eq (ap f p) :=
-  eq.rec_on p idp
-
   definition pathover_of_pathover_tr (q : b =[p ⬝ p₂] p₂ ▸ b₂) : b =[p] b₂ :=
   pathover_cancel_right q !pathover_tr⁻¹ᵒ
 
@@ -232,29 +221,33 @@ namespace eq
   by induction r;exact c
   infix ` ▸o `:75 := transporto _
 
-  definition fn_tro_eq_tro_fn (C' : Π ⦃a : A⦄, B a → Type) (q : b =[p] b₂)
-    (f : Π(b : B a), C b → C' b) (c : C b) : f b (q ▸o c) = (q ▸o (f b c)) :=
-  by induction q;reflexivity
+  definition fn_tro_eq_tro_fn {C' : Π ⦃a : A⦄, B a → Type} (q : b =[p] b₂)
+    (f : Π⦃a : A⦄ (b : B a), C b → C' b) (c : C b) : f b₂ (q ▸o c) = q ▸o (f b c) :=
+  by induction q; reflexivity
   variable {C}
 
-  definition apo {f : A → A'} (g : Πa, B a → B'' (f a))
-    (q : b =[p] b₂) : g a b =[p] g a₂ b₂ :=
+  /- various variants of ap for pathovers -/
+  definition apd [unfold 6] (f : Πa, B a) (p : a = a₂) : f a =[p] f a₂ :=
+  by induction p; constructor
+
+  definition apo [unfold 12] {f : A → A'} (g : Πa, B a → B'' (f a)) (q : b =[p] b₂) :
+    g a b =[p] g a₂ b₂ :=
   by induction q; constructor
 
-  definition apo011 [unfold 10] (f : Πa, B a → A') (Ha : a = a₂) (Hb : b =[Ha] b₂)
+  definition apd011 [unfold 10] (f : Πa, B a → A') (Ha : a = a₂) (Hb : b =[Ha] b₂)
       : f a b = f a₂ b₂ :=
   by cases Hb; reflexivity
 
-  definition apo0111 (f : Πa b, C b → A') (Ha : a = a₂) (Hb : b =[Ha] b₂)
-    (Hc : c =[apo011 C Ha Hb] c₂) : f a b c = f a₂ b₂ c₂ :=
+  definition apd0111 [unfold 13 14] (f : Πa b, C b → A') (Ha : a = a₂) (Hb : b =[Ha] b₂)
+    (Hc : c =[apd011 C Ha Hb] c₂) : f a b c = f a₂ b₂ c₂ :=
   by cases Hb; apply (idp_rec_on Hc); apply idp
 
   definition apod11 {f : Πb, C b} {g : Πb₂, C b₂} (r : f =[p] g)
-    {b : B a} {b₂ : B a₂} (q : b =[p] b₂) : f b =[apo011 C p q] g b₂ :=
+    {b : B a} {b₂ : B a₂} (q : b =[p] b₂) : f b =[apd011 C p q] g b₂ :=
   by cases r; apply (idp_rec_on q); constructor
 
   definition apdo10 {f : Πb, C b} {g : Πb₂, C b₂} (r : f =[p] g)
-    (b : B a) : f b =[apo011 C p !pathover_tr] g (p ▸ b) :=
+    (b : B a) : f b =[apd011 C p !pathover_tr] g (p ▸ b) :=
   by cases r; constructor
 
   definition apo10 [unfold 9] {f : B a → B' a} {g : B a₂ → B' a₂} (r : f =[p] g)
@@ -273,6 +266,46 @@ namespace eq
     (q : b =[p] b₂) : f b =[p] g b₂ :=
   by induction q; exact apo10 r b
 
+  definition apdo011 {A : Type} {B : A → Type} {C : Π⦃a⦄, B a → Type}
+    (f : Π⦃a⦄ (b : B a), C b) {a a' : A} (p : a = a') {b : B a} {b' : B a'} (q : b =[p] b')
+      : f b =[apd011 C p q] f b' :=
+  by cases q; constructor
+
+  definition apdo0111 {A : Type} {B : A → Type} {C C' : Π⦃a⦄, B a → Type}
+    (f : Π⦃a⦄ {b : B a}, C b → C' b) {a a' : A} (p : a = a') {b : B a} {b' : B a'} (q : b =[p] b')
+    {c : C b} {c' : C b'} (r : c =[apd011 C p q] c')
+      : f c =[apd011 C' p q] f c' :=
+  begin
+    induction q, esimp at r, induction r using idp_rec_on, constructor
+  end
+
+  definition apo11_constant_right [unfold 12] {f : B a → A'} {g : B a₂ → A'}
+    (q : f =[p] g) (r : b =[p] b₂) : f b = g b₂ :=
+  eq_of_pathover (apo11 q r)
+
+  /- properties about these "ap"s, transporto and pathover_ap -/
+  definition apd_con (f : Πa, B a) (p : a = a₂) (q : a₂ = a₃)
+    : apd f (p ⬝ q) = apd f p ⬝o apd f q :=
+  by cases p; cases q; reflexivity
+
+  definition apd_inv (f : Πa, B a) (p : a = a₂) : apd f p⁻¹ = (apd f p)⁻¹ᵒ :=
+  by cases p; reflexivity
+
+  definition apd_eq_pathover_of_eq_ap (f : A → A') (p : a = a₂) :
+    apd f p = pathover_of_eq p (ap f p) :=
+  eq.rec_on p idp
+
+  definition apo_invo (f : Πa, B a → B' a) {Ha : a = a₂} (Hb : b =[Ha] b₂)
+      : (apo f Hb)⁻¹ᵒ = apo f Hb⁻¹ᵒ :=
+  by induction Hb; reflexivity
+
+  definition apd011_inv (f : Πa, B a → A') (Ha : a = a₂) (Hb : b =[Ha] b₂)
+      : (apd011 f Ha Hb)⁻¹ = (apd011 f Ha⁻¹ Hb⁻¹ᵒ) :=
+  by induction Hb; reflexivity
+
+  definition cast_apd011 (q : b =[p] b₂) (c : C b) : cast (apd011 C p q) c = q ▸o c :=
+  by induction q; reflexivity
+
   definition apd_compose1 (g : Πa, B a → B' a) (f : Πa, B a) (p : a = a₂)
     : apd (g ∘' f) p = apo g (apd f p) :=
   by induction p; reflexivity
@@ -281,25 +314,79 @@ namespace eq
     : apd (λa, g (f a)) p = pathover_of_pathover_ap B'' f (apd g (ap f p)) :=
   by induction p; reflexivity
 
-  definition cono.right_inv_eq (q : b = b')
-    : concato_eq (pathover_idp_of_eq q) q⁻¹ = (idpo : b =[refl a] b) :=
+  definition apo_tro (C : Π⦃a⦄, B' a → Type) (f : Π⦃a⦄, B a → B' a) (q : b =[p] b₂)
+    (c : C (f b)) : apo f q ▸o c = q ▸o c :=
+  by induction q; reflexivity
+
+  definition pathover_ap_tro {B' : A' → Type} (C : Π⦃a'⦄, B' a' → Type) (f : A → A')
+    {b : B' (f a)} {b₂ : B' (f a₂)} (q : b =[p] b₂) (c : C b) : pathover_ap B' f q ▸o c = q ▸o c :=
+  by induction q; reflexivity
+
+  definition pathover_ap_invo_tro {B' : A' → Type} (C : Π⦃a'⦄, B' a' → Type) (f : A → A')
+    {b : B' (f a)} {b₂ : B' (f a₂)} (q : b =[p] b₂) (c : C b₂)
+    : (pathover_ap B' f q)⁻¹ᵒ ▸o c = q⁻¹ᵒ ▸o c :=
+  by induction q; reflexivity
+
+  definition pathover_tro (q : b =[p] b₂) (c : C b) : c =[apd011 C p q] q ▸o c :=
+  by induction q; constructor
+
+  definition pathover_ap_invo {B' : A' → Type} (f : A → A') {p : a = a₂}
+    {b : B' (f a)} {b₂ : B' (f a₂)} (q : b =[p] b₂)
+    : pathover_ap B' f q⁻¹ᵒ =[ap_inv f p] (pathover_ap B' f q)⁻¹ᵒ :=
+  by induction q; exact idpo
+
+  definition tro_invo_tro {A : Type} {B : A → Type} (C : Π⦃a⦄, B a → Type)
+    {a a' : A} {p : a = a'} {b : B a} {b' : B a'} (q : b =[p] b') (c : C b') :
+    q ▸o (q⁻¹ᵒ ▸o c) = c :=
+  by induction q; reflexivity
+
+  definition invo_tro_tro {A : Type} {B : A → Type} (C : Π⦃a⦄, B a → Type)
+    {a a' : A} {p : a = a'} {b : B a} {b' : B a'} (q : b =[p] b') (c : C b) :
+    q⁻¹ᵒ ▸o (q ▸o c) = c :=
+  by induction q; reflexivity
+
+  definition cono_tro {A : Type} {B : A → Type} (C : Π⦃a⦄, B a → Type)
+    {a₁ a₂ a₃ : A} {p₁ : a₁ = a₂} {p₂ : a₂ = a₃} {b₁ : B a₁} {b₂ : B a₂} {b₃ : B a₃}
+    (q₁ : b₁ =[p₁] b₂) (q₂ : b₂ =[p₂] b₃) (c : C b₁) :
+    transporto C (q₁ ⬝o q₂) c = transporto C q₂ (transporto C q₁ c) :=
+  by induction q₂; reflexivity
+
+  definition is_equiv_transporto [constructor] {A : Type} {B : A → Type} (C : Π⦃a⦄, B a → Type)
+    {a a' : A} {p : a = a'} {b : B a} {b' : B a'} (q : b =[p] b') : is_equiv (transporto C q) :=
+  begin
+    fapply adjointify,
+    { exact transporto C q⁻¹ᵒ},
+    { exact tro_invo_tro C q},
+    { exact invo_tro_tro C q}
+  end
+
+  definition equiv_apd011 [constructor] {A : Type} {B : A → Type} (C : Π⦃a⦄, B a → Type)
+    {a a' : A} {p : a = a'} {b : B a} {b' : B a'} (q : b =[p] b') : C b ≃ C b' :=
+  equiv.mk (transporto C q) !is_equiv_transporto
+
+  /- some cancellation laws for concato_eq an variants -/
+
+  definition cono.right_inv_eq (q : b = b') :
+    pathover_idp_of_eq q ⬝op q⁻¹ = (idpo : b =[refl a] b) :=
   by induction q;constructor
 
-  definition cono.right_inv_eq' (q : b = b')
-    : eq_concato q (pathover_idp_of_eq q⁻¹) = (idpo : b =[refl a] b) :=
+  definition cono.right_inv_eq' (q : b = b') :
+    q ⬝po (pathover_idp_of_eq q⁻¹) = (idpo : b =[refl a] b) :=
   by induction q;constructor
 
-  definition cono.left_inv_eq (q : b = b')
-    : concato_eq (pathover_idp_of_eq q⁻¹) q = (idpo : b' =[refl a] b') :=
+  definition cono.left_inv_eq (q : b = b') :
+    pathover_idp_of_eq q⁻¹ ⬝op q = (idpo : b' =[refl a] b') :=
   by induction q;constructor
 
-  definition cono.left_inv_eq' (q : b = b')
-    : eq_concato q⁻¹ (pathover_idp_of_eq q) = (idpo : b' =[refl a] b') :=
+  definition cono.left_inv_eq' (q : b = b') :
+    q⁻¹ ⬝po pathover_idp_of_eq q = (idpo : b' =[refl a] b') :=
   by induction q;constructor
 
   definition pathover_of_fn_pathover_fn (f : Π{a}, B a ≃ B' a) (r : f b =[p] f b₂) : b =[p] b₂ :=
   (left_inv f b)⁻¹ ⬝po apo (λa, f⁻¹ᵉ) r ⬝op left_inv f b₂
 
+  /- a pathover in a pathover type where the only thing which varies is the path is the same as
+    an equality with a change_path -/
   definition change_path_of_pathover (s : p = p') (r : b =[p] b₂) (r' : b =[p'] b₂)
     (q : r =[s] r') : change_path s r = r' :=
   by induction s; eapply idp_rec_on q; reflexivity
@@ -318,6 +405,7 @@ namespace eq
     { intro q, induction s, eapply idp_rec_on q, reflexivity},
   end
 
+  /- variants of inverse2 and concat2 -/
   definition inverseo2 [unfold 10] {r r' : b =[p] b₂} (s : r = r') : r⁻¹ᵒ = r'⁻¹ᵒ :=
   by induction s; reflexivity
 
@@ -327,5 +415,20 @@ namespace eq
 
   infixl ` ◾o `:75 := concato2
   postfix [parsing_only] `⁻²ᵒ`:(max+10) := inverseo2 --this notation is abusive, should we use it?
+
+  -- find a better name for this
+  definition fn_tro_eq_tro_fn2 (q : b =[p] b₂)
+    {k : A → A} {l : Π⦃a⦄, B a → B (k a)} (m : Π⦃a⦄ {b : B a}, C b → C (l b))
+    (c : C b) :
+    m (q ▸o c) = (pathover_ap B k (apo l q)) ▸o (m c) :=
+  by induction q; reflexivity
+
+  definition apd0111_precompose (f  : Π⦃a⦄ {b : B a}, C b → A')
+    {k : A → A} {l : Π⦃a⦄, B a → B (k a)} (m : Π⦃a⦄ {b : B a}, C b → C (l b))
+    {q : b =[p] b₂} (c : C b)
+    : apd0111 (λa b c, f (m c)) p q (pathover_tro q c) ⬝ ap (@f _ _) (fn_tro_eq_tro_fn2 q m c) =
+      apd0111 f (ap k p) (pathover_ap B k (apo l q)) (pathover_tro _ (m c)) :=
+  by induction q; reflexivity
+
 
 end eq

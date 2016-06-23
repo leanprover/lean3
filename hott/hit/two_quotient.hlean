@@ -80,7 +80,7 @@ namespace simple_two_quotient
   protected definition pre_elim [unfold 8] {P : Type} (Pj : A → P)
     (Pa : Π⦃a : A⦄ ⦃r : T a a⦄, Q r → P) (Pe : Π⦃a a' : A⦄ (s : R a a'), Pj a = Pj a') (x : C)
     : P :=
-  pre_rec Pj Pa (λa a' s, pathover_of_eq (Pe s)) x
+  pre_rec Pj Pa (λa a' s, pathover_of_eq _ (Pe s)) x
 
   protected theorem rec_e {P : C → Type}
     (Pj : Πa, P (j a)) (Pa : Π⦃a : A⦄ ⦃r : T a a⦄ (q : Q r), P (pre_aux q))

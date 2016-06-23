@@ -35,7 +35,7 @@ namespace interval
   !rec_merid
 
   protected definition elim {P : Type} (P0 P1 : P) (Ps : P0 = P1) (x : interval) : P :=
-  interval.rec P0 P1 (pathover_of_eq Ps) x
+  interval.rec P0 P1 (pathover_of_eq _ Ps) x
 
   protected definition elim_on [reducible] {P : Type} (x : interval) (P0 P1 : P)
     (Ps : P0 = P1) : P :=

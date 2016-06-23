@@ -6,7 +6,7 @@ Authors: Floris van Doorn
 Theorems about the unit type
 -/
 
-open equiv option eq pointed is_trunc
+open is_equiv equiv option eq pointed is_trunc function
 
 namespace unit
 
@@ -31,6 +31,20 @@ namespace unit
   pSet.mk' unit
 
   notation `unit*` := punit
+
+  definition unit_arrow_eq {X : Type} (f : unit → X) : (λx, f ⋆) = f :=
+  by apply eq_of_homotopy; intro u; induction u; reflexivity
+
+  open funext
+  definition unit_arrow_eq_compose {X Y : Type} (g : X → Y) (f : unit → X) :
+    unit_arrow_eq (g ∘ f) = ap (λf, g ∘ f) (unit_arrow_eq f) :=
+  begin
+    apply eq_of_fn_eq_fn' apd10,
+    refine right_inv apd10 _ ⬝ _,
+    refine _ ⬝ ap apd10 (!compose_eq_of_homotopy)⁻¹,
+    refine _ ⬝ (right_inv apd10 _)⁻¹,
+    apply eq_of_homotopy, intro u, induction u, reflexivity
+  end
 
 end unit
 

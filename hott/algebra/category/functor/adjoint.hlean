@@ -52,7 +52,7 @@ namespace category
       → is_left_adjoint.mk G η ε H K = is_left_adjoint.mk G' η' ε' H' K',
     begin
       intros p q r, induction p, induction q, induction r, esimp,
-      apply apd011 (is_left_adjoint.mk G η ε) !is_prop.elim !is_prop.elim
+      apply apd011 (is_left_adjoint.mk G η ε) !is_prop.elim !is_prop.elimo
     end,
     have lem₂ : Π (d : carrier D),
                     (to_fun_hom G (natural_map ε' d) ∘

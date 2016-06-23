@@ -7,9 +7,9 @@ Partially ported from Coq HoTT
 Theorems about pi-types (dependent function spaces)
 -/
 
-import types.sigma arity
+import types.sigma arity cubical.square
 
-open eq equiv is_equiv funext sigma unit bool is_trunc prod
+open eq equiv is_equiv funext sigma unit bool is_trunc prod function sigma.ops
 
 namespace pi
   variables {A A' : Type} {B : A → Type} {B' : A' → Type} {C : Πa, B a → Type}
@@ -80,7 +80,7 @@ namespace pi
   /- Pathovers -/
 
   definition pi_pathover {f : Πb, C a b} {g : Πb', C a' b'} {p : a = a'}
-    (r : Π(b : B a) (b' : B a') (q : b =[p] b'), f b =[apo011 C p q] g b') : f =[p] g :=
+    (r : Π(b : B a) (b' : B a') (q : b =[p] b'), f b =[apd011 C p q] g b') : f =[p] g :=
   begin
     cases p, apply pathover_idp_of_eq,
     apply eq_of_homotopy, intro b,
@@ -88,7 +88,7 @@ namespace pi
   end
 
   definition pi_pathover_left {f : Πb, C a b} {g : Πb', C a' b'} {p : a = a'}
-    (r : Π(b : B a), f b =[apo011 C p !pathover_tr] g (p ▸ b)) : f =[p] g :=
+    (r : Π(b : B a), f b =[apd011 C p !pathover_tr] g (p ▸ b)) : f =[p] g :=
   begin
     cases p, apply pathover_idp_of_eq,
     apply eq_of_homotopy, intro b,
@@ -96,7 +96,7 @@ namespace pi
   end
 
   definition pi_pathover_right {f : Πb, C a b} {g : Πb', C a' b'} {p : a = a'}
-    (r : Π(b' : B a'), f (p⁻¹ ▸ b') =[apo011 C p !tr_pathover] g b') : f =[p] g :=
+    (r : Π(b' : B a'), f (p⁻¹ ▸ b') =[apd011 C p !tr_pathover] g b') : f =[p] g :=
   begin
     cases p, apply pathover_idp_of_eq,
     apply eq_of_homotopy, intro b,
@@ -337,6 +337,39 @@ namespace pi
 
   definition pi_comm_equiv {P : A → A' → Type} : (Πa b, P a b) ≃ (Πb a, P a b) :=
   equiv.mk (@function.flip _ _ P) _
+
+  /- Dependent functions are equivalent to nondependent functions into the total space together
+     with a homotopy -/
+  definition pi_equiv_arrow_sigma_right [constructor] {A : Type} {B : A → Type} (f : Πa, B a) :
+    Σ(f : A → Σa, B a), pr1 ∘ f ~ id :=
+  ⟨λa, ⟨a, f a⟩, λa, idp⟩
+
+  definition pi_equiv_arrow_sigma_left.{u v} [unfold 3] {A : Type.{u}} {B : A → Type.{v}}
+    (v : Σ(f : A → Σa, B a), pr1 ∘ f ~ id) (a : A) : B a :=
+  transport B (v.2 a) (v.1 a).2
+
+  open funext
+  definition pi_equiv_arrow_sigma [constructor] {A : Type} (B : A → Type) :
+    (Πa, B a) ≃ Σ(f : A → Σa, B a), pr1 ∘ f ~ id :=
+  begin
+    fapply equiv.MK,
+    { exact pi_equiv_arrow_sigma_right},
+    { exact pi_equiv_arrow_sigma_left},
+    { intro v, induction v with f p, fapply sigma_eq: esimp,
+      { apply eq_of_homotopy, intro a, fapply sigma_eq: esimp,
+        { exact (p a)⁻¹},
+        { apply inverseo, apply pathover_tr}},
+      { apply pi_pathover_constant, intro a, apply eq_pathover_constant_right,
+        refine ap_compose (λf, f a) _ _ ⬝ph _,
+        refine ap02 _ !compose_eq_of_homotopy ⬝ph _,
+        refine !ap_eq_apd10 ⬝ph _,
+        refine apd10 (right_inv apd10 _) a ⬝ph _,
+        esimp, refine !sigma_eq_pr1 ⬝ph _, apply square_of_eq, exact !con.left_inv⁻¹}},
+    { intro a, reflexivity}
+  end
+
+
+
 
 end pi
 
