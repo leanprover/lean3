@@ -182,6 +182,9 @@ namespace trunc_index
   definition sub_two_succ_succ (n : ℕ) : n.-2.+1.+1 = n := rfl
   definition succ_sub_two_succ (n : ℕ) : (nat.succ n).-2.+1 = n := rfl
 
+  definition of_nat_add_two (n : ℕ₋₂) : of_nat (add_two n) = n.+2 :=
+  begin induction n with n IH, reflexivity, exact ap succ IH end
+
   definition of_nat_le_of_nat {n m : ℕ} (H : n ≤ m) : (of_nat n ≤ of_nat m) :=
   begin
     induction H with m H IH,
@@ -222,6 +225,17 @@ namespace trunc_index
     { cases H2 with n' H2',
       { exfalso, exact H !le.refl},
       { exact succ_le_succ H2'}}
+  end
+
+  definition trunc_index.decidable_le [instance] : Π(n m : ℕ₋₂), decidable (n ≤ m) :=
+  begin
+    intro n, induction n with n IH: intro m,
+    { left, apply minus_two_le},
+    cases m with m,
+    { right, apply not_succ_le_minus_two},
+    cases IH m with H H,
+    { left, apply succ_le_succ H},
+    right, intro H2, apply H, exact le_of_succ_le_succ H2
   end
 
 end trunc_index open trunc_index
@@ -401,6 +415,7 @@ namespace is_trunc
     is_trunc (n.+1) A ↔ Π(a : A), is_trunc n (a = a) :=
   iff.intro _ (is_trunc_succ_of_is_trunc_loop Hn)
 
+  -- use loopn in name
   theorem is_trunc_iff_is_contr_loop_succ (n : ℕ) (A : Type)
     : is_trunc n A ↔ Π(a : A), is_contr (Ω[succ n](pointed.Mk a)) :=
   begin
@@ -417,6 +432,7 @@ namespace is_trunc
       apply imp_iff, reflexivity}
   end
 
+  -- use loopn in name
   theorem is_trunc_iff_is_contr_loop (n : ℕ) (A : Type)
     : is_trunc (n.-2.+1) A ↔ (Π(a : A), is_contr (Ω[n](pointed.Mk a))) :=
   begin
@@ -427,6 +443,7 @@ namespace is_trunc
     { apply is_trunc_iff_is_contr_loop_succ},
   end
 
+  -- rename to is_contr_loopn_of_is_trunc
   theorem is_contr_loop_of_is_trunc (n : ℕ) (A : Type*) [H : is_trunc (n.-2.+1) A] :
     is_contr (Ω[n] A) :=
   begin
@@ -434,6 +451,7 @@ namespace is_trunc
     apply iff.mp !is_trunc_iff_is_contr_loop H
   end
 
+  -- rename to is_trunc_loopn_of_is_trunc
   theorem is_trunc_loop_of_is_trunc (n : ℕ₋₂) (k : ℕ) (A : Type*) [H : is_trunc n A] :
     is_trunc n (Ω[k] A) :=
   begin
@@ -441,6 +459,17 @@ namespace is_trunc
     { exact H},
     { apply is_trunc_eq}
   end
+
+  definition is_trunc_loopn (k : ℕ₋₂) (n : ℕ) (A : Type*) [H : is_trunc (k+n) A]
+    : is_trunc k (Ω[n] A) :=
+  begin
+    revert k H, induction n with n IH: intro k H, exact _,
+    apply is_trunc_eq, apply IH, rewrite [succ_add_nat, add_nat_succ at H], exact H
+  end
+
+  definition is_set_loopn (n : ℕ) (A : Type*) [is_trunc n A] : is_set (Ω[n] A) :=
+  have is_trunc (0+[ℕ₋₂]n) A, by rewrite [trunc_index.zero_add]; exact _,
+  is_trunc_loopn 0 n A
 
 end is_trunc open is_trunc
 
@@ -496,7 +525,8 @@ namespace trunc
     intro p, induction p, induction aa with a, esimp, exact (tr idp)
   end
 
-  protected definition decode {n : ℕ₋₂} (aa aa' : trunc n.+1 A) : trunc.code n aa aa' → aa = aa' :=
+  protected definition decode [unfold 3 4 5] {n : ℕ₋₂} (aa aa' : trunc n.+1 A) :
+    trunc.code n aa aa' → aa = aa' :=
   begin
     induction aa' with a', induction aa with a,
     esimp [trunc.code, trunc.rec_on], intro x,

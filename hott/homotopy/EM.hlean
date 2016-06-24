@@ -199,15 +199,22 @@ namespace EM
     rexact add_mul_le_mul_add n 1 1
   end
 
-  local attribute EMadd1 [reducible]
-  definition is_conn_EMadd1 (G : CommGroup) (n : ℕ) : is_conn n (EMadd1 G n) := _
+  section
+    local attribute EMadd1 [reducible]
+    definition is_conn_EMadd1 [instance] (G : CommGroup) (n : ℕ) : is_conn n (EMadd1 G n) := _
 
-  definition is_trunc_EMadd1 (G : CommGroup) (n : ℕ) : is_trunc (n+1) (EMadd1 G n) := _
+    definition is_trunc_EMadd1 [instance] (G : CommGroup) (n : ℕ) : is_trunc (n+1) (EMadd1 G n) := _
+  end
 
   /- K(G, n) -/
   definition EM (G : CommGroup) : ℕ → Type*
   | 0     := pType_of_Group G
   | (k+1) := EMadd1 G k
+
+  namespace ops
+    abbreviation K := EM
+  end ops
+  open ops
 
   definition phomotopy_group_EM (G : CommGroup) (n : ℕ) : π*[n] (EM G n) ≃* pType_of_Group G :=
   begin
@@ -277,11 +284,55 @@ namespace EM
     [is_conn 0 X] [is_trunc 1 X] : pEM1 G ≃* X :=
   begin
     apply pEM1_pequiv' (!trunc_equiv⁻¹ᵉ ⬝e equiv_of_isomorphism e),
-    intro p q, esimp, exact respect_mul e (tr p) (tr q)
+    intro p q, esimp, exact to_respect_mul e (tr p) (tr q)
   end
+
+  definition pEM1_pequiv_type {X : Type*} [is_conn 0 X] [is_trunc 1 X] : pEM1 (π₁ X) ≃* X :=
+  pEM1_pequiv !isomorphism.refl
+
+  definition EM_pequiv_1.{u} {G : CommGroup.{u}} {X : pType.{u}} (e : π₁ X ≃g G)
+    [is_conn 0 X] [is_trunc 1 X] : EM G 1 ≃* X :=
+  begin
+    refine _ ⬝e* pEM1_pequiv e,
+    apply ptrunc_pequiv,
+    apply is_trunc_pEM1
+  end
+
+  definition EMadd1_pequiv_pEM1 (G : CommGroup) : EMadd1 G 0 ≃* pEM1 G :=
+  begin apply ptrunc_pequiv, apply is_trunc_pEM1 end
+
+  definition EM1add1_pequiv_0.{u} {G : CommGroup.{u}} {X : pType.{u}} (e : π₁ X ≃g G)
+    [is_conn 0 X] [is_trunc 1 X] : EMadd1 G 0 ≃* X :=
+  EMadd1_pequiv_pEM1 G ⬝e* pEM1_pequiv e
 
   definition KG1_pequiv.{u} {X Y : pType.{u}} (e : π₁ X ≃g π₁ Y)
     [is_conn 0 X] [is_trunc 1 X] [is_conn 0 Y] [is_trunc 1 Y] : X ≃* Y :=
   (pEM1_pequiv e)⁻¹ᵉ* ⬝e* pEM1_pequiv !isomorphism.refl
+
+  open circle int
+  definition EM_pequiv_circle : K agℤ 1 ≃* S¹. :=
+  !EMadd1_pequiv_pEM1 ⬝e* pEM1_pequiv fundamental_group_of_circle
+
+  /- loops of EM-spaces -/
+  definition loop_EMadd1 {G : CommGroup} (n : ℕ) : Ω (EMadd1 G (succ n)) ≃* EMadd1 G n :=
+  begin
+    cases n with n,
+    { symmetry, apply EM1add1_pequiv_0, rexact homotopy_group_EMadd1 G 1,
+      -- apply is_conn_loop, apply is_conn_EMadd1,
+      apply is_trunc_loop, apply is_trunc_EMadd1},
+    { refine loop_ptrunc_pequiv _ _ ⬝e* _,
+      rewrite [add_one, succ_sub_two],
+      have succ n + 1 ≤ 2 * succ n, from add_mul_le_mul_add n 1 1,
+      symmetry, refine freudenthal_pequiv _ this, }
+  end
+
+  definition loop_EM (G : CommGroup) (n : ℕ) : Ω (K G (succ n)) ≃* K G n :=
+  begin
+    cases n with n,
+    { refine _ ⬝e* pequiv_of_isomorphism (fundamental_group_pEM1 G),
+      refine loop_pequiv_loop (EMadd1_pequiv_pEM1 G) ⬝e* _,
+      symmetry, apply ptrunc_pequiv, exact _},
+    { apply loop_EMadd1}
+  end
 
 end EM

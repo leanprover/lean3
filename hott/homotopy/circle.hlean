@@ -10,7 +10,7 @@ import .sphere
 import types.int.hott
 import algebra.homotopy_group .connectedness
 
-open eq susp bool sphere_index is_equiv equiv is_trunc is_conn pi algebra
+open eq susp bool sphere_index is_equiv equiv is_trunc is_conn pi algebra pointed
 
 definition circle : Type₀ := sphere 1
 
@@ -336,6 +336,9 @@ namespace circle
 
   proposition is_conn_circle [instance] : is_conn 0 S¹ :=
   sphere.is_conn_sphere -1.+2
+
+  definition is_conn_pcircle [instance] : is_conn 0 S¹. := !is_conn_circle
+  definition is_trunc_pcircle [instance] : is_trunc 1 S¹. := !is_trunc_circle
 
   definition circle_mul [reducible] (x y : S¹) : S¹ :=
   circle.elim y (circle_turn y) x

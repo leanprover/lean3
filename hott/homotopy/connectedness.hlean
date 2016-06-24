@@ -2,15 +2,23 @@
 Copyright (c) 2015 Ulrik Buchholtz. All rights reserved.
 Released under Apache 2.0 license as described in the file LICENSE.
 Authors: Ulrik Buchholtz, Floris van Doorn
+
+Connectedness of types and functions
 -/
 import types.trunc types.arrow_2 types.lift
 
-open eq is_trunc is_equiv nat equiv trunc function fiber funext pi
+open eq is_trunc is_equiv nat equiv trunc function fiber funext pi pointed
+
+definition is_conn [reducible] (n : ℕ₋₂) (A : Type) : Type :=
+is_contr (trunc n A)
+
+definition is_conn_fun [reducible] (n : ℕ₋₂) {A B : Type} (f : A → B) : Type :=
+Πb : B, is_conn n (fiber f b)
+
+definition is_conn_inf [reducible] (A : Type) : Type := Πn, is_conn n A
+definition is_conn_fun_inf [reducible] {A B : Type} (f : A → B) : Type := Πn, is_conn_fun n f
 
 namespace is_conn
-
-  definition is_conn [reducible] (n : ℕ₋₂) (A : Type) : Type :=
-  is_contr (trunc n A)
 
   definition is_conn_equiv_closed (n : ℕ₋₂) {A B : Type}
     : A ≃ B → is_conn n A → is_conn n B :=
@@ -21,9 +29,6 @@ namespace is_conn
     assumption
   end
 
-  definition is_conn_fun [reducible] (n : ℕ₋₂) {A B : Type} (f : A → B) : Type :=
-  Πb : B, is_conn n (fiber f b)
-
   theorem is_conn_of_le (A : Type) {n k : ℕ₋₂} (H : n ≤ k) [is_conn k A] : is_conn n A :=
   begin
     apply is_contr_equiv_closed,
@@ -33,6 +38,9 @@ namespace is_conn
   theorem is_conn_fun_of_le {A B : Type} (f : A → B) {n k : ℕ₋₂} (H : n ≤ k)
     [is_conn_fun k f] : is_conn_fun n f :=
   λb, is_conn_of_le _ H
+
+  definition is_conn_of_is_conn_succ (n : ℕ₋₂) (A : Type) [is_conn (n.+1) A] : is_conn n A :=
+  is_trunc_trunc_of_le A -2 (trunc_index.self_le_succ n)
 
   namespace is_conn_fun
   section
@@ -267,6 +275,15 @@ namespace is_conn
     apply is_trunc_equiv_closed, apply trunc_trunc_equiv_trunc_trunc
   end
 
+  definition is_conn_eq [instance] (n : ℕ₋₂) {A : Type} (a a' : A) [is_conn (n.+1) A] :
+    is_conn n (a = a') :=
+  begin
+    apply is_trunc_equiv_closed, apply tr_eq_tr_equiv,
+  end
+
+  definition is_conn_loop [instance] (n : ℕ₋₂) (A : Type*) [is_conn (n.+1) A] : is_conn n (Ω A) :=
+  !is_conn_eq
+
   open pointed
   definition is_conn_ptrunc [instance] (A : Type*) (n k : ℕ₋₂) [H : is_conn n A]
     : is_conn n (ptrunc k A) :=
@@ -328,6 +345,24 @@ namespace is_conn
   begin
     intro b, cases b with b, apply is_trunc_equiv_closed_rev,
     { apply trunc_equiv_trunc, apply fiber_lift_functor}
+  end
+
+  open trunc_index
+  definition is_conn_fun_inf.mk_nat {A B : Type} {f : A → B} (H : Π(n : ℕ), is_conn_fun n f)
+    : is_conn_fun_inf f :=
+  begin
+    intro n,
+    cases n with n, { exact _},
+    cases n with n, { have -1 ≤ of_nat 0, from dec_star, apply is_conn_fun_of_le f this},
+    rewrite -of_nat_add_two, exact _
+  end
+
+  definition is_conn_inf.mk_nat {A : Type} (H : Π(n : ℕ), is_conn n A) : is_conn_inf A :=
+  begin
+    intro n,
+    cases n with n, { exact _},
+    cases n with n, { have -1 ≤ of_nat 0, from dec_star, apply is_conn_of_le A this},
+    rewrite -of_nat_add_two, exact _
   end
 
 end is_conn

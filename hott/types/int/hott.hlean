@@ -18,6 +18,10 @@ namespace int
   Group.mk ℤ (group_of_add_group _)
 
   notation `gℤ` := group_integers
+
+  definition CommGroup_int [constructor] : CommGroup :=
+  CommGroup.mk ℤ ⦃comm_group, group_of_add_group ℤ, mul_comm := add.comm⦄
+  notation `agℤ` := CommGroup_int
   end
 
   definition is_equiv_succ [instance] : is_equiv succ :=

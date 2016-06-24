@@ -244,3 +244,25 @@ namespace is_trunc
   end
 
 end is_trunc
+open is_trunc function
+/- applications to infty-connected types and maps -/
+namespace is_conn
+
+  definition is_conn_fun_inf_of_equiv_on_homotopy_groups.{u} {A B : Type.{u}} (f : A → B)
+    [is_equiv (trunc_functor 0 f)]
+    (H1 : Πa k, is_equiv (homotopy_group_functor k (pmap_of_map f a))) : is_conn_fun_inf f :=
+  begin
+    apply is_conn_fun_inf.mk_nat, intro n, apply is_conn_fun_of_equiv_on_homotopy_groups,
+    { intro a k H, exact H1 a k},
+    { intro a, apply is_surjective_of_is_equiv}
+  end
+
+  definition is_equiv_trunc_functor_of_is_conn_fun_inf.{u} (n : ℕ₋₂) {A B : Type.{u}} (f : A → B)
+    [is_conn_fun_inf f] : is_equiv (trunc_functor n f) :=
+  _
+
+  definition is_equiv_homotopy_group_functor_of_is_conn_fun_inf.{u} {A B : pType.{u}} (f : A →* B)
+    [is_conn_fun_inf f] (a : A) (k : ℕ) : is_equiv (homotopy_group_functor k f) :=
+  is_equiv_π_of_is_connected f (le.refl k)
+
+end is_conn
