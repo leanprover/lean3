@@ -20,6 +20,7 @@ Author: Leonardo de Moura
 #include "library/tactic/abstract_expr_tactics.h"
 #include "library/tactic/elaborate.h"
 #include "library/tactic/defeq_simplifier/init_module.h"
+#include "library/tactic/simplifier/init_module.h"
 
 namespace lean {
 void initialize_tactic_module() {
@@ -39,9 +40,11 @@ void initialize_tactic_module() {
     initialize_abstract_expr_tactics();
     initialize_elaborate();
     initialize_defeq_simplifier_module();
+    initialize_simplifier_module();
 }
 void finalize_tactic_module() {
     finalize_defeq_simplifier_module();
+    finalize_simplifier_module();
     finalize_elaborate();
     finalize_abstract_expr_tactics();
     finalize_congr_lemma_tactics();
