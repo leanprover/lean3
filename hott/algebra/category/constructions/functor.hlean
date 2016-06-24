@@ -111,7 +111,7 @@ namespace functor
 
   omit isoη
 
-  definition componentwise_iso (η : F ≅ G) (c : C) : F c ≅ G c :=
+  definition componentwise_iso [constructor] (η : F ≅ G) (c : C) : F c ≅ G c :=
   iso.mk (natural_map (to_hom η) c)
          (@componentwise_is_iso _ _ _ _ (to_hom η) (struct η) c)
 

@@ -11,8 +11,9 @@ morphisms. For this we use the notion of paths in a graph.
 -/
 
 import ..category ..nat_trans hit.set_quotient algebra.relation ..groupoid algebra.graph
+       .functor
 
-open eq is_trunc functor trunc sum set_quotient relation iso category sigma nat
+open eq is_trunc functor trunc sum set_quotient relation iso category sigma nat nat_trans
 
   /- we first define the categorical structure on paths in a graph -/
 namespace paths
@@ -117,95 +118,12 @@ end paths
 open paths
 
 namespace category
-section
-  /- We use this for the pushout of categories -/
-  inductive pushout_prehom_index {C : Type} (D E : Precategory) (F : C → D) (G : C → E) :
-    D + E → D + E → Type :=
-  | iD : Π{d d' : D} (f : d ⟶ d'), pushout_prehom_index D E F G (inl d) (inl d')
-  | iE : Π{e e' : E} (g : e ⟶ e'), pushout_prehom_index D E F G (inr e) (inr e')
-  | DE : Π(c : C), pushout_prehom_index D E F G (inl (F c)) (inr (G c))
-  | ED : Π(c : C), pushout_prehom_index D E F G (inr (G c)) (inl (F c))
 
-  open pushout_prehom_index
+  /- We also define the pushout of two groupoids with a type of basepoints, which are surjectively
+     mapped into C (although we don't need to assume that this mapping is surjective for the
+     definition) -/
 
-  definition pushout_prehom {C : Type} (D E : Precategory) (F : C → D) (G : C → E) :
-    D + E → D + E → Type :=
-  paths (pushout_prehom_index D E F G)
-
-  inductive pushout_hom_rel_index {C : Type} (D E : Precategory) (F : C → D) (G : C → E) :
-    Π⦃x x' : D + E⦄, pushout_prehom D E F G x x' → pushout_prehom D E F G x x' → Type :=
-  | DD  : Π{d₁ d₂ d₃ : D} (g : d₂ ⟶ d₃) (f : d₁ ⟶ d₂),
-      pushout_hom_rel_index D E F G [iD F G g, iD F G f] [iD F G (g ∘ f)]
-  | EE  : Π{e₁ e₂ e₃ : E} (g : e₂ ⟶ e₃) (f : e₁ ⟶ e₂),
-      pushout_hom_rel_index D E F G [iE F G g, iE F G f] [iE F G (g ∘ f)]
-  | DED : Π(c : C), pushout_hom_rel_index D E F G [ED F G c, DE F G c] nil
-  | EDE : Π(c : C), pushout_hom_rel_index D E F G [DE F G c, ED F G c] nil
-  | idD : Π(d : D), pushout_hom_rel_index D E F G [iD F G (ID d)] nil
-  | idE : Π(e : E), pushout_hom_rel_index D E F G [iE F G (ID e)] nil
-
-  open pushout_hom_rel_index
-
-  definition Precategory_pushout [constructor] {C : Type} (D E : Precategory)
-    (F : C → D) (G : C → E) : Precategory :=
-  Precategory_paths (pushout_hom_rel_index D E F G)
-
-  /- We can also take the pushout of groupoids -/
   section
-  variables {C : Type} (D E : Groupoid) (F : C → D) (G : C → E)
-  variables ⦃x x' x₁ x₂ x₃ x₄ : Precategory_pushout D E F G⦄
-
-  definition pushout_index_inv [unfold 8] (i : pushout_prehom_index D E F G x x') :
-    pushout_prehom_index D E F G x' x :=
-  begin
-    induction i,
-    { exact iD F G f⁻¹},
-    { exact iE F G g⁻¹},
-    { exact ED F G c},
-    { exact DE F G c},
-  end
-
-  open paths.paths_rel
-  theorem pushout_index_reverse {l l' : pushout_prehom D E F G x x'}
-    (q : pushout_hom_rel_index D E F G l l') : paths_rel (pushout_hom_rel_index D E F G)
-      (reverse (pushout_index_inv D E F G) l) (reverse (pushout_index_inv D E F G) l') :=
-  begin
-    induction q: apply paths_rel_of_Q;
-    try rewrite reverse_singleton; try rewrite reverse_pair; try rewrite reverse_nil; esimp;
-    try rewrite [comp_inverse]; try rewrite [id_inverse]; constructor,
-  end
-
-  theorem pushout_index_li (i : pushout_prehom_index D E F G x x') :
-    paths_rel (pushout_hom_rel_index D E F G) [pushout_index_inv D E F G i, i] nil :=
-  begin
-    induction i: esimp,
-    { refine rtrans (paths_rel_of_Q !DD) _,
-      rewrite [comp.left_inverse], exact paths_rel_of_Q !idD},
-    { refine rtrans (paths_rel_of_Q !EE) _,
-      rewrite [comp.left_inverse], exact paths_rel_of_Q !idE},
-    { exact paths_rel_of_Q !DED},
-    { exact paths_rel_of_Q !EDE}
-  end
-
-  theorem pushout_index_ri (i : pushout_prehom_index D E F G x x') :
-    paths_rel (pushout_hom_rel_index D E F G) [i, pushout_index_inv D E F G i] nil :=
-  begin
-    induction i: esimp,
-    { refine rtrans (paths_rel_of_Q !DD) _,
-      rewrite [comp.right_inverse], exact paths_rel_of_Q !idD},
-    { refine rtrans (paths_rel_of_Q !EE) _,
-      rewrite [comp.right_inverse], exact paths_rel_of_Q !idE},
-    { exact paths_rel_of_Q !EDE},
-    { exact paths_rel_of_Q !DED}
-  end
-
-  definition Groupoid_pushout [constructor] : Groupoid :=
-  Groupoid_paths (pushout_hom_rel_index D E F G) (pushout_index_inv D E F G)
-    (pushout_index_reverse D E F G) (pushout_index_li D E F G) (pushout_index_ri D E F G)
-  end
-end
-  /- We also define the pushout of two groupoids with a type of basepoints,
-     which are surjectively mapped into C -/
-
   inductive bpushout_prehom_index {S : Type} {C D E : Precategory} (k : S → C) (F : C ⇒ D)
     (G : C ⇒ E) : D + E → D + E → Type :=
   | iD : Π{d d' : D} (f : d ⟶ d'), bpushout_prehom_index k F G (inl d) (inl d')
@@ -235,17 +153,222 @@ end
   | cohED : Π{s₁ s₂ : S} (h : k s₁ ⟶ k s₂),
         bpushout_hom_rel_index k F G [ED k F G s₂, iE k F G (G h)] [iD k F G (F h), ED k F G s₁]
 
-  open bpushout_hom_rel_index
+  open bpushout_hom_rel_index paths.paths_rel
 
-  definition Precategory_bpushout [constructor] {S : Type} {C D E : Precategory} (k : S → C)
-    (F : C ⇒ D) (G : C ⇒ E) : Precategory :=
+  definition Precategory_bpushout [constructor] {S : Type} {C D E : Precategory}
+    (k : S → C) (F : C ⇒ D) (G : C ⇒ E) : Precategory :=
   Precategory_paths (bpushout_hom_rel_index k F G)
+
+  parameters {C D E X : Precategory} (F : C ⇒ D) (G : C ⇒ E) (H : D ⇒ X) (K : E ⇒ X)
+    (η : H ∘f F ≅ K ∘f G)
+
+  definition Cpushout [constructor] : Precategory :=
+  Precategory_bpushout (λc, c) F G
+
+  definition Cpushout_inl [constructor] : D ⇒ Cpushout :=
+  begin
+    fapply functor.mk,
+    { exact inl},
+    { intro d d' f, exact class_of [iD (λc, c) F G f]},
+    { intro d, refine eq_of_rel (tr (paths_rel_of_Q _)), apply idD},
+    { intro d₁ d₂ d₃ g f, refine (eq_of_rel (tr (paths_rel_of_Q _)))⁻¹, apply DD}
+  end
+
+  definition Cpushout_inr [constructor] : E ⇒ Cpushout :=
+  begin
+    fapply functor.mk,
+    { exact inr},
+    { intro e e' f, exact class_of [iE (λc, c) F G f]},
+    { intro e, refine eq_of_rel (tr (paths_rel_of_Q _)), apply idE},
+    { intro e₁ e₂ e₃ g f, refine (eq_of_rel (tr (paths_rel_of_Q _)))⁻¹, apply EE}
+  end
+
+  variables ⦃x x' x₁ x₂ x₃ : Cpushout⦄
+  include H K
+  local notation `R` := bpushout_prehom_index  (λ c, c) F G
+  local notation `Q` := bpushout_hom_rel_index (λ c, c) F G
+
+  definition Cpushout_functor_ob [unfold 9] (x : Cpushout) : X :=
+  begin
+    induction x with d e,
+    { exact H d},
+    { exact K e}
+  end
+
+  include η
+  parameters {F G}
+  definition Cpushout_functor_reduction_rule [unfold 12] (i : R x x') :
+    Cpushout_functor_ob x ⟶ Cpushout_functor_ob x' :=
+  begin
+    induction i,
+    { exact H f},
+    { exact K g},
+    { exact natural_map (to_hom η) s},
+    { exact natural_map (to_inv η) s}
+  end
+
+  definition Cpushout_functor_list (l : paths R x x') :
+    Cpushout_functor_ob x ⟶ Cpushout_functor_ob x' :=
+  realize _
+          Cpushout_functor_reduction_rule
+          (λa, id)
+          (λa b c g f, f ∘ g) l
+
+  definition Cpushout_functor_list_nil (x : Cpushout) :
+    Cpushout_functor_list (@nil _ _ x) = id :=
+  idp
+
+  definition Cpushout_functor_list_cons (r : R x₂ x₃) (l : paths R x₁ x₂) :
+    Cpushout_functor_list (r :: l) = Cpushout_functor_reduction_rule r ∘ Cpushout_functor_list l :=
+  idp
+
+  definition Cpushout_functor_list_singleton (r : R x₁ x₂) :
+    Cpushout_functor_list [r] = Cpushout_functor_reduction_rule r :=
+  realize_singleton (λa b f, id_right f) r
+
+  definition Cpushout_functor_list_pair (r₂ : R x₂ x₃) (r₁ : R x₁ x₂) :
+    Cpushout_functor_list [r₂, r₁] =
+      Cpushout_functor_reduction_rule r₂ ∘ Cpushout_functor_reduction_rule r₁ :=
+  realize_pair (λa b f, id_right f) r₂ r₁
+
+  definition Cpushout_functor_list_append (l₂ : paths R x₂ x₃) (l₁ : paths R x₁ x₂) :
+    Cpushout_functor_list (l₂ ++ l₁) = Cpushout_functor_list l₂ ∘ Cpushout_functor_list l₁ :=
+  realize_append (λa b c d h g f, assoc f g h) (λa b f, id_left f) l₂ l₁
+
+  theorem Cpushout_functor_list_rel {l l' : paths R x x'} (q : Q l l') :
+    Cpushout_functor_list l = Cpushout_functor_list l' :=
+  begin
+    induction q,
+    { rewrite [Cpushout_functor_list_pair, Cpushout_functor_list_singleton],
+      exact (respect_comp H g f)⁻¹},
+    { rewrite [Cpushout_functor_list_pair, Cpushout_functor_list_singleton],
+      exact (respect_comp K g f)⁻¹},
+    { rewrite [Cpushout_functor_list_pair, Cpushout_functor_list_nil],
+      exact ap010 natural_map (to_left_inverse η) s},
+    { rewrite [Cpushout_functor_list_pair, Cpushout_functor_list_nil],
+      exact ap010 natural_map (to_right_inverse η) s},
+    { rewrite [Cpushout_functor_list_singleton, Cpushout_functor_list_nil], exact respect_id H d},
+    { rewrite [Cpushout_functor_list_singleton, Cpushout_functor_list_nil], exact respect_id K e},
+    { rewrite [+Cpushout_functor_list_pair], exact naturality (to_hom η) h},
+    { rewrite [+Cpushout_functor_list_pair], exact (naturality (to_inv η) h)⁻¹}
+  end
+
+  definition Cpushout_functor_hom [unfold 12] (f : x ⟶ x') :
+    Cpushout_functor_ob x ⟶ Cpushout_functor_ob x' :=
+  begin
+    induction f with l l l' q,
+    { exact Cpushout_functor_list l},
+    { esimp at *, induction q with q, refine realize_eq _ _ _ q,
+      { intros, apply assoc},
+      { intros, apply id_left},
+      intro a₁ a₂ l₁ l₁ q, exact Cpushout_functor_list_rel q}
+  end
+
+  definition Cpushout_functor [constructor] : Cpushout ⇒ X :=
+  begin
+    fapply functor.mk,
+    { exact Cpushout_functor_ob},
+    { exact Cpushout_functor_hom},
+    { intro x, reflexivity},
+    { intro x₁ x₂ x₃ g f,
+      induction g using set_quotient.rec_prop with l₂,
+      induction f using set_quotient.rec_prop with l₁,
+      exact Cpushout_functor_list_append l₂ l₁}
+  end
+
+  definition Cpushout_functor_inl [constructor] : Cpushout_functor ∘f Cpushout_inl ≅ H :=
+  begin
+    fapply natural_iso.mk,
+    { fapply nat_trans.mk,
+      { intro d, exact id},
+      { intro d d' f, rewrite [▸*, Cpushout_functor_list_singleton], apply comp_id_eq_id_comp}},
+    esimp, exact _
+  end
+
+  definition Cpushout_functor_inr [constructor] : Cpushout_functor ∘f Cpushout_inr ≅ K :=
+  begin
+    fapply natural_iso.mk,
+    { fapply nat_trans.mk,
+      { intro d, exact id},
+      { intro d d' f, rewrite [▸*, Cpushout_functor_list_singleton], apply comp_id_eq_id_comp}},
+    esimp, exact _
+  end
+
+  definition Cpushout_functor_coh (c : C) : natural_map (to_hom Cpushout_functor_inr) (G c) ∘
+    Cpushout_functor (class_of [DE (λ c, c) F G c]) ∘ natural_map (to_inv Cpushout_functor_inl) (F c)
+    = natural_map (to_hom η) c :=
+  !id_leftright ⬝ !Cpushout_functor_list_singleton
+
+  definition Cpushout_functor_unique_ob [unfold 13] (L : Cpushout ⇒ X) (η₁ : L ∘f Cpushout_inl ≅ H)
+    (η₂ : L ∘f Cpushout_inr ≅ K) (x : Cpushout) : L x ⟶ Cpushout_functor x :=
+  begin
+    induction x with d e,
+    { exact natural_map (to_hom η₁) d},
+    { exact natural_map (to_hom η₂) e}
+  end
+
+  definition Cpushout_functor_unique_inv_ob [unfold 13] (L : Cpushout ⇒ X)
+    (η₁ : L ∘f Cpushout_inl ≅ H) (η₂ : L ∘f Cpushout_inr ≅ K) (x : Cpushout) :
+    Cpushout_functor x ⟶ L x :=
+  begin
+    induction x with d e,
+    { exact natural_map (to_inv η₁) d},
+    { exact natural_map (to_inv η₂) e}
+  end
+
+  definition Cpushout_functor_unique_nat_singleton (L : Cpushout ⇒ X) (η₁ : L ∘f Cpushout_inl ≅ H)
+    (η₂ : L ∘f Cpushout_inr ≅ K)
+    (p : Πs, natural_map (to_hom η₂) (to_fun_ob G s) ∘ to_fun_hom L (class_of [DE (λ c, c) F G s]) ∘
+             natural_map (to_inv η₁) (to_fun_ob F s) = natural_map (to_hom η) s) (r : R x x') :
+    Cpushout_functor_reduction_rule r ∘ Cpushout_functor_unique_ob L η₁ η₂ x =
+    Cpushout_functor_unique_ob L η₁ η₂ x' ∘ L (class_of [r]) :=
+  begin
+    induction r,
+    { exact naturality (to_hom η₁) f},
+    { exact naturality (to_hom η₂) g},
+    { refine ap (λx, x ∘ _) (p s)⁻¹ ⬝ _, refine !assoc' ⬝ _, apply ap (λx, _ ∘ x),
+      refine !assoc' ⬝ _ ⬝ !id_right, apply ap (λx, _ ∘ x),
+      exact ap010 natural_map (to_left_inverse η₁) (F s)},
+    { apply comp.cancel_left (to_hom (componentwise_iso η s)),
+      refine !assoc ⬝ _ ⬝ ap (λx, x ∘ _) (p s),
+      refine ap (λx, x ∘ _) (ap010 natural_map (to_right_inverse η) s) ⬝ _ ⬝ !assoc,
+      refine !id_left ⬝ !id_right⁻¹ ⬝ _, apply ap (λx, _ ∘ x),
+      refine _ ⬝ ap (λx, _ ∘ x) (ap (λx, x ∘ _) _⁻¹ ⬝ !assoc') ⬝ !assoc,
+      rotate 2, exact ap010 natural_map (to_left_inverse η₁) (F s),
+      refine _⁻¹ ⬝ ap (λx, _ ∘ x) !id_left⁻¹, refine (respect_comp L _ _)⁻¹ ⬝ _ ⬝ respect_id L _,
+      apply ap (to_fun_hom L), refine eq_of_rel (tr (paths_rel_of_Q _)), apply EDE},
+  end
+
+  definition Cpushout_functor_unique [constructor] (L : Cpushout ⇒ X) (η₁ : L ∘f Cpushout_inl ≅ H)
+    (η₂ : L ∘f Cpushout_inr ≅ K)
+    (p : Πs, natural_map (to_hom η₂) (to_fun_ob G s) ∘ to_fun_hom L (class_of [DE (λ c, c) F G s]) ∘
+             natural_map (to_inv η₁) (to_fun_ob F s) = natural_map (to_hom η) s) :
+    L ≅ Cpushout_functor :=
+  begin
+    fapply natural_iso.MK,
+    { exact Cpushout_functor_unique_ob L η₁ η₂},
+    { intro x x' f, induction f using set_quotient.rec_prop with l,
+      esimp, induction l with x x₁ x₂ x₃ r l IH,
+      { refine !id_left ⬝ !id_right⁻¹ ⬝ _⁻¹, apply ap (λx, _ ∘ x), apply respect_id},
+      { rewrite [Cpushout_functor_list_cons, assoc', ▸*, IH, assoc, ▸*,
+                 Cpushout_functor_unique_nat_singleton L η₁ η₂ p r, ▸*, assoc', -respect_comp L]}},
+    { exact Cpushout_functor_unique_inv_ob L η₁ η₂},
+    { intro x, induction x with d e,
+      { exact ap010 natural_map (to_left_inverse η₁) d},
+      { exact ap010 natural_map (to_left_inverse η₂) e}},
+    { intro x, induction x with d e,
+      { exact ap010 natural_map (to_right_inverse η₁) d},
+      { exact ap010 natural_map (to_right_inverse η₂) e}},
+  end
+
+
+  end
 
   /- Pushout of groupoids with a type of basepoints -/
   section
   variables {S : Type} {C D E : Groupoid} (k : S → C) (F : C ⇒ D) (G : C ⇒ E)
   variables ⦃x x' x₁ x₂ x₃ x₄ : Precategory_bpushout k F G⦄
-
+  open bpushout_prehom_index paths.paths_rel bpushout_hom_rel_index
   definition bpushout_index_inv [unfold 8] (i : bpushout_prehom_index k F G x x') :
     bpushout_prehom_index k F G x' x :=
   begin
@@ -256,7 +379,6 @@ end
     { exact DE k F G s},
   end
 
-  open paths.paths_rel
   theorem bpushout_index_reverse {l l' : bpushout_prehom k F G x x'}
     (q : bpushout_hom_rel_index k F G l l') : paths_rel (bpushout_hom_rel_index k F G)
       (reverse (bpushout_index_inv k F G) l) (reverse (bpushout_index_inv k F G) l') :=
@@ -293,5 +415,10 @@ end
   definition Groupoid_bpushout [constructor] : Groupoid :=
   Groupoid_paths (bpushout_hom_rel_index k F G) (bpushout_index_inv k F G)
     (bpushout_index_reverse k F G) (bpushout_index_li k F G) (bpushout_index_ri k F G)
+
+  definition Groupoid_pushout [constructor] : Groupoid :=
+  Groupoid_bpushout (λc, c) F G
+
   end
+
 end category
