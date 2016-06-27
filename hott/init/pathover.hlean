@@ -227,6 +227,18 @@ namespace eq
   definition tr_pathover_of_eq (q : b₂ = b₂') : p⁻¹ ▸ b₂ =[p] b₂' :=
   by cases q;apply tr_pathover
 
+  definition eq_of_parallel_po_right (q : b =[p] b₂) (q' : b =[p] b₂') : b₂ = b₂' :=
+  begin
+    apply @eq_of_pathover_idp A B, apply change_path (con.left_inv p),
+    exact q⁻¹ᵒ ⬝o q'
+  end
+
+  definition eq_of_parallel_po_left (q : b =[p] b₂) (q' : b' =[p] b₂) : b = b' :=
+  begin
+    apply @eq_of_pathover_idp A B, apply change_path (con.right_inv p),
+    exact q ⬝o q'⁻¹ᵒ
+  end
+
   variable (C)
   definition transporto (r : b =[p] b₂) (c : C b) : C b₂ :=
   by induction r;exact c
