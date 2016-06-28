@@ -40,19 +40,21 @@ namespace lean  {
         void unindent();
         void emit_main(name & lean_main);
         void emit_prototype(name & n, unsigned arity);
-
+        void emit_indented(const char * str);
+        void emit_indented_line(const char * str);
         void mangle_name(name const & n);
 
         template <typename F>
         void emit_return(F expr) {
             *this->m_output_stream << "return ";
             expr();
-            *this->m_output_stream << ";\n";
+            this->emit_indented_line(";");
         }
 
         template <typename F>
-        void emit_c_call(name & global, unsigned nargs, expr const * args, F each_arg) {
-            *this->m_output_stream << global << "(";
+        void emit_c_call(name const & global, unsigned nargs, expr const * args, F each_arg) {
+            mangle_name(global);
+            *this->m_output_stream << "(";
 
             auto comma = false;
 
@@ -69,6 +71,25 @@ namespace lean  {
         }
 
         template <typename F>
+        void emit_constructor(unsigned ctor, unsigned nargs, expr const * args, F each_arg) {
+            *this->m_output_stream << "lean::mk_vm_constructor(";
+            *this->m_output_stream << ctor << ", {";
+
+            auto comma = false;
+
+            for (unsigned i = 0; i < nargs; i++) {
+                if (comma) {
+                    *this->m_output_stream << ", ";
+                } else {
+                    comma = true;
+                }
+                each_arg(args[i]);
+            }
+
+            *this->m_output_stream << "})";
+        }
+
+        template <typename F>
         void emit_local_binding(unsigned bpz, F value_fn) {
             *this->m_output_stream << LEAN_OBJ_TYPE << " ";
             this->emit_local(bpz);
@@ -78,22 +99,81 @@ namespace lean  {
         }
 
         template <typename F>
-        void emit_decl(name const & n, expr e, F block_fn) {
+        void emit_decl(name const & n, buffer<unsigned> & ls, expr e, F block_fn) {
             *this->m_output_stream << LEAN_OBJ_TYPE << " ";
             mangle_name(n);
-            *this->m_output_stream << "() ";
+
+            *this->m_output_stream << "(";
+
+            auto comma = false;
+
+            for (auto l : ls) {
+                if (comma) {
+                    *this->m_output_stream << ", ";
+                } else {
+                    comma = true;
+                }
+                *this->m_output_stream << LEAN_OBJ_TYPE << " ";
+                this->emit_local(l);
+            }
+
+            *this->m_output_stream << ")";
+
             this->emit_block([e, block_fn] { block_fn(e); });
         }
 
         template <typename F>
         void emit_block(F block_fn) {
-            *this->m_output_stream << "{" << std::endl;
+            *this->m_output_stream << "{\n";
             this->m_width += 4;
             block_fn();
             this->m_width -= 4;
-            *this->m_output_stream << "}" << std::endl;
+            *this->m_output_stream << "}\n";
         }
 
-        // void emit_return(expr const & e)
+        template <typename F>
+        void emit_cases_on(name const & scrut, buffer<expr> & args, F action) {
+            *this->m_output_stream << "cases_on " << args[0] << std::endl;
+        }
+
+        template <typename F>
+        void emit_nat_cases(expr & scrutinee, expr & zero_case, expr & succ_case, F action) {
+            this->emit_indented("vm::obj scrutinee = ");
+            action(scrutinee);
+            *this->m_output_stream << ";\n" << std::endl;
+
+            this->emit_indented("if (is_simple(scrutinee))");
+            this->emit_block([&] () {
+                this->emit_indented("unsigned val = cidx(scrutinee);\n");
+                this->emit_indented("if (val == 0) ");
+                this->emit_block([&] () {
+                    action(zero_case);
+                    *this->m_output_stream << ";\n";
+                });
+
+                this->emit_indented("else ");
+
+                this->emit_block([&] () {
+                    action(succ_case);
+                    *this->m_output_stream << ";\n";
+                });
+            });
+
+            this->emit_indented("else ");
+            this->emit_block([&] () {
+                this->emit_indented("mpz const & val = to_mpz(top);\n");
+                this->emit_indented("if (val == 0) ");
+                this->emit_block([&] () {
+                    action(zero_case);
+                    *this->m_output_stream << ";\n";
+                });
+
+                this->emit_indented("else ");
+
+                this->emit_block([&] () {
+                    action(succ_case);
+                });
+            });
+        }
     };
 }
