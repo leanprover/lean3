@@ -8,7 +8,7 @@ Functors which are equivalences or isomorphisms
 
 import .adjoint
 
-open eq functor iso prod nat_trans is_equiv equiv is_trunc
+open eq functor iso prod nat_trans is_equiv equiv is_trunc sigma.ops
 
 namespace category
   variables {C D : Precategory} {F : C ⇒ D} {G : D ⇒ C}
@@ -17,6 +17,9 @@ namespace category
     mk' ::
     (is_iso_unit : is_iso η)
     (is_iso_counit : is_iso ε)
+
+  definition is_weak_equivalence [class] (F : C ⇒ D) :=
+  fully_faithful F × essentially_surjective F
 
   abbreviation inverse := @is_equivalence.G
   postfix ⁻¹ := inverse
@@ -33,8 +36,16 @@ namespace category
     (to_functor : C ⇒ D)
     (struct : is_isomorphism to_functor)
 
+  structure weak_equivalence (C D : Precategory) :=
+  mk' :: (intermediate : Precategory)
+         (left_functor : intermediate ⇒ C)
+         (right_functor : intermediate ⇒ D)
+         [structl : is_weak_equivalence left_functor]
+         [structr : is_weak_equivalence right_functor]
+
   infix ` ≃c `:25 := equivalence
   infix ` ≅c `:25 := isomorphism
+  infix ` ≃w `:25 := weak_equivalence
 
   attribute equivalence.struct isomorphism.struct [instance] [priority 1500]
   attribute equivalence.to_functor isomorphism.to_functor [coercion]
@@ -51,8 +62,8 @@ namespace category
   definition iso_counit (F : C ⇒ D) [H : is_equivalence F] : F ∘f F⁻¹ᴱ ≅ 1 :=
   @(iso.mk _) !is_iso_counit
 
-  definition split_essentially_surjective_of_is_equivalence (F : C ⇒ D)
-    [H : is_equivalence F] : split_essentially_surjective F :=
+  definition split_essentially_surjective_of_is_equivalence [instance] (F : C ⇒ D)
+    [is_equivalence F] : split_essentially_surjective F :=
   begin
    intro d, fconstructor,
    { exact F⁻¹ d},
@@ -131,6 +142,37 @@ namespace category
     equivalence.mk F is_equivalence.mk
   end
 
+  section
+  parameters {C D : Precategory} (F : C ⇒ D)
+             [H₁ : fully_faithful F] [H₂ : split_essentially_surjective F]
+
+  include H₁ H₂
+  definition inverse_of_fully_faithful_of_split_essentially_surjective [constructor] : D ⇒ C :=
+  begin
+    fapply functor.mk,
+    { exact λd, (H₂ d).1},
+    { intro d d' g, apply (to_fun_hom F)⁻¹ᶠ, refine to_inv (H₂ d').2 ∘ g ∘ to_hom (H₂ d).2},
+    { intro d, apply inv_eq_of_eq, rewrite [id_left, respect_id, to_left_inverse]},
+    { intros d₁ d₂ d₃ g f, apply inv_eq_of_eq,
+      rewrite [respect_comp, +right_inv (to_fun_hom F), +assoc', comp_inverse_cancel_left]}
+  end
+
+  definition is_equivalence_of_fully_faithful_of_split_essentially_surjective [constructor]
+    : is_equivalence F :=
+  begin
+    fapply is_equivalence.mk,
+    { exact inverse_of_fully_faithful_of_split_essentially_surjective},
+    { fapply natural_iso.mk',
+      { intro c, esimp, apply reflect_iso F, exact (H₂ (F c)).2},
+      intro c c' f, esimp, apply eq_of_fn_eq_fn' (to_fun_hom F),
+      rewrite [+respect_comp, +right_inv (to_fun_hom F), comp_inverse_cancel_left]},
+    { fapply natural_iso.mk',
+      { intro c, esimp, exact (H₂ c).2},
+      intro c c' f, esimp, rewrite [right_inv (to_fun_hom F), comp_inverse_cancel_left]}
+  end
+
+  end
+
   variables {C D E : Precategory} {F : C ⇒ D}
 
   --TODO: add variants
@@ -141,8 +183,8 @@ namespace category
     apply eq_inverse_of_comp_eq_id, apply counit_unit_eq
   end
 
-  definition fully_faithful_of_is_equivalence (F : C ⇒ D) [H : is_equivalence F]
-    : fully_faithful F :=
+  definition fully_faithful_of_is_equivalence [instance] [constructor] (F : C ⇒ D)
+    [H : is_equivalence F] : fully_faithful F :=
   begin
     intro c c',
     fapply adjointify,
@@ -178,9 +220,12 @@ namespace category
     [H : is_isomorphism F] : is_equiv (to_fun_ob F) :=
   pr2 H
 
-  definition is_fully_faithful_of_is_isomorphism [instance] [unfold 4] (F : C ⇒ D)
+  definition fully_faithful_of_is_isomorphism [unfold 4] (F : C ⇒ D)
     [H : is_isomorphism F] : fully_faithful F :=
   pr1 H
+
+  section
+  local attribute fully_faithful_of_is_isomorphism [instance]
 
   definition strict_inverse [constructor] (F : C ⇒ D) [H : is_isomorphism F] : D ⇒ C :=
   begin
@@ -215,9 +260,10 @@ namespace category
       { rewrite [adj], rewrite [▸*,respect_inv_of_eq F]},
       { rewrite [adj,▸*,respect_hom_of_eq F]}},
   end
+  end
 
-  definition is_equivalence_of_is_isomorphism [instance] [constructor] (F : C ⇒ D) [H : is_isomorphism F]
-    : is_equivalence F :=
+  definition is_equivalence_of_is_isomorphism [instance] [constructor] (F : C ⇒ D)
+    [is_isomorphism F] : is_equivalence F :=
   begin
     fapply is_equivalence.mk,
     { apply F⁻¹ˢ},
@@ -369,6 +415,33 @@ namespace category
     : c ⟶ c' ≃ H c ⟶ H c' :=
   equiv.mk (to_fun_hom (isomorphism.to_functor H)) _
 
+  /- weak equivalences -/
+
+  theorem is_prop_is_weak_equivalence [instance] (F : C ⇒ D) : is_prop (is_weak_equivalence F) :=
+  by unfold is_weak_equivalence; exact _
+
+  definition is_weak_equivalence_of_is_equivalence [instance] (F : C ⇒ D) [is_equivalence F]
+    : is_weak_equivalence F :=
+  (_, _)
+
+  definition fully_faithful_of_is_weak_equivalence.mk [instance] (F : C ⇒ D)
+    [H : is_weak_equivalence F] : fully_faithful F :=
+  pr1 H
+
+  definition essentially_surjective_of_is_weak_equivalence.mk [instance] (F : C ⇒ D)
+    [H : is_weak_equivalence F] : essentially_surjective F :=
+  pr2 H
+
+  definition is_weak_equivalence_compose (G : D ⇒ E) (F : C ⇒ D)
+    [H : is_weak_equivalence G] [K : is_weak_equivalence F] : is_weak_equivalence (G ∘f F) :=
+  (fully_faithful_compose G F, essentially_surjective_compose G F)
+
+  definition weak_equivalence.mk [constructor] (F : C ⇒ D) (H : is_weak_equivalence F) : C ≃w D :=
+  weak_equivalence.mk' C 1 F
+
+  definition weak_equivalence.symm [unfold 3] : C ≃w D → D ≃w C
+  | (@weak_equivalence.mk' _ _ X F₁ F₂ H₁ H₂) := weak_equivalence.mk' X F₂ F₁
+
   /- TODO
   definition is_equiv_isomorphism_of_eq [constructor] (C D : Precategory)
     : is_equiv (@isomorphism_of_eq C D) :=
@@ -401,6 +474,8 @@ namespace category
   definition is_equivalence_equiv_is_weak_equivalence [constructor] {C D : Category}
     (F : C ⇒ D) : is_equivalence F ≃ is_weak_equivalence F :=
   sorry
+
+  -- weak_equivalence.trans
   -/
 
 

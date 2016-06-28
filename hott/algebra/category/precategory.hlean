@@ -74,6 +74,14 @@ namespace category
     definition comp_id_eq_id_comp (f : hom a b) : f ∘ id = id ∘ f := !id_right ⬝ !id_left⁻¹
     definition id_comp_eq_comp_id (f : hom a b) : id ∘ f = f ∘ id := !id_left ⬝ !id_right⁻¹
 
+    definition hom_whisker_left (g : b ⟶ c) (p : f = f') : g ∘ f = g ∘ f' :=
+    ap (λx, g ∘ x) p
+
+    definition hom_whisker_right (g : c ⟶ a) (p : f = f') : f ∘ g = f' ∘ g :=
+    ap (λx, x ∘ g) p
+
+    /- many variants of hom_pathover are defined in .iso and .functor.basic -/
+
     definition left_id_unique (H : Π{b} {f : hom b a}, i ∘ f = f) : i = id :=
     calc i = i ∘ id : by rewrite id_right
        ... = id     : by rewrite H

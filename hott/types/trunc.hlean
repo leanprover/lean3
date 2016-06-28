@@ -717,6 +717,7 @@ namespace trunc
       tconcat (loop_ptrunc_pequiv n A p) (loop_ptrunc_pequiv n A q) :=
   encode_con p q
 
+  -- rename
   definition iterated_loop_ptrunc_pequiv (n : ℕ₋₂) (k : ℕ) (A : Type*) :
     Ω[k] (ptrunc (n+k) A) ≃* ptrunc n (Ω[k] A) :=
   begin

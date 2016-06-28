@@ -196,7 +196,7 @@ namespace category
   end
 
   include η
-  parameters {F G}
+  parameters {F G H K}
   definition Cpushout_functor_reduction_rule [unfold 12] (i : R x x') :
     Cpushout_functor_ob x ⟶ Cpushout_functor_ob x' :=
   begin
@@ -361,7 +361,34 @@ namespace category
       { exact ap010 natural_map (to_right_inverse η₂) e}},
   end
 
+  end
 
+  open bpushout_prehom_index prod prod.ops is_equiv equiv
+  definition Cpushout_universal {C D E : Precategory} {X : Category} (F : C ⇒ D) (G : C ⇒ E)
+    (H : D ⇒ X) (K : E ⇒ X) (η : H ∘f F ≅ K ∘f G) :
+    is_contr (Σ(L : Cpushout F G ⇒ X) (θ : L ∘f Cpushout_inl F G ≅ H × L ∘f Cpushout_inr F G ≅ K),
+      Πs, natural_map (to_hom θ.2) (to_fun_ob G s) ∘ to_fun_hom L (class_of [DE (λ c, c) F G s]) ∘
+          natural_map (to_inv θ.1) (to_fun_ob F s) = natural_map (to_hom η) s) :=
+  begin
+    fapply is_contr.mk,
+    { exact ⟨Cpushout_functor η, (Cpushout_functor_inl η, Cpushout_functor_inr η),
+             Cpushout_functor_coh η⟩},
+    intro v₁, induction v₁ with L v₂, induction v₂ with θ p, induction θ with θ₁ θ₂,
+    fapply sigma_eq,
+    { esimp, apply eq_of_iso, symmetry, exact Cpushout_functor_unique η L θ₁ θ₂ p},
+    fapply sigma_pathover,
+    { apply prod_pathover: esimp,
+      { apply iso_pathover,
+        apply hom_pathover_functor_left_constant_right (precomposition_functor _ _),
+        apply nat_trans_eq, intro d,
+        xrewrite [↑[hom_of_eq], to_right_inv !eq_equiv_iso, ▸*],
+        exact (ap010 natural_map (to_right_inverse θ₁) d)⁻¹},
+      { apply iso_pathover,
+        apply hom_pathover_functor_left_constant_right (precomposition_functor _ _),
+        apply nat_trans_eq, intro e,
+        xrewrite [↑[hom_of_eq], to_right_inv !eq_equiv_iso, ▸*],
+        exact (ap010 natural_map (to_right_inverse θ₂) e)⁻¹}},
+    apply is_prop.elimo
   end
 
   /- Pushout of groupoids with a type of basepoints -/
@@ -416,7 +443,7 @@ namespace category
   Groupoid_paths (bpushout_hom_rel_index k F G) (bpushout_index_inv k F G)
     (bpushout_index_reverse k F G) (bpushout_index_li k F G) (bpushout_index_ri k F G)
 
-  definition Groupoid_pushout [constructor] : Groupoid :=
+  definition Gpushout [constructor] : Groupoid :=
   Groupoid_bpushout (λc, c) F G
 
   end

@@ -273,4 +273,29 @@ namespace functor
             ap010_assoc K (H ∘f G) F a],
   end
 
+  definition hom_pathover_functor_left_functor_right {c₁ c₂ : C} {p : c₁ = c₂} (F G : C ⇒ D)
+    {f₁ : F c₁ ⟶ G c₁} {f₂ : F c₂ ⟶ G c₂}
+    (q : to_fun_hom G (hom_of_eq p) ∘ f₁ = f₂ ∘ to_fun_hom F (hom_of_eq p)) : f₁ =[p] f₂ :=
+  hom_pathover (hom_whisker_right _ (respect_hom_of_eq G _)⁻¹ ⬝ q ⬝
+                hom_whisker_left _ (respect_hom_of_eq F _))
+
+  definition hom_pathover_constant_left_functor_right {c₁ c₂ : C} {p : c₁ = c₂} {d : D} (F : C ⇒ D)
+    {f₁ : d ⟶ F c₁} {f₂ : d ⟶ F c₂} (q : to_fun_hom F (hom_of_eq p) ∘ f₁ = f₂) : f₁ =[p] f₂ :=
+  hom_pathover_constant_left (hom_whisker_right _ (respect_hom_of_eq F _)⁻¹ ⬝ q)
+
+  definition hom_pathover_functor_left_constant_right {c₁ c₂ : C} {p : c₁ = c₂} {d : D} (F : C ⇒ D)
+    {f₁ : F c₁ ⟶ d} {f₂ : F c₂ ⟶ d} (q : f₁ = f₂ ∘ to_fun_hom F (hom_of_eq p)) : f₁ =[p] f₂ :=
+  hom_pathover_constant_right (q ⬝ hom_whisker_left _ (respect_hom_of_eq F _))
+
+  definition hom_pathover_id_left_functor_right {c₁ c₂ : C} {p : c₁ = c₂} (F : C ⇒ C)
+    {f₁ : c₁ ⟶ F c₁} {f₂ : c₂ ⟶ F c₂} (q : to_fun_hom F (hom_of_eq p) ∘ f₁ = f₂ ∘ hom_of_eq p) :
+    f₁ =[p] f₂ :=
+  hom_pathover_id_left (hom_whisker_right _ (respect_hom_of_eq F _)⁻¹ ⬝ q)
+
+  definition hom_pathover_functor_left_id_right {c₁ c₂ : C} {p : c₁ = c₂} (F : C ⇒ C)
+    {f₁ : F c₁ ⟶ c₁} {f₂ : F c₂ ⟶ c₂} (q : hom_of_eq p ∘ f₁ = f₂ ∘ to_fun_hom F (hom_of_eq p)) :
+    f₁ =[p] f₂ :=
+  hom_pathover_id_right (q ⬝ hom_whisker_left _ (respect_hom_of_eq F _))
+
+
 end functor

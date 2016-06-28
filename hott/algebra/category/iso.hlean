@@ -179,6 +179,13 @@ namespace iso
   variable {C}
   definition iso_eq {f f' : a ≅ b} (p : to_hom f = to_hom f') : f = f' :=
   by (cases f; cases f'; apply (iso_mk_eq p))
+
+  definition iso_pathover {X : Type} {x₁ x₂ : X} {p : x₁ = x₂} {a : X → ob} {b : X → ob}
+    {f₁ : a x₁ ≅ b x₁} {f₂ : a x₂ ≅ b x₂} (q : to_hom f₁ =[p] to_hom f₂) : f₁ =[p] f₂ :=
+  begin
+    cases f₁, cases f₂, esimp at q, induction q, apply pathover_idp_of_eq,
+    exact ap (iso.mk _) !is_prop.elim
+  end
   variable [C]
 
   -- The structure for isomorphism can be characterized up to equivalence by a sigma type.
@@ -224,6 +231,41 @@ namespace iso
   definition transport_iso_of_eq (p : a = b) :
     p ▸ !iso.refl = iso_of_eq p :=
   by cases p; reflexivity
+
+  definition hom_pathover {X : Type} {x₁ x₂ : X} {p : x₁ = x₂} {a b : X → ob}
+    {f₁ : a x₁ ⟶ b x₁} {f₂ : a x₂ ⟶ b x₂} (q : hom_of_eq (ap b p) ∘ f₁ = f₂ ∘ hom_of_eq (ap a p)) :
+    f₁ =[p] f₂ :=
+  begin
+    induction p, apply pathover_idp_of_eq, exact !id_left⁻¹ ⬝ q ⬝ !id_right
+  end
+
+  definition hom_pathover_constant_left {X : Type} {x₁ x₂ : X} {p : x₁ = x₂} {a : ob} {b : X → ob}
+    {f₁ : a ⟶ b x₁} {f₂ : a ⟶ b x₂} (q : hom_of_eq (ap b p) ∘ f₁ = f₂) : f₁ =[p] f₂ :=
+  hom_pathover (q ⬝ !id_right⁻¹ ⬝ ap (λx, _ ∘ hom_of_eq x) !ap_constant⁻¹)
+
+  definition hom_pathover_constant_right {X : Type} {x₁ x₂ : X} {p : x₁ = x₂} {a : X → ob} {b : ob}
+    {f₁ : a x₁ ⟶ b} {f₂ : a x₂ ⟶ b} (q : f₁ = f₂ ∘ hom_of_eq (ap a p)) : f₁ =[p] f₂ :=
+  hom_pathover (ap (λx, hom_of_eq x ∘ _) !ap_constant ⬝ !id_left ⬝ q)
+
+  definition hom_pathover_id_left {p : a = b} {c : ob → ob} {f₁ : a  ⟶ c a} {f₂ : b ⟶ c b}
+    (q : hom_of_eq (ap c p) ∘ f₁ = f₂ ∘ hom_of_eq p) : f₁ =[p] f₂ :=
+  hom_pathover (q ⬝ ap (λx, _ ∘ hom_of_eq x) !ap_id⁻¹)
+
+  definition hom_pathover_id_right {p : a = b} {c : ob → ob} {f₁ : c a  ⟶ a} {f₂ : c b ⟶ b}
+    (q : hom_of_eq p ∘ f₁ = f₂ ∘ hom_of_eq (ap c p)) : f₁ =[p] f₂ :=
+  hom_pathover (ap (λx, hom_of_eq x ∘ _) !ap_id ⬝ q)
+
+  definition hom_pathover_id_left_id_right {p : a = b} {f₁ : a  ⟶ a} {f₂ : b ⟶ b}
+    (q : hom_of_eq p ∘ f₁ = f₂ ∘ hom_of_eq p) : f₁ =[p] f₂ :=
+  hom_pathover_id_left (ap (λx, hom_of_eq x ∘ _) !ap_id ⬝ q)
+
+  definition hom_pathover_id_left_constant_right {p : a = b} {f₁ : a  ⟶ c} {f₂ : b ⟶ c}
+    (q : f₁ = f₂ ∘ hom_of_eq p) : f₁ =[p] f₂ :=
+  hom_pathover_constant_right (q ⬝ ap (λx, _ ∘ hom_of_eq x) !ap_id⁻¹)
+
+  definition hom_pathover_constant_left_id_right {p : a = b} {f₁ : c  ⟶ a} {f₂ : c ⟶ b}
+    (q : hom_of_eq p ∘ f₁ = f₂) : f₁ =[p] f₂ :=
+  hom_pathover_constant_left (ap (λx, hom_of_eq x ∘ _) !ap_id ⬝ q)
 
   section
     open funext

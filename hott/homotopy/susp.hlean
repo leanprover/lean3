@@ -314,6 +314,7 @@ namespace susp
     { reflexivity}
   end
 
+  -- TODO: rename to psusp_adjoint_loop (also in above lemmas)
   definition susp_adjoint_loop [constructor] (X Y : Type*) : psusp X →* Y ≃ X →* Ω Y :=
   begin
     fapply equiv.MK,

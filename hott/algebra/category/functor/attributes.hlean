@@ -10,7 +10,7 @@ Adjoint functors, isomorphisms and equivalences have their own file
 
 import .basic function arity
 
-open eq functor trunc prod is_equiv iso equiv function is_trunc
+open eq functor trunc prod is_equiv iso equiv function is_trunc sigma
 
 namespace category
   variables {C D E : Precategory} {F : C ⇒ D} {G : D ⇒ C}
@@ -20,8 +20,6 @@ namespace category
   definition fully_faithful [class] (F : C ⇒ D) := Π(c c' : C), is_equiv (@(to_fun_hom F) c c')
   definition split_essentially_surjective [class] (F : C ⇒ D) := Π(d : D), Σ(c : C), F c ≅ d
   definition essentially_surjective [class] (F : C ⇒ D) := Π(d : D), ∃(c : C), F c ≅ d
-  definition is_weak_equivalence [class] (F : C ⇒ D) :=
-  fully_faithful F × essentially_surjective F
 
   definition is_equiv_of_fully_faithful [instance] (F : C ⇒ D)
     [H : fully_faithful F] (c c' : C) : is_equiv (@(to_fun_hom F) c c') :=
@@ -136,8 +134,9 @@ namespace category
     : is_prop (essentially_surjective F) :=
   by unfold essentially_surjective; exact _
 
-  theorem is_prop_is_weak_equivalence [instance] (F : C ⇒ D) : is_prop (is_weak_equivalence F) :=
-  by unfold is_weak_equivalence; exact _
+  definition essentially_surjective_of_split_essentially_surjective [instance] (F : C ⇒ D)
+    [H : split_essentially_surjective F] : essentially_surjective F :=
+  λd, tr (H d)
 
   definition fully_faithful_equiv (F : C ⇒ D) : fully_faithful F ≃ (faithful F × full F) :=
   equiv_of_is_prop (λH, (faithful_of_fully_faithful F, full_of_fully_faithful F))
@@ -160,5 +159,37 @@ namespace category
         : prod_equiv_prod_right (pi_equiv_pi_right (λc, pi_equiv_pi_right
             (λc', !is_embedding_equiv_is_injective)))
 -/
+
+  definition fully_faithful_compose (G : D ⇒ E) (F : C ⇒ D) [fully_faithful G] [fully_faithful F] :
+    fully_faithful (G ∘f F) :=
+  λc c', is_equiv_compose (to_fun_hom G) (to_fun_hom F)
+
+  definition full_compose (G : D ⇒ E) (F : C ⇒ D) [full G] [full F] : full (G ∘f F) :=
+  λc c', is_surjective_compose (to_fun_hom G) (to_fun_hom F) _ _
+
+  definition faithful_compose (G : D ⇒ E) (F : C ⇒ D) [H₁ : faithful G] [H₂ : faithful F] :
+    faithful (G ∘f F) :=
+  λc c' f f' p, H₂ (H₁ p)
+
+  definition essentially_surjective_compose (G : D ⇒ E) (F : C ⇒ D) [H₁ : essentially_surjective G]
+    [H₂ : essentially_surjective F] : essentially_surjective (G ∘f F) :=
+  begin
+    intro e,
+    induction H₁ e with v, induction v with d p,
+    induction H₂ d with w, induction w with c q,
+    exact exists.intro c (to_fun_iso G q ⬝i p)
+  end
+
+  definition split_essentially_surjective_compose (G : D ⇒ E) (F : C ⇒ D)
+    [H₁ : split_essentially_surjective G] [H₂ : split_essentially_surjective F]
+    : split_essentially_surjective (G ∘f F) :=
+  begin
+    intro e, induction H₁ e with d p, induction H₂ d with c q,
+    exact ⟨c, to_fun_iso G q ⬝i p⟩
+  end
+
+  /- we get the fact that the identity functor satisfies all these properties via the fact that it
+     is an isomorphism -/
+
 
 end category

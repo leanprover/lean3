@@ -131,7 +131,7 @@ namespace EM
   begin
     intro x, induction x using EM.elim,
     { exact Point X},
-    { note p := e⁻¹ᵉ g, exact p},
+    { exact e⁻¹ᵉ g},
     { exact inv_preserve_binary e concat mul r g h}
   end
 

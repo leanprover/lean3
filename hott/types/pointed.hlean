@@ -276,7 +276,7 @@ namespace pointed
   end
 
   prefix `Ω→`:(max+5) := ap1
-  notation `Ω→[`:95 n:0 `] `:0 f:95 := apn n f
+  notation `Ω→[`:95 n:0 `]`:0 := apn n
 
   /- categorical properties of pointed homotopies -/
 

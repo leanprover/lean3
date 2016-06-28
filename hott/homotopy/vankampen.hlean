@@ -8,7 +8,7 @@ import hit.pushout hit.prop_trunc algebra.category.constructions.pushout
        algebra.category.constructions.fundamental_groupoid algebra.category.functor.equivalence
 
 open eq pushout category functor sum iso paths set_quotient is_trunc trunc pi quotient
-     is_equiv fiber equiv
+     is_equiv fiber equiv function
 
 namespace pushout
   section
@@ -16,12 +16,14 @@ namespace pushout
   parameters {S TL : Type.{u}} -- do we want to put these in different universe levels?
              {BL : Type.{v}} {TR : Type.{w}} (k : S → TL) (f : TL → BL) (g : TL → TR)
              [ksurj : is_surjective k]
-  include ksurj
+
   definition pushout_of_sum [unfold 6] (x : BL + TR) : pushout f g :=
   quotient.class_of _ x
 
-  local notation `F` := fundamental_groupoid_functor f
-  local notation `G` := fundamental_groupoid_functor g
+  include ksurj
+
+  local notation `F` := Π₁⇒ f
+  local notation `G` := Π₁⇒ g
   local notation `C` := Groupoid_bpushout k F G
   local notation `R` := bpushout_prehom_index k F G
   local notation `Q` := bpushout_hom_rel_index k F G
@@ -321,6 +323,8 @@ namespace pushout
     trunc 0 (pushout_of_sum x = pushout_of_sum y) ≃ @hom C _ x y :=
   pushout_teq_equiv x (pushout_of_sum y)
 
+--Groupoid_pushout k F G
+
   definition decode_point_comp [unfold 8] {x₁ x₂ x₃ : BL + TR}
     (c₂ : @hom C _ x₂ x₃) (c₁ : @hom C _ x₁ x₂) :
     decode_point (c₂ ∘ c₁) = tconcat (decode_point c₁) (decode_point c₂) :=
@@ -330,7 +334,7 @@ namespace pushout
     apply decode_list_append
   end
 
-  definition vankampen_functor [constructor] : C ⇒ fundamental_groupoid (pushout f g) :=
+  definition vankampen_functor [constructor] : C ⇒ Π₁ (pushout f g) :=
   begin
     fconstructor,
     { exact pushout_of_sum},
@@ -362,5 +366,14 @@ namespace pushout
     { exact essentially_surjective_vankampen_functor}
   end
 
+  definition fundamental_groupoid_bpushout [constructor] :
+    Groupoid_bpushout k (Π₁⇒ f) (Π₁⇒ g) ≃w Π₁ (pushout f g) :=
+  weak_equivalence.mk vankampen_functor is_weak_equivalence_vankampen_functor
+
   end
+
+  definition fundamental_groupoid_pushout [constructor] {TL BL TR : Type}
+    (f : TL → BL) (g : TL → TR) : Groupoid_bpushout (@id TL) (Π₁⇒ f) (Π₁⇒ g) ≃w Π₁ (pushout f g) :=
+  fundamental_groupoid_bpushout (@id TL) f g
+
 end pushout

@@ -82,6 +82,12 @@ namespace functor
     (θ : Πc, G c ⟶ F c) (r : Πc, θ c ∘ η c = id) (q : Πc, η c ∘ θ c = id) : F ≅ G :=
   iso.mk (nat_trans.mk η p) (@(is_natural_iso _) (λc, is_iso.mk (θ c) (r c) (q c)))
 
+  definition natural_iso.mk' [constructor]
+    (η : Πc, F c ≅ G c) (p : Π(c c' : C) (f : c ⟶ c'), G f ∘ to_hom (η c) = to_hom (η c') ∘ F f) :
+    F ≅ G :=
+  natural_iso.MK (λc, to_hom (η c)) p (λc, to_inv (η c))
+                 (λc, to_left_inverse (η c)) (λc, to_right_inverse (η c))
+
   end
 
   section

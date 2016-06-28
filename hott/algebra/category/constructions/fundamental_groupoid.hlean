@@ -29,4 +29,8 @@ namespace category
     fundamental_groupoid A ⇒ fundamental_groupoid B :=
   functor.mk f (λa a', tap f) (λa, tap_tidp f) (λa₁ a₂ a₃ q p, tap_tcon f p q)
 
+  notation `Π₁` := fundamental_groupoid
+
+  notation `Π₁⇒` := fundamental_groupoid_functor
+
 end category

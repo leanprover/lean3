@@ -11,7 +11,7 @@ import hit.trunc types.equiv cubical.square
 
 open equiv sigma sigma.ops eq trunc is_trunc pi is_equiv fiber prod
 
-variables {A B : Type} (f : A → B) {b : B}
+variables {A B C : Type} (f : A → B) {b : B}
 
 /- the image of a map is the (-1)-truncated fiber -/
 definition image' [constructor] (f : A → B) (b : B) : Type := ∥ fiber f b ∥
@@ -272,6 +272,33 @@ namespace function
     { intro H, esimp, apply eq_of_homotopy, intro b, esimp, induction H b, reflexivity},
     { intro H, induction H with g p, reflexivity},
   end
+
+  definition is_embedding_compose (g : B → C) (f : A → B)
+    (H₁ : is_embedding g) (H₂ : is_embedding f) : is_embedding (g ∘ f) :=
+  begin
+    intros, apply @(is_equiv.homotopy_closed (ap g ∘ ap f)),
+    { apply is_equiv_compose},
+    symmetry, exact ap_compose g f
+  end
+
+  definition is_surjective_compose (g : B → C) (f : A → B)
+    (H₁ : is_surjective g) (H₂ : is_surjective f) : is_surjective (g ∘ f) :=
+  begin
+    intro c, induction H₁ c with b p, induction H₂ b with a q,
+    exact image.mk a (ap g q ⬝ p)
+  end
+
+  definition is_split_surjective_compose (g : B → C) (f : A → B)
+    (H₁ : is_split_surjective g) (H₂ : is_split_surjective f) : is_split_surjective (g ∘ f) :=
+  begin
+    intro c, induction H₁ c with b p, induction H₂ b with a q,
+    exact fiber.mk a (ap g q ⬝ p)
+  end
+
+  definition is_injective_compose (g : B → C) (f : A → B)
+    (H₁ : Π⦃b b'⦄, g b = g b' → b = b') (H₂ : Π⦃a a'⦄, f a = f a' → a = a')
+    ⦃a a' : A⦄ (p : g (f a) = g (f a')) : a = a' :=
+  H₂ (H₁ p)
 
   /-
     The definitions
