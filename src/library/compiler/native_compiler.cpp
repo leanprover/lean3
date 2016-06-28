@@ -18,6 +18,7 @@ Author: Jared Roesch and Leonardo de Moura
 #include "library/compiler/nat_value.h"
 #include "library/compiler/preprocess.h"
 #include "library/compiler/native_compiler.h"
+#include "library/compiler/annotate_return.h"
 #include "config.h"
 #include "cpp_emitter.h"
 #include "used_names.h"
@@ -29,27 +30,11 @@ class native_compiler_fn {
     environment        m_env;
     config & m_conf;
     cpp_emitter m_emitter;
-    bool m_emit_return;
 
     expr mk_local(name const & n) {
         return ::lean::mk_local(n, mk_neutral_expr());
     }
-    //
-    // void compile_args(unsigned nargs, expr const * args, unsigned bpz, name_map<unsigned> const & m) {
-    //     for (unsigned i = 0; i < nargs; i++, bpz++) {
-    //         compile(args[i], bpz, m);
-    //     }
-    // }
-    //
-    // void compile_rev_args(unsigned nargs, expr const * args, unsigned bpz, name_map<unsigned> const & m) {
-    //     unsigned i = nargs;
-    //     while (i > 0) {
-    //         --i;
-    //         compile(args[i], bpz, m);
-    //         bpz++;
-    //     }
-    // }
-    //
+
     void compile_global(vm_decl const & decl, unsigned nargs, expr const * args, unsigned bpz, name_map<unsigned> const & m) {
         name c_fn_name = decl.get_name();
         // if (decl.is_constant_assumption()) {
@@ -81,12 +66,6 @@ class native_compiler_fn {
         throw exception(sstream() << "code generation failed, VM does not have code for '" << n << "'");
     }
 
-    // void emit_apply_instr(unsigned n) {
-    //     for (unsigned i = 0; i < n; i++)
-    //         emit(mk_apply_instr());
-    // }
-    //
-
     void compile_constant(expr const & e) {
         name const & n = const_name(e);
         if (is_neutral_expr(e)) {
@@ -97,89 +76,81 @@ class native_compiler_fn {
             this->m_emitter.emit_mpz(mpz(0));
         } else if (auto idx = is_internal_cnstr(e)) {
             this->m_emitter.emit_sconstructor(*idx);
-        } else if (optional<vm_decl> decl = get_vm_decl(m_env, n)) {
-            compile_global(*decl, 0, nullptr, 0, name_map<unsigned>());
+        } else if (auto j = get_vm_builtin_cases_idx(m_env, n)) {
+            std::cout << "got the index" << j.value() << std::endl;
         } else {
-            throw_unknown_constant(n);
+            this->m_emitter.mangle_name(n);
         }
+        // } else if (optional<vm_decl> decl = get_vm_decl(m_env, n)) {
+        //     compile_global(*decl, 0, nullptr, 0, name_map<unsigned>());
+        // } else {
+        //     throw_unknown_constant(n);
+        // }
     }
-    //
+
     void compile_local(expr const & e, name_map<unsigned> const & m) {
         unsigned idx = *m.find(mlocal_name(e));
         this->m_emitter.emit_local(idx);
     }
 
     void compile_cases_on(expr const & e, unsigned bpz, name_map<unsigned> const & m) {
-        // buffer<expr> args;
-        // expr fn = get_app_args(e, args);
-        // lean_assert(is_constant(fn));
-        // name const & fn_name = const_name(fn);
-        // unsigned num;
-        // if (fn_name == get_nat_cases_on_name()) {
-        //     num = 2;
-        // } else {
-        //     lean_assert(is_internal_cases(fn));
-        //     num = *is_internal_cases(fn);
-        // }
-        // lean_assert(args.size() == num + 1);
-        // lean_assert(num >= 1);
-        // /** compile major premise */
-        // compile(args[0], bpz, m);
-        // unsigned cases_pos = next_pc();
-        // buffer<unsigned> cases_args;
-        // buffer<unsigned> goto_pcs;
-        // cases_args.resize(num, 0);
-        // if (fn_name == get_nat_cases_on_name())
-        //     emit(mk_nat_cases_instr(0, 0));
-        // else if (num == 1)
-        //     emit(mk_destruct_instr());
-        // else if (num == 2)
-        //     emit(mk_cases2_instr(0, 0));
-        // else
-        //     emit(mk_casesn_instr(cases_args.size(), cases_args.data()));
-        // for (unsigned i = 1; i < args.size(); i++) {
-        //     cases_args[i - 1] = next_pc();
-        //     expr b = args[i];
-        //     buffer<expr> locals;
-        //     name_map<unsigned> new_m = m;
-        //     unsigned new_bpz = bpz;
-        //     while (is_lambda(b)) {
-        //         name n = mk_fresh_name();
-        //         new_m.insert(n, new_bpz);
-        //         locals.push_back(mk_local(n));
-        //         new_bpz++;
-        //         b = binding_body(b);
-        //     }
-        //     b = instantiate_rev(b, locals.size(), locals.data());
-        //     compile(b, new_bpz, new_m);
-        //     if (locals.size() > 0)
-        //         emit(mk_drop_instr(locals.size()));
-        //     // if it is not the last case, we need to use a goto
-        //     if (i + 1 < args.size()) {
-        //         goto_pcs.push_back(next_pc());
-        //         emit(mk_goto_instr(0)); // fix later
-        //     }
-        // }
-        // /* Fix cases instruction pc's */
-        // if (num >= 2) {
-        //     for (unsigned i = 0; i < cases_args.size(); i++)
-        //         m_code[cases_pos].set_pc(i, cases_args[i]);
-        // }
-        // unsigned end_pc = next_pc();
-        // /* Fix goto instruction pc's */
-        // for (unsigned i = 0; i < goto_pcs.size(); i++) {
-        //     m_code[goto_pcs[i]].set_goto_pc(end_pc);
-        // }
+        buffer<expr> args;
+        expr fn = get_app_args(e, args);
+        lean_assert(is_constant(fn));
+        name const & fn_name = const_name(fn);
+        unsigned num;
+
+        if (fn_name == get_nat_cases_on_name()) {
+            num = 2;
+        } else {
+            lean_assert(is_internal_cases(fn));
+            num = *is_internal_cases(fn);
+        }
+
+        lean_assert(args.size() == num + 1);
+        lean_assert(num >= 1);
+
+        if (fn_name == get_nat_cases_on_name()) {
+            this->m_emitter.emit_nat_cases(args[0], args[1], args[2], [&] (expr & b) {
+                buffer<expr> locals;
+                name_map<unsigned> new_m = m;
+                unsigned new_bpz = bpz;
+                while (is_lambda(b)) {
+                    name n = mk_fresh_name();
+                    new_m.insert(n, new_bpz);
+                    locals.push_back(mk_local(n));
+                    new_bpz++;
+                    b = binding_body(b);
+                }
+                b = instantiate_rev(b, locals.size(), locals.data());
+                compile(b, new_bpz, new_m);
+            });
+        } else {
+            this->m_emitter.emit_cases_on(name("scrut"), args, [&] (expr & b) {
+                buffer<expr> locals;
+                name_map<unsigned> new_m = m;
+                unsigned new_bpz = bpz;
+                while (is_lambda(b)) {
+                    name n = mk_fresh_name();
+                    new_m.insert(n, new_bpz);
+                    locals.push_back(mk_local(n));
+                    new_bpz++;
+                    b = binding_body(b);
+                }
+                b = instantiate_rev(b, locals.size(), locals.data());
+                compile(b, new_bpz, new_m);
+            });
+        }
     }
 
     void compile_cnstr(expr const & e, unsigned bpz, name_map<unsigned> const & m) {
-        // buffer<expr> args;
-        // expr const & fn = get_app_args(e, args);
-        // lean_assert(is_internal_cnstr(fn));
-        // unsigned cidx = *is_internal_cnstr(fn);
-        // compile_args(args.size(), args.data(), bpz, m);
-        // emit(mk_constructor_instr(cidx, get_app_num_args(e)));
-        throw exception("NYI constructor");
+        buffer<expr> args;
+        expr const & fn = get_app_args(e, args);
+        lean_assert(is_internal_cnstr(fn));
+        unsigned cidx = *is_internal_cnstr(fn);
+        this->m_emitter.emit_constructor(cidx, args.size(), args.data(), [=] (expr const & e) {
+            compile(e, bpz, m);
+        });
     }
 
 
@@ -189,7 +160,7 @@ class native_compiler_fn {
         lean_assert(is_internal_proj(fn));
         unsigned idx = *is_internal_proj(fn);
 
-        this->m_emitter.emit_projection(idx);
+        this->m_emitter.emit_projection(idx); // args.size() - 1, args.data() + 1);
         // lean_assert(args.size() >= 1);
         // compile_rev_args(args.size() - 1, args.data() + 1, bpz, m);
         // bpz += args.size() - 1;
@@ -222,7 +193,12 @@ class native_compiler_fn {
             } else if (optional<vm_decl> decl = get_vm_decl(m_env, const_name(fn))) {
                 compile_global(*decl, args.size(), args.data(), bpz, m);
             } else {
-                throw_unknown_constant(const_name(fn));
+                this->m_emitter.emit_c_call(
+                    const_name(fn),
+                    args.size(),
+                    args.data(), [=] (expr const & e) {});
+                // Not sure how to do this correctly?
+                // throw_unknown_constant(const_name(fn));
             }
         } else {
             lean_unreachable();
@@ -318,31 +294,26 @@ public:
     }
 
     void operator()(name const & n, expr e) {
-        this->m_emitter.emit_decl(n, e, [=] (expr e) {
-            // This is temporary hack, better way would be to annotate all
-            // terminating cf branches.
-            m_emit_return = true;
-            buffer<expr> locals;
-            unsigned bpz   = 0;
-            unsigned arity = get_arity(e);
-            unsigned i     = arity;
-            name_map<unsigned> m;
-            while (is_lambda(e)) {
-                name n = mk_fresh_name();
-                i--;
-                m.insert(n, i);
-                locals.push_back(mk_local(n));
-                bpz++;
-                e = binding_body(e);
-            }
-            e = instantiate_rev(e, locals.size(), locals.data());
-            if (this->m_emit_return) {
-                this->m_emitter.emit_return([&] () {
-                    compile(e, bpz, m);
-                });
-            } else {
-                compile(e, bpz, m);
-            }
+        // This is temporary hack, better way would be to annotate all
+        // terminating cf branches.
+        buffer<expr> locals;
+        buffer<unsigned> local_nums;
+        unsigned bpz   = 0;
+        unsigned arity = get_arity(e);
+        unsigned i     = arity;
+        name_map<unsigned> m;
+        while (is_lambda(e)) {
+            name n = mk_fresh_name();
+            i--;
+            m.insert(n, i);
+            locals.push_back(mk_local(n));
+            local_nums.push_back(i);
+            bpz++;
+            e = binding_body(e);
+        }
+        e = instantiate_rev(e, locals.size(), locals.data());
+        this->m_emitter.emit_decl(n, local_nums, e, [=] (expr e) {
+            compile(e, bpz, m);
         });
     }
 };
@@ -370,6 +341,18 @@ void native_compile(environment const & env,
     compiler.emit_main();
 }
 
+void native_preprocess(environment const & env, declaration const & d, buffer<pair<name, expr>> & procs) {
+    buffer<pair<name, expr>> raw_procs;
+    // Run the normal preprocessing and optimizations.
+    preprocess(env, d, raw_procs);
+
+    // Run the native specific optimizations.
+    for (auto proc : raw_procs) {
+        pair<name, expr> p = pair<name, expr>(proc.first, annotate_return(env, proc.second));
+        procs.push_back(p);
+    }
+}
+
 void native_compile(environment const & env, config & conf, declaration const & d, native_compiler_mode mode) {
     lean_trace(name({"native_compiler"}),
         tout() << "main_fn: " << d.get_name() << "\n";);
@@ -379,7 +362,7 @@ void native_compile(environment const & env, config & conf, declaration const & 
 
     // Preprocess the main function.
     buffer<pair<name, expr>> main_procs;
-    preprocess(env, d, main_procs);
+    native_preprocess(env, d, main_procs);
 
     if (mode == native_compiler_mode::AOT) {
         // Compute the live set of names, for each resulting proc.
@@ -391,7 +374,10 @@ void native_compile(environment const & env, config & conf, declaration const & 
         // Collect the remaining live declarations.
         auto decls_to_compile = std::vector<declaration>();
         used_names.m_used_names.for_each([&] (name const &n) {
-            decls_to_compile.push_back(env.get(n));
+            std::cout << "looking up decl: " << n << std::endl;
+            if (n != name("_neutral_")) {
+                decls_to_compile.push_back(env.get(n));
+            }
         });
 
         // Collect all the generated procs.
@@ -409,7 +395,7 @@ void native_compile(environment const & env, config & conf, declaration const & 
                 std::cout << "preprocess_body:" << decl.get_value() << std::endl;
 
                 buffer<pair<name, expr>> procs;
-                preprocess(env, decl, procs);
+                native_preprocess(env, decl, procs);
 
                 for (auto p : procs) {
                     all_procs.push_back(p);

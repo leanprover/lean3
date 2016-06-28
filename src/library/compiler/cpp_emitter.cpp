@@ -85,6 +85,18 @@ void cpp_emitter::emit_prototype(name & n, unsigned arity) {
     *this->m_output_stream << "}\n";
 }
 
+void cpp_emitter::emit_indented(const char * str) {
+    this->m_output_stream->width(this->m_width);
+    *this->m_output_stream << str;
+    this->m_output_stream->width(0);
+}
+
+void cpp_emitter::emit_indented_line(const char * str) {
+    this->m_output_stream->width(this->m_width);
+    *this->m_output_stream << str << std::endl;
+    this->m_output_stream->width(this->m_width);
+}
+
 void cpp_emitter::emit_main(name & lean_main) {
     *this->m_output_stream << "int main() {\n";
         // "lean::initialize();\n" <<

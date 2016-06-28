@@ -138,6 +138,7 @@ small_object_allocator & get_vm_allocator();
 // Constructors
 vm_obj mk_vm_simple(unsigned cidx);
 vm_obj mk_vm_constructor(unsigned cidx, unsigned sz, vm_obj const * args);
+vm_obj mk_vm_constructor(unsigned cidx, std::initializer_list<vm_obj> args);
 vm_obj mk_vm_constructor(unsigned cidx, vm_obj const &);
 vm_obj mk_vm_constructor(unsigned cidx, vm_obj const &, vm_obj const &);
 vm_obj mk_vm_constructor(unsigned cidx, vm_obj const &, vm_obj const &, vm_obj const &);
