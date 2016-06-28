@@ -274,6 +274,14 @@ target >>= defeq_simp >>= change
 
 -- TODO(Leo): remove unifier.conservative after we finish new elaborator
 set_option unifier.conservative true
+
+meta_definition dsimp_at (H : expr) : tactic unit :=
+do num_reverted : ℕ ← revert H,
+   (expr.pi n bi d b : expr) ← target | failed,
+   H_simp : expr ← defeq_simp d,
+   change $ expr.pi n bi H_simp b,
+   intron num_reverted
+
 meta_definition simp : tactic unit :=
 do gs ← get_goals,
    match gs with
