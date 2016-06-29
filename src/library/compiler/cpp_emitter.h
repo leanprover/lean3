@@ -41,14 +41,15 @@ namespace lean  {
         void emit_main(name & lean_main);
         void emit_prototype(name & n, unsigned arity);
         void emit_indented(const char * str);
+        void emit_string(const char * str);
         void emit_indented_line(const char * str);
         void mangle_name(name const & n);
 
         template <typename F>
         void emit_return(F expr) {
-            *this->m_output_stream << "return ";
+            this->emit_string("return ");
             expr();
-            this->emit_indented_line(";");
+            this->emit_string(";");
         }
 
         template <typename F>
