@@ -112,18 +112,28 @@ namespace rezk_carrier
     (Pcomp : Π⦃a b c⦄ (g : b ≅ c) (f : a ≅ b) (x : Pe a), Pp (f ⬝i g) x = Pp g (Pp f x))
     {a b : A} (f : a ≅ b) :
     transport (elim_set Pe Pp Pcomp) (pth f) = Pp f :=
-  by rewrite [tr_eq_cast_ap_fn, ↑elim_set, ▸*, ap_compose' trunctype.carrier, elim_pth];
-     apply tcast_tua_fn
+  begin
+    rewrite [tr_eq_cast_ap_fn, ↑elim_set, ▸*],
+    rewrite [ap_compose' trunctype.carrier, elim_pth], apply tcast_tua_fn
+  end
 
   end
 end rezk_carrier open rezk_carrier
 
+attribute rezk_carrier.elt [constructor]
+attribute rezk_carrier.rec rezk_carrier.elim [unfold 8] [recursor 8]
+attribute rezk_carrier.rec_on rezk_carrier.elim_on [unfold 5]
+attribute rezk_carrier.set_rec rezk_carrier.set_elim [unfold 7]
+attribute rezk_carrier.prop_rec rezk_carrier.prop_elim
+          rezk_carrier.elim_set [unfold 6]
+
+open trunctype
 namespace rezk_completion
   section
   universes l k
   parameters (A : Type.{l}) (C : precategory.{l k} A)
 
-  definition rezk_hom_left_pt [reducible] (a : A) (b : @rezk_carrier A C) : Set.{k} :=
+  definition rezk_hom_left_pt [constructor] (a : A) (b : @rezk_carrier A C) : Set.{k} :=
   begin
     refine rezk_carrier.elim_set _ _ _ b,
     { clear b, intro b, exact trunctype.mk' 0 (hom a b) },
@@ -131,11 +141,10 @@ namespace rezk_completion
     { clear b, intro b b' b'' f g x, apply !assoc⁻¹ }
   end
 
-  open trunctype
   private definition transport_rezk_hom_left_pt_eq_comp {a b c : A} (f : hom a b) (g : b ≅ c) :
-    transport (rezk_hom_left_pt a) (pth g) f = (to_hom g) ∘ f :=
+    pathover (rezk_hom_left_pt a) f (pth g) ((to_hom g) ∘ f) :=
   begin
-    fapply @homotopy_of_eq _ _ _ (λ f, (to_hom g) ∘ f),
+    apply pathover_of_tr_eq, apply @homotopy_of_eq _ _ _ (λ f, (to_hom g) ∘ f),
     apply rezk_carrier.elim_set_pth,
   end
 
@@ -149,19 +158,48 @@ namespace rezk_completion
     --induction b using rezk_carrier.rec with b' b' b g, --why does this not work if it works below?
     refine @rezk_carrier.rec _ _ _ (rezk_hom_left_pth_1_trunc a a' f) _ _ _ b,
     intro b, apply equiv_precompose (to_hom f⁻¹ⁱ), --how do i unfold properly at this point?
-    { intro b b' g, apply equiv_pathover, intro g' g'' H, apply pathover_of_tr_eq, 
-      refine _ ⬝ ap _ (!transport_rezk_hom_left_pt_eq_comp ⁻¹ ⬝ tr_eq_of_pathover H), 
-      refine !transport_rezk_hom_left_pt_eq_comp ⬝ !assoc },
+    { intro b b' g, apply equiv_pathover, intro g' g'' H, 
+      refine !transport_rezk_hom_left_pt_eq_comp ⬝op _,
+      refine !assoc ⬝ ap (λ x, x ∘ _) _,  refine eq_of_parallel_po_right _ H, 
+      apply transport_rezk_hom_left_pt_eq_comp },
     intro b b' b'' g g', apply @is_prop.elim, apply is_trunc_pathover, apply is_trunc_equiv
   end
 
-  definition rezk_hom (a b : @rezk_carrier A C) : Set.{k} :=
+  definition rezk_hom [unfold 3 4] (a b : @rezk_carrier A C) : Set.{k} :=
   begin
     refine rezk_carrier.elim_set _ _ _ a,
     { clear a, intro a, exact rezk_hom_left_pt a b },
     { clear a, intro a a' f, apply rezk_hom_left_pth a a' f },
     { clear a, intro a a' a'' Ef Eg Rfg, induction b using rezk_carrier.rec,
       apply assoc, apply is_prop.elimo, apply is_set.elimo }
+  end
+
+
+  private definition transport_rezk_hom_right_eq_comp {a b c : A} (f : hom a c) (g : a ≅ b) :
+    pathover (λ x, rezk_hom x (elt c)) f (pth g) (f ∘ (to_hom g)⁻¹) :=
+  begin
+    apply pathover_of_tr_eq, apply @homotopy_of_eq _ _ _ (λ f, f ∘ (to_hom g)⁻¹),
+    apply rezk_carrier.elim_set_pth,
+  end
+
+  set_option pp.notation false
+  private definition transport_rezk_hom_eq_comp {a c : A} (f : hom a a) (g : a ≅ c) :
+    transport (λ x, rezk_hom x x) (pth g) f = (to_hom g) ∘ f ∘ (to_hom g)⁻¹ :=
+  begin
+    apply concat, apply tr_diag_eq_tr_tr rezk_hom,
+    apply concat, apply ap (λ x, _ ▸ x),
+     apply tr_eq_of_pathover, apply transport_rezk_hom_right_eq_comp,
+    apply tr_eq_of_pathover, apply transport_rezk_hom_left_pt_eq_comp
+  end
+
+  set_option pp.notation false
+  definition rezk_id (a : @rezk_carrier A C) : rezk_hom a a :=
+  begin
+    induction a using rezk_carrier.rec,
+    apply id,
+    { apply pathover_of_tr_eq, refine !transport_rezk_hom_eq_comp ⬝ _,
+      refine (ap (λ x, to_hom f ∘ x) !id_left) ⬝ _, apply right_inverse },
+    apply is_set.elimo
   end
 
   end

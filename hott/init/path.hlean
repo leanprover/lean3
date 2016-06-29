@@ -286,6 +286,11 @@ namespace eq
     p⁻¹ ▸ u = v → u = p ▸ v :=
   by induction p; exact id
 
+  /- Transporting along the diagonal of a type family -/
+  definition tr_diag_eq_tr_tr {A : Type} (P : A → A → Type) {x y : A} (p : x = y) (a : P x x) :
+    transport (λ x, P x x) p a = transport (λ x, P _ x) p (transport (λ x, P x _) p a) :=
+  by induction p; reflexivity
+
   /- Functoriality of functions -/
 
   -- Here we prove that functions behave like functors between groupoids, and that [ap] itself is
