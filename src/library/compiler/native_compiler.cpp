@@ -180,7 +180,11 @@ class native_compiler_fn {
             throw exception("NYI call");
             return;
         } else if (is_constant(fn)) {
-            if (auto n = get_vm_builtin_internal_name(const_name(fn))) {
+            if (is_return_expr(fn)) {
+                this->m_emitter.emit_return([&] () {
+                    compile(args[0], bpz, m);
+                });
+            } else if (auto n = get_vm_builtin_internal_name(const_name(fn))) {
                 std::string s("lean::");
                 s += n;
                 auto nm = name(s);
@@ -335,6 +339,7 @@ void native_compile(environment const & env,
         lean_trace(name({"native_compiler"}), tout() << "" << p.first << "\n";);
         name & n = p.first;
         expr body = p.second;
+        // std::cout << body << std::endl;
         compiler(n, body);
     }
 
@@ -348,7 +353,9 @@ void native_preprocess(environment const & env, declaration const & d, buffer<pa
 
     // Run the native specific optimizations.
     for (auto proc : raw_procs) {
-        pair<name, expr> p = pair<name, expr>(proc.first, annotate_return(env, proc.second));
+        auto annotated_body = annotate_return(env, proc.second);
+        std::cout << annotated_body << std::endl;
+        pair<name, expr> p = pair<name, expr>(proc.first, annotated_body);
         procs.push_back(p);
     }
 }
@@ -375,7 +382,7 @@ void native_compile(environment const & env, config & conf, declaration const & 
         auto decls_to_compile = std::vector<declaration>();
         used_names.m_used_names.for_each([&] (name const &n) {
             std::cout << "looking up decl: " << n << std::endl;
-            if (n != name("_neutral_")) {
+            if (n != name("_neutral_") && n != name({"native_compiler", "return"})) {
                 decls_to_compile.push_back(env.get(n));
             }
         });
@@ -391,7 +398,10 @@ void native_compile(environment const & env, config & conf, declaration const & 
             //     std::cout << decl.get_name() << std::endl;
             // } else
 
-            if (decl.is_definition()) {
+            if (auto n = get_vm_builtin_internal_name(decl.get_name())) {
+                auto arity = get_vm_builtin_arity(decl.get_name());
+                extern_fns.push_back(pair<name, unsigned>(n, arity));
+            } else if (decl.is_definition()) {
                 std::cout << "preprocess_body:" << decl.get_value() << std::endl;
 
                 buffer<pair<name, expr>> procs;
@@ -406,9 +416,6 @@ void native_compile(environment const & env, config & conf, declaration const & 
                     //compile_intro_rule(d);
                 } else if (is_extern(env, decl.get_name())) {
                     std::cout << "extern: " << decl.get_name() << std::endl;
-                } else if (auto n = get_vm_builtin_internal_name(decl.get_name())) {
-                    auto arity = get_vm_builtin_arity(decl.get_name());
-                    extern_fns.push_back(pair<name, unsigned>(n, arity));
                 }
             }
         }

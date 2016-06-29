@@ -25,7 +25,7 @@ environment set_extern(environment const & env, name const & n, extern_status s,
 
 extern_status get_extern_status(environment const & env, name const & n);
 
-inline bool is_extern(environment const & env, name const & n) { return get_extern_status(env, n) == extern_status::External; }
+inline bool is_extern(environment const & env, name const & n) { return false; } // return get_extern_status(env, n) == extern_status::External; }
 
 /* \brief Execute the given function for each declaration explicitly marked with a reducibility annotation */
 void for_each_extern(environment const & env, std::function<void(name const &, extern_status)> const & fn);

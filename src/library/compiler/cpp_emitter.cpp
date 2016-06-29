@@ -85,6 +85,10 @@ void cpp_emitter::emit_prototype(name & n, unsigned arity) {
     *this->m_output_stream << "}\n";
 }
 
+void cpp_emitter::emit_string(const char * str) {
+    *this->m_output_stream << str;
+}
+
 void cpp_emitter::emit_indented(const char * str) {
     this->m_output_stream->width(this->m_width);
     *this->m_output_stream << str;
