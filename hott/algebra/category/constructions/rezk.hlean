@@ -1,6 +1,6 @@
-import algebra.category hit.two_quotient types.trunc
+import algebra.category hit.two_quotient types.trunc types.arrow
 
-open eq category equiv trunc_two_quotient is_trunc iso relation e_closure function
+open eq category equiv trunc_two_quotient is_trunc iso relation e_closure function pi
 
 namespace e_closure
 
@@ -199,20 +199,13 @@ namespace rezk_completion
     apply is_set.elimo
   end
 
-  definition pathover_of_homotopy {A : Type} {a b : A} {P Q : A → Type} {f : P a → Q a} {g : P b → Q b} (p : a = b)
-    (H : Π x, f x =[p] g (p ▸ x)) : pathover (λ x, P x → Q x) f p g :=
-  begin
-    induction p, esimp at *, apply pathover_idp_of_eq, apply eq_of_homotopy,
-    intro x, apply @eq_of_pathover_idp A, apply H x,
-  end
-
   definition rezk_comp_pt_pt [reducible] {c : rezk_carrier} {a b : A}
     (g : carrier (rezk_hom (elt b) c))
     (f : carrier (rezk_hom (elt a) (elt b))) : carrier (rezk_hom (elt a) c) :=
   begin
     induction c using rezk_carrier.set_rec with c c c' ic,
     exact g ∘ f,
-    { apply pathover_of_homotopy, intro d,
+    { apply arrow_pathover_left, intro d,
       apply concato !transport_rezk_hom_left_pt_eq_comp, apply pathover_idp_of_eq, 
       apply concat, apply assoc, apply ap (λ x, x ∘ f), 
       apply inverse, apply tr_eq_of_pathover, apply transport_rezk_hom_left_pt_eq_comp },
@@ -222,8 +215,8 @@ namespace rezk_completion
     pathover (λ b, carrier (rezk_hom b c) → carrier (rezk_hom (elt a) b) → carrier (rezk_hom (elt a) c))
       (λ g f, rezk_comp_pt_pt g f) (pth ib) (λ g f, rezk_comp_pt_pt g f) :=
   begin
-    apply pathover_of_homotopy, intro x,
-    apply pathover_of_homotopy, intro y,
+    apply arrow_pathover_left, intro x,
+    apply arrow_pathover_left, intro y,
     induction c using rezk_carrier.set_rec with c c c' ic,
     {  apply pathover_of_eq, apply inverse, 
       apply concat, apply ap (λ x, rezk_comp_pt_pt x _), apply tr_eq_of_pathover,
@@ -244,7 +237,7 @@ namespace rezk_completion
     { induction b using rezk_carrier.set_rec with b b b' ib,
       apply rezk_comp_pt_pt g f, apply rezk_comp_pt_pth },
     { induction b using rezk_carrier.set_rec with b b b' ib, 
-      apply pathover_of_homotopy, intro f, 
+      apply arrow_pathover_left, intro f, 
       induction c using rezk_carrier.set_rec with c c c' ic,
       { apply concato, apply transport_rezk_hom_left_eq_comp,
         apply pathover_idp_of_eq, refine !assoc⁻¹ ⬝ ap (λ x, g ∘ x) _⁻¹,
@@ -252,6 +245,39 @@ namespace rezk_completion
       apply is_prop.elimo,
       apply is_prop.elimo }
   end
+
+  definition is_set_rezk_hom [instance] (a b : @rezk_carrier A C) : is_set (rezk_hom a b) :=
+  _
+
+  protected definition id_left {a b : @rezk_carrier A C} (f : rezk_hom a b) :
+    rezk_comp (rezk_id b) f = f :=
+  begin
+    induction a using rezk_carrier.prop_rec with a a a' ia,
+    induction b using rezk_carrier.prop_rec with b b b' ib,
+    apply id_left,
+  end
+
+  protected definition id_right {a b : @rezk_carrier A C} (f : rezk_hom a b) :
+    rezk_comp f (rezk_id a) = f :=
+  begin
+    induction a using rezk_carrier.prop_rec with a a a' ia,
+    induction b using rezk_carrier.prop_rec with b b b' ib,
+    apply id_right,
+  end
+
+  protected definition assoc {a b c d : @rezk_carrier A C} (h : rezk_hom c d)
+    (g : rezk_hom b c) (f : rezk_hom a b) :
+    rezk_comp h (rezk_comp g f) = rezk_comp (rezk_comp h g) f :=
+  begin
+    induction a using rezk_carrier.prop_rec with a a a' ia,
+    induction b using rezk_carrier.prop_rec with b b b' ib,
+    induction c using rezk_carrier.prop_rec with c c c' ic,
+    induction d using rezk_carrier.prop_rec with d d d' id,
+    apply assoc,
+  end
+
+  definition rezk_precategory : precategory (@rezk_carrier A C) :=
+  precategory.mk rezk_hom @rezk_comp rezk_id @assoc @id_left @id_right
 
   end
 end rezk_completion
