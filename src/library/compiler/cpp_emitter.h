@@ -72,6 +72,25 @@ namespace lean  {
         }
 
         template <typename F>
+        void emit_local_call(unsigned bpz, unsigned nargs, expr const * args, F each_arg) {
+            this->emit_local(bpz);
+            *this->m_output_stream << "(";
+
+            auto comma = false;
+
+            for (unsigned i = 0; i < nargs; i++) {
+                if (comma) {
+                    *this->m_output_stream << ", ";
+                } else {
+                    comma = true;
+                }
+                each_arg(args[i]);
+            }
+
+            *this->m_output_stream << ")";
+        }
+
+        template <typename F>
         void emit_constructor(unsigned ctor, unsigned nargs, expr const * args, F each_arg) {
             *this->m_output_stream << "lean::mk_vm_constructor(";
             *this->m_output_stream << ctor << ", {";
@@ -91,12 +110,13 @@ namespace lean  {
         }
 
         template <typename F>
-        void emit_local_binding(unsigned bpz, F value_fn) {
+        unsigned emit_local_binding(unsigned bpz, F value_fn) {
             *this->m_output_stream << LEAN_OBJ_TYPE << " ";
             this->emit_local(bpz);
             *this->m_output_stream << " = ";
             value_fn();
             *this->m_output_stream << ";" << std::endl;
+            return bpz;
         }
 
         template <typename F>

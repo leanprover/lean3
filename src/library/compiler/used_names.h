@@ -19,6 +19,8 @@ struct used_defs {
     name_set m_used_names;
     std::vector<name> m_names_to_process;
     environment const & m_env;
+    std::function<void(declaration &)> m_action;
+
     // Need a stack and a HashSet
     // Rough algorithm
     // For each name, check to see if its
@@ -27,9 +29,14 @@ struct used_defs {
     // invoke this procedure with the first item
     // from the stack, and repeat until the stack
     // is empty.
-    used_defs(environment const & env);
+    used_defs(environment const & env, std::function<void(declaration &)>);
     void names_in_decl(declaration const & d);
     void names_in_expr(expr const & e);
+    void names_in_preprocessed_body(expr const & e);
     void add_name(name const & n);
+    void empty_stack();
+    bool stack_is_empty() {
+        return m_names_to_process.empty();
+    }
 };
 }

@@ -19,6 +19,7 @@ Author: Jared Roesch and Leonardo de Moura
 #include "library/compiler/preprocess.h"
 #include "library/compiler/native_compiler.h"
 #include "library/compiler/annotate_return.h"
+#include "library/compiler/anf_transform.h"
 #include "config.h"
 #include "cpp_emitter.h"
 #include "used_names.h"
@@ -174,11 +175,15 @@ class native_compiler_fn {
         buffer<expr> args;
         expr fn = get_app_args(e, args);
         if (!is_constant(fn)) {
-            // compile_rev_args(args.size(), args.data(), bpz+1, m);
-            // compile(fn, bpz, m);
-            // emit_apply_instr(args.size());
-            throw exception("NYI call");
-            return;
+            if (is_local(fn)) {
+                auto local_no = *m.find(mlocal_name(fn));
+                this->m_emitter.emit_local_call(local_no, args.size(), args.data(), [=] (expr const & e) {
+                    compile(e, bpz, m);
+                });
+            } else {
+                std::cout << "not a constant:" << fn << std::endl;
+                throw exception("NYI call should only take constant arg");
+            }
         } else if (is_constant(fn)) {
             if (is_return_expr(fn)) {
                 this->m_emitter.emit_return([&] () {
@@ -192,8 +197,7 @@ class native_compiler_fn {
                     compile(e, bpz, m);
                 });
             } else if (is_neutral_expr(fn)) {
-                // emit(mk_sconstructor_instr(0));
-                throw exception("NYI call");
+                this->m_emitter.emit_sconstructor(0);
             } else if (optional<vm_decl> decl = get_vm_decl(m_env, const_name(fn))) {
                 compile_global(*decl, args.size(), args.data(), bpz, m);
             } else {
@@ -353,11 +357,19 @@ void native_preprocess(environment const & env, declaration const & d, buffer<pa
 
     // Run the native specific optimizations.
     for (auto proc : raw_procs) {
-        auto annotated_body = annotate_return(env, proc.second);
-        std::cout << annotated_body << std::endl;
+        // std::cout << "native preproc" << std::endl;
+        // std::cout << proc.second << std::endl;
+        auto anf_body = anf_transform(env, proc.second);
+        // std::cout << anf_body << std::endl;
+        auto annotated_body = annotate_return(env, anf_body);
+        // std::cout << annotated_body << std::endl;
         pair<name, expr> p = pair<name, expr>(proc.first, annotated_body);
         procs.push_back(p);
     }
+}
+
+void is_extern_function(extern & e) {
+
 }
 
 void native_compile(environment const & env, config & conf, declaration const & d, native_compiler_mode mode) {
@@ -368,67 +380,91 @@ void native_compile(environment const & env, config & conf, declaration const & 
         tout() << "main_body: " << d.get_value() << "\n";);
 
     // Preprocess the main function.
+    buffer<pair<name, expr>> all_procs;
     buffer<pair<name, expr>> main_procs;
     native_preprocess(env, d, main_procs);
 
     if (mode == native_compiler_mode::AOT) {
-        // Compute the live set of names, for each resulting proc.
-        used_defs used_names(env);
-        for (auto pair : main_procs) {
-            used_names.names_in_expr(pair.second);
-        }
-
-        // Collect the remaining live declarations.
-        auto decls_to_compile = std::vector<declaration>();
-        used_names.m_used_names.for_each([&] (name const &n) {
-            std::cout << "looking up decl: " << n << std::endl;
-            if (n != name("_neutral_") && n != name({"native_compiler", "return"})) {
-                decls_to_compile.push_back(env.get(n));
+        // Compute the live set of names, we attach a callback that will be
+        // invoked for every declaration encountered.
+        used_defs used_names(env, [&] (declaration & d) {
+            std::cout << "recursive processing decl" << d.get_name() << std::endl;
+            buffer<pair<name, expr>> procs;
+            native_preprocess(env, d, procs);
+            for (auto pair : procs) {
+                used_names.names_in_expr(pair.second);
+                all_procs.push_back(pair);
             }
         });
 
-        // Collect all the generated procs.
-        buffer<pair<name, expr>> all_procs;
-        buffer<pair<name, unsigned>> extern_fns;
-
-        for (auto decl : decls_to_compile) {
-            std::cout << "preproces:" << decl.get_name() << std::endl;
-            // if (is_extern(env, decl.get_name())) {
-            //     std::cout << "extern: " << std::endl;
-            //     std::cout << decl.get_name() << std::endl;
-            // } else
-
-            if (auto n = get_vm_builtin_internal_name(decl.get_name())) {
-                auto arity = get_vm_builtin_arity(decl.get_name());
-                extern_fns.push_back(pair<name, unsigned>(n, arity));
-            } else if (decl.is_definition()) {
-                std::cout << "preprocess_body:" << decl.get_value() << std::endl;
-
-                buffer<pair<name, expr>> procs;
-                native_preprocess(env, decl, procs);
-
-                for (auto p : procs) {
-                    all_procs.push_back(p);
-                }
-            } else if (decl.is_constant_assumption()) {
-                // We handle introduction rules, externs, and builtins specially.
-                if (auto n = inductive::is_intro_rule(env, decl.get_name())) {
-                    //compile_intro_rule(d);
-                } else if (is_extern(env, decl.get_name())) {
-                    std::cout << "extern: " << decl.get_name() << std::endl;
-                }
-            }
+        // We then loop over the set of procs produced by preprocessing the
+        // main function, we transitively collect all names.
+        for (auto pair : main_procs) {
+            // std::cout << pair.first << std::endl;
+            all_procs.push_back(pair);
+            used_names.names_in_preprocessed_body(pair.second);
         }
 
-        // Remember to add back the ones from main.
-        for (auto p : main_procs) {
-            all_procs.push_back(p);
+        for (auto pair : all_procs) {
+            std::cout << pair.first << std::endl;
         }
 
-        native_compile(env, conf, extern_fns, all_procs);
+        // Finally we assert that there are no more unprocessed declarations.
+        lean_assert(used_names.stack_is_empty());
+
+        // // // Collect the live declarations.
+        // // auto decls_to_compile = std::vector<declaration>();
+        // used_names.m_used_names.for_each([&] (name const &n) {
+        //     std::cout << "looking up decl: " << n << std::endl;
+        //     if (n != name("_neutral_") &&
+        //         n != name({"native_compiler", "return"}) &&
+        //         !is_internal_cnstr(mk_constant(n))) {
+        //         decls_to_compile.push_back(env.get(n));
+        //     }
+        // });
+        //
+        // // Collect all the generated procs.
+        // buffer<pair<name, expr>> all_procs;
+        // buffer<pair<name, unsigned>> extern_fns;
+        //
+        // for (auto decl : decls_to_compile) {
+        //     std::cout << "preproces:" << decl.get_name() << std::endl;
+        //     // if (is_extern(env, decl.get_name())) {
+        //     //     std::cout << "extern: " << std::endl;
+        //     //     std::cout << decl.get_name() << std::endl;
+        //     // } else
+        //
+        //     if (auto n = get_vm_builtin_internal_name(decl.get_name())) {
+        //         auto arity = get_vm_builtin_arity(decl.get_name());
+        //         extern_fns.push_back(pair<name, unsigned>(n, arity));
+        //     } else if (decl.is_definition()) {
+        //         std::cout << "preprocess_body:" << decl.get_value() << std::endl;
+        //
+        //         buffer<pair<name, expr>> procs;
+        //         native_preprocess(env, decl, procs);
+        //
+        //         for (auto p : procs) {
+        //             all_procs.push_back(p);
+        //         }
+        //     } else if (decl.is_constant_assumption()) {
+        //         // We handle introduction rules, externs, and builtins specially.
+        //         if (auto n = inductive::is_intro_rule(env, decl.get_name())) {
+        //             //compile_intro_rule(d);
+        //         } else if (is_extern(env, decl.get_name())) {
+        //             std::cout << "extern: " << decl.get_name() << std::endl;
+        //         }
+        //     }
+        // }
+        //
+        // // Remember to add back the ones from main.
+        // for (auto p : main_procs) {
+        //     all_procs.push_back(p);
+        // }
+        //
+        // native_compile(env, conf, extern_fns, all_procs);
     } else {
         buffer<pair<name, unsigned>> extern_fns;
-        native_compile(env, conf, extern_fns, main_procs);
+        native_compile(env, conf, extern_fns, all_procs);
     }
 }
 
