@@ -181,6 +181,12 @@ namespace rezk_completion
     apply rezk_carrier.elim_set_pth,
   end
 
+  private definition transport_rezk_hom_right_eq_comp {a b c : A} (f : hom a b) (g : b ≅ c) : --todo delete?
+    pathover (rezk_hom (elt a)) f (pth g) ((to_hom g) ∘ f) :=
+  begin
+    apply transport_rezk_hom_left_pt_eq_comp,
+  end
+
   private definition transport_rezk_hom_eq_comp {a c : A} (f : hom a a) (g : a ≅ c) :
     transport (λ x, rezk_hom x x) (pth g) f = (to_hom g) ∘ f ∘ (to_hom g)⁻¹ :=
   begin
@@ -276,8 +282,106 @@ namespace rezk_completion
     apply assoc,
   end
 
-  definition rezk_precategory : precategory (@rezk_carrier A C) :=
+  definition rezk_precategory [instance] : precategory (@rezk_carrier A C) :=
   precategory.mk rezk_hom @rezk_comp rezk_id @assoc @id_left @id_right
+
+  end
+
+  definition to_rezk_Precategory.{l k} : Precategory.{l k} → Precategory.{(max l k) k} :=
+  begin
+    intro C, apply Precategory.mk (@rezk_carrier (Precategory.carrier C) C),
+    apply rezk_precategory _ _,
+  end
+  
+  definition rezk_embedding (C : Precategory) : functor C (to_rezk_Precategory C) :=
+  begin
+    fapply functor.mk, apply elt,
+    { intro a b f, unfold [to_rezk_Precategory, rezk_precategory], exact f },
+    do 2 (intros; reflexivity)
+  end
+
+  --TODO prove that rezk_embedding is a weak equivalence
+
+  section
+  parameters {A : Type} [C : precategory A]
+  include C
+
+  protected definition elt_iso_of_iso [reducible] {a b : A} (f : a ≅ b) : elt a ≅ elt b :=
+  begin
+    fapply iso.mk, apply to_hom f, apply functor.preserve_is_iso (rezk_embedding _)
+  end
+
+  protected definition iso_of_elt_iso [reducible] {a b : A} (f : elt a ≅ elt b) : a ≅ b :=
+  begin
+    cases f with f Hf, cases Hf with inv linv rinv,
+    fapply iso.mk, exact f, fapply is_iso.mk, exact inv, exact linv, exact rinv
+  end
+
+  protected definition iso_of_elt_iso_distrib {a b c : A} (f : elt a ≅ elt b) (g : elt b ≅ elt c) :
+    iso_of_elt_iso (f ⬝i g) = (iso_of_elt_iso f) ⬝i (iso_of_elt_iso g) :=
+  begin
+    cases g with g Hg, cases Hg with invg linvg rinvg,
+    cases f with f Hf, cases Hf with invf linvf rinvf,
+    reflexivity
+  end
+
+  protected definition iso_equiv_elt_iso (a b : A) : (a ≅ b) ≃ (elt a ≅ elt b) :=
+  begin
+    fapply equiv.MK, apply elt_iso_of_iso, apply iso_of_elt_iso,
+    { intro f, cases f with f Hf, cases Hf with inv linv rinv, fapply iso_eq, reflexivity },
+    { intro f, fapply iso_eq, reflexivity }
+  end
+
+  private definition hom_transport_eq_transport_hom {a b b' : @rezk_carrier A C} (f : a ≅ b)
+    (p : b = b') : to_hom (transport (iso a) p f) = transport (λ x, hom _ _) p (to_hom f) :=
+  by cases p; reflexivity
+
+  private definition hom_transport_eq_transport_hom' {a a' b : @rezk_carrier A C} (f : a ≅ b)
+    (p : a = a') : to_hom (transport (λ x, iso x b) p f) = transport (λ x, hom _ _) p (to_hom f) :=
+  by cases p; reflexivity
+
+  private definition pathover_iso_pth {a b b' : A} (f : elt a ≅ elt b) 
+    (ib : b ≅ b') : pathover (λ x, iso (elt a) x) f (pth ib) (f ⬝i elt_iso_of_iso ib) :=
+  begin
+    apply pathover_of_tr_eq, apply iso_eq,
+    apply concat, apply hom_transport_eq_transport_hom,
+    apply tr_eq_of_pathover, apply transport_rezk_hom_right_eq_comp A C
+  end
+
+  private definition pathover_iso_pth' {a a' b : A} (f : elt a ≅ elt b)
+    (ia : a ≅ a') : pathover (λ x, iso x (elt b)) f (pth ia) (elt_iso_of_iso (iso.symm ia) ⬝i f) :=
+  begin
+    apply pathover_of_tr_eq, apply iso_eq,
+    apply concat, apply hom_transport_eq_transport_hom',
+    apply tr_eq_of_pathover, apply transport_rezk_hom_left_eq_comp A C
+  end
+
+  protected definition id_of_iso (a b : @rezk_carrier A C) :
+    a ≅ b → a = b :=
+  begin
+    intro f,
+    induction a using rezk_carrier.set_rec with a a a' ia,
+    { induction b using rezk_carrier.set_rec with b b b' ib,
+      apply pth, apply iso_of_elt_iso f,
+      apply arrow_pathover, intro f g p, apply eq_pathover,
+      refine !ap_constant ⬝ph _ ⬝hp !ap_id⁻¹, apply square_of_eq,
+      refine !resp_comp⁻¹ ⬝ (ap pth _)⁻¹ ⬝ !idp_con⁻¹, 
+      apply concat, apply inverse, apply ap rezk_completion.iso_of_elt_iso, 
+      apply eq_of_parallel_po_right (pathover_iso_pth _ _) p, 
+      apply concat, apply iso_of_elt_iso_distrib,
+      apply ap (λ x, _ ⬝i x), apply equiv.to_left_inv !iso_equiv_elt_iso },
+    { induction b using rezk_carrier.set_rec with b b b' ib,
+      { apply arrow_pathover, intro f g p, apply eq_pathover,
+        refine !ap_id ⬝ph _ ⬝hp !ap_constant⁻¹, apply square_of_eq,
+        refine (ap pth _) ⬝ !resp_comp, 
+        assert H : g = (elt_iso_of_iso (iso.symm ia) ⬝i f),
+        apply eq_of_parallel_po_right p (pathover_iso_pth' _ _),
+        rewrite H, apply inverse, 
+        apply concat, apply ap (λ x, ia ⬝i x), apply iso_of_elt_iso_distrib,
+        apply concat, apply ap (λ x, _ ⬝i (x ⬝i _)), apply equiv.to_left_inv !iso_equiv_elt_iso, 
+        apply iso_eq, apply inverse_comp_cancel_right },
+       apply @is_prop.elimo }
+  end
 
   end
 end rezk_completion
