@@ -16,9 +16,10 @@ Author: Jared Roesch
 #include "util/name_set.h"
 
 namespace lean {
-used_defs::used_defs(environment const & env) : m_env(env) {
+used_defs::used_defs(environment const & env, std::function<void(declaration &)> action) : m_env(env) {
     this->m_used_names = name_set();
     this->m_names_to_process = std::vector<name>();
+    this->m_action = action;
 }
 
 // Add a name to the live name set, marking
@@ -27,6 +28,19 @@ void used_defs::add_name(name const & n) {
     if (!this->m_used_names.contains(n)) {
         this->m_used_names.insert(n);
         this->m_names_to_process.push_back(n);
+    }
+}
+
+void used_defs::empty_stack() {
+    while (!this->m_names_to_process.empty()) {
+        auto n = this->m_names_to_process.back();
+        this->m_names_to_process.pop_back();
+
+        // Is a definition and not a synthetic compiler name.
+        auto d = this->m_env.find(n);
+        if (d && d.value().is_definition()) {
+            m_action(d.value());
+        }
     }
 }
 
@@ -49,11 +63,7 @@ void used_defs::names_in_decl(declaration const & d) {
     // Finally we need to recursively process the
     // remaining definitions to full compute the
     // working set.
-    while (!this->m_names_to_process.empty()) {
-        auto n = this->m_names_to_process.back();
-        this->m_names_to_process.pop_back();
-        this->names_in_decl(this->m_env.get(n));
-    }
+    this->empty_stack();
 
     lean_assert(this->m_names_to_process.empty());
 }
@@ -68,9 +78,13 @@ void used_defs::names_in_expr(expr const & e) {
             break;
         case expr_kind::Sort:
             break;
-        case expr_kind::Constant:
+        case expr_kind::Constant: {
             this->add_name(const_name(e));
+            if (auto d = this->m_env.find(const_name(e))) {
+                this->names_in_decl(d.value());
+            }
             break;
+        }
         case expr_kind::Macro: {
             type_checker tc(m_env);
             auto expanded_macro = tc.expand_macro(e);
@@ -94,11 +108,23 @@ void used_defs::names_in_expr(expr const & e) {
             this->names_in_expr(ex);
             break;
         }
-        case expr_kind::App:
-            this->names_in_expr(app_fn(e));
-            this->names_in_expr(app_arg(e));
+        case expr_kind::App: {
+            buffer<expr> args;
+            auto fn = get_app_args(e, args);
+            this->names_in_expr(fn);
+            for (auto arg : args) {
+                this->names_in_expr(arg);
+            }
+            break;
+        }
         case expr_kind::Let:
+            throw "yolo";
             break;
     }
+}
+
+void used_defs::names_in_preprocessed_body(expr const & e) {
+    names_in_expr(e);
+    empty_stack();
 }
 }

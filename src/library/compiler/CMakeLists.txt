@@ -3,4 +3,4 @@ add_library(compiler OBJECT util.cpp eta_expansion.cpp simp_pr1_rec.cpp preproce
   inliner.cpp rec_fn_macro.cpp erase_irrelevant.cpp reduce_arity.cpp
   lambda_lifting.cpp simp_inductive.cpp nat_value.cpp
   vm_compiler.cpp init_module.cpp native_compiler.cpp
-  cpp_emitter.cpp config.cpp used_names.cpp annotate_return.cpp)
+  cpp_emitter.cpp config.cpp used_names.cpp annotate_return.cpp anf_transform.cpp)
