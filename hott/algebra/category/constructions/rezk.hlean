@@ -1,4 +1,13 @@
-import algebra.category hit.two_quotient types.trunc types.arrow
+/-
+Copyright (c) 2016 Jakob von Raumer. All rights reserved.
+Released under Apache 2.0 license as described in the file LICENSE.
+
+Authors: Jakob von Raumer
+
+The Rezk completion
+-/
+
+import algebra.category hit.two_quotient types.trunc types.arrow algebra.category.functor.attributes
 
 open eq category equiv trunc_two_quotient is_trunc iso relation e_closure function pi
 
@@ -141,7 +150,7 @@ namespace rezk_completion
     { clear b, intro b b' b'' f g x, apply !assoc⁻¹ }
   end
 
-  private definition transport_rezk_hom_left_pt_eq_comp {a b c : A} (f : hom a b) (g : b ≅ c) :
+  private definition pathover_rezk_hom_left_pt {a b c : A} (f : hom a b) (g : b ≅ c) :
     pathover (rezk_hom_left_pt a) f (pth g) ((to_hom g) ∘ f) :=
   begin
     apply pathover_of_tr_eq, apply @homotopy_of_eq _ _ _ (λ f, (to_hom g) ∘ f),
@@ -159,9 +168,9 @@ namespace rezk_completion
     refine @rezk_carrier.rec _ _ _ (rezk_hom_left_pth_1_trunc a a' f) _ _ _ b,
     intro b, apply equiv_precompose (to_hom f⁻¹ⁱ), --how do i unfold properly at this point?
     { intro b b' g, apply equiv_pathover, intro g' g'' H, 
-      refine !transport_rezk_hom_left_pt_eq_comp ⬝op _,
+      refine !pathover_rezk_hom_left_pt ⬝op _,
       refine !assoc ⬝ ap (λ x, x ∘ _) _,  refine eq_of_parallel_po_right _ H, 
-      apply transport_rezk_hom_left_pt_eq_comp },
+      apply pathover_rezk_hom_left_pt },
     intro b b' b'' g g', apply @is_prop.elim, apply is_trunc_pathover, apply is_trunc_equiv
   end
 
@@ -174,17 +183,17 @@ namespace rezk_completion
       apply assoc, apply is_prop.elimo, apply is_set.elimo }
   end
 
-  private definition transport_rezk_hom_left_eq_comp {a b c : A} (f : hom a c) (g : a ≅ b) :
+  private definition pathover_rezk_hom_left {a b c : A} (f : hom a c) (g : a ≅ b) :
     pathover (λ x, rezk_hom x (elt c)) f (pth g) (f ∘ (to_hom g)⁻¹) :=
   begin
     apply pathover_of_tr_eq, apply @homotopy_of_eq _ _ _ (λ f, f ∘ (to_hom g)⁻¹),
     apply rezk_carrier.elim_set_pth,
   end
 
-  private definition transport_rezk_hom_right_eq_comp {a b c : A} (f : hom a b) (g : b ≅ c) : --todo delete?
+  private definition pathover_rezk_hom_right {a b c : A} (f : hom a b) (g : b ≅ c) : --todo delete?
     pathover (rezk_hom (elt a)) f (pth g) ((to_hom g) ∘ f) :=
   begin
-    apply transport_rezk_hom_left_pt_eq_comp,
+    apply pathover_rezk_hom_left_pt,
   end
 
   private definition transport_rezk_hom_eq_comp {a c : A} (f : hom a a) (g : a ≅ c) :
@@ -192,8 +201,8 @@ namespace rezk_completion
   begin
     apply concat, apply tr_diag_eq_tr_tr rezk_hom,
     apply concat, apply ap (λ x, _ ▸ x),
-     apply tr_eq_of_pathover, apply transport_rezk_hom_left_eq_comp,
-    apply tr_eq_of_pathover, apply transport_rezk_hom_left_pt_eq_comp
+     apply tr_eq_of_pathover, apply pathover_rezk_hom_left,
+    apply tr_eq_of_pathover, apply pathover_rezk_hom_left_pt
   end
 
   definition rezk_id (a : @rezk_carrier A C) : rezk_hom a a :=
@@ -212,9 +221,9 @@ namespace rezk_completion
     induction c using rezk_carrier.set_rec with c c c' ic,
     exact g ∘ f,
     { apply arrow_pathover_left, intro d,
-      apply concato !transport_rezk_hom_left_pt_eq_comp, apply pathover_idp_of_eq, 
+      apply concato !pathover_rezk_hom_left_pt, apply pathover_idp_of_eq, 
       apply concat, apply assoc, apply ap (λ x, x ∘ f), 
-      apply inverse, apply tr_eq_of_pathover, apply transport_rezk_hom_left_pt_eq_comp },
+      apply inverse, apply tr_eq_of_pathover, apply pathover_rezk_hom_left_pt },
   end
 
   definition rezk_comp_pt_pth [reducible] {c : rezk_carrier} {a b b' : A} {ib : iso b b'} :
@@ -226,9 +235,9 @@ namespace rezk_completion
     induction c using rezk_carrier.set_rec with c c c' ic,
     {  apply pathover_of_eq, apply inverse, 
       apply concat, apply ap (λ x, rezk_comp_pt_pt x _), apply tr_eq_of_pathover,
-       apply transport_rezk_hom_left_eq_comp,
+       apply pathover_rezk_hom_left,
       apply concat, apply ap (rezk_comp_pt_pt _), apply tr_eq_of_pathover,
-       apply transport_rezk_hom_left_pt_eq_comp,
+       apply pathover_rezk_hom_left_pt,
       refine !assoc ⬝ ap (λ x, x ∘ y) _, 
       refine !assoc⁻¹ ⬝ _, 
       refine ap (λ y, x ∘ y) !iso.left_inverse ⬝ _,
@@ -245,9 +254,9 @@ namespace rezk_completion
     { induction b using rezk_carrier.set_rec with b b b' ib, 
       apply arrow_pathover_left, intro f, 
       induction c using rezk_carrier.set_rec with c c c' ic,
-      { apply concato, apply transport_rezk_hom_left_eq_comp,
+      { apply concato, apply pathover_rezk_hom_left,
         apply pathover_idp_of_eq, refine !assoc⁻¹ ⬝ ap (λ x, g ∘ x) _⁻¹,
-        apply tr_eq_of_pathover, apply transport_rezk_hom_left_eq_comp },
+        apply tr_eq_of_pathover, apply pathover_rezk_hom_left },
       apply is_prop.elimo,
       apply is_prop.elimo }
   end
@@ -293,14 +302,12 @@ namespace rezk_completion
     apply rezk_precategory _ _,
   end
   
-  definition rezk_embedding (C : Precategory) : functor C (to_rezk_Precategory C) :=
+  definition rezk_functor [constructor] (C : Precategory) : functor C (to_rezk_Precategory C) :=
   begin
     fapply functor.mk, apply elt,
     { intro a b f, exact f },
     do 2 (intros; reflexivity)
   end
-
-  --TODO prove that rezk_embedding is a weak equivalence
 
   section
   parameters {A : Type} [C : precategory A]
@@ -308,7 +315,7 @@ namespace rezk_completion
 
   protected definition elt_iso_of_iso [reducible] {a b : A} (f : a ≅ b) : elt a ≅ elt b :=
   begin
-    fapply iso.mk, apply to_hom f, apply functor.preserve_is_iso (rezk_embedding _)
+    fapply iso.mk, apply to_hom f, apply functor.preserve_is_iso (rezk_functor _)
   end
 
   protected definition iso_of_elt_iso [reducible] {a b : A} (f : elt a ≅ elt b) : a ≅ b :=
@@ -345,7 +352,7 @@ namespace rezk_completion
   begin
     apply pathover_of_tr_eq, apply iso_eq,
     apply concat, apply hom_transport_eq_transport_hom,
-    apply tr_eq_of_pathover, apply transport_rezk_hom_right_eq_comp A C
+    apply tr_eq_of_pathover, apply pathover_rezk_hom_right A C
   end
 
   private definition pathover_iso_pth' {a a' b : A} (f : elt a ≅ elt b)
@@ -353,7 +360,7 @@ namespace rezk_completion
   begin
     apply pathover_of_tr_eq, apply iso_eq,
     apply concat, apply hom_transport_eq_transport_hom',
-    apply tr_eq_of_pathover, apply transport_rezk_hom_left_eq_comp A C
+    apply tr_eq_of_pathover, apply pathover_rezk_hom_left A C
   end
 
   private definition eq_of_iso_pt {a : A} {b : @rezk_carrier A C} :
@@ -422,5 +429,23 @@ namespace rezk_completion
     apply rezk_completion.eq_of_iso_of_eq
   end
 
+  section
+  variable (C : Precategory)
+
+  definition fully_faithful_rezk_functor : fully_faithful (rezk_functor C) :=
+  by intros; apply is_equiv.is_equiv_id
+
+  open trunc
+  definition essentially_surj_rezk_functor : essentially_surjective (rezk_functor C) :=
+  begin
+    intro a, esimp[to_rezk_Precategory] at *,
+    induction a using rezk_carrier.prop_rec with a, apply tr,
+    constructor, apply iso.refl (elt a),
+  end
+
+  definition is_weak_equiv_rezk_functor : is_weak_equivalence (rezk_functor C) :=
+  prod.mk (fully_faithful_rezk_functor C) (essentially_surj_rezk_functor C)
+
+  end
   
 end rezk_completion
