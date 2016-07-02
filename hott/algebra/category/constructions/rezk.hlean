@@ -37,7 +37,7 @@ namespace rezk_carrier
   begin
     apply cancel_right (pth (iso.refl a)), refine _ ⬝ !idp_con⁻¹,
     refine !resp_comp⁻¹ ⬝ _,
-    apply ap pth, apply iso_eq, esimp[iso.refl], apply id_left,
+    apply ap pth, apply iso_eq, apply id_left,
   end
 
   protected definition rec {P : rezk_carrier → Type} [Π x, is_trunc 1 (P x)]
@@ -296,7 +296,7 @@ namespace rezk_completion
   definition rezk_embedding (C : Precategory) : functor C (to_rezk_Precategory C) :=
   begin
     fapply functor.mk, apply elt,
-    { intro a b f, unfold [to_rezk_Precategory, rezk_precategory], exact f },
+    { intro a b f, exact f },
     do 2 (intros; reflexivity)
   end
 
@@ -356,20 +356,27 @@ namespace rezk_completion
     apply tr_eq_of_pathover, apply transport_rezk_hom_left_eq_comp A C
   end
 
-  protected definition id_of_iso (a b : @rezk_carrier A C) :
+  private definition eq_of_iso_pt {a : A} {b : @rezk_carrier A C} :
+    elt a ≅ b → elt a = b :=
+  begin
+    intro f,
+    induction b using rezk_carrier.set_rec with b b b' ib,
+    apply pth, apply iso_of_elt_iso f,
+    apply arrow_pathover, intro f g p, apply eq_pathover,
+    refine !ap_constant ⬝ph _ ⬝hp !ap_id⁻¹, apply square_of_eq,
+    refine !resp_comp⁻¹ ⬝ (ap pth _)⁻¹ ⬝ !idp_con⁻¹, 
+    apply concat, apply inverse, apply ap rezk_completion.iso_of_elt_iso, 
+    apply eq_of_parallel_po_right (pathover_iso_pth _ _) p, 
+    apply concat, apply iso_of_elt_iso_distrib,
+    apply ap (λ x, _ ⬝i x), apply equiv.to_left_inv !iso_equiv_elt_iso
+  end
+
+  protected definition eq_of_iso {a b : @rezk_carrier A C} :
     a ≅ b → a = b :=
   begin
     intro f,
     induction a using rezk_carrier.set_rec with a a a' ia,
-    { induction b using rezk_carrier.set_rec with b b b' ib,
-      apply pth, apply iso_of_elt_iso f,
-      apply arrow_pathover, intro f g p, apply eq_pathover,
-      refine !ap_constant ⬝ph _ ⬝hp !ap_id⁻¹, apply square_of_eq,
-      refine !resp_comp⁻¹ ⬝ (ap pth _)⁻¹ ⬝ !idp_con⁻¹, 
-      apply concat, apply inverse, apply ap rezk_completion.iso_of_elt_iso, 
-      apply eq_of_parallel_po_right (pathover_iso_pth _ _) p, 
-      apply concat, apply iso_of_elt_iso_distrib,
-      apply ap (λ x, _ ⬝i x), apply equiv.to_left_inv !iso_equiv_elt_iso },
+    apply eq_of_iso_pt f,
     { induction b using rezk_carrier.set_rec with b b b' ib,
       { apply arrow_pathover, intro f g p, apply eq_pathover,
         refine !ap_id ⬝ph _ ⬝hp !ap_constant⁻¹, apply square_of_eq,
@@ -383,5 +390,37 @@ namespace rezk_completion
        apply @is_prop.elimo }
   end
 
+  protected definition eq_of_iso_of_eq (a b : @rezk_carrier A C) (p : a = b) :
+    eq_of_iso (iso_of_eq p) = p :=
+  begin
+    cases p, clear b,
+    induction a using rezk_carrier.prop_rec,
+    refine ap pth _ ⬝ !resp_id,
+    apply iso_eq, reflexivity
   end
+
+  protected definition iso_of_eq_of_iso (a b : @rezk_carrier A C) (f : a ≅ b) :
+    iso_of_eq (eq_of_iso f) = f :=
+  begin
+    induction a using rezk_carrier.prop_rec with a,
+    induction b using rezk_carrier.prop_rec with b,
+    cases f with f Hf, apply iso_eq,
+    apply concat, apply ap to_hom, apply !transport_iso_of_eq⁻¹,
+    apply concat, apply ap to_hom, apply tr_eq_of_pathover, apply pathover_iso_pth,
+    cases Hf with invf linv rinv, apply id_right,
+  end
+
+  end
+
+  definition rezk_category.{l k} {A : Type.{l}} [C : precategory.{l k} A] :
+    category.{(max l k) k} (@rezk_carrier.{l k} A C) :=
+  begin
+    fapply category.mk (rezk_precategory A C),
+    intros, fapply is_equiv.adjointify,
+    apply rezk_completion.eq_of_iso,
+    apply rezk_completion.iso_of_eq_of_iso,
+    apply rezk_completion.eq_of_iso_of_eq
+  end
+
+  
 end rezk_completion

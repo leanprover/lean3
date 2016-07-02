@@ -221,6 +221,10 @@ namespace iso
     : iso_of_eq (p ⬝ q) = iso.trans (iso_of_eq p) (iso_of_eq q) :=
   eq.rec_on q (eq.rec_on p (iso_eq !id_id⁻¹))
 
+  definition transport_iso_of_eq (p : a = b) :
+    p ▸ !iso.refl = iso_of_eq p :=
+  by cases p; reflexivity
+
   section
     open funext
     variables {X : Type} {x y : X} {F G : X → ob}
@@ -243,6 +247,7 @@ namespace iso
         hom_of_eq (apd10 (eq_of_homotopy p) y) ∘ f ∘ inv_of_eq (apd10 (eq_of_homotopy p) x)
           : transport_hom_of_eq
         ... = hom_of_eq (p y) ∘ f ∘ inv_of_eq (p x) : {right_inv apd10 p}
+
   end
 
   structure mono [class] (f : a ⟶ b) :=
