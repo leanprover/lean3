@@ -12,7 +12,7 @@ by do
   get_local "H" >>= infer_type >>= defeq_simp >>= trace,
   constructor
 
-set_option defeq_simplify.canonize_proofs true
+set_option defeq_simplify.canonicalize_proofs true
 
 constant x1 : nat -- update the environment to force defeq_canonize cache to be reset
 
