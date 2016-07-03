@@ -90,6 +90,10 @@ class native_compiler_fn {
     }
 
     void compile_local(expr const & e, name_map<unsigned> const & m) {
+        std::cout << mlocal_name(e) << std::endl;
+        m.for_each([&] (name const & n, unsigned const & i) {
+            std::cout << n << " ======> " << i << std::endl;
+        });
         unsigned idx = *m.find(mlocal_name(e));
         this->m_emitter.emit_local(idx);
     }
@@ -112,12 +116,14 @@ class native_compiler_fn {
         lean_assert(num >= 1);
 
         if (fn_name == get_nat_cases_on_name()) {
-            this->m_emitter.emit_nat_cases(args[0], args[1], args[2], [&] (expr & b) {
+            this->m_emitter.emit_nat_cases(args[0], args[1], args[2], [&] (expr const & e) {
+                expr b = e;
                 buffer<expr> locals;
                 name_map<unsigned> new_m = m;
                 unsigned new_bpz = bpz;
                 while (is_lambda(b)) {
                     name n = mk_fresh_name();
+                    std::cout << "making new name" << std::endl;
                     new_m.insert(n, new_bpz);
                     locals.push_back(mk_local(n));
                     new_bpz++;
@@ -215,7 +221,14 @@ class native_compiler_fn {
 
     void compile_app(expr const & e, unsigned bpz, name_map<unsigned> const & m) {
         expr const & fn = get_app_fn(e);
-        if (is_internal_cases(fn) || is_constant(fn, get_nat_cases_on_name())) {
+        std::cout << "compile_app: " << fn << std::endl;
+
+        if (is_return_expr(fn)) {
+            auto arg = app_arg(e);
+            this->m_emitter.emit_return([&] () {
+                compile(arg, bpz, m);
+            });
+        } else if (is_internal_cases(fn) || is_constant(fn, get_nat_cases_on_name())) {
             compile_cases_on(e, bpz, m);
         } else if (is_internal_cnstr(fn)) {
             compile_cnstr(e, bpz, m);
@@ -296,9 +309,12 @@ public:
     }
 
     void emit_prototypes(buffer<pair<name, unsigned>> fns) {
+
+        this->m_emitter.emit_string("namespace lean {\n");
         for (auto fn : fns) {
             this->m_emitter.emit_prototype(fn.first, fn.second);
         }
+        this->m_emitter.emit_string("}\n");
     }
 
     void operator()(name const & n, expr e) {
@@ -324,6 +340,10 @@ public:
             compile(e, bpz, m);
         });
     }
+
+    void emit_prototype(name const & n, expr e) {
+        this->m_emitter.emit_prototype(n, get_arity(e));
+    }
 };
 
 void native_compile(environment const & env,
@@ -338,12 +358,16 @@ void native_compile(environment const & env,
     // Emit externs (currently only works for builtins).
     compiler.emit_prototypes(extern_fns);
 
+    for (auto & p : procs) {
+        compiler.emit_prototype(p.first, p.second);
+    }
+
     // Iterate each processed decl, emitting code for it.
     for (auto & p : procs) {
         lean_trace(name({"native_compiler"}), tout() << "" << p.first << "\n";);
         name & n = p.first;
         expr body = p.second;
-        // std::cout << body << std::endl;
+        std::cout << body << std::endl;
         compiler(n, body);
     }
 
@@ -368,20 +392,41 @@ void native_preprocess(environment const & env, declaration const & d, buffer<pa
     }
 }
 
-void is_extern_function(extern & e) {
+// void is_extern_function(expr & e) {
+//
+// }
 
+bool is_internal_decl(declaration & d) {
+    auto n = d.get_name();
+    return (n == name("_neutral_") ||
+            n == name({"native_compiler", "return"}) ||
+            is_internal_cnstr(mk_constant(n)) ||
+            is_internal_cases(mk_constant(n)) ||
+            is_internal_proj(mk_constant(n)));
+}
+
+optional<pair<name, unsigned>> get_builtin(name const & n) {
+    auto internal_name = get_vm_builtin_internal_name(n);
+    if (internal_name && get_vm_builtin_kind(n) == vm_builtin_kind::CFun) {
+        auto arity = get_vm_builtin_arity(n);
+        return optional<pair<name, unsigned>>(
+            pair<name, unsigned>(internal_name, arity));
+    } else {
+        return optional<pair<name, unsigned>>();
+    }
 }
 
 void native_compile(environment const & env, config & conf, declaration const & d, native_compiler_mode mode) {
-    lean_trace(name({"native_compiler"}),
+    lean_trace(name("native_compiler"),
         tout() << "main_fn: " << d.get_name() << "\n";);
 
-    lean_trace(name({"native_compiler"}),
+    lean_trace(name("native_compiler"),
         tout() << "main_body: " << d.get_value() << "\n";);
 
     // Preprocess the main function.
     buffer<pair<name, expr>> all_procs;
     buffer<pair<name, expr>> main_procs;
+    buffer<pair<name, unsigned>> extern_fns;
     native_preprocess(env, d, main_procs);
 
     if (mode == native_compiler_mode::AOT) {
@@ -390,20 +435,32 @@ void native_compile(environment const & env, config & conf, declaration const & 
         used_defs used_names(env, [&] (declaration & d) {
             std::cout << "recursive processing decl" << d.get_name() << std::endl;
             buffer<pair<name, expr>> procs;
-            native_preprocess(env, d, procs);
-            for (auto pair : procs) {
-                used_names.names_in_expr(pair.second);
-                all_procs.push_back(pair);
+            if (is_internal_decl(d)) {
+            } else if (auto p = get_builtin(d.get_name())) {
+                // extern_fns.push_back(p.value());
+            } else {
+                native_preprocess(env, d, procs);
+                for (auto pair : procs) {
+                    used_names.names_in_expr(pair.second);
+                    all_procs.push_back(pair);
+                }
             }
         });
 
         // We then loop over the set of procs produced by preprocessing the
         // main function, we transitively collect all names.
         for (auto pair : main_procs) {
-            // std::cout << pair.first << std::endl;
             all_procs.push_back(pair);
             used_names.names_in_preprocessed_body(pair.second);
         }
+
+        used_names.m_used_names.for_each([&] (name const & n) {
+                std::cout << "live constant" << n << std::endl;
+            if (auto builtin = get_builtin(n)) {
+                std::cout << "extern fn" << n << std::endl;
+                extern_fns.push_back(builtin.value());
+            }
+        });
 
         for (auto pair : all_procs) {
             std::cout << pair.first << std::endl;
@@ -412,6 +469,7 @@ void native_compile(environment const & env, config & conf, declaration const & 
         // Finally we assert that there are no more unprocessed declarations.
         lean_assert(used_names.stack_is_empty());
 
+        native_compile(env, conf, extern_fns, all_procs);
         // // // Collect the live declarations.
         // // auto decls_to_compile = std::vector<declaration>();
         // used_names.m_used_names.for_each([&] (name const &n) {
@@ -423,10 +481,8 @@ void native_compile(environment const & env, config & conf, declaration const & 
         //     }
         // });
         //
-        // // Collect all the generated procs.
-        // buffer<pair<name, expr>> all_procs;
-        // buffer<pair<name, unsigned>> extern_fns;
         //
+
         // for (auto decl : decls_to_compile) {
         //     std::cout << "preproces:" << decl.get_name() << std::endl;
         //     // if (is_extern(env, decl.get_name())) {
@@ -461,7 +517,6 @@ void native_compile(environment const & env, config & conf, declaration const & 
         //     all_procs.push_back(p);
         // }
         //
-        // native_compile(env, conf, extern_fns, all_procs);
     } else {
         buffer<pair<name, unsigned>> extern_fns;
         native_compile(env, conf, extern_fns, all_procs);
@@ -469,7 +524,7 @@ void native_compile(environment const & env, config & conf, declaration const & 
 }
 
 void initialize_native_compiler() {
-    register_trace_class({"native_compiler"});
+    register_trace_class("native_compiler");
 }
 
 void finalize_native_compiler() {

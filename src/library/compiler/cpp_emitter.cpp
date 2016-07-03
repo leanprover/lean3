@@ -66,8 +66,7 @@ void cpp_emitter::mangle_name(name const & n) {
     }
 }
 
-void cpp_emitter::emit_prototype(name & n, unsigned arity) {
-    *this->m_output_stream << "namespace lean {\n";
+void cpp_emitter::emit_prototype(name const & n, unsigned arity) {
     *this->m_output_stream << "lean::vm_obj ";
     mangle_name(n);
     auto comma = false;
@@ -82,7 +81,6 @@ void cpp_emitter::emit_prototype(name & n, unsigned arity) {
         *this->m_output_stream << "lean::vm_obj const &";
     }
     *this->m_output_stream << ");" << std::endl;
-    *this->m_output_stream << "}\n";
 }
 
 void cpp_emitter::emit_string(const char * str) {
@@ -103,8 +101,9 @@ void cpp_emitter::emit_indented_line(const char * str) {
 
 void cpp_emitter::emit_main(name & lean_main) {
     *this->m_output_stream << "int main() {\n";
-        // "lean::initialize();\n" <<
-        // "lean::environment env;\n";
+    this->emit_indented_line("lean::initialize();");
+    // "lean::environment env;\n" <<
+    // lean::vm_state S(env);
     mangle_name(lean_main);
     *this->m_output_stream << "();\n" << "return 0;\n}" << std::endl;
 }
