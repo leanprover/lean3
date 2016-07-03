@@ -39,7 +39,7 @@ namespace lean  {
         void indent();
         void unindent();
         void emit_main(name & lean_main);
-        void emit_prototype(name & n, unsigned arity);
+        void emit_prototype(name const & n, unsigned arity);
         void emit_indented(const char * str);
         void emit_string(const char * str);
         void emit_indented_line(const char * str);
@@ -47,9 +47,9 @@ namespace lean  {
 
         template <typename F>
         void emit_return(F expr) {
-            this->emit_string("return ");
+            this->emit_indented("return ");
             expr();
-            this->emit_string(";");
+            this->emit_string(";\n");
         }
 
         template <typename F>
@@ -73,17 +73,11 @@ namespace lean  {
 
         template <typename F>
         void emit_local_call(unsigned bpz, unsigned nargs, expr const * args, F each_arg) {
+            *this->m_output_stream << "lean::invoke(";
             this->emit_local(bpz);
-            *this->m_output_stream << "(";
-
-            auto comma = false;
 
             for (unsigned i = 0; i < nargs; i++) {
-                if (comma) {
-                    *this->m_output_stream << ", ";
-                } else {
-                    comma = true;
-                }
+                *this->m_output_stream << ", ";
                 each_arg(args[i]);
             }
 
@@ -141,6 +135,8 @@ namespace lean  {
             *this->m_output_stream << ")";
 
             this->emit_block([e, block_fn] { block_fn(e); });
+
+            *this->m_output_stream << "\n";
         }
 
         template <typename F>
@@ -158,7 +154,7 @@ namespace lean  {
         }
 
         template <typename F>
-        void emit_nat_cases(expr & scrutinee, expr & zero_case, expr & succ_case, F action) {
+        void emit_nat_cases(expr const & scrutinee, expr const & zero_case, expr const & succ_case, F action) {
             this->emit_indented("vm::obj scrutinee = ");
             action(scrutinee);
             *this->m_output_stream << ";\n" << std::endl;
