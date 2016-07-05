@@ -13,6 +13,7 @@ Common categories and constructions on categories. The following files are in th
 * [pushout](pushout.hlean) : Categorical structure of paths in a graph and quotients of them.
   Pushout of categories, pushout of groupoids.
 * [fundamental_groupoid](fundamental_groupoid.hlean) : The fundamental groupoid of a type
+* [rezk](rezk.hlean) : Rezk completion
 
 Discrete, indiscrete or finite categories:
 
