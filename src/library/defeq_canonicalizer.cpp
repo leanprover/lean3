@@ -11,37 +11,37 @@ Author: Leonardo de Moura
 #include "library/cache_helper.h"
 
 namespace lean {
-struct defeq_canonize_cache {
+struct defeq_canonicalize_cache {
     environment           m_env;
     /* Canonical mapping I -> J (i.e., J is the canonical expression for I).
        Invariant: locals_subset(J, I) */
-    expr_map<expr>        m_C;
+    expr_struct_map<expr>        m_C;
     /* Mapping from head symbol N to list of expressions es s.t.
        for each e in es, head_symbol(e) = N. */
     name_map<list<expr>>  m_M;
-    defeq_canonize_cache(environment const & env):m_env(env) {}
+    defeq_canonicalize_cache(environment const & env):m_env(env) {}
     environment const & env() const { return m_env; }
 };
 
-/* The defeq_canonize_cache does not depend on the transparency mode */
-typedef transparencyless_cache_compatibility_helper<defeq_canonize_cache>
-defeq_canonize_cache_helper;
+/* The defeq_canonicalize_cache does not depend on the transparency mode */
+typedef transparencyless_cache_compatibility_helper<defeq_canonicalize_cache>
+defeq_canonicalize_cache_helper;
 
-MK_THREAD_LOCAL_GET_DEF(defeq_canonize_cache_helper, get_dcch);
+MK_THREAD_LOCAL_GET_DEF(defeq_canonicalize_cache_helper, get_dcch);
 
-defeq_canonize_cache & get_defeq_canonize_cache_for(type_context const & ctx) {
+defeq_canonicalize_cache & get_defeq_canonicalize_cache_for(type_context const & ctx) {
     return get_dcch().get_cache_for(ctx);
 }
 
-struct defeq_canonize_fn {
+struct defeq_canonicalize_fn {
     type_context &                   m_ctx;
-    defeq_canonize_cache &           m_cache;
+    defeq_canonicalize_cache &           m_cache;
     type_context::transparency_scope m_scope;
     bool &                           m_updated;
 
-    defeq_canonize_fn(type_context & ctx, bool & updated):
+    defeq_canonicalize_fn(type_context & ctx, bool & updated):
         m_ctx(ctx),
-        m_cache(get_defeq_canonize_cache_for(ctx)),
+        m_cache(get_defeq_canonicalize_cache_for(ctx)),
         m_scope(m_ctx, transparency_mode::All),
         m_updated(updated) {}
 
@@ -94,13 +94,13 @@ struct defeq_canonize_fn {
         m_cache.m_M.insert(h, cons(new_e, remove(*lst, e)));
     }
 
-    expr canonize(expr const & e) {
+    expr canonicalize(expr const & e) {
         auto it = m_cache.m_C.find(e);
         if (it != m_cache.m_C.end()) {
             expr e1 = it->second;
             if (e1 == e)
                 return e;
-            expr e2 = canonize(e1);
+            expr e2 = canonicalize(e1);
             if (e2 != e1) {
                 replace_C(e, e2);
             }
@@ -116,6 +116,7 @@ struct defeq_canonize_fn {
             if (get_weight(e) < get_weight(*new_e) && locals_subset(e, *new_e)) {
                 replace_C(*new_e, e);
                 replace_M(*h, *new_e, e);
+                insert_C(e, e);
                 return e;
             } else {
                 insert_C(e, *new_e);
@@ -128,12 +129,12 @@ struct defeq_canonize_fn {
         }
     }
 
-    expr operator()(expr const & e) { return canonize(e); }
+    expr operator()(expr const & e) { return canonicalize(e); }
 };
 
-expr defeq_canonize(type_context & ctx, expr const & e, bool & updated) {
+expr defeq_canonicalize(type_context & ctx, expr const & e, bool & updated) {
     if (has_expr_metavar(e))
         return e; // do nothing if e contains metavariables
-    return defeq_canonize_fn(ctx, updated)(e);
+    return defeq_canonicalize_fn(ctx, updated)(e);
 }
 }

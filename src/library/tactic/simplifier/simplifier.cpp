@@ -22,6 +22,7 @@ Author: Daniel Selsam
 #include "library/util.h"
 #include "library/norm_num.h"
 #include "library/attribute_manager.h"
+#include "library/defeq_canonicalizer.h"
 #include "library/class_instance_resolution.h"
 #include "library/relation_manager.h"
 #include "library/app_builder.h"
@@ -32,6 +33,7 @@ Author: Daniel Selsam
 #include "library/tactic/app_builder_tactics.h"
 #include "library/tactic/simplifier/simplifier.h"
 #include "library/tactic/simplifier/simp_lemmas.h"
+#include "library/tactic/simplifier/simp_extensions.h"
 #include "library/tactic/simplifier/ceqv.h"
 
 #ifndef LEAN_DEFAULT_SIMPLIFY_MAX_STEPS
@@ -52,40 +54,48 @@ Author: Daniel Selsam
 #ifndef LEAN_DEFAULT_SIMPLIFY_NUMERALS
 #define LEAN_DEFAULT_SIMPLIFY_NUMERALS false
 #endif
+#ifndef LEAN_DEFAULT_DEFEQ_SIMPLIFY_CANONICALIZE_PROOFS
+#define LEAN_DEFAULT_DEFEQ_SIMPLIFY_CANONICALIZE_PROOFS false
+#endif
 
 namespace lean {
 
 /* Options */
 
-static name * g_simplify_max_steps     = nullptr;
-static name * g_simplify_top_down      = nullptr;
-static name * g_simplify_exhaustive    = nullptr;
-static name * g_simplify_memoize       = nullptr;
-static name * g_simplify_contextual    = nullptr;
-static name * g_simplify_numerals      = nullptr;
+static name * g_simplify_max_steps            = nullptr;
+static name * g_simplify_top_down             = nullptr;
+static name * g_simplify_exhaustive           = nullptr;
+static name * g_simplify_memoize              = nullptr;
+static name * g_simplify_contextual           = nullptr;
+static name * g_simplify_numerals             = nullptr;
+static name * g_simplify_canonicalize_proofs  = nullptr;
 
-unsigned get_simplify_max_steps(options const & o) {
+static unsigned get_simplify_max_steps(options const & o) {
     return o.get_unsigned(*g_simplify_max_steps, LEAN_DEFAULT_SIMPLIFY_MAX_STEPS);
 }
 
-bool get_simplify_top_down(options const & o) {
+static bool get_simplify_top_down(options const & o) {
     return o.get_bool(*g_simplify_top_down, LEAN_DEFAULT_SIMPLIFY_TOP_DOWN);
 }
 
-bool get_simplify_exhaustive(options const & o) {
+static bool get_simplify_exhaustive(options const & o) {
     return o.get_bool(*g_simplify_exhaustive, LEAN_DEFAULT_SIMPLIFY_EXHAUSTIVE);
 }
 
-bool get_simplify_memoize(options const & o) {
+static bool get_simplify_memoize(options const & o) {
     return o.get_bool(*g_simplify_memoize, LEAN_DEFAULT_SIMPLIFY_MEMOIZE);
 }
 
-bool get_simplify_contextual(options const & o) {
+static bool get_simplify_contextual(options const & o) {
     return o.get_bool(*g_simplify_contextual, LEAN_DEFAULT_SIMPLIFY_CONTEXTUAL);
 }
 
-bool get_simplify_numerals(options const & o) {
+static bool get_simplify_numerals(options const & o) {
     return o.get_bool(*g_simplify_numerals, LEAN_DEFAULT_SIMPLIFY_NUMERALS);
+}
+
+static bool get_simplify_canonicalize_proofs(options const & o) {
+    return o.get_bool(*g_simplify_canonicalize_proofs, LEAN_DEFAULT_DEFEQ_SIMPLIFY_CANONICALIZE_PROOFS);
 }
 
 /* Main simplifier class */
@@ -100,6 +110,8 @@ class simplifier {
     /* Logging */
     unsigned                  m_num_steps{0};
 
+    bool                      m_need_restart{false};
+
     /* Options */
     unsigned                  m_max_steps;
     bool                      m_top_down;
@@ -107,6 +119,7 @@ class simplifier {
     bool                      m_memoize;
     bool                      m_contextual;
     bool                      m_numerals;
+    bool                      m_canonicalize_proofs;
 
     /* Cache */
     struct key {
@@ -134,6 +147,8 @@ class simplifier {
     void cache_save(expr const & e, simp_result const & r);
 
     /* Basic helpers */
+    environment const & env() const { return m_tctx.env(); }
+
     bool using_eq() { return m_rel == get_eq_name(); }
 
     bool is_dependent_fn(expr const & f) {
@@ -170,6 +185,9 @@ class simplifier {
     simp_result simplify_fun(expr const & e);
     optional<simp_result> simplify_numeral(expr const & e);
 
+    /* Extenisons */
+    simp_result simplify_extensions(expr const & e);
+
     /* Proving */
     optional<expr> prove(expr const & thm);
 
@@ -177,6 +195,9 @@ class simplifier {
     simp_result rewrite(expr const & e);
     simp_result rewrite(expr const & e, simp_lemmas const & slss);
     simp_result rewrite(expr const & e, simp_lemma const & sr);
+
+    /* Canonicalize */
+    expr canonicalize_args(expr const & e);
 
     /* Congruence */
     simp_result congr_fun_arg(simp_result const & r_f, simp_result const & r_arg);
@@ -208,10 +229,21 @@ public:
         m_exhaustive(get_simplify_exhaustive(tctx.get_options())),
         m_memoize(get_simplify_memoize(tctx.get_options())),
         m_contextual(get_simplify_contextual(tctx.get_options())),
-        m_numerals(get_simplify_numerals(tctx.get_options()))
+        m_numerals(get_simplify_numerals(tctx.get_options())),
+        m_canonicalize_proofs(get_simplify_canonicalize_proofs(tctx.get_options()))
         { }
 
-    simp_result operator()(expr const & e)  { return simplify(e); }
+    simp_result operator()(expr const & e)  {
+        scope_trace_env scope(env(), m_tctx);
+        simp_result r(e);
+        while (true) {
+            m_need_restart = false;
+            r = join(r, simplify(r.get_new()));
+            if (!m_need_restart)
+                return r;
+            m_cache.clear();
+        }
+    }
 };
 
 /* Cache */
@@ -293,7 +325,10 @@ simp_result simplifier::simplify(expr const & e) {
 
     simp_result r(e);
 
-    if (m_top_down) r = join(r, rewrite(whnf_eta(r.get_new())));
+    if (m_top_down) {
+        r = join(r, simplify_extensions(whnf_eta(r.get_new())));
+        r = join(r, rewrite(whnf_eta(r.get_new())));
+    }
 
     r.update(whnf_eta(r.get_new()));
 
@@ -322,7 +357,10 @@ simp_result simplifier::simplify(expr const & e) {
         lean_unreachable();
     }
 
-    if (!m_top_down) r = join(r, rewrite(whnf_eta(r.get_new())));
+    if (!m_top_down) {
+        r = join(r, simplify_extensions(whnf_eta(r.get_new())));
+        r = join(r, rewrite(whnf_eta(r.get_new())));
+    }
 
     if (r.get_new() == e && !using_eq()) {
         simp_result r_eq;
@@ -366,10 +404,36 @@ simp_result simplifier::simplify_pi(expr const & e) {
     return try_congrs(e);
 }
 
+expr simplifier::canonicalize_args(expr const & e) {
+        buffer<expr> args;
+        bool modified = false;
+        expr f        = get_app_args(e, args);
+        fun_info info = get_fun_info(m_tctx, f, args.size());
+        unsigned i    = 0;
+        for (param_info const & pinfo : info.get_params_info()) {
+            lean_assert(i < args.size());
+            expr new_a;
+            if (pinfo.is_inst_implicit() || (m_canonicalize_proofs && pinfo.is_prop())) {
+                new_a = ::lean::defeq_canonicalize(m_tctx, args[i], m_need_restart);
+                lean_trace(name({"simplifier", "canonicalize"}),
+                           tout() << "\n" << args[i] << "\n===>\n" << new_a << "\n";);
+                if (new_a != args[i]) {
+                    modified = true;
+                    args[i] = new_a;
+                }
+            }
+            i++;
+        }
+
+        if (!modified)
+            return e;
+        else
+            return mk_app(f, args);
+}
+
 simp_result simplifier::simplify_app(expr const & _e) {
     lean_assert(is_app(_e));
-    // TODO(dhs): normalize instances and subsingletons
-    expr e = _e;
+    expr e = canonicalize_args(_e);
 
     // (1) Try user-defined congruences
     simp_result r_user = try_congrs(e);
@@ -378,8 +442,13 @@ simp_result simplifier::simplify_app(expr const & _e) {
         else return r_user;
     }
 
-    // TODO(dhs): (2) Synthesize congruence lemma
-
+    // (2) Synthesize congruence lemma
+    if (using_eq()) {
+        optional<simp_result> r_args = synth_congr(e, [&](expr const & e) {
+                return simplify(e);
+            });
+        if (r_args) return join(*r_args, simplify_fun(r_args->get_new()));
+    }
     // (3) Fall back on generic binary congruence
     if (using_eq()) {
         expr const & f = app_fn(e);
@@ -414,6 +483,47 @@ optional<simp_result> simplifier::simplify_numeral(expr const & e) {
     } catch (exception e) {
         return optional<simp_result>();
     }
+}
+
+/* Extensions */
+simp_result simplifier::simplify_extensions(expr const & _e) {
+    simp_result r(_e);
+    expr op = get_app_fn(_e);
+    if (!is_constant(op)) return simp_result(_e);
+    name head = const_name(op);
+    buffer<unsigned> ext_ids;
+    get_simp_extensions_for(m_tctx.env(), head, ext_ids);
+    for (unsigned ext_id : ext_ids) {
+        expr e = r.get_new();
+        expr e_type = m_tctx.infer(e);
+        metavar_context mctx = m_tctx.get_mctx();
+        expr result_mvar = mctx.mk_metavar_decl(m_tctx.lctx(), e_type);
+        m_tctx.set_mctx(mctx); // the app-builder needs to know about these metavars
+        expr goal_type = mk_app(m_tctx, m_rel, e, result_mvar);
+        expr goal_mvar = mctx.mk_metavar_decl(m_tctx.lctx(), goal_type);
+        vm_obj s = to_obj(tactic_state(m_tctx.env(), m_tctx.get_options(), mctx, list<expr>(goal_mvar), goal_mvar));
+        vm_obj simp_ext_result = get_tactic_vm_state(m_tctx.env()).invoke(ext_id, 1, &s);
+        optional<tactic_state> s_new = is_tactic_success(simp_ext_result);
+        if (s_new) {
+            metavar_context const & mctx = s_new->mctx();
+            optional<expr> result_assignment = mctx.get_assignment(result_mvar);
+            optional<expr> goal_assignment = mctx.get_assignment(goal_mvar);
+            if (result_assignment && goal_assignment) {
+                lean_trace(name({"simplifier", "extensions"}),
+                           tout() << *goal_assignment << " : " << e << " " << m_rel << " " << *result_assignment << "\n";);
+                m_tctx.set_mctx(mctx);
+                // TODO(dhs): detect refl proofs
+                r = join(r, simp_result(*result_assignment, *goal_assignment));
+            } else {
+                lean_trace(name({"simplifier", "extensions"}),
+                           tout() << "extension succeeded but left metavariables unassigned\n";);
+            }
+        } else {
+            lean_trace(name({"simplifier", "extensions"}),
+                       tout() << "extension failed\n";);
+        }
+    }
+    return r;
 }
 
 /* Proving */
@@ -770,11 +880,11 @@ expr simplifier::remove_unnecessary_casts(expr const & e) {
 vm_obj tactic_simp(vm_obj const & e, vm_obj const & s0) {
     tactic_state const & s   = to_tactic_state(s0);
     try {
-        type_context tctx           = mk_type_context_for(s, transparency_mode::Reducible);
+        type_context tctx          = mk_type_context_for(s, transparency_mode::Reducible);
         simp_lemmas lemmas         = get_simp_lemmas(s.env());
-        expr target                = *(s.get_main_goal());
-//        name rel                   = (is_standard(s.env()) && tctx.is_prop(target)) ? get_iff_name() : get_eq_name();
-        name rel                   = get_iff_name();
+        metavar_decl g             = *s.get_main_goal_decl();
+        expr target                = g.get_type();
+        name rel                   = (is_standard(s.env()) && tctx.is_prop(target)) ? get_iff_name() : get_eq_name();
         simp_result result         = simplify(tctx, rel, lemmas, to_expr(e));
         if (result.has_proof()) {
             return mk_tactic_success(mk_vm_pair(to_obj(result.get_new()), to_obj(result.get_proof())), s);
@@ -791,16 +901,19 @@ void initialize_simplifier() {
     register_trace_class("simplifier");
     register_trace_class(name({"simplifier", "rewrite"}));
     register_trace_class(name({"simplifier", "congruence"}));
+    register_trace_class(name({"simplifier", "extensions"}));
     register_trace_class(name({"simplifier", "failure"}));
     register_trace_class(name({"simplifier", "perm"}));
     register_trace_class(name({"simplifier", "try_rewrite"}));
+    register_trace_class(name({"simplifier", "canonicalize"}));
 
-    g_simplify_max_steps     = new name{"simplify", "max_steps"};
-    g_simplify_top_down      = new name{"simplify", "top_down"};
-    g_simplify_exhaustive    = new name{"simplify", "exhaustive"};
-    g_simplify_memoize       = new name{"simplify", "memoize"};
-    g_simplify_contextual    = new name{"simplify", "contextual"};
-    g_simplify_numerals      = new name{"simplify", "numerals"};
+    g_simplify_max_steps           = new name{"simplify", "max_steps"};
+    g_simplify_top_down            = new name{"simplify", "top_down"};
+    g_simplify_exhaustive          = new name{"simplify", "exhaustive"};
+    g_simplify_memoize             = new name{"simplify", "memoize"};
+    g_simplify_contextual          = new name{"simplify", "contextual"};
+    g_simplify_numerals            = new name{"simplify", "numerals"};
+    g_simplify_canonicalize_proofs = new name{"simplify", "canonicalize_proofs"};
 
     register_unsigned_option(*g_simplify_max_steps, LEAN_DEFAULT_SIMPLIFY_MAX_STEPS,
                              "(simplify) max allowed steps in simplification");
@@ -814,11 +927,14 @@ void initialize_simplifier() {
                          "(simplify) use contextual simplification");
     register_bool_option(*g_simplify_numerals, LEAN_DEFAULT_SIMPLIFY_NUMERALS,
                          "(simplify) simplify (+, *, -, /) over numerals");
+    register_bool_option(*g_simplify_canonicalize_proofs, LEAN_DEFAULT_SIMPLIFY_CANONICALIZE_PROOFS,
+                         "(simplify) canonicalize_proofs");
 
     DECLARE_VM_BUILTIN(name({"tactic", "simplify"}),            tactic_simp);
 }
 
 void finalize_simplifier() {
+    delete g_simplify_canonicalize_proofs;
     delete g_simplify_numerals;
     delete g_simplify_contextual;
     delete g_simplify_memoize;
