@@ -23,7 +23,7 @@ The rows indicate the chapters, the columns the sections.
 | Ch 6  | . | + | + | + | + | + | + | + | ¾ | ¼  | ¾  | +  | .  |    |    |
 | Ch 7  | + | + | + | - | ¾ | - | - |   |   |    |    |    |    |    |    |
 | Ch 8  | + | + | + | + | ¾ | ¾ | - | ¾ | ½ | ¼  |    |    |    |    |    |
-| Ch 9  | ¾ | + | + | ½ | ¾ | ½ | - | - | - |    |    |    |    |    |    |
+| Ch 9  | ¾ | + | + | ½ | ¾ | ½ | - | - | ½ |    |    |    |    |    |    |
 | Ch 10 | ¼ | - | - | - | - |   |   |   |   |    |    |    |    |    |    |
 | Ch 11 | - | - | - | - | - | - |   |   |   |    |    |    |    |    |    |
 
@@ -169,7 +169,7 @@ Every file is in the folder [algebra.category](algebra/category/category.md)
 - 9.6 (Strict categories): [strict](algebra/category/strict.hlean) (only definition)
 - 9.7 (†-categories): not formalized
 - 9.8 (The structure identity principle): not formalized
-- 9.9 (The Rezk completion): not formalized
+- 9.9 (The Rezk completion): [constructions.rezk](algebra/category/constructions/rezk.hlean], many lemmas are still missing
 
 Chapter 10: Set theory
 ----------
