@@ -9,18 +9,9 @@ The Rezk completion
 
 import algebra.category hit.two_quotient types.trunc types.arrow algebra.category.functor.attributes
 
-open eq category equiv trunc_two_quotient is_trunc iso relation e_closure function pi
+open eq category equiv trunc_two_quotient is_trunc iso e_closure function pi trunctype
 
-namespace e_closure
-
-  definition elim_trans [unfold_full] {A B : Type} {f : A → B} {R : A → A → Type} {a a' a'' : A}
-    (po : Π⦃a a' : A⦄ (s : R a a'), f a = f a') (t : e_closure R a a') (t' : e_closure R a' a'')
-    : e_closure.elim po (t ⬝r t') = e_closure.elim po t ⬝ e_closure.elim po t' :=
-  by reflexivity
-
-end e_closure open e_closure
-
-namespace rezk_carrier
+namespace rezk
   section
   
   universes l k
@@ -114,7 +105,7 @@ namespace rezk_carrier
 
   protected definition elim_set_pt.{m} [reducible] (Pe : A → Set.{m}) (Pp : Π ⦃a b⦄ (f : a ≅ b), Pe a ≃ Pe b)
     (Pcomp : Π ⦃a b c⦄ (g : b ≅ c) (f : a ≅ b) (x : Pe a), Pp (f ⬝i g) x = Pp g (Pp f x))
-    (a : A) : trunctype.carrier (rezk_carrier.elim_set Pe Pp Pcomp (elt a)) = Pe a :=
+    (a : A) : trunctype.carrier (rezk.elim_set Pe Pp Pcomp (elt a)) = Pe a :=
   idp
 
   protected theorem elim_set_pth {Pe : A → Set} {Pp : Π⦃a b⦄ (f : a ≅ b), Pe a ≃ Pe b}
@@ -127,24 +118,23 @@ namespace rezk_carrier
   end
 
   end
-end rezk_carrier open rezk_carrier
+end rezk open rezk
 
-attribute rezk_carrier.elt [constructor]
-attribute rezk_carrier.rec rezk_carrier.elim [unfold 8] [recursor 8]
-attribute rezk_carrier.rec_on rezk_carrier.elim_on [unfold 5]
-attribute rezk_carrier.set_rec rezk_carrier.set_elim [unfold 7]
-attribute rezk_carrier.prop_rec rezk_carrier.prop_elim
-          rezk_carrier.elim_set [unfold 6]
+attribute rezk.elt [constructor]
+attribute rezk.rec rezk.elim [unfold 8] [recursor 8]
+attribute rezk.rec_on rezk.elim_on [unfold 5]
+attribute rezk.set_rec rezk.set_elim [unfold 7]
+attribute rezk.prop_rec rezk.prop_elim
+          rezk.elim_set [unfold 6]
 
-open trunctype
-namespace rezk_completion
+namespace rezk
   section
   universes l k
   parameters (A : Type.{l}) (C : precategory.{l k} A)
 
   definition rezk_hom_left_pt [constructor] (a : A) (b : @rezk_carrier A C) : Set.{k} :=
   begin
-    refine rezk_carrier.elim_set _ _ _ b,
+    refine rezk.elim_set _ _ _ b,
     { clear b, intro b, exact trunctype.mk' 0 (hom a b) },
     { clear b, intro b b' f, apply equiv_postcompose (iso.to_hom f) },
     { clear b, intro b b' b'' f g x, apply !assoc⁻¹ }
@@ -154,7 +144,7 @@ namespace rezk_completion
     pathover (rezk_hom_left_pt a) f (pth g) ((to_hom g) ∘ f) :=
   begin
     apply pathover_of_tr_eq, apply @homotopy_of_eq _ _ _ (λ f, (to_hom g) ∘ f),
-    apply rezk_carrier.elim_set_pth,
+    apply rezk.elim_set_pth,
   end
 
   definition rezk_hom_left_pth_1_trunc [instance] (a a' : A) (f : a ≅ a') :
@@ -164,8 +154,8 @@ namespace rezk_completion
   definition rezk_hom_left_pth (a a' : A) (f : a ≅ a') (b : rezk_carrier) :
     carrier (rezk_hom_left_pt a b) ≃ carrier (rezk_hom_left_pt a' b) :=
   begin
-    --induction b using rezk_carrier.rec with b' b' b g, --why does this not work if it works below?
-    refine @rezk_carrier.rec _ _ _ (rezk_hom_left_pth_1_trunc a a' f) _ _ _ b,
+    --induction b using rezk.rec with b' b' b g, --why does this not work if it works below?
+    refine @rezk.rec _ _ _ (rezk_hom_left_pth_1_trunc a a' f) _ _ _ b,
     intro b, apply equiv_precompose (to_hom f⁻¹ⁱ), --how do i unfold properly at this point?
     { intro b b' g, apply equiv_pathover, intro g' g'' H, 
       refine !pathover_rezk_hom_left_pt ⬝op _,
@@ -176,10 +166,10 @@ namespace rezk_completion
 
   definition rezk_hom [unfold 3 4] (a b : @rezk_carrier A C) : Set.{k} :=
   begin
-    refine rezk_carrier.elim_set _ _ _ a,
+    refine rezk.elim_set _ _ _ a,
     { clear a, intro a, exact rezk_hom_left_pt a b },
     { clear a, intro a a' f, apply rezk_hom_left_pth a a' f },
-    { clear a, intro a a' a'' Ef Eg Rfg, induction b using rezk_carrier.rec,
+    { clear a, intro a a' a'' Ef Eg Rfg, induction b using rezk.rec,
       apply assoc, apply is_prop.elimo, apply is_set.elimo }
   end
 
@@ -187,7 +177,7 @@ namespace rezk_completion
     pathover (λ x, rezk_hom x (elt c)) f (pth g) (f ∘ (to_hom g)⁻¹) :=
   begin
     apply pathover_of_tr_eq, apply @homotopy_of_eq _ _ _ (λ f, f ∘ (to_hom g)⁻¹),
-    apply rezk_carrier.elim_set_pth,
+    apply rezk.elim_set_pth,
   end
 
   private definition pathover_rezk_hom_right {a b c : A} (f : hom a b) (g : b ≅ c) : --todo delete?
@@ -207,7 +197,7 @@ namespace rezk_completion
 
   definition rezk_id (a : @rezk_carrier A C) : rezk_hom a a :=
   begin
-    induction a using rezk_carrier.rec,
+    induction a using rezk.rec,
     apply id,
     { apply pathover_of_tr_eq, refine !transport_rezk_hom_eq_comp ⬝ _,
       refine (ap (λ x, to_hom f ∘ x) !id_left) ⬝ _, apply right_inverse },
@@ -218,7 +208,7 @@ namespace rezk_completion
     (g : carrier (rezk_hom (elt b) c))
     (f : carrier (rezk_hom (elt a) (elt b))) : carrier (rezk_hom (elt a) c) :=
   begin
-    induction c using rezk_carrier.set_rec with c c c' ic,
+    induction c using rezk.set_rec with c c c' ic,
     exact g ∘ f,
     { apply arrow_pathover_left, intro d,
       apply concato !pathover_rezk_hom_left_pt, apply pathover_idp_of_eq, 
@@ -232,7 +222,7 @@ namespace rezk_completion
   begin
     apply arrow_pathover_left, intro x,
     apply arrow_pathover_left, intro y,
-    induction c using rezk_carrier.set_rec with c c c' ic,
+    induction c using rezk.set_rec with c c c' ic,
     {  apply pathover_of_eq, apply inverse, 
       apply concat, apply ap (λ x, rezk_comp_pt_pt x _), apply tr_eq_of_pathover,
        apply pathover_rezk_hom_left,
@@ -248,12 +238,12 @@ namespace rezk_completion
   definition rezk_comp {a b c : @rezk_carrier A C} (g : rezk_hom b c) (f : rezk_hom a b) :
     rezk_hom a c :=
   begin
-    induction a using rezk_carrier.set_rec with a a a' ia,
-    { induction b using rezk_carrier.set_rec with b b b' ib,
+    induction a using rezk.set_rec with a a a' ia,
+    { induction b using rezk.set_rec with b b b' ib,
       apply rezk_comp_pt_pt g f, apply rezk_comp_pt_pth },
-    { induction b using rezk_carrier.set_rec with b b b' ib, 
+    { induction b using rezk.set_rec with b b b' ib, 
       apply arrow_pathover_left, intro f, 
-      induction c using rezk_carrier.set_rec with c c c' ic,
+      induction c using rezk.set_rec with c c c' ic,
       { apply concato, apply pathover_rezk_hom_left,
         apply pathover_idp_of_eq, refine !assoc⁻¹ ⬝ ap (λ x, g ∘ x) _⁻¹,
         apply tr_eq_of_pathover, apply pathover_rezk_hom_left },
@@ -267,16 +257,16 @@ namespace rezk_completion
   protected definition id_left {a b : @rezk_carrier A C} (f : rezk_hom a b) :
     rezk_comp (rezk_id b) f = f :=
   begin
-    induction a using rezk_carrier.prop_rec with a a a' ia,
-    induction b using rezk_carrier.prop_rec with b b b' ib,
+    induction a using rezk.prop_rec with a a a' ia,
+    induction b using rezk.prop_rec with b b b' ib,
     apply id_left,
   end
 
   protected definition id_right {a b : @rezk_carrier A C} (f : rezk_hom a b) :
     rezk_comp f (rezk_id a) = f :=
   begin
-    induction a using rezk_carrier.prop_rec with a a a' ia,
-    induction b using rezk_carrier.prop_rec with b b b' ib,
+    induction a using rezk.prop_rec with a a a' ia,
+    induction b using rezk.prop_rec with b b b' ib,
     apply id_right,
   end
 
@@ -284,10 +274,10 @@ namespace rezk_completion
     (g : rezk_hom b c) (f : rezk_hom a b) :
     rezk_comp h (rezk_comp g f) = rezk_comp (rezk_comp h g) f :=
   begin
-    induction a using rezk_carrier.prop_rec with a a a' ia,
-    induction b using rezk_carrier.prop_rec with b b b' ib,
-    induction c using rezk_carrier.prop_rec with c c c' ic,
-    induction d using rezk_carrier.prop_rec with d d d' id,
+    induction a using rezk.prop_rec with a a a' ia,
+    induction b using rezk.prop_rec with b b b' ib,
+    induction c using rezk.prop_rec with c c c' ic,
+    induction d using rezk.prop_rec with d d d' id,
     apply assoc,
   end
 
@@ -367,12 +357,12 @@ namespace rezk_completion
     elt a ≅ b → elt a = b :=
   begin
     intro f,
-    induction b using rezk_carrier.set_rec with b b b' ib,
+    induction b using rezk.set_rec with b b b' ib,
     apply pth, apply iso_of_elt_iso f,
     apply arrow_pathover, intro f g p, apply eq_pathover,
     refine !ap_constant ⬝ph _ ⬝hp !ap_id⁻¹, apply square_of_eq,
     refine !resp_comp⁻¹ ⬝ (ap pth _)⁻¹ ⬝ !idp_con⁻¹, 
-    apply concat, apply inverse, apply ap rezk_completion.iso_of_elt_iso, 
+    apply concat, apply inverse, apply ap rezk.iso_of_elt_iso, 
     apply eq_of_parallel_po_right (pathover_iso_pth _ _) p, 
     apply concat, apply iso_of_elt_iso_distrib,
     apply ap (λ x, _ ⬝i x), apply equiv.to_left_inv !iso_equiv_elt_iso
@@ -382,9 +372,9 @@ namespace rezk_completion
     a ≅ b → a = b :=
   begin
     intro f,
-    induction a using rezk_carrier.set_rec with a a a' ia,
+    induction a using rezk.set_rec with a a a' ia,
     apply eq_of_iso_pt f,
-    { induction b using rezk_carrier.set_rec with b b b' ib,
+    { induction b using rezk.set_rec with b b b' ib,
       { apply arrow_pathover, intro f g p, apply eq_pathover,
         refine !ap_id ⬝ph _ ⬝hp !ap_constant⁻¹, apply square_of_eq,
         refine (ap pth _) ⬝ !resp_comp, 
@@ -401,7 +391,7 @@ namespace rezk_completion
     eq_of_iso (iso_of_eq p) = p :=
   begin
     cases p, clear b,
-    induction a using rezk_carrier.prop_rec,
+    induction a using rezk.prop_rec,
     refine ap pth _ ⬝ !resp_id,
     apply iso_eq, reflexivity
   end
@@ -409,8 +399,8 @@ namespace rezk_completion
   protected definition iso_of_eq_of_iso (a b : @rezk_carrier A C) (f : a ≅ b) :
     iso_of_eq (eq_of_iso f) = f :=
   begin
-    induction a using rezk_carrier.prop_rec with a,
-    induction b using rezk_carrier.prop_rec with b,
+    induction a using rezk.prop_rec with a,
+    induction b using rezk.prop_rec with b,
     cases f with f Hf, apply iso_eq,
     apply concat, apply ap to_hom, apply !transport_iso_of_eq⁻¹,
     apply concat, apply ap to_hom, apply tr_eq_of_pathover, apply pathover_iso_pth,
@@ -424,9 +414,9 @@ namespace rezk_completion
   begin
     fapply category.mk (rezk_precategory A C),
     intros, fapply is_equiv.adjointify,
-    apply rezk_completion.eq_of_iso,
-    apply rezk_completion.iso_of_eq_of_iso,
-    apply rezk_completion.eq_of_iso_of_eq
+    apply rezk.eq_of_iso,
+    apply rezk.iso_of_eq_of_iso,
+    apply rezk.eq_of_iso_of_eq
   end
 
   section
@@ -439,7 +429,7 @@ namespace rezk_completion
   definition essentially_surj_rezk_functor : essentially_surjective (rezk_functor C) :=
   begin
     intro a, esimp[to_rezk_Precategory] at *,
-    induction a using rezk_carrier.prop_rec with a, apply tr,
+    induction a using rezk.prop_rec with a, apply tr,
     constructor, apply iso.refl (elt a),
   end
 
@@ -448,4 +438,4 @@ namespace rezk_completion
 
   end
   
-end rezk_completion
+end rezk
