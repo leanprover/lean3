@@ -128,7 +128,7 @@ namespace lean  {
                 } else {
                     comma = true;
                 }
-                *this->m_output_stream << LEAN_OBJ_TYPE << " ";
+                *this->m_output_stream << LEAN_OBJ_TYPE << " const & ";
                 this->emit_local(l);
             }
 
@@ -142,33 +142,44 @@ namespace lean  {
         template <typename F>
         void emit_block(F block_fn) {
             *this->m_output_stream << "{\n";
-            this->m_width += 4;
+            this.indent();
             block_fn();
-            this->m_width -= 4;
-            *this->m_output_stream << "}\n";
+            this.unindent();
+            emit_indented_line("}");
         }
 
         template <typename F>
         void emit_cases_on(name const & scrut, buffer<expr> & args, F action) {
-            *this->m_output_stream << "cases_on " << args[0] << std::endl;
+            this->emit_indented("switch (to_composite(");
+            action(args[0]);
+            this->emit_string(")->idx())");
+            this->emit_block([&] () {
+                for (int i = 1; i < args.size(); i++) {
+                    this->emit_indented("case ");
+                    *this->m_output_stream << i;
+                    this->emit_string(":");
+                    action(args[i]);
+                    this->emit_indented("break;\n");
+                }
+            });
         }
 
         template <typename F>
         void emit_nat_cases(expr const & scrutinee, expr const & zero_case, expr const & succ_case, F action) {
-            this->emit_indented("vm::obj scrutinee = ");
-            action(scrutinee);
-            *this->m_output_stream << ";\n" << std::endl;
 
-            this->emit_indented("if (is_simple(scrutinee))");
+            this->emit_indented("if (is_simple(");
+            action(scrutinee);
+            this->emit_string("))");
             this->emit_block([&] () {
-                this->emit_indented("unsigned val = cidx(scrutinee);\n");
-                this->emit_indented("if (val == 0) ");
+                this->emit_indented("if (cidx(");
+                action(scrutinee);
+                this->emit_string(") == 0) ");
                 this->emit_block([&] () {
                     action(zero_case);
                     *this->m_output_stream << ";\n";
                 });
 
-                this->emit_indented("else ");
+                this->emit_string("else ");
 
                 this->emit_block([&] () {
                     action(succ_case);
@@ -176,16 +187,17 @@ namespace lean  {
                 });
             });
 
-            this->emit_indented("else ");
+            this->emit_string("else ");
             this->emit_block([&] () {
-                this->emit_indented("mpz const & val = to_mpz(top);\n");
-                this->emit_indented("if (val == 0) ");
+                this->emit_indented("if (to_mpz(");
+                action(scrutinee);
+                this->emit_string(") == 0) ");
                 this->emit_block([&] () {
                     action(zero_case);
                     *this->m_output_stream << ";\n";
                 });
 
-                this->emit_indented("else ");
+                this->emit_string("else ");
 
                 this->emit_block([&] () {
                     action(succ_case);

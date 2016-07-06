@@ -99,6 +99,7 @@ class native_compiler_fn {
     }
 
     void compile_cases_on(expr const & e, unsigned bpz, name_map<unsigned> const & m) {
+        std::cout << "cases_on: " << e << std::endl;
         buffer<expr> args;
         expr fn = get_app_args(e, args);
         lean_assert(is_constant(fn));
@@ -130,10 +131,12 @@ class native_compiler_fn {
                     b = binding_body(b);
                 }
                 b = instantiate_rev(b, locals.size(), locals.data());
+                std::cout << "arm" << b << std::endl;
                 compile(b, new_bpz, new_m);
             });
         } else {
-            this->m_emitter.emit_cases_on(name("scrut"), args, [&] (expr & b) {
+            this->m_emitter.emit_cases_on(name("scrut"), args, [&] (expr const & e) {
+                expr b = e;
                 buffer<expr> locals;
                 name_map<unsigned> new_m = m;
                 unsigned new_bpz = bpz;
@@ -221,7 +224,7 @@ class native_compiler_fn {
 
     void compile_app(expr const & e, unsigned bpz, name_map<unsigned> const & m) {
         expr const & fn = get_app_fn(e);
-        std::cout << "compile_app: " << fn << std::endl;
+        // std::cout << "compile_app: " << fn << std::endl;
 
         if (is_return_expr(fn)) {
             auto arg = app_arg(e);
@@ -272,6 +275,7 @@ class native_compiler_fn {
     }
 
     void compile(expr const & e, unsigned bpz, name_map<unsigned> const & m) {
+        std::cout << e << std::endl;
         switch (e.kind()) {
         case expr_kind::Var:      lean_unreachable();
         case expr_kind::Sort:     lean_unreachable();
@@ -375,6 +379,8 @@ void native_compile(environment const & env,
 }
 
 void native_preprocess(environment const & env, declaration const & d, buffer<pair<name, expr>> & procs) {
+    // lean_trace(name({"native_compiler"}), tout() <<
+    std::cout << "native_preprocess:" << d.get_name() << "\n";
     buffer<pair<name, expr>> raw_procs;
     // Run the normal preprocessing and optimizations.
     preprocess(env, d, raw_procs);
@@ -386,7 +392,7 @@ void native_preprocess(environment const & env, declaration const & d, buffer<pa
         auto anf_body = anf_transform(env, proc.second);
         // std::cout << anf_body << std::endl;
         auto annotated_body = annotate_return(env, anf_body);
-        // std::cout << annotated_body << std::endl;
+        std::cout << annotated_body << std::endl;
         pair<name, expr> p = pair<name, expr>(proc.first, annotated_body);
         procs.push_back(p);
     }
@@ -396,7 +402,7 @@ void native_preprocess(environment const & env, declaration const & d, buffer<pa
 //
 // }
 
-bool is_internal_decl(declaration & d) {
+bool is_internal_decl(declaration const & d) {
     auto n = d.get_name();
     return (n == name("_neutral_") ||
             n == name({"native_compiler", "return"}) ||
@@ -432,8 +438,7 @@ void native_compile(environment const & env, config & conf, declaration const & 
     if (mode == native_compiler_mode::AOT) {
         // Compute the live set of names, we attach a callback that will be
         // invoked for every declaration encountered.
-        used_defs used_names(env, [&] (declaration & d) {
-            std::cout << "recursive processing decl" << d.get_name() << std::endl;
+        used_defs used_names(env, [&] (declaration const & d) {
             buffer<pair<name, expr>> procs;
             if (is_internal_decl(d)) {
             } else if (auto p = get_builtin(d.get_name())) {
@@ -455,9 +460,8 @@ void native_compile(environment const & env, config & conf, declaration const & 
         }
 
         used_names.m_used_names.for_each([&] (name const & n) {
-                std::cout << "live constant" << n << std::endl;
             if (auto builtin = get_builtin(n)) {
-                std::cout << "extern fn" << n << std::endl;
+                // std::cout << "extern fn" << n << std::endl;
                 extern_fns.push_back(builtin.value());
             }
         });

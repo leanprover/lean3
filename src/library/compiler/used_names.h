@@ -11,6 +11,7 @@ Author: Jared Roesch
 #include "used_names.h"
 #include "kernel/environment.h"
 #include "kernel/inductive/inductive.h"
+#include "library/compiler/erase_irrelevant.h"
 #include "util/name.h"
 #include "util/name_set.h"
 
@@ -19,7 +20,7 @@ struct used_defs {
     name_set m_used_names;
     std::vector<name> m_names_to_process;
     environment const & m_env;
-    std::function<void(declaration &)> m_action;
+    std::function<void(declaration const &)> m_action;
 
     // Need a stack and a HashSet
     // Rough algorithm
@@ -29,7 +30,7 @@ struct used_defs {
     // invoke this procedure with the first item
     // from the stack, and repeat until the stack
     // is empty.
-    used_defs(environment const & env, std::function<void(declaration &)>);
+    used_defs(environment const & env, std::function<void(declaration const &)>);
     void names_in_decl(declaration const & d);
     void names_in_expr(expr const & e);
     void names_in_preprocessed_body(expr const & e);

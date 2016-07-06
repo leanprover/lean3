@@ -12,11 +12,12 @@ Author: Jared Roesch
 #include "kernel/instantiate.h"
 #include "kernel/inductive/inductive.h"
 #include "kernel/type_checker.h"
+#include "library/compiler/nat_value.h"
 #include "util/name.h"
 #include "util/name_set.h"
 
 namespace lean {
-used_defs::used_defs(environment const & env, std::function<void(declaration &)> action) : m_env(env) {
+used_defs::used_defs(environment const & env, std::function<void(declaration const &)> action) : m_env(env) {
     this->m_used_names = name_set();
     this->m_names_to_process = std::vector<name>();
     this->m_action = action;
@@ -45,20 +46,12 @@ void used_defs::empty_stack() {
 }
 
 void used_defs::names_in_decl(declaration const & d) {
-    auto n = d.get_name();
-
     // Start with the name of the current decl,
     // we then will collect, the set of names in
     // the body, and push them on to the stack to
     // be processed, we will repeat this until,
     // the stack is empty.
-    this->add_name(n);
-
-    if (d.is_definition()) {
-        // Get the names from the body.
-        auto body = d.get_value();
-        this->names_in_expr(body);
-    }
+    this->add_name(d.get_name());
 
     // Finally we need to recursively process the
     // remaining definitions to full compute the
@@ -69,7 +62,9 @@ void used_defs::names_in_decl(declaration const & d) {
 }
 
 void used_defs::names_in_expr(expr const & e) {
-    // std::cout << "exp: " << e << std::endl;
+    std::cout << "exp: " << e << std::endl;
+    if (is_nat_value(e)) { return; }
+
     switch (e.kind()) {
         case expr_kind::Local: case expr_kind::Meta:
             break;
@@ -79,17 +74,20 @@ void used_defs::names_in_expr(expr const & e) {
         case expr_kind::Sort:
             break;
         case expr_kind::Constant: {
-            this->add_name(const_name(e));
-            if (auto d = this->m_env.find(const_name(e))) {
+            auto n = const_name(e);
+            if (n == name({"nat", "cases_on"})) { return; }
+            if (auto d = this->m_env.find(n)) {
                 this->names_in_decl(d.value());
             }
             break;
         }
         case expr_kind::Macro: {
             type_checker tc(m_env);
-            auto expanded_macro = tc.expand_macro(e);
-            lean_assert(expanded_macro);
-            names_in_expr(expanded_macro.value());
+            if (!is_nat_value(e)) {
+                auto expanded_macro = tc.expand_macro(e);
+                lean_assert(expanded_macro);
+                names_in_expr(expanded_macro.value());
+            }
             break;
         }
         case expr_kind::Lambda:
@@ -118,7 +116,10 @@ void used_defs::names_in_expr(expr const & e) {
             break;
         }
         case expr_kind::Let:
-            throw "yolo";
+            auto v = let_value(e);
+            auto body = let_body(e);
+            this->names_in_expr(v);
+            this->names_in_expr(body);
             break;
     }
 }

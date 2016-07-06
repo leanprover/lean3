@@ -18,57 +18,55 @@ Author: Leonardo de Moura
 #include "library/compiler/simp_inductive.h"
 #include "library/compiler/erase_irrelevant.h"
 #include "library/vm/vm.h"
+#include "util/sstream.h"
 
 namespace lean {
 class anf_transform_fn : public compiler_step_visitor {
-    buffer<pair<name, expr>> bindings;
+    unsigned m_counter;
 
-    // virtual expr visit_var(expr const & e) {
-    //    return anf_transform(e);
-    // }
-    //
-    // virtual expr visit_local(expr const & e) {
-    //    return anf_transform(e);
-    // }
-    //
-    // virtual expr visit_constant(expr const & e) {
-    //     return anf_transform(e);
-    // }
+    name mk_fresh_name() {
+        auto n = name((sstream() << "anf_name" << m_counter).str());
+        m_counter += 1;
+        return n;
+    }
 
     virtual expr visit_app(expr const & e) {
         buffer<expr> args;
         expr fn = get_app_args(e, args);
 
-        buffer<expr> arg_names;
-        for (auto arg : args) {
-            arg_names.push_back(visit(arg));
-        }
+        if (is_internal_cases(fn) || is_constant(fn, get_nat_cases_on_name())) {
+            buffer<expr> anf_args;
 
-        if (!is_constant(fn)) {
-            return mk_app(fn, arg_names);
+            for (auto arg : args) {
+                anf_args.push_back(visit(arg));
+            }
+
+            return mk_app(fn, anf_args);
         } else {
-            return mk_app(fn, arg_names);
-        }
-    }
+            buffer<expr> arg_locals;
+            type_context::tmp_locals m_locals(m_ctx);
 
-    expr bind_exprs(expr e) {
-        auto e_final = e;
-        // for (auto binding : bindings) {
-        //     e_final = mk_let(
-        //         binding.first,
-        //         mk_neutral_expr(),
-        //         binding.second,
-        //         e_final);
-        // }
-        return e_final;
+            for (auto arg : args) {
+                auto n = mk_fresh_name();
+                expr v = visit(instantiate_rev(arg, m_locals.size(), m_locals.data()));
+                auto local = m_locals.push_let(n, mk_neutral_expr(), v);
+                arg_locals.push_back(local);
+            }
+
+            if (!is_constant(fn)) {
+                return m_locals.mk_let(mk_app(fn, arg_locals));
+            } else {
+                return m_locals.mk_let(mk_app(fn, arg_locals));
+            }
+        }
     }
 public:
     expr operator()(expr const & e) {
-        auto final_expr = visit(e);
-        return bind_exprs(final_expr);
+        return visit(e);
     }
 
-    anf_transform_fn(environment const & env):compiler_step_visitor(env) {}
+    anf_transform_fn(environment const & env):
+    compiler_step_visitor(env), m_counter(0) {}
 };
 
 expr anf_transform(environment const & env, expr const & e) {
