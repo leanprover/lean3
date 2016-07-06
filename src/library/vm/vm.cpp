@@ -60,7 +60,7 @@ vm_obj mk_vm_constructor(unsigned cidx, unsigned sz, vm_obj const * data) {
     return mk_vm_composite(vm_obj_kind::Constructor, cidx, sz, data);
 }
 
-vm_obj mk_vm_constructor(unsigned cidx, std::initializer_list<vm_obj> args) {
+vm_obj mk_vm_constructor(unsigned cidx, std::initializer_list<vm_obj const> args) {
     return mk_vm_constructor(cidx, args.size(), args.begin());
 }
 
