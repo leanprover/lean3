@@ -10,6 +10,7 @@ Common categories and constructions on categories. The following files are in th
 * [product](product.hlean) : Product category
 * [comma](comma.hlean) : Comma category
 * [cone](cone.hlean) : Cone category
+* [rezk](rezk.hlean) : Rezk completion
 
 Discrete, indiscrete or finite categories:
 
