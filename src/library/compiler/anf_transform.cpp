@@ -30,6 +30,19 @@ class anf_transform_fn : public compiler_step_visitor {
         return n;
     }
 
+    virtual expr visit_let(expr const & e) {
+        type_context::tmp_locals lifted_lets(m_ctx);
+
+        auto val = let_value(e);
+        while (is_let(val)) {
+        for (auto arg : args) {
+            auto n = mk_fresh_name();
+            expr v = visit(instantiate_rev(arg, m_locals.size(), m_locals.data()));
+            auto local = m_locals.push_let(n, mk_neutral_expr(), v);
+            arg_locals.push_back(local);
+        }
+    }
+
     virtual expr visit_app(expr const & e) {
         buffer<expr> args;
         expr fn = get_app_args(e, args);
