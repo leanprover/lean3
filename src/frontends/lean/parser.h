@@ -83,7 +83,7 @@ typedef std::vector<snapshot> snapshot_vector;
 
 enum class keep_theorem_mode { All, DiscardImported, DiscardAll };
 
-enum class undef_id_behavior { Error, AssumeConstant, AssumeLocal };
+enum class undef_id_behavior { Error, AssumeConstant, AssumeLocal, AssumeLocalAndAlsoDefinedNonConstructors };
 
 class parser {
     environment             m_env;
@@ -491,6 +491,7 @@ public:
     */
     struct undef_id_to_const_scope : public flet<undef_id_behavior> { undef_id_to_const_scope(parser & p); };
     struct undef_id_to_local_scope : public flet<undef_id_behavior> { undef_id_to_local_scope(parser &); };
+    struct local_and_undef_id_to_local_scope : public flet<undef_id_behavior> { local_and_undef_id_to_local_scope(parser &); };
 
     /** \brief Return the size of the stack of undefined local constants */
     unsigned get_num_undef_ids() const { return m_undef_ids.size(); }
@@ -532,6 +533,8 @@ public:
     public:
         in_notation_ctx(parser & p):m_ctx(p.m_scanner) {}
     };
+
+    expr mk_placeholder_local(const name &id, const pos_info &p);
 };
 
 bool parse_commands(environment & env, io_state & ios, std::istream & in, char const * strm_name, optional<std::string> const & base_dir,

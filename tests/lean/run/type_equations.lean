@@ -27,9 +27,9 @@ infix `+` := expr.add
 set_option pp.notation false
 
 definition ev : expr → nat
-| zero             := 0
-| one              := 1
-| ((a : expr) + b) := ev a + ev b
+| zero    := 0
+| one     := 1
+| (a + b) := ev a + ev b
 
 definition foo : expr := add zero (add one one)
 

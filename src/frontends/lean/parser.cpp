@@ -18,6 +18,7 @@ Author: Leonardo de Moura
 #include "kernel/replace_fn.h"
 #include "kernel/abstract.h"
 #include "kernel/instantiate.h"
+#include "kernel/inductive/inductive.h"
 #include "kernel/error_msgs.h"
 #include "library/trace.h"
 #include "library/parser_nested_exception.h"
@@ -107,6 +108,8 @@ parser::undef_id_to_const_scope::undef_id_to_const_scope(parser & p):
     flet<undef_id_behavior>(p.m_undef_id_behavior, undef_id_behavior::AssumeConstant) {}
 parser::undef_id_to_local_scope::undef_id_to_local_scope(parser & p):
     flet<undef_id_behavior>(p.m_undef_id_behavior, undef_id_behavior::AssumeLocal) {}
+parser::local_and_undef_id_to_local_scope::local_and_undef_id_to_local_scope(parser & p):
+    flet<undef_id_behavior>(p.m_undef_id_behavior, undef_id_behavior::AssumeLocalAndAlsoDefinedNonConstructors) {}
 
 static name * g_tmp_prefix = nullptr;
 
@@ -1457,6 +1460,13 @@ expr parser::parse_led_notation(expr left) {
     }
 }
 
+expr parser::mk_placeholder_local(name const & id, pos_info const & p) {
+    expr local = mk_local(id, mk_expr_placeholder());
+    m_undef_ids.push_back(local);
+    save_identifier_info(p, local_pp_name(local));
+    return save_pos(local, p);
+}
+
 expr parser::id_to_expr(name const & id, pos_info const & p) {
     buffer<level> lvl_buffer;
     levels ls;
@@ -1474,6 +1484,8 @@ expr parser::id_to_expr(name const & id, pos_info const & p) {
         if (ls && m_undef_id_behavior != undef_id_behavior::AssumeConstant)
             throw parser_error("invalid use of explicit universe parameter, identifier is a variable, "
                                "parameter or a constant bound to parameters in a section", p);
+        if (m_undef_id_behavior == undef_id_behavior::AssumeLocalAndAlsoDefinedNonConstructors)
+            return mk_placeholder_local(id, p);
         auto r = copy_with_new_pos(*it1, p);
         save_type_info(r);
         save_identifier_info(p, id);
@@ -1484,6 +1496,10 @@ expr parser::id_to_expr(name const & id, pos_info const & p) {
         auto new_id = ns + id;
         if (!ns.is_anonymous() && m_env.find(new_id) &&
             (!id.is_atomic() || !is_protected(m_env, new_id))) {
+            if (m_undef_id_behavior == undef_id_behavior::AssumeLocalAndAlsoDefinedNonConstructors &&
+                    id.is_atomic() && !inductive::is_intro_rule(m_env, new_id)) {
+                return mk_placeholder_local(id, p);
+            }
             auto r = save_pos(mk_constant(new_id, ls), p);
             save_type_info(r);
             add_ref_index(new_id, p);
@@ -1506,16 +1522,32 @@ expr parser::id_to_expr(name const & id, pos_info const & p) {
 
     optional<expr> r;
     // globals
-    if (m_env.find(id))
+    if (m_env.find(id)) {
+        if (m_undef_id_behavior == undef_id_behavior::AssumeLocalAndAlsoDefinedNonConstructors && id.is_atomic()) {
+            bool has_constructor = false;
+            for (auto & c : to_constants(id, "", p)) {
+                if (inductive::is_intro_rule(m_env, c))
+                    has_constructor = true;
+            }
+            if (!has_constructor)
+                return mk_placeholder_local(id, p);
+        }
         r = save_pos(mk_constant(id, ls), p);
+    }
     // aliases
     auto as = get_expr_aliases(m_env, id);
     if (!is_nil(as)) {
         buffer<expr> new_as;
         if (r)
             new_as.push_back(*r);
+        bool has_constructor = false;
         for (auto const & e : as) {
+            has_constructor |= (bool)inductive::is_intro_rule(m_env, e);
             new_as.push_back(copy_with_new_pos(mk_constant(e, ls), p));
+        }
+        if (m_undef_id_behavior == undef_id_behavior::AssumeLocalAndAlsoDefinedNonConstructors &&
+            id.is_atomic() && !has_constructor) {
+            return mk_placeholder_local(id, p);
         }
         r = save_pos(mk_choice(new_as.size(), new_as.data()), p);
         save_overload(*r);
@@ -1523,10 +1555,9 @@ expr parser::id_to_expr(name const & id, pos_info const & p) {
     if (!r) {
         if (m_undef_id_behavior == undef_id_behavior::AssumeConstant) {
             r = save_pos(mk_constant(get_namespace(m_env) + id, ls), p);
-        } else if (m_undef_id_behavior == undef_id_behavior::AssumeLocal) {
-            expr local = mk_local(id, mk_expr_placeholder());
-            m_undef_ids.push_back(local);
-            r = save_pos(local, p);
+        } else if (m_undef_id_behavior == undef_id_behavior::AssumeLocal ||
+                   m_undef_id_behavior == undef_id_behavior::AssumeLocalAndAlsoDefinedNonConstructors) {
+            return mk_placeholder_local(id, p);
         }
     }
     if (!r)
@@ -1535,8 +1566,6 @@ expr parser::id_to_expr(name const & id, pos_info const & p) {
     if (is_constant(*r)) {
         add_ref_index(const_name(*r), p);
         save_identifier_info(p, const_name(*r));
-    } else if (is_local(*r)) {
-        save_identifier_info(p, local_pp_name(*r));
     }
     return *r;
 }

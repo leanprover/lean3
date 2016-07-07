@@ -441,13 +441,8 @@ static bool is_curr_with_or_comma_or_bar(parser & p) {
 }
 
 /**
-   For convenience, the left-hand-side of a recursive equation may contain
-   undeclared variables.
-   We use parser::undef_id_to_local_scope to force the parser to create a local constant for
-   each undefined identifier.
-
-   This method validates occurrences of these variables. They can only occur as an application
-   or macro argument.
+   This method validates occurrences of local variables (i.e., variables bound in the pattern).
+   They can only occur as an application or macro argument.
 */
 static void validate_equation_lhs(parser const & p, expr const & lhs, buffer<expr> const & locals) {
     if (is_app(lhs)) {
@@ -542,42 +537,45 @@ static void parse_equations_core(parser & p, buffer<expr> const & fns, buffer<ex
     while (true) {
         expr lhs;
         unsigned prev_num_undef_ids = p.get_num_undef_ids();
-        buffer<expr> locals;
-        {
-            parser::undef_id_to_local_scope scope2(p);
-            buffer<expr> lhs_args;
-            auto lhs_pos = p.pos();
-            if (p.curr_is_token(get_explicit_tk())) {
-                p.next();
-                name fn_name = p.check_decl_id_next("invalid recursive equation, identifier expected");
-                lhs_args.push_back(p.save_pos(mk_explicit(get_equation_fn(fns, fn_name, lhs_pos)), lhs_pos));
-            } else {
-                expr first = p.parse_expr(get_max_prec());
-                expr fn    = first;
-                if (is_explicit(fn))
-                    fn = get_explicit_arg(fn);
-                if (is_local(fn) && is_equation_fn(fns, local_pp_name(fn))) {
-                    lhs_args.push_back(first);
-                } else if (fns.size() == 1) {
-                    lhs_args.push_back(p.save_pos(mk_explicit(fns[0]), lhs_pos));
-                    lhs_args.push_back(first);
-                } else {
-                    throw parser_error("invalid recursive equation, head symbol in left-hand-side is not a constant",
-                                       lhs_pos);
-                }
-            }
-            while (!p.curr_is_token(get_assign_tk()))
-                lhs_args.push_back(p.parse_expr(get_max_prec()));
-            lean_assert(lhs_args.size() > 0);
-            lhs = lhs_args[0];
-            for (unsigned i = 1; i < lhs_args.size(); i++)
-                lhs = copy_tag(lhs_args[i], mk_app(lhs, lhs_args[i]));
+        buffer<expr> lhs_args;
 
-            unsigned num_undef_ids = p.get_num_undef_ids();
-            for (unsigned i = prev_num_undef_ids; i < num_undef_ids; i++) {
-                locals.push_back(p.get_undef_id(i));
+        // check if lhs starts with an (explicit) equation function symbol (which is optional for fns.size() == 1)
+        optional<expr> fn;
+        auto lhs_pos = p.pos();
+        if (p.curr_is_token(get_explicit_tk())) {
+            p.next();
+            name fn_name = p.check_decl_id_next("invalid recursive equation, identifier expected");
+            lhs_args.push_back(p.save_pos(mk_explicit(get_equation_fn(fns, fn_name, lhs_pos)), lhs_pos));
+        } else if (p.curr_is_identifier() && (fn = is_equation_fn(fns, p.get_name_val()))) {
+            p.next();
+            lhs_args.push_back(p.save_pos(*fn, lhs_pos));
+        } else {
+            if (fns.size() == 1) {
+                lhs_args.push_back(p.save_pos(mk_explicit(fns[0]), lhs_pos));
+            } else {
+                throw parser_error("invalid recursive equation, head symbol in left-hand-side is not an equation function",
+                                   lhs_pos);
             }
         }
+
+        // parse the remaining left-hand side
+        {
+            parser::local_and_undef_id_to_local_scope scope2(p);
+            while (!p.curr_is_token(get_assign_tk()))
+                lhs_args.push_back(p.parse_expr(get_max_prec()));
+        }
+
+        lean_assert(lhs_args.size() > 0);
+        lhs = lhs_args[0];
+        for (unsigned i = 1; i < lhs_args.size(); i++)
+            lhs = copy_tag(lhs_args[i], mk_app(lhs, lhs_args[i]));
+
+        buffer<expr> locals;
+        unsigned num_undef_ids = p.get_num_undef_ids();
+        for (unsigned i = prev_num_undef_ids; i < num_undef_ids; i++) {
+            locals.push_back(p.get_undef_id(i));
+        }
+
         validate_equation_lhs(p, lhs, locals);
         lhs = merge_equation_lhs_vars(lhs, locals);
         auto assign_pos = p.pos();
@@ -677,7 +675,7 @@ expr parse_match(parser & p, unsigned, expr const *, pos_info const & pos) {
             unsigned prev_num_undef_ids = p.get_num_undef_ids();
             buffer<expr> locals;
             {
-                parser::undef_id_to_local_scope scope2(p);
+                parser::local_and_undef_id_to_local_scope scope2(p);
                 auto lhs_pos = p.pos();
                 lhs = p.parse_expr();
                 lhs = p.mk_app(fn, lhs, lhs_pos);
