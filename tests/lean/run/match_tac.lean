@@ -16,4 +16,4 @@ end
 open nat
 
 example : ∀ (a b : nat), a = b → b = a
-| a a rfl := rfl
+| a a (eq.refl a) := rfl

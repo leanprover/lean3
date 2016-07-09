@@ -1542,7 +1542,7 @@ expr parser::id_to_expr(name const & id, pos_info const & p) {
             new_as.push_back(*r);
         bool has_constructor = false;
         for (auto const & e : as) {
-            has_constructor |= (bool)inductive::is_intro_rule(m_env, e);
+            has_constructor |= static_cast<bool>(inductive::is_intro_rule(m_env, e));
             new_as.push_back(copy_with_new_pos(mk_constant(e, ls), p));
         }
         if (m_undef_id_behavior == undef_id_behavior::AssumeLocalAndAlsoDefinedNonConstructors &&

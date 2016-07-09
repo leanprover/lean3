@@ -1,4 +1,4 @@
-definition pnat.pnat : Type₁ :=
+definition pnat : Type₁ :=
 {n | n > 0}
 inductive prod : Type → Type → Type
 constructors:
