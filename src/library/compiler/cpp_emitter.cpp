@@ -38,6 +38,10 @@ void cpp_emitter::emit_mpz(mpz n) {
     *this->m_output_stream << "lean::mk_vm_mpz(lean::mpz(" << n << "))";
 }
 
+void cpp_emitter::emit_mk_nat(mpz n) {
+    *this->m_output_stream << "lean::mk_vm_nat(" << n << ")";
+}
+
 void cpp_emitter::emit_projection(unsigned idx) {
     *this->m_output_stream << "[" << idx << "]";
 }

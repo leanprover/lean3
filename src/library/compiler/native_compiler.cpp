@@ -20,6 +20,7 @@ Author: Jared Roesch and Leonardo de Moura
 #include "library/compiler/native_compiler.h"
 #include "library/compiler/annotate_return.h"
 #include "library/compiler/anf_transform.h"
+#include "library/compiler/flatten_let.h"
 #include "config.h"
 #include "cpp_emitter.h"
 #include "used_names.h"
@@ -27,6 +28,9 @@ Author: Jared Roesch and Leonardo de Moura
 #include "library/vm/vm.h"
 
 namespace lean {
+
+optional<pair<name, unsigned>> get_builtin(name const & n);
+
 class native_compiler_fn {
     environment        m_env;
     config & m_conf;
@@ -80,7 +84,8 @@ class native_compiler_fn {
         } else if (auto j = get_vm_builtin_cases_idx(m_env, n)) {
             std::cout << "got the index" << j.value() << std::endl;
         } else {
-            this->m_emitter.mangle_name(n);
+            this->m_emitter.emit_c_call(n, 0, nullptr, [=] (expr const & _e) {});
+            // this->m_emitter.mangle_name(n);
         }
         // } else if (optional<vm_decl> decl = get_vm_decl(m_env, n)) {
         //     compile_global(*decl, 0, nullptr, 0, name_map<unsigned>());
@@ -99,7 +104,7 @@ class native_compiler_fn {
     }
 
     void compile_cases_on(expr const & e, unsigned bpz, name_map<unsigned> const & m) {
-        std::cout << "cases_on: " << e << std::endl;
+        // std::cout << "cases_on: " << e << std::endl;
         buffer<expr> args;
         expr fn = get_app_args(e, args);
         lean_assert(is_constant(fn));
@@ -108,6 +113,9 @@ class native_compiler_fn {
 
         if (fn_name == get_nat_cases_on_name()) {
             num = 2;
+        } else if (get_vm_builtin_cases_idx(m_env, fn_name)) {
+            name const & I_name = fn_name.get_prefix();
+            num = *inductive::get_num_intro_rules(m_env, I_name);
         } else {
             lean_assert(is_internal_cases(fn));
             num = *is_internal_cases(fn);
@@ -116,7 +124,10 @@ class native_compiler_fn {
         lean_assert(args.size() == num + 1);
         lean_assert(num >= 1);
 
-        if (fn_name == get_nat_cases_on_name()) {
+        if (get_vm_builtin_cases_idx(m_env, const_name(fn))) {
+            this->m_emitter.emit_builtin_cases_on(const_name(fn), args,  [&] (expr const & e) {
+            });
+        } else if (fn_name == get_nat_cases_on_name()) {
             this->m_emitter.emit_nat_cases(args[0], args[1], args[2], [&] (expr const & e) {
                 expr b = e;
                 buffer<expr> locals;
@@ -124,14 +135,12 @@ class native_compiler_fn {
                 unsigned new_bpz = bpz;
                 while (is_lambda(b)) {
                     name n = mk_fresh_name();
-                    std::cout << "making new name" << std::endl;
                     new_m.insert(n, new_bpz);
                     locals.push_back(mk_local(n));
                     new_bpz++;
                     b = binding_body(b);
                 }
                 b = instantiate_rev(b, locals.size(), locals.data());
-                std::cout << "arm" << b << std::endl;
                 compile(b, new_bpz, new_m);
             });
         } else {
@@ -231,7 +240,9 @@ class native_compiler_fn {
             this->m_emitter.emit_return([&] () {
                 compile(arg, bpz, m);
             });
-        } else if (is_internal_cases(fn) || is_constant(fn, get_nat_cases_on_name())) {
+        } else if (
+            (is_constant(fn) && get_vm_builtin_cases_idx(m_env, const_name(fn))) ||
+            is_internal_cases(fn) || is_constant(fn, get_nat_cases_on_name())) {
             compile_cases_on(e, bpz, m);
         } else if (is_internal_cnstr(fn)) {
             compile_cnstr(e, bpz, m);
@@ -264,8 +275,7 @@ class native_compiler_fn {
     void compile_macro(expr const & e, unsigned bpz, name_map<unsigned> const & m) {
         if (is_nat_value(e)) {
             auto value = get_nat_value_value(e);
-            std::cout << value << std::endl;
-            this->m_emitter.emit_mpz((get_nat_value_value(e)));
+            this->m_emitter.emit_mk_nat(value);
         } else if (is_annotation(e)) {
             compile(get_annotation_arg(e), bpz, m);
         } else {
@@ -275,7 +285,7 @@ class native_compiler_fn {
     }
 
     void compile(expr const & e, unsigned bpz, name_map<unsigned> const & m) {
-        std::cout << e << std::endl;
+        std::cout << "compile: " << e << std::endl;
         switch (e.kind()) {
         case expr_kind::Var:      lean_unreachable();
         case expr_kind::Sort:     lean_unreachable();
@@ -371,7 +381,6 @@ void native_compile(environment const & env,
         lean_trace(name({"native_compiler"}), tout() << "" << p.first << "\n";);
         name & n = p.first;
         expr body = p.second;
-        std::cout << body << std::endl;
         compiler(n, body);
     }
 
@@ -379,28 +388,28 @@ void native_compile(environment const & env,
 }
 
 void native_preprocess(environment const & env, declaration const & d, buffer<pair<name, expr>> & procs) {
-    // lean_trace(name({"native_compiler"}), tout() <<
-    std::cout << "native_preprocess:" << d.get_name() << "\n";
+    lean_trace(name("nc"),
+      tout() << "native_preprocess:" << d.get_name() << "\n";);
+
     buffer<pair<name, expr>> raw_procs;
     // Run the normal preprocessing and optimizations.
     preprocess(env, d, raw_procs);
 
     // Run the native specific optimizations.
     for (auto proc : raw_procs) {
-        // std::cout << "native preproc" << std::endl;
-        // std::cout << proc.second << std::endl;
         auto anf_body = anf_transform(env, proc.second);
-        // std::cout << anf_body << std::endl;
-        auto annotated_body = annotate_return(env, anf_body);
-        std::cout << annotated_body << std::endl;
+        lean_trace(name({"native_compiler", "preprocess"}),
+          tout() << "anf_body:" << anf_body << "\n";);
+        auto flatten_body = flatten_let(env, anf_body);
+        lean_trace(name({"native_compiler", "preprocess"}),
+          tout() << "flatten_let:" << flatten_body << "\n";);
+        auto annotated_body = annotate_return(env, flatten_body);
+        lean_trace(name({"native_compiler", "preprocess"}),
+          tout() << "annotated_body:" << annotated_body << "\n";);
         pair<name, expr> p = pair<name, expr>(proc.first, annotated_body);
         procs.push_back(p);
     }
 }
-
-// void is_extern_function(expr & e) {
-//
-// }
 
 bool is_internal_decl(declaration const & d) {
     auto n = d.get_name();
@@ -423,7 +432,7 @@ optional<pair<name, unsigned>> get_builtin(name const & n) {
 }
 
 void native_compile(environment const & env, config & conf, declaration const & d, native_compiler_mode mode) {
-    lean_trace(name("native_compiler"),
+    lean_trace(name("native_compile"),
         tout() << "main_fn: " << d.get_name() << "\n";);
 
     lean_trace(name("native_compiler"),
@@ -441,8 +450,12 @@ void native_compile(environment const & env, config & conf, declaration const & 
         used_defs used_names(env, [&] (declaration const & d) {
             buffer<pair<name, expr>> procs;
             if (is_internal_decl(d)) {
+                return;
             } else if (auto p = get_builtin(d.get_name())) {
+                return;
                 // extern_fns.push_back(p.value());
+            } else if (auto p =  get_vm_builtin_cases_idx(env, d.get_name())) {
+                return;
             } else {
                 native_preprocess(env, d, procs);
                 for (auto pair : procs) {
@@ -466,9 +479,9 @@ void native_compile(environment const & env, config & conf, declaration const & 
             }
         });
 
-        for (auto pair : all_procs) {
-            std::cout << pair.first << std::endl;
-        }
+        // for (auto pair : all_procs) {
+        //     std::cout << pair.first << std::endl;
+        // }
 
         // Finally we assert that there are no more unprocessed declarations.
         lean_assert(used_names.stack_is_empty());
@@ -528,7 +541,9 @@ void native_compile(environment const & env, config & conf, declaration const & 
 }
 
 void initialize_native_compiler() {
+    register_trace_class("nc");
     register_trace_class("native_compiler");
+    register_trace_class({"native_compiler", "preprocess"});
 }
 
 void finalize_native_compiler() {

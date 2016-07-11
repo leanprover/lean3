@@ -62,7 +62,7 @@ void used_defs::names_in_decl(declaration const & d) {
 }
 
 void used_defs::names_in_expr(expr const & e) {
-    std::cout << "exp: " << e << std::endl;
+    // std::cout << "exp: " << e << std::endl;
     if (is_nat_value(e)) { return; }
 
     switch (e.kind()) {
