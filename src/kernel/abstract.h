@@ -51,6 +51,18 @@ inline expr Pi(expr const & local, expr const & b, bool use_cache = true) { retu
 inline expr Pi(std::initializer_list<expr> const & locals, expr const & b, bool use_cache = true) { return Pi(locals.size(), locals.begin(), b, use_cache); }
 template<typename T> expr Pi(T const & locals, expr const & b, bool use_cache = true) { return Pi(locals.size(), locals.data(), b, use_cache); }
 
+/**
+   \brief Create a let expression (let x : t := v in b).
+*/
+// inline expr Let(name const & n, expr const & t, expr const & v, expr const & b, binder_info const & bi = binder_info()) {
+//    return mk_let(n, t, v, b);
+// }
+/** \brief Create a let-expression by abstracting the given local constants over b */
+// expr Let(unsigned num, expr const * locals, expr const & b, bool use_cache = true);
+// inline expr Let(expr const & local, expr const & b, bool use_cache = true) { return Fun(1, &local, b, use_cache); }
+// inline expr Let(std::initializer_list<expr> const & locals, expr const & b, bool use_cache = true) { return Fun(locals.size(), locals.begin(), b, use_cache); }
+// template<typename T> expr Let(T const & locals, expr const & b, bool use_cache = true) { return Fun(locals.size(), locals.data(), b, use_cache); }
+
 /** \brief Clear thread local caches used by Pi/Fun procedures
     We clear the caches whenever we enable expression caching (aka max sharing).
     We do that because the cache may still contain expressions that are not maximally shared. */

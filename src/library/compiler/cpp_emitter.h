@@ -34,6 +34,7 @@ namespace lean  {
         void emit_unreachable();
         void emit_local(unsigned idx);
         void emit_mpz(mpz n);
+        void emit_mk_nat(mpz n);
         void emit_sconstructor(unsigned idx);
         void emit_projection(unsigned idx);
         void indent();
@@ -142,25 +143,55 @@ namespace lean  {
         template <typename F>
         void emit_block(F block_fn) {
             *this->m_output_stream << "{\n";
-            this.indent();
+            this->indent();
             block_fn();
-            this.unindent();
+            this->unindent();
             emit_indented_line("}");
         }
 
         template <typename F>
         void emit_cases_on(name const & scrut, buffer<expr> & args, F action) {
-            this->emit_indented("switch (to_composite(");
+            this->emit_indented("switch (cidx(");
             action(args[0]);
-            this->emit_string(")->idx())");
+            this->emit_string("))");
             this->emit_block([&] () {
-                for (int i = 1; i < args.size(); i++) {
+                for (unsigned i = 1; i < args.size(); i++) {
                     this->emit_indented("case ");
-                    *this->m_output_stream << i;
+                    *this->m_output_stream << i - 1;
                     this->emit_string(":");
-                    action(args[i]);
-                    this->emit_indented("break;\n");
+                    this->emit_block([&] () {
+                        action(args[i]);
+                        this->emit_indented("break;\n");
+                    });
                 }
+
+                this->emit_indented("default:\n");
+                this->emit_indented("throw std::runtime_error(");
+                this->emit_string("\"code-gen error\"");
+                this->emit_string(");\n");
+            });
+        }
+
+        template <typename F>
+        void emit_builtin_cases_on(name const & cases_on, buffer<expr> & args, F action) {
+            this->emit_indented("switch (cidx(");
+            action(args[0]);
+            this->emit_string("))");
+            this->emit_block([&] () {
+                for (unsigned i = 1; i < args.size(); i++) {
+                    this->emit_indented("case ");
+                    *this->m_output_stream << i - 1;
+                    this->emit_string(":");
+                    this->emit_block([&] () {
+                        action(args[i]);
+                        this->emit_indented("break;\n");
+                    });
+                }
+
+                this->emit_indented("default:\n");
+                this->emit_indented("throw std::runtime_error(");
+                this->emit_string("\"code-gen error\"");
+                this->emit_string(");\n");
             });
         }
 

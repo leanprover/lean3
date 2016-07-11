@@ -26,6 +26,7 @@ void initialize_compiler_module() {
     initialize_vm_compiler();
     initialize_native_compiler();
 }
+
 void finalize_compiler_module() {
     finalize_native_compiler();
     finalize_vm_compiler();
