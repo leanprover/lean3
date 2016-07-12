@@ -273,7 +273,7 @@ namespace functor
             ap010_assoc K (H ∘f G) F a],
   end
 
-  definition hom_pathover_functor_left_functor_right {c₁ c₂ : C} {p : c₁ = c₂} (F G : C ⇒ D)
+  definition hom_pathover_functor {c₁ c₂ : C} {p : c₁ = c₂} (F G : C ⇒ D)
     {f₁ : F c₁ ⟶ G c₁} {f₂ : F c₂ ⟶ G c₂}
     (q : to_fun_hom G (hom_of_eq p) ∘ f₁ = f₂ ∘ to_fun_hom F (hom_of_eq p)) : f₁ =[p] f₂ :=
   hom_pathover (hom_whisker_right _ (respect_hom_of_eq G _)⁻¹ ⬝ q ⬝

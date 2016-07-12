@@ -183,6 +183,17 @@ namespace category
     { intro e₁ e₂ e₃ g f, refine (eq_of_rel (tr (paths_rel_of_Q _)))⁻¹, apply EE}
   end
 
+  definition Cpushout_coh [constructor] : Cpushout_inl ∘f F ≅ Cpushout_inr ∘f G :=
+  begin
+    fapply natural_iso.MK,
+    { intro c, exact class_of [DE (λ c, c) F G c]},
+    { intro c c' f, refine eq_of_rel (tr (paths_rel_of_Q !cohDE))},
+    { intro c, exact class_of [ED (λ c, c) F G c]},
+    { intro c, refine eq_of_rel (tr (paths_rel_of_Q !DED))},
+    { intro c, refine eq_of_rel (tr (paths_rel_of_Q !EDE))},
+  end
+
+--(class_of [DE (λ c, c) F G s])
   variables ⦃x x' x₁ x₂ x₃ : Cpushout⦄
   include H K
   local notation `R` := bpushout_prehom_index  (λ c, c) F G
@@ -295,8 +306,8 @@ namespace category
   end
 
   definition Cpushout_functor_coh (c : C) : natural_map (to_hom Cpushout_functor_inr) (G c) ∘
-    Cpushout_functor (class_of [DE (λ c, c) F G c]) ∘ natural_map (to_inv Cpushout_functor_inl) (F c)
-    = natural_map (to_hom η) c :=
+    Cpushout_functor (natural_map (to_hom Cpushout_coh) c) ∘
+    natural_map (to_inv Cpushout_functor_inl) (F c) = natural_map (to_hom η) c :=
   !id_leftright ⬝ !Cpushout_functor_list_singleton
 
   definition Cpushout_functor_unique_ob [unfold 13] (L : Cpushout ⇒ X) (η₁ : L ∘f Cpushout_inl ≅ H)
@@ -318,7 +329,8 @@ namespace category
 
   definition Cpushout_functor_unique_nat_singleton (L : Cpushout ⇒ X) (η₁ : L ∘f Cpushout_inl ≅ H)
     (η₂ : L ∘f Cpushout_inr ≅ K)
-    (p : Πs, natural_map (to_hom η₂) (to_fun_ob G s) ∘ to_fun_hom L (class_of [DE (λ c, c) F G s]) ∘
+    (p : Πs, natural_map (to_hom η₂) (to_fun_ob G s) ∘
+             to_fun_hom L (natural_map (to_hom Cpushout_coh) s) ∘
              natural_map (to_inv η₁) (to_fun_ob F s) = natural_map (to_hom η) s) (r : R x x') :
     Cpushout_functor_reduction_rule r ∘ Cpushout_functor_unique_ob L η₁ η₂ x =
     Cpushout_functor_unique_ob L η₁ η₂ x' ∘ L (class_of [r]) :=
@@ -341,7 +353,8 @@ namespace category
 
   definition Cpushout_functor_unique [constructor] (L : Cpushout ⇒ X) (η₁ : L ∘f Cpushout_inl ≅ H)
     (η₂ : L ∘f Cpushout_inr ≅ K)
-    (p : Πs, natural_map (to_hom η₂) (to_fun_ob G s) ∘ to_fun_hom L (class_of [DE (λ c, c) F G s]) ∘
+    (p : Πs, natural_map (to_hom η₂) (to_fun_ob G s) ∘
+             to_fun_hom L (natural_map (to_hom Cpushout_coh) s) ∘
              natural_map (to_inv η₁) (to_fun_ob F s) = natural_map (to_hom η) s) :
     L ≅ Cpushout_functor :=
   begin
@@ -389,6 +402,41 @@ namespace category
         xrewrite [↑[hom_of_eq], to_right_inv !eq_equiv_iso, ▸*],
         exact (ap010 natural_map (to_right_inverse θ₂) e)⁻¹}},
     apply is_prop.elimo
+  end
+
+  local attribute prod.eq_pr1 prod.eq_pr2 [reducible]
+  definition Cpushout_equiv {C D E : Precategory} {X : Category} (F : C ⇒ D) (G : C ⇒ E) :
+    (Cpushout F G ⇒ X) ≃ Σ(H : (D ⇒ X) × (E ⇒ X)), H.1 ∘f F ≅ H.2 ∘f G :=
+  begin
+    fapply equiv.MK,
+    { intro K, refine ⟨(K ∘f Cpushout_inl F G, K ∘f Cpushout_inr F G), _⟩,
+      exact !assoc_iso⁻¹ⁱ ⬝i (K ∘fi Cpushout_coh F G) ⬝i !assoc_iso},
+    { intro v, cases v with w η, cases w with K L, exact Cpushout_functor η},
+    { exact abstract begin intro v, cases v with w η, cases w with K L, esimp at *,
+      fapply sigma_eq,
+      { fapply prod_eq: esimp; apply eq_of_iso,
+        { exact Cpushout_functor_inl η},
+        { exact Cpushout_functor_inr η}},
+        esimp, apply iso_pathover, apply hom_pathover,
+        rewrite [ap_compose' _ pr₁, ap_compose' _ pr₂, prod_eq_pr1, prod_eq_pr2],
+        rewrite [-+respect_hom_of_eq (precomposition_functor _ _), +hom_of_eq_eq_of_iso],
+        apply nat_trans_eq, intro c, esimp [category.to_precategory],
+        rewrite [+id_left, +id_right, Cpushout_functor_list_singleton] end end},
+    { exact abstract begin intro K, esimp,
+      refine eq_base_of_is_prop_sigma _ !is_trunc_succ _ _, rotate 1,
+      { refine Cpushout_universal F G (K ∘f Cpushout_inl F G) (K ∘f Cpushout_inr F G) _,
+        exact !assoc_iso⁻¹ⁱ ⬝i (K ∘fi Cpushout_coh F G) ⬝i !assoc_iso},
+      { esimp, fconstructor, esimp, split,
+        { fapply natural_iso.mk',
+          { intro c, reflexivity},
+          { intro c c' f, rewrite [▸*, id_right, Cpushout_functor_list_singleton, id_left]}},
+        { fapply natural_iso.mk',
+          { intro c, reflexivity},
+          { intro c c' f, rewrite [▸*, id_right, Cpushout_functor_list_singleton, id_left]}},
+        intro c, rewrite [▸*, id_left, id_right, Cpushout_functor_list_singleton]},
+      { esimp, fconstructor,
+        { split: reflexivity},
+        intro c, reflexivity} end end}
   end
 
   /- Pushout of groupoids with a type of basepoints -/

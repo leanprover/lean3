@@ -502,6 +502,13 @@ namespace sigma
       [HA : is_trunc (n.+1) A] : is_trunc (n.+1) (Σa, B a) :=
   @(is_trunc_sigma B (n.+1)) _ (λa, !is_trunc_succ_of_is_prop)
 
+  /- if the total space is a mere proposition, you can equate two points in the base type by
+     finding points in their fibers -/
+  definition eq_base_of_is_prop_sigma {A : Type} (B : A → Type) (H : is_prop (Σa, B a)) {a a' : A}
+    (b : B a) (b' : B a') : a = a' :=
+  (is_prop.elim ⟨a, b⟩ ⟨a', b'⟩)..1
+
+
 end sigma
 
 attribute sigma.is_trunc_sigma [instance] [priority 1490]

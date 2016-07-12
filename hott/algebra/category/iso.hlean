@@ -164,7 +164,7 @@ namespace iso
   mk (to_hom H2 ∘ to_hom H1) _
 
   infixl ` ⬝i `:75 := iso.trans
-  postfix [parsing_only] `⁻¹ⁱ`:(max + 1) := iso.symm
+  postfix `⁻¹ⁱ`:(max + 1) := iso.symm
 
   definition change_hom [constructor] (H : a ≅ b) (f : a ⟶ b) (p : to_hom H = f) : a ≅ b :=
   iso.MK f (to_inv H) (p ▸ to_left_inverse H) (p ▸ to_right_inverse H)

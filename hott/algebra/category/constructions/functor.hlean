@@ -169,6 +169,11 @@ namespace functor
                      (λa, id)
                      (λa, !natural_map_inv_of_eq ⬝ ap (λx, hom_of_eq x⁻¹) !ap010_assoc)
 
+  definition assoc_iso [constructor] (H : C ⇒ D) (G : B ⇒ C) (F : A ⇒ B)
+    : H ∘f (G ∘f F) ≅ (H ∘f G) ∘f F :=
+  iso.MK (assoc_natural H G F) (assoc_natural_rev H G F)
+         (nat_trans_eq (λa, proof !id_id qed)) (nat_trans_eq (λa, proof !id_id qed))
+
   definition id_left_natural [constructor] (F : C ⇒ D) : functor.id ∘f F ⟹ F :=
   change_natural_map
     (hom_of_eq !functor.id_left)
