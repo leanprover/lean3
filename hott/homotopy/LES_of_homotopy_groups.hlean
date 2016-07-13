@@ -76,7 +76,6 @@ We get the long exact sequence of homotopy groups by taking the set-truncation o
 import .chain_complex algebra.homotopy_group eq2
 
 open eq pointed sigma fiber equiv is_equiv sigma.ops is_trunc nat trunc algebra function sum
-
 /--------------
     PART 1
  --------------/

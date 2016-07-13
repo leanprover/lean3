@@ -496,7 +496,7 @@ end
 /- set difference -/
 
 definition diff (s t : set X) : set X := {x ∈ s | x ∉ t}
-infix `\`:70 := diff
+infix ` \ `:70 := diff
 
 theorem mem_diff {s t : set X} {x : X} (H1 : x ∈ s) (H2 : x ∉ t) : x ∈ s \ t :=
 and.intro H1 H2

@@ -53,6 +53,15 @@ namespace is_trunc
     [H : is_conn_fun n f] (H2 : k ≤ n) : is_contr (π[k] (pfiber f)) :=
   @(trivial_homotopy_group_of_is_conn (pfiber f) H2) (H pt)
 
+  theorem homotopy_group_trunc_of_le (A : Type*) (n k : ℕ) (H : k ≤ n)
+    : π*[k] (ptrunc n A) ≃* π*[k] A :=
+  begin
+    refine !phomotopy_group_pequiv_loop_ptrunc ⬝e* _,
+    refine loopn_pequiv_loopn _ (ptrunc_ptrunc_pequiv_left _ _) ⬝e* _,
+    exact of_nat_le_of_nat H,
+    exact !phomotopy_group_pequiv_loop_ptrunc⁻¹ᵉ*,
+  end
+
   /- Corollaries of the LES of homotopy groups -/
   local attribute comm_group.to_group [coercion]
   local attribute is_equiv_tinverse [instance]

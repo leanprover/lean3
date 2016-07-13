@@ -19,8 +19,8 @@ namespace eq
   definition homotopy_group [reducible] (n : ℕ) (A : Type*) : Type :=
   phomotopy_group n A
 
-  notation `π*[`:95 n:0 `] `:0 := phomotopy_group n
-  notation `π[`:95  n:0 `] `:0 :=  homotopy_group n
+  notation `π*[`:95 n:0 `]`:0 := phomotopy_group n
+  notation `π[`:95  n:0 `]`:0 :=  homotopy_group n
 
   definition group_homotopy_group [instance] [constructor] [reducible] (n : ℕ) (A : Type*)
     : group (π[succ n] A) :=
@@ -126,8 +126,8 @@ namespace eq
   definition homotopy_group_functor (n : ℕ) {A B : Type*} (f : A →* B) : π[n] A → π[n] B :=
   phomotopy_group_functor n f
 
-  notation `π→*[`:95 n:0 `] `:0 := phomotopy_group_functor n
-  notation `π→[`:95  n:0 `] `:0 :=  homotopy_group_functor n
+  notation `π→*[`:95 n:0 `]`:0 := phomotopy_group_functor n
+  notation `π→[`:95  n:0 `]`:0 :=  homotopy_group_functor n
 
   definition phomotopy_group_functor_phomotopy [constructor] (n : ℕ) {A B : Type*} {f g : A →* B}
     (p : f ~* g) : π→*[n] f ~* π→*[n] g :=
@@ -267,6 +267,6 @@ namespace eq
     exact ap tr !con_inv
   end
 
-  notation `π→g[`:95  n:0 ` +1] `:0 f:95 := homotopy_group_homomorphism n f
+  notation `π→g[`:95 n:0 ` +1]`:0 := homotopy_group_homomorphism n
 
 end eq

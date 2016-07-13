@@ -39,6 +39,8 @@ begin
   intro p, induction p, apply ap (mk i), apply !is_prop.elim
 end
 
+definition fin_eq := @eq_of_veq
+
 definition eq_of_veq_refl (i : fin n) : eq_of_veq (refl (val i)) = idp :=
 !is_prop.elim
 

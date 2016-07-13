@@ -49,7 +49,7 @@ namespace eq
   definition con_idp [unfold_full] (p : x = y) : p ⬝ idp = p :=
   idp
 
-  -- The identity path is a right unit.
+  -- The identity path is a left unit.
   definition idp_con [unfold 4] (p : x = y) : idp ⬝ p = p :=
   by induction p; reflexivity
 
