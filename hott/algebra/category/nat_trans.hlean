@@ -47,6 +47,13 @@ namespace nat_trans
     (g : d ⟶ d') : constant_functor C d ⟹ constant_functor C d' :=
   mk (λc, g) (λc c' f, !id_comp_eq_comp_id)
 
+  open iso
+  definition naturality_iso_left (η : F ⟹ G) {a b : C} (f : a ≅ b) : η a = (G f)⁻¹ ∘ η b ∘ F f :=
+  by apply eq_inverse_comp_of_comp_eq; apply naturality
+
+  definition naturality_iso_right (η : F ⟹ G) {a b : C} (f : a ≅ b) : η b = G f ∘ η a ∘ (F f)⁻¹ :=
+  by refine _⁻¹ ⬝ !assoc⁻¹; apply comp_inverse_eq_of_eq_comp; apply naturality
+
   definition nat_trans_mk_eq {η₁ η₂ : Π (a : C), hom (F a) (G a)}
     (nat₁ : Π (a b : C) (f : hom a b), G f ∘ η₁ a = η₁ b ∘ F f)
     (nat₂ : Π (a b : C) (f : hom a b), G f ∘ η₂ a = η₂ b ∘ F f)
