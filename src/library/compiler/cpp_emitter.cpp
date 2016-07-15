@@ -71,10 +71,10 @@ void cpp_emitter::mangle_name(name const & n) {
 }
 
 void cpp_emitter::emit_declare_vm_builtin(name const & n) {
-    emit_indented("DECLARE_VM_BUILTIN(");
-    *this->m_output_stream << n << ",";
+    emit_indented("DECLARE_VM_BUILTIN(lean::name({");
+    *this->m_output_stream << "\"" << n.to_string("\" , \"") << "\"}), ";
     mangle_name(n);
-    *this->m_output_stream << n << ");\n";
+    *this->m_output_stream << ");\n";
 }
 
 void cpp_emitter::emit_prototype(name const & n, unsigned arity) {
@@ -108,14 +108,5 @@ void cpp_emitter::emit_indented_line(const char * str) {
     this->m_output_stream->width(this->m_width);
     *this->m_output_stream << str << std::endl;
     this->m_output_stream->width(this->m_width);
-}
-
-void cpp_emitter::emit_main(name & lean_main) {
-    *this->m_output_stream << "int main() {\n";
-    this->emit_indented_line("lean::initialize();");
-    // "lean::environment env;\n" <<
-    // lean::vm_state S(env);
-    mangle_name(lean_main);
-    *this->m_output_stream << "();\n" << "return 0;\n}" << std::endl;
 }
 }

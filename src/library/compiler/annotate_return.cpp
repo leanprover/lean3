@@ -17,6 +17,7 @@ Author: Leonardo de Moura
 #include "library/compiler/compiler_step_visitor.h"
 #include "library/compiler/simp_inductive.h"
 #include "library/compiler/erase_irrelevant.h"
+#include "library/compiler/anf_transform.h"
 #include "library/vm/vm.h"
 
 namespace lean {
@@ -48,7 +49,7 @@ class annotate_return_fn : public compiler_step_visitor {
         buffer<expr> args;
         expr fn = get_app_args(e, args);
 
-        if (is_cases_on(m_ctx->env(), fn) {
+        if (is_cases_on(m_ctx->env(), fn)) {
             buffer<expr> annotated_args;
 
             annotated_args.push_back(args[0]);

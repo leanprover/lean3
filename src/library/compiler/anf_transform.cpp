@@ -23,10 +23,11 @@ Author: Leonardo de Moura
 
 namespace lean {
 
-bool is_cases_on(environment const & env, name const & n) {
-    (is_constant(n) && get_vm_builtin_cases_idx(m_ctx->env(), const_name(n))) ||
-        is_internal_cases(fn) ||
-        is_constant(fn, get_nat_cases_on_name());
+bool is_cases_on(environment const & env, expr const & e) {
+    return (is_constant(e) &&
+    (get_vm_builtin_cases_idx(env, const_name(e)) ||
+     is_internal_cases(e) ||
+     is_constant(e, get_nat_cases_on_name())));
 }
 
 class anf_transform_fn : public compiler_step_visitor {
@@ -54,7 +55,7 @@ class anf_transform_fn : public compiler_step_visitor {
         buffer<expr> lifted_args;
         expr fn = get_app_args(e, args);
 
-        if (is_cases_on(m_ctx->env(), const_name(fn))) {
+        if (is_cases_on(m_ctx->env(), fn)) {
             lifted_args.push_back(visit(args[0]));
 
             for (unsigned i = 1; i < args.size(); i++) {

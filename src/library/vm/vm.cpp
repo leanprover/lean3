@@ -2639,7 +2639,7 @@ void finalize_vm_core() {
 
 void initialize_vm() {
     g_ext = new vm_decls_reg();
-    g_may_update_vm_builtins = false;
+    // g_may_update_vm_builtins = false;
     g_vm_reserve_key = new std::string("VMR");
     g_vm_code_key    = new std::string("VMC");
     g_vm_monitor_key = new std::string("VMMonitor");

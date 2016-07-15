@@ -221,9 +221,9 @@ class native_compiler_fn {
                 this->m_emitter.emit_c_call(
                     const_name(fn),
                     args.size(),
-                    args.data(), [=] (expr const & e) {});
-                // Not sure how to do this correctly?
-                // throw_unknown_constant(const_name(fn));
+                    args.data(), [=] (expr const & e) {
+                        compile(e, bpz, m);
+                    });
             }
         } else {
             lean_unreachable();
@@ -235,6 +235,7 @@ class native_compiler_fn {
         // std::cout << "compile_app: " << fn << std::endl;
 
         if (is_return_expr(fn)) {
+            std::cout << "compile return" << std::endl;
             auto arg = app_arg(e);
             this->m_emitter.emit_return([&] () {
                 compile(arg, bpz, m);
@@ -242,12 +243,16 @@ class native_compiler_fn {
         } else if (
             (is_constant(fn) && get_vm_builtin_cases_idx(m_env, const_name(fn))) ||
             is_internal_cases(fn) || is_constant(fn, get_nat_cases_on_name())) {
+            std::cout << "compile cases on" << std::endl;
             compile_cases_on(e, bpz, m);
         } else if (is_internal_cnstr(fn)) {
+            std::cout << "internal cnstr" << std::endl;
             compile_cnstr(e, bpz, m);
         } else if (is_internal_proj(fn)) {
+            std::cout << "proj" << std::endl;
             compile_proj(e, bpz, m);
         } else {
+            std::cout << "fn_call" << std::endl;
             compile_fn_call(e, bpz, m);
         }
     }
@@ -316,9 +321,13 @@ public:
         this->m_emitter.emit_headers();
     }
 
-    void emit_main() {
+    void emit_main(buffer<pair<name, expr>> const & procs) {
         name main_fn(this->m_conf.m_main_fn);
-        this->m_emitter.emit_main(main_fn);
+        this->m_emitter.emit_main(main_fn, [&] () {
+            for (auto & p : procs) {
+                this->m_emitter.emit_declare_vm_builtin(p.first);
+            }
+        });
     }
 
     void emit_prototypes(buffer<pair<name, unsigned>> fns) {
@@ -383,7 +392,7 @@ void native_compile(environment const & env,
         compiler(n, body);
     }
 
-    compiler.emit_main();
+    compiler.emit_main(procs);
 }
 
 void native_preprocess(environment const & env, declaration const & d, buffer<pair<name, expr>> & procs) {
