@@ -8,7 +8,7 @@ Attributes of functors (full, faithful, split essentially surjective, ...)
 Adjoint functors, isomorphisms and equivalences have their own file
 -/
 
-import ..constructions.functor function arity
+import .basic function arity
 
 open eq functor trunc prod is_equiv iso equiv function is_trunc
 

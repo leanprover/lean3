@@ -6,7 +6,7 @@ Authors: Floris van Doorn, Jakob von Raumer
 Functor precategory and category
 -/
 
-import ..nat_trans ..category .opposite
+import .opposite ..functor.attributes
 
 open eq category is_trunc nat_trans iso is_equiv category.hom
 
@@ -370,6 +370,15 @@ namespace functor
     { intro G H η, exact η ∘nf F},
     { intro G, reflexivity},
     { intro G H I η θ, reflexivity},
+  end
+
+  definition faithful_precomposition_of_essentially_surjective [instance] 
+    {C D E} {H : C ⇒ D} [HH : essentially_surjective H] : faithful (precomposition_functor E H) :=
+  begin
+    intro F G γ δ Hγδ, apply nat_trans_eq, intro b,
+    induction HH b with Hb, induction Hb with a f,
+    refine naturality_iso_right γ f ⬝ _ ⬝ (naturality_iso_right δ f)⁻¹,
+    apply ap (λ x, _ ∘ natural_map x a ∘ _) Hγδ,
   end
 
   definition postcomposition_functor [constructor] {C D} (E) (F : C ⇒ D)
