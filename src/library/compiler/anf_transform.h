@@ -18,6 +18,8 @@ namespace lean {
     TODO
 */
 
+bool is_cases_on(name const & n);
+
 expr anf_transform(environment const & env, expr const & e);
 
 }

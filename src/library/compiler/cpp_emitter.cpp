@@ -70,6 +70,13 @@ void cpp_emitter::mangle_name(name const & n) {
     }
 }
 
+void cpp_emitter::emit_declare_vm_builtin(name const & n) {
+    emit_indented("DECLARE_VM_BUILTIN(");
+    *this->m_output_stream << n << ",";
+    mangle_name(n);
+    *this->m_output_stream << n << ");\n";
+}
+
 void cpp_emitter::emit_prototype(name const & n, unsigned arity) {
     *this->m_output_stream << "lean::vm_obj ";
     mangle_name(n);

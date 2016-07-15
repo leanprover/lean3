@@ -20,7 +20,6 @@ Author: Jared Roesch and Leonardo de Moura
 #include "library/compiler/native_compiler.h"
 #include "library/compiler/annotate_return.h"
 #include "library/compiler/anf_transform.h"
-#include "library/compiler/flatten_let.h"
 #include "config.h"
 #include "cpp_emitter.h"
 #include "used_names.h"
@@ -400,10 +399,7 @@ void native_preprocess(environment const & env, declaration const & d, buffer<pa
         auto anf_body = anf_transform(env, proc.second);
         lean_trace(name({"native_compiler", "preprocess"}),
           tout() << "anf_body:" << anf_body << "\n";);
-        auto flatten_body = flatten_let(env, anf_body);
-        lean_trace(name({"native_compiler", "preprocess"}),
-          tout() << "flatten_let:" << flatten_body << "\n";);
-        auto annotated_body = annotate_return(env, flatten_body);
+        auto annotated_body = annotate_return(env, anf_body);
         lean_trace(name({"native_compiler", "preprocess"}),
           tout() << "annotated_body:" << annotated_body << "\n";);
         pair<name, expr> p = pair<name, expr>(proc.first, annotated_body);
