@@ -48,9 +48,11 @@ namespace lean  {
         void emit_main(name & lean_main, F f) {
             *this->m_output_stream << "int main() {\n";
             this->emit_indented_line("lean::initialize();");
-            // "lean::environment env;\n" <<
-            // lean::vm_state S(env);
+            this->emit_indented_line("lean::environment env;");
             f();
+            this->emit_indented_line("lean::vm_state S(env);");
+            this->emit_indented_line("lean::scope_vm_state scoped(S);");
+            this->emit_indented_line("g_env = &env;");
             mangle_name(lean_main);
             *this->m_output_stream << "();\n" << "return 0;\n}" << std::endl;
         }
@@ -85,6 +87,28 @@ namespace lean  {
             }
 
             *this->m_output_stream << ")";
+        }
+
+        template <typename F>
+        void emit_mk_native_closure(name const & global, unsigned nargs, expr const * args, F each_arg) {
+            this->emit_string("lean::mk_native_closure(*g_env, lean::name({\"");
+            *this->m_output_stream << global.to_string("\"}, {\"");
+            this->emit_string("\"}), ");
+
+            *this->m_output_stream << "{";
+
+            auto comma = false;
+
+            for (unsigned i = 0; i < nargs; i++) {
+                if (comma) {
+                    *this->m_output_stream << ", ";
+                } else {
+                    comma = true;
+                }
+                each_arg(args[i]);
+            }
+
+            *this->m_output_stream << "})";
         }
 
         template <typename F>

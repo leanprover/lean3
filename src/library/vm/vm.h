@@ -144,6 +144,8 @@ vm_obj mk_vm_constructor(unsigned cidx, vm_obj const &, vm_obj const &);
 vm_obj mk_vm_constructor(unsigned cidx, vm_obj const &, vm_obj const &, vm_obj const &);
 vm_obj mk_vm_constructor(unsigned cidx, vm_obj const &, vm_obj const &, vm_obj const &, vm_obj const &);
 vm_obj mk_vm_closure(unsigned fnidx, unsigned sz, vm_obj const * args);
+vm_obj mk_native_closure(environment const & env, name const & n, unsigned sz, vm_obj const * args);
+vm_obj mk_native_closure(environment const & env, name const & n, std::initializer_list<vm_obj const> args);
 vm_obj mk_vm_closure(unsigned cidx, vm_obj const &);
 vm_obj mk_vm_closure(unsigned cidx, vm_obj const &, vm_obj const &);
 vm_obj mk_vm_closure(unsigned cidx, vm_obj const &, vm_obj const &, vm_obj const &);

@@ -83,6 +83,15 @@ vm_obj mk_vm_constructor(unsigned cidx, vm_obj const & o1, vm_obj const & o2, vm
     return mk_vm_constructor(cidx, 4, args);
 }
 
+vm_obj mk_native_closure(environment const & env, name const & n, std::initializer_list<vm_obj const> args) {
+    return mk_native_closure(env, n, args.size(), args.begin());
+}
+
+vm_obj mk_native_closure(environment const & env, name const & n, unsigned sz, vm_obj const * data) {
+      unsigned idx = *lean::get_vm_constant_idx(env, n);
+      return lean::mk_vm_closure(idx, sz, data);
+}
+
 vm_obj mk_vm_closure(unsigned fn_idx, unsigned sz, vm_obj const * data) {
     return mk_vm_composite(vm_obj_kind::Closure, fn_idx, sz, data);
 }

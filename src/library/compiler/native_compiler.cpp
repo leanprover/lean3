@@ -83,7 +83,9 @@ class native_compiler_fn {
         } else if (auto j = get_vm_builtin_cases_idx(m_env, n)) {
             std::cout << "got the index" << j.value() << std::endl;
         } else {
-            this->m_emitter.emit_c_call(n, 0, nullptr, [=] (expr const & _e) {});
+          // if (env.get()
+          // this->m_emitter.emit_c_call(n, 0, nullptr, [=] (expr const & _e) {});
+            this->m_emitter.emit_mk_native_closure(n, 0, nullptr, [=] (expr const & _e) {});
             // this->m_emitter.mangle_name(n);
         }
         // } else if (optional<vm_decl> decl = get_vm_decl(m_env, n)) {
@@ -218,12 +220,18 @@ class native_compiler_fn {
             } else if (optional<vm_decl> decl = get_vm_decl(m_env, const_name(fn))) {
                 compile_global(*decl, args.size(), args.data(), bpz, m);
             } else {
-                this->m_emitter.emit_c_call(
-                    const_name(fn),
-                    args.size(),
-                    args.data(), [=] (expr const & e) {
-                        compile(e, bpz, m);
-                    });
+                this->m_emitter.emit_mk_native_closure(
+                  const_name(fn),
+                  args.size(),
+                  args.data(), [=] (expr const & e) {
+                      compile(e, bpz, m);
+                  });
+                // this->m_emitter.emit_c_call(
+                //     const_name(fn),
+                //     args.size(),
+                //     args.data(), [=] (expr const & e) {
+                //         compile(e, bpz, m);
+                //     });
             }
         } else {
             lean_unreachable();
