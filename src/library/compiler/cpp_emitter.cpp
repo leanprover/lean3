@@ -19,7 +19,9 @@ void cpp_emitter::emit_headers() {
         "#include \"util/numerics/mpz.h\"" << std::endl <<
         "#include \"library/vm/vm_io.h\"" << std::endl <<
         "#include \"library/vm/vm.h\"" << std::endl <<
-        "#include \"init/init.h\"" << std::endl << std::endl;
+        "#include \"init/init.h\"" << std::endl << std::endl <<
+        "static lean::environment * g_env = nullptr;" << std::endl << std::endl;
+
 }
 
 void cpp_emitter::emit_unreachable() {
@@ -71,7 +73,7 @@ void cpp_emitter::mangle_name(name const & n) {
 }
 
 void cpp_emitter::emit_declare_vm_builtin(name const & n) {
-    emit_indented("DECLARE_VM_BUILTIN(lean::name({");
+    emit_indented("env = add_native(env, lean::name({");
     *this->m_output_stream << "\"" << n.to_string("\" , \"") << "\"}), ";
     mangle_name(n);
     *this->m_output_stream << ");\n";
