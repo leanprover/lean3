@@ -39,12 +39,22 @@ namespace lean  {
         void emit_projection(unsigned idx);
         void indent();
         void unindent();
-        void emit_main(name & lean_main);
+        template<typename F>
+        void cpp_emitter::emit_main(name & lean_main, F f) {
+            *this->m_output_stream << "int main() {\n";
+            this->emit_indented_line("lean::initialize();");
+            // "lean::environment env;\n" <<
+            // lean::vm_state S(env);
+            f();
+            mangle_name(lean_main);
+            *this->m_output_stream << "();\n" << "return 0;\n}" << std::endl;
+        }
         void emit_prototype(name const & n, unsigned arity);
         void emit_indented(const char * str);
         void emit_string(const char * str);
         void emit_indented_line(const char * str);
         void mangle_name(name const & n);
+        void emit_declare_vm_builtin(name const & n);
 
         template <typename F>
         void emit_return(F expr) {
@@ -174,8 +184,11 @@ namespace lean  {
 
         template <typename F>
         void emit_builtin_cases_on(name const & cases_on, buffer<expr> & args, F action) {
-            this->emit_indented("switch (cidx(");
-            action(args[0]);
+            this->emit_indented("auto idx = get_vm_builtin_cases_idx(name({");
+            *this->m_output_stream << name << "}))"
+            get_vm_builtin_cases_id()
+            this->emit_indented("switch (get_vm_builtin_cases_idx(name({");
+            *this->m_output_stream << name << "}))"
             this->emit_string("))");
             this->emit_block([&] () {
                 for (unsigned i = 1; i < args.size(); i++) {

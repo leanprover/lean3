@@ -48,7 +48,7 @@ class annotate_return_fn : public compiler_step_visitor {
         buffer<expr> args;
         expr fn = get_app_args(e, args);
 
-        if (is_internal_cases(fn) || is_constant(fn, get_nat_cases_on_name())) {
+        if (is_cases_on(m_ctx->env(), fn) {
             buffer<expr> annotated_args;
 
             annotated_args.push_back(args[0]);
