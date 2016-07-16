@@ -41,8 +41,16 @@ class annotate_return_fn : public compiler_step_visitor {
     virtual expr visit_let(expr const & e) {
         auto n = let_name(e);
         auto v = let_value(e);
-        auto b = let_body(e);
-        return mk_let(n, mk_neutral_expr(), v, visit(b));
+
+        std::cout << "HEREEEE" << v << std::endl;
+        if (is_cases_on(m_ctx->env(), v)) {
+            std::cout << "HEREEEE" << std::endl;
+            auto b = let_body(e);
+            return mk_let(n, mk_neutral_expr(), uninitialized(), initialize(n, v, b));
+        } else {
+            auto b = let_body(e);
+            return mk_let(n, mk_neutral_expr(), v, visit(b));
+        }
     }
 
     virtual expr visit_app(expr const & e) {
@@ -78,6 +86,18 @@ class annotate_return_fn : public compiler_step_visitor {
 
     expr annotate_return(expr const & e) {
         return mk_app(mk_constant(name({"native_compiler", "return"})), e);
+    }
+
+    expr uninitialized() {
+        return mk_constant(name({"native_compiler", "uninitialized"}));
+    }
+
+    expr initialize(name const & n, expr const & e, expr const & cont) {
+        buffer<expr> args;
+        args.push_back(mk_constant(n));
+        args.push_back(e);
+        args.push_back(cont);
+        return mk_app(mk_constant(name({"native_compiler", "initialize"})), args);
     }
 
 public:

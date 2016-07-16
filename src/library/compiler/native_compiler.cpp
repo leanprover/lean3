@@ -34,6 +34,7 @@ class native_compiler_fn {
     environment        m_env;
     config & m_conf;
     cpp_emitter m_emitter;
+    name_map<unsigned> m_arity_map;
 
     expr mk_local(name const & n) {
         return ::lean::mk_local(n, mk_neutral_expr());
@@ -83,12 +84,10 @@ class native_compiler_fn {
         } else if (auto j = get_vm_builtin_cases_idx(m_env, n)) {
             std::cout << "got the index" << j.value() << std::endl;
         } else {
-          // if (env.get()
-          // this->m_emitter.emit_c_call(n, 0, nullptr, [=] (expr const & _e) {});
-            this->m_emitter.emit_mk_native_closure(n, 0, nullptr, [=] (expr const & _e) {});
-            // this->m_emitter.mangle_name(n);
+          buffer<expr> args;
+          name_map<unsigned> nm;
+          compile_to_c_call(n, args, 0u, nm);
         }
-        // } else if (optional<vm_decl> decl = get_vm_decl(m_env, n)) {
         //     compile_global(*decl, 0, nullptr, 0, name_map<unsigned>());
         // } else {
         //     throw_unknown_constant(n);
@@ -96,10 +95,10 @@ class native_compiler_fn {
     }
 
     void compile_local(expr const & e, name_map<unsigned> const & m) {
-        std::cout << mlocal_name(e) << std::endl;
-        m.for_each([&] (name const & n, unsigned const & i) {
-            std::cout << n << " ======> " << i << std::endl;
-        });
+        // std::cout << mlocal_name(e) << std::endl;
+        // m.for_each([&] (name const & n, unsigned const & i) {
+        //    std::cout << n << " ======> " << i << std::endl;
+        // });
         unsigned idx = *m.find(mlocal_name(e));
         this->m_emitter.emit_local(idx);
     }
@@ -132,15 +131,21 @@ class native_compiler_fn {
             this->m_emitter.emit_nat_cases(args[0], args[1], args[2], [&] (expr const & e) {
                 expr b = e;
                 buffer<expr> locals;
+                buffer<unsigned> fields;
                 name_map<unsigned> new_m = m;
                 unsigned new_bpz = bpz;
                 while (is_lambda(b)) {
                     name n = mk_fresh_name();
                     new_m.insert(n, new_bpz);
                     locals.push_back(mk_local(n));
+                    fields.push_back(new_bpz);
                     new_bpz++;
                     b = binding_body(b);
                 }
+                m_emitter.emit_fields(args[0], fields, [&]  (expr const & e) {
+                  // lean_assert(is_local(e));
+                  compile(e, new_bpz, new_m);
+                });
                 b = instantiate_rev(b, locals.size(), locals.data());
                 compile(b, new_bpz, new_m);
             });
@@ -148,15 +153,21 @@ class native_compiler_fn {
             this->m_emitter.emit_cases_on(name("scrut"), args, [&] (expr const & e) {
                 expr b = e;
                 buffer<expr> locals;
+                buffer<unsigned> fields;
                 name_map<unsigned> new_m = m;
                 unsigned new_bpz = bpz;
                 while (is_lambda(b)) {
                     name n = mk_fresh_name();
                     new_m.insert(n, new_bpz);
                     locals.push_back(mk_local(n));
+                    fields.push_back(new_bpz);
                     new_bpz++;
                     b = binding_body(b);
                 }
+                m_emitter.emit_fields(args[0], fields, [&]  (expr const & e) {
+                  // lean_assert(is_local(e));
+                  compile(e, new_bpz, new_m);
+                });
                 b = instantiate_rev(b, locals.size(), locals.data());
                 compile(b, new_bpz, new_m);
             });
@@ -190,6 +201,56 @@ class native_compiler_fn {
         // throw exception("NYI projection");
     }
 
+    void compile_to_c_call(name const & n_, buffer<expr> & args, unsigned bpz, name_map<unsigned> const & m, bool is_external = false) {
+      name n = n_;
+
+      unsigned arity;
+      this->m_arity_map.for_each([&] (name const & n, unsigned const & i) {
+          std::cout << "entry: " << n.to_string("+") <<  (n == n_) << std::endl;
+          if (n == n_) {
+            arity = i;
+          }
+      });
+
+      std::cout << "name:" << n.to_string("&") << std::endl;
+      // I don't understand, this, temporary hack to get around it,
+      // terrible performance.
+      // lean_assert(this->m_arity_map.contains(n));
+      //unsigned arity = *this->m_arity_map.find(n);
+
+      if (args.size() < arity) {
+          this->m_emitter.emit_mk_native_closure(
+            n,
+            args.size(),
+            args.data(), [=] (expr const & e) {
+              compile(e, bpz, m);
+            });
+      } else if (args.size() == arity) {
+          // Note: this is kind of a hack, would like to abstract over this
+          // more cleanly by doing an annotation pass on all foreign calls.
+          if (is_external) {
+            std::string s("lean::");
+            s += n.to_string("");
+            n = name(s);
+          }
+
+          this->m_emitter.emit_c_call(
+            n,
+            args.size(),
+            args.data(), [=] (expr const & e) {
+              compile(e, bpz, m);
+            });
+      } else {
+        this->m_emitter.emit_oversaturated_call(
+          n,
+          arity,
+          args.size(),
+          args.data(), [=] (expr const & e) {
+            compile(e, bpz, m);
+          });
+      }
+    }
+
     void compile_fn_call(expr const & e, unsigned bpz, name_map<unsigned> const & m) {
         buffer<expr> args;
         expr fn = get_app_args(e, args);
@@ -209,29 +270,13 @@ class native_compiler_fn {
                     compile(args[0], bpz, m);
                 });
             } else if (auto n = get_vm_builtin_internal_name(const_name(fn))) {
-                std::string s("lean::");
-                s += n;
-                auto nm = name(s);
-                this->m_emitter.emit_c_call(nm, args.size(), args.data(), [=] (expr const & e) {
-                    compile(e, bpz, m);
-                });
+                compile_to_c_call(n, args, bpz, m, true);
             } else if (is_neutral_expr(fn)) {
                 this->m_emitter.emit_sconstructor(0);
             } else if (optional<vm_decl> decl = get_vm_decl(m_env, const_name(fn))) {
                 compile_global(*decl, args.size(), args.data(), bpz, m);
             } else {
-                this->m_emitter.emit_mk_native_closure(
-                  const_name(fn),
-                  args.size(),
-                  args.data(), [=] (expr const & e) {
-                      compile(e, bpz, m);
-                  });
-                // this->m_emitter.emit_c_call(
-                //     const_name(fn),
-                //     args.size(),
-                //     args.data(), [=] (expr const & e) {
-                //         compile(e, bpz, m);
-                //     });
+                compile_to_c_call(const_name(fn), args, bpz, m);
             }
         } else {
             lean_unreachable();
@@ -374,6 +419,18 @@ public:
     void emit_prototype(name const & n, expr e) {
         this->m_emitter.emit_prototype(n, get_arity(e));
     }
+
+    void populate_arity_map(buffer<pair<name, expr>> const & procs) {
+        for (auto & p : procs) {
+            m_arity_map.insert(p.first, get_arity(p.second));
+        }
+    }
+
+    void populate_arity_map(buffer<pair<name, unsigned>> const & procs) {
+        for (auto & p : procs) {
+            m_arity_map.insert(p.first, p.second);
+        }
+    }
 };
 
 void native_compile(environment const & env,
@@ -381,6 +438,9 @@ void native_compile(environment const & env,
                     buffer<pair<name, unsigned>> & extern_fns,
                     buffer<pair<name, expr>> & procs) {
     native_compiler_fn compiler(env, conf);
+
+    compiler.populate_arity_map(procs);
+    compiler.populate_arity_map(extern_fns);
 
     // Emit the header includes.
     compiler.emit_headers();

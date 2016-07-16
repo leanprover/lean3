@@ -53,8 +53,9 @@ namespace lean  {
             this->emit_indented_line("lean::vm_state S(env);");
             this->emit_indented_line("lean::scope_vm_state scoped(S);");
             this->emit_indented_line("g_env = &env;");
+            this->emit_indented("lean::invoke(");
             mangle_name(lean_main);
-            *this->m_output_stream << "();\n" << "return 0;\n}" << std::endl;
+            *this->m_output_stream << "(), lean::mk_vm_simple(0));\n" << "return 0;\n}" << std::endl;
         }
         void emit_prototype(name const & n, unsigned arity);
         void emit_indented(const char * str);
@@ -88,6 +89,24 @@ namespace lean  {
 
             *this->m_output_stream << ")";
         }
+template <typename F>
+        void emit_oversaturated_call(name const & global, unsigned arity, unsigned nargs, expr const * args, F each_arg) {
+            unsigned native_nargs = 0;
+
+            for (unsigned i = 0; i < arity; i++) {
+              native_nargs += 1;
+            }
+
+            *this->m_output_stream << "lean::invoke(";
+            this->emit_c_call(global, native_nargs, args, each_arg);
+
+            for (unsigned i = native_nargs; i < nargs; i++) {
+                *this->m_output_stream << ", ";
+                each_arg(args[i]);
+            }
+
+            *this->m_output_stream << ")";
+        }
 
         template <typename F>
         void emit_mk_native_closure(name const & global, unsigned nargs, expr const * args, F each_arg) {
@@ -99,13 +118,13 @@ namespace lean  {
 
             auto comma = false;
 
-            for (unsigned i = 0; i < nargs; i++) {
+            for (unsigned i = nargs; i != 0; i--) {
                 if (comma) {
                     *this->m_output_stream << ", ";
                 } else {
                     comma = true;
                 }
-                each_arg(args[i]);
+                each_arg(args[i - 1]);
             }
 
             *this->m_output_stream << "})";
@@ -209,6 +228,17 @@ namespace lean  {
                 this->emit_string("\"code-gen error\"");
                 this->emit_string(");\n");
             });
+        }
+
+        template <typename F>
+        void emit_fields(expr const & scrut, buffer<unsigned> fields, F action) {
+            for (unsigned i = 0; i < fields.size(); i++) {
+                this->emit_string("lean::vm_obj ");
+                emit_local(fields[i]);
+                this->emit_string(" = cfield(");
+                action(scrut);
+                *this->m_output_stream << ", " << i << ");\n";
+            }
         }
 
         template <typename F>
