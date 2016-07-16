@@ -21,7 +21,6 @@ void cpp_emitter::emit_headers() {
         "#include \"library/vm/vm.h\"" << std::endl <<
         "#include \"init/init.h\"" << std::endl << std::endl <<
         "static lean::environment * g_env = nullptr;" << std::endl << std::endl;
-
 }
 
 void cpp_emitter::emit_unreachable() {
