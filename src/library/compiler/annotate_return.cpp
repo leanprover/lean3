@@ -18,46 +18,42 @@ Author: Leonardo de Moura
 #include "library/compiler/simp_inductive.h"
 #include "library/compiler/erase_irrelevant.h"
 #include "library/compiler/anf_transform.h"
+// causes a linking error? not sure why?
+// #include "library/compiler/cf.h"
 #include "library/vm/vm.h"
 
 namespace lean {
+
 class annotate_return_fn : public compiler_step_visitor {
     virtual expr visit_var(expr const & e) {
-       return annotate_return(e);
+       return annotate(e);
     }
 
     virtual expr visit_local(expr const & e) {
-       return annotate_return(e);
+       return annotate(e);
     }
 
     virtual expr visit_constant(expr const & e) {
-        return annotate_return(e);
+        return annotate(e);
     }
 
     virtual expr visit_macro(expr const & e) {
-        return annotate_return(e);
+        return annotate(e);
     }
 
     virtual expr visit_let(expr const & e) {
         auto n = let_name(e);
         auto v = let_value(e);
 
-        std::cout << "HEREEEE" << v << std::endl;
-        if (is_cases_on(m_ctx->env(), v)) {
-            std::cout << "HEREEEE" << std::endl;
-            auto b = let_body(e);
-            return mk_let(n, mk_neutral_expr(), uninitialized(), initialize(n, v, b));
-        } else {
-            auto b = let_body(e);
-            return mk_let(n, mk_neutral_expr(), v, visit(b));
-        }
+        auto b = let_body(e);
+        return mk_let(n, mk_neutral_expr(), v, visit(b));
     }
 
     virtual expr visit_app(expr const & e) {
         buffer<expr> args;
         expr fn = get_app_args(e, args);
 
-        if (is_cases_on(m_ctx->env(), fn)) {
+        if (is_constant(fn) && is_cases_on(m_ctx->env(), fn)) {
             buffer<expr> annotated_args;
 
             annotated_args.push_back(args[0]);
@@ -68,7 +64,7 @@ class annotate_return_fn : public compiler_step_visitor {
 
             return mk_app(fn, annotated_args);
         } else {
-            return annotate_return(e);
+            return annotate(e);
         }
     }
 
@@ -84,22 +80,16 @@ class annotate_return_fn : public compiler_step_visitor {
         return Fun(locals, visit(e));
     }
 
-    expr annotate_return(expr const & e) {
-        return mk_app(mk_constant(name({"native_compiler", "return"})), e);
-    }
-
-    expr uninitialized() {
-        return mk_constant(name({"native_compiler", "uninitialized"}));
-    }
-
-    expr initialize(name const & n, expr const & e, expr const & cont) {
+    expr annotate(expr const & e) {
         buffer<expr> args;
-        args.push_back(mk_constant(n));
-        args.push_back(e);
-        args.push_back(cont);
-        return mk_app(mk_constant(name({"native_compiler", "initialize"})), args);
-    }
+        expr fn = get_app_args(e, args);
 
+        if (mk_constant(name({"native_compiler", "store"})) == fn) {
+            return e;
+        } else {
+            return mk_app(mk_constant(name({"native_compiler", "return"})), e);
+        }
+    }
 public:
     annotate_return_fn(environment const & env):compiler_step_visitor(env) {}
 };
