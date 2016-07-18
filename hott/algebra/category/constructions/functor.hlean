@@ -372,14 +372,87 @@ namespace functor
     { intro G H I η θ, reflexivity},
   end
 
-  definition faithful_precomposition_of_essentially_surjective [instance] 
-    {C D E} {H : C ⇒ D} [HH : essentially_surjective H] : faithful (precomposition_functor E H) :=
+  definition faithful_precomposition_functor [instance] 
+    {C D E} {H : C ⇒ D} [Hs : essentially_surjective H] : faithful (precomposition_functor E H) :=
   begin
     intro F G γ δ Hγδ, apply nat_trans_eq, intro b,
-    induction HH b with Hb, induction Hb with a f,
+    induction Hs b with Hb, induction Hb with a f,
     refine naturality_iso_right γ f ⬝ _ ⬝ (naturality_iso_right δ f)⁻¹,
     apply ap (λ x, _ ∘ natural_map x a ∘ _) Hγδ,
   end
+
+  open sigma sigma.ops
+  section fully_faithful_precomposition
+  variables {E : Precategory} {H : C ⇒ D} [Hs : essentially_surjective H] [Hf : full H]
+    {F G : D ⇒ E} (γ : F ∘f H ⟹ G ∘f H)
+  include Hs Hf
+
+  private definition fully_faithful_precomposition_functor_prop [instance] (b) :
+    is_prop (Σ g, Π a (f : H a ≅ b), γ a = G f⁻¹ⁱ ∘ g ∘ F f) :=
+  begin
+    fapply is_prop.mk, intros g h, cases g with g Hg, cases h with h Hh,
+    fapply sigma.dpair_eq_dpair,
+    { induction Hs b with Hb, induction Hb with a0 f,
+      apply comp.cancel_right (F f), apply comp.cancel_left (G f⁻¹ⁱ),
+      apply (Hg a0 f)⁻¹ ⬝ (Hh a0 f) },
+    apply is_prop.elimo
+  end
+
+  private definition fully_faithful_precomposition_functor_pair [reducible] (b) :
+    Σ g, Π a (f : H a ≅ b), γ a = G f⁻¹ⁱ ∘ g ∘ F f :=
+  begin
+    induction Hs b with Hb, induction Hb with a0 h, fconstructor,
+    exact G h ∘ γ a0 ∘ F h⁻¹ⁱ, intro a f,
+    induction Hf (to_hom (f ⬝i h⁻¹ⁱ)) with k Ek, 
+    have is_iso (H k), by rewrite Ek; apply _,
+    refine _ ⬝ !assoc⁻¹, refine _ ⬝ ap (λ x, x ∘ F f) !assoc⁻¹, refine _ ⬝ !assoc,
+    refine _ ⬝ ap (λ x, (G f⁻¹ⁱ ∘ G h) ∘ x) !assoc,
+    do 2 krewrite [-respect_comp], esimp,
+    apply eq_comp_of_inverse_comp_eq,
+    exact ap (λ x, G x ∘ γ a) Ek⁻¹ ⬝ naturality γ k ⬝ ap (λ x, γ a0 ∘ F x) Ek
+  end
+
+  private definition fully_faithful_precomposition_naturality {b b' : carrier D}
+    (f : hom b b') : to_fun_hom G f ∘ (fully_faithful_precomposition_functor_pair γ b).1 
+    = (fully_faithful_precomposition_functor_pair γ b').1 ∘ to_fun_hom F f :=
+  begin
+    esimp[fully_faithful_precomposition_functor_pair],
+    induction Hs b with Hb, induction Hb with a h,
+    induction Hs b' with Hb', induction Hb' with a' h',
+    induction Hf (to_hom h'⁻¹ⁱ ∘ f ∘ to_hom h) with k Ek, 
+    apply concat, apply assoc,
+    apply concat, apply ap (λ x, x ∘ _),
+     apply concat, apply !respect_comp⁻¹, 
+     apply concat, apply ap (λ x, to_fun_hom G x), apply inverse, 
+      apply comp_eq_of_eq_inverse_comp, apply Ek, apply respect_comp,
+    apply concat, apply !assoc⁻¹, 
+    apply concat, apply ap (λ x, _ ∘ x), apply concat, apply assoc, 
+     apply concat, apply ap (λ x, x ∘ _), apply naturality γ, apply !assoc⁻¹, 
+    apply concat, apply ap (λ x, _ ∘ _ ∘ x), apply concat, esimp, apply !respect_comp⁻¹, 
+     apply concat, apply ap (λ x, to_fun_hom F x), 
+      apply comp_inverse_eq_of_eq_comp, apply Ek ⬝ !assoc, apply respect_comp, 
+    apply concat, apply assoc, apply concat, apply assoc,
+    apply ap (λ x, x ∘ _) !assoc⁻¹
+  end
+
+  definition fully_faithful_precomposition_functor [instance] :
+    fully_faithful (precomposition_functor E H) :=
+  begin
+    apply fully_faithful_of_full_of_faithful,
+    { apply faithful_precomposition_functor },
+    { intro F G γ, esimp at *, fapply image.mk,
+      fconstructor,
+      { intro b, apply (fully_faithful_precomposition_functor_pair γ b).1 }, 
+      { intro b b' f, apply fully_faithful_precomposition_naturality },
+      { fapply nat_trans_eq, intro a, esimp,
+        apply inverse,
+        induction (fully_faithful_precomposition_functor_pair γ (to_fun_ob H a)) with g Hg,
+        esimp, apply concat, apply Hg a (iso.refl (H a)), esimp,
+        apply concat, apply ap (λ x, x ∘ _), apply respect_id, apply concat, apply id_left, 
+        apply concat, apply ap (λ x, _ ∘ x), apply respect_id, apply id_right } }
+  end
+
+  end fully_faithful_precomposition
 
   definition postcomposition_functor [constructor] {C D} (E) (F : C ⇒ D)
     : C ^c E ⇒ D ^c E :=
