@@ -43,20 +43,21 @@ class cf_fn : public compiler_step_visitor {
     virtual expr visit_let(expr const & e) {
         auto n = let_name(e);
         auto v = let_value(e);
+        auto b = let_body(e);
 
         if (is_app(v)) {
             buffer<expr> args;
             expr fn = get_app_args(v, args);
 
             if (is_constant(fn) && is_cases_on(m_ctx->env(), fn)) {
-                auto b = let_body(e);
                 // THis has a recursion problem
                 m_current_location = mk_local(n, mk_neutral_expr());
-                auto v_prime = abstract(visit(instantiate(v, m_current_location)), m_current_location);
-                auto b_prime = abstract(visit(instantiate(b, m_current_location)), m_current_location);
+                auto v_prime = visit(v);
+                m_current_location = expr();
+                auto b_prime = visit(b);
                 return mk_let(n, mk_neutral_expr(), uninitialized(), initialize(n, v_prime, b_prime));
             } else {
-                return compiler_step_visitor::visit(e);
+                return mk_let(n, mk_neutral_expr(), v, visit(b));
             }
         } else {
             auto b = let_body(e);
@@ -65,7 +66,22 @@ class cf_fn : public compiler_step_visitor {
     }
 
     virtual expr visit_app(expr const & e) {
-        return store(e);
+        buffer<expr> args;
+        expr fn = get_app_args(e, args);
+
+        if (is_constant(fn) && is_cases_on(m_ctx->env(), fn)) {
+            buffer<expr> annotated_args;
+
+            annotated_args.push_back(args[0]);
+
+            for (unsigned i = 1; i < args.size(); i++) {
+                annotated_args.push_back(visit(args[i]));
+            }
+
+            return mk_app(fn, annotated_args);
+        } else {
+            return store(e);
+        }
     }
 
     virtual expr visit_lambda(expr const & e_) {
@@ -81,8 +97,11 @@ class cf_fn : public compiler_step_visitor {
     }
 
     expr store(expr const & e) {
-        // lean_assert(m_current_location);
-        return mk_app(mk_constant(name({"native_compiler", "store"})), m_current_location, e);
+        if (m_current_location != expr()) {
+            return mk_app(mk_constant(name({"native_compiler", "store"})), m_current_location, e);
+        } else {
+            return e;
+        }
     }
 
     expr uninitialized() {
@@ -92,7 +111,7 @@ class cf_fn : public compiler_step_visitor {
     expr initialize(name const & n, expr const & cases_on, expr const & cont) {
         buffer<expr> args;
         // Local to store the result.
-        args.push_back(mk_constant(n));
+        args.push_back(mk_local(n, mk_neutral_expr()));
 
         // Each branch, which should store its result in Local.
         args.push_back(cases_on);

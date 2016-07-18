@@ -44,6 +44,12 @@ namespace lean  {
             emit_main(lean_main, [&] () {});
         }
 
+        void emit_name(name const & n) {
+            this->emit_string("name({\"");
+            this->emit_string(n.to_string("\"}, {\"").c_str());
+            this->emit_string("\"})");
+        }
+
         template<typename F>
         void emit_main(name & lean_main, F f) {
             *this->m_output_stream << "int main() {\n";
@@ -54,8 +60,8 @@ namespace lean  {
             this->emit_indented_line("lean::scope_vm_state scoped(S);");
             this->emit_indented_line("g_env = &env;");
             this->emit_indented("lean::invoke(");
-            mangle_name(lean_main);
-            *this->m_output_stream << "(), lean::mk_vm_simple(0));\n" << "return 0;\n}" << std::endl;
+            emit_mk_native_closure(lean_main, 0, nullptr, [&] (expr const & e) {});
+            *this->m_output_stream << ", lean::mk_vm_simple(0));\n" << "return 0;\n}" << std::endl;
         }
         void emit_prototype(name const & n, unsigned arity);
         void emit_indented(const char * str);
@@ -89,7 +95,8 @@ namespace lean  {
 
             *this->m_output_stream << ")";
         }
-template <typename F>
+
+        template <typename F>
         void emit_oversaturated_call(name const & global, unsigned arity, unsigned nargs, expr const * args, F each_arg) {
             unsigned native_nargs = 0;
 
@@ -242,28 +249,44 @@ template <typename F>
         }
 
         template <typename F>
+        void emit_builtin_fields(name const & scrut, buffer<unsigned> fields, F action) {
+            for (unsigned i = 0; i < fields.size(); i++) {
+                this->emit_string("lean::vm_obj ");
+                emit_local(fields[i]);
+                this->emit_string(" = ");
+                this->emit_string(scrut.to_string().c_str());
+                *this->m_output_stream << ".data()[" << i << "];\n";
+            }
+        }
+
+        template <typename F>
         void emit_builtin_cases_on(name const & cases_on, buffer<expr> & args, F action) {
             // this->emit_indented("auto idx = get_vm_builtin_cases_idx(name({");
             // *this->m_output_stream << name << "}))"
-            // this->emit_indented("switch (get_vm_builtin_cases_idx(name({");
-            // *this->m_output_stream << name << "}))"
-            // this->emit_string("))");
-            // this->emit_block([&] () {
-            //     for (unsigned i = 1; i < args.size(); i++) {
-            //         this->emit_indented("case ");
-            //         *this->m_output_stream << i - 1;
-            //         this->emit_string(":");
-            //         this->emit_block([&] () {
-            //             action(args[i]);
-            //             this->emit_indented("break;\n");
-            //         });
-            //     }
-            //
-            //     this->emit_indented("default:\n");
-            //     this->emit_indented("throw std::runtime_error(");
-            //     this->emit_string("\"code-gen error\"");
-            //     this->emit_string(");\n");
-            // });
+            // this->emit_indented("switch (get_vm_builtin_cases_idx(name({")
+            this->emit_indented("lean::buffer<lean::vm_obj> args;\n");
+            this->emit_string("auto idx = lean::");
+            this->emit_string(cases_on.to_string("_").c_str());
+            this->emit_string("(");
+            action(args[0]);
+            this->emit_string(", args);\n");
+            this->emit_indented("switch (idx) ");
+            this->emit_block([&] () {
+                 for (unsigned i = 1; i < args.size(); i++) {
+                     this->emit_indented("case ");
+                     *this->m_output_stream << i - 1;
+                     this->emit_string(":");
+                     this->emit_block([&] () {
+                         action(args[i]);
+                         this->emit_indented("break;\n");
+                     });
+                 }
+
+                 this->emit_indented("default:\n");
+                 this->emit_indented("throw std::runtime_error(");
+                 this->emit_string("\"code-gen error\"");
+                 this->emit_string(");\n");
+             });
         }
 
         template <typename F>
