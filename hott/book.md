@@ -169,7 +169,7 @@ Every file is in the folder [algebra.category](algebra/category/category.md)
 - 9.6 (Strict categories): [strict](algebra/category/strict.hlean) (only definition)
 - 9.7 (†-categories): not formalized
 - 9.8 (The structure identity principle): not formalized
-- 9.9 (The Rezk completion): [constructions.rezk](algebra/category/constructions/rezk.hlean], 9.9.1 and 9.9.2 in [constructions.functor](algebra/category/constructions/functor.hlean]
+- 9.9 (The Rezk completion): [constructions.rezk](algebra/category/constructions/rezk.hlean), 9.9.1 and 9.9.2 in [constructions.functor](algebra/category/constructions/functor.hlean)
 
 Chapter 10: Set theory
 ----------
