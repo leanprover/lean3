@@ -63,6 +63,8 @@ class annotate_return_fn : public compiler_step_visitor {
             }
 
             return mk_app(fn, annotated_args);
+        } if (mk_constant(name({"native_compiler", "initialize"})) == fn) {
+            return mk_app(fn, args[0], args[1], visit(args[2]));
         } else {
             return annotate(e);
         }

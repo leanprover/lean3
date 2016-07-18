@@ -84,6 +84,8 @@ class native_compiler_fn {
             this->m_emitter.emit_sconstructor(*idx);
         } else if (auto j = get_vm_builtin_cases_idx(m_env, n)) {
             std::cout << "got the index" << j.value() << std::endl;
+        } else if (is_uninitialized(e)) {
+            this->m_emitter.emit_string("lean::vm_obj()");
         } else {
           buffer<expr> args;
           name_map<unsigned> nm;
@@ -127,8 +129,28 @@ class native_compiler_fn {
 
         if (get_vm_builtin_cases_idx(m_env, const_name(fn))) {
             this->m_emitter.emit_builtin_cases_on(const_name(fn), args,  [&] (expr const & e) {
-            });
-        } else if (fn_name == get_nat_cases_on_name()) {
+                expr b = e;
+                buffer<expr> locals;
+                buffer<unsigned> fields;
+                name_map<unsigned> new_m = m;
+                unsigned new_bpz = bpz;
+                while (is_lambda(b)) {
+                    name n = mk_fresh_name();
+                    new_m.insert(n, new_bpz);
+                    locals.push_back(mk_local(n));
+                    fields.push_back(new_bpz);
+                    new_bpz++;
+                    b = binding_body(b);
+                }
+                m_emitter.emit_builtin_fields(name("args"), fields, [&] (expr const & e) {
+                  // lean_assert(is_local(e));
+                  compile(e, new_bpz, new_m);
+                  new_bpz++;
+                });
+                b = instantiate_rev(b, locals.size(), locals.data());
+                compile(b, new_bpz, new_m);
+              });
+          } else if (fn_name == get_nat_cases_on_name()) {
             this->m_emitter.emit_nat_cases(args[0], args[1], args[2], [&] (expr const & e) {
                 expr b = e;
                 buffer<expr> locals;
@@ -191,15 +213,13 @@ class native_compiler_fn {
         expr const & fn = get_app_args(e, args);
         lean_assert(is_internal_proj(fn));
         unsigned idx = *is_internal_proj(fn);
-
-        this->m_emitter.emit_projection(idx); // args.size() - 1, args.data() + 1);
-        // lean_assert(args.size() >= 1);
-        // compile_rev_args(args.size() - 1, args.data() + 1, bpz, m);
-        // bpz += args.size() - 1;
-        // compile(args[0], bpz, m);
-        // emit(mk_proj_instr(idx));
-        // emit_apply_instr(args.size() - 1);
-        // throw exception("NYI projection");
+        //TODO: clean up
+        this->m_emitter.emit_string("cfield(");
+        lean_assert(args.size() == 1);
+        compile(args[0], bpz, m);
+        this->m_emitter.emit_string(", ");
+        this->m_emitter.emit_string((sstream() << idx).str().c_str());
+        this->m_emitter.emit_string(")");
     }
 
     void compile_to_c_call(name const & n_, buffer<expr> & args, unsigned bpz, name_map<unsigned> const & m, bool is_external = false) {
@@ -207,13 +227,13 @@ class native_compiler_fn {
 
       unsigned arity;
       this->m_arity_map.for_each([&] (name const & n, unsigned const & i) {
-          std::cout << "entry: " << n.to_string("+") <<  (n == n_) << std::endl;
+          // std::cout << "entry: " << n.to_string("+") <<  (n == n_) << std::endl;
           if (n == n_) {
             arity = i;
           }
       });
 
-      std::cout << "name:" << n.to_string("&") << std::endl;
+      // std::cout << "name:" << n.to_string("&") << std::endl;
       // I don't understand, this, temporary hack to get around it,
       // terrible performance.
       // lean_assert(this->m_arity_map.contains(n));
@@ -292,23 +312,22 @@ class native_compiler_fn {
 
         if (is_return_expr(fn)) {
             std::cout << "compile return" << std::endl;
-            auto arg = app_arg(e);
             this->m_emitter.emit_return([&] () {
-                compile(arg, bpz, m);
+                compile(args[0], bpz, m);
             });
-        } if (is_initialize(fn)) {
+        } else if (is_initialize(fn)) {
             auto location = args[0];
             auto cases_on = args[1];
             auto cont = args[2];
             name_map<unsigned> new_m = m;
             auto new_bpz = bpz;
-            std::cout << location << std::endl;
-            new_m.insert(mlocal_name(location), new_bpz);
-            new_bpz++;
-            this->m_emitter.emit_indented("lean::vm_obj ");
-            compile(location, new_bpz, m);
-            compile(cases_on, new_bpz, m);
-            compile(cont, new_bpz, m);
+            // We should figure out how to do something smarter here,
+            // we just *know* that the bpz we last consumed is
+            // the unitialized binding.
+            new_m.insert(mlocal_name(location), new_bpz - 1);
+            compile(cases_on, new_bpz, new_m);
+            this->m_emitter.emit_indented(";\n");
+            compile(cont, new_bpz, new_m);
         } else if (is_store(fn)) {
             compile(args[0], bpz, m);
             this->m_emitter.emit_string(" = ");
@@ -338,7 +357,7 @@ class native_compiler_fn {
         while (is_let(e)) {
             counter++;
             this->m_emitter.emit_local_binding(bpz, [=] {
-                compile(instantiate_rev(let_value(e), locals.size(), locals.data()), bpz, new_m);
+              compile(instantiate_rev(let_value(e), locals.size(), locals.data()), bpz, new_m);
             });
             name n = mk_fresh_name();
             new_m.insert(n, bpz);
@@ -408,7 +427,15 @@ public:
 
         this->m_emitter.emit_string("namespace lean {\n");
         for (auto fn : fns) {
-            this->m_emitter.emit_prototype(fn.first, fn.second);
+            if (get_vm_builtin_cases_idx(m_env, fn.first)) {
+                auto np = get_vm_builtin_internal_name(fn.first);
+                lean_assert(np);
+                this->m_emitter.emit_string("unsigned list_cases_on(lean::vm_obj const & o, buffer<lean::vm_obj> & data);\n");
+                // this->m_emitter.emit_prototype(fn.first, fn.second);
+            } else {
+                this->m_emitter.emit_prototype(fn.first, fn.second);
+            }
+
         }
         this->m_emitter.emit_string("}\n");
     }
@@ -572,9 +599,12 @@ void native_compile(environment const & env, config & conf, declaration const & 
         }
 
         used_names.m_used_names.for_each([&] (name const & n) {
+            // TODO: unify this
             if (auto builtin = get_builtin(n)) {
                 // std::cout << "extern fn" << n << std::endl;
                 extern_fns.push_back(builtin.value());
+            } else if (auto i = get_vm_builtin_cases_idx(env, n)) {
+                extern_fns.push_back(pair<name, unsigned>(n, 2u));
             }
         });
 
