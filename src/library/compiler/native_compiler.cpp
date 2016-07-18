@@ -20,6 +20,7 @@ Author: Jared Roesch and Leonardo de Moura
 #include "library/compiler/native_compiler.h"
 #include "library/compiler/annotate_return.h"
 #include "library/compiler/anf_transform.h"
+#include "library/compiler/cf.h"
 #include "config.h"
 #include "cpp_emitter.h"
 #include "used_names.h"
@@ -284,7 +285,9 @@ class native_compiler_fn {
     }
 
     void compile_app(expr const & e, unsigned bpz, name_map<unsigned> const & m) {
-        expr const & fn = get_app_fn(e);
+        buffer<expr> args;
+        // expr const & fn = get_app_fn(e);
+        expr const & fn = get_app_args(e, args);
         // std::cout << "compile_app: " << fn << std::endl;
 
         if (is_return_expr(fn)) {
@@ -293,6 +296,24 @@ class native_compiler_fn {
             this->m_emitter.emit_return([&] () {
                 compile(arg, bpz, m);
             });
+        } if (is_initialize(fn)) {
+            auto location = args[0];
+            auto cases_on = args[1];
+            auto cont = args[2];
+            name_map<unsigned> new_m = m;
+            auto new_bpz = bpz;
+            std::cout << location << std::endl;
+            new_m.insert(mlocal_name(location), new_bpz);
+            new_bpz++;
+            this->m_emitter.emit_indented("lean::vm_obj ");
+            compile(location, new_bpz, m);
+            compile(cases_on, new_bpz, m);
+            compile(cont, new_bpz, m);
+        } else if (is_store(fn)) {
+            compile(args[0], bpz, m);
+            this->m_emitter.emit_string(" = ");
+            compile(args[1], bpz, m);
+            this->m_emitter.emit_string(";\n");
         } else if (
             (is_constant(fn) && get_vm_builtin_cases_idx(m_env, const_name(fn))) ||
             is_internal_cases(fn) || is_constant(fn, get_nat_cases_on_name())) {
@@ -471,14 +492,19 @@ void native_preprocess(environment const & env, declaration const & d, buffer<pa
     // Run the normal preprocessing and optimizations.
     preprocess(env, d, raw_procs);
 
+    auto decl = env.get(name("id_opt"));
+    std::cout << "Found some user code:" << decl.get_value() << std::endl;
     // Run the native specific optimizations.
     for (auto proc : raw_procs) {
         auto anf_body = anf_transform(env, proc.second);
         lean_trace(name({"native_compiler", "preprocess"}),
           tout() << "anf_body:" << anf_body << "\n";);
-        auto annotated_body = annotate_return(env, anf_body);
+        auto cf_body = cf(env, anf_body);
+        std::cout << "cf_body: " << cf_body << std::endl;
+        auto annotated_body = annotate_return(env, cf_body);
         lean_trace(name({"native_compiler", "preprocess"}),
           tout() << "annotated_body:" << annotated_body << "\n";);
+
         pair<name, expr> p = pair<name, expr>(proc.first, annotated_body);
         procs.push_back(p);
     }
