@@ -118,7 +118,7 @@ namespace lean  {
         template <typename F>
         void emit_mk_native_closure(name const & global, unsigned nargs, expr const * args, F each_arg) {
             this->emit_string("lean::mk_native_closure(*g_env, lean::name({\"");
-            *this->m_output_stream << global.to_string("\"}, {\"");
+            *this->m_output_stream << global.to_string("\", \"");
             this->emit_string("\"}), ");
 
             *this->m_output_stream << "{";
