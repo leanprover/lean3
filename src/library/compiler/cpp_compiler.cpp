@@ -25,14 +25,13 @@ namespace lean {
   void process::run() {
       int pid = fork();
       if (pid == 0) {
-          std::cout << "in the child" << std::endl;
 
           buffer<char*> pargs;
           for (auto arg : m_args) {
               auto str = (char*)malloc(sizeof(char) * 100);
               arg.copy(str, arg.size());
               str[arg.size()] = '\0';
-              std::cout << str << std::endl;
+              // std::cout << str << std::endl;
               pargs.push_back(str);
           }
 
@@ -45,7 +44,6 @@ namespace lean {
       } else if (pid == -1) {
           throw std::runtime_error("forking process failed: ...");
       } else {
-          std::cout << "in the parent" << std::endl;
           int status;
           waitpid(pid, &status, 0);
       }

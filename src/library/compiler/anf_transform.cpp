@@ -24,7 +24,6 @@ Author: Leonardo de Moura
 namespace lean {
 
 bool is_cases_on(environment const & env, expr const & e) {
-    std::cout << e << std::endl;
     lean_assert(is_constant(e));
     return (get_vm_builtin_cases_idx(env, const_name(e)) ||
     is_cases_on_recursor(env, const_name(e)) ||
@@ -44,10 +43,6 @@ class anf_transform_fn : public compiler_step_visitor {
         top.push_back(pair<name, expr>(ln, lv));
 
         auto lb = visit(instantiate(let_body(e), mk_local(ln, mk_neutral_expr())));
-
-        std::cout << "let_name: " << ln << std::endl;
-        std::cout << "let_value: " << lv << std::endl;
-        std::cout << "let_body: " << lb << std::endl;
 
         return lb;
     }
@@ -92,20 +87,6 @@ class anf_transform_fn : public compiler_step_visitor {
         }
     }
 
-    // virtual expr visit_let(expr const & e) {
-    //     auto lb = let_body(e);
-    //
-    //     while (is_let(lv)) {
-    //         expr v = instantiate_rev(let_value(lv), lifted_lets.size(), lifted_lets.data());
-    //         lifted_lets.push_let(let_name(lv), mk_neutral_expr(), v);
-    //         lv = v;
-    //     }
-    //
-    //     lifted_lets.push_let(ln, mk_neutral_expr(), lv);
-    //
-    //     return lifted_lets.mk_let(lb);
-    // }
-
     expr collect_bindings(expr const & e_, buffer<expr> & locals) {
         expr e = e_;
         while (is_lambda(e)) {
@@ -121,10 +102,6 @@ class anf_transform_fn : public compiler_step_visitor {
         auto scope = m_bindings_stack.back();
         unsigned i = scope.size();
 
-        for (auto binding : scope) {
-            std::cout << binding.first << binding.second << std::endl;
-        }
-
         expr ret_e = e;
 
         while (i != 0) {
@@ -138,14 +115,11 @@ class anf_transform_fn : public compiler_step_visitor {
     }
 public:
     expr operator()(expr const & e) {
-        std::cout << "expression here" << e << std::endl;
         buffer<expr> locals;
         auto ret_e = collect_bindings(e, locals);
 
-        std::cout << "visited expr" << ret_e << std::endl;
         lean_assert(m_bindings_stack.size() == 1);
         ret_e = this->mk_scoped_let(ret_e);
-        std::cout << "final expr" << ret_e << std::endl;
         return Fun(locals, ret_e);
     }
 
