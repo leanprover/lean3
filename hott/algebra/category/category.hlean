@@ -66,6 +66,15 @@ namespace category
   theorem eq_of_iso_refl {a : ob}  : eq_of_iso (iso.refl a) = idp :=
   inv_eq_of_eq idp
 
+  theorem eq_of_iso_trans {a b c : ob} (p : a ≅ b) (q : b ≅ c) :
+    eq_of_iso (p ⬝i q) = eq_of_iso p ⬝ eq_of_iso q :=
+  begin
+    apply inv_eq_of_eq,
+    apply eq.inverse, apply concat, apply iso_of_eq_con,
+    apply concat, apply ap (λ x, x ⬝i _), apply iso_of_eq_eq_of_iso,
+    apply ap (λ x, _ ⬝i x), apply iso_of_eq_eq_of_iso
+  end
+
   definition is_trunc_1_ob : is_trunc 1 ob :=
   begin
     apply is_trunc_succ_intro, intro a b,
