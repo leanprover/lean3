@@ -234,6 +234,7 @@ int main(int argc, char ** argv) {
 #if defined(LEAN_EMSCRIPTEN)
     EM_ASM(
         var lean_path = process.env['LEAN_PATH'];
+        lean::set_install_path(argv[0]);
         if (lean_path) {
             ENV['LEAN_PATH'] = lean_path;
         }
