@@ -27,9 +27,25 @@ namespace category
     [H : fully_faithful F] (c c' : C) : is_equiv (@(to_fun_hom F) c c') :=
   !H
 
-  definition hom_inv [reducible] (F : C ⇒ D) [H : fully_faithful F] (c c' : C) (f : F c ⟶ F c')
+  definition fully_faithful_of_is_weak_equivalence [instance] (F : C ⇒ D)
+    [H : is_weak_equivalence F] : fully_faithful F :=
+  pr1 H
+
+  definition essentially_surjective_of_is_weak_equivalence [instance] (F : C ⇒ D)
+    [H : is_weak_equivalence F] : essentially_surjective F :=
+  pr2 H
+
+  definition hom_inv [reducible] (F : C ⇒ D) [H : fully_faithful F] {c c' : C} (f : F c ⟶ F c')
     : c ⟶ c' :=
   (to_fun_hom F)⁻¹ᶠ f
+
+  definition hom_inv_respect_comp (F : C ⇒ D) [H : fully_faithful F] (a b c : C)
+    (g : F b ⟶ F c) (f : F a ⟶ F b) : hom_inv F (g ∘ f) = hom_inv F g ∘ hom_inv F f :=
+  begin
+    apply eq_of_fn_eq_fn' (to_fun_hom F),
+    refine !(right_inv (to_fun_hom F)) ⬝ _ ⬝ !respect_comp⁻¹,
+    rewrite [right_inv (to_fun_hom F), right_inv (to_fun_hom F)],
+  end
 
   definition reflect_is_iso [constructor] (F : C ⇒ D) [H : fully_faithful F] {c c' : C}
     (f : c ⟶ c') [H : is_iso (F f)] : is_iso f :=
