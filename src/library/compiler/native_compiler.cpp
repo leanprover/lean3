@@ -21,13 +21,29 @@ Author: Jared Roesch and Leonardo de Moura
 #include "library/compiler/annotate_return.h"
 #include "library/compiler/anf_transform.h"
 #include "library/compiler/cf.h"
+#include "library/compiler/cpp_compiler.h"
 #include "config.h"
 #include "cpp_emitter.h"
 #include "used_names.h"
 #include "library/extern.h"
 #include "library/vm/vm.h"
+#include <sys/types.h>
+#include <sys/stat.h>
+#include <stdio.h>
+#include <stdlib.h>
+#include <unistd.h>
+
+static std::string* g_lean_install_path;
 
 namespace lean {
+
+void set_install_path(std::string s) {
+    g_lean_install_path = new std::string(s.substr(0, s.size() - 8));
+}
+
+std::string get_install_path() {
+    return *g_lean_install_path;
+}
 
 optional<pair<name, unsigned>> get_builtin(name const & n);
 
@@ -507,6 +523,20 @@ void native_compile(environment const & env,
     }
 
     compiler.emit_main(procs);
+
+    std::cout << "about to execute compiler:" << std::endl;
+    cpp_compiler gpp;
+    std::string lean_install_path = get_install_path();
+
+    std::cout << "LEAN_INSTALL_PATH" << std::endl;
+    gpp.include_path(lean_install_path + "include/lean_ext")
+      .file("out.cpp")
+      .file(lean_install_path + "lib/libleanstatic.a")
+      .link("gmp")
+      .link("pthread")
+      .link("mpfr")
+      .debug(true)
+      .run();
 }
 
 void native_preprocess(environment const & env, declaration const & d, buffer<pair<name, expr>> & procs) {
@@ -517,15 +547,16 @@ void native_preprocess(environment const & env, declaration const & d, buffer<pa
     // Run the normal preprocessing and optimizations.
     preprocess(env, d, raw_procs);
 
-    auto decl = env.get(name("id_opt"));
-    std::cout << "Found some user code:" << decl.get_value() << std::endl;
+    // auto decl = env.get(name("id_opt"));
+    // std::cout << "Found some user code:" << decl.get_value() << std::endl;
     // Run the native specific optimizations.
     for (auto proc : raw_procs) {
         auto anf_body = anf_transform(env, proc.second);
         lean_trace(name({"native_compiler", "preprocess"}),
           tout() << "anf_body:" << anf_body << "\n";);
         auto cf_body = cf(env, anf_body);
-        std::cout << "cf_body: " << cf_body << std::endl;
+        lean_trace(name({"native_compiler", "preprocess"}),
+          tout() << "cf_body:" << cf_body << "\n";);
         auto annotated_body = annotate_return(env, cf_body);
         lean_trace(name({"native_compiler", "preprocess"}),
           tout() << "annotated_body:" << annotated_body << "\n";);
@@ -617,7 +648,6 @@ void native_compile(environment const & env, config & conf, declaration const & 
 }
 
 void initialize_native_compiler() {
-    register_trace_class("nc");
     register_trace_class("native_compiler");
     register_trace_class({"native_compiler", "preprocess"});
 }

@@ -262,6 +262,7 @@ int main() { return 0; }
 #else
 int main(int argc, char ** argv) {
     lean::initializer init;
+    lean::set_install_path(argv[0]);
     bool export_objects     = false;
     unsigned trust_lvl      = LEAN_BELIEVER_TRUST_LEVEL+1;
     bool server             = false;
