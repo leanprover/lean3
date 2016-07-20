@@ -519,6 +519,7 @@ void native_compile(environment const & env,
         name & n = p.first;
         expr body = p.second;
         vm_obj result = S.invoke(compiler_name, to_obj(p.second));
+
         lean_out_file << to_string(result) << std::endl;
         compiler(n, body);
     }
