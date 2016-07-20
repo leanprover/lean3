@@ -12,6 +12,8 @@ Author: Jared Roesch and Leonardo de Moura
 #include "library/annotation.h"
 #include "library/vm/vm.h"
 #include "library/vm/optimize.h"
+#include "library/vm/vm_expr.h"
+#include "library/vm/vm_string.h"
 #include "library/util.h"
 #include "library/compiler/simp_inductive.h"
 #include "library/compiler/erase_irrelevant.h"
@@ -22,6 +24,7 @@ Author: Jared Roesch and Leonardo de Moura
 #include "library/compiler/anf_transform.h"
 #include "library/compiler/cf.h"
 #include "library/compiler/cpp_compiler.h"
+#include "library/compiler/vm_compiler.h"
 #include "config.h"
 #include "cpp_emitter.h"
 #include "used_names.h"
@@ -503,11 +506,19 @@ void native_compile(environment const & env,
         compiler.emit_prototype(p.first, p.second);
     }
 
+    auto compiler_name = name({"init", "backend", "compiler"});
+    auto cc = env.get(compiler_name);
+    auto new_env = vm_compile(env, cc);
+    vm_state S(new_env);
+
     // Iterate each processed decl, emitting code for it.
     for (auto & p : procs) {
         lean_trace(name({"native_compiler"}), tout() << "" << p.first << "\n";);
         name & n = p.first;
         expr body = p.second;
+        vm_obj result = S.invoke(compiler_name, to_obj(p.second));
+        std::cout << "Running Lean code" << std::endl;
+        std::cout << to_string(result) << std::endl;
         compiler(n, body);
     }
 
@@ -534,7 +545,6 @@ void native_preprocess(environment const & env, declaration const & d, buffer<pa
     // Run the normal preprocessing and optimizations.
     preprocess(env, d, raw_procs);
 
-    // auto decl = env.get(name("id_opt"));
     // std::cout << "Found some user code:" << decl.get_value() << std::endl;
     // Run the native specific optimizations.
     for (auto proc : raw_procs) {
