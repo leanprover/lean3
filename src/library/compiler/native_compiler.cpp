@@ -114,16 +114,11 @@ class native_compiler_fn {
     }
 
     void compile_local(expr const & e, name_map<unsigned> const & m) {
-        // std::cout << mlocal_name(e) << std::endl;
-        // m.for_each([&] (name const & n, unsigned const & i) {
-        //    std::cout << n << " ======> " << i << std::endl;
-        // });
         unsigned idx = *m.find(mlocal_name(e));
         this->m_emitter.emit_local(idx);
     }
 
     void compile_cases_on(expr const & e, unsigned bpz, name_map<unsigned> const & m) {
-        // std::cout << "cases_on: " << e << std::endl;
         buffer<expr> args;
         expr fn = get_app_args(e, args);
         lean_assert(is_constant(fn));
@@ -325,7 +320,6 @@ class native_compiler_fn {
         // std::cout << "compile_app: " << fn << std::endl;
 
         if (is_return_expr(fn)) {
-            std::cout << "compile return" << std::endl;
             this->m_emitter.emit_return([&] () {
                 compile(args[0], bpz, m);
             });
@@ -350,16 +344,12 @@ class native_compiler_fn {
         } else if (
             (is_constant(fn) && get_vm_builtin_cases_idx(m_env, const_name(fn))) ||
             is_internal_cases(fn) || is_constant(fn, get_nat_cases_on_name())) {
-            std::cout << "compile cases on" << std::endl;
             compile_cases_on(e, bpz, m);
         } else if (is_internal_cnstr(fn)) {
-            std::cout << "internal cnstr" << std::endl;
             compile_cnstr(e, bpz, m);
         } else if (is_internal_proj(fn)) {
-            std::cout << "proj" << std::endl;
             compile_proj(e, bpz, m);
         } else {
-            std::cout << "fn_call" << std::endl;
             compile_fn_call(e, bpz, m);
         }
     }
@@ -396,7 +386,7 @@ class native_compiler_fn {
     }
 
     void compile(expr const & e, unsigned bpz, name_map<unsigned> const & m) {
-        std::cout << "compile: " << e << std::endl;
+        // std::cout << "compile: " << e << std::endl;
         switch (e.kind()) {
         case expr_kind::Var:      lean_unreachable();
         case expr_kind::Sort:     lean_unreachable();
@@ -444,8 +434,9 @@ public:
             if (get_vm_builtin_cases_idx(m_env, fn.first)) {
                 auto np = get_vm_builtin_internal_name(fn.first);
                 lean_assert(np);
-                this->m_emitter.emit_string("unsigned list_cases_on(lean::vm_obj const & o, buffer<lean::vm_obj> & data);\n");
-                // this->m_emitter.emit_prototype(fn.first, fn.second);
+                this->m_emitter.emit_string("unsigned ");
+                this->m_emitter.mangle_name(fn.first);
+                this->m_emitter.emit_string("(lean::vm_obj const & o, buffer<lean::vm_obj> & data);\n");
             } else {
                 this->m_emitter.emit_prototype(fn.first, fn.second);
             }
@@ -455,8 +446,6 @@ public:
     }
 
     void operator()(name const & n, expr e) {
-        // This is temporary hack, better way would be to annotate all
-        // terminating cf branches.
         buffer<expr> locals;
         buffer<unsigned> local_nums;
         unsigned bpz   = 0;
@@ -524,11 +513,9 @@ void native_compile(environment const & env,
 
     compiler.emit_main(procs);
 
-    std::cout << "about to execute compiler:" << std::endl;
     cpp_compiler gpp;
     std::string lean_install_path = get_install_path();
 
-    std::cout << "LEAN_INSTALL_PATH" << std::endl;
     gpp.include_path(lean_install_path + "include/lean_ext")
       .file("out.cpp")
       .file(lean_install_path + "lib/libleanstatic.a")
