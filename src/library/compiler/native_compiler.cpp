@@ -506,10 +506,12 @@ void native_compile(environment const & env,
         compiler.emit_prototype(p.first, p.second);
     }
 
-    auto compiler_name = name({"init", "backend", "compiler"});
+    auto compiler_name = name({"backend", "compiler"});
     auto cc = env.get(compiler_name);
-    auto new_env = vm_compile(env, cc);
-    vm_state S(new_env);
+    std::cout << cc.get_value() << std::endl;
+    vm_state S(env);
+
+    std::fstream lean_out_file("out.lean.cpp", std::ios_base::out);
 
     // Iterate each processed decl, emitting code for it.
     for (auto & p : procs) {
@@ -517,10 +519,12 @@ void native_compile(environment const & env,
         name & n = p.first;
         expr body = p.second;
         vm_obj result = S.invoke(compiler_name, to_obj(p.second));
-        std::cout << "Running Lean code" << std::endl;
-        std::cout << to_string(result) << std::endl;
+        lean_out_file << to_string(result) << std::endl;
         compiler(n, body);
     }
+
+    lean_out_file.flush();
+    lean_out_file.close();
 
     compiler.emit_main(procs);
 
