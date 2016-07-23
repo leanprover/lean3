@@ -66,6 +66,10 @@ namespace well_founded
   definition fix (Hwf : well_founded R) (F : Πx, (Πy, R y x → C y) → C x) (x : A) : C x :=
   fix_F F x (apply Hwf x)
 
+  -- Well-founded FO fixpoint
+  definition fixFO {B : Type} [Hwf : well_founded R] (F : Π x, (Π y, R y x -> B) -> B) (x : A) : B :=
+    @fix A (fun a, B) R Hwf F x
+
   -- Well-founded fixpoint satisfies fixpoint equation
   theorem fix_eq (Hwf : well_founded R) (F : Πx, (Πy, R y x → C y) → C x) (x : A) :
     fix Hwf F x = F x (λy h, fix Hwf F y) :=
