@@ -1,4 +1,7 @@
 prelude
+import init.meta.tactic
+import init.meta.simp_tactic
+import init.meta.defeq_simp_tactic
 import init.meta.expr
 import init.meta.unfold_tactic
 import init.monad
@@ -20,7 +23,7 @@ inductive doc :=
 | line : doc
 | group : doc → doc → doc
 
-definition doc_size : doc → nat
+definition doc_size [semireducible] : doc → nat
 | doc_size doc.nil := 1
 | doc_size (doc.append d1 d2) := 1 + doc_size d1 + doc_size d2
 | doc_size (doc.nest _ d) := 1 + doc_size d
@@ -106,11 +109,11 @@ meta_definition induction_on (target : induction_target) : tactic unit := do
 
 open tactic
 
-definition sum : list nat -> nat
+definition sum [reducible] : list nat -> nat
 | sum [] := 0
 | sum (x :: xs) := x + sum xs
 
-definition list_doc_measure : list (ℕ × doc) → nat :=
+definition list_doc_measure [reducible] : list (ℕ × doc) → nat :=
   fun xs, sum (list.map (fun x, doc_size (prod.pr2 x)) xs)
 
 definition fits (w : nat) : nat → simple_doc → bool
@@ -130,7 +133,7 @@ definition fits (w : nat) : nat → simple_doc → bool
 definition better (w k : nat) (x y : simple_doc) : simple_doc :=
   bool.cases_on (fits w k x) x y
 
-definition pair_list_doc_measure (p : nat × list (nat × doc)) : nat :=
+definition pair_list_doc_measure [reducible] (p : nat × list (nat × doc)) : nat :=
   list_doc_measure (prod.pr2 p)
 
 -- meta_definition compute : tactic unit :=
@@ -149,27 +152,28 @@ definition pair_list_doc_measure (p : nat × list (nat × doc)) : nat :=
 --     end
 --   end
 
--- definition be' (w : nat) (x : nat × list (nat × doc)) : simple_doc :=
---   well_founded.fixFO
---     (fun x,
---       prod.cases_on x
---         (fun k xs,
---           list.cases_on xs
---             (fun x, simple_doc.nil)
---             (fun h t,
---               (prod.cases_on h
---                 (fun i d,
---                   doc.cases_on d
---                     (fun (rec : Π y, nat.measure pair_list_doc_measure y _ -> simple_doc), rec ((k, t))
---                       (by do compute, unfold ["nat" <.> "measure", "inv_image", "backend" <.> "pair_list_doc_measure", "backend" <.> "list_doc_measure","nat" <.> "measure"], dsimp, return unit.star))
---                     (fun x y rec, rec (k, (i, x) :: (i, y) :: t) (by return unit.star))
---                     (fun j x rec, rec (k, (i + j, x) :: t) (by return unit.star))
---                     (fun s rec, simple_doc.text s (rec (k, t) (by return unit.star)))
---                     (fun rec, simple_doc.line i (rec (i, t) (by return unit.star)))
---                     (fun x y rec, better w k
---                       (rec (k, (i, x) :: t) (by return unit.star))
---                       (rec (k, (i, y) :: t) (by return unit.star))
---                       )))))) x
+definition be' (w : nat) (x : nat × list (nat × doc)) : simple_doc :=
+  well_founded.fixFO
+    (fun x,
+      prod.cases_on x
+        (fun k xs,
+          list.cases_on xs
+            (fun x, simple_doc.nil)
+            (fun h t,
+              (prod.cases_on h
+                (fun i d,
+                  doc.cases_on d
+                    (fun (rec : Π y, nat.measure pair_list_doc_measure y (k, (i, d) :: t) -> simple_doc), rec ((k, t))
+                      (by do return unit.star))
+                      -- compute, unfold ["nat" <.> "measure", "inv_image", "backend" <.> "pair_list_doc_measure", "backend" <.> "list_doc_measure","nat" <.> "measure"], dsimp, return unit.star))
+                    (fun x y rec, rec (k, (i, x) :: (i, y) :: t) (by return unit.star))
+                    (fun j x rec, rec (k, (i + j, x) :: t) (by return unit.star))
+                    (fun s rec, simple_doc.text s (rec (k, t) (by return unit.star)))
+                    (fun rec, simple_doc.line i (rec (i, t) (by return unit.star)))
+                    (fun x y rec, better w k
+                      (rec (k, (i, x) :: t) (by return unit.star))
+                      (rec (k, (i, y) :: t) (by return unit.star))
+                      )))))) x
 
 -- definition be (w k : nat) (l : list (nat × doc)) : simple_doc :=
 --   be' w (k, l)
