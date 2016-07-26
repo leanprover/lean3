@@ -39,7 +39,14 @@ namespace category
     : c ⟶ c' :=
   (to_fun_hom F)⁻¹ᶠ f
 
-  definition hom_inv_respect_comp (F : C ⇒ D) [H : fully_faithful F] (a b c : C)
+  definition hom_inv_respect_id (F : C ⇒ D) [H : fully_faithful F] (c : C) :
+    hom_inv F (ID (F c)) = id :=
+  begin
+    apply eq_of_fn_eq_fn' (to_fun_hom F),
+    exact !(right_inv (to_fun_hom F)) ⬝ !respect_id⁻¹,
+  end
+
+  definition hom_inv_respect_comp (F : C ⇒ D) [H : fully_faithful F] {a b c : C}
     (g : F b ⟶ F c) (f : F a ⟶ F b) : hom_inv F (g ∘ f) = hom_inv F g ∘ hom_inv F f :=
   begin
     apply eq_of_fn_eq_fn' (to_fun_hom F),

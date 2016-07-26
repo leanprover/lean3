@@ -381,6 +381,11 @@ namespace iso
   theorem eq_of_id_eq_comp_inverse (H : id = i ∘ q⁻¹) : q = i := (eq_of_comp_inverse_eq_id H⁻¹)⁻¹
   theorem eq_of_id_eq_inverse_comp (H : id = q⁻¹ ∘ i) : q = i := (eq_of_inverse_comp_eq_id H⁻¹)⁻¹
 
+  theorem inverse_comp_id_comp : q⁻¹ ∘ id ∘ q = id :=
+  ap (λ x, _ ∘ x) !id_left ⬝ !comp.left_inverse
+  theorem comp_id_comp_inverse : q ∘ id ∘ q⁻¹ = id :=
+  ap (λ x, _ ∘ x) !id_left ⬝ !comp.right_inverse
+
   variables (q)
   theorem comp.cancel_left  (H : q ∘ p = q ∘ p') : p = p' :=
   by rewrite [-inverse_comp_cancel_left q p, H, inverse_comp_cancel_left q]
