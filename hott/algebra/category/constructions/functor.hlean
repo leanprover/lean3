@@ -484,7 +484,7 @@ namespace functor
       → to_hom (k' a' h') ∘ to_fun_hom F f = to_hom (k' a h)}
   include c c' p k k' q
 
-  private definition essentially_surj_precomp_X_eq : X.mk c k @k_coh = X.mk c' k' @k'_coh :=
+  private definition X_eq : X.mk c k @k_coh = X.mk c' k' @k'_coh :=
   begin
     cases p,
     assert q' : k = k',
@@ -498,12 +498,12 @@ namespace functor
   end
 
   open prod.ops sigma.ops
-  private definition essentially_surj_precomp_X_prop [instance] :
+  private definition X_prop [instance] :
     is_prop (X b) :=
   begin
     induction He.2 b with Hb, cases Hb with a0 Ha0,
     fapply is_prop.mk, intros f g, cases f with cf kf kf_coh, cases g with cg kg kg_coh,
-    fapply essentially_surj_precomp_X_eq,
+    fapply X_eq,
     { apply eq_of_iso, apply iso.trans, apply iso.symm, apply kf a0 Ha0,
       apply kg a0 Ha0 },
     { intro a h,
@@ -520,7 +520,7 @@ namespace functor
       apply id_right },
   end
 
-  private definition essentially_surj_precomp_X_inh (b) : X b :=
+  private definition X_inh (b) : X b :=
   begin
     induction He.2 b with Hb, cases Hb with a0 Ha0,
     fconstructor, exact F a0,
@@ -533,9 +533,9 @@ namespace functor
       apply concat, apply !hom_inv_respect_comp⁻¹, apply ap (hom_inv H), 
       apply !assoc⁻¹ }
   end
-  local abbreviation G0 := λ (b), essentially_surj_precomp_X.c (essentially_surj_precomp_X_inh b)
-  local abbreviation k := λ b, essentially_surj_precomp_X.k (essentially_surj_precomp_X_inh b)
-  local abbreviation k_coh := λ b, @essentially_surj_precomp_X.k_coh b (essentially_surj_precomp_X_inh b)
+  local abbreviation G0 := λ (b), essentially_surj_precomp_X.c (X_inh b)
+  local abbreviation k := λ b, essentially_surj_precomp_X.k (X_inh b)
+  local abbreviation k_coh := λ b, @essentially_surj_precomp_X.k_coh b (X_inh b)
 
   structure essentially_surj_precomp_Y {b b' : carrier B} (f : hom b b') : Type :=
     (g : hom (G0 b) (G0 b'))
@@ -543,6 +543,7 @@ namespace functor
       to_hom (k b' a' h') ∘ to_fun_hom F l = g ∘ to_hom (k b a h))
   local abbreviation Y := @essentially_surj_precomp_Y
   local abbreviation Y.mk := @essentially_surj_precomp_Y.mk
+  local abbreviation Y.g := @essentially_surj_precomp_Y.g
 
   section
   variables {g : hom (G0 b) (G0 b')} {g' : hom (G0 b) (G0 b')} (p : g = g')
@@ -552,7 +553,7 @@ namespace functor
       to_hom (k b' a' h') ∘ to_fun_hom F l = g' ∘ to_hom (k b a h))
   include p
 
-  private definition essentially_surj_precomp_Y_eq : Y.mk g @Hg = Y.mk g' @Hg' :=
+  private definition Y_eq : Y.mk g @Hg = Y.mk g' @Hg' :=
   begin
     cases p, apply ap (Y.mk g'),
     apply is_prop.elim,
@@ -560,13 +561,13 @@ namespace functor
 
   end
 
-  private definition essentially_surj_precomp_Y_prop [instance] : is_prop (Y f) :=
+  private definition Y_prop [instance] : is_prop (Y f) :=
   begin
     induction He.2 b with Hb, cases Hb with a0 h0,
     induction He.2 b' with Hb', cases Hb' with a0' h0',
     fapply is_prop.mk, intros,
     cases x with g0 Hg0, cases y with g1 Hg1,
-    apply essentially_surj_precomp_Y_eq,
+    apply Y_eq,
     assert l0Hl0 : Σ l0 : hom a0 a0', to_hom h0' ∘ to_fun_hom H l0 = f ∘ to_hom h0,
     { fconstructor, apply hom_inv, apply He.1, exact to_hom h0'⁻¹ⁱ ∘ f ∘ to_hom h0,
       apply concat, apply ap (λ x, _ ∘ x), apply right_inv (to_fun_hom H),
@@ -576,7 +577,7 @@ namespace functor
     apply Hg1 h0 h0' l0Hl0.1 l0Hl0.2
   end
 
-  private definition essentially_surj_precomp_Y_inh : Y f :=
+  private definition Y_inh : Y f :=
   begin
     induction He.2 b with Hb, cases Hb with a0 h0,
     induction He.2 b' with Hb', cases Hb' with a0' h0',
@@ -615,11 +616,52 @@ namespace functor
       apply concat, apply assoc, apply ap (λ x, x ∘ _),
       apply k_coh, apply m'Hm'.2 }
   end
+ 
+  private definition G_hom [constructor] := λ {b b'} (f : hom b b'), Y.g (Y_inh f)
+  private definition G_hom_coh := λ {b b'} (f : hom b b'),
+    @essentially_surj_precomp_Y.Hg b b' f (Y_inh f)
+
+  open trunc
+  private definition G_hom_id (b : carrier B) : G_hom (ID b) = ID (G0 b) :=
+  begin
+    cases He with He1 He2,
+    esimp[G_hom, Y_inh],
+    induction He2 b with Hb, cases Hb with a h, --why do i need to destruct He?
+    apply concat, apply ap (λ x, _ ∘ x ∘ _),
+     apply concat, apply ap (to_fun_hom F),
+      apply concat, apply ap (hom_inv H), apply inverse_comp_id_comp,
+      apply hom_inv_respect_id,
+     apply respect_id,
+    apply comp_id_comp_inverse
+  end
+
+  private definition G_hom_comp {b0 b1 b2 : carrier B} (g : hom b1 b2) (f : hom b0 b1) :
+    G_hom (g ∘ f) = G_hom g ∘ G_hom f :=
+  begin
+    cases He with He1 He2,
+    esimp[G_hom, Y_inh],
+    induction He2 b0 with Hb0, cases Hb0 with a0 h0,
+    induction He2 b1 with Hb1, cases Hb1 with a1 h1,
+    induction He2 b2 with Hb2, cases Hb2 with b2 h2,
+    esimp,
+    refine !assoc ⬝ _ ⬝ !assoc⁻¹ ⬝ !assoc⁻¹, apply ap (λ x, x ∘ _),
+    apply inverse, apply concat, apply ap (λ x, x ∘ _),
+     apply concat, apply !assoc⁻¹, apply ap (λ x, _ ∘ x),
+     apply concat, apply !assoc⁻¹, apply ap (λ x, _ ∘ x), apply comp.left_inverse,
+    apply concat, apply !assoc⁻¹, apply ap (λ x, _ ∘ x),
+    apply concat, apply ap (λ x, x ∘ _), apply id_right,
+    apply concat, apply !respect_comp⁻¹, apply ap (to_fun_hom F),
+    apply concat, apply !hom_inv_respect_comp⁻¹, apply ap (hom_inv H),
+    apply concat, apply ap (λ x, x ∘ _), apply assoc,
+    apply concat, apply assoc,
+    apply concat, apply ap (λ x, x ∘ _), apply comp_inverse_cancel_right,
+    apply concat, apply !assoc⁻¹, apply ap (λ x, _ ∘ x),
+    apply assoc,
+  end
 
   definition essentially_surjective_precomposition_functor :
-    essentially_surjective (precomposition_functor E H) :=
+    essentially_surjective (precomposition_functor C H) :=
   begin
-   
     intro F, esimp,
   end
 
