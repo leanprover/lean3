@@ -8,7 +8,7 @@ Functor precategory and category
 
 import .opposite ..functor.attributes
 
-open eq category is_trunc nat_trans iso is_equiv category.hom
+open eq category is_trunc nat_trans iso is_equiv category.hom trunc
 
 namespace functor
 
@@ -484,7 +484,7 @@ namespace functor
       → to_hom (k' a' h') ∘ to_fun_hom F f = to_hom (k' a h)}
   include c c' p k k' q
 
-  private definition X_eq : X.mk c k @k_coh = X.mk c' k' @k'_coh :=
+  private theorem X_eq : X.mk c k @k_coh = X.mk c' k' @k'_coh :=
   begin
     cases p,
     assert q' : k = k',
@@ -498,8 +498,7 @@ namespace functor
   end
 
   open prod.ops sigma.ops
-  private definition X_prop [instance] :
-    is_prop (X b) :=
+  private theorem X_prop [instance] : is_prop (X b) :=
   begin
     induction He.2 b with Hb, cases Hb with a0 Ha0,
     fapply is_prop.mk, intros f g, cases f with cf kf kf_coh, cases g with cg kg kg_coh,
@@ -553,7 +552,7 @@ namespace functor
       to_hom (k b' a' h') ∘ to_fun_hom F l = g' ∘ to_hom (k b a h))
   include p
 
-  private definition Y_eq : Y.mk g @Hg = Y.mk g' @Hg' :=
+  private theorem Y_eq : Y.mk g @Hg = Y.mk g' @Hg' :=
   begin
     cases p, apply ap (Y.mk g'),
     apply is_prop.elim,
@@ -561,7 +560,7 @@ namespace functor
 
   end
 
-  private definition Y_prop [instance] : is_prop (Y f) :=
+  private theorem Y_prop [instance] : is_prop (Y f) :=
   begin
     induction He.2 b with Hb, cases Hb with a0 h0,
     induction He.2 b' with Hb', cases Hb' with a0' h0',
@@ -621,11 +620,9 @@ namespace functor
   private definition G_hom_coh := λ {b b'} (f : hom b b'),
     @essentially_surj_precomp_Y.Hg b b' f (Y_inh f)
 
-  open trunc
-  private definition G_hom_id (b : carrier B) : G_hom (ID b) = ID (G0 b) :=
+  private theorem G_hom_id (b : carrier B) : G_hom (ID b) = ID (G0 b) :=
   begin
-    cases He with He1 He2,
-    esimp[G_hom, Y_inh],
+    cases He with He1 He2, esimp[G_hom, Y_inh],
     induction He2 b with Hb, cases Hb with a h, --why do i need to destruct He?
     apply concat, apply ap (λ x, _ ∘ x ∘ _),
      apply concat, apply ap (to_fun_hom F),
@@ -635,16 +632,17 @@ namespace functor
     apply comp_id_comp_inverse
   end
 
-  private definition G_hom_comp {b0 b1 b2 : carrier B} (g : hom b1 b2) (f : hom b0 b1) :
+  private theorem G_hom_comp {b0 b1 b2 : carrier B} (g : hom b1 b2) (f : hom b0 b1) :
     G_hom (g ∘ f) = G_hom g ∘ G_hom f :=
   begin
-    cases He with He1 He2,
-    esimp[G_hom, Y_inh],
+    cases He with He1 He2, esimp[G_hom, Y_inh],
     induction He2 b0 with Hb0, cases Hb0 with a0 h0,
     induction He2 b1 with Hb1, cases Hb1 with a1 h1,
     induction He2 b2 with Hb2, cases Hb2 with b2 h2,
-    esimp,
-    refine !assoc ⬝ _ ⬝ !assoc⁻¹ ⬝ !assoc⁻¹, apply ap (λ x, x ∘ _),
+    apply concat, apply assoc,
+    apply concat, rotate 1, apply !assoc⁻¹,
+    apply concat, rotate 1, apply !assoc⁻¹,
+    apply ap (λ x, x ∘ _),
     apply inverse, apply concat, apply ap (λ x, x ∘ _),
      apply concat, apply !assoc⁻¹, apply ap (λ x, _ ∘ x),
      apply concat, apply !assoc⁻¹, apply ap (λ x, _ ∘ x), apply comp.left_inverse,
@@ -659,13 +657,52 @@ namespace functor
     apply assoc,
   end
 
-  definition essentially_surjective_precomposition_functor :
-    essentially_surjective (precomposition_functor C H) :=
+  private definition G_functor : B ⇒ C :=
   begin
-    intro F, esimp,
+    fconstructor,
+    { exact G0 },
+    { intro b b' f, exact G_hom f },
+    { intro b, apply G_hom_id },
+    { intro a b c g f, apply G_hom_comp }
   end
 
+  private theorem G0_H_eq_F (a0 : carrier A) : G0 (H a0) = F a0 :=
+  begin
+    apply concat, apply ap essentially_surj_precomp_X.c, apply is_prop.elim,
+    fconstructor,
+    { apply F a0 },
+    { intro a h, apply to_fun_iso F, apply reflect_iso, apply He.1, exact h },
+    { intro a a' h h' f l, esimp, 
+      apply concat, apply !respect_comp⁻¹, apply ap (to_fun_hom F), apply inverse,
+      apply concat, apply ap (hom_inv H) l⁻¹,
+      apply concat, apply hom_inv_respect_comp, apply ap (λ x, _ ∘ x), apply left_inv },
+    reflexivity
+  end
+
+  private theorem G_hom_H_eq_F {a0 a0' : carrier A} (f0 : hom a0 a0') :
+    hom_of_eq (G0_H_eq_F a0') ∘ G_hom (to_fun_hom H f0) ∘ inv_of_eq (G0_H_eq_F a0) 
+    = to_fun_hom F f0 :=
+  begin
+    apply comp_eq_of_eq_inverse_comp, apply comp_inverse_eq_of_eq_comp,
+    apply concat, apply ap essentially_surj_precomp_Y.g, apply is_prop.elim,
+    fconstructor,
+    { exact (inv_of_eq (G0_H_eq_F a0') ∘ to_fun_hom F f0) ∘ hom_of_eq (G0_H_eq_F a0) },
+    { intros a a' h h' f l, },
+    reflexivity
+  end
+  check k_coh
+
   end essentially_surjective_precomposition
+
+  definition essentially_surjective_precomposition_functor {A B : Precategory}
+    (C : Category) (H : A ⇒ B) [He : is_weak_equivalence H] :
+    essentially_surjective (precomposition_functor C H) :=
+  begin
+    intro F, apply tr, fconstructor, apply G_functor F,
+    apply iso_of_eq, fapply functor_eq,
+    { intro a, esimp[G_functor], exact G0_H_eq_F F a },
+    { intro a b f, exact G_hom_H_eq_F F f }
+  end
 
   variables {C D E : Precategory}
 
