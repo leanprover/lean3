@@ -140,12 +140,12 @@ take y, quot.induction_on y (λ a, exists.intro a rfl)
 variable {H}
 
 proposition quotient_induction {P : quotient H → Prop} (h : ∀ a, P (a '* H)) : ∀ a, P a :=
-surjective_induction (surjective_qproj H) h
+quot.ind h
 
 proposition quotient_induction₂ {P : quotient H → quotient H → Prop}
     (h : ∀ a₁ a₂, P (a₁ '* H) (a₂ '* H)) :
   ∀ a₁ a₂, P a₁ a₂ :=
-surjective_induction₂ (surjective_qproj H) h
+quot.ind₂ h
 
 variable (H)
 

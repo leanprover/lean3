@@ -11,7 +11,7 @@ For notation a^b and S^a, open the namespace "conj_notation".
 
 TODO: homomorphisms on sets should be refactored and moved to algebra.
 -/
-import data.set algebra.homomorphism theories.topology.basic theories.move
+import data.set algebra.homomorphism theories.move
 open eq.ops set function
 
 namespace group_theory
