@@ -2083,12 +2083,16 @@ optional<name> type_context::is_class(expr const & type) {
     return is_full_class(type);
 }
 
-bool type_context::compatible_local_instances(bool frozen_only) {
+local_context const & type_context::initial_lctx() const {
+    return m_cache.m_init_local_context;
+}
+
+bool type_context::compatible_local_instances(local_context const & lctx, bool frozen_only) {
     unsigned i  = 0;
     bool failed = false;
-    m_cache.m_init_local_context.for_each([&](local_decl const & decl) {
+    lctx.for_each([&](local_decl const & decl) {
             if (failed) return;
-            if (frozen_only && !m_cache.m_init_local_context.is_frozen(decl.get_name()))
+            if (frozen_only && !lctx.is_frozen(decl.get_name()))
                 return;
             if (auto cname = is_class(decl.get_type())) {
                 if (i == m_cache.m_local_instances.size()) {
@@ -2107,6 +2111,10 @@ bool type_context::compatible_local_instances(bool frozen_only) {
     return !failed && i == m_cache.m_local_instances.size();
 }
 
+bool type_context::cache_compatible_local_instances(bool frozen_only) {
+    return compatible_local_instances(m_cache.m_init_local_context, frozen_only);
+}
+
 void type_context::set_local_instances() {
     m_cache.m_instance_cache.clear();
     m_cache.m_subsingleton_cache.clear();
@@ -2123,11 +2131,11 @@ void type_context::init_local_instances() {
         lean_assert(m_cache.m_local_instances_initialized);
         /* Check if the local instances are really compatible.
            See comment at type_context_cache. */
-        lean_cond_assert("type_context", compatible_local_instances(true));
+        lean_cond_assert("type_context", cache_compatible_local_instances(true));
     } else if (!m_cache.m_local_instances_initialized) {
         /* default type class resolution mode */
         bool frozen_only = false;
-        if (!compatible_local_instances(frozen_only)) {
+        if (!cache_compatible_local_instances(frozen_only)) {
             set_local_instances();
         }
         m_cache.m_local_instances_initialized = true;

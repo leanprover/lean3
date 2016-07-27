@@ -456,11 +456,14 @@ private:
     optional<name> constant_is_class(expr const & e);
     optional<name> is_full_class(expr type);
     lbool is_quick_class(expr const & type, name & result);
-    bool compatible_local_instances(bool frozen_only);
+    bool cache_compatible_local_instances(bool frozen_only);
     void set_local_instances();
     void init_local_instances();
 
 public:
+    local_context const & initial_lctx() const;
+    bool compatible_local_instances(local_context const & lctx, bool frozen_only = false);
+
     /* Helper class for creating pushing local declarations into the local context m_lctx */
     class tmp_locals {
         type_context & m_ctx;
