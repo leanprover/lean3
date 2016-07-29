@@ -113,7 +113,7 @@ definition sum [reducible] : list nat -> nat
 | sum [] := 0
 | sum (x :: xs) := x + sum xs
 
-definition list_doc_measure [reducible] : list (ℕ × doc) → nat :=
+definition list_doc_measure : list (ℕ × doc) → nat :=
   fun xs, sum (list.map (fun x, doc_size (prod.pr2 x)) xs)
 
 definition fits (w : nat) : nat → simple_doc → bool
@@ -133,7 +133,7 @@ definition fits (w : nat) : nat → simple_doc → bool
 definition better (w k : nat) (x y : simple_doc) : simple_doc :=
   bool.cases_on (fits w k x) x y
 
-definition pair_list_doc_measure [reducible] (p : nat × list (nat × doc)) : nat :=
+definition pair_list_doc_measure (p : nat × list (nat × doc)) : nat :=
   list_doc_measure (prod.pr2 p)
 
 -- meta_definition compute : tactic unit :=
@@ -152,8 +152,27 @@ definition pair_list_doc_measure [reducible] (p : nat × list (nat × doc)) : na
 --     end
 --   end
 
+definition docpair_wf [instance] : well_founded (nat.measure pair_list_doc_measure) :=
+  nat.measure.wf pair_list_doc_measure
+
+check list.map
+
+theorem tail_measure_always_lt_list :
+  forall x xs k, nat.measure pair_list_doc_measure (k, xs) (k, x :: xs) :=
+by do
+intro `x,
+intro `xs,
+induction_on `xs,
+intros,
+unfold [`backend.pair_list_doc_measure, `nat.measure, `inv_image, `backend.list_doc_measure],
+unfold [`backend.doc_size],
+unfold [`init.list.map],
+dsimp,
+return unit.star
+
+
 definition be' (w : nat) (x : nat × list (nat × doc)) : simple_doc :=
-  well_founded.fixFO
+  well_founded.fix
     (fun x,
       prod.cases_on x
         (fun k xs,
