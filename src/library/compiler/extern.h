@@ -25,3 +25,5 @@ void for_each_extern(environment const & env, std::function<void(name const &, e
 
 void initialize_extern();
 void finalize_extern();
+
+}

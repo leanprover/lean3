@@ -13,6 +13,7 @@ Author: Leonardo de Moura
 #include "library/compiler/simp_inductive.h"
 #include "library/compiler/vm_compiler.h"
 #include "library/compiler/native_compiler.h"
+#include "library/compiler/extern.h"
 
 namespace lean {
 void initialize_compiler_module() {

@@ -21,7 +21,6 @@ add_library(library OBJECT deep_copy.cpp expr_lt.cpp io_state.cpp
   unifier.cpp class_instance_resolution.cpp old_type_context.cpp
   legacy_type_context.cpp old_type_checker.cpp old_converter.cpp old_default_converter.cpp
   old_util.cpp old_local_context.cpp choice_iterator.cpp
-  extern.cpp old_tmp_type_context.cpp
 
   # light_lt_manager.cpp
   # proof_irrel_expr_manager.cpp

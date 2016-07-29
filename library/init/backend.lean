@@ -162,19 +162,18 @@ definition docpair_wf [instance] : well_founded (nat.measure pair_list_doc_measu
 --   forall A B (f : A -> B), list.map f [] = [] :=
 --   by do intros, return unit.star
 
-theorem tail_measure_always_lt_list :
-  forall x xs k, nat.measure pair_list_doc_measure (k, xs) (k, x :: xs) :=
-by do
-intro `x,
-intro `xs,
-induction_on `xs,
-intros,
-unfold [`backend.pair_list_doc_measure, `nat.measure, `inv_image, `backend.list_doc_measure],
-unfold [`backend.doc_size],
-unfold [`init.list.map],
-dsimp,
-return unit.star
-
+-- theorem tail_measure_always_lt_list :
+--   forall x xs k, nat.measure pair_list_doc_measure (k, xs) (k, x :: xs) :=
+-- by do
+-- intro `x,
+-- intro `xs,
+-- induction_on `xs,
+-- intros,
+-- unfold [`backend.pair_list_doc_measure, `nat.measure, `inv_image, `backend.list_doc_measure],
+-- unfold [`backend.doc_size],
+-- unfold [`init.list.map],
+-- dsimp,
+-- return unit.star
 
 -- definition be' (w : nat) (x : nat × list (nat × doc)) : simple_doc :=
 --   well_founded.fix
