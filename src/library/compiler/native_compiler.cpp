@@ -28,7 +28,7 @@ Author: Jared Roesch and Leonardo de Moura
 #include "config.h"
 #include "cpp_emitter.h"
 #include "used_names.h"
-#include "library/extern.h"
+#include "library/compiler/extern.h"
 #include "library/vm/vm.h"
 #include <sys/types.h>
 #include <sys/stat.h>

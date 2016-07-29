@@ -19,7 +19,7 @@ namespace lean  {
     public:
         std::fstream * m_output_stream;
 
-        cpp_emitter(std::string path) : m_output_stream(nullptr), m_width(0) {
+        cpp_emitter(std::string path) : m_width(0), m_output_stream(nullptr) {
             this->m_output_stream =
                 new std::fstream(path.c_str(), std::ios_base::out);
         }
@@ -60,9 +60,10 @@ namespace lean  {
             this->emit_indented_line("lean::scope_vm_state scoped(S);");
             this->emit_indented_line("g_env = &env;");
             this->emit_indented("lean::invoke(");
-            emit_mk_native_closure(lean_main, 0, nullptr, [&] (expr const & e) {});
+            emit_mk_native_closure(lean_main, 0, nullptr, [&] (expr const &) {});
             *this->m_output_stream << ", lean::mk_vm_simple(0));\n" << "return 0;\n}" << std::endl;
         }
+
         void emit_prototype(name const & n, unsigned arity);
         void emit_indented(const char * str);
         void emit_string(const char * str);

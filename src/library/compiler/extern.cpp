@@ -10,7 +10,7 @@ Author: Jared Roesch
 #include "kernel/type_checker.h"
 #include "library/trace.h"
 #include "library/scoped_ext.h"
-#include "library/extern.h"
+#include "library/compiler/extern.h"
 #include "library/attribute_manager.h"
 
 namespace lean {
@@ -33,9 +33,6 @@ namespace lean {
         else
             return extern_status::NotExternal;
     }
-
-    static name * g_class_name = nullptr;
-    static std::string * g_key = nullptr;
 
     struct extern_config {
         typedef extern_state  state;
@@ -64,33 +61,6 @@ namespace lean {
     };
 
     typedef scoped_ext<extern_config> extern_ext;
-    typedef scoped_ext<extern_config> extern_ext;
-
-    void initialize_simp_lemmas() {
-        g_class_name    = new name("simp");
-        g_key           = new std::string("SIMP");
-        simp_ext::initialize();
-
-        register_prio_attribute("simp", "simplification lemma",
-                                add_simp_lemma,
-                                is_simp_lemma,
-                                [](environment const & env, name const & d) {
-                                    if (auto p = simp_ext::get_state(env).m_simp_lemmas.get_prio(d))
-                                        return *p;
-                                    else
-                                        return LEAN_DEFAULT_PRIORITY;
-                                });
-
-        register_prio_attribute("congr", "congruence lemma",
-                                add_congr_lemma,
-                                is_congr_lemma,
-                                [](environment const & env, name const & d) {
-                                    if (auto p = simp_ext::get_state(env).m_congr_lemmas.get_prio(d))
-                                        return *p;
-                                    else
-                                        return LEAN_DEFAULT_PRIORITY;
-                                });
-    }
 
     void initialize_extern() {
         g_class_name = new name("extern");
@@ -100,8 +70,7 @@ namespace lean {
         register_attribute("extern", "external function",
                            [](environment const & env, io_state const &, name const & d, name const & ns, bool persistent) {
                                return set_extern(env, d, extern_status::External, ns, persistent);
-                           },
-                           [](environment const & env, name const & d) {
+                           }, [](environment const & env, name const & d) {
                                return get_extern_status(env, d) == extern_status::External;
                            });
     }
@@ -132,5 +101,4 @@ namespace lean {
     //         return get_status(m_state, n) != extern_status::External;
     //     };
     // }
-    }
 }
