@@ -70,10 +70,25 @@ environment add_transient_decl_pos_info(environment const & env, name const & de
 void export_module(std::ostream & out, environment const & env);
 std::vector<task_result<expr>> export_module_delayed(std::ostream & out, environment const & env);
 
+<<<<<<< HEAD
 std::pair<std::vector<module_name>, std::vector<char>> parse_olean(
         std::istream & in, std::string const & file_name, bool check_hash = true);
 void import_module(std::vector<char> const & olean_code, std::string const & file_name, environment & env,
                    std::vector<task_result<expr>> const & delayed_proofs);
+=======
+/** \brief Export module obtained from \c env as native code to the output stream \c out. */
+void export_native_module(std::ostream & out, environment const & env);
+
+/** \brief An asynchronous update. It goes into a task queue, and can be executed by a different execution thread. */
+typedef std::function<void(shared_environment & env)> asynch_update_fn;
+
+/** \brief Delayed update. It is performed after all imported modules have been loaded.
+    The delayes updates are executed based on the import order.
+    Example: if module A was imported before B, then delayed updates from A
+    are executed before the ones from B.
+*/
+typedef std::function<environment(environment const & env, io_state const & ios)> delayed_update_fn;
+>>>>>>> feat(src/library/module): add scaffolding for native code export
 
 /** \brief A reader for importing data from a stream using deserializer \c d.
     There is one way to update the environment being constructed.

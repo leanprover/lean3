@@ -117,6 +117,7 @@ static struct option g_long_options[] = {
     {"path",         no_argument,       0, 'p'},
     {"githash",      no_argument,       0, 'g'},
     {"make",         no_argument,       0, 'm'},
+    {"native",       required_argument, 0, 'n'},
     {"export",       required_argument, 0, 'E'},
     {"export-all",   required_argument, 0, 'A'},
     {"memory",       required_argument, 0, 'M'},
@@ -520,6 +521,11 @@ int main(int argc, char ** argv) {
             exclusive_file_lock output_lock(output);
             std::ofstream out(output, std::ofstream::binary);
             }
+        }
+        if (export_native_objects && ok && default_k == input_kind::Lean) {
+            exclusive_file_lock output_lock(native_output);
+            std::ofstream out(native_output, std::ofstream::binary);
+            export_native_module(out, env);
         }
 
         if (export_txt && !mods.empty()) {
