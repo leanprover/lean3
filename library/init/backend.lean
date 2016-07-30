@@ -2,6 +2,7 @@ prelude
 import init.meta.tactic
 import init.meta.simp_tactic
 import init.meta.defeq_simp_tactic
+import init.meta.rewrite_tactic
 import init.meta.expr
 import init.meta.unfold_tactic
 import init.monad
@@ -10,6 +11,7 @@ import init.combinator
 import init.wf
 import init.relation
 import init.meta.injection_tactic
+import init.measurable
 import init.applicative
 
 namespace backend
@@ -76,40 +78,6 @@ definition layout : simple_doc → string
 
 definition group (d : doc) := doc.group (flatten d) d
 
-inductive induction_target :=
-| expr : expr -> induction_target
-| name : name → induction_target
-
-definition expr_to_induction_target [coercion] (e : expr) : induction_target :=
-  induction_target.expr e
-
-definition name_to_induction_target [coercion] (n : name) : induction_target :=
-  induction_target.name n
-
-definition string_to_induction_target [coercion] (s : string) : induction_target :=
-  induction_target.name s
-
-meta_definition induction_on (target : induction_target) : tactic unit := do
-  H <- (match target with | induction_target.name n := tactic.get_local n
-                          | induction_target.expr e := return e
-                          end),
-  t <- tactic.infer_type H,
-  let type_sym := expr.get_app_fn t in
-  let type_name := expr.const_name type_sym in
-  tactic.induction_core tactic.transparency.semireducible H (type_name <.> "rec_on") ["x1", "x2"]
-
--- meta_definition mk_const_motif (t : expr) (n : name) : tactic expr :=
---   pure (expr.lam "a" binder_info.default t) <*> (tactic.mk_const n)
-
--- definition be (w : nat) (thing : nat × list (nat × doc)) : simple_doc :=
---   by do tactic.intros,
---         let A := tactic.mk_const "doc" in
---         motif <- mk_const_motif A (tactic.mk_const "simple_doc") in
---         tactic.mk_mapp ("well_founded" <.> "recursion") [some A, none, some motif, none, none, none] >>= tactic.fapply,
---         return unit.star
-
-open tactic
-
 definition sum [reducible] : list nat -> nat
 | sum [] := 0
 | sum (x :: xs) := x + sum xs
@@ -137,66 +105,50 @@ definition better (w k : nat) (x y : simple_doc) : simple_doc :=
 definition pair_list_doc_measure (p : nat × list (nat × doc)) : nat :=
   list_doc_measure (prod.pr2 p)
 
--- meta_definition compute : tactic unit :=
--- by do
---   tgt <- target,
---   match expr.is_app tgt with
---   | bool.ff := return unit.star
---   | bool.tt :=
---     let fn := expr.app_fn tgt
---     in match expr.is_constant fn with
---     | bool.ff := return unit.star
---     | bool.tt := do
---       unfold [expr.const_name fn],
---       dsimp,
---       return unit.star
---     end
---   end
-
 definition docpair_wf [instance] : well_founded (nat.measure pair_list_doc_measure) :=
   nat.measure.wf pair_list_doc_measure
 
--- check list.map
+-- definition is_simple (d : doc) : Prop :=
+--   match d with
+--   | doc.nil := true
+--   | doc.text _ := true
+--   | doc.line := true
+--   | _ := false
+--   end
 
--- theorem simp_rule :
---   forall A B (f : A -> B), list.map f [] = [] :=
---   by do intros, return unit.star
+-- -- Ideally use wf-recursion to keep the implmentation clean, and generate good code for it.
+-- definition be_flatten (n : nat) (d : doc) :  subtype is_simple (list (nat × doc)) :=
+--   match d with
+--   | doc.nil := []
+--   | (doc.append d1 d2) := be' k i d1 ++ be' k i d2
+--   | (doc.nest j d) := be' k (i + j) d
+--   | (doc.text s) := simple.doc s
+--   | (doc.line) :=
+--   | (doc.union d1 d2) := (k, [])
+--   end
 
--- theorem tail_measure_always_lt_list :
---   forall x xs k, nat.measure pair_list_doc_measure (k, xs) (k, x :: xs) :=
--- by do
--- intro `x,
--- intro `xs,
--- induction_on `xs,
--- intros,
--- unfold [`backend.pair_list_doc_measure, `nat.measure, `inv_image, `backend.list_doc_measure],
--- unfold [`backend.doc_size],
--- unfold [`init.list.map],
--- dsimp,
--- return unit.star
+-- definition be' (w : nat) : nat × list (nat × doc) -> simple_doc :=
 
--- definition be' (w : nat) (x : nat × list (nat × doc)) : simple_doc :=
---   well_founded.fix
---     (fun x,
---       prod.cases_on x
---         (fun k xs,
---           list.cases_on xs
---             (fun x, simple_doc.nil)
---             (fun h t,
---               (prod.cases_on h
---                 (fun i d,
---                   doc.cases_on d
---                     (fun (rec : Π y, nat.measure pair_list_doc_measure y (k, (i, d) :: t) -> simple_doc), rec ((k, t))
---                       (by do return unit.star))
---                       -- compute, unfold ["nat" <.> "measure", "inv_image", "backend" <.> "pair_list_doc_measure", "backend" <.> "list_doc_measure","nat" <.> "measure"], dsimp, return unit.star))
---                     (fun x y rec, rec (k, (i, x) :: (i, y) :: t) (by return unit.star))
---                     (fun j x rec, rec (k, (i + j, x) :: t) (by return unit.star))
---                     (fun s rec, simple_doc.text s (rec (k, t) (by return unit.star)))
---                     (fun rec, simple_doc.line i (rec (i, t) (by return unit.star)))
---                     (fun x y rec, better w k
---                       (rec (k, (i, x) :: t) (by return unit.star))
---                       (rec (k, (i, y) :: t) (by return unit.star))
---                       )))))) x
+  -- well_founded.fix
+  --   (fun x,
+  --     prod.cases_on x
+  --       (fun k xs,
+  --         list.cases_on xs
+  --           (fun x, simple_doc.nil)
+  --           (fun h t,
+  --             (prod.cases_on h
+  --               (fun i d,
+  --                 doc.cases_on d
+  --                   (fun (rec : Π y, nat.measure pair_list_doc_measure y (k, (i, d) :: t) -> simple_doc), rec ((k, t))
+  --                     (by sorry))
+  --                   (fun x y rec, rec (k, (i, x) :: (i, y) :: t) (by sorry))
+  --                   (fun j x rec, rec (k, (i + j, x) :: t) (by sorry))
+  --                   (fun s rec, simple_doc.text s (rec (k, t) (by sorry)))
+  --                   (fun rec, simple_doc.line i (rec (i, t) (by sorry)))
+  --                   (fun x y rec, better w k
+  --                     (rec (k, (i, x) :: t) (by sorry))
+  --                     (rec (k, (i, y) :: t) (by sorry)))
+  --                     ))))) x
 
 -- definition be (w k : nat) (l : list (nat × doc)) : simple_doc :=
 --   be' w (k, l)
@@ -206,7 +158,6 @@ definition docpair_wf [instance] : well_founded (nat.measure pair_list_doc_measu
 -- definition best (w k : nat) (d : doc) : simple_doc :=
 --    be w k [(0, x)]
 
-meta_definition compiler (e : expr) : string :=
-   to_string e
+meta_definition compiler (e : expr) : string := to_string e
 
 end backend
