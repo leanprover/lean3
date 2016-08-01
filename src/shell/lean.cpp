@@ -175,7 +175,7 @@ static struct option g_long_options[] = {
     {"discard",      no_argument,       0, 'r'},
     {"to_axiom",     no_argument,       0, 'X'},
     {"profile",      no_argument,       0, 'P'},
-    {"compile",      required_argument, 0, 'C'},
+    {"compile",      optional_argument, 0, 'C'},
     // {"main_fn",      required_argument, 0, 'M'}, optional_arg?
 #if defined(LEAN_MULTI_THREAD)
     {"server",       no_argument,       0, 'S'},
@@ -336,7 +336,7 @@ int main(int argc, char ** argv) {
             export_objects = true;
             break;
         case 'n':
-            native_output  = optarg;
+            native_output         = optarg;
             export_native_objects = true;
             break;
         case 'c':

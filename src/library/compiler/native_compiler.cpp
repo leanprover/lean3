@@ -541,6 +541,10 @@ void native_compile(environment const & env,
       .run();
 }
 
+void native_compile_module(environment const & env, config & conf, buffer<declaration> decls) {
+    std::cout << "compiled native module" << std::endl;
+}
+
 void native_preprocess(environment const & env, declaration const & d, buffer<pair<name, expr>> & procs) {
     lean_trace(name("native_compiler"),
       tout() << "native_preprocess:" << d.get_name() << "\n";);

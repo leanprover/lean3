@@ -29,6 +29,9 @@ Author: Leonardo de Moura
 #include "library/constants.h"
 #include "library/kernel_serializer.h"
 #include "library/unfold_macros.h"
+#include "library/compiler/config.h"
+#include "library/compiler/native_compiler.h"
+#include "library/vm/vm.h"
 #include "version.h"
 
 #ifndef LEAN_ASYNCH_IMPORT_THEOREM
@@ -169,39 +172,28 @@ void export_module(std::ostream & out, environment const & env) {
 }
 
 void export_native_module(std::ostream & out, environment const & env) {
-    std::cout << "exporting native module!" << std::endl;
-    // module_ext const & ext = get_extension(env);
-    // buffer<module_name> imports;
-    // buffer<writer const *> writers;
-    // to_buffer(ext.m_direct_imports, imports);
-    // std::reverse(imports.begin(), imports.end());
-    // for (writer const & w : ext.m_writers)
-    //     writers.push_back(&w);
-    // std::reverse(writers.begin(), writers.end());
-    //
-    // std::ostringstream out1(std::ios_base::binary);
-    // serializer s1(out1);
-    //
-    // // store objects
-    // for (auto p : writers) {
-    //     s1 << p->first;
-    //     p->second(env, s1);
-    // }
-    // s1 << g_olean_end_file;
-    //
-    // serializer s2(out);
-    // std::string r = out1.str();
-    // unsigned h    = hash(r.size(), [&](unsigned i) { return r[i]; });
-    // s2 << g_olean_header << LEAN_VERSION_MAJOR << LEAN_VERSION_MINOR << LEAN_VERSION_PATCH;
-    // s2 << h;
-    // // store imported files
-    // s2 << imports.size();
-    // for (auto m : imports)
-    //     s2 << m;
-    // // store object code
-    // s2.write_unsigned(r.size());
-    // for (unsigned i = 0; i < r.size(); i++)
-    //     s2.write_char(r[i]);
+    module_ext const & ext = get_extension(env);
+    buffer<declaration> decls;
+
+    // Collect all the declarations that should be compiled for this module.
+    for (auto decl_name : ext.m_module_decls) {
+        auto decl = env.get(decl_name);
+        if (is_noncomputable(env, decl_name) ||
+            !decl.is_definition() ||
+            is_vm_builtin_function(decl_name)) {
+                return;
+        } else {
+            std::cout << decl.get_name() << std::endl;
+            decls.push_back(decl);
+        }
+    }
+
+    // Fix this ...
+    config module_conf(
+        optional<std::string>(std::string("belh")),
+        optional<std::string>(std::string("belh")));
+
+    native_compile_module(env, module_conf, decls);
 }
 
 typedef std::unordered_map<std::string, module_object_reader> object_readers;
