@@ -5,7 +5,10 @@ Released under Apache 2.0 license as described in the file LICENSE.
 Author: Jared Roesch
 */
 
+#include <string>
 #include "dynamic_loader.h"
+
+namespace lean {
 
 dynamic_library::dynamic_library(std::string library_path):
 m_name(library_path), m_handle(nullptr) {
@@ -28,10 +31,13 @@ dynamic_library::~dynamic_library() {
 
 dynamic_symbol dynamic_library::symbol(std::string name) {
     auto sym = dlsym(m_handle, name.c_str());
+
     if (sym == nullptr) {
         auto last_error_msg = dlerror();
         throw dynamic_linking_exception(std::string(last_error_msg));
     }
+
+    return sym;
 }
 
 }
