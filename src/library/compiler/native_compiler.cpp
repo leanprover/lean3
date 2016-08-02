@@ -477,6 +477,7 @@ public:
         }
         this->m_emitter.emit_string("}\n\n");
 
+        this->m_emitter.emit_string("extern \"C\" {\n");
         for (auto fn : rest) {
             if (get_vm_builtin_cases_idx(m_env, fn.m_name)) {
                 auto np = get_vm_builtin_internal_name(fn.m_name);
@@ -487,8 +488,8 @@ public:
             } else {
                 this->m_emitter.emit_prototype(fn.m_name, fn.m_arity);
             }
-
         }
+        this->m_emitter.emit_string("}\n\n");
     }
 
     void operator()(name const & n, expr e) {
