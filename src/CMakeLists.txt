@@ -235,6 +235,14 @@ else()
     set(EXTRA_LIBS ${EXTRA_LIBS} ${GMP_LIBRARIES})
 endif()
 
+# DL
+set(EXTRA_LIBS ${EXTRA_LIBS} dl)
+
+# TRACK_MEMORY_USAGE
+if(TRACK_MEMORY_USAGE)
+  set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -D LEAN_TRACK_MEMORY")
+endif()
+
 # jemalloc
 if(JEMALLOC)
   find_package(Jemalloc)

@@ -6,6 +6,7 @@ Author: Jared Roesch
 */
 
 #pragma once
+#include <stdexcept>
 #include <dlfcn.h>
 
 namespace lean {
