@@ -51,25 +51,25 @@ definition upcast [reducible] (t : type) : type :=
   | _ := t
   end
 
-constant upcast_value {T U : type} (p : ptr T) : ptr U
+-- constant upcast_value {T U : type} (p : ptr T) : ptr U
 
-definition to_cstring (s : string) : IO (ptr cstring) := do
-  str <- new (array (list.length s) base_type.char),
-  return (upcast_value str)
+-- definition to_cstring (s : string) : IO (ptr cstring) := do
+--   str <- new (array (list.length s) base_type.char),
+--   return (upcast_value str)
 
-definition extern_fn_type (ret : type) : list type -> Type
-| extern_fn_type [] := IO (ptr ret)
-| extern_fn_type (arg :: args) := ptr arg -> extern_fn_type args
+-- definition extern_fn_type (ret : type) : list type -> Type
+-- | extern_fn_type [] := IO (ptr ret)
+-- | extern_fn_type (arg :: args) := ptr arg -> extern_fn_type args
 
-constant call {s : string} {ts : list type} {ret : type} : extern_fn s ts ret → extern_fn_type ret ts
+-- constant call {s : string} {ts : list type} {ret : type} : extern_fn s ts ret → extern_fn_type ret ts
 
-definition read_file (s : string) : IO string := do
-  fname <- to_cstring s,
-  call extern_read_file fname,
-  return "foo"
+-- definition read_file (s : string) : IO string := do
+--   fname <- to_cstring s,
+--   call extern_read_file fname,
+--   return "foo"
 
-definition main := do
-  fd <- call open_file 
+-- definition main := do
+--   fd <- call open_file 
 
 
 end ffi

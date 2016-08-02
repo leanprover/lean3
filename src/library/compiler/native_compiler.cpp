@@ -40,6 +40,7 @@ static std::string* g_lean_install_path;
 
 namespace lean {
 
+// Helper functions for setting up the install path on boot-up.
 void set_install_path(std::string s) {
     g_lean_install_path = new std::string(s.substr(0, s.size() - 8));
 }
@@ -48,12 +49,29 @@ std::string get_install_path() {
     return *g_lean_install_path;
 }
 
-optional<pair<name, unsigned>> get_builtin(name const & n);
+optional<extern_fn> get_builtin(name const & n);
+
+struct extern_fn {
+    bool m_in_lean_namespace;
+    name m_name;
+    unsigned m_arity;
+    extern_fn(bool in_lean_namespace, name n, unsigned arity) :
+        m_in_lean_namespace(in_lean_namespace), m_name(n), m_arity(arity) {}
+};
+
+extern_fn mk_lean_extern(name n, unsigned arity) {
+    return extern_fn(true, n, arity);
+}
+
+extern_fn mk_extern(name n, unsigned arity) {
+    return extern_fn(false, n, arity);
+}
 
 class native_compiler_fn {
     environment        m_env;
     config & m_conf;
     cpp_emitter m_emitter;
+    native_compiler_mode m_mode;
     name_map<unsigned> m_arity_map;
 
     expr mk_local(name const & n) {
@@ -414,7 +432,7 @@ class native_compiler_fn {
     }
 
 public:
-    native_compiler_fn(environment const & env, config & conf):
+    native_compiler_fn(environment const & env, config & conf, native_compiler_mode mode):
         m_env(env), m_conf(conf), m_emitter(cpp_emitter(std::string("out.cpp"))) {}
 
     void emit_headers() {
@@ -430,22 +448,47 @@ public:
         });
     }
 
-    void emit_prototypes(buffer<pair<name, unsigned>> fns) {
+    // Not the most effcient, need to do two loops.
+    void emit_prototypes(buffer<extern_fn> fns) {
+        buffer<extern_fn> in_lean_namespace;
+        buffer<extern_fn> rest;
+
+        for (auto fn : fns) {
+            if (fn.m_in_lean_namespace) {
+                in_lean_namespace.push_back(fn);
+            } else {
+                rest.push_back(fn);
+            }
+        }
 
         this->m_emitter.emit_string("namespace lean {\n");
-        for (auto fn : fns) {
-            if (get_vm_builtin_cases_idx(m_env, fn.first)) {
-                auto np = get_vm_builtin_internal_name(fn.first);
+
+        for (auto fn : in_lean_namespace) {
+            if (get_vm_builtin_cases_idx(m_env, fn.m_name)) {
+                auto np = get_vm_builtin_internal_name(fn.m_name);
                 lean_assert(np);
                 this->m_emitter.emit_string("unsigned ");
-                this->m_emitter.mangle_name(fn.first);
+                this->m_emitter.mangle_name(fn.m_name);
                 this->m_emitter.emit_string("(lean::vm_obj const & o, buffer<lean::vm_obj> & data);\n");
             } else {
-                this->m_emitter.emit_prototype(fn.first, fn.second);
+                this->m_emitter.emit_prototype(fn.m_name, fn.m_arity);
             }
 
         }
-        this->m_emitter.emit_string("}\n");
+        this->m_emitter.emit_string("}\n\n");
+
+        for (auto fn : rest) {
+            if (get_vm_builtin_cases_idx(m_env, fn.m_name)) {
+                auto np = get_vm_builtin_internal_name(fn.m_name);
+                lean_assert(np);
+                this->m_emitter.emit_string("unsigned ");
+                this->m_emitter.mangle_name(fn.m_name);
+                this->m_emitter.emit_string("(lean::vm_obj const & o, buffer<lean::vm_obj> & data);\n");
+            } else {
+                this->m_emitter.emit_prototype(fn.m_name, fn.m_arity);
+            }
+
+        }
     }
 
     void operator()(name const & n, expr e) {
@@ -480,18 +523,19 @@ public:
         }
     }
 
-    void populate_arity_map(buffer<pair<name, unsigned>> const & procs) {
+    void populate_arity_map(buffer<extern_fn> const & procs) {
         for (auto & p : procs) {
-            m_arity_map.insert(p.first, p.second);
+            m_arity_map.insert(p.m_name, p.m_arity);
         }
     }
 };
 
 void native_compile(environment const & env,
                     config & conf,
-                    buffer<pair<name, unsigned>> & extern_fns,
-                    buffer<pair<name, expr>> & procs) {
-    native_compiler_fn compiler(env, conf);
+                    buffer<extern_fn> & extern_fns,
+                    buffer<pair<name, expr>> & procs,
+                    native_compiler_mode mode) {
+    native_compiler_fn compiler(env, conf, mode);
 
     compiler.populate_arity_map(procs);
     compiler.populate_arity_map(extern_fns);
@@ -506,90 +550,41 @@ void native_compile(environment const & env,
         compiler.emit_prototype(p.first, p.second);
     }
 
-    auto compiler_name = name({"backend", "compiler"});
-    auto cc = env.get(compiler_name);
-    std::cout << cc.get_value() << std::endl;
-    vm_state S(env);
+    // auto compiler_name = name({"backend", "compiler"});
+    // auto cc = env.get(compiler_name);
+    // std::cout << cc.get_value() << std::endl;
+    // vm_state S(env);
 
-    std::fstream lean_out_file("out.lean.cpp", std::ios_base::out);
+    // std::fstream lean_out_file("out.lean.cpp", std::ios_base::out);
 
     // Iterate each processed decl, emitting code for it.
     for (auto & p : procs) {
         lean_trace(name({"native_compiler"}), tout() << "" << p.first << "\n";);
         name & n = p.first;
         expr body = p.second;
-        vm_obj result = S.invoke(compiler_name, to_obj(p.second));
-        lean_out_file << to_string(result) << std::endl;
+        // vm_obj result = S.invoke(compiler_name, to_obj(p.second));
+        // lean_out_file << to_string(result) << std::endl;
         compiler(n, body);
     }
 
-    lean_out_file.flush();
-    lean_out_file.close();
+    // lean_out_file.flush();
+    // lean_out_file.close();
 
-    compiler.emit_main(procs);
+    if (mode == native_compiler_mode::AOT) {
+        compiler.emit_main(procs);
+    }
 
     cpp_compiler gpp;
     std::string lean_install_path = get_install_path();
 
     gpp.include_path(lean_install_path + "include/lean_ext")
       .file("out.cpp")
-      .file(lean_install_path + "lib/libleanstatic.a")
-      .link("gmp")
-      .link("pthread")
-      .link("mpfr")
+      // .file(lean_install_path + "lib/libleanstatic.a")
+      // .link("gmp")
+      // .link("pthread")
+      // .link("mpfr")
       .debug(true)
       .run();
-}
-
-void native_compile_module(environment const & env, config & conf, buffer<declaration> decls) {
-    std::cout << "compiled native module" << std::endl;
-
-    // Preprocess the main function.
-    buffer<pair<name, expr>> all_procs;
-    buffer<pair<name, expr>> main_procs;
-    buffer<pair<name, unsigned>> extern_fns;
-
-    // Compute the live set of names, we attach a callback that will be
-    // invoked for every declaration encountered.
-    used_defs used_names(env, [&] (declaration const & d) {
-        // buffer<pair<name, expr>> procs;
-        // if (is_internal_decl(d)) {
-        //     return;
-        // } else if (auto p = get_builtin(d.get_name())) {
-        //     return;
-        //     // extern_fns.push_back(p.value());
-        // } else if (auto p =  get_vm_builtin_cases_idx(env, d.get_name())) {
-        //     return;
-        // } else {
-        //     native_preprocess(env, d, procs);
-        //     for (auto pair : procs) {
-        //         used_names.names_in_expr(pair.second);
-        //         all_procs.push_back(pair);
-        //     }
-        // }
-    });
-
-    // We then loop over the set of procs produced by preprocessing the
-    // main function, we transitively collect all names.
-    for (auto decl : decls) {
-        used_names.names_in_decl(decl);
-    }
-
-    used_names.m_used_names.for_each([&] (name const & n) {
-        std::cout << n << std::endl;
-        // // TODO: unify this
-        // if (auto builtin = get_builtin(n)) {
-        //     // std::cout << "extern fn" << n << std::endl;
-        //     extern_fns.push_back(builtin.value());
-        // } else if (auto i = get_vm_builtin_cases_idx(env, n)) {
-        //     extern_fns.push_back(pair<name, unsigned>(n, 2u));
-        // }
-    });
-
-    // Finally we assert that there are no more unprocessed declarations.
-    lean_assert(used_names.stack_is_empty());
-
-    // native_compile(env, conf, extern_fns, all_procs);
 }
 
 void native_preprocess(environment const & env, declaration const & d, buffer<pair<name, expr>> & procs) {
@@ -627,15 +622,69 @@ bool is_internal_decl(declaration const & d) {
             is_internal_proj(mk_constant(n)));
 }
 
-optional<pair<name, unsigned>> get_builtin(name const & n) {
+optional<extern_fn> get_builtin(name const & n) {
     auto internal_name = get_vm_builtin_internal_name(n);
     if (internal_name && get_vm_builtin_kind(n) == vm_builtin_kind::CFun) {
         auto arity = get_vm_builtin_arity(n);
-        return optional<pair<name, unsigned>>(
-            pair<name, unsigned>(internal_name, arity));
+        return optional<extern_fn>(
+            mk_lean_extern(internal_name, arity));
     } else {
-        return optional<pair<name, unsigned>>();
+        return optional<extern_fn>();
     }
+}
+
+void native_compile_module(environment const & env, config & conf, buffer<declaration> decls) {
+    std::cout << "compiled native module" << std::endl;
+
+    // Preprocess the main function.
+    buffer<pair<name, expr>> all_procs;
+    buffer<pair<name, expr>> main_procs;
+    buffer<extern_fn> extern_fns;
+
+    // Compute the live set of names, we attach a callback that will be
+    // invoked for every declaration encountered.
+    used_defs used_names(env, [&] (declaration const & d) {
+        buffer<pair<name, expr>> procs;
+        if (is_internal_decl(d)) {
+            return;
+        } else if (auto p = get_builtin(d.get_name())) {
+            return;
+            // extern_fns.push_back(p.value());
+        } else if (auto p =  get_vm_builtin_cases_idx(env, d.get_name())) {
+            return;
+        } else {
+            native_preprocess(env, d, procs);
+            for (auto pair : procs) {
+                used_names.names_in_expr(pair.second);
+                all_procs.push_back(pair);
+            }
+        }
+    });
+
+    // We then loop over the set of procs produced by preprocessing the
+    // main function, we transitively collect all names.
+    for (auto decl : decls) {
+        used_names.names_in_decl(decl);
+    }
+
+    used_names.m_used_names.for_each([&] (name const & n) {
+        std::cout << n << std::endl;
+        // TODO: unify this
+        if (auto builtin = get_builtin(n)) {
+             // std::cout << "extern fn" << n << std::endl;
+             extern_fns.push_back(builtin.value());
+        } else if (auto i = get_vm_builtin_cases_idx(env, n)) {
+             auto arity = 2; // get_vm_builtin_cases()
+             extern_fns.push_back(mk_lean_extern(n, arity));
+        } else {
+            extern_fns.push_back(mk_extern(n, 0));
+        }
+    });
+
+    // Finally we assert that there are no more unprocessed declarations.
+    lean_assert(used_names.stack_is_empty());
+
+    native_compile(env, conf, extern_fns, all_procs, native_compiler_mode::JIT);
 }
 
 void native_compile_binary(environment const & env, config & conf, declaration const & d) {
@@ -648,7 +697,7 @@ void native_compile_binary(environment const & env, config & conf, declaration c
     // Preprocess the main function.
     buffer<pair<name, expr>> all_procs;
     buffer<pair<name, expr>> main_procs;
-    buffer<pair<name, unsigned>> extern_fns;
+    buffer<extern_fn> extern_fns;
     native_preprocess(env, d, main_procs);
 
     // Compute the live set of names, we attach a callback that will be
@@ -684,14 +733,15 @@ void native_compile_binary(environment const & env, config & conf, declaration c
             // std::cout << "extern fn" << n << std::endl;
             extern_fns.push_back(builtin.value());
         } else if (auto i = get_vm_builtin_cases_idx(env, n)) {
-            extern_fns.push_back(pair<name, unsigned>(n, 2u));
+            auto arity = 2u; // FIX ME TOTAL BUG
+            extern_fns.push_back(mk_lean_extern(n, arity));
         }
     });
 
     // Finally we assert that there are no more unprocessed declarations.
     lean_assert(used_names.stack_is_empty());
 
-    native_compile(env, conf, extern_fns, all_procs);
+    native_compile(env, conf, extern_fns, all_procs, native_compiler_mode::AOT);
 }
 
 void initialize_native_compiler() {
