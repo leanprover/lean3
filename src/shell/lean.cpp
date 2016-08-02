@@ -562,7 +562,7 @@ int main(int argc, char ** argv) {
             // to implement a sophisticated usage analysis
             // to do erasure.
             lean::config conf((optional<std::string>()), optional<std::string>());
-            native_compile(env, conf, env.get(lean::name("main")), lean::native_compiler_mode::AOT);
+            native_compile_binary(env, conf, env.get(lean::name("main")));
         }
         if (ok && server && (default_k == input_kind::Lean || default_k == input_kind::HLean)) {
             signal(SIGINT, on_ctrl_c);

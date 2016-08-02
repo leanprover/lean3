@@ -543,6 +543,53 @@ void native_compile(environment const & env,
 
 void native_compile_module(environment const & env, config & conf, buffer<declaration> decls) {
     std::cout << "compiled native module" << std::endl;
+
+    // Preprocess the main function.
+    buffer<pair<name, expr>> all_procs;
+    buffer<pair<name, expr>> main_procs;
+    buffer<pair<name, unsigned>> extern_fns;
+
+    // Compute the live set of names, we attach a callback that will be
+    // invoked for every declaration encountered.
+    used_defs used_names(env, [&] (declaration const & d) {
+        // buffer<pair<name, expr>> procs;
+        // if (is_internal_decl(d)) {
+        //     return;
+        // } else if (auto p = get_builtin(d.get_name())) {
+        //     return;
+        //     // extern_fns.push_back(p.value());
+        // } else if (auto p =  get_vm_builtin_cases_idx(env, d.get_name())) {
+        //     return;
+        // } else {
+        //     native_preprocess(env, d, procs);
+        //     for (auto pair : procs) {
+        //         used_names.names_in_expr(pair.second);
+        //         all_procs.push_back(pair);
+        //     }
+        // }
+    });
+
+    // We then loop over the set of procs produced by preprocessing the
+    // main function, we transitively collect all names.
+    for (auto decl : decls) {
+        used_names.names_in_decl(decl);
+    }
+
+    used_names.m_used_names.for_each([&] (name const & n) {
+        std::cout << n << std::endl;
+        // // TODO: unify this
+        // if (auto builtin = get_builtin(n)) {
+        //     // std::cout << "extern fn" << n << std::endl;
+        //     extern_fns.push_back(builtin.value());
+        // } else if (auto i = get_vm_builtin_cases_idx(env, n)) {
+        //     extern_fns.push_back(pair<name, unsigned>(n, 2u));
+        // }
+    });
+
+    // Finally we assert that there are no more unprocessed declarations.
+    lean_assert(used_names.stack_is_empty());
+
+    // native_compile(env, conf, extern_fns, all_procs);
 }
 
 void native_preprocess(environment const & env, declaration const & d, buffer<pair<name, expr>> & procs) {
@@ -591,7 +638,7 @@ optional<pair<name, unsigned>> get_builtin(name const & n) {
     }
 }
 
-void native_compile(environment const & env, config & conf, declaration const & d, native_compiler_mode mode) {
+void native_compile_binary(environment const & env, config & conf, declaration const & d) {
     lean_trace(name("native_compile"),
         tout() << "main_fn: " << d.get_name() << "\n";);
 
@@ -604,52 +651,47 @@ void native_compile(environment const & env, config & conf, declaration const & 
     buffer<pair<name, unsigned>> extern_fns;
     native_preprocess(env, d, main_procs);
 
-    if (mode == native_compiler_mode::AOT) {
-        // Compute the live set of names, we attach a callback that will be
-        // invoked for every declaration encountered.
-        used_defs used_names(env, [&] (declaration const & d) {
-            buffer<pair<name, expr>> procs;
-            if (is_internal_decl(d)) {
-                return;
-            } else if (auto p = get_builtin(d.get_name())) {
-                return;
-                // extern_fns.push_back(p.value());
-            } else if (auto p =  get_vm_builtin_cases_idx(env, d.get_name())) {
-                return;
-            } else {
-                native_preprocess(env, d, procs);
-                for (auto pair : procs) {
-                    used_names.names_in_expr(pair.second);
-                    all_procs.push_back(pair);
-                }
+    // Compute the live set of names, we attach a callback that will be
+    // invoked for every declaration encountered.
+    used_defs used_names(env, [&] (declaration const & d) {
+        buffer<pair<name, expr>> procs;
+        if (is_internal_decl(d)) {
+            return;
+        } else if (auto p = get_builtin(d.get_name())) {
+            return;
+            // extern_fns.push_back(p.value());
+        } else if (auto p =  get_vm_builtin_cases_idx(env, d.get_name())) {
+            return;
+        } else {
+            native_preprocess(env, d, procs);
+            for (auto pair : procs) {
+                used_names.names_in_expr(pair.second);
+                all_procs.push_back(pair);
             }
-        });
-
-        // We then loop over the set of procs produced by preprocessing the
-        // main function, we transitively collect all names.
-        for (auto pair : main_procs) {
-            all_procs.push_back(pair);
-            used_names.names_in_preprocessed_body(pair.second);
         }
+    });
 
-        used_names.m_used_names.for_each([&] (name const & n) {
-            // TODO: unify this
-            if (auto builtin = get_builtin(n)) {
-                // std::cout << "extern fn" << n << std::endl;
-                extern_fns.push_back(builtin.value());
-            } else if (auto i = get_vm_builtin_cases_idx(env, n)) {
-                extern_fns.push_back(pair<name, unsigned>(n, 2u));
-            }
-        });
-
-        // Finally we assert that there are no more unprocessed declarations.
-        lean_assert(used_names.stack_is_empty());
-
-        native_compile(env, conf, extern_fns, all_procs);
-    } else {
-        buffer<pair<name, unsigned>> extern_fns;
-        native_compile(env, conf, extern_fns, all_procs);
+    // We then loop over the set of procs produced by preprocessing the
+    // main function, we transitively collect all names.
+    for (auto pair : main_procs) {
+        all_procs.push_back(pair);
+        used_names.names_in_preprocessed_body(pair.second);
     }
+
+    used_names.m_used_names.for_each([&] (name const & n) {
+        // TODO: unify this
+        if (auto builtin = get_builtin(n)) {
+            // std::cout << "extern fn" << n << std::endl;
+            extern_fns.push_back(builtin.value());
+        } else if (auto i = get_vm_builtin_cases_idx(env, n)) {
+            extern_fns.push_back(pair<name, unsigned>(n, 2u));
+        }
+    });
+
+    // Finally we assert that there are no more unprocessed declarations.
+    lean_assert(used_names.stack_is_empty());
+
+    native_compile(env, conf, extern_fns, all_procs);
 }
 
 void initialize_native_compiler() {
