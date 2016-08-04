@@ -59,9 +59,14 @@ namespace lean  {
             this->emit_indented_line("lean::vm_state S(env);");
             this->emit_indented_line("lean::scope_vm_state scoped(S);");
             this->emit_indented_line("g_env = &env;");
-            this->emit_indented("lean::invoke(");
-            emit_mk_native_closure(lean_main, 0, nullptr, [&] (expr const &) {});
-            *this->m_output_stream << ", lean::mk_vm_simple(0));\n" << "return 0;\n}" << std::endl;
+            this->emit_oversaturated_call(
+              lean_main,
+              0,
+              1,
+              nullptr, [&] (expr const &) {
+                *this->m_output_stream << "lean::mk_vm_simple(0)";
+              });
+              *this->m_output_stream << ";\n return 0;\n}" << std::endl;
         }
 
         void emit_prototype(name const & n, unsigned arity);

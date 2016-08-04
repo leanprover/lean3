@@ -30,6 +30,7 @@ Author: Jared Roesch and Leonardo de Moura
 #include "used_names.h"
 #include "library/compiler/extern.h"
 #include "library/vm/vm.h"
+#include "util/executable.h"
 #include <sys/types.h>
 #include <sys/stat.h>
 #include <stdio.h>
@@ -41,8 +42,12 @@ static std::string* g_lean_install_path;
 namespace lean {
 
 // Helper functions for setting up the install path on boot-up.
+// TODO: this is not currently cross platform
 void set_install_path(std::string s) {
-    g_lean_install_path = new std::string(s.substr(0, s.size() - 8));
+    // 8 is the size of the string bin/lean which we want to remove from
+    // the installed version of Lean.
+    auto path = executable();
+    g_lean_install_path = new std::string(path.substr(0, path.size() - 8));
 }
 
 std::string get_install_path() {
@@ -580,10 +585,11 @@ void native_compile(environment const & env,
 
     gpp.include_path(lean_install_path + "include/lean_ext")
       .file("out.cpp")
-      // .file(lean_install_path + "lib/libleanstatic.a")
-      // .link("gmp")
-      // .link("pthread")
-      // .link("mpfr")
+      // Example of option right here, dynamically or statically link Lean?
+      .file(lean_install_path + "lib/libleanstatic.a")
+      .link("gmp")
+      .link("pthread")
+      .link("mpfr")
       .debug(true)
       .run();
 }
