@@ -165,12 +165,15 @@ expr mk_iff_refl(expr const & a);
 expr apply_propext(expr const & iff_pr, expr const & iff_term);
 
 expr mk_eq(abstract_type_context & ctx, expr const & lhs, expr const & rhs);
-expr mk_refl(abstract_type_context & ctx, expr const & a);
-expr mk_symm(abstract_type_context & ctx, expr const & H);
-expr mk_trans(abstract_type_context & ctx, expr const & H1, expr const & H2);
-expr mk_subst(abstract_type_context & ctx, expr const & motive,
-              expr const & x, expr const & y, expr const & xeqy, expr const & h);
-expr mk_subst(abstract_type_context & ctx, expr const & motive, expr const & xeqy, expr const & h);
+expr mk_eq_refl(abstract_type_context & ctx, expr const & a);
+expr mk_eq_symm(abstract_type_context & ctx, expr const & H);
+expr mk_eq_trans(abstract_type_context & ctx, expr const & H1, expr const & H2);
+expr mk_eq_subst(abstract_type_context & ctx, expr const & motive,
+                 expr const & x, expr const & y, expr const & xeqy, expr const & h);
+expr mk_eq_subst(abstract_type_context & ctx, expr const & motive, expr const & xeqy, expr const & h);
+
+expr mk_congr_arg(abstract_type_context & ctx, expr const & f, expr const & H);
+
 /** \brief Create an proof for x = y using subsingleton.elim (in standard mode) and is_trunc.is_prop.elim (in HoTT mode) */
 expr mk_subsingleton_elim(abstract_type_context & ctx, expr const & h, expr const & x, expr const & y);
 

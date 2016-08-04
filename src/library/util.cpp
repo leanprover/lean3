@@ -574,13 +574,13 @@ expr mk_eq(abstract_type_context & ctx, expr const & lhs, expr const & rhs) {
     return mk_app(mk_constant(get_eq_name(), {lvl}), A, lhs, rhs);
 }
 
-expr mk_refl(abstract_type_context & ctx, expr const & a) {
+expr mk_eq_refl(abstract_type_context & ctx, expr const & a) {
     expr A    = ctx.whnf(ctx.infer(a));
     level lvl = get_level(ctx, A);
     return mk_app(mk_constant(get_eq_refl_name(), {lvl}), A, a);
 }
 
-expr mk_symm(abstract_type_context & ctx, expr const & H) {
+expr mk_eq_symm(abstract_type_context & ctx, expr const & H) {
     expr p    = ctx.whnf(ctx.infer(H));
     lean_assert(is_eq(p));
     expr lhs  = app_arg(app_fn(p));
@@ -590,7 +590,7 @@ expr mk_symm(abstract_type_context & ctx, expr const & H) {
     return mk_app(mk_constant(get_eq_symm_name(), {lvl}), A, lhs, rhs, H);
 }
 
-expr mk_trans(abstract_type_context & ctx, expr const & H1, expr const & H2) {
+expr mk_eq_trans(abstract_type_context & ctx, expr const & H1, expr const & H2) {
     expr p1    = ctx.whnf(ctx.infer(H1));
     expr p2    = ctx.whnf(ctx.infer(H2));
     lean_assert(is_eq(p1) && is_eq(p2));
@@ -602,8 +602,8 @@ expr mk_trans(abstract_type_context & ctx, expr const & H1, expr const & H2) {
     return mk_app({mk_constant(get_eq_trans_name(), {lvl}), A, lhs1, rhs1, rhs2, H1, H2});
 }
 
-expr mk_subst(abstract_type_context & ctx, expr const & motive,
-              expr const & x, expr const & y, expr const & xeqy, expr const & h) {
+expr mk_eq_subst(abstract_type_context & ctx, expr const & motive,
+                 expr const & x, expr const & y, expr const & xeqy, expr const & h) {
     expr A    = ctx.infer(x);
     level l1  = get_level(ctx, A);
     expr r;
@@ -616,9 +616,21 @@ expr mk_subst(abstract_type_context & ctx, expr const & motive,
     return mk_app({r, A, x, y, motive, xeqy, h});
 }
 
-expr mk_subst(abstract_type_context & ctx, expr const & motive, expr const & xeqy, expr const & h) {
+expr mk_eq_subst(abstract_type_context & ctx, expr const & motive, expr const & xeqy, expr const & h) {
     expr xeqy_type = ctx.whnf(ctx.infer(xeqy));
-    return mk_subst(ctx, motive, app_arg(app_fn(xeqy_type)), app_arg(xeqy_type), xeqy, h);
+    return mk_eq_subst(ctx, motive, app_arg(app_fn(xeqy_type)), app_arg(xeqy_type), xeqy, h);
+}
+
+expr mk_congr_arg(abstract_type_context & ctx, expr const & f, expr const & H) {
+    expr eq = ctx.relaxed_whnf(ctx.infer(H));
+    expr pi = ctx.relaxed_whnf(ctx.infer(f));
+    expr A, B, lhs, rhs;
+    lean_verify(is_eq(eq, A, lhs, rhs));
+    lean_assert(is_arrow(pi));
+    B = binding_body(pi);
+    level lvl_1  = get_level(ctx, A);
+    level lvl_2  = get_level(ctx, B);
+    return ::lean::mk_app({mk_constant(get_congr_arg_name(), {lvl_1, lvl_2}), A, B, lhs, rhs, f, H});
 }
 
 expr mk_subsingleton_elim(abstract_type_context & ctx, expr const & h, expr const & x, expr const & y) {
