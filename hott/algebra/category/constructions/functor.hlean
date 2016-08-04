@@ -536,9 +536,9 @@ namespace functor
       apply concat, apply !hom_inv_respect_comp⁻¹, apply ap (hom_inv H), 
       apply !assoc⁻¹ }
   end
-  definition G0 [reducible] := λ (b), X.c (X_inh b)
-  definition k := λ b, X.k (X_inh b)
-  definition k_coh := λ b, @X.k_coh b (X_inh b)
+  local abbreviation G0 [reducible] := λ (b), X.c (X_inh b)
+  private definition k := λ b, X.k (X_inh b)
+  private definition k_coh := λ b, @X.k_coh b (X_inh b)
 
   private definition X_c_eq_of_eq {b} (t t' : X b) (p : t = t') : X.c t = X.c t' :=
   by cases p; reflexivity
@@ -738,7 +738,7 @@ namespace functor
 
   end essentially_surjective_precomposition
 
-  definition essentially_surjective_precomposition_functor {A B : Precategory}
+  definition essentially_surjective_precomposition_functor [instance] {A B : Precategory}
     (C : Category) (H : A ⇒ B) [He : is_weak_equivalence H] :
     essentially_surjective (precomposition_functor C H) :=
   begin
