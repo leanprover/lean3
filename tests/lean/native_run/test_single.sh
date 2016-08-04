@@ -5,8 +5,8 @@ if [ $# -ne 3 -a $# -ne 2 ]; then
 fi
 ulimit -s 8192
 LEAN=$1
-#export LEAN_PATH=../../library:.
-#export HLEAN_PATH=../../hott:.
+export LEAN_PATH=../../library:.
+export HLEAN_PATH=../../hott:.
 if [ $# -ne 3 ]; then
     INTERACTIVE=no
 else
@@ -21,7 +21,10 @@ else
 fi
 
 echo "-- testing $f"
-"$LEAN" --compile $CONFIG "$f"; ./a.out &> "$f.produced.out.1"
+"$LEAN" --compile $CONFIG "$f"
+# Currently we always produce a file named a.out, it looks like the first command isn't running
+# and then it crashes when it can't find a.out
+a.out &> "$f.produced.out.1"
 sed "/warning: imported file uses 'sorry'/d" "$f.produced.out.1" | sed "/warning: using 'sorry'/d" > "$f.produced.out"
 rm -f "$f.produced.out.1"
 if test -f "$f.expected.out"; then

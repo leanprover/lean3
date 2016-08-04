@@ -16,8 +16,11 @@ constant get_line : IO string
 
 constant forever : IO unit -> IO unit
 
-definition put_str_ln {A : Type} [ts : has_to_string A] (x : A) : IO unit :=
-  put_str ('\n' :: to_string x)
+definition put_str_ln (x : string) : IO unit :=
+  put_str ('\n' :: x)
+
+definition print_str {A : Type} [str : has_to_string A] (a : A) : IO unit :=
+   put_str_ln (to_string a)
 
 meta_constant format.print_using : format → options → IO unit
 
