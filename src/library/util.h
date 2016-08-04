@@ -8,6 +8,12 @@ Author: Leonardo de Moura
 #include "kernel/environment.h"
 
 namespace lean {
+
+/** \brief Return the universe level of the type of \c A.
+    Throws an exception if the (relaxed) whnf of the type
+    of A is not a sort. */
+level get_level(abstract_type_context & ctx, expr const & A);
+
 /** \brief Return true iff \c n occurs in \c m */
 bool occurs(expr const & n, expr const & m);
 /** \brief Return true iff there is a constant named \c n in \c m. */

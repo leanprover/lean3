@@ -22,6 +22,14 @@ Author: Leonardo de Moura
 #include "library/old_type_checker.h"
 
 namespace lean {
+
+level get_level(abstract_type_context & ctx, expr const & A) {
+    expr S = ctx.whnf(ctx.infer(A));
+    if (!is_sort(S))
+        throw exception("invalid expression, sort expected");
+    return sort_level(S);
+}
+
 bool occurs(expr const & n, expr const & m) {
     return static_cast<bool>(find(m, [&](expr const & e, unsigned) { return n == e; }));
 }
@@ -335,13 +343,6 @@ expr to_telescope(type_checker & ctx, expr type, buffer<expr> & telescope, optio
         new_type = ctx.whnf(type);
     }
     return type;
-}
-
-static level get_level(abstract_type_context & ctx, expr const & A) {
-    expr S = ctx.whnf(ctx.infer(A));
-    if (!is_sort(S))
-        throw exception("invalid expression, sort expected");
-    return sort_level(S);
 }
 
 void mk_telescopic_eq(type_checker & tc, buffer<expr> const & t, buffer<expr> const & s, buffer<expr> & eqs) {
