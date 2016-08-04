@@ -412,6 +412,7 @@ namespace functor
     exact ap (λ x, G x ∘ γ a) Ek⁻¹ ⬝ naturality γ k ⬝ ap (λ x, γ a0 ∘ F x) Ek
   end
 
+  --TODO speed this up
   private definition fully_faithful_precomposition_naturality {b b' : carrier D}
     (f : hom b b') : to_fun_hom G f ∘ (fully_faithful_precomposition_functor_pair γ b).1 
     = (fully_faithful_precomposition_functor_pair γ b').1 ∘ to_fun_hom F f :=
@@ -471,7 +472,10 @@ namespace functor
     (k_coh : Π {a a'} h h' (f : hom a a'), to_hom h' ∘ (to_fun_hom H f) = to_hom h 
       → to_hom (k a' h') ∘ to_fun_hom F f = to_hom (k a h))
   local abbreviation X := essentially_surj_precomp_X
-  local abbreviation X.mk := @essentially_surj_precomp_X.mk
+  local abbreviation X.mk [constructor] := @essentially_surj_precomp_X.mk
+  local abbreviation X.c [unfold 7] := @essentially_surj_precomp_X.c
+  local abbreviation X.k [unfold 7] := @essentially_surj_precomp_X.k
+  local abbreviation X.k_coh [unfold 7] :=  @essentially_surj_precomp_X.k_coh
 
   section
   variables {c c' : carrier C} (p : c = c')
@@ -523,18 +527,44 @@ namespace functor
   begin
     induction He.2 b with Hb, cases Hb with a0 Ha0,
     fconstructor, exact F a0,
-    { intro a h, apply to_fun_iso, apply iso_of_F_iso_F H,
+    { intro a h, apply to_fun_iso F, apply reflect_iso H,
       exact h ⬝i Ha0⁻¹ⁱ },
-    { intros a a' h h' f HH, esimp[iso_of_F_iso_F], 
+    { intros a a' h h' f HH,
       apply concat, apply !respect_comp⁻¹, apply ap (to_fun_hom F), 
-      rewrite [-HH],
+      esimp, rewrite [-HH],
       apply concat, apply ap (λ x, _ ∘ x), apply inverse, apply left_inv (to_fun_hom H), 
       apply concat, apply !hom_inv_respect_comp⁻¹, apply ap (hom_inv H), 
       apply !assoc⁻¹ }
   end
-  local abbreviation G0 := λ (b), essentially_surj_precomp_X.c (X_inh b)
-  local abbreviation k := λ b, essentially_surj_precomp_X.k (X_inh b)
-  local abbreviation k_coh := λ b, @essentially_surj_precomp_X.k_coh b (X_inh b)
+  definition G0 [reducible] := λ (b), X.c (X_inh b)
+  definition k := λ b, X.k (X_inh b)
+  definition k_coh := λ b, @X.k_coh b (X_inh b)
+
+  private definition X_c_eq_of_eq {b} (t t' : X b) (p : t = t') : X.c t = X.c t' :=
+  by cases p; reflexivity
+
+  private definition X_k_eq_of_eq {b} (t t' : X b) (p : t = t') (a : carrier A) (h : H a ≅ b) :
+    X_c_eq_of_eq t t' p ▸ X.k t a h = X.k t' a h:=
+  by cases p; reflexivity
+
+  private definition X_phi {b} (t : X b) : X.c t = X.c (X_inh b) :=
+  X_c_eq_of_eq _ _ !is_prop.elim
+
+  private definition X_phi_transp {b} (t : X b) (a : carrier A) (h : H a ≅ b) :
+    (X_phi t) ▸ (X.k t a h) = k b a h :=
+  by apply X_k_eq_of_eq t _ !is_prop.elim
+
+  private definition X_phi_hom_of_eq' {b} (t t' : X b) (p : t = t') (a : carrier A) (h : H a ≅ b) :
+    X.k t' a h ⬝i (iso_of_eq (X_c_eq_of_eq t t' p)⁻¹) = X.k t a h :=
+  begin
+    cases p, apply iso_eq, apply id_left
+  end
+
+  private definition X_phi_hom_of_eq {b} (t : X b) (a : carrier A) (h : H a ≅ b) :
+    to_hom (k b a h ⬝i (iso_of_eq (X_phi t)⁻¹)) = to_hom (X.k t a h) :=
+  begin
+    apply ap to_hom, apply X_phi_hom_of_eq'
+  end
 
   structure essentially_surj_precomp_Y {b b' : carrier B} (f : hom b b') : Type :=
     (g : hom (G0 b) (G0 b'))
@@ -666,31 +696,45 @@ namespace functor
     { intro a b c g f, apply G_hom_comp }
   end
 
-  private theorem G0_H_eq_F (a0 : carrier A) : G0 (H a0) = F a0 :=
+  private definition XF (a0 : carrier A) : X (H a0) :=
   begin
-    apply concat, apply ap essentially_surj_precomp_X.c, apply is_prop.elim,
     fconstructor,
-    { apply F a0 },
+    { exact F a0 },
     { intro a h, apply to_fun_iso F, apply reflect_iso, apply He.1, exact h },
     { intro a a' h h' f l, esimp, 
       apply concat, apply !respect_comp⁻¹, apply ap (to_fun_hom F), apply inverse,
       apply concat, apply ap (hom_inv H) l⁻¹,
-      apply concat, apply hom_inv_respect_comp, apply ap (λ x, _ ∘ x), apply left_inv },
-    reflexivity
+      apply concat, apply hom_inv_respect_comp, apply ap (λ x, _ ∘ x), apply left_inv }
+  end
+
+  private definition G0_H_eq_F (a0 : carrier A) : G0 (H a0) = F a0 :=
+  begin
+    apply inverse, apply X_phi (XF a0)
   end
 
   private theorem G_hom_H_eq_F {a0 a0' : carrier A} (f0 : hom a0 a0') :
-    hom_of_eq (G0_H_eq_F a0') ∘ G_hom (to_fun_hom H f0) ∘ inv_of_eq (G0_H_eq_F a0) 
+    hom_of_eq (G0_H_eq_F a0') ∘ G_hom (to_fun_hom H f0) ∘ inv_of_eq (G0_H_eq_F a0)
     = to_fun_hom F f0 :=
   begin
     apply comp_eq_of_eq_inverse_comp, apply comp_inverse_eq_of_eq_comp,
     apply concat, apply ap essentially_surj_precomp_Y.g, apply is_prop.elim,
     fconstructor,
     { exact (inv_of_eq (G0_H_eq_F a0') ∘ to_fun_hom F f0) ∘ hom_of_eq (G0_H_eq_F a0) },
-    { intros a a' h h' f l, },
+    { intros a a' h h' l α, esimp[G0_H_eq_F], apply inverse,
+      apply concat, apply !assoc⁻¹,
+      apply concat, apply ap (λ x, _ ∘ x), apply X_phi_hom_of_eq,
+      apply concat, apply !assoc⁻¹,
+      apply inverse_comp_eq_of_eq_comp, apply inverse,
+      apply concat, apply assoc,
+      apply concat, apply ap (λ x, x ∘ _), apply X_phi_hom_of_eq, esimp[XF],
+      refine !respect_comp⁻¹ ⬝ ap (to_fun_hom F) _ ⬝ !respect_comp,
+      apply eq_of_fn_eq_fn' (to_fun_hom H),
+      refine !respect_comp ⬝ _ ⬝ !respect_comp⁻¹,
+      apply concat, apply ap (λ x, x ∘ _) !(right_inv (to_fun_hom H)),
+      apply concat, rotate 1, apply ap (λ x, _ ∘ x) !(right_inv (to_fun_hom H))⁻¹,
+      exact α },
     reflexivity
   end
-  check k_coh
 
   end essentially_surjective_precomposition
 
