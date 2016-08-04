@@ -237,6 +237,7 @@ placeholder, call lean-server with --hole option, otherwise call
   (local-set-key lean-keybinding-tab-indent-or-complete    'lean-tab-indent-or-complete)
   (local-set-key lean-keybinding-lean-show-goal-at-pos     'lean-show-goal-at-pos)
   (local-set-key lean-keybinding-lean-show-id-keyword-info 'lean-show-id-keyword-info)
+  (local-set-key lean-keybinding-lean-next-error-mode      'lean-next-error-mode)
   )
 
 (defun lean-define-key-binding (key cmd)
@@ -272,7 +273,9 @@ placeholder, call lean-server with --hole option, otherwise call
      ["Use flycheck (on-the-fly syntax check)"
       lean-toggle-flycheck-mode :active t :style toggle :selected flycheck-mode]
      ["Show type at point"
-      lean-toggle-eldoc-mode :active t :style toggle :selected eldoc-mode])
+      lean-toggle-eldoc-mode :active t :style toggle :selected eldoc-mode]
+     ["Show next error in dedicated buffer"
+      lean-next-error-mode :active t :style toggle :selected lean-next-error-mode])
     "-----------------"
     ["Customize lean-mode" (customize-group 'lean)            t]))
 
