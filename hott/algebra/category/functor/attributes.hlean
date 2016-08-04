@@ -84,36 +84,18 @@ namespace category
     [H : fully_faithful F] (c c' : C) : (c ⟶ c') ≃ (F c ⟶ F c') :=
   equiv.mk _ !H
 
-  definition iso_of_F_iso_F (F : C ⇒ D)
-    [H : fully_faithful F] (c c' : C) (g : F c ≅ F c') : c ≅ c' :=
-  begin
-    induction g with g G, induction G with h p q, fapply iso.MK,
-      { rexact (to_fun_hom F)⁻¹ᶠ g},
-      { rexact (to_fun_hom F)⁻¹ᶠ h},
-      { exact abstract begin
-        apply eq_of_fn_eq_fn' (to_fun_hom F),
-        rewrite [respect_comp, respect_id,
-                 right_inv (to_fun_hom F), right_inv (to_fun_hom F), p],
-        end end},
-      { exact abstract begin
-        apply eq_of_fn_eq_fn' (to_fun_hom F),
-        rewrite [respect_comp, respect_id,
-                 right_inv (to_fun_hom F), right_inv (@(to_fun_hom F) c' c), q],
-        end end}
-  end
-
   definition iso_equiv_F_iso_F [constructor] (F : C ⇒ D)
     [H : fully_faithful F] (c c' : C) : (c ≅ c') ≃ (F c ≅ F c') :=
   begin
     fapply equiv.MK,
     { exact to_fun_iso F},
-    { apply iso_of_F_iso_F},
+    { apply reflect_iso F},
     { exact abstract begin
       intro f, induction f with f F', induction F' with g p q, apply iso_eq,
-      esimp [iso_of_F_iso_F], apply right_inv end end},
+      esimp [reflect_iso], apply right_inv end end},
     { exact abstract begin
       intro f, induction f with f F', induction F' with g p q, apply iso_eq,
-      esimp [iso_of_F_iso_F], apply right_inv end end},
+      esimp [reflect_iso], apply right_inv end end},
   end
 
   definition full_of_fully_faithful [instance] (F : C ⇒ D) [H : fully_faithful F] : full F :=
