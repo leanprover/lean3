@@ -51,15 +51,20 @@ definition upcast [reducible] (t : type) : type :=
   | _ := t
   end
 
--- constant upcast_value {T U : type} (p : ptr T) : ptr U
+constant upcast_value {T : type} : ptr T = ptr (upcast T)
 
--- definition to_cstring (s : string) : IO (ptr cstring) := do
---   str <- new (array (list.length s) base_type.char),
---   return (upcast_value str)
+ptr cstring -> (ptr char -> A) -> B
 
--- definition extern_fn_type (ret : type) : list type -> Type
--- | extern_fn_type [] := IO (ptr ret)
--- | extern_fn_type (arg :: args) := ptr arg -> extern_fn_type args
+definition to_cstring (s : string) : IO (ptr cstring) := do
+  str <- new (array (list.length s) base_type.char),
+  forM (enumerate str) $ do
+    write i c ptr
+
+  return (upcast_value str)
+
+definition extern_fn_type (ret : type) : list type -> Type
+| extern_fn_type [] := IO (ptr ret)
+| extern_fn_type (arg :: args) := ptr arg -> extern_fn_type args
 
 -- constant call {s : string} {ts : list type} {ret : type} : extern_fn s ts ret → extern_fn_type ret ts
 

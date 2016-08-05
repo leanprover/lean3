@@ -29,7 +29,6 @@ Author: Leonardo de Moura
 #include "library/constants.h"
 #include "library/kernel_serializer.h"
 #include "library/unfold_macros.h"
-#include "library/compiler/config.h"
 #include "library/compiler/native_compiler.h"
 #include "library/vm/vm.h"
 #include "version.h"
@@ -188,12 +187,7 @@ void export_native_module(std::ostream & out, environment const & env) {
         }
     }
 
-    // Fix this ...
-    config module_conf(
-        optional<std::string>(std::string("belh")),
-        optional<std::string>(std::string("belh")));
-
-    native_compile_module(env, module_conf, decls);
+    native_compile_module(env, decls);
 }
 
 typedef std::unordered_map<std::string, module_object_reader> object_readers;
