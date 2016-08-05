@@ -45,26 +45,26 @@ attribute [extern] extern_read_file
 -- constant extern_read : extern_fn "read" [int, int, int] int
 -- attribute [extern] extern_read
 
-definition upcast [reducible] (t : type) : type :=
-  match t with
-  | type.array _ char := cstring
-  | _ := t
-  end
+-- definition upcast [reducible] (t : type) : type :=
+--   match t with
+--   | type.array _ char := cstring
+--   | _ := t
+--   end
 
-constant upcast_value {T : type} : ptr T = ptr (upcast T)
+-- constant upcast_value {T : type} : ptr T = ptr (upcast T)
 
-ptr cstring -> (ptr char -> A) -> B
+-- ptr cstring -> (ptr char -> A) -> B
 
-definition to_cstring (s : string) : IO (ptr cstring) := do
-  str <- new (array (list.length s) base_type.char),
-  forM (enumerate str) $ do
-    write i c ptr
+-- definition to_cstring (s : string) : IO (ptr cstring) := do
+--   str <- new (array (list.length s) base_type.char),
+--   forM (enumerate str) $ do
+--     write i c ptr
 
-  return (upcast_value str)
+  -- return (upcast_value str)
 
-definition extern_fn_type (ret : type) : list type -> Type
-| extern_fn_type [] := IO (ptr ret)
-| extern_fn_type (arg :: args) := ptr arg -> extern_fn_type args
+-- definition extern_fn_type (ret : type) : list type -> Type
+-- | extern_fn_type [] := IO (ptr ret)
+-- | extern_fn_type (arg :: args) := ptr arg -> extern_fn_type args
 
 -- constant call {s : string} {ts : list type} {ret : type} : extern_fn s ts ret → extern_fn_type ret ts
 

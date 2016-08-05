@@ -28,6 +28,7 @@ namespace lean {
 
           buffer<char*> pargs;
           for (auto arg : m_args) {
+              std::cout << arg << std::endl;
               auto str = (char*)malloc(sizeof(char) * 100);
               arg.copy(str, arg.size());
               str[arg.size()] = '\0';
