@@ -243,6 +243,8 @@ options set_config_option(options const & opts, char const * in) {
         case lean::IntOption:
         case lean::UnsignedOption:
             return opts.update(opt, atoi(val.c_str()));
+        case lean::StringOption:
+            return opts.update(opt, val);
         default:
             throw lean::exception(lean::sstream() << "invalid -D parameter, configuration option '" << opt
                                   << "' cannot be set in the command line, use set_option command");
@@ -556,13 +558,17 @@ int main(int argc, char ** argv) {
                 lean::display_error(out, &pp, ex);
             }
         }
+
+
         if (ok && compile && default_k == input_kind::Lean) {
-            // TODO : @jroesch print error if try to do
-            // extraction in the HoTT core, not sure how
-            // to implement a sophisticated usage analysis
-            // to do erasure.
-            lean::native::scope_config(ios.get_options());
-            native_compile_binary(env, env.get(lean::name("main")));
+            if (default_k == input_kind::Lean) {
+                lean::native::scope_config scoped_native_config(ios.get_options());
+                native_compile_binary(env, env.get(lean::name("main")));
+            } else {
+                // Not sure the right way to report this error.
+                std::cout << "can't not natively compile .hlean files" << std::endl;
+                exit(1);
+            }
         }
         if (ok && server && (default_k == input_kind::Lean || default_k == input_kind::HLean)) {
             signal(SIGINT, on_ctrl_c);
@@ -592,7 +598,6 @@ int main(int argc, char ** argv) {
         if (export_native_objects && ok && default_k == input_kind::Lean) {
             exclusive_file_lock output_lock(native_output);
             std::ofstream out(native_output, std::ofstream::binary);
-            lean::native::scope_config(ios.get_options());
             export_native_module(out, env);
         }
         if (export_txt) {

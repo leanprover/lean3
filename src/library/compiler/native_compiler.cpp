@@ -536,6 +536,32 @@ public:
     }
 };
 
+// Returns the path to the Lean library based on the standard search path,
+// and provided options.
+std::vector<std::string> native_include_paths() {
+    std::vector<std::string> paths;
+    auto conf = native::get_config();
+
+    // Finally look in the default path.
+    paths.push_back(get_install_path() + "include/lean_ext");
+    return paths;
+}
+
+std::vector<std::string> native_library_paths() {
+    std::vector<std::string> paths;
+
+    auto conf = native::get_config();
+    auto native_library_path = conf.m_native_library_path;
+
+    // // TODO: support general path parsing here
+    if (native_library_path != "") {
+    }
+
+    // Finally look in the default path.
+    paths.push_back(get_install_path() + "lib");
+    return paths;
+}
+
 void native_compile(environment const & env,
                     buffer<extern_fn> & extern_fns,
                     buffer<pair<name, expr>> & procs,
@@ -580,12 +606,22 @@ void native_compile(environment const & env,
     }
 
     cpp_compiler gpp;
-    std::string lean_install_path = get_install_path();
 
-    gpp.include_path(lean_install_path + "include/lean_ext")
-      .file("out.cpp")
+    auto include_paths = native_include_paths();
+    auto library_paths = native_library_paths();
+
+    // Setup include paths
+    for (auto path : include_paths) {
+        gpp.include_path(path);
+    }
+
+    for (auto path : library_paths) {
+        gpp.library_path(path);
+    }
+
+    gpp.file("out.cpp")
       // Example of option right here, dynamically or statically link Lean?
-      .file(lean_install_path + "lib/libleanstatic.a")
+      .link("leanstatic")
       .link("gmp")
       .link("pthread")
       .link("mpfr")
