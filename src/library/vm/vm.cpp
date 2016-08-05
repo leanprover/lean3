@@ -1646,6 +1646,16 @@ vm_obj invoke(vm_obj const & fn, unsigned nargs, vm_obj const * args) {
     return g_vm_state->invoke(fn, nargs, args);
 }
 
+vm_obj invoke(unsigned fn_idx, vm_obj const & a1) {
+    lean_assert(g_vm_state);
+    return g_vm_state->invoke(fn_idx, a1);
+}
+
+vm_obj invoke(unsigned fn_idx, unsigned nargs, vm_obj const * args) {
+    lean_assert(g_vm_state);
+    return g_vm_state->invoke(fn_idx, nargs, args);
+}
+
 vm_state const & get_vm_state() {
     lean_assert(g_vm_state);
     return *g_vm_state;
