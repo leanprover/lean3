@@ -23,9 +23,9 @@ Author: Jared Roesch and Leonardo de Moura
 #include "library/compiler/annotate_return.h"
 #include "library/compiler/anf_transform.h"
 #include "library/compiler/cf.h"
+#include "library/compiler/options.h"
 #include "library/compiler/cpp_compiler.h"
 #include "library/compiler/vm_compiler.h"
-#include "config.h"
 #include "cpp_emitter.h"
 #include "used_names.h"
 #include "library/compiler/extern.h"
@@ -74,7 +74,6 @@ extern_fn mk_extern(name n, unsigned arity) {
 
 class native_compiler_fn {
     environment        m_env;
-    config & m_conf;
     cpp_emitter m_emitter;
     native_compiler_mode m_mode;
     name_map<unsigned> m_arity_map;
@@ -437,15 +436,16 @@ class native_compiler_fn {
     }
 
 public:
-    native_compiler_fn(environment const & env, config & conf, native_compiler_mode mode):
-        m_env(env), m_conf(conf), m_emitter(cpp_emitter(std::string("out.cpp"))) {}
+    native_compiler_fn(environment const & env, native_compiler_mode mode):
+        m_env(env), m_emitter(cpp_emitter(std::string("out.cpp"))) {}
 
     void emit_headers() {
         this->m_emitter.emit_headers();
     }
 
     void emit_main(buffer<pair<name, expr>> const & procs) {
-        name main_fn(this->m_conf.m_main_fn);
+        auto conf = native::get_config();
+        name main_fn(conf.m_native_main_fn);
         this->m_emitter.emit_main(main_fn, [&] () {
             for (auto & p : procs) {
                 this->m_emitter.emit_declare_vm_builtin(p.first);
@@ -537,11 +537,10 @@ public:
 };
 
 void native_compile(environment const & env,
-                    config & conf,
                     buffer<extern_fn> & extern_fns,
                     buffer<pair<name, expr>> & procs,
                     native_compiler_mode mode) {
-    native_compiler_fn compiler(env, conf, mode);
+    native_compiler_fn compiler(env, mode);
 
     compiler.populate_arity_map(procs);
     compiler.populate_arity_map(extern_fns);
@@ -640,7 +639,7 @@ optional<extern_fn> get_builtin(name const & n) {
     }
 }
 
-void native_compile_module(environment const & env, config & conf, buffer<declaration> decls) {
+void native_compile_module(environment const & env, buffer<declaration> decls) {
     std::cout << "compiled native module" << std::endl;
 
     // Preprocess the main function.
@@ -691,10 +690,10 @@ void native_compile_module(environment const & env, config & conf, buffer<declar
     // Finally we assert that there are no more unprocessed declarations.
     lean_assert(used_names.stack_is_empty());
 
-    native_compile(env, conf, extern_fns, all_procs, native_compiler_mode::JIT);
+    native_compile(env, extern_fns, all_procs, native_compiler_mode::JIT);
 }
 
-void native_compile_binary(environment const & env, config & conf, declaration const & d) {
+void native_compile_binary(environment const & env, declaration const & d) {
     lean_trace(name("native_compile"),
         tout() << "main_fn: " << d.get_name() << "\n";);
 
@@ -748,14 +747,16 @@ void native_compile_binary(environment const & env, config & conf, declaration c
     // Finally we assert that there are no more unprocessed declarations.
     lean_assert(used_names.stack_is_empty());
 
-    native_compile(env, conf, extern_fns, all_procs, native_compiler_mode::AOT);
+    native_compile(env, extern_fns, all_procs, native_compiler_mode::AOT);
 }
 
 void initialize_native_compiler() {
+    native::initialize_options();
     register_trace_class("native_compiler");
     register_trace_class({"native_compiler", "preprocess"});
 }
 
 void finalize_native_compiler() {
+    native::finalize_options();
 }
 }
