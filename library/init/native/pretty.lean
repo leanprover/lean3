@@ -14,15 +14,6 @@ import init.meta.injection_tactic
 import init.measurable
 import init.applicative
 
-namespace backend
-
--- inductive ir_exp :=
---   | dummy
-
--- inductive ir_stmt :=
--- | ite : ir_exp -> ir_stmt -> ir_stmt
--- | switch : ir_expr ->
-
 -- A Wadler-style pretty printer
 inductive doc :=
 | nil
@@ -119,42 +110,42 @@ definition is_simple (d : doc) : Prop :=
   | doc.nil := true
   | doc.text _ := true
   | doc.line := true
-  | doc.group d1 d2 := true
   | _ := false
   end
 
-
-check subtype
-
-open tactic
-
-meta_definition is_simple_tac : tactic unit := do
-  unfold [`backend.is_simple],
-  constructor
-
 -- Ideally use wf-recursion to keep the implmentation clean, and generate good code for it.
-definition be_flatten : nat → doc → list (nat × (subtype is_simple))
-| be_flatten i doc.nil := []
-| be_flatten i (doc.append d1 d2) := (be_flatten i d1) ++ (be_flatten i d2)
-| be_flatten i (doc.nest j d) := be_flatten (i + j) d
-| be_flatten i (doc.text s) := (i, subtype.tag (doc.text s) (by is_simple_tac)) :: []
-| be_flatten i (doc.line) := (i, subtype.tag (doc.line) (by is_simple_tac)) :: []
-| be_flatten i (doc.group d1 d2) := (i, subtype.tag (doc.group d1 d2) (by is_simple_tac)) :: []
+definition be_flatten (n : nat) (d : doc) : list (nat × subtype is_simple doc) :=
+  match d with
+  | doc.nil := []
+  | (doc.append d1 d2) := be_flatten (i, d1 ++ be' k i d2
+  | (doc.nest j d) := be' k (i + j) d
+  | (doc.text s) := simple.doc s
+  | (doc.line) :=
+  | (doc.union d1 d2) := (k, [])
+  end
 
-print inductive subtype
+-- definition be' (w : nat) : nat × list (nat × doc) -> simple_doc :=
 
-definition subtype_is_simple_rec {C : doc → Type}
-  (nil : C (doc.nil))
-  (text : forall s, C (doc.text s))
-  (line : C (doc.line))
-  (group : forall d1 d2, C (doc.group d1 d2)) : forall (sd : subtype is_simple), C (subtype.elt_of sd) :=
-by do
-  intros,
-  return unit.star
-
-definition be' : nat → nat → list (nat × (subtype is_simple)) → simple_doc := by do
-  intros,
-  refine (@subtype_is_simple_rec (fun x, simple_doc))
+  -- well_founded.fix
+  --   (fun x,
+  --     prod.cases_on x
+  --       (fun k xs,
+  --         list.cases_on xs
+  --           (fun x, simple_doc.nil)
+  --           (fun h t,
+  --             (prod.cases_on h
+  --               (fun i d,
+  --                 doc.cases_on d
+  --                   (fun (rec : Π y, nat.measure pair_list_doc_measure y (k, (i, d) :: t) -> simple_doc), rec ((k, t))
+  --                     (by sorry))
+  --                   (fun x y rec, rec (k, (i, x) :: (i, y) :: t) (by sorry))
+  --                   (fun j x rec, rec (k, (i + j, x) :: t) (by sorry))
+  --                   (fun s rec, simple_doc.text s (rec (k, t) (by sorry)))
+  --                   (fun rec, simple_doc.line i (rec (i, t) (by sorry)))
+  --                   (fun x y rec, better w k
+  --                     (rec (k, (i, x) :: t) (by sorry))
+  --                     (rec (k, (i, y) :: t) (by sorry)))
+  --                     ))))) x
 
 -- definition be (w k : nat) (l : list (nat × doc)) : simple_doc :=
 --   be' w (k, l)
@@ -163,7 +154,3 @@ definition be' : nat → nat → list (nat × (subtype is_simple)) → simple_do
 
 -- definition best (w k : nat) (d : doc) : simple_doc :=
 --    be w k [(0, x)]
-
-meta_definition compiler (e : expr) : string := to_string e
-
-end backend
