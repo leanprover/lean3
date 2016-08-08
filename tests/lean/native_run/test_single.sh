@@ -8,6 +8,8 @@ LEAN=$1
 
 export LEAN_PATH=../../../library:.
 export HLEAN_PATH=../../../hott:.
+export LIBRARY=../../../build/debug
+export INCLUDE=/Users/jroesch/Git/lean_install/include/lean_ext
 
 if [ $# -ne 3 ]; then
     INTERACTIVE=no
@@ -24,7 +26,7 @@ fi
 
 echo "-- testing $f"
 "$LEAN" --path &> "$f.path.out"
-"$LEAN" --compile $CONFIG "$f" &> "$f.out"
+"$LEAN" --compile $CONFIG "$f" -D native.library_path="$LIBRARY" -D native.include_path="$INCLUDE" &> "$f.out"
 # Currently we always produce a file named a.out, it looks like the first command isn't running
 # and then it crashes when it can't find a.out
 ./a.out &> "$f.produced.out.1"
