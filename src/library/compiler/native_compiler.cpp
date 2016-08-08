@@ -575,6 +575,8 @@ std::vector<std::string> native_library_paths() {
 cpp_compiler compiler_with_native_config() {
     cpp_compiler gpp;
 
+    auto conf = native::get_config();
+
     auto include_paths = native_include_paths();
     auto library_paths = native_library_paths();
 
@@ -587,9 +589,15 @@ cpp_compiler compiler_with_native_config() {
         gpp.library_path(path);
     }
 
+    // Have g++ emit debug information.
+    if (conf.m_native_emit_dwarf) {
+        gpp.debug(true);
+    }
+
     return gpp;
 }
 
+// void lean_compiler(environment const & env,
 void native_compile(environment const & env,
                     buffer<extern_fn> & extern_fns,
                     buffer<pair<name, expr>> & procs,
@@ -637,20 +645,20 @@ void native_compile(environment const & env,
 
     if (native_compiler_mode::AOT == mode) {
         gpp.file("out.cpp")
-            .link("leanstatic")
-            .link("gmp")
-            .link("pthread")
-            .link("mpfr")
-            .debug(true)
-            .run();
-    } else {
+           .link("leanstatic")
+           .link("gmp")
+           .link("pthread")
+           .link("mpfr")
+           .run();
+    } else if (native_compiler_mode::JIT == mode) {
         gpp.file("out.cpp")
-            .link("leanstatic")
-            .link("gmp")
-            .link("pthread")
-            .link("mpfr")
-            .debug(true)
-            .run();
+           .link("leanstatic")
+           .link("gmp")
+           .link("pthread")
+           .link("mpfr")
+           .run();
+    } else {
+        lean_unreachable()
     }
 }
 
