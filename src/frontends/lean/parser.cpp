@@ -2155,7 +2155,7 @@ public:
 void parser::parse_command() {
     lean_assert(curr() == scanner::token_kind::CommandKeyword);
     m_last_cmd_pos = pos();
-    name const & cmd_name = get_token_info().value();
+    name cmd_name = get_token_info().value();
     m_cmd_token = get_token_info().token();
     if (auto it = cmds().find(cmd_name)) {
         lazy_type_context tc(m_env, get_options());
@@ -2163,10 +2163,12 @@ void parser::parse_command() {
         scope_trace_env  scope2(m_env, m_ios.get_options(), tc);
         if (is_notation_cmd(cmd_name)) {
             in_notation_ctx ctx(*this);
-            next();
+            if (it->get_skip_token())
+                next();
             m_env = it->get_fn()(*this);
         } else {
-            next();
+            if (it->get_skip_token())
+                next();
             m_env = it->get_fn()(*this);
         }
     } else {
