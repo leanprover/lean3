@@ -119,8 +119,6 @@ public:
 };
 
 static bool contains_untrusted_macro(unsigned trust_lvl, expr const & e) {
-    if (trust_lvl > LEAN_BELIEVER_TRUST_LEVEL)
-        return false;
     return static_cast<bool>(find(e, [&](expr const & e, unsigned) {
                 return is_macro(e) && macro_def(e).trust_level() >= trust_lvl;
             }));
@@ -143,7 +141,7 @@ expr unfold_all_macros(environment const & env, expr const & e) {
 }
 
 static bool contains_untrusted_macro(unsigned trust_lvl, declaration const & d) {
-    if (trust_lvl > LEAN_BELIEVER_TRUST_LEVEL || !d.is_trusted())
+    if (!d.is_trusted())
         return false;
     if (contains_untrusted_macro(trust_lvl, d.get_type()))
         return true;
