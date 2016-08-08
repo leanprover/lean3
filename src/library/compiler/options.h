@@ -9,7 +9,7 @@ Author: Jared Roesch, and Leonardo de Moura
 
 namespace lean {
 namespace native {
-/** \brief Native configuration object. */
+/** \brief Native compiler configuration object. */
 struct config {
     char const * m_native_library_path;
     char const * m_native_include_path;
