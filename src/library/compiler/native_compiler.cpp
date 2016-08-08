@@ -541,9 +541,16 @@ public:
 std::vector<std::string> native_include_paths() {
     std::vector<std::string> paths;
     auto conf = native::get_config();
+    auto native_include_path = conf.m_native_include_path;
 
-    // Finally look in the default path.
-    paths.push_back(get_install_path() + "include/lean_ext");
+    // // TODO: support general path parsing here
+    if (native_include_path != "")  {
+        paths.push_back(native_include_path);
+    } else {
+        // Finally look in the default path.
+        paths.push_back(get_install_path() + "include/lean_ext");
+    }
+
     return paths;
 }
 
@@ -554,12 +561,33 @@ std::vector<std::string> native_library_paths() {
     auto native_library_path = conf.m_native_library_path;
 
     // // TODO: support general path parsing here
-    if (native_library_path != "") {
+    if (native_library_path != "")  {
+        paths.push_back(native_library_path);
+    } else {
+        // Finally look in the default path.
+        paths.push_back(get_install_path() + "lib");
     }
 
-    // Finally look in the default path.
-    paths.push_back(get_install_path() + "lib");
     return paths;
+}
+
+// Constructs a compiler with the native configuation options applied.
+cpp_compiler compiler_with_native_config() {
+    cpp_compiler gpp;
+
+    auto include_paths = native_include_paths();
+    auto library_paths = native_library_paths();
+
+    // Setup include paths
+    for (auto path : include_paths) {
+        gpp.include_path(path);
+    }
+
+    for (auto path : library_paths) {
+        gpp.library_path(path);
+    }
+
+    return gpp;
 }
 
 void native_compile(environment const & env,
@@ -605,28 +633,25 @@ void native_compile(environment const & env,
         compiler.emit_main(procs);
     }
 
-    cpp_compiler gpp;
+    auto gpp = compiler_with_native_config();
 
-    auto include_paths = native_include_paths();
-    auto library_paths = native_library_paths();
-
-    // Setup include paths
-    for (auto path : include_paths) {
-        gpp.include_path(path);
+    if (native_compiler_mode::AOT == mode) {
+        gpp.file("out.cpp")
+            .link("leanstatic")
+            .link("gmp")
+            .link("pthread")
+            .link("mpfr")
+            .debug(true)
+            .run();
+    } else {
+        gpp.file("out.cpp")
+            .link("leanstatic")
+            .link("gmp")
+            .link("pthread")
+            .link("mpfr")
+            .debug(true)
+            .run();
     }
-
-    for (auto path : library_paths) {
-        gpp.library_path(path);
-    }
-
-    gpp.file("out.cpp")
-      // Example of option right here, dynamically or statically link Lean?
-      .link("leanstatic")
-      .link("gmp")
-      .link("pthread")
-      .link("mpfr")
-      .debug(true)
-      .run();
 }
 
 void native_preprocess(environment const & env, declaration const & d, buffer<pair<name, expr>> & procs) {

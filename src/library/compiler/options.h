@@ -9,23 +9,13 @@ Author: Jared Roesch, and Leonardo de Moura
 
 namespace lean {
 namespace native {
-/** \brief Blast configuration object. */
+/** \brief Native configuration object. */
 struct config {
     char const * m_native_library_path;
+    char const * m_native_include_path;
     char const * m_native_main_fn;
-    
-    // unsigned                   m_max_depth;
-    // unsigned                   m_init_depth;
-    // unsigned                   m_inc_depth;
-    // bool                       m_subst;
-    // bool                       m_simp;
-    // bool                       m_recursor;
-    // bool                       m_ematch;
-    // bool                       m_cc;
-    // bool                       m_backward;
-    // bool                       m_show_failure;
-    // char const *               m_strategy;
-    // unsigned                   m_pattern_max_steps;
+    bool         m_native_emit_dwarf;
+
     config(options const & o);
 };
 

@@ -16,8 +16,14 @@ import init.applicative
 
 namespace backend
 
--- A Wadler-style pretty printer
+-- inductive ir_exp :=
+--   | dummy
 
+-- inductive ir_stmt :=
+-- | ite : ir_exp -> ir_stmt -> ir_stmt
+-- | switch : ir_expr ->
+
+-- A Wadler-style pretty printer
 inductive doc :=
 | nil
 | append : doc → doc → doc
@@ -108,24 +114,24 @@ definition pair_list_doc_measure (p : nat × list (nat × doc)) : nat :=
 definition docpair_wf [instance] : well_founded (nat.measure pair_list_doc_measure) :=
   nat.measure.wf pair_list_doc_measure
 
--- definition is_simple (d : doc) : Prop :=
---   match d with
---   | doc.nil := true
---   | doc.text _ := true
---   | doc.line := true
---   | _ := false
---   end
+definition is_simple (d : doc) : Prop :=
+  match d with
+  | doc.nil := true
+  | doc.text _ := true
+  | doc.line := true
+  | _ := false
+  end
 
--- -- Ideally use wf-recursion to keep the implmentation clean, and generate good code for it.
--- definition be_flatten (n : nat) (d : doc) :  subtype is_simple (list (nat × doc)) :=
---   match d with
---   | doc.nil := []
---   | (doc.append d1 d2) := be' k i d1 ++ be' k i d2
---   | (doc.nest j d) := be' k (i + j) d
---   | (doc.text s) := simple.doc s
---   | (doc.line) :=
---   | (doc.union d1 d2) := (k, [])
---   end
+-- Ideally use wf-recursion to keep the implmentation clean, and generate good code for it.
+definition be_flatten (n : nat) (d : doc) : list (nat × subtype is_simple doc) :=
+  match d with
+  | doc.nil := []
+  | (doc.append d1 d2) := be_flatten (i, d1 ++ be' k i d2
+  | (doc.nest j d) := be' k (i + j) d
+  | (doc.text s) := simple.doc s
+  | (doc.line) :=
+  | (doc.union d1 d2) := (k, [])
+  end
 
 -- definition be' (w : nat) : nat × list (nat × doc) -> simple_doc :=
 
