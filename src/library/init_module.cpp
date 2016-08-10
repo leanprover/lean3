@@ -51,6 +51,7 @@ Author: Leonardo de Moura
 #include "library/fun_info.h"
 #include "library/mpq_macro.h"
 #include "library/arith_instance_manager.h"
+#include "library/inductive.h"
 
 // #include "library/congr_lemma_manager.h"
 // #include "library/light_lt_manager.h"
@@ -130,9 +131,11 @@ void initialize_library_module() {
     initialize_delayed_abstraction();
     initialize_mpq_macro();
     initialize_arith_instance_manager();
+    initialize_library_inductive();
 }
 
 void finalize_library_module() {
+    finalize_library_inductive();
     finalize_arith_instance_manager();
     finalize_mpq_macro();
     finalize_delayed_abstraction();
