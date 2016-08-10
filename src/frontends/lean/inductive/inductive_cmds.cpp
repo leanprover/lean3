@@ -103,7 +103,7 @@ static name * g_definition  = nullptr;
 static name * g_intro       = nullptr;
 static name * g_recursor    = nullptr;
 
-void initialize_inductive_cmd() {
+void initialize_inductive_cmds() {
     g_tmp_prefix = new name(name::mk_internal_unique_name());
     g_inductive  = new name("inductive");
     g_intro      = new name("intro");
@@ -129,7 +129,7 @@ void initialize_inductive_cmd() {
                          "(inductive) automatically generate the auxiliary declaration C.no_confusion for each inductive datatype C");
 }
 
-void finalize_inductive_cmd() {
+void finalize_inductive_cmds() {
     delete g_recursor;
     delete g_intro;
     delete g_inductive;
@@ -910,7 +910,13 @@ environment inductive_cmd(parser & p) {
     return inductive_cmd_fn(p)();
 }
 
-void register_inductive_cmd(cmd_table & r) {
-    add_cmd(r, cmd_info("inductive",   "declare an inductive datatype", inductive_cmd));
+environment mutual_inductive_cmd(parser & p) {
+    // TODO(dhs): implement mutual_inductive command
+    throw exception("mutual_inductive command not yet supported");
+}
+
+void register_inductive_cmds(cmd_table & r) {
+    add_cmd(r, cmd_info("inductive",        "declare an inductive datatype", inductive_cmd));
+    add_cmd(r, cmd_info("mutual_inductive", "declare an inductive datatype", mutual_inductive_cmd));
 }
 }
