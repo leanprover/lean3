@@ -57,6 +57,7 @@ template<typename T> expr Pi(T const & locals, expr const & b, bool use_cache = 
 // inline expr Let(name const & n, expr const & t, expr const & v, expr const & b, binder_info const & bi = binder_info()) {
 //    return mk_let(n, t, v, b);
 // }
+
 /** \brief Create a let-expression by abstracting the given local constants over b */
 // expr Let(unsigned num, expr const * locals, expr const & b, bool use_cache = true);
 // inline expr Let(expr const & local, expr const & b, bool use_cache = true) { return Fun(1, &local, b, use_cache); }

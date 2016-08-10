@@ -26,11 +26,11 @@ void initialize_compiler_module() {
     initialize_simp_inductive();
     initialize_vm_compiler();
     initialize_native_compiler();
-    initialize_extern();
+    initialize_extern_attribute();
 }
 
 void finalize_compiler_module() {
-    finalize_extern();
+    finalize_extern_attribute();
     finalize_native_compiler();
     finalize_vm_compiler();
     finalize_simp_inductive();

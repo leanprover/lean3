@@ -1,8 +1,8 @@
 /*
-Copyright (c) 2015 Microsoft Corporation. All rights reserved.
+Copyright (c) 2016 Microsoft Corporation. All rights reserved.
 Released under Apache 2.0 license as described in the file LICENSE.
 
-Author: Leonardo de Moura
+Author: Jared Roesch
 */
 #include "util/fresh_name.h"
 #include "kernel/type_checker.h"
@@ -23,6 +23,12 @@ Author: Leonardo de Moura
 #include "library/vm/vm.h"
 
 namespace lean {
+
+// TODO: Globally allocate the native_compiler.return name.
+bool is_return_expr(expr const & e) {
+    return mk_constant(name({"native_compiler", "return"})) == e;
+}
+
 
 class annotate_return_fn : public compiler_step_visitor {
     virtual expr visit_var(expr const & e) {

@@ -1,9 +1,10 @@
 /*
-Copyright (c) 2015 Microsoft Corporation. All rights reserved.
+Copyright (c) 2016 Microsoft Corporation. All rights reserved.
 Released under Apache 2.0 license as described in the file LICENSE.
 
-Author: Leonardo de Moura
+Author: Jared Roesch
 */
+
 #include "util/fresh_name.h"
 #include "kernel/type_checker.h"
 #include "kernel/abstract.h"
