@@ -9,7 +9,7 @@ LEAN=$1
 export LEAN_PATH=../../../library:.
 export HLEAN_PATH=../../../hott:.
 export LIBRARY=../../../build/debug
-export INCLUDE=/Users/jroesch/Git/lean_install/include/lean_ext
+export INCLUDE=../../../src
 
 if [ $# -ne 3 ]; then
     INTERACTIVE=no
@@ -25,13 +25,15 @@ else
 fi
 
 echo "-- testing $f"
-"$LEAN" --path &> "$f.path.out"
-"$LEAN" --compile $CONFIG "$f" -D native.library_path="$LIBRARY" -D native.include_path="$INCLUDE" &> "$f.out"
+"$LEAN" --compile $CONFIG "$f" -D native.library_path="$LIBRARY" -D native.include_path="$INCLUDE" &> "$f.compile.out"
 # Currently we always produce a file named a.out, it looks like the first command isn't running
 # and then it crashes when it can't find a.out
 ./a.out &> "$f.produced.out.1"
 sed "/warning: imported file uses 'sorry'/d" "$f.produced.out.1" | sed "/warning: using 'sorry'/d" > "$f.produced.out"
 rm -f "$f.produced.out.1"
+rm -f "$f.compile.out"
+rm -f a.out
+
 if test -f "$f.expected.out"; then
     if diff --ignore-all-space -I "executing external script" "$f.produced.out" "$f.expected.out"; then
         echo "-- checked"
