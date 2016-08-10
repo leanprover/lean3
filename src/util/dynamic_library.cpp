@@ -6,13 +6,30 @@ Author: Jared Roesch
 */
 
 #include <string>
-#include "dynamic_loader.h"
+
+// Interacting with dynamic linking is *not* cross-platform, this is my first
+// attempt at supporting all platforms.
+
+#if defined(LEAN_WINDOWS) && !defined(LEAN_CYGWIN)
+void dlopen(const char * file, int mode) {
+    // TODO: add windows support
+    throw std::runtime_error("Windows does not currently have support for dynamically loading object files");
+}
+#elif defined(__APPLE__)
+// OSX version, dlfcn should be availble on this platform
+#include <dlfcn.h>
+#else
+// Linux verison, dlfcn should be availble on this platform
+#include <dlfcn.h>
+#endif
+#include "dynamic_library.h"
 
 namespace lean {
 
+
 dynamic_library::dynamic_library(std::string library_path):
 m_name(library_path), m_handle(nullptr) {
-    m_handle =  dlopen("file.dylib", RTLD_LAZY | RTLD_GLOBAL);
+    m_handle =  dlopen(library_path.c_str(), RTLD_LAZY | RTLD_GLOBAL);
 
     // Check to see if an error occured while performing dynamic linking.
     if (!m_handle) {
