@@ -4,52 +4,10 @@ Released under Apache 2.0 license as described in the file LICENSE.
 
 Author: Jared Roesch
 */
-#include <fstream>
-#include <iostream>
-#include <iomanip>
-#include <utility>
 #include "cpp_compiler.h"
-#include "kernel/environment.h"
-#include "sys/wait.h"
+#include "util/process.cpp"
 
 namespace lean {
-  process::process(std::string n): m_proc_name(n), m_args() {
-      m_args.push_back(m_proc_name);
-  }
-
-  process & process::arg(std::string a) {
-      m_args.push_back(a);
-      return *this;
-  }
-
-  void process::run() {
-      int pid = fork();
-      if (pid == 0) {
-
-          buffer<char*> pargs;
-          for (auto arg : m_args) {
-              std::cout << arg << std::endl;
-              auto str = (char*)malloc(sizeof(char) * 100);
-              arg.copy(str, arg.size());
-              str[arg.size()] = '\0';
-              // std::cout << str << std::endl;
-              pargs.push_back(str);
-          }
-
-          pargs.data()[pargs.size()] = NULL;
-
-          auto err = execvp(pargs.data()[0], pargs.data());
-          if (err < 0) {
-              throw std::runtime_error("executing process failed: ...");
-          }
-      } else if (pid == -1) {
-          throw std::runtime_error("forking process failed: ...");
-      } else {
-          int status;
-          waitpid(pid, &status, 0);
-      }
-  }
-
   cpp_compiler & cpp_compiler::link(std::string lib) {
       m_link.push_back(lib);
       return *this;
@@ -75,7 +33,7 @@ namespace lean {
       return *this;
   }
 
-  cpp_compiler::cpp_compiler() : m_library_paths(), m_files(), m_include_paths(), m_link(), m_debug(true) {}
+  cpp_compiler::cpp_compiler() : m_library_paths(), m_include_paths(), m_files(), m_link(), m_debug(false) {}
 
   void cpp_compiler::run() {
       process p("g++");
