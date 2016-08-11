@@ -5,7 +5,7 @@ Released under Apache 2.0 license as described in the file LICENSE.
 Author: Jared Roesch
 */
 #include "cpp_compiler.h"
-#include "util/process.cpp"
+#include "util/process.h"
 
 namespace lean {
   cpp_compiler & cpp_compiler::link(std::string lib) {
@@ -34,6 +34,16 @@ namespace lean {
   }
 
   cpp_compiler::cpp_compiler() : m_library_paths(), m_include_paths(), m_files(), m_link(), m_debug(false) {}
+
+  cpp_compiler & shared_library(bool on) {
+      m_shared = on;
+      return *this;
+  }
+
+  cpp_compiler & pic(bool on) {
+      m_pic = on;
+      return * this;
+  }
 
   void cpp_compiler::run() {
       process p("g++");
