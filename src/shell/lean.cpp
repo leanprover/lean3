@@ -285,7 +285,6 @@ int main(int argc, char ** argv) {
     std::string index_name;
     optional<unsigned> line;
     optional<unsigned> column;
-    optional<std::string> compiler_target;
     optional<std::string> export_txt;
     optional<std::string> export_all_txt;
     optional<std::string> base_dir;
@@ -402,7 +401,6 @@ int main(int argc, char ** argv) {
             export_txt = std::string(optarg);
             break;
         case 'C':
-            // compiler_target = std::string(optarg);
             compile = true;
             break;
 #ifdef LEAN_DEBUG

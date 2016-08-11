@@ -84,16 +84,13 @@ class native_compiler_fn {
 
     void compile_global(vm_decl const & decl, unsigned nargs, expr const * args, unsigned bpz, name_map<unsigned> const & m) {
         name c_fn_name = decl.get_name();
-        // if (decl.is_constant_assumption()) {
-        //     c_fn_name = get_vm_builtin_internal_name(decl.get_name());
-        // } else {
-        //     c_fn_name = decl.get_name();
-        // }
 
         if (decl.get_arity() <= nargs) {
             if (decl.is_builtin()) {
-                throw exception("NYI built-in call");
-                // emit(mk_invoke_builtin_instr(decl.get_idx()));
+                // I believe this code is currently unreachable on this path,
+                // if not we should trip this assertion, and correct our
+                // assumptions.
+                lean_unreachable()
             } else {
                 this->m_emitter.emit_c_call(c_fn_name, nargs, args, [=] (expr const & e) {
                     compile(e, bpz, m);
@@ -101,16 +98,11 @@ class native_compiler_fn {
             }
         } else {
             lean_assert(decl.get_arity() > nargs);
-            // TODO: Not sure about this case.
             auto name = decl.get_name();
             this->m_emitter.emit_c_call(name, nargs, args, [=] (expr const & e) {
                 compile(e, bpz, m);
             });
         }
-    }
-    //
-    [[ noreturn ]] void throw_unknown_constant(name const & n) {
-        throw exception(sstream() << "code generation failed, VM does not have code for '" << n << "'");
     }
 
     void compile_constant(expr const & e) {
@@ -124,7 +116,9 @@ class native_compiler_fn {
         } else if (auto idx = is_internal_cnstr(e)) {
             this->m_emitter.emit_sconstructor(*idx);
         } else if (auto j = get_vm_builtin_cases_idx(m_env, n)) {
-            std::cout << "got the index" << j.value() << std::endl;
+            // I also believe this case to unreachable, if it isn't we
+            // should crash.
+            lean_unreachable()
         } else if (is_uninitialized(e)) {
             this->m_emitter.emit_string("lean::vm_obj()");
         } else {
@@ -132,10 +126,6 @@ class native_compiler_fn {
           name_map<unsigned> nm;
           compile_to_c_call(n, args, 0u, nm);
         }
-        //     compile_global(*decl, 0, nullptr, 0, name_map<unsigned>());
-        // } else {
-        //     throw_unknown_constant(n);
-        // }
     }
 
     void compile_local(expr const & e, name_map<unsigned> const & m) {
@@ -318,8 +308,9 @@ class native_compiler_fn {
                     compile(e, bpz, m);
                 });
             } else {
-                std::cout << "not a constant:" << fn << std::endl;
-                throw exception("NYI call should only take constant arg");
+                // The previous passes should of made it so this case is
+                // impossible.
+                lean_unreachable()
             }
         } else if (is_constant(fn)) {
             if (is_return_expr(fn)) {
@@ -334,15 +325,15 @@ class native_compiler_fn {
                 compile_to_c_call(const_name(fn), args, bpz, m);
             }
         } else {
+            // The previous passes should of made it so this case is
+            // impossible.
             lean_unreachable();
         }
     }
 
     void compile_app(expr const & e, unsigned bpz, name_map<unsigned> const & m) {
         buffer<expr> args;
-        // expr const & fn = get_app_fn(e);
         expr const & fn = get_app_args(e, args);
-        // std::cout << "compile_app: " << fn << std::endl;
 
         if (is_return_expr(fn)) {
             this->m_emitter.emit_return([&] () {
@@ -541,14 +532,16 @@ public:
 std::vector<std::string> native_include_paths() {
     std::vector<std::string> paths;
     auto conf = native::get_config();
-    auto native_include_path = conf.m_native_include_path;
+    auto native_include_path = std::string(conf.m_native_include_path);
+
+    std::cout << native_include_path << std::endl;
 
     // // TODO: support general path parsing here
-    if (native_include_path != "")  {
-        paths.push_back(native_include_path);
-    } else {
+    if (native_include_path.compare("") == 0)  {
         // Finally look in the default path.
         paths.push_back(get_install_path() + "include/lean_ext");
+    } else {
+        paths.push_back(native_include_path);
     }
 
     return paths;
@@ -558,22 +551,28 @@ std::vector<std::string> native_library_paths() {
     std::vector<std::string> paths;
 
     auto conf = native::get_config();
-    auto native_library_path = conf.m_native_library_path;
+    auto native_library_path = std::string(conf.m_native_library_path);
 
     // // TODO: support general path parsing here
-    if (native_library_path != "")  {
-        paths.push_back(native_library_path);
-    } else {
+    if (native_library_path.compare("") == 0) {
         // Finally look in the default path.
         paths.push_back(get_install_path() + "lib");
+    } else {
+        paths.push_back(native_library_path);
     }
 
     return paths;
 }
 
 // Constructs a compiler with the native configuation options applied.
-cpp_compiler compiler_with_native_config() {
+cpp_compiler compiler_with_native_config(native_compiler_mode mode) {
     cpp_compiler gpp;
+
+    if (mode == native_compiler_mode::AOT) {
+        gpp = mk_executable_compiler();
+    } else {
+        gpp = mk_shared_compiler();
+    }
 
     auto conf = native::get_config();
 
@@ -597,7 +596,12 @@ cpp_compiler compiler_with_native_config() {
     return gpp;
 }
 
-// void lean_compiler(environment const & env,
+void add_shared_dependencies(cpp_compiler & compiler) {
+    compiler.link("gmp")
+            .link("pthread")
+            .link("mpfr");
+}
+
 void native_compile(environment const & env,
                     buffer<extern_fn> & extern_fns,
                     buffer<pair<name, expr>> & procs,
@@ -617,49 +621,28 @@ void native_compile(environment const & env,
         compiler.emit_prototype(p.first, p.second);
     }
 
-    // auto compiler_name = name({"backend", "compiler"});
-    // auto cc = env.get(compiler_name);
-    // std::cout << cc.get_value() << std::endl;
-    // vm_state S(env);
-
-    // std::fstream lean_out_file("out.lean.cpp", std::ios_base::out);
-
     // Iterate each processed decl, emitting code for it.
     for (auto & p : procs) {
         lean_trace(name({"native_compiler"}), tout() << "" << p.first << "\n";);
         name & n = p.first;
         expr body = p.second;
-        // vm_obj result = S.invoke(compiler_name, to_obj(p.second));
-        // lean_out_file << to_string(result) << std::endl;
         compiler(n, body);
     }
-
-    // lean_out_file.flush();
-    // lean_out_file.close();
 
     if (mode == native_compiler_mode::AOT) {
         compiler.emit_main(procs);
     }
 
-    auto gpp = compiler_with_native_config();
+    // Get a compiler with the config specified by native options, placed
+    // in the correct mode.
+    auto gpp = compiler_with_native_config(mode);
 
-    if (native_compiler_mode::AOT == mode) {
-        gpp.file("out.cpp")
-           .link("leanstatic")
-           .link("gmp")
-           .link("pthread")
-           .link("mpfr")
-           .run();
-    } else if (native_compiler_mode::JIT == mode) {
-        gpp.file("out.cpp")
-           .link("leanstatic")
-           .link("gmp")
-           .link("pthread")
-           .link("mpfr")
-           .run();
-    } else {
-        lean_unreachable()
-    }
+    // Add all the shared link dependencies.
+    add_shared_dependencies(gpp);
+
+    gpp.file("out.cpp")
+       .link("leanstatic")
+       .run();
 }
 
 void native_preprocess(environment const & env, declaration const & d, buffer<pair<name, expr>> & procs) {

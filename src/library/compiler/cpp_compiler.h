@@ -31,4 +31,10 @@ public:
     void run();
 };
 
+// Setup a compiler for building executables.
+cpp_compiler mk_executable_compiler();
+
+// Setup a compiler for building dynamic libraries.
+cpp_compiler mk_shared_compiler();
+
 }
