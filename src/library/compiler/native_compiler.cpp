@@ -249,26 +249,30 @@ class native_compiler_fn {
         this->m_emitter.emit_string(")");
     }
 
-    void compile_to_c_call(name const & n_, buffer<expr> & args, unsigned bpz, name_map<unsigned> const & m, bool is_external = false) {
-      name n = n_;
+    void compile_to_c_call(name const & _lean_name, buffer<expr> & args, unsigned bpz, name_map<unsigned> const & m, bool is_external = false) {
+      std::cout << "compile_to_c_call: " << _lean_name << std::endl;
+      name lean_name(_lean_name);
 
+      // Compute the post-processing arity by looking up in the arity map.
       unsigned arity;
-      this->m_arity_map.for_each([&] (name const & n, unsigned const & i) {
-          // std::cout << "entry: " << n.to_string("+") <<  (n == n_) << std::endl;
-          if (n == n_) {
-            arity = i;
-          }
-      });
 
-      // std::cout << "name:" << n.to_string("&") << std::endl;
-      // I don't understand, this, temporary hack to get around it,
-      // terrible performance.
-      // lean_assert(this->m_arity_map.contains(n));
-      //unsigned arity = *this->m_arity_map.find(n);
+      if (is_external) {
+          auto builtin_name = get_vm_builtin_internal_name(lean_name);
+          arity = *this->m_arity_map.find(builtin_name);
+      } else {
+          arity = *this->m_arity_map.find(lean_name);
+      }
 
+      std::cout << "arg count: " << args.size() << std::endl;
+      std::cout << "arity: " << arity << std::endl;
+
+      std::cout << "args: " << std::endl;
+      for (auto arg : args) {
+          std::cout << "\t" << arg << std::endl;
+      }
       if (args.size() < arity) {
           this->m_emitter.emit_mk_native_closure(
-            n,
+            lean_name,
             args.size(),
             args.data(), [=] (expr const & e) {
               compile(e, bpz, m);
@@ -276,21 +280,22 @@ class native_compiler_fn {
       } else if (args.size() == arity) {
           // Note: this is kind of a hack, would like to abstract over this
           // more cleanly by doing an annotation pass on all foreign calls.
+
           if (is_external) {
-            std::string s("lean::");
-            s += n.to_string("");
-            n = name(s);
+              std::string s("lean::");
+              s += get_vm_builtin_internal_name(lean_name);
+              lean_name = name(s);
           }
 
           this->m_emitter.emit_c_call(
-            n,
+            lean_name,
             args.size(),
             args.data(), [=] (expr const & e) {
               compile(e, bpz, m);
             });
       } else {
         this->m_emitter.emit_oversaturated_call(
-          n,
+          lean_name,
           arity,
           args.size(),
           args.data(), [=] (expr const & e) {
@@ -319,7 +324,10 @@ class native_compiler_fn {
                     compile(args[0], bpz, m);
                 });
             } else if (auto n = get_vm_builtin_internal_name(const_name(fn))) {
-                compile_to_c_call(n, args, bpz, m, true);
+                // Be careful here, we need to ensure that we pass the
+                // Lean name here, since certain types of calls still
+                // pass through the VM.
+                compile_to_c_call(const_name(fn), args, bpz, m, true);
             } else if (is_neutral_expr(fn)) {
                 this->m_emitter.emit_sconstructor(0);
             } else {
@@ -655,7 +663,7 @@ void native_compile(environment const & env,
 }
 
 void native_preprocess(environment const & env, declaration const & d, buffer<pair<name, expr>> & procs) {
-    lean_trace(name("native_compiler"),
+    lean_trace({"compiler", "native"},
       tout() << "native_preprocess:" << d.get_name() << "\n";);
 
     buffer<pair<name, expr>> raw_procs;
@@ -666,10 +674,10 @@ void native_preprocess(environment const & env, declaration const & d, buffer<pa
     // Run the native specific optimizations.
     for (auto proc : raw_procs) {
         auto anf_body = anf_transform(env, proc.second);
-        lean_trace(name({"native_compiler", "preprocess"}),
+        lean_trace(name({"compiler", "native", "preprocess"}),
           tout() << "anf_body:" << anf_body << "\n";);
         auto cf_body = cf(env, anf_body);
-        lean_trace(name({"native_compiler", "preprocess"}),
+        lean_trace(name({"compiler", "native", "preprocess"}),
           tout() << "cf_body:" << cf_body << "\n";);
         auto annotated_body = annotate_return(env, cf_body);
         lean_trace(name({"native_compiler", "preprocess"}),
@@ -741,7 +749,7 @@ void native_compile_module(environment const & env, buffer<declaration> decls) {
              // std::cout << "extern fn" << n << std::endl;
              extern_fns.push_back(builtin.value());
         } else if (auto i = get_vm_builtin_cases_idx(env, n)) {
-             auto arity = 2; // get_vm_builtin_cases()
+             auto arity = 2; // are these always exactly two arity?
              extern_fns.push_back(mk_lean_extern(n, arity));
         } else {
             extern_fns.push_back(mk_extern(n, 0));
@@ -813,8 +821,8 @@ void native_compile_binary(environment const & env, declaration const & d) {
 
 void initialize_native_compiler() {
     native::initialize_options();
-    register_trace_class("native_compiler");
-    register_trace_class({"native_compiler", "preprocess"});
+    register_trace_class({"compiler", "native"});
+    register_trace_class({"compiler", "native", "preprocess"});
 }
 
 void finalize_native_compiler() {

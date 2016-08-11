@@ -23,6 +23,11 @@ struct vm_ptr : public vm_external {
     virtual void dealloc() override { this->~vm_ptr(); get_vm_allocator().deallocate(sizeof(vm_ptr), this); }
 };
 
+vm_ptr const & to_vm_ptr(vm_obj const & o) {
+    lean_assert(is_external(o));
+    lean_assert(dynamic_cast<vm_ptr*>(to_external(o)));
+    return *static_cast<vm_ptr*>(to_external(o));
+}
 
 // vm_obj to_obj(backward_lemma_index const & idx) {
 //    return mk_vm_external(new (get_vm_allocator().allocate(sizeof(vm_backward_lemmas))) vm_backward_lemmas(idx));
@@ -40,13 +45,21 @@ vm_obj ptr_to_string(vm_obj const & obj) {
 }
 
 vm_obj write_nat_as_int(vm_obj const & nat, vm_obj const & int_ptr, vm_obj const &) {
-    std::cout << "write_nat_as_int" << std::endl;
-    return mk_vm_simple(0);
+    // This needs to be carefull thought about before shipping, casting
+    // semantics are hard to get right.
+    unsigned value = to_unsigned(nat);
+    int as_int = (int)value;
+
+    int * iptr = (int*)to_vm_ptr(int_ptr).m_data;
+    *iptr = as_int;
+
+    return mk_vm_unit();
 }
 
 vm_obj read_int_as_nat(vm_obj const & int_ptr, vm_obj const &) {
-    std::cout << "read_nat_as_int" << std::endl;
-    return mk_vm_simple(10);
+    int * iptr = (int*)to_vm_ptr(int_ptr).m_data;
+    int i = *iptr;
+    return mk_vm_nat((unsigned) i);
 }
 
 void initialize_vm_ptr() {
