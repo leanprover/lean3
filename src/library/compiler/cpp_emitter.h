@@ -41,7 +41,7 @@ namespace lean  {
         void unindent();
 
         void emit_main(name & lean_main) {
-            emit_main(lean_main, [&] () {});
+            emit_main(lean_main, [&] () {}, [&] () {});
         }
 
         void emit_name(name const & n) {
@@ -50,23 +50,17 @@ namespace lean  {
             this->emit_string("\"})");
         }
 
-        template<typename F>
-        void emit_main(name & lean_main, F f) {
+        template<typename F, typename G>
+        void emit_main(name & lean_main, F custom_init, G call_main) {
             *this->m_output_stream << "int main() {\n";
             this->emit_indented_line("lean::initialize();");
             this->emit_indented_line("lean::environment env;");
-            f();
+            custom_init();
             this->emit_indented_line("lean::vm_state S(env);");
             this->emit_indented_line("lean::scope_vm_state scoped(S);");
             this->emit_indented_line("g_env = &env;");
-            this->emit_oversaturated_call(
-              lean_main,
-              0,
-              1,
-              nullptr, [&] (expr const &) {
-                *this->m_output_stream << "lean::mk_vm_simple(0)";
-              });
-              *this->m_output_stream << ";\n return 0;\n}" << std::endl;
+            call_main();
+            *this->m_output_stream << ";\n return 0;\n}" << std::endl;
         }
 
         void emit_prototype(name const & n, unsigned arity);

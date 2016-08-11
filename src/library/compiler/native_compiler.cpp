@@ -442,6 +442,14 @@ public:
             for (auto & p : procs) {
                 this->m_emitter.emit_declare_vm_builtin(p.first);
             }
+        }, [&] () {
+            buffer<expr> args;
+            auto unit = mk_neutral_expr();
+            args.push_back(unit);
+
+            // Make sure to invoke the C, call machinery since the type of
+            // of the function and shift depending on previous analysis passes.
+            compile_to_c_call(main_fn, args, 0, name_map<unsigned>());
         });
     }
 
