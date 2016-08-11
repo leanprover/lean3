@@ -45,8 +45,9 @@ definition extern (ret : type) (s : string) : list type -> Type.{1}
 | extern [] := IO (value_of ret)
 | extern (t :: ts) := (value_of ret) -> extern ts
 
-constant print_int : extern void "print_int" [int]
-attribute [extern] print_int
+-- We really need good support for Z's would be nice to define a set of system types.
+constant write_nat_as_int : nat -> ptr int -> IO unit
+constant read_int_as_nat : ptr int -> IO nat
 
 -- constant extern_open : extern_fn "open" [string, int] int
 -- attribute [extern] extern_open

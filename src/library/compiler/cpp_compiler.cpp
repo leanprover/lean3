@@ -35,12 +35,12 @@ namespace lean {
 
   cpp_compiler::cpp_compiler() : m_library_paths(), m_include_paths(), m_files(), m_link(), m_debug(false) {}
 
-  cpp_compiler & shared_library(bool on) {
+  cpp_compiler & cpp_compiler::shared_library(bool on) {
       m_shared = on;
       return *this;
   }
 
-  cpp_compiler & pic(bool on) {
+  cpp_compiler & cpp_compiler::pic(bool on) {
       m_pic = on;
       return * this;
   }
