@@ -30,7 +30,8 @@ Author: Jared Roesch and Leonardo de Moura
 #include "used_names.h"
 #include "library/compiler/extern.h"
 #include "library/vm/vm.h"
-#include "util/executable.h"
+#include "util/lean_path.h"
+// #include "util/executable.h"
 #include <sys/types.h>
 #include <sys/stat.h>
 #include <stdio.h>
@@ -46,7 +47,7 @@ namespace lean {
 void set_install_path(std::string s) {
     // 8 is the size of the string bin/lean which we want to remove from
     // the installed version of Lean.
-    auto path = executable();
+    auto path = get_exe_location();
     g_lean_install_path = new std::string(path.substr(0, path.size() - 8));
 }
 

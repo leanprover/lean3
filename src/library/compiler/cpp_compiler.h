@@ -20,12 +20,16 @@ class cpp_compiler {
     buffer<std::string> m_link;
 
     bool m_debug;
+    bool m_shared;
+    bool m_pic;
 
 public:
     cpp_compiler & link(std::string lib);
     cpp_compiler & library_path(std::string lib_path);
     cpp_compiler & include_path(std::string include_path);
     cpp_compiler & debug(bool on);
+    cpp_compiler & shared_library(bool on);
+    cpp_compiler & pic(bool on);
     cpp_compiler & file(std::string file_path);
     cpp_compiler();
     void run();
