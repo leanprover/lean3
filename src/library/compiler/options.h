@@ -15,6 +15,7 @@ struct config {
     char const * m_native_include_path;
     char const * m_native_main_fn;
     bool         m_native_emit_dwarf;
+    bool         m_native_dynamic;
 
     config(options const & o);
 };

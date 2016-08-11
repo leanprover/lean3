@@ -1,4 +1,5 @@
 import system.IO
+import init.coe
 
 namespace ffi
 
@@ -10,14 +11,15 @@ inductive type :=
 | base : base_type → type
 | array : nat -> type → type
 | sigma : (nat → type) → type
+| void : type
 
-definition base_type_coe [coercion] (bt : base_type) :=
-  type.base bt
+definition base_type_coe [instance] : has_coe base_type type :=
+  has_coe.mk (fun bt, type.base bt)
 
-definition cstring :=
-  type.sigma (fun n, type.array n base_type.char)
+definition cstring : type :=
+  type.sigma (fun n, type.array n (type.base (base_type.char)))
 
-constant ptr : type -> Type
+constant ptr : type -> Type.{1}
 
 definition destructor (T : type) :=
   ptr T -> IO unit
@@ -34,10 +36,17 @@ definition new (T : type) : IO (ptr T) :=
 open base_type
 open type
 
-constant extern_fn (s : string) (ts : list type) : type -> Type
+definition value_of : type → Type.{1}
+| value_of void := unit
+| value_of T := ptr T
 
-constant extern_read_file : extern_fn "read_file" [cstring] cstring
-attribute [extern] extern_read_file
+-- A special marker for converting 
+definition extern (ret : type) (s : string) : list type -> Type.{1}
+| extern [] := IO (value_of ret)
+| extern (t :: ts) := (value_of ret) -> extern ts
+
+constant print_int : extern void "print_int" [int]
+attribute [extern] print_int
 
 -- constant extern_open : extern_fn "open" [string, int] int
 -- attribute [extern] extern_open

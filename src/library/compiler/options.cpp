@@ -19,6 +19,9 @@ Author: Jared Roesch, and Leonardo de Moura
 #ifndef LEAN_DEFAULT_NATIVE_EMIT_DWARF
 #define LEAN_DEFAULT_NATIVE_EMIT_DWARF false
 #endif
+#ifndef LEAN_DEFAULT_NATIVE_DYNAMIC
+#define LEAN_DEFAULT_NATIVE_DYNAMIC false
+#endif
 
 namespace lean {
 namespace native {
@@ -27,6 +30,7 @@ static name * g_native_library_path    = nullptr;
 static name * g_native_main_fn         = nullptr;
 static name * g_native_include_path    = nullptr;
 static name * g_native_emit_dwarf      = nullptr;
+static name * g_native_dynamic         = nullptr;
 
 char const * get_native_library_path(options const & o) {
     return o.get_string(*g_native_library_path, LEAN_DEFAULT_NATIVE_LIBRARY_PATH);
@@ -44,11 +48,16 @@ bool get_native_emit_dwarf(options const & o) {
     return o.get_bool(*g_native_emit_dwarf, LEAN_DEFAULT_NATIVE_EMIT_DWARF);
 }
 
+bool get_native_dynamic(options const & o) {
+    return o.get_bool(*g_native_dynamic, LEAN_DEFAULT_NATIVE_DYNAMIC);
+}
+
 config::config(options const & o) {
     m_native_library_path = get_native_library_path(o);
     m_native_main_fn      = get_native_main_fn(o);
     m_native_include_path = get_native_include_path(o);
     m_native_emit_dwarf   = get_native_emit_dwarf(o);
+    m_native_dynamic      = get_native_dynamic(o);
 }
 
 LEAN_THREAD_PTR(config, g_native_config);
@@ -73,6 +82,7 @@ void initialize_options() {
     g_native_main_fn      = new name{"native", "main"};
     g_native_include_path = new name{"native", "include_path"};
     g_native_emit_dwarf   = new name{"native", "emit_dwarf"};
+    g_native_dynamic      = new name{"native", "dynamic"};
 
     register_string_option(*native::g_native_library_path, LEAN_DEFAULT_NATIVE_LIBRARY_PATH,
                          "(native_compiler) path used to search for native libraries, including liblean");
@@ -85,6 +95,9 @@ void initialize_options() {
 
     register_bool_option(*native::g_native_emit_dwarf, LEAN_DEFAULT_NATIVE_EMIT_DWARF,
         "(native_compiler) flag controls whether dwarf debugging information is generated for the emitted code");
+
+    register_bool_option(*native::g_native_dynamic, LEAN_DEFAULT_NATIVE_DYNAMIC,
+        "(native_compiler) flag controls whether to use dynamic linking");
 }
 
 void finalize_options() {
@@ -92,5 +105,6 @@ void finalize_options() {
     delete g_native_main_fn;
     delete g_native_include_path;
     delete g_native_emit_dwarf;
+    delete g_native_dynamic;
 }
 }}
