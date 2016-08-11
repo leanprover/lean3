@@ -39,10 +39,21 @@ vm_obj ptr_to_string(vm_obj const & obj) {
     return mk_vm_simple(0);
 }
 
+vm_obj write_nat_as_int(vm_obj const & nat, vm_obj const & int_ptr, vm_obj const &) {
+    std::cout << "write_nat_as_int" << std::endl;
+    return mk_vm_simple(0);
+}
+
+vm_obj read_int_as_nat(vm_obj const & int_ptr, vm_obj const &) {
+    std::cout << "read_nat_as_int" << std::endl;
+    return mk_vm_simple(10);
+}
+
 void initialize_vm_ptr() {
     DECLARE_VM_BUILTIN(name({"ffi", "allocate"}), allocate_ptr);
     DECLARE_VM_BUILTIN(name({"ffi", "ptr_to_string"}), ptr_to_string);
-
+    DECLARE_VM_BUILTIN(name({"ffi", "write_nat_as_int"}), write_nat_as_int);
+    DECLARE_VM_BUILTIN(name({"ffi", "read_int_as_nat"}), read_int_as_nat);
 }
 
 void finalize_vm_ptr() {
