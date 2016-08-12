@@ -383,9 +383,14 @@ class native_compiler_fn {
         unsigned counter = 0;
         buffer<expr> locals;
         name_map<unsigned> new_m = m;
+
         while (is_let(e)) {
             counter++;
+            std::cout << "body: " << e << std::endl;
+            std::cout << "bpz: " << bpz << std::endl;
             this->m_emitter.emit_local_binding(bpz, [=] {
+              std::cout << "value: " << let_value(e) << std::endl;
+              std::cout << "processed_value: " << instantiate_rev(let_value(e), locals.size(), locals.data()) << std::endl;
               compile(instantiate_rev(let_value(e), locals.size(), locals.data()), bpz, new_m);
             });
             name n = mk_fresh_name();
@@ -395,6 +400,7 @@ class native_compiler_fn {
             e = let_body(e);
         }
         lean_assert(counter > 0);
+        std::cout << "final_body: " << instantiate_rev(e, locals.size(), locals.data()) << std::endl;
         compile(instantiate_rev(e, locals.size(), locals.data()), bpz, new_m);
     }
 

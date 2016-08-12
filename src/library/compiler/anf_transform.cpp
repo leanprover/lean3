@@ -35,15 +35,22 @@ bool is_cases_on(environment const & env, expr const & e) {
 class anf_transform_fn : public compiler_step_visitor {
     buffer<buffer<pair<name, expr>>> m_bindings_stack;
 
-    virtual expr visit_let(expr const & e) {
-        auto ln = mk_fresh_name();
-        auto lv = visit(let_value(e));
+    virtual expr visit_let(expr const & e_) {
+        expr e = e_;
 
-        buffer<pair<name, expr>> & top = m_bindings_stack.back();
+        buffer<expr> ls;
 
-        top.push_back(pair<name, expr>(ln, lv));
+        while (is_let(e)) {
+            auto ln = mk_fresh_name();
+            auto lv = visit(instantiate_rev(let_value(e), ls.size(), ls.data()));
 
-        auto lb = visit(instantiate(let_body(e), mk_local(ln, mk_neutral_expr())));
+            buffer<pair<name, expr>> & top = m_bindings_stack.back();
+            top.push_back(pair<name, expr>(ln, lv));
+            ls.push_back(mk_local(ln, mk_neutral_expr()));
+            e = let_body(e);
+        }
+
+        auto lb = visit(instantiate_rev(e, ls.size(), ls.data()));
 
         return lb;
     }
