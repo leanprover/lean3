@@ -36,7 +36,7 @@ class anf_transform_fn : public compiler_step_visitor {
     buffer<buffer<pair<name, expr>>> m_bindings_stack;
 
     virtual expr visit_let(expr const & e) {
-        auto ln = let_name(e);
+        auto ln = mk_fresh_name();
         auto lv = visit(let_value(e));
 
         buffer<pair<name, expr>> & top = m_bindings_stack.back();

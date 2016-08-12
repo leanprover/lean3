@@ -663,7 +663,7 @@ void native_compile(environment const & env,
 }
 
 void native_preprocess(environment const & env, declaration const & d, buffer<pair<name, expr>> & procs) {
-    lean_trace({"compiler", "native"},
+    lean_trace(name({"compiler", "native"}),
       tout() << "native_preprocess:" << d.get_name() << "\n";);
 
     buffer<pair<name, expr>> raw_procs;
@@ -676,12 +676,15 @@ void native_preprocess(environment const & env, declaration const & d, buffer<pa
         auto anf_body = anf_transform(env, proc.second);
         lean_trace(name({"compiler", "native", "preprocess"}),
           tout() << "anf_body:" << anf_body << "\n";);
+         std::cout << "anf_body:" << anf_body << "\n";
         auto cf_body = cf(env, anf_body);
         lean_trace(name({"compiler", "native", "preprocess"}),
           tout() << "cf_body:" << cf_body << "\n";);
+        std::cout << "cf_body:" << cf_body << "\n";
         auto annotated_body = annotate_return(env, cf_body);
         lean_trace(name({"native_compiler", "preprocess"}),
           tout() << "annotated_body:" << annotated_body << "\n";);
+         std::cout << "annotated_body:" << annotated_body << "\n";
 
         pair<name, expr> p = pair<name, expr>(proc.first, annotated_body);
         procs.push_back(p);
@@ -763,6 +766,8 @@ void native_compile_module(environment const & env, buffer<declaration> decls) {
 }
 
 void native_compile_binary(environment const & env, declaration const & d) {
+    // scope_trace_env tracing_on(get_options());
+
     lean_trace(name("native_compile"),
         tout() << "main_fn: " << d.get_name() << "\n";);
 

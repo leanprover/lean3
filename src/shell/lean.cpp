@@ -43,6 +43,7 @@ Author: Leonardo de Moura
 #include "frontends/smt2/parser.h"
 #include "library/compiler/options.h"
 #include "library/compiler/native_compiler.h"
+#include "library/trace.h"
 #include "init/init.h"
 #include "shell/emscripten.h"
 #include "shell/simple_pos_info_provider.h"
@@ -561,6 +562,7 @@ int main(int argc, char ** argv) {
         if (ok && compile && default_k == input_kind::Lean) {
             if (default_k == input_kind::Lean) {
                 lean::native::scope_config scoped_native_config(ios.get_options());
+                // lean::scope_trace_env tracing_on(ios.get_options());
                 native_compile_binary(env, env.get(lean::name("main")));
             } else {
                 // Not sure the right way to report this error.
