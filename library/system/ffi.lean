@@ -40,10 +40,14 @@ definition value_of : type → Type.{1}
 | value_of void := unit
 | value_of T := ptr T
 
+attribute [reducible] value_of
+
 -- A special marker for converting 
 definition extern (ret : type) (s : string) : list type -> Type.{1}
 | extern [] := IO (value_of ret)
-| extern (t :: ts) := (value_of ret) -> extern ts
+| extern (t :: ts) := (value_of t) -> extern ts
+
+attribute [reducible] extern
 
 -- We really need good support for Z's would be nice to define a set of system types.
 constant write_nat_as_int : nat -> ptr int -> IO unit
