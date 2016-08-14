@@ -250,7 +250,6 @@ class native_compiler_fn {
     }
 
     void compile_to_c_call(name const & _lean_name, buffer<expr> & args, unsigned bpz, name_map<unsigned> const & m, bool is_external = false) {
-      std::cout << "compile_to_c_call: " << _lean_name << std::endl;
       name lean_name(_lean_name);
 
       // Compute the post-processing arity by looking up in the arity map.
@@ -263,10 +262,6 @@ class native_compiler_fn {
           arity = *this->m_arity_map.find(lean_name);
       }
 
-      std::cout << "arg count: " << args.size() << std::endl;
-      std::cout << "arity: " << arity << std::endl;
-
-      std::cout << "args: " << std::endl;
       for (auto arg : args) {
           std::cout << "\t" << arg << std::endl;
       }
@@ -374,7 +369,11 @@ class native_compiler_fn {
             compile_cnstr(e, bpz, m);
         } else if (is_internal_proj(fn)) {
             compile_proj(e, bpz, m);
+        } else if (is_constant(fn) && has_extern_attribute(m_env, const_name(fn)))  {
+            compile_fn_call(e, bpz, m);
         } else {
+            // should probahly signal an error here, and explicitly match,
+            // any other case ane report an error
             compile_fn_call(e, bpz, m);
         }
     }
@@ -386,11 +385,7 @@ class native_compiler_fn {
 
         while (is_let(e)) {
             counter++;
-            std::cout << "body: " << e << std::endl;
-            std::cout << "bpz: " << bpz << std::endl;
             this->m_emitter.emit_local_binding(bpz, [=] {
-              std::cout << "value: " << let_value(e) << std::endl;
-              std::cout << "processed_value: " << instantiate_rev(let_value(e), locals.size(), locals.data()) << std::endl;
               compile(instantiate_rev(let_value(e), locals.size(), locals.data()), bpz, new_m);
             });
             name n = mk_fresh_name();
@@ -400,7 +395,6 @@ class native_compiler_fn {
             e = let_body(e);
         }
         lean_assert(counter > 0);
-        std::cout << "final_body: " << instantiate_rev(e, locals.size(), locals.data()) << std::endl;
         compile(instantiate_rev(e, locals.size(), locals.data()), bpz, new_m);
     }
 
@@ -495,8 +489,9 @@ public:
 
         }
         this->m_emitter.emit_string("}\n\n");
-
-        this->m_emitter.emit_string("extern \"C\" {\n");
+        // We should be really generating things with C linkage to make
+        // interfacing with non-cpp stuff possible.
+        // this->m_emitter.emit_string("extern \"C\" {\n");
         for (auto fn : rest) {
             if (get_vm_builtin_cases_idx(m_env, fn.m_name)) {
                 auto np = get_vm_builtin_internal_name(fn.m_name);
@@ -508,7 +503,7 @@ public:
                 this->m_emitter.emit_prototype(fn.m_name, fn.m_arity);
             }
         }
-        this->m_emitter.emit_string("}\n\n");
+        // this->m_emitter.emit_string("}\n\n");
     }
 
     void operator()(name const & n, expr e) {
@@ -557,7 +552,7 @@ std::vector<std::string> native_include_paths() {
     auto conf = native::get_config();
     auto native_include_path = std::string(conf.m_native_include_path);
 
-    std::cout << native_include_path << std::endl;
+    // std::cout << native_include_path << std::endl;
 
     // // TODO: support general path parsing here
     if (native_include_path.compare("") == 0)  {
@@ -682,15 +677,12 @@ void native_preprocess(environment const & env, declaration const & d, buffer<pa
         auto anf_body = anf_transform(env, proc.second);
         lean_trace(name({"compiler", "native", "preprocess"}),
           tout() << "anf_body:" << anf_body << "\n";);
-         std::cout << "anf_body:" << anf_body << "\n";
         auto cf_body = cf(env, anf_body);
         lean_trace(name({"compiler", "native", "preprocess"}),
           tout() << "cf_body:" << cf_body << "\n";);
-        std::cout << "cf_body:" << cf_body << "\n";
         auto annotated_body = annotate_return(env, cf_body);
         lean_trace(name({"native_compiler", "preprocess"}),
           tout() << "annotated_body:" << annotated_body << "\n";);
-         std::cout << "annotated_body:" << annotated_body << "\n";
 
         pair<name, expr> p = pair<name, expr>(proc.first, annotated_body);
         procs.push_back(p);
@@ -729,13 +721,17 @@ void native_compile_module(environment const & env, buffer<declaration> decls) {
     // invoked for every declaration encountered.
     used_defs used_names(env, [&] (declaration const & d) {
         buffer<pair<name, expr>> procs;
+        // The the name is an internal decl we should not add it to the live set.
         if (is_internal_decl(d)) {
             return;
+        // We should skip it if its a bulitin, or a builtin_cases on.
         } else if (auto p = get_builtin(d.get_name())) {
             return;
             // extern_fns.push_back(p.value());
         } else if (auto p =  get_vm_builtin_cases_idx(env, d.get_name())) {
             return;
+        } else if (has_extern_attribute(env, d.get_name())) {
+            lean_unreachable()
         } else {
             native_preprocess(env, d, procs);
             for (auto pair : procs) {
@@ -751,6 +747,12 @@ void native_compile_module(environment const & env, buffer<declaration> decls) {
         used_names.names_in_decl(decl);
     }
 
+    // We now need to collect every function we are choosing to
+    // declare as external. We emit an extern decl for every
+    // function that exists in the Lean namespace, and then
+    // an extern decl for every other function, since the
+    // symbols must be visible to other shared libraries
+    // when loading them.
     used_names.m_used_names.for_each([&] (name const & n) {
         std::cout << n << std::endl;
         // TODO: unify this
@@ -760,6 +762,8 @@ void native_compile_module(environment const & env, buffer<declaration> decls) {
         } else if (auto i = get_vm_builtin_cases_idx(env, n)) {
              auto arity = 2; // are these always exactly two arity?
              extern_fns.push_back(mk_lean_extern(n, arity));
+        } else if (has_extern_attribute(env, n)) {
+            extern_fns.push_back(mk_extern(n, 0));
         } else {
             extern_fns.push_back(mk_extern(n, 0));
         }
@@ -821,6 +825,9 @@ void native_compile_binary(environment const & env, declaration const & d) {
         } else if (auto i = get_vm_builtin_cases_idx(env, n)) {
             auto arity = 2u; // FIX ME TOTAL BUG
             extern_fns.push_back(mk_lean_extern(n, arity));
+        } else if (has_extern_attribute(env, n)) {
+            // get_arity(env.get(n).get_
+            extern_fns.push_back(mk_extern(n, 2));
         }
     });
 

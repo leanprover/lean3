@@ -29,6 +29,11 @@ vm_ptr const & to_vm_ptr(vm_obj const & o) {
     return *static_cast<vm_ptr*>(to_external(o));
 }
 
+void* get_internal_ptr(vm_obj const & o) {
+    auto ptr = to_vm_ptr(o);
+    return ptr.m_data;
+}
+
 // vm_obj to_obj(backward_lemma_index const & idx) {
 //    return mk_vm_external(new (get_vm_allocator().allocate(sizeof(vm_backward_lemmas))) vm_backward_lemmas(idx));
 // }
