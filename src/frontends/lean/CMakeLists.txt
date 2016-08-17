@@ -2,7 +2,7 @@ add_library(lean_frontend OBJECT tokens.cpp
 token_table.cpp scanner.cpp parse_table.cpp parser_config.cpp
 parser.cpp parser_pos_provider.cpp builtin_cmds.cpp builtin_exprs.cpp
 server.cpp notation_cmd.cpp calc.cpp decl_cmds.cpp util.cpp
-inductive_cmd.cpp dependencies.cpp
+inductive_cmds.cpp dependencies.cpp
 pp.cpp theorem_queue.cpp
 structure_cmd.cpp info_manager.cpp info_annotation.cpp
 init_module.cpp
@@ -11,7 +11,6 @@ decl_attributes.cpp nested_declaration.cpp
 opt_cmd.cpp prenum.cpp
 print_cmd.cpp elaborator.cpp pattern_attribute.cpp
 match_expr.cpp local_context_adapter.cpp decl_util.cpp definition_cmds.cpp
-inductive_cmds.cpp
 # LEGACY
 old_elaborator.cpp
 old_attributes.cpp
