@@ -7,7 +7,9 @@ Author: Leonardo de Moura
 #pragma once
 #include "frontends/lean/cmd_table.h"
 #include "frontends/lean/parse_table.h"
+#include "frontends/lean/decl_attributes.h"
 namespace lean {
+environment structure_cmd_ex(parser & p, decl_attributes const & attrs, bool is_private);
 void init_structure_instance_parsing_rules(parse_table & r);
 bool is_structure_instance(expr const & e);
 void destruct_structure_instance(expr const & e, expr & t, buffer<name> & field_names,
