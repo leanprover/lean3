@@ -113,9 +113,6 @@ class flat_macro_definition_cell : public macro_definition_cell {
 public:
     flat_macro_definition_cell() {}
 
-    // TODO(dhs): this is just for testing
-    virtual unsigned trust_level() const override { return 10000; }
-
     virtual name get_name() const { return *g_flat_macro_name; }
     virtual expr check_type(expr const & m, abstract_type_context &, bool) const override {
         check_macro(m);
@@ -172,11 +169,7 @@ class rewrite_assoc_macro_definition_cell : public macro_definition_cell {
         if (!is_macro(m) || macro_num_args(m) != 4)
             throw exception(sstream() << "invalid 'rewrite_assoc' macro, incorrect number of arguments");
     }
-
 public:
-    // TODO(dhs): this is just for testing
-    virtual unsigned trust_level() const override { return 10000; }
-
     rewrite_assoc_macro_definition_cell(unsigned arg_idx, unsigned num_patterns, unsigned num_args):
         m_arg_idx(arg_idx), m_num_patterns(num_patterns), m_num_args(num_args) {}
 
@@ -185,7 +178,6 @@ public:
         check_macro(m);
         return macro_arg(m, 1);
     }
-
 
     pair<expr, optional<expr> > group_args(expr const & e, unsigned pat_idx) const {
         if (pat_idx + 1 < m_num_patterns) {

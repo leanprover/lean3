@@ -40,6 +40,9 @@ class prop_simplifier_macro_definition_cell : public macro_definition_cell {
 public:
     prop_simplifier_macro_definition_cell() {}
 
+    // TODO(dhs): this can be raised once we implement proof generation
+    virtual unsigned trust_level() const override { return 2; }
+
     virtual name get_name() const { return *g_prop_simplifier_macro_name; }
     virtual expr check_type(expr const & m, abstract_type_context & tctx, bool infer_only) const {
         check_macro(m);
