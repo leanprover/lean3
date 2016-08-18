@@ -122,11 +122,15 @@ class native_compiler_fn {
             lean_unreachable()
         } else if (is_uninitialized(e)) {
             this->m_emitter.emit_string("lean::vm_obj()");
-        } else {
+        // TODO: refactor this
+        } else if (get_builtin(n)) {
           buffer<expr> args;
           name_map<unsigned> nm;
           compile_to_c_call(n, args, 0u, nm);
-        }
+      } else {
+          std::cout << "unable to compile: " << n << std::endl;
+          lean_unreachable()
+      }
     }
 
     void compile_local(expr const & e, name_map<unsigned> const & m) {
@@ -818,6 +822,7 @@ void native_compile_binary(environment const & env, declaration const & d) {
     }
 
     used_names.m_used_names.for_each([&] (name const & n) {
+        std::cout << "live_name: " << n << std::endl;
         // TODO: unify this
         if (auto builtin = get_builtin(n)) {
             // std::cout << "extern fn" << n << std::endl;
