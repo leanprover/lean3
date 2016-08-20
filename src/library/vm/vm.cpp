@@ -19,6 +19,7 @@ Author: Leonardo de Moura
 #include "library/module.h"
 #include "library/vm/vm.h"
 #include "library/vm/vm_expr.h"
+#include "util/dynamic_library.h"
 
 namespace lean {
 void vm_obj_cell::dec_ref(vm_obj & o, buffer<vm_obj_cell*> & todelete) {
@@ -2214,12 +2215,26 @@ unsigned get_vm_builtin_arity(name const & fn) {
     lean_unreachable();
 }
 
-void* get_extern_symbol(
-    std::string library_name,
-    std::string extern_name) {
-    dynamic_library library(library_name);
-    return library.symbol(extern_name);
+// void* get_extern_symbol(
+//    std::string library_name,
+//    name const & n) {
+//    dynamic_library library(library_name);
+//    return library.symbol(extern_name);
+// }
+
+
+environment load_external_fn(environment & env, name const & extern_n) {
+    try {
+        dynamic_library *library = new dynamic_library("/home/jroesch/Git/muri/extern/libput_int.so");
+        auto code = library->symbol(extern_n.to_string(""));
+        lean_assert(code);
+        return add_native(env, extern_n, (vm_cfunction_2)code);
+    } catch (dynamic_linking_exception e) {
+        std::cout << e.what() << std::endl;
+        throw e;
+    }
 }
+
 void initialize_vm_core() {
     g_vm_builtins = new name_map<std::tuple<unsigned, char const *, vm_function>>();
     g_vm_cbuiltins = new name_map<std::tuple<unsigned, char const *, vm_cfunction>>();

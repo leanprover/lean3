@@ -85,8 +85,13 @@ void used_defs::names_in_expr(expr const & e) {
             type_checker tc(m_env);
             if (!is_nat_value(e)) {
                 auto expanded_macro = tc.expand_macro(e);
-                lean_assert(expanded_macro);
-                names_in_expr(expanded_macro.value());
+                std::cout << e << std::endl;
+                if (expanded_macro) {
+                    lean_assert(expanded_macro);
+                    names_in_expr(expanded_macro.value());
+                } else {
+                    /* Do nothing? what is the right behavior here */
+                }
             }
             break;
         }

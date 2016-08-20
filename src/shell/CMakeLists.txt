@@ -3,7 +3,7 @@ if(${EMSCRIPTEN})
   target_link_libraries(lean.js ${EXTRA_LIBS} "--embed-file library --memory-init-file 0")
 else()
   add_executable(lean lean.cpp emscripten.cpp)
-  target_link_libraries(lean leanstatic ${EXTRA_LIBS})
+  target_link_libraries(lean leanshared ${EXTRA_LIBS})
   ADD_CUSTOM_COMMAND(TARGET lean
     POST_BUILD
     COMMAND "${CMAKE_COMMAND}" -E make_directory "${LEAN_SOURCE_DIR}/../bin"
