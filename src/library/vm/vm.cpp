@@ -2602,6 +2602,11 @@ unsigned get_vm_builtin_arity(name const & fn) {
     if (auto p = g_vm_cbuiltins->find(fn))
         return std::get<0>(*p);
     lean_unreachable();
+void* get_extern_symbol(
+ std::string library_name,
+    std::string extern_name) {
+    dynamic_library library(library_name);
+    return library.symbol(extern_name);
 }
 
 static std::string * g_vm_monitor_key = nullptr;

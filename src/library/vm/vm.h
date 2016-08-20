@@ -829,6 +829,8 @@ vm_builtin_kind get_vm_builtin_kind(name const & fn);
     \pre is_vm_builtin_function(fn) && get_vm_builtin_kind(fn) == vm_builtin_kind::CFun */
 unsigned get_vm_builtin_arity(name const & fn);
 
+void* get_extern_symbol(std::string library_name, std::string extern_name);
+
 /** \brief Invoke closure \c fn with the given arguments. These procedures are meant to be use by
     C++ generated/extracted code. */
 vm_obj invoke(vm_obj const & fn, vm_obj const & a1);
