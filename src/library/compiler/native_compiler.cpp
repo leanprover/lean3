@@ -126,11 +126,12 @@ class native_compiler_fn {
         } else if (get_builtin(n)) {
           buffer<expr> args;
           name_map<unsigned> nm;
-          compile_to_c_call(n, args, 0u, nm);
-      } else {
-          std::cout << "unable to compile: " << n << std::endl;
-          lean_unreachable()
-      }
+          compile_to_c_call(n, args, 0u, nm, true);
+        } else {
+            buffer<expr> args;
+            name_map<unsigned> nm;
+            compile_to_c_call(n, args, 0u, nm);
+        }
     }
 
     void compile_local(expr const & e, name_map<unsigned> const & m) {
@@ -240,17 +241,29 @@ class native_compiler_fn {
 
 
     void compile_proj(expr const & e, unsigned bpz, name_map<unsigned> const & m) {
+        std::cout << "compiling projection: " << e << std::endl;
         buffer<expr> args;
         expr const & fn = get_app_args(e, args);
         lean_assert(is_internal_proj(fn));
         unsigned idx = *is_internal_proj(fn);
         //TODO: clean up
+        if (args.size() > 1) {
+            this->m_emitter.emit_string("lean::invoke(");
+        }
         this->m_emitter.emit_string("cfield(");
-        lean_assert(args.size() == 1);
+        // lean_assert(args.size() == 1);
         compile(args[0], bpz, m);
         this->m_emitter.emit_string(", ");
         this->m_emitter.emit_string((sstream() << idx).str().c_str());
         this->m_emitter.emit_string(")");
+        // TODO: clean up
+        if (args.size() > 1) {
+            for (int i = 1; i < args.size(); i++) {
+                this->m_emitter.emit_string(",");
+                compile(args[i], bpz, m);
+            }
+            this->m_emitter.emit_string(")");
+        }
     }
 
     void compile_to_c_call(name const & _lean_name, buffer<expr> & args, unsigned bpz, name_map<unsigned> const & m, bool is_external = false) {

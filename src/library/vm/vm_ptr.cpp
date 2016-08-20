@@ -14,15 +14,15 @@ namespace lean {
 // Builtin system.ffi.ptr operations
 
 struct vm_ptr : public vm_external {
-    void *  m_data;
+    void *  m_pointer;
     vm_obj m_destructor;
-    vm_ptr(void* data, vm_obj const & d):m_data(data), m_destructor(d) {}
+    vm_ptr(void* data, vm_obj const & d):m_pointer(pointer), m_destructor(d) {}
     vm_ptr(const vm_ptr & other) : vm_external(other) {
-        m_data = other.m_data;
+        m_pointer = other.m_data;
         m_destructor = other.m_destructor;
     }
     ~vm_ptr() {
-        std::cout << "running the destructor" << std::endl;
+        // std::cout << "running the destructor" << std::endl;
     }
     virtual void dealloc() override {
         this->~vm_ptr(); get_vm_allocator().deallocate(sizeof(vm_ptr), this);
@@ -37,7 +37,7 @@ vm_ptr const & to_vm_ptr(vm_obj const & o) {
 
 void* get_internal_ptr(vm_obj const & o) {
     auto ptr = to_vm_ptr(o);
-    return ptr.m_data;
+    return ptr.m_pointer;
 }
 
 vm_obj to_obj(vm_ptr const & ptr) {
@@ -61,14 +61,14 @@ vm_obj write_nat_as_int(vm_obj const & nat, vm_obj const & int_ptr, vm_obj const
     unsigned value = to_unsigned(nat);
     int as_int = (int)value;
 
-    int * iptr = (int*)to_vm_ptr(int_ptr).m_data;
+    int * iptr = (int*)to_vm_ptr(int_ptr).m_pointer;
     *iptr = as_int;
 
     return mk_vm_unit();
 }
 
 vm_obj read_int_as_nat(vm_obj const & int_ptr, vm_obj const &) {
-    int * iptr = (int*)to_vm_ptr(int_ptr).m_data;
+    int * iptr = (int*)to_vm_ptr(int_ptr).m_pointer;
     int i = *iptr;
     return mk_vm_nat((unsigned) i);
 }
@@ -79,7 +79,7 @@ vm_obj write_char_as_char(vm_obj const & c, vm_obj const & char_ptr, vm_obj cons
     unsigned value = to_unsigned(c);
     char as_char = (char)value;
 
-    char * cptr = (char*)to_vm_ptr(char_ptr).m_data;
+    char * cptr = (char*)to_vm_ptr(char_ptr).m_pointer;
     *cptr = as_char;
 
     return mk_vm_unit();
@@ -133,7 +133,7 @@ vm_obj read_array(vm_obj const & n,
     char* element = base + (idx * type_size);
 
     vm_ptr element_ptr = vm_ptr(to_vm_ptr(array));
-    element_ptr.m_data = element;
+    element_ptr.m_pointer = (void*)element;
 
     return to_obj(element_ptr);
 }
@@ -155,6 +155,7 @@ vm_obj write_array(vm_obj const & n,
     char* element = base + (idx * type_size);
 
     void* element_to_store = get_internal_ptr(value);
+    std::cout << (*(char*)element_to_store) << std::endl;
     memcpy((void*)element, element_to_store, type_size);
 
     return mk_vm_unit();

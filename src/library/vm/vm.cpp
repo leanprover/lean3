@@ -2214,6 +2214,12 @@ unsigned get_vm_builtin_arity(name const & fn) {
     lean_unreachable();
 }
 
+void* get_extern_symbol(
+    std::string library_name,
+    std::string extern_name) {
+    dynamic_library library(library_name);
+    return library.symbol(extern_name);
+}
 void initialize_vm_core() {
     g_vm_builtins = new name_map<std::tuple<unsigned, char const *, vm_function>>();
     g_vm_cbuiltins = new name_map<std::tuple<unsigned, char const *, vm_cfunction>>();
