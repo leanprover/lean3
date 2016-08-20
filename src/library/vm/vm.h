@@ -20,7 +20,7 @@ Author: Leonardo de Moura
 
 namespace lean {
 class vm_obj;
-enum class vm_obj_kind { Simple, Constructor, Closure, MPZ, External };
+enum class vm_obj_kind { Simple, Constructor, Closure, MPZ, External, Pointer };
 
 /** \brief Base class for VM objects.
 
@@ -829,7 +829,8 @@ vm_builtin_kind get_vm_builtin_kind(name const & fn);
     \pre is_vm_builtin_function(fn) && get_vm_builtin_kind(fn) == vm_builtin_kind::CFun */
 unsigned get_vm_builtin_arity(name const & fn);
 
-void* get_extern_symbol(std::string library_name, std::string extern_name);
+environment load_external_fn(environment & env, name const & extern_n);
+// void* get_extern_symbol(std::string library_name, std::string extern_name);
 
 /** \brief Invoke closure \c fn with the given arguments. These procedures are meant to be use by
     C++ generated/extracted code. */

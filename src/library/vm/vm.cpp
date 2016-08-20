@@ -26,7 +26,7 @@ Author: Leonardo de Moura
 #include "library/vm/vm_name.h"
 #include "library/vm/vm_option.h"
 #include "library/vm/vm_expr.h"
-
+#include "util/dynamic_library.h"
 #ifndef LEAN_DEFAULT_PROFILER
 #define LEAN_DEFAULT_PROFILER false
 #endif
@@ -1163,6 +1163,17 @@ void vm_state::invoke_builtin(vm_decl const & d) {
     m_stack.resize(sz - d.get_arity());
     if (m_debugging) shrink_stack_info();
     m_pc++;
+}
+
+LEAN_THREAD_VALUE(vm_state *, g_vm_state, nullptr);
+
+scope_vm_state::scope_vm_state(vm_state & s):
+    m_prev(g_vm_state) {
+    g_vm_state = &s;
+}
+
+scope_vm_state::~scope_vm_state() {
+    g_vm_state = m_prev;
 }
 
 void vm_state::invoke_cfun(vm_decl const & d) {
@@ -2611,6 +2622,7 @@ void* get_extern_symbol(
 
 static std::string * g_vm_monitor_key = nullptr;
 
+
 static environment vm_monitor_register_core(environment const & env, name const & d) {
     expr const & type = env.get(d).get_type();
     if (!is_app_of(type, get_vm_monitor_name(), 1))
@@ -2622,7 +2634,19 @@ static environment vm_monitor_register_core(environment const & env, name const 
 
 environment vm_monitor_register(environment const & env, name const & d) {
     auto new_env = vm_monitor_register_core(env, d);
-    return module::add(new_env, *g_vm_monitor_key, [=](environment const &, serializer & s) { s << d; });
+ode);return module::add(new_env, *g_vm_monitor_key, [=](environment const &, serializer & s) { s << d; });
+}
+
+environment load_external_fn(environment & env, name const & extern_n) {
+    try {
+        dynamic_library *library = new dynamic_library("/home/jroesch/Git/muri/extern/libput_int.so");
+        auto code = library->symbol(extern_n.to_string(""));
+        lean_assert(code);
+        return add_native(env, extern_n, (vm_cfunction_2)code);
+    } catch (dynamic_linking_exception e) {
+        std::cout << e.what() << std::endl;
+        throw e;
+    }
 }
 
 static void vm_monitor_reader(deserializer & d, environment & env) {

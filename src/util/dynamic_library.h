@@ -10,7 +10,7 @@ Author: Jared Roesch
 
 namespace lean {
 
-class dynamic_linking_exception : std::runtime_error {
+class dynamic_linking_exception : public std::runtime_error {
 public:
     dynamic_linking_exception(std::string msg) : std::runtime_error(msg) {}
 };

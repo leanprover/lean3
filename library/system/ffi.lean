@@ -42,8 +42,7 @@ definition sizeof : type -> nat
 
 constant allocate (T : type) (n : nat) : sizeof T = n -> (destructor T) -> IO (ptr T)
 
-constant write_array {n : nat} {T : type} (arr : ptr (array n T)) (i : nat) (value : ptr T) : IO unit
-constant read_array {n : nat} {T : type} (arr : ptr (array n T)) (i : nat) : IO (ptr T)
+constant index_array {n : nat} {T : type} (arr : ptr (array n T)) (i : nat) : IO (ptr T)
 
 definition new (T : type) : IO (ptr T) :=
   allocate T (sizeof T) rfl (fun x, return unit.star)

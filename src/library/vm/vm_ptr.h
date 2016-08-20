@@ -9,11 +9,11 @@ Author: Jared Roesch, Leonardo de Moura
 
 namespace lean {
 
-void* get_internal_ptr(vm_obj const & o);
+void* to_void_ptr(vm_obj const & o);
 
-template<typename T>
-T * get_vm_ptr(vm_obj const & ptr) {
-    return (T*)get_internal_ptr(ptr);
+template <typename T>
+T* to_raw_ptr(vm_obj const & o) {
+    return (T*)to_void_ptr(o);
 }
 
 void initialize_vm_ptr();
