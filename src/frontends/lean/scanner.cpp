@@ -313,11 +313,15 @@ void scanner::next_utf(buffer<char> & cs) {
     next_utf_core(curr(), cs);
 }
 
-static bool is_id_first(buffer<char> const & cs, unsigned i) {
-    if (std::isalpha(cs[i]) || cs[i] == '_')
+static char const * g_error_key_msg = "unexpected token";
+constexpr char16_t id_begin_escape = u'«';
+constexpr char16_t id_end_escape = u'»';
+
+static bool is_id_first(char const * begin, char const * end) {
+    if (std::isalpha(*begin) || *begin == '_')
         return true;
-    unsigned u = utf8_to_unicode(cs.begin() + i, cs.end());
-    return is_letter_like_unicode(u);
+    unsigned u = utf8_to_unicode(begin, end);
+    return u == id_begin_escape || is_letter_like_unicode(u);
 }
 
 bool is_id_rest(char const * begin, char const * end) {
@@ -327,30 +331,57 @@ bool is_id_rest(char const * begin, char const * end) {
     return is_letter_like_unicode(u) || is_sub_script_alnum_unicode(u);
 }
 
-static char const * g_error_key_msg = "unexpected token";
-
 auto scanner::read_key_cmd_id() -> token_kind {
     buffer<char> cs;
     next_utf_core(curr(), cs);
     unsigned num_utfs  = 1;
     unsigned id_sz     = 0;
     unsigned id_utf_sz = 0;
-    if (is_id_first(cs, 0)) {
-        id_sz = cs.size();
-        while (true) {
-            id_sz     = cs.size();
-            id_utf_sz = num_utfs;
-            unsigned i = id_sz;
-            next_utf(cs);
-            num_utfs++;
-            if (is_id_rest(&cs[i], cs.end())) {
-            } else if (cs[i] == '.') {
+    if (is_id_first(cs.begin(), cs.end())) {
+        enum class id_state { Unescaped, Escaped, Start, EndEscape, Error };
+        id_state state = id_state::Start;
+        unsigned i = id_sz;
+        while (state != id_state::Error) {
+            unsigned u = utf8_to_unicode(&cs[i], cs.end());
+            switch (state) {
+                case id_state::Start:
+                    if (u == id_begin_escape)
+                        state = id_state::Escaped;
+                    else if (is_id_first(&cs[i], cs.end()))
+                        state = id_state::Unescaped;
+                    else
+                        state = id_state::Error;
+                    break;
+                case id_state::Unescaped:
+                    if (cs[i] == '.')
+                        state = id_state::Start;
+                    else if (!is_id_rest(&cs[i], cs.end()))
+                        state = id_state::Error;
+                    break;
+                case id_state::Escaped:
+                    if (u == '\r' || u == '\n' || u == '\t' || u == id_begin_escape)
+                        throw_exception("illegal character in escaped identifier");
+                    else if (u == id_end_escape)
+                        state = id_state::EndEscape;
+                    break;
+                case id_state::EndEscape:
+                    if (cs[i] == '.')
+                        state = id_state::Start;
+                    else
+                        state = id_state::Error;
+                    break;
+                case id_state::Error:
+                    lean_unreachable();
+            }
+            if (state != id_state::Error) {
+                // trailing '.' are not part of the id
+                if (state != id_state::Start) {
+                    id_sz = cs.size();
+                    id_utf_sz = num_utfs;
+                }
+                i = cs.size();
                 next_utf(cs);
                 num_utfs++;
-                if (!is_id_first(cs, i+1))
-                    break;
-            } else {
-                break;
             }
         }
     }
@@ -397,12 +428,18 @@ auto scanner::read_key_cmd_id() -> token_kind {
         m_name_val = name();
         std::string & id_part = m_buffer;
         id_part.clear();
-        for (unsigned i = 0; i < id_sz; i++) {
-            if (cs[i] == '.') {
+        bool id_escape = false;
+        for (unsigned i = 0; i < id_sz; i += get_utf8_size(cs[i])) {
+            unsigned u = utf8_to_unicode(&cs[i], cs.end());
+            if (u == id_begin_escape) {
+                id_escape = true;
+            } else if (u == id_end_escape) {
+                id_escape = false;
+            } else if (!id_escape && cs[i] == '.') {
                 m_name_val = name(m_name_val, id_part.c_str());
                 id_part.clear();
             } else {
-                id_part.push_back(cs[i]);
+                id_part.append(&cs[i], &cs[i + get_utf8_size(cs[i])]);
             }
         }
         m_name_val = name(m_name_val, id_part.c_str());
