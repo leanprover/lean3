@@ -52,7 +52,11 @@ namespace lean {
       if (m_pic) {
           p.arg("-fPIC");
       }
-      
+
+      if (m_shared) {
+          p.arg("-shared");
+      }
+
       // Add all the library paths.
       for (auto include_path : m_include_paths) {
           std::string arg("-I");
@@ -88,11 +92,17 @@ namespace lean {
 
   // Setup a compiler for building executables.
   cpp_compiler mk_executable_compiler() {
-      return cpp_compiler();
+      cpp_compiler gpp;
+      gpp.link(LEAN_STATIC_LIB);
+      return gpp;
   }
 
   // Setup a compiler for building dynamic libraries.
   cpp_compiler mk_shared_compiler() {
-      return cpp_compiler();
+      cpp_compiler gpp;
+      gpp.link(LEAN_SHARED_LIB);
+      gpp.pic(true);
+      gpp.shared_library(true);
+      return gpp;
   }
 }

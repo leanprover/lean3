@@ -33,19 +33,31 @@ public:
         m_pointer = other->m_pointer;
         m_destructor = other->m_destructor;
     }
+};
 
+class vm_child_ptr : public vm_ptr {
+    vm_obj m_parent;
+public:
+    vm_child_ptr(void* data, vm_obj destructor, vm_obj const & parent)
+        : vm_ptr(data, destructor), m_parent(parent) {}
 };
 
 vm_obj mk_vm_ptr(void * data, vm_obj destructor) {
     return vm_obj(new (get_vm_allocator().allocate(sizeof(vm_ptr))) vm_ptr(data, destructor));
 }
 
+vm_obj mk_vm_child_ptr(void * data, vm_obj destructor, vm_obj parent) {
+    return vm_obj(new (get_vm_allocator().allocate(sizeof(vm_child_ptr))) vm_child_ptr(data, destructor, parent));
+}
+
 inline vm_ptr * to_ptr(vm_obj_cell * o) { /* lean_assert(is_(o)); */ return static_cast<vm_ptr*>(o); }
 
 vm_obj offset(vm_obj const & base, size_t off) {
-        char* base_ptr = (char*)(to_ptr(&*base)->m_pointer);
-        auto element_ptr = (void*)(base_ptr + off);
-        return mk_vm_ptr(element_ptr, mk_vm_simple(0));
+    char* base_ptr = (char*)(to_ptr(&*base)->m_pointer);
+    lean_assert(base_ptr);
+    std::cout << base_ptr << "|" << off << std::endl;
+    auto element_ptr = (void*)(base_ptr + off);
+    return mk_vm_child_ptr(element_ptr, mk_vm_simple(0), base);
 }
 
 void* to_void_ptr(vm_obj const & o) {
@@ -54,7 +66,8 @@ void* to_void_ptr(vm_obj const & o) {
 
 vm_obj allocate_ptr(vm_obj const &, vm_obj const & size, vm_obj const & proof, vm_obj const & destructor, vm_obj const &) {
     auto no_bytes = to_unsigned(size);
-    void * data = (void*)malloc(sizeof(char) * no_bytes);
+    std::cout << "allocating " << no_bytes << " bytes" << std::endl;
+    void * data = malloc(sizeof(char) * no_bytes);
     return mk_vm_ptr(data, destructor);
 }
 
@@ -113,11 +126,13 @@ vm_obj index_array(vm_obj const & n,
                   vm_obj const & index,
                   vm_obj const &) {
     unsigned idx = to_unsigned(index);
+    std::cout << "index: " << idx << std::endl;
     vm_obj size_of = mk_native_closure(
         get_vm_state().env(),
         name{"ffi", "sizeof"},
         {});
     unsigned type_size = to_unsigned(invoke(size_of, type));
+    std::cout << "type_size: " << type_size << std::endl;
     size_t off = (idx * type_size);
     return offset(array, off);
 }

@@ -2222,10 +2222,9 @@ unsigned get_vm_builtin_arity(name const & fn) {
 //    return library.symbol(extern_name);
 // }
 
-
 environment load_external_fn(environment & env, name const & extern_n) {
     try {
-        dynamic_library *library = new dynamic_library("/home/jroesch/Git/muri/extern/libput_int.so");
+        dynamic_library *library = new dynamic_library("/Users/jroesch/Git/muri/extern/libput_int.dylib");
         auto code = library->symbol(extern_n.to_string(""));
         lean_assert(code);
         return add_native(env, extern_n, (vm_cfunction_2)code);
