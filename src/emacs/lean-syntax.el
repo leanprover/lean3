@@ -43,6 +43,10 @@
   (eval `(rx word-start
              (one-or-more digit) (optional (and "." (zero-or-more digit)))
              word-end)))
+(defconst lean-identifiers-regexp
+  (rx (and (one-or-more (or (and "«" (zero-or-more (not (any "\n\r»")) "»" (optional ".")))
+                            (and (one-or-more (not (any " \t\n\r{([«»"))) ".")))
+           (zero-or-more (not (any " \t\n\r{([«»"))))))
 
 (defconst lean-modifiers
   (--map (s-concat "[" it "]")
@@ -91,6 +95,8 @@
     (modify-syntax-entry ?/ ". 14nb" st)
     (modify-syntax-entry ?- ". 123" st)
     (modify-syntax-entry ?\n ">" st)
+    (modify-syntax-entry ?« "<" st)
+    (modify-syntax-entry ?» ">" st)
 
     ;; Word constituent
     (--map (modify-syntax-entry it "w" st)
@@ -154,6 +160,21 @@
     (modify-syntax-entry ?\\ "/" st)
     st))
 
+(defface lean-id-escape
+  '(;(((class color) (min-colors 88) (background light))
+    ; :background "darkseagreen2")
+    ;(((class color) (min-colors 88) (background dark))
+    ; :background "darkolivegreen")
+    ;(((class color) (min-colors 16) (background light))
+    ; :background "darkseagreen2")
+    ;(((class color) (min-colors 16) (background dark))
+    ; :background "darkolivegreen")
+    ;(((class color) (min-colors 8))
+    ; :background "green" :foreground "black")
+    (t :box t))
+  "Face for «escaped identifiers»"
+  :group 'lean)
+
 (defconst lean-font-lock-defaults
   `((;; modifiers
      (,lean-modifiers-regexp . 'font-lock-doc-face)
@@ -190,6 +211,11 @@
      (,lean-tactics-regexp . 'font-lock-constant-face)
      ;; warnings
      (,lean-warnings-regexp . 'font-lock-warning-face)
+     ;; escaped identifiers
+     (,(rx (and (group "«") (group (one-or-more (not (any "»")))) (group "»")))
+      (1 font-lock-comment-face t)
+      (2 nil t)
+      (3 font-lock-comment-face t))
      )))
 
 ;; Syntax Highlighting for Lean Info Mode
