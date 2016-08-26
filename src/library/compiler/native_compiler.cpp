@@ -26,10 +26,11 @@ Author: Jared Roesch and Leonardo de Moura
 #include "library/compiler/options.h"
 #include "library/compiler/cpp_compiler.h"
 #include "library/compiler/vm_compiler.h"
+#include "library/compiler/extern.h"
+#include "library/module.h"
+#include "library/vm/vm.h"
 #include "cpp_emitter.h"
 #include "used_names.h"
-#include "library/compiler/extern.h"
-#include "library/vm/vm.h"
 #include "util/lean_path.h"
 // #include "util/executable.h"
 #include <sys/types.h>
@@ -174,11 +175,7 @@ class native_compiler_fn {
                     new_bpz++;
                     b = binding_body(b);
                 }
-                m_emitter.emit_builtin_fields(name("args"), fields, [&] (expr const & e) {
-                  // lean_assert(is_local(e));
-                  compile(e, new_bpz, new_m);
-                  new_bpz++;
-                });
+                m_emitter.emit_builtin_fields(name("args"), fields);
                 b = instantiate_rev(b, locals.size(), locals.data());
                 compile(b, new_bpz, new_m);
               });
@@ -472,8 +469,8 @@ public:
             auto unit = mk_neutral_expr();
             args.push_back(unit);
 
-            // Make sure to invoke the C, call machinery since the type of
-            // of the function and shift depending on previous analysis passes.
+            // Make sure to invoke the C call machinery since it is non-deterministic
+            // which case we enter here.
             compile_to_c_call(main_fn, args, 0, name_map<unsigned>());
         });
     }
@@ -793,8 +790,6 @@ void native_compile_module(environment const & env, buffer<declaration> decls) {
 }
 
 void native_compile_binary(environment const & env, declaration const & d) {
-    // scope_trace_env tracing_on(get_options());
-
     lean_trace(name("native_compile"),
         tout() << "main_fn: " << d.get_name() << "\n";);
 
@@ -835,13 +830,14 @@ void native_compile_binary(environment const & env, declaration const & d) {
     }
 
     used_names.m_used_names.for_each([&] (name const & n) {
-        std::cout << "live_name: " << n << std::endl;
-        // TODO: unify this
+        // TODO: unify this, get_builtin should probably get vm_builtin_cases as well.
         if (auto builtin = get_builtin(n)) {
             // std::cout << "extern fn" << n << std::endl;
             extern_fns.push_back(builtin.value());
         } else if (auto i = get_vm_builtin_cases_idx(env, n)) {
-            auto arity = 2u; // FIX ME TOTAL BUG
+            // I believe the arity of a builtin cases on implementation
+            // should always be 2.
+            auto arity = 2u;
             extern_fns.push_back(mk_lean_extern(n, arity));
         } else if (has_extern_attribute(env, n)) {
             // get_arity(env.get(n).get_
@@ -855,13 +851,50 @@ void native_compile_binary(environment const & env, declaration const & d) {
     native_compile(env, extern_fns, all_procs, native_compiler_mode::AOT);
 }
 
+void native_compile_module(environment const & env) {
+    buffer<declaration> decls;
+    decls_to_native_compile(env, decls);
+    native_compile_module(env, decls);
+}
+
+// Setup for the storage of native modules to .olean files.
+static std::string *g_native_module_key = nullptr;
+
+static void native_module_reader(
+    deserializer & d,
+    shared_environment & senv,
+    std::function<void(asynch_update_fn const &)> &,
+    std::function<void(delayed_update_fn const &)> &)
+{
+    name fn;
+    d >> fn;
+    std::cout << "reading native module from meta-data: " << fn << std::endl;
+    // senv.update([&](environment const & env) -> environment {
+    //     vm_decls ext = get_extension(env);
+    //     // ext.update(fn, code_sz, code.data());
+    //     // return update(env, ext);
+    //     return
+    // });
+}
+
+environment set_native_module_path(environment & env, name const & n) {
+    return module::add(env, *g_native_module_key, [=] (environment const & e, serializer & s) {
+        std::cout << "writing out" << n << std::endl;
+        s << n;
+        native_compile_module(e);
+    });
+}
+
 void initialize_native_compiler() {
     native::initialize_options();
     register_trace_class({"compiler", "native"});
     register_trace_class({"compiler", "native", "preprocess"});
+    g_native_module_key = new std::string("native_module_path");
+    register_module_object_reader(*g_native_module_key, native_module_reader);
 }
 
 void finalize_native_compiler() {
     native::finalize_options();
+    delete g_native_module_key;
 }
 }

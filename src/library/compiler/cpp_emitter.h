@@ -248,16 +248,7 @@ namespace lean  {
             }
         }
 
-        template <typename F>
-        void emit_builtin_fields(name const & scrut, buffer<unsigned> fields, F action) {
-            for (unsigned i = 0; i < fields.size(); i++) {
-                this->emit_string("lean::vm_obj ");
-                emit_local(fields[i]);
-                this->emit_string(" = ");
-                this->emit_string(scrut.to_string().c_str());
-                *this->m_output_stream << ".data()[" << i << "];\n";
-            }
-        }
+        void emit_builtin_fields(name const & scrut, buffer<unsigned> fields);
 
         template <typename F>
         void emit_builtin_cases_on(name const & cases_on, buffer<expr> & args, F action) {

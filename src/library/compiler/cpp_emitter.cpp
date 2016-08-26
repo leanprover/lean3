@@ -110,4 +110,14 @@ void cpp_emitter::emit_indented_line(const char * str) {
     *this->m_output_stream << str << std::endl;
     this->m_output_stream->width(this->m_width);
 }
+
+void cpp_emitter::emit_builtin_fields(name const & scrut, buffer<unsigned> fields) {
+    for (unsigned i = 0; i < fields.size(); i++) {
+        this->emit_string("lean::vm_obj ");
+        emit_local(fields[i]);
+        this->emit_string(" = ");
+        this->emit_string(scrut.to_string().c_str());
+        *this->m_output_stream << ".data()[" << i << "];\n";
+    }
+}
 }

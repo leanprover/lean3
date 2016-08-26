@@ -49,6 +49,10 @@ namespace lean {
       process p("g++");
       p.arg("-std=c++11");
 
+      if (m_pic) {
+          p.arg("-fPIC");
+      }
+      
       // Add all the library paths.
       for (auto include_path : m_include_paths) {
           std::string arg("-I");

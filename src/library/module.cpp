@@ -29,7 +29,6 @@ Author: Leonardo de Moura
 #include "library/constants.h"
 #include "library/kernel_serializer.h"
 #include "library/unfold_macros.h"
-#include "library/compiler/native_compiler.h"
 #include "library/vm/vm.h"
 #include "version.h"
 
@@ -170,25 +169,25 @@ void export_module(std::ostream & out, environment const & env) {
         s2.write_char(r[i]);
 }
 
-void export_native_module(std::ostream & out, environment const & env) {
-    module_ext const & ext = get_extension(env);
-    buffer<declaration> decls;
-
-    // Collect all the declarations that should be compiled for this module.
-    for (auto decl_name : ext.m_module_decls) {
-        auto decl = env.get(decl_name);
-        if (is_noncomputable(env, decl_name) ||
-            !decl.is_definition() ||
-            is_vm_builtin_function(decl_name)) {
-                return;
-        } else {
-            std::cout << decl.get_name() << std::endl;
-            decls.push_back(decl);
-        }
-    }
-
-    native_compile_module(env, decls);
-}
+// void export_native_module(std::ostream & out, environment const & env) {
+//     module_ext const & ext = get_extension(env);
+//     buffer<declaration> decls;
+//
+//     // Collect all the declarations that should be compiled for this module.
+//     for (auto decl_name : ext.m_module_decls) {
+//         auto decl = env.get(decl_name);
+//         if (is_noncomputable(env, decl_name) ||
+//             !decl.is_definition() ||
+//             is_vm_builtin_function(decl_name)) {
+//                 return;
+//         } else {
+//             std::cout << decl.get_name() << std::endl;
+//             decls.push_back(decl);
+//         }
+//     }
+//
+//     native_compile_module(env, decls);
+// }
 
 typedef std::unordered_map<std::string, module_object_reader> object_readers;
 static object_readers * g_object_readers = nullptr;
@@ -631,6 +630,24 @@ struct import_modules_fn {
         return update(env, ext);
     }
 };
+
+void decls_to_native_compile(environment const & env, buffer<declaration> & decls) {
+    module_ext const & ext = get_extension(env);
+
+    // Collect all the declarations that should be compiled from this
+    // module.
+    for (auto decl_name : ext.m_module_decls) {
+        auto decl = env.get(decl_name);
+        if (is_noncomputable(env, decl_name) ||
+            !decl.is_definition() ||
+            is_vm_builtin_function(decl_name)) {
+                continue;
+        } else {
+            std::cout << decl.get_name() << std::endl;
+            decls.push_back(decl);
+        }
+    }
+}
 
 environment import_modules(environment const & env, std::string const & base, unsigned num_modules, module_name const * modules,
                            unsigned num_threads, bool keep_proofs, io_state const & ios) {
