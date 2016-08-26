@@ -67,4 +67,35 @@ std::string utf8_trim(std::string const & s) {
         stop = s.size();
     return s.substr(start, stop - start);
 }
+
+unsigned char to_uchar(char c) { return static_cast<unsigned char>(c); }
+
+unsigned utf8_to_unicode(char const * begin, char const * end) {
+    unsigned result = 0;
+    if (begin == end)
+        return result;
+    auto it = begin;
+    unsigned c = to_uchar(*it);
+    ++it;
+    if (c < 128)
+        return c;
+    unsigned mask     = (1u << 6) -1;
+    unsigned hmask    = mask;
+    unsigned shift    = 0;
+    unsigned num_bits = 0;
+    while ((c & 0xC0) == 0xC0) {
+        c <<= 1;
+        c &= 0xff;
+        num_bits += 6;
+        hmask >>= 1;
+        shift++;
+        result <<= 6;
+        if (it == end)
+            return 0;
+        result |= *it & mask;
+        ++it;
+    }
+    result |= ((c >> shift) & hmask) << num_bits;
+    return result;
+}
 }
