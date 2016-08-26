@@ -79,6 +79,9 @@ void import_module(std::vector<char> const & olean_code, std::string const & fil
 /** \brief Export module obtained from \c env as native code to the output stream \c out. */
 void export_native_module(std::ostream & out, environment const & env);
 
+/** \brief Store the set of declarations eligble for native compilation in \c decls. */
+void decls_to_native_compile(environment const & env, buffer<declaration> & decls);
+
 /** \brief An asynchronous update. It goes into a task queue, and can be executed by a different execution thread. */
 typedef std::function<void(shared_environment & env)> asynch_update_fn;
 
