@@ -13,4 +13,5 @@ unsigned get_utf8_size(unsigned char c);
 size_t utf8_strlen(char const * str);
 char const * get_utf8_last_char(char const * str);
 std::string utf8_trim(std::string const & s);
+unsigned utf8_to_unicode(char const * begin, char const * end);
 }

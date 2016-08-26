@@ -91,7 +91,6 @@ public:
     };
 };
 std::ostream & operator<<(std::ostream & out, scanner::token_kind k);
-bool is_id_rest(char const * begin, char const * end);
 void initialize_scanner();
 void finalize_scanner();
 }
