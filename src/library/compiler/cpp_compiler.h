@@ -13,6 +13,9 @@ Author: Jared Roesch
 
 namespace lean  {
 
+#define LEAN_STATIC_LIB "leanstatic"
+#define LEAN_SHARED_LIB "leanshared"
+
 class cpp_compiler {
     buffer<std::string> m_library_paths;
     buffer<std::string> m_include_paths;

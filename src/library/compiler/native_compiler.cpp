@@ -673,7 +673,6 @@ void native_compile(environment const & env,
     add_shared_dependencies(gpp);
 
     gpp.file("out.cpp")
-       .link("leanstatic")
        .run();
 }
 
