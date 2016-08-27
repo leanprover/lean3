@@ -60,7 +60,7 @@ class anf_transform_fn : public compiler_step_visitor {
         buffer<expr> lifted_args;
         expr fn = get_app_args(e, args);
 
-        if (is_constant(fn) && is_cases_on(m_ctx->env(), fn)) {
+        if (is_constant(fn) && is_cases_on(m_ctx.env(), fn)) {
             lifted_args.push_back(visit(args[0]));
 
             for (unsigned i = 1; i < args.size(); i++) {

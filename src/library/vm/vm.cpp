@@ -20,6 +20,7 @@ Author: Leonardo de Moura
 #include "library/vm/vm.h"
 #include "library/vm/vm_expr.h"
 #include "util/dynamic_library.h"
+#include "library/compiler/extern.h"
 
 namespace lean {
 void vm_obj_cell::dec_ref(vm_obj & o, buffer<vm_obj_cell*> & todelete) {
@@ -2224,8 +2225,10 @@ unsigned get_vm_builtin_arity(name const & fn) {
 
 environment load_external_fn(environment & env, name const & extern_n) {
     try {
-        dynamic_library *library = new dynamic_library("/Users/jroesch/Git/muri/extern/libput_int.dylib");
-        auto code = library->symbol(extern_n.to_string(""));
+        std::string lib_name = library_name(env, extern_n);
+        std::string symbol = symbol_name(env, extern_n);
+        dynamic_library *library = new dynamic_library(lib_name);
+        auto code = library->symbol(symbol);
         lean_assert(code);
         return add_native(env, extern_n, (vm_cfunction_2)code);
     } catch (dynamic_linking_exception e) {

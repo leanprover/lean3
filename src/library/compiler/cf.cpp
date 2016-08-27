@@ -49,7 +49,7 @@ class cf_fn : public compiler_step_visitor {
             buffer<expr> args;
             expr fn = get_app_args(v, args);
 
-            if (is_constant(fn) && is_cases_on(m_ctx->env(), fn)) {
+            if (is_constant(fn) && is_cases_on(m_ctx.env(), fn)) {
                 // THis has a recursion problem
                 m_current_location = mk_local(n, mk_neutral_expr());
                 auto v_prime = visit(v);
@@ -69,7 +69,7 @@ class cf_fn : public compiler_step_visitor {
         buffer<expr> args;
         expr fn = get_app_args(e, args);
 
-        if (is_constant(fn) && is_cases_on(m_ctx->env(), fn)) {
+        if (is_constant(fn) && is_cases_on(m_ctx.env(), fn)) {
             buffer<expr> annotated_args;
 
             annotated_args.push_back(args[0]);

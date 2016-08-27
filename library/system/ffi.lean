@@ -5,18 +5,19 @@ namespace ffi
 
 -- Be careful when changing this, there is a corresponding enum in `vm_ptr.cpp` which
 -- corresponds to the contructor numbering here.
-inductive base_type :=
+inductive base_type
 | int
 | char
 
-inductive type :=
+inductive type
 | base : base_type → type
 | array : nat -> type → type
 -- | sigma : (nat → type) → type
 | void : type
 
 
-definition base_type_coe [instance] : has_coe base_type type :=
+attribute [instance]
+definition base_type_coe : has_coe base_type type :=
   has_coe.mk (fun bt, type.base bt)
 
 definition cstring : type :=
@@ -56,7 +57,7 @@ definition value_of : type → Type.{1}
 
 attribute [reducible] value_of
 
--- A special marker for converting 
+-- A special marker for converting
 definition extern (ret : type) (s : string) : list type -> Type.{1}
 | extern [] := IO (value_of ret)
 | extern (t :: ts) := (value_of t) -> extern ts
@@ -104,7 +105,7 @@ constant read_char_as_char : ptr base_type.char  -> IO char
 --   return "foo"
 
 -- definition main := do
---   fd <- call open_file 
+--   fd <- call open_file
 
 
 end ffi
