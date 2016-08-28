@@ -12,7 +12,7 @@ Author: Jared Roesch, and Leonardo de Moura
 namespace lean {
 
 // An object representing pointers to C compatible structs.
-struct vm_ptr : public vm_obj_cell {
+struct vm_ptr : public vm_external {
 protected:
     virtual void dealloc() {
         this->~vm_ptr(); get_vm_allocator().deallocate(sizeof(vm_ptr), this);
@@ -23,13 +23,13 @@ public:
     vm_obj m_destructor;
 
     ~vm_ptr() {}
-    vm_ptr(void* data, vm_obj const & d) : vm_obj_cell(vm_obj_kind::Pointer), m_pointer(data), m_destructor(d) {}
-    vm_ptr(const vm_ptr & other) : vm_obj_cell(vm_obj_kind::Pointer) {
+    vm_ptr(void* data, vm_obj const & d) : vm_external(), m_pointer(data), m_destructor(d) {}
+    vm_ptr(const vm_ptr & other) : vm_external() {
         m_pointer = other.m_pointer;
         m_destructor = other.m_destructor;
     }
 
-    vm_ptr(vm_ptr * other) : vm_obj_cell(vm_obj_kind::Pointer) {
+    vm_ptr(vm_ptr * other) : vm_external() {
         m_pointer = other->m_pointer;
         m_destructor = other->m_destructor;
     }
@@ -50,7 +50,10 @@ vm_obj mk_vm_child_ptr(void * data, vm_obj destructor, vm_obj parent) {
     return vm_obj(new (get_vm_allocator().allocate(sizeof(vm_child_ptr))) vm_child_ptr(data, destructor, parent));
 }
 
-inline vm_ptr * to_ptr(vm_obj_cell * o) { /* lean_assert(is_(o)); */ return static_cast<vm_ptr*>(o); }
+inline vm_ptr * to_ptr(vm_obj_cell * o) {
+    lean_assert(is_external(o));
+    return static_cast<vm_ptr*>(o);
+}
 
 vm_obj offset(vm_obj const & base, size_t off) {
     char* base_ptr = (char*)(to_ptr(&*base)->m_pointer);

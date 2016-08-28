@@ -19,6 +19,7 @@ Author: Leonardo de Moura
 #include "library/module.h"
 #include "library/vm/vm.h"
 #include "library/vm/vm_expr.h"
+#include "library/normalize.h"
 #include "util/dynamic_library.h"
 #include "library/compiler/extern.h"
 
@@ -2216,13 +2217,6 @@ unsigned get_vm_builtin_arity(name const & fn) {
     lean_unreachable();
 }
 
-// void* get_extern_symbol(
-//    std::string library_name,
-//    name const & n) {
-//    dynamic_library library(library_name);
-//    return library.symbol(extern_name);
-// }
-
 environment load_external_fn(environment & env, name const & extern_n) {
     try {
         std::string lib_name = library_name(env, extern_n);
@@ -2230,7 +2224,33 @@ environment load_external_fn(environment & env, name const & extern_n) {
         dynamic_library *library = new dynamic_library(lib_name);
         auto code = library->symbol(symbol);
         lean_assert(code);
-        return add_native(env, extern_n, (vm_cfunction_2)code);
+
+        // Calculate the arity of the declared symbol.
+        unsigned arity = 1; // We always take at least one argument, because we are in the IO monad.
+        auto ty = normalize(env, env.get(extern_n).get_type(), true);
+        while (is_binding(ty)) {
+            ty = binding_body(ty);
+            arity += 1;
+        }
+        std::cout << arity << std::endl;
+
+        switch (arity) {
+        case 0: lean_unreachable();
+        case 1: return add_native(env, extern_n, (vm_cfunction_1)code);
+        case 2: return add_native(env, extern_n, (vm_cfunction_2)code);
+        case 3: return add_native(env, extern_n, (vm_cfunction_3)code);
+        case 4: return add_native(env, extern_n, (vm_cfunction_4)code);
+        case 5: return add_native(env, extern_n, (vm_cfunction_5)code);
+        case 6: return add_native(env, extern_n, (vm_cfunction_6)code);
+        case 7: return add_native(env, extern_n, (vm_cfunction_7)code);
+        case 8: return add_native(env, extern_n, (vm_cfunction_8)code);
+        default:
+            lean_unreachable();
+            // buffer<vm_obj> args;
+            // to_cbuffer(fn, args);
+            // args.push_back(a1);
+            // return to_fnN(d)(args.size(), args.data());
+        }
     } catch (dynamic_linking_exception e) {
         std::cout << e.what() << std::endl;
         throw e;
