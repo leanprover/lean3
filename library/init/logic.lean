@@ -540,6 +540,9 @@ definition exists.intro := @Exists.intro
 notation `exists` binders `, ` r:(scoped P, Exists P) := r
 notation `∃` binders `, ` r:(scoped P, Exists P) := r
 
+definition exists.intro2 {A B : Type} {P : A → B → Prop} (a : A) (b : B) : P a b → ∃ a' b', P a' b' :=
+assume Hp, exists.intro a (exists.intro b Hp)
+
 attribute Exists.rec [elim]
 
 theorem exists.elim {A : Type} {p : A → Prop} {B : Prop}

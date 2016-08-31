@@ -315,7 +315,7 @@ theorem exists_coprime {m n : ℕ} (H : gcd m n > 0) :
   exists m' n', coprime m' n' ∧ m = m' * gcd m n ∧ n = n' * gcd m n :=
 have H1 : m = (m / gcd m n) * gcd m n, from (nat.div_mul_cancel !gcd_dvd_left)⁻¹,
 have H2 : n = (n / gcd m n) * gcd m n, from (nat.div_mul_cancel !gcd_dvd_right)⁻¹,
-exists.intro _ (exists.intro _ (and.intro (coprime_div_gcd_div_gcd H) (and.intro H1 H2)))
+exists.intro2 _ _ (and.intro (coprime_div_gcd_div_gcd H) (and.intro H1 H2))
 
 theorem coprime_mul {m n k : ℕ} (H1 : coprime m k) (H2 : coprime n k) : coprime (m * n) k :=
 calc
@@ -353,7 +353,7 @@ or.elim (eq_zero_or_pos (gcd k m))
     have H4 : k = 0 * n, from H2 ⬝ !zero_mul⁻¹,
     have H5 : 0 ∣ m, from H3⁻¹ ▸ !dvd.refl,
     have H6 : n ∣ n, from !dvd.refl,
-    exists.intro _ (exists.intro _ (and.intro H4 (and.intro H5 H6))))
+    exists.intro2 _ _ (and.intro H4 (and.intro H5 H6)))
   (assume H1 : gcd k m > 0,
     have H2 : gcd k m ∣ k, from !gcd_dvd_left,
     have H3 : k / gcd k m ∣ (m * n) / gcd k m, from nat.div_dvd_div H2 H,
@@ -366,6 +366,6 @@ or.elim (eq_zero_or_pos (gcd k m))
     have H6 : coprime (k / gcd k m) (m / gcd k m), from coprime_div_gcd_div_gcd H1,
     have H7 : k / gcd k m ∣ n, from dvd_of_coprime_of_dvd_mul_left H6 H5,
     have H8 : k = gcd k m * (k / gcd k m), from (nat.mul_div_cancel' H2)⁻¹,
-    exists.intro _ (exists.intro _ (and.intro H8 (and.intro !gcd_dvd_right H7))))
+    exists.intro2 _ _ (and.intro H8 (and.intro !gcd_dvd_right H7)))
 
 end nat

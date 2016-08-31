@@ -520,17 +520,17 @@ lemma exists_of_mem_dmap : ∀ {l : list A} {b : B}, b ∈ dmap p f l → ∃ a 
   (assume Pa, begin
   rewrite [dmap_cons_of_pos Pa, mem_cons_iff],
   intro Pb, cases Pb with Peq Pin,
-    exact exists.intro a (exists.intro Pa (and.intro !mem_cons Peq)),
+    exact exists.intro2 a Pa (and.intro !mem_cons Peq),
     have Pex : ∃ (a : A) (P : p a), a ∈ l ∧ b = f a P, from exists_of_mem_dmap Pin,
     cases Pex with a' Pex', cases Pex' with Pa' P',
-    exact exists.intro a' (exists.intro Pa' (and.intro (mem_cons_of_mem a (and.left P')) (and.right P')))
+    exact exists.intro2 a' Pa' (and.intro (mem_cons_of_mem a (and.left P')) (and.right P'))
   end)
   (assume nPa,  begin
   rewrite [dmap_cons_of_neg nPa],
   intro Pin,
   have Pex : ∃ (a : A) (P : p a), a ∈ l ∧ b = f a P, from exists_of_mem_dmap Pin,
   cases Pex with a' Pex', cases Pex' with Pa' P',
-  exact exists.intro a' (exists.intro Pa' (and.intro (mem_cons_of_mem a (and.left P')) (and.right P')))
+  exact exists.intro2 a' Pa' (and.intro (mem_cons_of_mem a (and.left P')) (and.right P'))
   end)
 
 lemma map_dmap_of_inv_of_pos {g : B → A} (Pinv : ∀ a (Pa : p a), g (f a Pa) = a) :
