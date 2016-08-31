@@ -557,7 +557,7 @@ static environment unify_cmd(parser & p) {
 static environment defeq_simplify_cmd(parser & p) {
     auto pos = p.pos();
     environment const & env = p.env();
-    name ns = p.check_id_next("invalid #simplify command, namespace or 'env' expected");
+    name ns = p.check_id_next("invalid #defeq_simplify command, namespace or 'env' expected");
 
     defeq_simp_lemmas sls;
     if (ns == name("null")) {
@@ -570,7 +570,7 @@ static environment defeq_simplify_cmd(parser & p) {
     expr e; level_param_names ls;
     std::tie(e, ls) = parse_local_expr(p);
 
-    auto tc = mk_type_checker(p.env());
+    auto tc = mk_type_checker(p.env(), [](name const &) { return false; });
     default_tmp_type_context_pool pool(p.env(), p.get_options());
     expr e_simp = defeq_simplify(pool, p.get_options(), sls, e);
     if (!tc->is_def_eq(e, e_simp).first) {
