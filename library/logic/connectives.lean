@@ -123,6 +123,28 @@ iff.intro (or.rec imp.id Hb) or.inl
 theorem or_iff_or (H1 : a ↔ c) (H2 : b ↔ d) : (a ∨ b) ↔ (c ∨ d) :=
 iff.intro (or.imp (iff.mp H1) (iff.mp H2)) (or.imp (iff.mpr H1) (iff.mpr H2))
 
+/- DeMorgan -/
+
+theorem DeMorgan_or (a b : Prop) :
+  ¬(a ∨ b) ↔ ¬a ∧ ¬b := 
+iff.intro
+  (suppose ¬(a ∨ b), 
+    have ¬a, from not.intro(
+      suppose a,
+      have a ∨ b, from or.inl this,
+      show false, from absurd this `¬(a ∨ b)`),
+    have ¬b, from not.intro( 
+      suppose b,
+      have a ∨ b, from or.inr this,
+      show false, from absurd this `¬(a ∨ b)`),
+    show ¬a ∧ ¬b, from and.intro `¬a` this)
+  (suppose ¬a ∧ ¬b,
+    not.intro(
+      suppose a ∨ b,
+      show false, from or.elim this
+        (suppose a, absurd this (and.elim_left `¬a ∧ ¬b`))
+        (suppose b, absurd this (and.elim_right `¬a ∧ ¬b`))))
+
 /- distributivity -/
 
 theorem and.left_distrib (a b c : Prop) : a ∧ (b ∨ c) ↔ (a ∧ b) ∨ (a ∧ c) :=
