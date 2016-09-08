@@ -14,6 +14,8 @@ Author: Jared Roesch and Leonardo de Moura
 #include "library/vm/optimize.h"
 #include "library/vm/vm_expr.h"
 #include "library/vm/vm_string.h"
+#include "library/vm/vm_name.h"
+#include "library/vm/vm_format.h"
 #include "library/util.h"
 #include "library/compiler/simp_inductive.h"
 #include "library/compiler/erase_irrelevant.h"
@@ -653,11 +655,20 @@ void native_compile(environment const & env,
         compiler.emit_prototype(p.first, p.second);
     }
 
+    auto compiler_name = name({"native", "compile_decl"});
+    auto cc = mk_native_closure(env, compiler_name, {});
+    vm_state S(env);
+
+    std::fstream lean_output("out.lean.cpp", std::ios_base::out);
+
     // Iterate each processed decl, emitting code for it.
     for (auto & p : procs) {
         lean_trace(name({"native_compiler"}), tout() << "" << p.first << "\n";);
         name & n = p.first;
         expr body = p.second;
+        vm_obj result = S.invoke(cc, to_obj(p.first), to_obj(p.second));
+        auto fmt = to_format(result);
+        lean_output << fmt << std::endl;
         compiler(n, body);
     }
 
