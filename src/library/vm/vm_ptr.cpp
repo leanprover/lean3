@@ -8,6 +8,7 @@ Author: Jared Roesch, and Leonardo de Moura
 #include "library/vm/vm.h"
 #include "library/vm/vm_string.h"
 #include "library/vm/vm_nat.h"
+#include "library/vm/vm_ptr.h"
 
 namespace lean {
 
@@ -42,6 +43,18 @@ public:
         : vm_ptr(data, destructor), m_parent(parent) {}
 };
 
+struct vm_array {
+    unsigned m_len;
+    unsigned m_capacity;
+    char m_data[0];
+
+    vm_array(int capacity) : m_len(0), m_capacity(capacity) {}
+
+    void* index(unsigned offset) {
+        return (void*)(m_data + offset);
+    }
+};
+
 vm_obj mk_vm_ptr(void * data, vm_obj destructor) {
     return vm_obj(new (get_vm_allocator().allocate(sizeof(vm_ptr))) vm_ptr(data, destructor));
 }
@@ -55,11 +68,10 @@ inline vm_ptr * to_ptr(vm_obj_cell * o) {
     return static_cast<vm_ptr*>(o);
 }
 
-vm_obj offset(vm_obj const & base, size_t off) {
-    char* base_ptr = (char*)(to_ptr(&*base)->m_pointer);
-    lean_assert(base_ptr);
-    std::cout << base_ptr << "|" << off << std::endl;
-    auto element_ptr = (void*)(base_ptr + off);
+vm_obj index_vm_array(vm_obj const & base, size_t off) {
+    vm_array* array = (vm_array*)(to_ptr(&*base)->m_pointer);
+    lean_assert(array);
+    auto element_ptr = (void*)(array->m_data + off);
     return mk_vm_child_ptr(element_ptr, mk_vm_simple(0), base);
 }
 
@@ -67,11 +79,20 @@ void* to_void_ptr(vm_obj const & o) {
     return to_ptr(&*o)->m_pointer;
 }
 
-vm_obj allocate_ptr(vm_obj const &, vm_obj const & size, vm_obj const & proof, vm_obj const & destructor, vm_obj const &) {
+vm_obj allocate_sized(vm_obj const &, vm_obj const &, vm_obj const & size, vm_obj const & destructor, vm_obj const &) {
     auto no_bytes = to_unsigned(size);
-    std::cout << "allocating " << no_bytes << " bytes" << std::endl;
     void * data = malloc(sizeof(char) * no_bytes);
     return mk_vm_ptr(data, destructor);
+}
+
+vm_obj allocate_array(vm_obj const &, vm_obj const &, vm_obj const & elem_size, vm_obj const & initial_capacity, vm_obj const & destructor, vm_obj const &) {
+    unsigned type_size = to_unsigned(elem_size);
+    unsigned init_cap = to_unsigned(initial_capacity);
+
+    vm_array * data =
+        (vm_array*)(malloc(sizeof(vm_array) + (sizeof(char) * type_size * init_cap)));
+    *data = vm_array(init_cap);
+    return mk_vm_ptr((vm_array*)data, destructor);
 }
 
 vm_obj write_nat_as_int(vm_obj const & nat, vm_obj const & int_ptr, vm_obj const &) {
@@ -123,30 +144,57 @@ vm_obj base_size_of(vm_obj const & base_type) {
     }
 }
 
-vm_obj index_array(vm_obj const & n,
-                  vm_obj const & type,
-                  vm_obj const & array,
-                  vm_obj const & index,
-                  vm_obj const &) {
+vm_obj index_array(vm_obj const & type,
+                   vm_obj const & array,
+                   vm_obj const & index,
+                   vm_obj const &) {
+    // throw "hello world";
     unsigned idx = to_unsigned(index);
-    std::cout << "index: " << idx << std::endl;
     vm_obj size_of = mk_native_closure(
-        get_vm_state().env(),
-        name{"ffi", "sizeof"},
-        {});
-    unsigned type_size = to_unsigned(invoke(size_of, type));
-    std::cout << "type_size: " << type_size << std::endl;
+         get_vm_state().env(),
+         name{"ffi", "sizeof"},
+         {});
+    unsigned type_size = to_unsigned(invoke(size_of, type, mk_vm_simple(0)));
     size_t off = (idx * type_size);
-    return offset(array, off);
+    return index_vm_array(array, off);
+}
+
+void* pointer_from_vm_array(vm_obj const & array) {
+    return (void*)((to_raw_ptr<vm_array>(array))->m_data);
+}
+
+// would be cool if we could model the arrays in the IR
+// depending on what typing rules we select a piece of
+// code is roughly
+// struct array { unsigned cap; unsigned len; char data[0]; }
+// or with a more expressive type system (dependent record style).
+// struct array { unsigned cap; unsigned len; char data[cap] }
+vm_obj array_capacity(vm_obj const &, vm_obj const & array, vm_obj const &) {
+    auto arr = to_raw_ptr<vm_array>(array);
+    int *cap = new int;
+    *cap = arr->m_capacity;
+    return mk_vm_child_ptr(cap, mk_vm_simple(0), array);
+}
+
+vm_obj array_length(vm_obj const &, vm_obj const & array, vm_obj const &) {
+    auto arr = to_raw_ptr<vm_array>(array);
+    int *len = new int;
+    *len = arr->m_len;
+    return mk_vm_child_ptr(len, mk_vm_simple(0), array);
 }
 
 void initialize_vm_ptr() {
-    DECLARE_VM_BUILTIN(name({"ffi", "allocate"}), allocate_ptr);
+    // Allocation primitives
+    DECLARE_VM_BUILTIN(name({"ffi", "allocate_sized"}), allocate_sized);
+    DECLARE_VM_BUILTIN(name({"ffi", "allocate_array"}), allocate_array);
+    DECLARE_VM_BUILTIN(name({"ffi", "array_length"}), array_length);
+    DECLARE_VM_BUILTIN(name({"ffi", "array_capacity"}), array_capacity);
     DECLARE_VM_BUILTIN(name({"ffi", "base_size_of"}), base_size_of);
     DECLARE_VM_BUILTIN(name({"ffi", "write_nat_as_int"}), write_nat_as_int);
     DECLARE_VM_BUILTIN(name({"ffi", "read_int_as_nat"}), read_int_as_nat);
     DECLARE_VM_BUILTIN(name({"ffi", "write_char_as_char"}), write_char_as_char);
     DECLARE_VM_BUILTIN(name({"ffi", "read_char_as_char"}), read_char_as_char);
+    // Array access
     DECLARE_VM_BUILTIN(name({"ffi", "index_array"}), index_array);
 }
 
