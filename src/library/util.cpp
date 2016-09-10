@@ -202,7 +202,7 @@ bool is_inductive_predicate(environment const & env, name const & n) {
 
 bool can_elim_to_type(environment const & env, name const & n) {
     if (!is_standard(env))
-        return false;
+        return true;
     if (!inductive::is_inductive_decl(env, n))
         return false; // n is not inductive datatype
     declaration ind_decl = env.get(n);
