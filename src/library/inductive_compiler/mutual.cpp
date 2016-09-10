@@ -16,6 +16,7 @@ Author: Daniel Selsam
 #include "library/class.h"
 #include "library/module.h"
 #include "library/trace.h"
+#include "library/protected.h"
 #include "library/type_context.h"
 #include "library/attribute_manager.h"
 #include "library/constructions/has_sizeof.h"
@@ -340,6 +341,7 @@ class add_mutual_inductive_decl_fn {
             lean_assert(!has_local(has_sizeof_val));
             m_env = module::add(m_env, check(m_env, mk_definition_inferring_trusted(m_env, has_sizeof_name, to_list(m_mut_decl.get_lp_names()), has_sizeof_type, has_sizeof_val, true)));
             m_env = add_instance(m_env, has_sizeof_name, LEAN_DEFAULT_PRIORITY, true);
+            m_env = add_protected(m_env, has_sizeof_name);
             m_tctx.set_env(m_env);
             tctx_synth.set_env(m_env);
         }
@@ -383,7 +385,7 @@ class add_mutual_inductive_decl_fn {
                 expr lhs = mk_app(tctx_synth, get_sizeof_name(), {mk_app(c_ir, locals)});
                 expr dsimp_rule_type = Pi(m_mut_decl.get_params(), m_tctx.mk_pi(param_insts, Pi(locals, mk_eq(m_tctx, lhs, rhs))));
                 expr dsimp_rule_val = Fun(m_mut_decl.get_params(), m_tctx.mk_lambda(param_insts, Fun(locals, mk_eq_refl(m_tctx, lhs))));
-                name dsimp_rule_name = mlocal_name(ir) + "has_sizeof_spec";
+                name dsimp_rule_name = mk_sizeof_spec_name(mlocal_name(ir));
 
                 assert_def_eq(m_env, tctx_synth.infer(dsimp_rule_val), dsimp_rule_type);
 
@@ -392,6 +394,7 @@ class add_mutual_inductive_decl_fn {
 
                 m_env = module::add(m_env, check(m_env, mk_definition_inferring_trusted(m_env, dsimp_rule_name, to_list(m_mut_decl.get_lp_names()), dsimp_rule_type, dsimp_rule_val, true)));
                 m_env = set_simp_sizeof(m_env, dsimp_rule_name);
+                m_env = add_protected(m_env, dsimp_rule_name);
 
                 tctx_synth.set_env(m_env);
                 m_tctx.set_env(m_env);

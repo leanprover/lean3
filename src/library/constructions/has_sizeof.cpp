@@ -15,6 +15,7 @@ Author: Daniel Selsam
 #include "kernel/inductive/inductive.h"
 #include "library/attribute_manager.h"
 #include "library/type_context.h"
+#include "library/protected.h"
 #include "library/local_context.h"
 #include "library/app_builder.h"
 #include "library/util.h"
@@ -37,8 +38,12 @@ environment set_simp_sizeof(environment const & env, name const & n) {
     return get_simp_sizeof_attribute().set(env, get_dummy_ios(), n, LEAN_DEFAULT_PRIORITY, true);
 }
 
-name mk_has_sizeof_name(name const & n) {
-    return n + "has_sizeof";
+name mk_has_sizeof_name(name const & ind_name) {
+    return ind_name + "has_sizeof_inst";
+}
+
+name mk_sizeof_spec_name(name const & ir_name) {
+    return ir_name + "sizeof_spec";
 }
 
 // TODO(dhs): Put these in one place and stop copying them
@@ -222,6 +227,7 @@ class mk_has_sizeof_fn {
 
         m_env = module::add(m_env, check(m_env, mk_definition_inferring_trusted(m_env, has_sizeof_name, lp_names, has_sizeof_type, has_sizeof_val, true)));
         m_env = add_instance(m_env, has_sizeof_name, LEAN_DEFAULT_PRIORITY, true);
+        m_env = add_protected(m_env, has_sizeof_name);
 
         // TODO(dhs): switch back to `set_env` once the bug is fixed
         // m_tctx.set_env(m_env);
@@ -266,11 +272,11 @@ class mk_has_sizeof_fn {
             expr lhs = mk_app(m_tctx, get_sizeof_name(), {mk_app(c_ir, locals)});
             expr dsimp_rule_type = m_tctx.mk_pi(params, m_tctx.mk_pi(used_param_insts, Pi(locals, mk_eq(m_tctx, lhs, rhs))));
             expr dsimp_rule_val = m_tctx.mk_lambda(params, m_tctx.mk_lambda(used_param_insts, Fun(locals, mk_eq_refl(m_tctx, lhs))));
-            name dsimp_rule_name = inductive::intro_rule_name(ir) + "has_sizeof_spec";
+            name dsimp_rule_name = mk_sizeof_spec_name(inductive::intro_rule_name(ir));
 
             m_env = module::add(m_env, check(m_env, mk_definition_inferring_trusted(m_env, dsimp_rule_name, lp_names, dsimp_rule_type, dsimp_rule_val, true)));
             m_env = set_simp_sizeof(m_env, dsimp_rule_name);
-
+            m_env = add_protected(m_env, dsimp_rule_name);
             m_tctx.set_env(m_env);
         }
     }
@@ -297,7 +303,7 @@ simp_lemmas get_sizeof_simp_lemmas(type_context & tctx) {
 }
 
 void initialize_has_sizeof() {
-    g_simp_sizeof = new name{"_simp", "sizeof"};
+    g_simp_sizeof = new name{"simp", "sizeof"};
     register_system_attribute(basic_attribute::with_check(*g_simp_sizeof, "simplification lemma", on_add_simp_lemma));
 
     register_trace_class(name({"constructions", "has_sizeof"}));

@@ -10,10 +10,10 @@ check @foo
 check @bar
 check @foo.rec
 check @bar.rec
-check @foo.has_sizeof
-check @bar.has_sizeof
-check @foo.mk.has_sizeof_spec
-check @bar.mk.has_sizeof_spec
+check @foo.has_sizeof_inst
+check @bar.has_sizeof_inst
+check @foo.mk.sizeof_spec
+check @bar.mk.sizeof_spec
 end X1
 
 namespace X2
@@ -28,10 +28,10 @@ check @foo
 check @bar
 check @foo.rec
 check @bar.rec
-check @foo.has_sizeof
-check @bar.has_sizeof
-check @foo.mk.has_sizeof_spec
-check @bar.mk.has_sizeof_spec
+check @foo.has_sizeof_inst
+check @bar.has_sizeof_inst
+check @foo.mk.sizeof_spec
+check @bar.mk.sizeof_spec
 end X2
 
 namespace X3
@@ -46,10 +46,10 @@ check @foo
 check @bar
 check @foo.rec
 check @bar.rec
-check @foo.has_sizeof
-check @bar.has_sizeof
-check @foo.mk.has_sizeof_spec
-check @bar.mk.has_sizeof_spec
+check @foo.has_sizeof_inst
+check @bar.has_sizeof_inst
+check @foo.mk.sizeof_spec
+check @bar.mk.sizeof_spec
 end X3
 
 namespace X4
@@ -68,12 +68,12 @@ check @rig
 check @foo.rec
 check @bar.rec
 check @rig.rec
-check @foo.has_sizeof
-check @bar.has_sizeof
-check @rig.has_sizeof
-check @foo.mk.has_sizeof_spec
-check @bar.mk.has_sizeof_spec
-check @rig.mk.has_sizeof_spec
+check @foo.has_sizeof_inst
+check @bar.has_sizeof_inst
+check @rig.has_sizeof_inst
+check @foo.mk.sizeof_spec
+check @bar.mk.sizeof_spec
+check @rig.mk.sizeof_spec
 end X4
 
 namespace X5
@@ -129,13 +129,13 @@ check @rig
 check @foo.rec
 check @bar.rec
 check @rig.rec
-check @foo.has_sizeof
-check @bar.has_sizeof
-check @rig.has_sizeof
-check @foo.mk.has_sizeof_spec
-check @bar.mk.has_sizeof_spec
-check @rig.mk.has_sizeof_spec
-check @rig.put.has_sizeof_spec
+check @foo.has_sizeof_inst
+check @bar.has_sizeof_inst
+check @rig.has_sizeof_inst
+check @foo.mk.sizeof_spec
+check @bar.mk.sizeof_spec
+check @rig.mk.sizeof_spec
+check @rig.put.sizeof_spec
 end X7
 
 namespace X8
@@ -191,11 +191,11 @@ check @rig
 check @foo.rec
 check @bar.rec
 check @rig.rec
-check @foo.has_sizeof
-check @bar.has_sizeof
-check @rig.has_sizeof
-check @foo.mk.has_sizeof_spec
-check @bar.mk.has_sizeof_spec
-check @rig.mk.has_sizeof_spec
+check @foo.has_sizeof_inst
+check @bar.has_sizeof_inst
+check @rig.has_sizeof_inst
+check @foo.mk.sizeof_spec
+check @bar.mk.sizeof_spec
+check @rig.mk.sizeof_spec
 
 end X10
