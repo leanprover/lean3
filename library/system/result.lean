@@ -1,13 +1,11 @@
 namespace system
 
-print inductive sum
+set_option new_elaborator true
 
+-- I'm extending the stdlib tho, which is good, we now have a system.result 
 inductive result : Type -> Type -> Type
 | err : Π {E R}, E -> result E R
 | ok : Π {E R}, R -> result E R
-
-inductive resultT (M : Type -> Type) (E A : Type)
-| run : M (result E A) → resultT
 
 -- TODO: elaborator is still underway, eventually clean these up, hacking around elab bugs
 definition unwrap_or : Π {E T : Type}, result E T -> T -> T
@@ -22,25 +20,37 @@ definition result.and_then : Π {E T U : Type}, result E T → (T -> result E U)
 | E T U (result.err e) _ := result.err e
 | E T U (result.ok t) f := f t
 
+print inductive functor
+
+check functor.mk
+
 attribute [instance]
-definition result_functor (E : Type) : functor (result E) :=
-{| functor, map := @result.map E |}
+definition result_functor (E : Type) : functor (result E) := functor.mk (@result.map E)
 
 definition result.seq : Π {E T U : Type}, result E (T → U) -> result E T → result E U
 | E T U f t := result.and_then f (fun f', result.and_then t (fun t', result.ok (f' t')))
 
+-- This crashes .... 
 attribute [instance]
 definition result_applicative (E : Type) : applicative (result E) :=
-{| applicative,
-pure := @result.ok E,
-map := @result.map E,
-seq := @result.seq E |}
+applicative.mk (@result.map E) (@result.ok E) (@result.seq E)
 
-attribute [instance]
-definition result_monad (E : Type) : monad (result E) :=
-{| monad,
-map := @result.map E,
-ret := @result.ok E,
-bind := @result.and_then E |}
+-- attribute [instance]
+-- definition result_monad (E : Type) : monad (result E) :=
+-- {| monad,
+-- map := @result.map E,
+-- ret := @result.ok E,
+-- bind := @result.and_then E |}
+
+-- inductive resultT (M : Type -> Type) (E A : Type)
+-- | run : M (result E A) → resultT
+
+-- definition resultT.map {M : Type -> Type} [functor : functor M] : Π {E A B : Type}, (A → B) → resultT M E A → resultT M E B
+-- | E A B f (resultT.run action) :=
+--   resultT.run $ (@functor.map M functor _ _ (result.map f) action)
+
+-- attribute [instance]
+-- definition resultT_functor {M} [f : functor M] (E : Type) : functor (resultT M E) :=
+--     {| functor, map := @resultT.map M f E |}
 
 end system
