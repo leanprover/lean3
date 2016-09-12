@@ -38,12 +38,15 @@ definition name.get_prefix : name → name
 | (mk_string s p)  := p
 | (mk_numeral s p) := p
 
-definition name.to_string : name → string
+definition name.to_string_with_sep (sep : string) : name → string
 | anonymous                := "[anonymous]"
 | (mk_string s anonymous)  := s
 | (mk_numeral v anonymous) := to_string v
-| (mk_string s n)          := name.to_string n ++ "." ++ s
-| (mk_numeral v n)         := name.to_string n ++ "." ++ to_string v
+| (mk_string s n)          := name.to_string_with_sep n ++ "." ++ s
+| (mk_numeral v n)         := name.to_string_with_sep n ++ "." ++ to_string v
+
+definition name.to_string : name → string :=
+  name.to_string_with_sep "."
 
 attribute [instance]
 definition name.has_to_string : has_to_string name :=
