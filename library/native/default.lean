@@ -53,14 +53,62 @@ definition assert_name : ir_expr → result name
 
 check tactic.mk_fresh_name
 
+inductive state (S A : Type) : Type
+| run : (S → (S × A)) -> state
+
+definition state.pure {S A} (a : A) : state S A :=
+  state.run $ fun s, (s, a)
+
+definition state.map {S A B} (f : A → B) : state S A → state S B
+| (state.run action) :=
+  state.run $ fun s, prod.rec_on (action s) (fun s' a, (s', f a))
+
+definition state.bind {S A B} : state S A → (A → state S B) → state S B
+| (state.run action) f :=
+  state.run $ fun s,
+    prod.rec_on (action s)
+      (fun s' a, state.rec_on (f a)
+        (fun action_b, action_b s'))
+
+attribute [instance]
+definition state_functor (S : Type) : functor (state S) :=
+  functor.mk (@state.map S)
+
+attribute [instance]
+definition state_monad (S : Type) : monad (state S) :=
+  monad.mk (@state.map S) (@state.pure S) (@state.bind S)
+
+structure anf_state :=
+  (counter : nat)
+  (bindings : list (name × ir_expr))
+
+definition state.get {S} : state S S :=
+  state.run $ fun s, (s, s)
+
+definition state.set {S} (new : S) : state S unit :=
+  state.run $ fun s', (new, ())
+
+definition update {S} (s : S) (f : S -> S): state S unit := do
+  s <- state.get,
+  state.set (f s)
+
+-- structure has_field (n : name) (Self : Type) (FieldTy : Type) : Type :=
+--   (project : Self → FieldTy)
+-- definition name [hf: has_field `name T U] (t : T) : U := hf.project t
+
+definition fresh_name : state anf_state name :=
+  sorry
+
+definition let_bind (n : name) (v : expr) : state anf_state unit := do
+
+meta_definition anf_expr' (e : expr) : state anf_state expr :=
+  sorry
+
 meta_definition anf_expr (e : expr) (bs : list (name × ir_expr)): ir_expr :=
   match e with
   | expr.app _ _ :=
     let head := expr.app_fn e,
         args := expr.get_app_args e in
-    
-
- 
     
 -- code looks bad, weird monad errors again, there are some issues because I'm still using the old
 -- higher order unification based elab, which creates fucking insance solutions
@@ -98,7 +146,7 @@ meta_definition compile_expr_to_ir_expr (e : expr) : result ir_expr :=
 
 meta_definition one_or_error (args : list expr) : result expr :=
   match args with
-  | ((h : expr) :: []) := result.ok h
+  | ((h : expr) :: []) := system.result.ok h
   | _ := mk_error "internal invariant violated, should only have one argument"
   end
 
@@ -109,7 +157,7 @@ meta_definition compile_app_expr_to_ir_stmt (head : name) (args : list expr) : r
 
 meta_definition compile_expr_to_ir_stmt (e : expr) : result ir_stmt :=
   match e with
-  | expr.var i := result.ok $ mk_nat_literal (unsigned.to_nat i)
+  | expr.var i := system.result.ok $ mk_nat_literal (unsigned.to_nat i)
   | expr.sort _ := mk_error "found sort"
   | expr.const n _ := mk_error "found const"
   | expr.meta _ _ := mk_error "found meta"
