@@ -144,4 +144,55 @@ namespace nat
       ... = (succ m) * n + (succ m) * k : by rewrite -succ_mul
       ... = (succ m) * (n + k) : !left_distrib⁻¹
 
+  /-
+    Some operations work only for successors. For example fin (succ n) has a 0 and a 1, but fin 0
+    doesn't. However, we want a bit more, because sometimes we want a zero of (fin a)
+    where a is either
+    - equal to a successor, but not definitionally a successor (e.g. (0 : fin (3 + n)))
+    - definitionally equal to a successor, but not in a way that type class inference can infer.
+      (e.g. (0 : fin 4). Note that 4 is bit0 (bit0 one), but (bit0 x) (defined as x + x),
+        is not always a successor)
+    To solve this we use an auxillary class `is_succ` which can solve whether a number is a
+    successor.
+  -/
+
+  inductive is_succ [class] : ℕ → Type :=
+  | mk : Π(n : ℕ), is_succ (succ n)
+
+  attribute is_succ.mk [instance]
+
+  definition is_succ_add_right [instance] (n m : ℕ) [H : is_succ m] : is_succ (n+m) :=
+  by induction H with m; constructor
+
+  definition is_succ_add_left [instance] (n m : ℕ) [H : is_succ n] : is_succ (n+m) :=
+  by induction H with n; cases m with m: constructor
+
+  definition is_succ_bit0 (n : ℕ) [H : is_succ n] : is_succ (bit0 n) :=
+  by exact _
+
+  -- level 2 is useful for abelian homotopy groups, which only exist at level 2 and higher
+  inductive is_at_least_two [class] : ℕ → Type :=
+  | mk : Π(n : ℕ), is_at_least_two (succ (succ n))
+
+  attribute is_at_least_two.mk [instance]
+
+  definition is_at_least_two_add_right [instance] (n m : ℕ) [H : is_at_least_two m] :
+    is_at_least_two (n+m) :=
+  by induction H with m; constructor
+
+  definition is_at_least_two_add_left [instance] (n m : ℕ) [H : is_at_least_two n] :
+    is_at_least_two (n+m) :=
+  by induction H with n; cases m with m: try cases m with m: constructor
+
+  definition is_at_least_two_add_both [instance] [priority 900] (n m : ℕ)
+    [H : is_succ n] [K : is_succ m] : is_at_least_two (n+m) :=
+  by induction H with n; induction K with m; cases m with m: constructor
+
+  definition is_at_least_two_bit0 (n : ℕ) [H : is_succ n] : is_at_least_two (bit0 n) :=
+  by exact _
+
+  definition is_at_least_two_bit1 (n : ℕ) [H : is_succ n] : is_at_least_two (bit1 n) :=
+  by exact _
+
+
 end nat

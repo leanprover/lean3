@@ -5,8 +5,8 @@ Authors: Haitao Zhang, Leonardo de Moura, Jakob von Raumer, Floris van Doorn
 
 Finite ordinal types.
 -/
-import types.list algebra.group function logic types.prod types.sum types.nat.div
-open eq nat function list equiv is_trunc algebra sigma sum
+import types.list algebra.bundled function logic types.prod types.sum types.nat.div
+open eq function list equiv is_trunc algebra sigma sum nat
 
 structure fin (n : nat) := (val : nat) (is_lt : val < n)
 
@@ -19,7 +19,7 @@ attribute fin.val [coercion]
 section def_equal
 variable {n : nat}
 
-definition sigma_char : fin n ≃ Σ (val : nat), val < n :=
+protected definition sigma_char : fin n ≃ Σ (val : nat), val < n :=
 begin
   fapply equiv.MK,
     intro i, cases i with i ilt, apply dpair i ilt,
@@ -30,7 +30,8 @@ end
 
 definition is_set_fin [instance] : is_set (fin n) :=
 begin
-  apply is_trunc_equiv_closed, apply equiv.symm, apply sigma_char,
+  assert H : Πa, is_set (a < n), exact _, -- I don't know why this is necessary
+  apply is_trunc_equiv_closed_rev, apply fin.sigma_char,
 end
 
 definition eq_of_veq : Π {i j : fin n}, (val i) = j → i = j :=
@@ -300,6 +301,9 @@ lemma madd_left_inv : Π i : fin (succ n), madd (minv i) i = fin.zero n
 
 definition madd_is_comm_group [instance] : add_comm_group (fin (succ n)) :=
 add_comm_group.mk madd _ madd_assoc (fin.zero n) zero_madd madd_zero minv madd_left_inv madd_comm
+
+definition gfin (n : ℕ) [H : is_succ n] : AddCommGroup.{0} :=
+by induction H with n; exact AddCommGroup.mk (fin (succ n)) _
 
 end madd
 
@@ -601,20 +605,6 @@ end
     To solve this we use an auxillary class `is_succ` which can solve whether a number is a
     successor.
   -/
-
-  inductive is_succ [class] : ℕ → Type :=
-  | mk : Π(n : ℕ), is_succ (nat.succ n)
-
-  attribute is_succ.mk [instance]
-
-  definition is_succ_add_right [instance] (n m : ℕ) [H : is_succ m] : is_succ (n+m) :=
-  by induction H with m; constructor
-
-  definition is_succ_add_left [instance] (n m : ℕ) [H : is_succ n] : is_succ (n+m) :=
-  by induction H with n; cases m with m: constructor
-
-  definition is_succ_bit0 [instance] (n : ℕ) [H : is_succ n] : is_succ (bit0 n) :=
-  by induction H with n; constructor
 
   /- this is a version of `madd` which might compute better -/
   protected definition add {n : ℕ} (x y : fin n) : fin n :=

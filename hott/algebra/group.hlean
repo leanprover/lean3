@@ -22,7 +22,7 @@ structure semigroup [class] (A : Type) extends has_mul A :=
 (is_set_carrier : is_set A)
 (mul_assoc : Πa b c, mul (mul a b) c = mul a (mul b c))
 
-attribute semigroup.is_set_carrier [instance]
+attribute semigroup.is_set_carrier [instance] [priority 950]
 
 definition mul.assoc [s : semigroup A] (a b c : A) : a * b * c = a * (b * c) :=
 !semigroup.mul_assoc
@@ -63,7 +63,7 @@ structure add_semigroup [class] (A : Type) extends has_add A :=
 (is_set_carrier : is_set A)
 (add_assoc : Πa b c, add (add a b) c = add a (add b c))
 
-attribute add_semigroup.is_set_carrier [instance]
+attribute add_semigroup.is_set_carrier [instance] [priority 900]
 
 definition add.assoc [s : add_semigroup A] (a b c : A) : a + b + c = a + (b + c) :=
 !add_semigroup.add_assoc
