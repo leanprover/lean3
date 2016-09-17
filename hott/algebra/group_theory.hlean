@@ -25,11 +25,11 @@ namespace group
     Group i :=
   Group.mk i G _
 
-  definition comm_group_Group_of_CommGroup [instance] [constructor] {i : signature} (G : CommGroup i)
-    : comm_group (Group_of_CommGroup G) :=
+  definition comm_group_Group_of_CommGroup [instance] [constructor] [priority 900]
+    {i : signature} (G : CommGroup i) : comm_group (Group_of_CommGroup G) :=
   begin esimp, exact _ end
 
-  definition group_pType_of_Group [instance] {i : signature} (G : Group i) :
+  definition group_pType_of_Group [instance] [priority 900] {i : signature} (G : Group i) :
     group (pType_of_Group G) :=
   Group.struct G
 
@@ -77,6 +77,29 @@ namespace group
 
   end
 
+  section additive
+
+  definition is_add_homomorphism [class] [reducible] {G₁ G₂ : Type} [add_group G₁] [add_group G₂]
+    (φ : G₁ → G₂) : Type :=
+  Π(g h : G₁), φ (g + h) = φ g + φ h
+
+  variables {G₁ G₂ : Type} (φ : G₁ → G₂) [add_group G₁] [add_group G₂] [is_add_homomorphism φ]
+
+  definition respect_add /- φ -/ : Π(g h : G₁), φ (g + h) = φ g + φ h :=
+  by assumption
+
+  theorem respect_zero /- φ -/ : φ 0 = 0 :=
+  add.right_cancel
+    (calc
+      φ 0 + φ 0 = φ (0 + 0) : respect_add φ
+            ... = φ 0 : ap φ !zero_add
+            ... = 0 + φ 0 : zero_add)
+
+  theorem respect_neg /- φ -/ (g : G₁) : φ (-g) = -(φ g) :=
+  eq_neg_of_add_eq_zero (!respect_add⁻¹ ⬝ ap φ !add.left_inv ⬝ !respect_zero)
+
+  end additive
+
   structure homomorphism {i j : signature} (G₁ : Group i) (G₂ : Group j) : Type :=
     (φ : G₁ → G₂)
     (p : is_homomorphism φ)
@@ -84,9 +107,17 @@ namespace group
   infix ` →g `:55 := homomorphism
 
   definition group_fun [unfold 5] [coercion] := @homomorphism.φ
-  definition homomorphism.struct [instance] [priority 2000] {i j : signature}
+  definition homomorphism.struct [instance] [priority 900] {i j : signature}
     {G₁ : Group i} {G₂ : Group j} (φ : G₁ →g G₂)
     : is_homomorphism φ :=
+  homomorphism.p φ
+
+  definition homomorphism.mulstruct [instance] [priority 2000] {G₁ G₂ : MulGroup } (φ : G₁ →g G₂)
+    : is_homomorphism φ :=
+  homomorphism.p φ
+
+  definition homomorphism.addstruct [instance] [priority 2000] {G₁ G₂ : AddGroup} (φ : G₁ →g G₂)
+    : is_add_homomorphism φ :=
   homomorphism.p φ
 
   variables {i j k l : signature} {G : Group i} {G₁ : Group j} {G₂ : Group k} {G₃ : Group l}
@@ -127,6 +158,45 @@ namespace group
     induction φ₁ with φ₁ q₁, induction φ₂ with φ₂ q₂, esimp at p, induction p,
     exact ap (homomorphism.mk φ₁) !is_prop.elim
   end
+
+  section additive
+  variables {H₁ H₂ : AddGroup} (χ : H₁ →g H₂)
+  definition to_respect_add /- χ -/ (g h : H₁) : χ (g + h) = χ g + χ h :=
+  respect_add χ g h
+
+  theorem to_respect_zero /- χ -/ : χ 0 = 0 :=
+  respect_zero χ
+
+  theorem to_respect_neg /- χ -/ (g : H₁) : χ (-g) = -(χ g) :=
+  respect_neg χ g
+
+  end additive
+
+  section add_mul
+  variables {H₁ : AddGroup} {H₂ : Group i} (χ : H₁ →g H₂)
+  definition to_respect_add_mul /- χ -/ (g h : H₁) : χ (g + h) = χ g * χ h :=
+  to_respect_mul χ g h
+
+  theorem to_respect_zero_one /- χ -/ : χ 0 = 1 :=
+  to_respect_one χ
+
+  theorem to_respect_neg_inv /- χ -/ (g : H₁) : χ (-g) = (χ g)⁻¹ :=
+  to_respect_inv χ g
+
+  end add_mul
+
+  section mul_add
+  variables  {H₁ : Group i} {H₂ : AddGroup} (χ : H₁ →g H₂)
+  definition to_respect_mul_add /- χ -/ (g h : H₁) : χ (g * h) = χ g + χ h :=
+  to_respect_mul χ g h
+
+  theorem to_respect_one_zero /- χ -/ : χ 1 = 0 :=
+  to_respect_one χ
+
+  theorem to_respect_inv_neg /- χ -/ (g : H₁) : χ g⁻¹ = -(χ g) :=
+  to_respect_inv χ g
+
+  end mul_add
 
   /- categorical structure of groups + homomorphisms -/
 
