@@ -79,7 +79,7 @@ namespace category
   definition Groupoid.eta [unfold 1] (C : Groupoid) : Groupoid.mk C C = C :=
   Groupoid.rec (λob c, idp) C
 
-  definition Groupoid_of_Group [constructor] (G : Group) : Groupoid :=
+  definition Groupoid_of_Group [constructor] {i : signature} (G : Group i) : Groupoid :=
   Groupoid.mk unit (groupoid_of_group G)
 
 end category

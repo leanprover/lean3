@@ -21,6 +21,9 @@ namespace category
   definition split_essentially_surjective [class] (F : C ⇒ D) := Π(d : D), Σ(c : C), F c ≅ d
   definition essentially_surjective [class] (F : C ⇒ D) := Π(d : D), ∃(c : C), F c ≅ d
 
+  definition is_weak_equivalence [class] (F : C ⇒ D) :=
+  fully_faithful F × essentially_surjective F
+
   definition is_equiv_of_fully_faithful [instance] (F : C ⇒ D)
     [H : fully_faithful F] (c c' : C) : is_equiv (@(to_fun_hom F) c c') :=
   !H

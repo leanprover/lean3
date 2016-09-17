@@ -5,7 +5,7 @@ Authors: Jeremy Avigad
 
 Bundled structures
 -/
-import algebra.group
+import algebra.group homotopy.interval
 open algebra
 
 namespace algebra
@@ -33,51 +33,85 @@ structure CommMonoid :=
 attribute CommMonoid.carrier [coercion]
 attribute CommMonoid.struct [instance]
 
-structure Group :=
+abbreviation signature := interval
+structure Group (i : signature) :=
 (carrier : Type) (struct : group carrier)
 
+definition MulGroup [reducible] : Type := Group interval.zero
+definition AddGroup [reducible] : Type := Group interval.one
 attribute Group.carrier [coercion]
-attribute Group.struct [instance]
 
-structure CommGroup :=
+definition MulGroup.mk [constructor] (G : Type) (H : group G) : MulGroup := Group.mk _ G _
+definition AddGroup.mk [constructor] (G : Type) (H : add_group G) : AddGroup :=
+Group.mk _ G add_group.to_group
+
+section
+local attribute group.to_add_group Group.struct [instance]
+
+definition MulGroup.struct (G : MulGroup) : group G := _
+definition AddGroup.struct (G : AddGroup) : add_group G := _
+end
+
+attribute MulGroup.struct AddGroup.struct [instance] [priority 2000]
+attribute Group.struct [instance] [priority 800]
+
+structure CommGroup (i : signature) :=
 (carrier : Type) (struct : comm_group carrier)
 
+definition MulCommGroup [reducible] : Type := CommGroup interval.zero
+definition AddCommGroup [reducible] : Type := CommGroup interval.one
 attribute CommGroup.carrier [coercion]
-attribute CommGroup.struct [instance]
 
-structure AddSemigroup :=
-(carrier : Type) (struct : add_semigroup carrier)
+definition MulCommGroup.mk [constructor] (G : Type) (H : comm_group G) : MulCommGroup :=
+CommGroup.mk _ G _
+definition AddCommGroup.mk [constructor] (G : Type) (H : add_comm_group G) : AddCommGroup :=
+CommGroup.mk _ G add_comm_group.to_comm_group
 
-attribute AddSemigroup.carrier [coercion]
-attribute AddSemigroup.struct [instance]
+section
+local attribute comm_group.to_add_comm_group CommGroup.struct [instance]
 
-structure AddCommSemigroup :=
-(carrier : Type) (struct : add_comm_semigroup carrier)
+definition MulCommGroup.struct (G : MulCommGroup) : comm_group G := _
+definition AddCommGroup.struct (G : AddCommGroup) : add_comm_group G := _
+end
 
-attribute AddCommSemigroup.carrier [coercion]
-attribute AddCommSemigroup.struct [instance]
+attribute MulCommGroup.struct AddCommGroup.struct [instance] [priority 2000]
+attribute CommGroup.struct [instance] [priority 800]
 
-structure AddMonoid :=
-(carrier : Type) (struct : add_monoid carrier)
 
-attribute AddMonoid.carrier [coercion]
-attribute AddMonoid.struct [instance]
 
-structure AddCommMonoid :=
-(carrier : Type) (struct : add_comm_monoid carrier)
+-- structure AddSemigroup :=
+-- (carrier : Type) (struct : add_semigroup carrier)
 
-attribute AddCommMonoid.carrier [coercion]
-attribute AddCommMonoid.struct [instance]
+-- attribute AddSemigroup.carrier [coercion]
+-- attribute AddSemigroup.struct [instance]
 
-structure AddGroup :=
-(carrier : Type) (struct : add_group carrier)
+-- structure AddCommSemigroup :=
+-- (carrier : Type) (struct : add_comm_semigroup carrier)
 
-attribute AddGroup.carrier [coercion]
-attribute AddGroup.struct [instance]
+-- attribute AddCommSemigroup.carrier [coercion]
+-- attribute AddCommSemigroup.struct [instance]
 
-structure AddCommGroup :=
-(carrier : Type) (struct : add_comm_group carrier)
+-- structure AddMonoid :=
+-- (carrier : Type) (struct : add_monoid carrier)
 
-attribute AddCommGroup.carrier [coercion]
-attribute AddCommGroup.struct [instance]
+-- attribute AddMonoid.carrier [coercion]
+-- attribute AddMonoid.struct [instance]
+
+-- structure AddCommMonoid :=
+-- (carrier : Type) (struct : add_comm_monoid carrier)
+
+-- attribute AddCommMonoid.carrier [coercion]
+-- attribute AddCommMonoid.struct [instance]
+
+-- structure AddGroup :=
+-- (carrier : Type) (struct : add_group carrier)
+
+-- attribute AddGroup.carrier [coercion]
+-- attribute AddGroup.struct [instance]
+
+-- structure AddCommGroup :=
+-- (carrier : Type) (struct : add_comm_group carrier)
+
+-- attribute AddCommGroup.carrier [coercion]
+-- attribute AddCommGroup.struct [instance]
 end algebra

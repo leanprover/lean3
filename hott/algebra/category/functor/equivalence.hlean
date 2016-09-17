@@ -18,9 +18,6 @@ namespace category
     (is_iso_unit : is_iso η)
     (is_iso_counit : is_iso ε)
 
-  definition is_weak_equivalence [class] (F : C ⇒ D) :=
-  fully_faithful F × essentially_surjective F
-
   abbreviation inverse := @is_equivalence.G
   postfix ⁻¹ := inverse
   --a second notation for the inverse, which is not overloaded (there is no unicode superscript F)

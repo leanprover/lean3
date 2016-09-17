@@ -15,8 +15,8 @@ namespace algebra
   definition trivial_group [constructor] : group unit :=
   group.mk (λx y, star) _ (λx y z, idp) star (unit.rec idp) (unit.rec idp) (λx, star) (λx, idp)
 
-  definition Trivial_group [constructor] : Group :=
-  Group.mk _ trivial_group
+  definition Trivial_group [constructor] : MulGroup :=
+  MulGroup.mk _ trivial_group
 
   abbreviation G0 := Trivial_group
 
@@ -65,15 +65,15 @@ namespace algebra
     apply pathover_idp_of_eq, exact group_eq (resp_mul)
   end
 
-  definition Group_eq_of_eq {G H : Group} (p : carrier G = carrier H)
+  definition Group_eq_of_eq {i : signature} {G H : Group i} (p : carrier G = carrier H)
     (resp_mul : Π(g h : G), cast p (g * h) = cast p g * cast p h) : G = H :=
   begin
     cases G with Gc G, cases H with Hc H,
-    apply (apd011 mk p),
+    apply (apd011 (Group.mk i) p),
     exact group_pathover resp_mul
   end
 
-  definition Group_eq {G H : Group} (f : carrier G ≃ carrier H)
+  definition Group_eq {i : signature} {G H : Group i} (f : carrier G ≃ carrier H)
     (resp_mul : Π(g h : G), f (g * h) = f g * f h) : G = H :=
   Group_eq_of_eq (ua f) (λg h, !cast_ua ⬝ resp_mul g h ⬝ ap011 mul !cast_ua⁻¹ !cast_ua⁻¹)
 

@@ -127,6 +127,21 @@ definition add_comm_monoid.to_comm_monoid {A : Type} [add_comm_monoid A] : comm_
   mul_comm    := add_comm_monoid.add_comm
 ⦄
 
+definition monoid.to_add_monoid {A : Type} [s : monoid A] : add_monoid A :=
+⦃ add_monoid,
+  add         := monoid.mul,
+  add_assoc   := monoid.mul_assoc,
+  zero        := monoid.one A,
+  add_zero    := monoid.mul_one,
+  zero_add    := monoid.one_mul
+⦄
+
+definition comm_monoid.to_add_comm_monoid {A : Type} [s : comm_monoid A] : add_comm_monoid A :=
+⦃ add_comm_monoid,
+  monoid.to_add_monoid,
+  add_comm    := comm_monoid.mul_comm
+⦄
+
 section add_comm_monoid
   variables [add_comm_monoid A]
 
@@ -314,6 +329,9 @@ definition add_group.to_group {A : Type} [add_group A] : group A :=
 ⦃ group, add_monoid.to_monoid,
   mul_left_inv := add_group.add_left_inv ⦄
 
+definition group.to_add_group {A : Type} [s : group A] : add_group A :=
+⦃ add_group, monoid.to_add_monoid,
+  add_left_inv := group.mul_left_inv ⦄
 
 section add_group
   variables [s : add_group A]
@@ -540,6 +558,15 @@ section add_group
 end add_group
 
 structure add_comm_group [class] (A : Type) extends add_group A, add_comm_monoid A
+
+definition add_comm_group.to_comm_group (A : Type) [s : add_comm_group A] : comm_group A :=
+⦃ comm_group, add_group.to_group,
+  mul_comm := add_comm_group.add_comm ⦄
+
+definition comm_group.to_add_comm_group (A : Type) [s : comm_group A] : add_comm_group A :=
+⦃ add_comm_group, group.to_add_group,
+  add_comm := comm_group.mul_comm ⦄
+
 
 section add_comm_group
   variable [s : add_comm_group A]

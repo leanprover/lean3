@@ -15,19 +15,22 @@ open eq algebra pointed function is_trunc pi category equiv is_equiv
 set_option class.force_new true
 
 namespace group
+  definition pointed_Group [instance] [constructor] {i : signature} (G : Group i) : pointed G :=
+  pointed.mk 1
+  definition pType_of_Group [constructor] [reducible] {i : signature} (G : Group i) : Type* :=
+  pointed.MK G 1
+  definition Set_of_Group [constructor] {i : signature} (G : Group i) : Set := trunctype.mk G _
 
-  definition pointed_Group [instance] [constructor] (G : Group) : pointed G := pointed.mk 1
-  definition pType_of_Group [constructor] [reducible] (G : Group) : Type* := pointed.MK G 1
-  definition Set_of_Group [constructor] (G : Group) : Set := trunctype.mk G _
+  definition Group_of_CommGroup [coercion] [constructor] {i : signature} (G : CommGroup i) :
+    Group i :=
+  Group.mk i G _
 
-  definition Group_of_CommGroup [coercion] [constructor] (G : CommGroup) : Group :=
-  Group.mk G _
-
-  definition comm_group_Group_of_CommGroup [instance] [constructor] (G : CommGroup)
+  definition comm_group_Group_of_CommGroup [instance] [constructor] {i : signature} (G : CommGroup i)
     : comm_group (Group_of_CommGroup G) :=
   begin esimp, exact _ end
 
-  definition group_pType_of_Group [instance] (G : Group) : group (pType_of_Group G) :=
+  definition group_pType_of_Group [instance] {i : signature} (G : Group i) :
+    group (pType_of_Group G) :=
   Group.struct G
 
   /- group homomorphisms -/
@@ -74,18 +77,20 @@ namespace group
 
   end
 
-  structure homomorphism (G₁ G₂ : Group) : Type :=
+  structure homomorphism {i j : signature} (G₁ : Group i) (G₂ : Group j) : Type :=
     (φ : G₁ → G₂)
     (p : is_homomorphism φ)
 
   infix ` →g `:55 := homomorphism
 
-  definition group_fun [unfold 3] [coercion] := @homomorphism.φ
-  definition homomorphism.struct [instance] [priority 2000] {G₁ G₂ : Group} (φ : G₁ →g G₂)
+  definition group_fun [unfold 5] [coercion] := @homomorphism.φ
+  definition homomorphism.struct [instance] [priority 2000] {i j : signature}
+    {G₁ : Group i} {G₂ : Group j} (φ : G₁ →g G₂)
     : is_homomorphism φ :=
   homomorphism.p φ
 
-  variables {G G₁ G₂ G₃ : Group} {g h : G₁} {ψ : G₂ →g G₃} {φ₁ φ₂ : G₁ →g G₂} (φ : G₁ →g G₂)
+  variables {i j k l : signature} {G : Group i} {G₁ : Group j} {G₂ : Group k} {G₃ : Group l}
+    {g h : G₁} {ψ : G₂ →g G₃} {φ₁ φ₂ : G₁ →g G₂} (φ : G₁ →g G₂)
 
   definition to_respect_mul /- φ -/ (g h : G₁) : φ (g * h) = φ g * φ h :=
   respect_mul φ g h
@@ -99,7 +104,8 @@ namespace group
   definition to_is_embedding_homomorphism /- φ -/ (H : Π{g}, φ g = 1 → g = 1) : is_embedding φ :=
   is_embedding_homomorphism φ @H
 
-  definition is_set_homomorphism [instance] (G₁ G₂ : Group) : is_set (G₁ →g G₂) :=
+  variables (G₁ G₂)
+  definition is_set_homomorphism [instance] : is_set (G₁ →g G₂) :=
   begin
     have H : G₁ →g G₂ ≃ Σ(f : G₁ → G₂), Π(g₁ g₂ : G₁), f (g₁ * g₂) = f g₁ * f g₂,
     begin
@@ -112,6 +118,7 @@ namespace group
     apply is_trunc_equiv_closed_rev, exact H
   end
 
+  variables {G₁ G₂}
   definition pmap_of_homomorphism [constructor] /- φ -/ : pType_of_Group G₁ →* pType_of_Group G₂ :=
   pmap.mk φ begin esimp, exact respect_one φ end
 
@@ -126,13 +133,15 @@ namespace group
   definition homomorphism_compose [constructor] [trans] (ψ : G₂ →g G₃) (φ : G₁ →g G₂) : G₁ →g G₃ :=
   homomorphism.mk (ψ ∘ φ) (is_homomorphism_compose _ _)
 
-  definition homomorphism_id [constructor] [refl] (G : Group) : G →g G :=
+  variable (G)
+  definition homomorphism_id [constructor] [refl] : G →g G :=
   homomorphism.mk (@id G) (is_homomorphism_id G)
+  variable {G}
 
   infixr ` ∘g `:75 := homomorphism_compose
   notation 1       := homomorphism_id _
 
-  structure isomorphism (A B : Group) :=
+  structure isomorphism {i j : signature} (A : Group i) (B : Group j) :=
     (to_hom : A →g B)
     (is_equiv_to_hom : is_equiv to_hom)
 
@@ -151,10 +160,10 @@ namespace group
     (p : Πg₁ g₂, φ (g₁ * g₂) = φ g₁ * φ g₂) : G₁ ≃g G₂ :=
   isomorphism.mk (homomorphism.mk φ p) !to_is_equiv
 
-  definition eq_of_isomorphism {G₁ G₂ : Group} (φ : G₁ ≃g G₂) : G₁ = G₂ :=
+  definition eq_of_isomorphism {G₁ G₂ : Group i} (φ : G₁ ≃g G₂) : G₁ = G₂ :=
   Group_eq (equiv_of_isomorphism φ) (respect_mul φ)
 
-  definition isomorphism_of_eq {G₁ G₂ : Group} (φ : G₁ = G₂) : G₁ ≃g G₂ :=
+  definition isomorphism_of_eq {G₁ G₂ : Group i} (φ : G₁ = G₂) : G₁ ≃g G₂ :=
   isomorphism_of_equiv (equiv_of_eq (ap Group.carrier φ))
     begin intros, induction φ, reflexivity end
 
@@ -165,8 +174,10 @@ namespace group
     rewrite [respect_mul φ, +right_inv φ]
     end end
 
-  definition isomorphism.refl [refl] [constructor] (G : Group) : G ≃g G :=
+  variable (G)
+  definition isomorphism.refl [refl] [constructor] : G ≃g G :=
   isomorphism.mk 1 !is_equiv_id
+  variable {G}
 
   definition isomorphism.symm [symm] [constructor] (φ : G₁ ≃g G₂) : G₂ ≃g G₁ :=
   isomorphism.mk (to_ginv φ) !is_equiv_inv
@@ -175,11 +186,11 @@ namespace group
   isomorphism.mk (ψ ∘g φ) !is_equiv_compose
 
   definition isomorphism.eq_trans [trans] [constructor]
-     {G₁ G₂ G₃ : Group} (φ : G₁ = G₂) (ψ : G₂ ≃g G₃) : G₁ ≃g G₃ :=
+     {G₁ G₂ : Group i} {G₃ : Group j} (φ : G₁ = G₂) (ψ : G₂ ≃g G₃) : G₁ ≃g G₃ :=
   proof isomorphism.trans (isomorphism_of_eq φ) ψ qed
 
   definition isomorphism.trans_eq [trans] [constructor]
-    {G₁ G₂ G₃ : Group} (φ : G₁ ≃g G₂) (ψ : G₂ = G₃) : G₁ ≃g G₃ :=
+    {G₁ : Group i} {G₂ G₃ : Group j} (φ : G₁ ≃g G₂) (ψ : G₂ = G₃) : G₁ ≃g G₃ :=
   isomorphism.trans φ (isomorphism_of_eq ψ)
 
   postfix `⁻¹ᵍ`:(max + 1) := isomorphism.symm
@@ -199,10 +210,10 @@ namespace group
 
   /- category of groups -/
 
-  definition precategory_group [constructor] : precategory Group :=
+  definition precategory_group [constructor] (i : signature) : precategory (Group i) :=
   precategory.mk homomorphism
-                 @homomorphism_compose
-                 @homomorphism_id
+                 (@homomorphism_compose _ _ _)
+                 (@homomorphism_id _)
                  (λG₁ G₂ G₃ G₄ φ₃ φ₂ φ₁, homomorphism_eq (λg, idp))
                  (λG₁ G₂ φ, homomorphism_eq (λg, idp))
                  (λG₁ G₂ φ, homomorphism_eq (λg, idp))
@@ -260,15 +271,17 @@ namespace group
 
   end
 
-  definition trivial_group_of_is_contr (G : Group) [H : is_contr G] : G ≃g G0 :=
+  variable (G)
+  definition trivial_group_of_is_contr [H : is_contr G] : G ≃g G0 :=
   begin
     fapply isomorphism_of_equiv,
     { apply equiv_unit_of_is_contr},
     { intros, reflexivity}
   end
 
-  definition trivial_group_of_is_contr' (G : Group) [H : is_contr G] : G = G0 :=
+  definition trivial_group_of_is_contr' (G : MulGroup) [H : is_contr G] : G = G0 :=
   eq_of_isomorphism (trivial_group_of_is_contr G)
+  variable {G}
 
   /-
     A group where the point in the pointed type corresponds with 1 in the group.

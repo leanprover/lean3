@@ -14,13 +14,14 @@ namespace int
 
   section
   open algebra
-  definition group_integers [constructor] : Group :=
-  Group.mk ℤ (group_of_add_group _)
+  definition group_integers [constructor] : AddGroup :=
+  AddGroup.mk ℤ _
 
   notation `gℤ` := group_integers
 
-  definition CommGroup_int [constructor] : CommGroup :=
-  CommGroup.mk ℤ ⦃comm_group, group_of_add_group ℤ, mul_comm := add.comm⦄
+  definition CommGroup_int [constructor] : AddCommGroup :=
+  AddCommGroup.mk ℤ _
+
   notation `agℤ` := CommGroup_int
   end
 
