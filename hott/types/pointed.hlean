@@ -104,55 +104,6 @@ namespace pointed
   definition is_trunc_ptrunctype [instance] {n : ℕ₋₂} (A : n-Type*) : is_trunc n A :=
   trunctype.struct A
 
-  /- properties of iterated loop space -/
-  variable (A : Type*)
-  definition loop_space_succ_eq_in (n : ℕ) : Ω[succ n] A = Ω[n] (Ω A) :=
-  begin
-    induction n with n IH,
-    { reflexivity},
-    { exact ap ploop_space IH}
-  end
-
-  definition loop_space_add (n m : ℕ) : Ω[n] (Ω[m] A) = Ω[m+n] (A) :=
-  begin
-    induction n with n IH,
-    { reflexivity},
-    { exact ap ploop_space IH}
-  end
-
-  definition loop_space_succ_eq_out (n : ℕ) : Ω[succ n] A = Ω(Ω[n] A)  :=
-  idp
-
-  variable {A}
-
-  /- the equality [loop_space_succ_eq_in] preserves concatenation -/
-  theorem loop_space_succ_eq_in_concat {n : ℕ} (p q : Ω[succ (succ n)] A) :
-           transport carrier (ap ploop_space (loop_space_succ_eq_in A n)) (p ⬝ q)
-         = transport carrier (ap ploop_space (loop_space_succ_eq_in A n)) p
-         ⬝ transport carrier (ap ploop_space (loop_space_succ_eq_in A n)) q :=
-  begin
-    rewrite [-+tr_compose, ↑function.compose],
-    rewrite [+@transport_eq_FlFr_D _ _ _ _ Point Point, +con.assoc], apply whisker_left,
-    rewrite [-+con.assoc], apply whisker_right, rewrite [con_inv_cancel_right, ▸*, -ap_con]
-  end
-
-  definition loop_space_loop_irrel (p : point A = point A) : Ω(pointed.Mk p) = Ω[2] A :=
-  begin
-    intros, fapply pType_eq,
-    { esimp, transitivity _,
-      apply eq_equiv_fn_eq_of_equiv (equiv_eq_closed_right _ p⁻¹),
-      esimp, apply eq_equiv_eq_closed, apply con.right_inv, apply con.right_inv},
-    { esimp, apply con.left_inv}
-  end
-
-  definition iterated_loop_space_loop_irrel (n : ℕ) (p : point A = point A)
-    : Ω[succ n](pointed.Mk p) = Ω[succ (succ n)] A :> pType :=
-  calc
-    Ω[succ n](pointed.Mk p) = Ω[n](Ω (pointed.Mk p)) : loop_space_succ_eq_in
-      ... = Ω[n] (Ω[2] A)                            : loop_space_loop_irrel
-      ... = Ω[2+n] A                                 : loop_space_add
-      ... = Ω[n+2] A                                 : by rewrite [algebra.add.comm]
-
 end pointed open pointed
 
 namespace pointed
@@ -496,18 +447,6 @@ namespace pointed
     { induction p, reflexivity}
   end
 
-  definition apn_succ_phomotopy_in (n : ℕ) (f : A →* B) :
-    pcast (loop_space_succ_eq_in B n) ∘* Ω→[n + 1] f ~*
-    Ω→[n] (Ω→ f) ∘* pcast (loop_space_succ_eq_in A n) :=
-  begin
-    induction n with n IH,
-    { reflexivity},
-    { refine pwhisker_right _ (pcast_loop_space (loop_space_succ_eq_in B n)) ⬝* _,
-      refine _ ⬝* pwhisker_left _ (pcast_loop_space (loop_space_succ_eq_in A n))⁻¹*,
-      refine (ap1_compose _ (Ω→[n + 1] f))⁻¹* ⬝* _ ⬝* ap1_compose (Ω→[n] (Ω→ f)) _,
-      exact ap1_phomotopy IH}
-  end
-
   definition ap1_pmap_of_map [constructor] {A B : Type} (f : A → B) (a : A) :
     ap1 (pmap_of_map f a) ~* pmap_of_map (ap f) (idpath a) :=
   begin
@@ -811,5 +750,101 @@ namespace pointed
 
     end end
 -/
+
+  /- properties of iterated loop space -/
+  variable (A)
+  definition loop_space_succ_in (n : ℕ) : Ω[succ n] A ≃* Ω[n] (Ω A) :=
+  begin
+    induction n with n IH,
+    { reflexivity},
+    { exact loop_pequiv_loop IH}
+  end
+
+  definition loop_space_add (n m : ℕ) : Ω[n] (Ω[m] A) ≃* Ω[m+n] (A) :=
+  begin
+    induction n with n IH,
+    { reflexivity},
+    { exact loop_pequiv_loop IH}
+  end
+
+  definition loop_space_succ_eq_out (n : ℕ) : Ω[succ n] A ≃* Ω(Ω[n] A)  :=
+  by reflexivity
+
+  variable {A}
+
+  theorem loop_space_succ_in_con {n : ℕ} (p q : Ω[succ (succ n)] A) :
+    loop_space_succ_in A (succ n) (p ⬝ q) =
+    loop_space_succ_in A (succ n) p ⬝ loop_space_succ_in A (succ n) q :=
+  !loop_pequiv_loop_con
+
+  definition loop_space_loop_irrel (p : point A = point A) : Ω(pointed.Mk p) = Ω[2] A :=
+  begin
+    intros, fapply pType_eq,
+    { esimp, transitivity _,
+      apply eq_equiv_fn_eq_of_equiv (equiv_eq_closed_right _ p⁻¹),
+      esimp, apply eq_equiv_eq_closed, apply con.right_inv, apply con.right_inv},
+    { esimp, apply con.left_inv}
+  end
+
+  definition iterated_loop_space_loop_irrel (n : ℕ) (p : point A = point A)
+    : Ω[succ n](pointed.Mk p) = Ω[succ (succ n)] A :> pType :=
+  calc
+    Ω[succ n](pointed.Mk p) = Ω[n](Ω (pointed.Mk p)) : eq_of_pequiv !loop_space_succ_in
+      ... = Ω[n] (Ω[2] A)                            : loop_space_loop_irrel
+      ... = Ω[2+n] A                                 : eq_of_pequiv !loop_space_add
+      ... = Ω[n+2] A                                 : by rewrite [algebra.add.comm]
+
+  definition apn_succ_phomotopy_in (n : ℕ) (f : A →* B) :
+    loop_space_succ_in B n ∘* Ω→[n + 1] f ~* Ω→[n] (Ω→ f) ∘* loop_space_succ_in A n :=
+  begin
+    induction n with n IH,
+    { reflexivity},
+    { exact !ap1_compose⁻¹* ⬝* ap1_phomotopy IH ⬝* !ap1_compose}
+  end
+
+  definition ppcompose_left [constructor] (g : B →* C) : ppmap A B →* ppmap A C :=
+  pmap.mk (pcompose g) (eq_of_phomotopy (phomotopy.mk (λa, respect_pt g) (idp_con _)⁻¹))
+
+  definition is_equiv_ppcompose_left [instance] [constructor] (g : B →* C) [H : is_equiv g] :
+    is_equiv (@ppcompose_left A B C g) :=
+  begin
+    fapply is_equiv.adjointify,
+    { exact (ppcompose_left (pequiv_of_pmap g H)⁻¹ᵉ*) },
+    all_goals (intros f; esimp; apply eq_of_phomotopy),
+    { exact calc g ∘* ((pequiv_of_pmap g H)⁻¹ᵉ* ∘* f) ~* (g ∘* (pequiv_of_pmap g H)⁻¹ᵉ*) ∘* f : passoc
+                                                  ... ~* pid _ ∘* f : pwhisker_right f (pright_inv (pequiv_of_pmap g H))
+                                                  ... ~* f : pid_comp f },
+    { exact calc (pequiv_of_pmap g H)⁻¹ᵉ* ∘* (g ∘* f) ~* ((pequiv_of_pmap g H)⁻¹ᵉ* ∘* g) ∘* f : passoc
+                                                  ... ~* pid _ ∘* f : pwhisker_right f (pleft_inv (pequiv_of_pmap g H))
+                                                  ... ~* f : pid_comp f }
+  end
+
+  definition equiv_ppcompose_left [constructor] (g : B ≃* C) : ppmap A B ≃* ppmap A C :=
+  pequiv_of_pmap (ppcompose_left g) _
+
+  definition pcompose_pconst [constructor] (f : B →* C) : f ∘* pconst A B ~* pconst A C :=
+  phomotopy.mk (λa, respect_pt f) (idp_con _)⁻¹
+
+  definition pconst_pcompose [constructor] (f : A →* B) : pconst B C ∘* f ~* pconst A C :=
+  phomotopy.mk (λa, rfl) (ap_constant _ _)⁻¹
+
+  definition ppcompose_right [constructor] (f : A →* B) : ppmap B C →* ppmap A C :=
+  begin
+    fconstructor,
+    { intro g, exact g ∘* f },
+    { apply eq_of_phomotopy, esimp, apply pconst_pcompose }
+  end
+
+  definition equiv_ppcompose_right [constructor] (f : A ≃* B) : ppmap B C ≃* ppmap A C :=
+  begin
+    fapply pequiv.MK,
+    { exact ppcompose_right f },
+    { exact ppcompose_right f⁻¹ᵉ* },
+    { intro g, apply eq_of_phomotopy, refine !passoc ⬝* _,
+      refine pwhisker_left g !pright_inv ⬝* !comp_pid, },
+    { intro g, apply eq_of_phomotopy, refine !passoc ⬝* _,
+      refine pwhisker_left g !pleft_inv ⬝* !comp_pid, },
+  end
+
 
 end pointed

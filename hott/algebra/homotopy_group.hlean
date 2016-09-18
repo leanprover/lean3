@@ -45,8 +45,8 @@ namespace eq
   definition fundamental_group [constructor] (A : Type*) : MulGroup :=
   ghomotopy_group zero A
 
-  notation `πg[`:95  n:0 ` +1] `:0 A:95 := ghomotopy_group n A
-  notation `πag[`:95 n:0 ` +2] `:0 A:95 := cghomotopy_group n A
+  notation `πg[`:95  n:0 ` +1]`:0 := ghomotopy_group n
+  notation `πag[`:95 n:0 ` +2]`:0 := cghomotopy_group n
 
   notation `π₁` := fundamental_group -- should this be notation for the group or pointed type?
 
@@ -93,30 +93,24 @@ namespace eq
 
   definition phomotopy_group_succ_out (A : Type*) (n : ℕ) : π*[n + 1] A = π₁ Ω[n] A := idp
 
-  definition phomotopy_group_succ_in (A : Type*) (n : ℕ) : π*[n + 1] A = π*[n] (Ω A) :> Type* :=
-  ap (ptrunc 0) (loop_space_succ_eq_in A n)
+  definition phomotopy_group_succ_in (A : Type*) (n : ℕ) : π*[n + 1] A ≃* π*[n] (Ω A) :=
+  ptrunc_pequiv_ptrunc 0 (loop_space_succ_in A n)
 
   definition ghomotopy_group_succ_out (A : Type*) (n : ℕ) : πg[n +1] A = π₁ Ω[n] A := idp
 
   definition phomotopy_group_succ_in_con {A : Type*} {n : ℕ} (g h : πg[succ n +1] A) :
-    pcast (phomotopy_group_succ_in A (succ n)) (g * h) =
-    pcast (phomotopy_group_succ_in A (succ n)) g *
-    pcast (phomotopy_group_succ_in A (succ n)) h :=
+    phomotopy_group_succ_in A (succ n) (g * h) =
+    phomotopy_group_succ_in A (succ n) g * phomotopy_group_succ_in A (succ n) h :=
   begin
     induction g with p, induction h with q, esimp,
-    rewrite [-+ tr_eq_cast_ap, ↑phomotopy_group_succ_in, -+ tr_compose],
-    refine ap (transport _ _) !tr_mul_tr' ⬝ _,
-    rewrite [+ trunc_transport],
-    apply ap tr, apply loop_space_succ_eq_in_concat,
+    apply ap tr, apply loop_space_succ_in_con
   end
 
-  definition ghomotopy_group_succ_in (A : Type*) (n : ℕ) : πg[succ n +1] A ≃g πg[n +1] Ω A :=
+  definition ghomotopy_group_succ_in (A : Type*) (n : ℕ) : πg[succ n +1] A ≃g πg[n +1] (Ω A) :=
   begin
     fapply isomorphism_of_equiv,
-    { apply equiv_of_eq, exact ap (ptrunc 0) (loop_space_succ_eq_in A (succ n))},
-    { exact abstract [irreducible] begin refine trunc.rec _, intro p, refine trunc.rec _, intro q,
-      rewrite [▸*,-+tr_eq_cast_ap, +trunc_transport], refine !trunc_transport ⬝ _, apply ap tr,
-      apply loop_space_succ_eq_in_concat end end},
+    { exact phomotopy_group_succ_in A (succ n)},
+    { exact phomotopy_group_succ_in_con},
   end
 
   definition phomotopy_group_functor [constructor] (n : ℕ) {A B : Type*} (f : A →* B)
@@ -142,22 +136,20 @@ namespace eq
   @(is_equiv_trunc_functor 0 _) !is_equiv_apn
 
   definition phomotopy_group_functor_succ_phomotopy_in (n : ℕ) {A B : Type*} (f : A →* B) :
-    pcast (phomotopy_group_succ_in B n) ∘* π→*[n + 1] f ~*
-    π→*[n] (Ω→ f) ∘* pcast (phomotopy_group_succ_in A n) :=
+    phomotopy_group_succ_in B n ∘* π→*[n + 1] f ~*
+    π→*[n] (Ω→ f) ∘* phomotopy_group_succ_in A n :=
   begin
-    refine pwhisker_right _ (pcast_ptrunc 0 (loop_space_succ_eq_in B n)) ⬝* _,
-    refine _ ⬝* pwhisker_left _ (pcast_ptrunc 0 (loop_space_succ_eq_in A n))⁻¹*,
     refine !ptrunc_functor_pcompose⁻¹* ⬝* _ ⬝* !ptrunc_functor_pcompose,
     exact ptrunc_functor_phomotopy 0 (apn_succ_phomotopy_in n f)
   end
 
   definition is_equiv_phomotopy_group_functor_ap1 (n : ℕ) {A B : Type*} (f : A →* B)
     [is_equiv (π→*[n + 1] f)] : is_equiv (π→*[n] (Ω→ f)) :=
-  have is_equiv (pcast (phomotopy_group_succ_in B n) ∘* π→*[n + 1] f),
+  have is_equiv (phomotopy_group_succ_in B n ∘* π→*[n + 1] f),
   from is_equiv_compose _ (π→*[n + 1] f),
-  have is_equiv (π→*[n] (Ω→ f) ∘ pcast (phomotopy_group_succ_in A n)),
+  have is_equiv (π→*[n] (Ω→ f) ∘ phomotopy_group_succ_in A n),
   from is_equiv.homotopy_closed _ (phomotopy_group_functor_succ_phomotopy_in n f),
-  is_equiv.cancel_right (pcast (phomotopy_group_succ_in A n)) _
+  is_equiv.cancel_right (phomotopy_group_succ_in A n) _
 
   definition tinverse [constructor] {X : Type*} : π*[1] X →* π*[1] X :=
   ptrunc_functor 0 pinverse
@@ -204,7 +196,7 @@ namespace eq
     { reflexivity},
     { esimp [iterated_ploop_space, nat.add], refine !ghomotopy_group_succ_in ⬝g _, refine !IH ⬝g _,
       apply homotopy_group_isomorphism_of_pequiv,
-      exact pequiv_of_eq !loop_space_succ_eq_in⁻¹}
+      exact !loop_space_succ_in⁻¹ᵉ*}
   end
 
   theorem trivial_homotopy_add_of_is_set_loop_space {A : Type*} {n : ℕ} (m : ℕ)
@@ -249,22 +241,19 @@ namespace eq
 
   /- some homomorphisms -/
 
-  definition is_homomorphism_cast_loop_space_succ_eq_in {A : Type*} (n : ℕ) :
-    is_homomorphism
-      (cast (ap (trunc 0 ∘ pointed.carrier) (loop_space_succ_eq_in A (succ n)))
-        : πg[n+1+1] A → πg[n+1] Ω A) :=
-  begin
-    intro g h, induction g with g, induction h with h,
-    xrewrite [tr_mul_tr, - + fn_cast_eq_cast_fn _ (λn, tr), tr_mul_tr, ↑cast, -tr_compose,
-              loop_space_succ_eq_in_concat, - + tr_compose],
-  end
+  -- definition is_homomorphism_cast_loop_space_succ_eq_in {A : Type*} (n : ℕ) :
+  --   is_homomorphism (loop_space_succ_in A (succ n) : πg[n+1+1] A → πg[n+1] (Ω A)) :=
+  -- begin
+  --   intro g h, induction g with g, induction h with h,
+  --   xrewrite [tr_mul_tr, - + fn_cast_eq_cast_fn _ (λn, tr), tr_mul_tr, ↑cast, -tr_compose,
+  --             loop_space_succ_eq_in_concat, - + tr_compose],
+  -- end
 
+  local attribute MulGroup MulCommGroup [reducible]
   definition is_homomorphism_inverse (A : Type*) (n : ℕ)
-    : is_homomorphism (λp, p⁻¹ : πag[n+2] A → πag[n+2] A) :=
+    : is_homomorphism (λp, p⁻¹ : (πag[n+2] A) → (πag[n+2] A)) :=
   begin
-    intro g h, rewrite mul.comm,
-    induction g with g, induction h with h,
-    exact ap tr !con_inv
+    intro g h, exact ap inv (mul.comm g h) ⬝ mul_inv h g,
   end
 
   notation `π→g[`:95 n:0 ` +1]`:0 := homotopy_group_homomorphism n

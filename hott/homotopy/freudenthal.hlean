@@ -176,7 +176,7 @@ freudenthal_pequiv A H
 definition freudenthal_homotopy_group_pequiv (A : Type*) {n k : ℕ} [is_conn n A] (H : k ≤ 2 * n)
   : π*[k + 1] (psusp A) ≃* π*[k] A  :=
 calc
-  π*[k + 1] (psusp A) ≃* π*[k] (Ω (psusp A)) : pequiv_of_eq (phomotopy_group_succ_in (psusp A) k)
+  π*[k + 1] (psusp A) ≃* π*[k] (Ω (psusp A)) : phomotopy_group_succ_in (psusp A) k
     ... ≃* Ω[k] (ptrunc k (Ω (psusp A)))     : phomotopy_group_pequiv_loop_ptrunc k (Ω (psusp A))
     ... ≃* Ω[k] (ptrunc k A)                 : loopn_pequiv_loopn k (freudenthal_pequiv A H)
     ... ≃* π*[k] A                           : (phomotopy_group_pequiv_loop_ptrunc k A)⁻¹ᵉ*

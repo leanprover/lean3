@@ -485,7 +485,7 @@ namespace chain_complex
   definition loop_spaces_fun2 : Π(n : +3ℕ), loop_spaces2 (S n) →* loop_spaces2 n
   | (n, fin.mk 0 H) := proof Ω→[n] f qed
   | (n, fin.mk 1 H) := proof Ω→[n] (ppoint f) qed
-  | (n, fin.mk 2 H) := proof Ω→[n] boundary_map ∘* pcast (loop_space_succ_eq_in Y n) qed
+  | (n, fin.mk 2 H) := proof Ω→[n] boundary_map ∘* loop_space_succ_in Y n qed
   | (n, fin.mk (k+3) H) := begin exfalso, apply lt_le_antisymm H, apply le_add_left end
 
   definition loop_spaces_fun2_add1_0 (n : ℕ) (H : 0 < succ 2)
@@ -501,12 +501,7 @@ namespace chain_complex
   definition loop_spaces_fun2_add1_2 (n : ℕ) (H : 2 < succ 2)
     : loop_spaces_fun2 (n+1, fin.mk 2 H) ~*
       cast proof idp qed ap1 (loop_spaces_fun2 (n, fin.mk 2 H)) :=
-  begin
-    esimp,
-    refine _ ⬝* !ap1_compose⁻¹*,
-    apply pwhisker_left,
-    apply pcast_ap_loop_space
-  end
+  proof !ap1_compose⁻¹* qed
 
   definition nat_of_str [unfold 2] [reducible] {n : ℕ} : ℕ × fin (succ n) → ℕ :=
   λx, succ n * pr1 x + val (pr2 x)
@@ -651,7 +646,7 @@ namespace chain_complex
   | (n, fin.mk 0 H) := proof π→*[n] f qed
   | (n, fin.mk 1 H) := proof π→*[n] (ppoint f) qed
   | (n, fin.mk 2 H) :=
-    proof π→*[n] boundary_map ∘* pcast (ap (ptrunc 0) (loop_space_succ_eq_in Y n)) qed
+    proof π→*[n] boundary_map ∘* phomotopy_group_succ_in Y n qed
   | (n, fin.mk (k+3) H) := begin exfalso, apply lt_le_antisymm H, apply le_add_left end
 
   definition homotopy_groups_fun_phomotopy_loop_spaces_fun2 [reducible]
@@ -662,8 +657,7 @@ namespace chain_complex
   | (n, fin.mk 2 H) :=
     begin
       refine !pid_comp ⬝* _ ⬝* !comp_pid⁻¹*,
-      refine !ptrunc_functor_pcompose ⬝* _,
-      apply pwhisker_left, apply ptrunc_functor_pcast,
+      refine !ptrunc_functor_pcompose
     end
   | (n, fin.mk (k+3) H) := begin exfalso, apply lt_le_antisymm H, apply le_add_left end
 
@@ -710,7 +704,7 @@ namespace chain_complex
     cc_to_fn LES_of_homotopy_groups (n, 1) = π→*[n] (ppoint f) :=
   by reflexivity
   definition LES_of_homotopy_groups_fun_2 : cc_to_fn LES_of_homotopy_groups (n, 2) =
-    π→*[n] boundary_map ∘* pcast (ap (ptrunc 0) (loop_space_succ_eq_in Y n)) :=
+    π→*[n] boundary_map ∘* phomotopy_group_succ_in Y n :=
   by reflexivity
 
   open group
@@ -749,10 +743,8 @@ namespace chain_complex
     begin
       apply homomorphism.mk (cc_to_fn LES_of_homotopy_groups (k + 1, 2)),
       exact abstract begin rewrite [LES_of_homotopy_groups_fun_2],
-      refine @is_homomorphism_compose _ _ _ _ _ _ (π→*[k + 1] boundary_map) _ _ _,
-      { apply phomotopy_group_functor_mul},
-      { rewrite [▸*, -ap_compose', ▸*],
-        apply is_homomorphism_cast_loop_space_succ_eq_in} end end
+      refine homomorphism.struct ((π→g[k+1] boundary_map) ∘g ghomotopy_group_succ_in Y k),
+      end end
     end
   | (k, fin.mk (l+3) H) := begin exfalso, apply lt_le_antisymm H, apply le_add_left end
 
@@ -781,7 +773,7 @@ namespace chain_complex
     : Π(n : +3ℕ), fibration_sequence_car (S n) →* fibration_sequence_car n
   | (n, fin.mk 0 H) := proof Ω→[n] f qed
   | (n, fin.mk 1 H) := proof Ω→[n] g qed
-  | (n, fin.mk 2 H) := proof Ω→[n] (e ∘* boundary_map f) ∘* pcast (loop_space_succ_eq_in Y n) qed
+  | (n, fin.mk 2 H) := proof Ω→[n] (e ∘* boundary_map f) ∘* loop_space_succ_in Y n qed
   | (n, fin.mk (k+3) H) := begin exfalso, apply lt_le_antisymm H, apply le_add_left end
 
   definition fibration_sequence_pequiv : Π(x : +3ℕ),
