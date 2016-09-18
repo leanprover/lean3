@@ -14,12 +14,17 @@ namespace int
 
   section
   open algebra
-  definition group_integers [constructor] : AddGroup :=
+  /-
+    we make these structures reducible, so that n * m in gℤ and agℤ can be interpreted as
+    multiplication on ℤ. For this it's needed that the carriers of gℤ and agℤ reduce to ℤ unfolding
+    only reducible definitions.
+  -/
+  definition group_integers [reducible] [constructor] : AddGroup :=
   AddGroup.mk ℤ _
 
   notation `gℤ` := group_integers
 
-  definition CommGroup_int [constructor] : AddCommGroup :=
+  definition CommGroup_int [reducible] [constructor] : AddCommGroup :=
   AddCommGroup.mk ℤ _
 
   notation `agℤ` := CommGroup_int
