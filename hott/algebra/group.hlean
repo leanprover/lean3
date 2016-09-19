@@ -59,20 +59,27 @@ abbreviation eq_of_mul_eq_mul_right' := @mul.right_cancel
 
 /- additive semigroup -/
 
-structure add_semigroup [class] (A : Type) extends has_add A :=
-(is_set_carrier : is_set A)
-(add_assoc : Πa b c, add (add a b) c = add a (add b c))
+definition add_semigroup [class] : Type → Type := semigroup
 
-attribute add_semigroup.is_set_carrier [instance] [priority 900]
+definition add_semigroup.is_set_carrier [instance] [priority 900] (A : Type) [H : add_semigroup A] :
+  is_set A :=
+@semigroup.is_set_carrier A H
+
+definition has_add_of_add_semigroup [reducible] [trans_instance] (A : Type) [H : add_semigroup A] :
+  has_add A :=
+has_add.mk (@mul A (@semigroup.to_has_mul A H))
 
 definition add.assoc [s : add_semigroup A] (a b c : A) : a + b + c = a + (b + c) :=
-!add_semigroup.add_assoc
+@mul.assoc A s a b c
 
-structure add_comm_semigroup [class] (A : Type) extends add_semigroup A :=
-(add_comm : Πa b, add a b = add b a)
+definition add_comm_semigroup [class] : Type → Type := comm_semigroup
+
+definition add_semigroup_of_add_comm_semigroup [reducible] [trans_instance] (A : Type)
+  [H : add_comm_semigroup A] : add_semigroup A :=
+@comm_semigroup.to_semigroup A H
 
 definition add.comm [s : add_comm_semigroup A] (a b : A) : a + b = b + a :=
-!add_comm_semigroup.add_comm
+@mul.comm A s a b
 
 theorem add.left_comm [s : add_comm_semigroup A] (a b c : A) :
   a + (b + c) = b + (a + c) :=
@@ -81,21 +88,27 @@ binary.left_comm (@add.comm A _) (@add.assoc A _) a b c
 theorem add.right_comm [s : add_comm_semigroup A] (a b c : A) : (a + b) + c = (a + c) + b :=
 binary.right_comm (@add.comm A _) (@add.assoc A _) a b c
 
-structure add_left_cancel_semigroup [class] (A : Type) extends add_semigroup A :=
-(add_left_cancel : Πa b c, add a b = add a c → b = c)
+definition add_left_cancel_semigroup [class] : Type → Type := left_cancel_semigroup
+
+definition add_semigroup_of_add_left_cancel_semigroup [reducible] [trans_instance] (A : Type)
+  [H : add_left_cancel_semigroup A] : add_semigroup A :=
+@left_cancel_semigroup.to_semigroup A H
 
 definition add.left_cancel [s : add_left_cancel_semigroup A] {a b c : A} :
   a + b = a + c → b = c :=
-!add_left_cancel_semigroup.add_left_cancel
+@mul.left_cancel A s a b c
 
 abbreviation eq_of_add_eq_add_left := @add.left_cancel
 
-structure add_right_cancel_semigroup [class] (A : Type) extends add_semigroup A :=
-(add_right_cancel : Πa b c, add a b = add c b → a = c)
+definition add_right_cancel_semigroup [class] : Type → Type := right_cancel_semigroup
+
+definition add_semigroup_of_add_right_cancel_semigroup [reducible] [trans_instance] (A : Type)
+  [H : add_right_cancel_semigroup A] : add_semigroup A :=
+@right_cancel_semigroup.to_semigroup A H
 
 definition add.right_cancel [s : add_right_cancel_semigroup A] {a b c : A} :
   a + b = c + b → a = c :=
-!add_right_cancel_semigroup.add_right_cancel
+@mul.right_cancel A s a b c
 
 abbreviation eq_of_add_eq_add_right := @add.right_cancel
 
@@ -112,46 +125,34 @@ structure comm_monoid [class] (A : Type) extends monoid A, comm_semigroup A
 
 /- additive monoid -/
 
-structure add_monoid [class] (A : Type) extends add_semigroup A, has_zero A :=
-(zero_add : Πa, add zero a = a) (add_zero : Πa, add a zero = a)
+definition add_monoid [class] : Type → Type := monoid
 
-definition zero_add [s : add_monoid A] (a : A) : 0 + a = a := !add_monoid.zero_add
+definition add_semigroup_of_add_monoid [reducible] [trans_instance] (A : Type)
+  [H : add_monoid A] : add_semigroup A :=
+@monoid.to_semigroup A H
 
-definition add_zero [s : add_monoid A] (a : A) : a + 0 = a := !add_monoid.add_zero
+definition has_zero_of_add_monoid [reducible] [trans_instance] (A : Type)
+  [H : add_monoid A] : has_zero A :=
+has_zero.mk (@one A (@monoid.to_has_one A H))
 
-structure add_comm_monoid [class] (A : Type) extends add_monoid A, add_comm_semigroup A
+definition zero_add [s : add_monoid A] (a : A) : 0 + a = a := @monoid.one_mul A s a
 
-definition add_monoid.to_monoid {A : Type} [s : add_monoid A] : monoid A :=
-⦃ monoid,
-  mul         := add_monoid.add,
-  mul_assoc   := add_monoid.add_assoc,
-  one         := add_monoid.zero A,
-  mul_one     := add_monoid.add_zero,
-  one_mul     := add_monoid.zero_add,
-  is_set_carrier := _
-⦄
+definition add_zero [s : add_monoid A] (a : A) : a + 0 = a := @monoid.mul_one A s a
 
-definition add_comm_monoid.to_comm_monoid {A : Type} [s : add_comm_monoid A] : comm_monoid A :=
-⦃ comm_monoid,
-  add_monoid.to_monoid,
-  mul_comm    := add_comm_monoid.add_comm
-⦄
+definition add_comm_monoid [class] : Type → Type := comm_monoid
 
-definition monoid.to_add_monoid {A : Type} [s : monoid A] : add_monoid A :=
-⦃ add_monoid,
-  add         := monoid.mul,
-  add_assoc   := monoid.mul_assoc,
-  zero        := monoid.one A,
-  add_zero    := monoid.mul_one,
-  zero_add    := monoid.one_mul,
-  is_set_carrier := _
-⦄
+definition add_monoid_of_add_comm_monoid [reducible] [trans_instance] (A : Type)
+  [H : add_comm_monoid A] : add_monoid A :=
+@comm_monoid.to_monoid A H
 
-definition comm_monoid.to_add_comm_monoid {A : Type} [s : comm_monoid A] : add_comm_monoid A :=
-⦃ add_comm_monoid,
-  monoid.to_add_monoid,
-  add_comm    := comm_monoid.mul_comm
-⦄
+definition add_comm_semigroup_of_add_comm_monoid [reducible] [trans_instance] (A : Type)
+  [H : add_comm_monoid A] : add_comm_semigroup A :=
+@comm_monoid.to_comm_semigroup A H
+
+definition add_monoid.to_monoid {A : Type} [s : add_monoid A] : monoid A := s
+definition add_comm_monoid.to_comm_monoid {A : Type} [s : add_comm_monoid A] : comm_monoid A := s
+definition monoid.to_add_monoid {A : Type} [s : monoid A] : add_monoid A := s
+definition comm_monoid.to_add_comm_monoid {A : Type} [s : comm_monoid A] : add_comm_monoid A := s
 
 section add_comm_monoid
   variables [s : add_comm_monoid A]
@@ -346,23 +347,25 @@ structure comm_group [class] (A : Type) extends group A, comm_monoid A
 
 /- additive group -/
 
-structure add_group [class] (A : Type) extends add_monoid A, has_neg A :=
-(add_left_inv : Πa, add (neg a) a = zero)
+definition add_group [class] : Type → Type := group
 
-definition add_group.to_group {A : Type} [s : add_group A] : group A :=
-⦃ group, add_monoid.to_monoid,
-  mul_left_inv := add_group.add_left_inv ⦄
+definition add_semigroup_of_add_group [reducible] [trans_instance] (A : Type)
+  [H : add_group A] : add_monoid A :=
+@group.to_monoid A H
 
-definition group.to_add_group {A : Type} [s : group A] : add_group A :=
-⦃ add_group, monoid.to_add_monoid,
-  add_left_inv := group.mul_left_inv ⦄
+definition has_zero_of_add_group [reducible] [trans_instance] (A : Type)
+  [H : add_group A] : has_neg A :=
+has_neg.mk (@inv A (@group.to_has_inv A H))
+
+definition add_group.to_group {A : Type} [s : add_group A] : group A := s
+definition group.to_add_group {A : Type} [s : group A] : add_group A := s
 
 section add_group
 
   variables [s : add_group A]
   include s
 
-  theorem add.left_inv (a : A) : -a + a = 0 := !add_group.add_left_inv
+  theorem add.left_inv (a : A) : -a + a = 0 := @group.mul_left_inv A s a
 
   theorem neg_add_cancel_left (a b : A) : -a + (a + b) = b :=
   by rewrite [-add.assoc, add.left_inv, zero_add]
@@ -461,13 +464,13 @@ section add_group
      ... = (c + b) + -b : H
      ... = c : add_neg_cancel_right
 
-  definition add_group.to_left_cancel_semigroup [trans_instance] : add_left_cancel_semigroup A :=
-  ⦃ add_left_cancel_semigroup, s,
-    add_left_cancel := @add_left_cancel A s ⦄
+  definition add_group.to_add_left_cancel_semigroup [reducible] [trans_instance] :
+    add_left_cancel_semigroup A :=
+  @group.to_left_cancel_semigroup A s
 
-  definition add_group.to_add_right_cancel_semigroup [trans_instance] : add_right_cancel_semigroup A :=
-  ⦃ add_right_cancel_semigroup, s,
-    add_right_cancel := @add_right_cancel A s ⦄
+  definition add_group.to_add_right_cancel_semigroup [reducible] [trans_instance] :
+    add_right_cancel_semigroup A :=
+  @group.to_right_cancel_semigroup A s
 
   theorem add_neg_eq_neg_add_rev {a b : A} : a + -b = -(b + -a) :=
   by rewrite [neg_add_rev, neg_neg]
@@ -545,15 +548,18 @@ section add_group
 
 end add_group
 
-structure add_comm_group [class] (A : Type) extends add_group A, add_comm_monoid A
+definition add_comm_group [class] : Type → Type := comm_group
 
-definition add_comm_group.to_comm_group {A : Type} [s : add_comm_group A] : comm_group A :=
-⦃ comm_group, add_group.to_group,
-  mul_comm := add_comm_group.add_comm ⦄
+definition add_group_of_add_comm_group [reducible] [trans_instance] (A : Type)
+  [H : add_comm_group A] : add_group A :=
+@comm_group.to_group A H
 
-definition comm_group.to_add_comm_group {A : Type} [s : comm_group A] : add_comm_group A :=
-⦃ add_comm_group, group.to_add_group,
-  add_comm := comm_group.mul_comm ⦄
+definition add_comm_monoid_of_add_comm_group [reducible] [trans_instance] (A : Type)
+  [H : add_comm_group A] : add_comm_monoid A :=
+@comm_group.to_comm_monoid A H
+
+definition add_comm_group.to_comm_group {A : Type} [s : add_comm_group A] : comm_group A := s
+definition comm_group.to_add_comm_group {A : Type} [s : comm_group A] : add_comm_group A := s
 
 section add_comm_group
   variable [s : add_comm_group A]

@@ -438,7 +438,8 @@ section add_group
   have a + b + -b = a, by inst_simp,
   by inst_simp
 
-  definition add_group.to_left_cancel_semigroup [trans_instance] : add_left_cancel_semigroup A :=
+  definition add_group.to_add_left_cancel_semigroup [trans_instance] :
+    add_left_cancel_semigroup A :=
   ⦃ add_left_cancel_semigroup, s,
     add_left_cancel := @add_left_cancel A s ⦄
 

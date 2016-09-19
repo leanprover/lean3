@@ -54,7 +54,7 @@ nat.rec_on m
   (take k : ℕ,
     assume IH : n + k - k = n,
     calc
-      n + succ k - succ k = succ (n + k) - succ k : add_succ
+      n + succ k - succ k = succ (n + k) - succ k : by rewrite add_succ
                       ... = n + k - k             : succ_sub_succ
                       ... = n                     : IH)
 
@@ -77,7 +77,7 @@ nat.rec_on k
 theorem succ_sub_sub_succ (n m k : ℕ) : succ n - m - succ k = n - m - k :=
 calc
   succ n - m - succ k = succ n - (m + succ k) : nat.sub_sub
-                  ... = succ n - succ (m + k) : add_succ
+                  ... = succ n - succ (m + k) : by rewrite add_succ
                   ... = n - (m + k)           : succ_sub_succ
                   ... = n - m - k             : nat.sub_sub
 
@@ -113,7 +113,7 @@ nat.rec_on n
     calc
       pred (succ k) * m = k * m          : pred_succ
                     ... = k * m + m - m  : nat.add_sub_cancel
-                    ... = succ k * m - m : succ_mul)
+                    ... = succ k * m - m : by rewrite succ_mul)
 
 theorem mul_pred_right (n m : ℕ) : n * pred m = n * m - n :=
 calc
@@ -134,7 +134,7 @@ nat.rec_on m
                    ... = (n - l) * k - k      : mul_pred_left
                    ... = n * k - l * k - k    : IH
                    ... = n * k - (l * k + k)  : nat.sub_sub
-                   ... = n * k - (succ l * k) : succ_mul)
+                   ... = n * k - (succ l * k) : by rewrite succ_mul)
 
 protected theorem mul_sub_left_distrib (n m k : ℕ) : n * (m - k) = n * m - n * k :=
 calc
@@ -144,8 +144,11 @@ calc
           ... = n * m - n * k : {!mul.comm}
 
 protected theorem mul_self_sub_mul_self_eq (a b : nat) : a * a - b * b = (a + b) * (a - b) :=
-by rewrite [nat.mul_sub_left_distrib, *right_distrib, mul.comm b a, add.comm (a*a) (a*b),
-            nat.add_sub_add_left]
+begin
+  rewrite [nat.mul_sub_left_distrib, *right_distrib, mul.comm b a],
+  xrewrite [add.comm (a*a) (a*b)],
+  rewrite nat.add_sub_add_left
+end
 
 theorem succ_mul_succ_eq (a : nat) : succ a * succ a = a*a + a + a + 1 :=
 calc succ a * succ a = (a+1)*(a+1)     : by rewrite [add_one]
@@ -207,7 +210,7 @@ theorem exists_sub_eq_of_le {n m : ℕ} (H : n ≤ m) : Σk, m - k = n :=
 obtain (k : ℕ) (Hk : n + k = m), from le.elim H,
 sigma.mk k
   (calc
-    m - k = n + k - k : by rewrite Hk
+    m - k = n + k - k : by xrewrite Hk
       ... = n         : nat.add_sub_cancel)
 
 protected theorem add_sub_assoc {m k : ℕ} (H : k ≤ m) (n : ℕ) : n + m - k = n + (m - k) :=
@@ -223,7 +226,7 @@ have l1 : k ≤ m → n + m - k = n + (m - k), from
       assume IH : k ≤ m → n + m - k = n + (m - k),
       take H : succ k ≤ succ m,
       calc
-        n + succ m - succ k = succ (n + m) - succ k : add_succ
+        n + succ m - succ k = succ (n + m) - succ k : by rewrite add_succ
                         ... = n + m - k             : succ_sub_succ
                         ... = n + (m - k)           : IH (le_of_succ_le_succ H)
                         ... = n + (succ m - succ k) : succ_sub_succ),
@@ -270,7 +273,7 @@ sum.elim !le.total
         n - k + l = l + (n - k) : add.comm
               ... = l + n - k   : nat.add_sub_assoc H2 l
               ... = n + l - k   : add.comm
-              ... = m - k       : Hl,
+              ... = m - k       : by xrewrite Hl,
     le.intro H3)
 
 protected theorem sub_le_sub_left {n m : ℕ} (H : n ≤ m) (k : ℕ) : k - m ≤ k - n :=
@@ -285,7 +288,7 @@ sub.cases
         m' + l + n = n + (m' + l) : add.comm
                ... = n + (l + m') : add.comm
                ... = n + l + m'   : add.assoc
-               ... = m + m'       : Hl
+               ... = m + m'       : by xrewrite Hl
                ... = k            : Hm
                ... = k - n + n    : nat.sub_add_cancel H3,
     le.intro (add.right_cancel H4))

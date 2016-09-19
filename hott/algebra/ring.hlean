@@ -38,15 +38,38 @@ structure zero_ne_one_class [class] (A : Type) extends has_zero A, has_one A :=
 theorem zero_ne_one [s: zero_ne_one_class A] : 0 ≠ (1:A) := @zero_ne_one_class.zero_ne_one A s
 
 /- semiring -/
+structure semiring (A : Type) extends comm_monoid A renaming
+  mul→add mul_assoc→add_assoc one→zero one_mul→zero_add mul_one→add_zero mul_comm→add_comm,
+  monoid A, distrib A, mul_zero_class A
 
-structure semiring [class] (A : Type) extends add_comm_monoid A, monoid A, distrib A,
-    mul_zero_class A
+/- we make it a class now (and not as part of the structure) to avoid
+  semiring.to_comm_monoid to be an instance -/
+attribute semiring [class]
+
+definition add_comm_monoid_of_semiring [reducible] [trans_instance] (A : Type)
+  [H : semiring A] : add_comm_monoid A :=
+@semiring.to_comm_monoid A H
+
+definition monoid_of_semiring [reducible] [trans_instance] (A : Type)
+  [H : semiring A] : monoid A :=
+@semiring.to_monoid A H
+
+definition distrib_of_semiring [reducible] [trans_instance] (A : Type)
+  [H : semiring A] : distrib A :=
+@semiring.to_distrib A H
+
+definition mul_zero_class_of_semiring [reducible] [trans_instance] (A : Type)
+  [H : semiring A] : mul_zero_class A :=
+@semiring.to_mul_zero_class A H
 
 section semiring
   variables [s : semiring A] (a b c : A)
   include s
 
-  theorem one_add_one_eq_two : 1 + 1 = (2:A) :=
+  theorem As {a b c : A} : a + b + c = a + (b + c) :=
+  !add.assoc
+
+  theorem one_add_one_eq_two : 1 + 1 = 2 :> A :=
   by unfold bit0
 
   theorem ne_zero_of_mul_ne_zero_right {a b : A} (H : a * b ≠ 0) : a ≠ 0 :=
@@ -163,7 +186,25 @@ end comm_semiring
 
 /- ring -/
 
-structure ring [class] (A : Type) extends add_comm_group A, monoid A, distrib A
+structure ring (A : Type) extends comm_group A renaming mul→add mul_assoc→add_assoc
+  one→zero one_mul→zero_add mul_one→add_zero inv→neg mul_left_inv→add_left_inv mul_comm→add_comm,
+  monoid A, distrib A
+
+/- we make it a class now (and not as part of the structure) to avoid
+  ring.to_comm_group to be an instance -/
+attribute ring [class]
+
+definition add_comm_group_of_ring [reducible] [trans_instance] (A : Type)
+  [H : ring A] : add_comm_group A :=
+@ring.to_comm_group A H
+
+definition monoid_of_ring [reducible] [trans_instance] (A : Type)
+  [H : ring A] : monoid A :=
+@ring.to_monoid A H
+
+definition distrib_of_ring [reducible] [trans_instance] (A : Type)
+  [H : ring A] : distrib A :=
+@ring.to_distrib A H
 
 theorem ring.mul_zero [s : ring A] (a : A) : a * 0 = 0 :=
 have a * 0 + 0 = a * 0 + a * 0, from calc
@@ -179,7 +220,7 @@ have 0 * a + 0 = 0 * a + 0 * a, from calc
         ... = 0 * a + 0 * a : by rewrite {_*a}ring.right_distrib,
 show 0 * a = 0, from  (add.left_cancel this)⁻¹
 
-definition ring.to_semiring [trans_instance] [s : ring A] : semiring A :=
+definition ring.to_semiring [reducible] [trans_instance] [s : ring A] : semiring A :=
 ⦃ semiring, s,
   mul_zero := ring.mul_zero,
   zero_mul := ring.zero_mul ⦄
@@ -249,7 +290,7 @@ section
     have a + a * -1 = 0, from calc
       a + a * -1 = a * 1 + a * -1 : mul_one
              ... = a * (1 + -1)   : left_distrib
-             ... = a * 0          : add.right_inv
+             ... = a * 0          : by rewrite add.right_inv
              ... = 0              : mul_zero,
     symm (neg_eq_of_add_eq_zero this)
 
@@ -267,7 +308,8 @@ end
 
 structure comm_ring [class] (A : Type) extends ring A, comm_semigroup A
 
-definition comm_ring.to_comm_semiring [trans_instance] [s : comm_ring A] : comm_semiring A :=
+definition comm_ring.to_comm_semiring [reducible] [trans_instance] [s : comm_ring A] :
+  comm_semiring A :=
 ⦃ comm_semiring, s,
   mul_zero := mul_zero,
   zero_mul := zero_mul ⦄

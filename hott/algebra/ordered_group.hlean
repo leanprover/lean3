@@ -15,12 +15,30 @@ variable {A : Type}
 /- partially ordered monoids, such as the natural numbers -/
 
 namespace algebra
-structure ordered_cancel_comm_monoid [class] (A : Type) extends add_comm_monoid A,
- add_left_cancel_semigroup A, add_right_cancel_semigroup A, order_pair A :=
-(add_le_add_left : Πa b, le a b → Πc, le (add c a) (add c b))
-(le_of_add_le_add_left : Πa b c, le (add a b) (add a c) → le b c)
-(add_lt_add_left : Πa b, lt a b → Πc, lt (add c a) (add c b))
-(lt_of_add_lt_add_left : Πa b c, lt (add a b) (add a c) → lt b c)
+structure ordered_mul_cancel_comm_monoid [class] (A : Type) extends comm_monoid A,
+ left_cancel_semigroup A, right_cancel_semigroup A, order_pair A :=
+(mul_le_mul_left : Πa b, le a b → Πc, le (mul c a) (mul c b))
+(le_of_mul_le_mul_left : Πa b c, le (mul a b) (mul a c) → le b c)
+(mul_lt_mul_left : Πa b, lt a b → Πc, lt (mul c a) (mul c b))
+(lt_of_mul_lt_mul_left : Πa b c, lt (mul a b) (mul a c) → lt b c)
+
+definition ordered_cancel_comm_monoid [class] : Type → Type := ordered_mul_cancel_comm_monoid
+
+definition add_comm_monoid_of_ordered_cancel_comm_monoid [reducible] [trans_instance]
+  (A : Type) [H : ordered_cancel_comm_monoid A] : add_comm_monoid A :=
+@ordered_mul_cancel_comm_monoid.to_comm_monoid A H
+
+definition add_left_cancel_semigroup_of_ordered_cancel_comm_monoid [reducible] [trans_instance]
+  (A : Type) [H : ordered_cancel_comm_monoid A] : add_left_cancel_semigroup A :=
+@ordered_mul_cancel_comm_monoid.to_left_cancel_semigroup A H
+
+definition add_right_cancel_semigroup_of_ordered_cancel_comm_monoid [reducible] [trans_instance]
+  (A : Type) [H : ordered_cancel_comm_monoid A] : add_right_cancel_semigroup A :=
+@ordered_mul_cancel_comm_monoid.to_right_cancel_semigroup A H
+
+definition order_pair_of_ordered_cancel_comm_monoid [reducible] [trans_instance]
+  (A : Type) [H : ordered_cancel_comm_monoid A] : order_pair A :=
+@ordered_mul_cancel_comm_monoid.to_order_pair A H
 
 section
   variables [s : ordered_cancel_comm_monoid A]
@@ -28,7 +46,7 @@ section
   include s
 
   theorem add_lt_add_left (H : a < b) (c : A) : c + a < c + b :=
-    !ordered_cancel_comm_monoid.add_lt_add_left H c
+  @ordered_mul_cancel_comm_monoid.mul_lt_mul_left A s a b H c
 
   theorem add_lt_add_right (H : a < b) (c : A) : a + c < b + c :=
   begin
@@ -37,7 +55,7 @@ section
   end
 
   theorem add_le_add_left (H : a ≤ b) (c : A) : c + a ≤ c + b :=
-  !ordered_cancel_comm_monoid.add_le_add_left H c
+  @ordered_mul_cancel_comm_monoid.mul_le_mul_left A s a b H c
 
   theorem add_le_add_right (H : a ≤ b) (c : A) : a + c ≤ b + c :=
   (add.comm c a) ▸ (add.comm c b) ▸ (add_le_add_left H c)
@@ -74,13 +92,13 @@ section
 
   -- here we start using le_of_add_le_add_left.
   theorem le_of_add_le_add_left (H : a + b ≤ a + c) : b ≤ c :=
-  !ordered_cancel_comm_monoid.le_of_add_le_add_left H
+  @ordered_mul_cancel_comm_monoid.le_of_mul_le_mul_left A s a b c H
 
   theorem le_of_add_le_add_right (H : a + b ≤ c + b) : a ≤ c :=
   le_of_add_le_add_left (show b + a ≤ b + c, begin rewrite [add.comm, {b + _}add.comm], exact H end)
 
   theorem lt_of_add_lt_add_left (H : a + b < a + c) : b < c :=
-  !ordered_cancel_comm_monoid.lt_of_add_lt_add_left H
+  @ordered_mul_cancel_comm_monoid.lt_of_mul_lt_mul_left A s a b c H
 
   theorem lt_of_add_lt_add_right (H : a + b < c + b) : a < c :=
   lt_of_add_lt_add_left ((add.comm a b) ▸ (add.comm c b) ▸ H)
@@ -195,27 +213,37 @@ end
 
 /- partially ordered groups -/
 
-structure ordered_comm_group [class] (A : Type) extends add_comm_group A, order_pair A :=
-(add_le_add_left : Πa b, le a b → Πc, le (add c a) (add c b))
-(add_lt_add_left : Πa b, lt a b → Π c, lt (add c a) (add c b))
+structure ordered_mul_comm_group [class] (A : Type) extends comm_group A, order_pair A :=
+(mul_le_mul_left : Πa b, le a b → Πc, le (mul c a) (mul c b))
+(mul_lt_mul_left : Πa b, lt a b → Π c, lt (mul c a) (mul c b))
 
-theorem ordered_comm_group.le_of_add_le_add_left [s : ordered_comm_group A] {a b c : A}
-  (H : a + b ≤ a + c) : b ≤ c :=
-have H' : -a + (a + b) ≤ -a + (a + c), from ordered_comm_group.add_le_add_left _ _ H _,
-by rewrite *neg_add_cancel_left at H'; exact H'
+definition ordered_comm_group [class] : Type → Type := ordered_mul_comm_group
 
-theorem ordered_comm_group.lt_of_add_lt_add_left [s : ordered_comm_group A] {a b c : A}
-  (H : a + b < a + c) : b < c :=
-have H' : -a + (a + b) < -a + (a + c), from ordered_comm_group.add_lt_add_left _ _ H _,
-by rewrite *neg_add_cancel_left at H'; exact H'
+definition add_comm_group_of_ordered_comm_group [reducible] [trans_instance] (A : Type)
+  [H : ordered_comm_group A] : add_comm_group A :=
+@ordered_mul_comm_group.to_comm_group A H
 
-definition ordered_comm_group.to_ordered_cancel_comm_monoid [trans_instance]
+theorem ordered_mul_comm_group.le_of_mul_le_mul_left [s : ordered_mul_comm_group A] {a b c : A}
+  (H : a * b ≤ a * c) : b ≤ c :=
+have H' : a⁻¹ * (a * b) ≤ a⁻¹ * (a * c), from ordered_mul_comm_group.mul_le_mul_left _ _ H _,
+by rewrite *inv_mul_cancel_left at H'; exact H'
+
+theorem ordered_mul_comm_group.lt_of_mul_lt_mul_left [s : ordered_mul_comm_group A] {a b c : A}
+  (H : a * b < a * c) : b < c :=
+have H' : a⁻¹ * (a * b) < a⁻¹ * (a * c), from ordered_mul_comm_group.mul_lt_mul_left _ _ H _,
+by rewrite *inv_mul_cancel_left at H'; exact H'
+
+definition ordered_mul_comm_group.to_ordered_mul_cancel_comm_monoid [reducible] [trans_instance]
+    [s : ordered_mul_comm_group A] : ordered_mul_cancel_comm_monoid A :=
+⦃ ordered_mul_cancel_comm_monoid, s,
+  mul_left_cancel       := @mul.left_cancel A _,
+  mul_right_cancel      := @mul.right_cancel A _,
+  le_of_mul_le_mul_left := @ordered_mul_comm_group.le_of_mul_le_mul_left A _,
+  lt_of_mul_lt_mul_left := @ordered_mul_comm_group.lt_of_mul_lt_mul_left A _⦄
+
+definition ordered_comm_group.to_ordered_cancel_comm_monoid [reducible] [trans_instance]
     [s : ordered_comm_group A] : ordered_cancel_comm_monoid A :=
-⦃ ordered_cancel_comm_monoid, s,
-  add_left_cancel       := @add.left_cancel A _,
-  add_right_cancel      := @add.right_cancel A _,
-  le_of_add_le_add_left := @ordered_comm_group.le_of_add_le_add_left A _,
-  lt_of_add_lt_add_left := @ordered_comm_group.lt_of_add_lt_add_left A _⦄
+@ordered_mul_comm_group.to_ordered_mul_cancel_comm_monoid A s
 
 section
   variables [s : ordered_comm_group A] (a b c d e : A)
@@ -575,18 +603,34 @@ end
 
 /- linear ordered group with decidable order -/
 
-structure decidable_linear_ordered_comm_group [class] (A : Type)
-    extends add_comm_group A, decidable_linear_order A :=
-    (add_le_add_left : Π a b, le a b → Π c, le (add c a) (add c b))
-    (add_lt_add_left : Π a b, lt a b → Π c, lt (add c a) (add c b))
+structure decidable_linear_ordered_mul_comm_group [class] (A : Type)
+    extends comm_group A, decidable_linear_order A :=
+    (mul_le_mul_left : Π a b, le a b → Π c, le (mul c a) (mul c b))
+    (mul_lt_mul_left : Π a b, lt a b → Π c, lt (mul c a) (mul c b))
 
-definition decidable_linear_ordered_comm_group.to_ordered_comm_group
-      [trans_instance]
-   (A : Type) [s : decidable_linear_ordered_comm_group A] : ordered_comm_group A :=
-⦃ ordered_comm_group, s,
+definition decidable_linear_ordered_comm_group [class] : Type → Type :=
+decidable_linear_ordered_mul_comm_group
+
+definition add_comm_group_of_decidable_linear_ordered_comm_group [reducible] [trans_instance] (A : Type)
+  [H : decidable_linear_ordered_comm_group A] : add_comm_group A :=
+@decidable_linear_ordered_mul_comm_group.to_comm_group A H
+
+definition decidable_linear_order_of_decidable_linear_ordered_comm_group [reducible]
+  [trans_instance] (A : Type) [H : decidable_linear_ordered_comm_group A] :
+  decidable_linear_order A :=
+@decidable_linear_ordered_mul_comm_group.to_decidable_linear_order A H
+
+definition decidable_linear_ordered_mul_comm_group.to_ordered_mul_comm_group [reducible]
+  [trans_instance] (A : Type) [s : decidable_linear_ordered_mul_comm_group A] :
+  ordered_mul_comm_group A :=
+⦃ ordered_mul_comm_group, s,
   le_of_lt := @le_of_lt A _,
   lt_of_le_of_lt := @lt_of_le_of_lt A _,
   lt_of_lt_of_le := @lt_of_lt_of_le A _ ⦄
+
+definition decidable_linear_ordered_comm_group.to_ordered_comm_group [reducible] [trans_instance]
+   (A : Type) [s : decidable_linear_ordered_comm_group A] : ordered_comm_group A :=
+@decidable_linear_ordered_mul_comm_group.to_ordered_mul_comm_group A s
 
 section
   variables [s : decidable_linear_ordered_comm_group A]
@@ -821,4 +865,5 @@ section
 
   end
 end
+
 end algebra

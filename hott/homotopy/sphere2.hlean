@@ -64,12 +64,12 @@ namespace sphere
         (@pgroup_of_group _ (group_LES_of_homotopy_groups complex_phopf _ _) idp)
         _,
         { rewrite [▸*, LES_of_homotopy_groups_2 _ (n +[ℕ] 2)],
-          have H : 1 ≤[ℕ] n + 1, from !one_le_succ,
-          apply trivial_ghomotopy_group_of_is_trunc _ _ _ H},
+          have H2 : 1 ≤[ℕ] n + 1, from !one_le_succ,
+          exact @trivial_ghomotopy_group_of_is_trunc _ _ _ H H2},
         { refine tr_rev (λx, is_contr (ptrunctype._trans_of_to_pType x))
                         (LES_of_homotopy_groups_2 complex_phopf _) _,
-          have H : 1 ≤[ℕ] n + 2, from !one_le_succ,
-          apply trivial_ghomotopy_group_of_is_trunc _ _ _ H},
+          have H2 : 1 ≤[ℕ] n + 2, from !one_le_succ,
+          apply trivial_ghomotopy_group_of_is_trunc _ _ _ H2},
         { exact homomorphism.struct (homomorphism_LES_of_homotopy_groups_fun _ (n+2, 0))}}},
     { exact homomorphism.struct (homomorphism_LES_of_homotopy_groups_fun _ (n+2, 0))}
   end

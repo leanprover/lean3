@@ -27,7 +27,9 @@ namespace freudenthal section
   definition code_merid : A → ptrunc (n + n) A → ptrunc (n + n) A :=
   begin
     have is_conn n (ptrunc (n + n) A), from !is_conn_trunc,
-    refine wedge_extension.ext n n (λ x y, ttrunc (n + n) A) _ _ _,
+    refine @wedge_extension.ext _ _ n n _ _ (λ x y, ttrunc (n + n) A) _ _ _ _,
+    { intros, apply is_trunc_trunc}, -- this subgoal might become unnecessary if
+                                     -- type class inference catches it
     { exact tr},
     { exact id},
     { reflexivity}
@@ -127,8 +129,10 @@ namespace freudenthal section
   begin
     apply arrow_pathover_left, intro c, esimp at *,
     induction c with a',
-    rewrite [↑code, elim_type_merid, ▸*],
-    refine wedge_extension.ext n n _ _ _ _ a a',
+    rewrite [↑code, elim_type_merid],
+    refine @wedge_extension.ext _ _ n n _ _ (λ a a', tr (up a') =[merid a] decode_south
+    (to_fun (code_merid_equiv a) (tr a'))) _ _ _ _ a a',
+    { intros, apply is_trunc_pathover, apply is_trunc_succ, apply is_trunc_trunc},
     { exact decode_coh_f},
     { exact decode_coh_g},
     { clear a a', unfold [decode_coh_f, decode_coh_g], refine ap011 concato_eq _ _,

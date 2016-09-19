@@ -300,7 +300,7 @@ lemma madd_left_inv : Π i : fin (succ n), madd (minv i) i = fin.zero n
   rewrite [val_madd, ↑minv, mod_add_mod, nat.sub_add_cancel (le_of_lt ilt), mod_self])
 
 definition madd_is_comm_group [instance] : add_comm_group (fin (succ n)) :=
-add_comm_group.mk madd _ madd_assoc (fin.zero n) zero_madd madd_zero minv madd_left_inv madd_comm
+comm_group.mk madd _ madd_assoc (fin.zero n) zero_madd madd_zero minv madd_left_inv madd_comm
 
 definition gfin (n : ℕ) [H : is_succ n] : AddCommGroup.{0} :=
 by induction H with n; exact AddCommGroup.mk (fin (succ n)) _

@@ -19,12 +19,28 @@ absurd H (lt.irrefl a)
 
 /- semiring structures -/
 
-structure ordered_semiring [class] (A : Type)
-  extends semiring A, ordered_cancel_comm_monoid A :=
+structure ordered_semiring (A : Type)
+  extends semiring A, ordered_mul_cancel_comm_monoid A renaming
+  mul→add mul_assoc→add_assoc one→zero one_mul→zero_add mul_one→add_zero mul_comm→add_comm
+  mul_left_cancel→add_left_cancel mul_right_cancel→add_right_cancel mul_le_mul_left→add_le_add_left
+  mul_lt_mul_left→add_lt_add_left le_of_mul_le_mul_left→le_of_add_le_add_left
+  lt_of_mul_lt_mul_left→lt_of_add_lt_add_left :=
 (mul_le_mul_of_nonneg_left: Πa b c, le a b → le zero c → le (mul c a) (mul c b))
 (mul_le_mul_of_nonneg_right: Πa b c, le a b → le zero c → le (mul a c) (mul b c))
 (mul_lt_mul_of_pos_left: Πa b c, lt a b → lt zero c → lt (mul c a) (mul c b))
 (mul_lt_mul_of_pos_right: Πa b c, lt a b → lt zero c → lt (mul a c) (mul b c))
+
+-- /- we make it a class now (and not as part of the structure) to avoid
+--   ordered_semiring.to_ordered_mul_cancel_comm_monoid to be an instance -/
+attribute ordered_semiring [class]
+
+definition add_comm_group_of_ordered_semiring [trans_instance] [reducible] (A : Type)
+  [H : ordered_semiring A] : semiring A :=
+@ordered_semiring.to_semiring A H
+
+definition monoid_of_ordered_semiring [trans_instance] [reducible] (A : Type)
+  [H : ordered_semiring A] : ordered_cancel_comm_monoid A :=
+@ordered_semiring.to_ordered_mul_cancel_comm_monoid A H
 
 section
   variable [s : ordered_semiring A]
@@ -193,15 +209,34 @@ structure decidable_linear_ordered_semiring [class] (A : Type)
 
 /- ring structures -/
 
-structure ordered_ring [class] (A : Type)
-    extends ring A, ordered_comm_group A, zero_ne_one_class A :=
+structure ordered_ring (A : Type) extends ring A, ordered_mul_comm_group A renaming
+  mul→add mul_assoc→add_assoc one→zero one_mul→zero_add mul_one→add_zero inv→neg
+  mul_left_inv→add_left_inv mul_comm→add_comm mul_le_mul_left→add_le_add_left
+  mul_lt_mul_left→add_lt_add_left,
+  zero_ne_one_class A :=
 (mul_nonneg : Πa b, le zero a → le zero b → le zero (mul a b))
 (mul_pos : Πa b, lt zero a → lt zero b → lt zero (mul a b))
+
+-- /- we make it a class now (and not as part of the structure) to avoid
+--   ordered_ring.to_ordered_mul_comm_group to be an instance -/
+attribute ordered_ring [class]
+
+definition add_comm_group_of_ordered_ring [reducible] [trans_instance] (A : Type)
+  [H : ordered_ring A] : ring A :=
+@ordered_ring.to_ring A H
+
+definition monoid_of_ordered_ring [reducible] [trans_instance] (A : Type)
+  [H : ordered_ring A] : ordered_comm_group A :=
+@ordered_ring.to_ordered_mul_comm_group A H
+
+definition zero_ne_one_class_of_ordered_ring [reducible] [trans_instance] (A : Type)
+  [H : ordered_ring A] : zero_ne_one_class A :=
+@ordered_ring.to_zero_ne_one_class A H
 
 theorem ordered_ring.mul_le_mul_of_nonneg_left [s : ordered_ring A] {a b c : A}
         (Hab : a ≤ b) (Hc : 0 ≤ c) : c * a ≤ c * b :=
 have H1 : 0 ≤ b - a, from iff.elim_right !sub_nonneg_iff_le Hab,
-have H2 : 0 ≤ c * (b - a), from ordered_ring.mul_nonneg _ _ Hc H1,
+have H2 : 0 ≤ c * (b - a), from ordered_ring.mul_nonneg _ _ _ Hc H1,
 begin
   rewrite mul_sub_left_distrib at H2,
   exact (iff.mp !sub_nonneg_iff_le H2)
@@ -210,7 +245,7 @@ end
 theorem ordered_ring.mul_le_mul_of_nonneg_right [s : ordered_ring A] {a b c : A}
         (Hab : a ≤ b) (Hc : 0 ≤ c) : a * c ≤ b * c  :=
 have H1 : 0 ≤ b - a, from iff.elim_right !sub_nonneg_iff_le Hab,
-have H2 : 0 ≤ (b - a) * c, from ordered_ring.mul_nonneg _ _ H1 Hc,
+have H2 : 0 ≤ (b - a) * c, from ordered_ring.mul_nonneg _ _ _ H1 Hc,
 begin
   rewrite mul_sub_right_distrib at H2,
   exact (iff.mp !sub_nonneg_iff_le H2)
@@ -219,7 +254,7 @@ end
 theorem ordered_ring.mul_lt_mul_of_pos_left [s : ordered_ring A] {a b c : A}
        (Hab : a < b) (Hc : 0 < c) : c * a < c * b :=
 have H1 : 0 < b - a, from iff.elim_right !sub_pos_iff_lt Hab,
-have H2 : 0 < c * (b - a), from ordered_ring.mul_pos _ _ Hc H1,
+have H2 : 0 < c * (b - a), from ordered_ring.mul_pos _ _ _ Hc H1,
 begin
   rewrite mul_sub_left_distrib at H2,
   exact (iff.mp !sub_pos_iff_lt H2)
@@ -228,13 +263,14 @@ end
 theorem ordered_ring.mul_lt_mul_of_pos_right [s : ordered_ring A] {a b c : A}
        (Hab : a < b) (Hc : 0 < c) : a * c < b * c :=
 have H1 : 0 < b - a, from iff.elim_right !sub_pos_iff_lt Hab,
-have H2 : 0 < (b - a) * c, from ordered_ring.mul_pos _ _ H1 Hc,
+have H2 : 0 < (b - a) * c, from ordered_ring.mul_pos _ _ _ H1 Hc,
 begin
   rewrite mul_sub_right_distrib at H2,
   exact (iff.mp !sub_pos_iff_lt H2)
 end
 
-definition ordered_ring.to_ordered_semiring [trans_instance] [s : ordered_ring A] : ordered_semiring A :=
+definition ordered_ring.to_ordered_semiring [reducible] [trans_instance] [s : ordered_ring A] :
+  ordered_semiring A :=
 ⦃ ordered_semiring, s,
   mul_zero                   := mul_zero,
   zero_mul                   := zero_mul,
@@ -314,7 +350,8 @@ structure linear_ordered_ring [class] (A : Type)
     extends ordered_ring A, linear_strong_order_pair A :=
   (zero_lt_one : lt zero one)
 
-definition linear_ordered_ring.to_linear_ordered_semiring [trans_instance] [s : linear_ordered_ring A] : linear_ordered_semiring A :=
+definition linear_ordered_ring.to_linear_ordered_semiring [reducible] [trans_instance]
+  [s : linear_ordered_ring A] : linear_ordered_semiring A :=
 ⦃ linear_ordered_semiring, s,
   mul_zero                   := mul_zero,
   zero_mul                   := zero_mul,
@@ -366,7 +403,7 @@ lt.by_cases
         end))
 
 -- Linearity implies no zero divisors. Doesn't need commutativity.
-definition linear_ordered_comm_ring.to_integral_domain [trans_instance]
+definition linear_ordered_comm_ring.to_integral_domain [reducible] [trans_instance]
     [s: linear_ordered_comm_ring A] : integral_domain A :=
 ⦃ integral_domain, s,
   eq_zero_sum_eq_zero_of_mul_eq_zero :=
@@ -449,7 +486,24 @@ end
    Search on mult_le_cancel_right1 in Rings.thy. -/
 
 structure decidable_linear_ordered_comm_ring [class] (A : Type) extends linear_ordered_comm_ring A,
-    decidable_linear_ordered_comm_group A
+    decidable_linear_ordered_mul_comm_group A renaming
+  mul→add mul_assoc→add_assoc one→zero one_mul→zero_add mul_one→add_zero inv→neg
+  mul_left_inv→add_left_inv mul_comm→add_comm mul_le_mul_left→add_le_add_left
+  mul_lt_mul_left→add_lt_add_left
+
+-- /- we make it a class now (and not as part of the structure) to avoid
+--   ordered_semiring.to_ordered_mul_cancel_comm_monoid to be an instance -/
+attribute decidable_linear_ordered_comm_ring [class]
+
+definition linear_ordered_comm_ring_of_decidable_linear_ordered_comm_ring [reducible]
+  [trans_instance] (A : Type) [H : decidable_linear_ordered_comm_ring A] :
+  linear_ordered_comm_ring A :=
+@decidable_linear_ordered_comm_ring.to_linear_ordered_comm_ring A H
+
+definition decidable_linear_ordered_comm_group_of_decidable_linear_ordered_comm_ring [reducible]
+  [trans_instance] (A : Type) [H : decidable_linear_ordered_comm_ring A] :
+  decidable_linear_ordered_comm_group A :=
+@decidable_linear_ordered_comm_ring.to_decidable_linear_ordered_mul_comm_group A H
 
 section
   variable [s : decidable_linear_ordered_comm_ring A]

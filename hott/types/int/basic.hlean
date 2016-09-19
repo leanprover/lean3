@@ -452,11 +452,11 @@ theorem repr_mul : Π (a b : ℤ), repr (a * b) = pmul (repr a) (repr b)
             ... = (m * 0 + 0 * succ n, m * succ n + 0 * 0) : by rewrite *zero_mul
 | -[1+ m]    (of_nat n) := calc
           repr (-[1+ m] * (n:int)) = (0 + succ m * 0, succ m * n) : repr_neg_of_nat
-            ... = (0 + succ m * 0, 0 + succ m * n) : nat.zero_add
+            ... = (0 + succ m * 0, 0 + succ m * n) : by rewrite [zero_add (succ m * n)]
             ... = (0 * n + succ m * 0, 0 + succ m * n) : by rewrite zero_mul
 | -[1+ m]    -[1+ n]    := calc
           (succ m * succ n, 0) = (succ m * succ n, 0 * succ n) : by rewrite zero_mul
-            ... = (0 + succ m * succ n, 0 * succ n) : nat.zero_add
+            ... = (0 + succ m * succ n, 0 * succ n) : by rewrite nat.zero_add
 
 theorem equiv_mul_prep {xa ya xb yb xn yn xm ym : ℕ}
   (H1 : xa + yb = ya + xb) (H2 : xn + ym = yn + xm)
@@ -466,7 +466,7 @@ nat.add_right_cancel (calc
           = xa*xn+ya*yn + (yb*xn+xb*yn) + (xb*ym+yb*xm + (xb*xn+yb*yn)) : by rewrite add.comm4
       ... = xa*xn+ya*yn + (yb*xn+xb*yn) + (xb*xn+yb*yn + (xb*ym+yb*xm)) : by rewrite {xb*ym+yb*xm +_}nat.add_comm
       ... = xa*xn+yb*xn + (ya*yn+xb*yn) + (xb*xn+xb*ym + (yb*yn+yb*xm)) : by exact !congr_arg2 !add.comm4 !add.comm4
-      ... = ya*xn+xb*xn + (xa*yn+yb*yn) + (xb*yn+xb*xm + (yb*xn+yb*ym)) : by rewrite[-+left_distrib,-+right_distrib]; exact H1 ▸ H2 ▸ rfl
+      ... = ya*xn+xb*xn + (xa*yn+yb*yn) + (xb*yn+xb*xm + (yb*xn+yb*ym)) : by xrewrite[-+left_distrib,-+right_distrib, H1, H2]
       ... = ya*xn+xa*yn + (xb*xn+yb*yn) + (xb*yn+yb*xn + (xb*xm+yb*ym)) : by exact !congr_arg2 !add.comm4 !add.comm4
       ... = xa*yn+ya*xn + (xb*xn+yb*yn) + (xb*yn+yb*xn + (xb*xm+yb*ym)) : by rewrite {xa*yn + _}nat.add_comm
       ... = xa*yn+ya*xn + (xb*xn+yb*yn) + (yb*xn+xb*yn + (xb*xm+yb*ym)) : by rewrite {xb*yn + _}nat.add_comm
@@ -496,9 +496,9 @@ private theorem pmul_assoc_prep {p1 p2 q1 q2 r1 r2 : ℕ} :
    (p1*(q1*r1+q2*r2)+p2*(q1*r2+q2*r1), p1*(q1*r2+q2*r1)+p2*(q1*r1+q2*r2)) :=
 begin
    rewrite [+left_distrib, +right_distrib, *mul.assoc],
-   rewrite (add.comm4 (p1 * (q1 * r1)) (p2 * (q2 * r1)) (p1 * (q2 * r2)) (p2 * (q1 * r2))),
+   xrewrite (add.comm4 (p1 * (q1 * r1)) (p2 * (q2 * r1)) (p1 * (q2 * r2)) (p2 * (q1 * r2))),
    rewrite (add.comm (p2 * (q2 * r1)) (p2 * (q1 * r2))),
-   rewrite (add.comm4 (p1 * (q1 * r2)) (p2 * (q2 * r2)) (p1 * (q2 * r1)) (p2 * (q1 * r1))),
+   xrewrite (add.comm4 (p1 * (q1 * r2)) (p2 * (q2 * r2)) (p1 * (q2 * r1)) (p2 * (q1 * r1))),
    rewrite (add.comm (p2 * (q2 * r2)) (p2 * (q1 * r1)))
 end
 
@@ -591,7 +591,7 @@ begin
 end
 
 theorem neg_succ_of_nat_eq' (m : ℕ) : -[1+ m] = -m - 1 :=
-by rewrite [neg_succ_of_nat_eq, neg_add]
+by xrewrite [neg_succ_of_nat_eq, neg_add]
 
 definition succ (a : ℤ) := a + (succ zero)
 definition pred (a : ℤ) := a - (succ zero)

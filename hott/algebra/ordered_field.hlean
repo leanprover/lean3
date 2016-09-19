@@ -344,9 +344,9 @@ section linear_ordered_field
   sigma.mk ((a - b) / (1 + 1))
       (pair (have H2 : a + a > (b + b) + (a - b), from calc
         a + a > b + a : add_lt_add_right H
-        ... = b + a + b - b : add_sub_cancel
-        ... = b + b + a - b : add.right_comm
-        ... = (b + b) + (a - b) : add_sub,
+        ... = b + a + b - b : by rewrite add_sub_cancel
+        ... = b + b + a - b : by rewrite add.right_comm
+        ... = (b + b) + (a - b) : by rewrite add_sub,
       have H3 : (a + a) / 2 > ((b + b) + (a - b)) / 2,
         from div_lt_div_of_lt_of_pos H2 two_pos,
       by rewrite [one_add_one_eq_two, sub_eq_add_neg, add_self_div_two at H3, -div_add_div_same at H3, add_self_div_two at H3];
