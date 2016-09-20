@@ -14,10 +14,10 @@ open algebra pointed nat eq category group algebra is_trunc iso pointed unit tru
 namespace EM
   open groupoid_quotient
 
-  variables {i : signature} {G : Group i}
-  definition EM1 {i : signature} (G : Group i) : Type :=
+  variables {G : Group}
+  definition EM1 (G : Group) : Type :=
   groupoid_quotient (Groupoid_of_Group G)
-  definition pEM1 [constructor] {i : signature} (G : Group i) : Type* :=
+  definition pEM1 [constructor] (G : Group) : Type* :=
   pointed.MK (EM1 G) (elt star)
 
   definition base : EM1 G := elt star
@@ -95,15 +95,15 @@ namespace EM
 end EM
 
 attribute EM.base [constructor]
-attribute EM.rec EM.elim [unfold 8] [recursor 8]
-attribute EM.rec_on EM.elim_on [unfold 5]
-attribute EM.set_rec EM.set_elim [unfold 7]
-attribute EM.prop_rec EM.prop_elim EM.elim_set [unfold 6]
+attribute EM.rec EM.elim [unfold 7] [recursor 7]
+attribute EM.rec_on EM.elim_on [unfold 4]
+attribute EM.set_rec EM.set_elim [unfold 6]
+attribute EM.prop_rec EM.prop_elim EM.elim_set [unfold 5]
 
 namespace EM
   open groupoid_quotient
 
-  variables {i : signature} (G : Group i)
+  variables (G : Group)
   definition base_eq_base_equiv [constructor] : (base = base :> pEM1 G) ≃ G :=
   !elt_eq_elt_equiv
 
@@ -142,7 +142,7 @@ end EM
 open hopf susp
 namespace EM
   -- The K(G,n+1):
-  variables {i : signature} {G : CommGroup i} (n : ℕ)
+  variables {G : CommGroup} (n : ℕ)
 
   definition EM1_mul [unfold 2 3] (x x' : EM1 G) : EM1 G :=
   begin
@@ -211,7 +211,7 @@ namespace EM
   end
 
   /- K(G, n) -/
-  definition EM {i : signature} (G : CommGroup i) : ℕ → Type*
+  definition EM (G : CommGroup) : ℕ → Type*
   | 0     := pType_of_Group G
   | (k+1) := EMadd1 G k
 
@@ -248,7 +248,7 @@ namespace EM
   end
 
   /- Uniqueness of K(G, 1) -/
-  variable {H : Group i}
+  variable {H : Group}
   definition pEM1_pmap [constructor] {X : Type*} (e : Ω X ≃ H)
     (r : Πp q, e (p ⬝ q) = e p * e q) [is_conn 0 X] [is_trunc 1 X] : pEM1 H →* X :=
   begin
@@ -270,7 +270,7 @@ namespace EM
   end
 
   open trunc_index
-  definition pEM1_pequiv'.{u} {i : signature} {G : Group.{u} i} {X : pType.{u}} (e : Ω X ≃ G)
+  definition pEM1_pequiv'.{u} {G : Group.{u}} {X : pType.{u}} (e : Ω X ≃ G)
     (r : Πp q, e (p ⬝ q) = e p * e q) [is_conn 0 X] [is_trunc 1 X] : pEM1 G ≃* X :=
   begin
     apply pequiv_of_pmap (pEM1_pmap e r),
@@ -287,7 +287,7 @@ namespace EM
         do 2 exact trivial_homotopy_group_of_is_trunc _ (succ_lt_succ !zero_lt_succ)}}
   end
 
-  definition pEM1_pequiv.{u} {i : signature} {G : Group.{u} i} {X : pType.{u}} (e : π₁ X ≃g G)
+  definition pEM1_pequiv.{u} {G : Group.{u}} {X : pType.{u}} (e : π₁ X ≃g G)
     [is_conn 0 X] [is_trunc 1 X] : pEM1 G ≃* X :=
   begin
     apply pEM1_pequiv' (!trunc_equiv⁻¹ᵉ ⬝e equiv_of_isomorphism e),
@@ -297,7 +297,7 @@ namespace EM
   definition pEM1_pequiv_type {X : Type*} [is_conn 0 X] [is_trunc 1 X] : pEM1 (π₁ X) ≃* X :=
   pEM1_pequiv !isomorphism.refl
 
-  definition EM_pequiv_1.{u} {i : signature} {G : CommGroup.{u} i} {X : pType.{u}} (e : π₁ X ≃g G)
+  definition EM_pequiv_1.{u} {G : CommGroup.{u}} {X : pType.{u}} (e : π₁ X ≃g G)
     [is_conn 0 X] [is_trunc 1 X] : EM G 1 ≃* X :=
   begin
     refine _ ⬝e* pEM1_pequiv e,
@@ -309,7 +309,7 @@ namespace EM
   definition EMadd1_pequiv_pEM1 : EMadd1 G 0 ≃* pEM1 G :=
   begin apply ptrunc_pequiv, apply is_trunc_pEM1 end
 
-  definition EM1add1_pequiv_0.{u} {i : signature} {G : CommGroup.{u} i} {X : pType.{u}}
+  definition EM1add1_pequiv_0.{u} {G : CommGroup.{u}} {X : pType.{u}}
     (e : π₁ X ≃g G) [is_conn 0 X] [is_trunc 1 X] : EMadd1 G 0 ≃* X :=
   EMadd1_pequiv_pEM1 G ⬝e* pEM1_pequiv e
 

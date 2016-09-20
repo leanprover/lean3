@@ -33,45 +33,37 @@ structure CommMonoid :=
 attribute CommMonoid.carrier [coercion]
 attribute CommMonoid.struct [instance]
 
-abbreviation signature := interval
-structure Group (i : signature) :=
+structure Group :=
 (carrier : Type) (struct : group carrier)
 
-definition MulGroup : Type := Group interval.zero
-definition AddGroup : Type := Group interval.one
 attribute Group.carrier [coercion]
 
-definition MulGroup.mk [constructor] [reducible] (G : Type) (H : group G) : MulGroup :=
-Group.mk _ G _
+definition AddGroup : Type := Group
+
 definition AddGroup.mk [constructor] [reducible] (G : Type) (H : add_group G) : AddGroup :=
-Group.mk _ G add_group.to_group
+Group.mk G H
 
-definition MulGroup.struct [reducible] (G : MulGroup) : group G := Group.struct G
 definition AddGroup.struct [reducible] (G : AddGroup) : add_group G :=
-@group.to_add_group _ (Group.struct G)
+Group.struct G
 
-attribute MulGroup.struct AddGroup.struct [instance] [priority 2000]
-attribute Group.struct [instance] [priority 800]
+attribute AddGroup.struct Group.struct [instance] [priority 2000]
 
-structure CommGroup (i : signature) :=
+structure CommGroup :=
 (carrier : Type) (struct : comm_group carrier)
 
-definition MulCommGroup : Type := CommGroup interval.zero
-definition AddCommGroup : Type := CommGroup interval.one
 attribute CommGroup.carrier [coercion]
 
-definition MulCommGroup.mk [constructor] [reducible] (G : Type) (H : comm_group G) : MulCommGroup :=
-CommGroup.mk _ G _
+definition AddCommGroup : Type := CommGroup
+
 definition AddCommGroup.mk [constructor] [reducible] (G : Type) (H : add_comm_group G) :
   AddCommGroup :=
-CommGroup.mk _ G add_comm_group.to_comm_group
+CommGroup.mk G H
 
-definition MulCommGroup.struct [reducible] (G : MulCommGroup) : comm_group G := CommGroup.struct G
 definition AddCommGroup.struct [reducible] (G : AddCommGroup) : add_comm_group G :=
-@comm_group.to_add_comm_group _ (CommGroup.struct G)
+CommGroup.struct G
 
-attribute MulCommGroup.struct AddCommGroup.struct [instance] [priority 2000]
-attribute CommGroup.struct [instance] [priority 800]
+attribute AddCommGroup.struct CommGroup.struct [instance] [priority 2000]
+
 
 -- structure AddSemigroup :=
 -- (carrier : Type) (struct : add_semigroup carrier)

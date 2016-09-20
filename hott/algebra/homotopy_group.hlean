@@ -36,13 +36,13 @@ namespace eq
 
   local attribute comm_group_homotopy_group [instance]
 
-  definition ghomotopy_group [constructor] (n : ℕ) (A : Type*) : MulGroup :=
-  MulGroup.mk (π[succ n] A) _
+  definition ghomotopy_group [constructor] (n : ℕ) (A : Type*) : Group :=
+  Group.mk (π[succ n] A) _
 
-  definition cghomotopy_group [constructor] (n : ℕ) (A : Type*) : MulCommGroup :=
-  MulCommGroup.mk (π[succ (succ n)] A) _
+  definition cghomotopy_group [constructor] (n : ℕ) (A : Type*) : CommGroup :=
+  CommGroup.mk (π[succ (succ n)] A) _
 
-  definition fundamental_group [constructor] (A : Type*) : MulGroup :=
+  definition fundamental_group [constructor] (A : Type*) : Group :=
   ghomotopy_group zero A
 
   notation `πg[`:95  n:0 ` +1]`:0 := ghomotopy_group n
@@ -249,7 +249,6 @@ namespace eq
   --             loop_space_succ_eq_in_concat, - + tr_compose],
   -- end
 
-  local attribute MulGroup MulCommGroup [reducible]
   definition is_homomorphism_inverse (A : Type*) (n : ℕ)
     : is_homomorphism (λp, p⁻¹ : (πag[n+2] A) → (πag[n+2] A)) :=
   begin
