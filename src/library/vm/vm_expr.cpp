@@ -147,6 +147,10 @@ vm_obj expr_macro_arg(vm_obj const & m, vm_obj const & i) {
     return to_obj(macro_arg(to_expr(m), to_unsigned(i)));
 }
 
+vm_obj expr_macro_def_name(vm_obj const & d) {
+    return to_obj(to_macro_definition(d).get_name());
+}
+
 static unsigned g_expr_macro_arg_fun_idx = -1;
 
 unsigned expr_cases_on(vm_obj const & o, buffer<vm_obj> & data) {
@@ -361,6 +365,7 @@ void initialize_vm_expr() {
     DECLARE_VM_BUILTIN("_expr_macro_arg",                  expr_macro_arg);
     DECLARE_VM_BUILTIN(name({"expr", "macro"}),            expr_macro);
     DECLARE_VM_BUILTIN(name({"expr", "mk_macro"}),         expr_mk_macro);
+    DECLARE_VM_BUILTIN(name({"expr", "macro_def_name"}),   expr_macro_def_name);
     DECLARE_VM_BUILTIN(name({"expr", "has_decidable_eq"}), expr_has_decidable_eq);
     DECLARE_VM_BUILTIN(name({"expr", "alpha_eqv"}),        expr_alpha_eqv);
     DECLARE_VM_BUILTIN(name({"expr", "to_string"}),        expr_to_string);

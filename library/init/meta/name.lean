@@ -40,8 +40,8 @@ definition name.to_string_with_sep (sep : string) : name → string
 | anonymous                := "[anonymous]"
 | (mk_string s anonymous)  := s
 | (mk_numeral v anonymous) := to_string v
-| (mk_string s n)          := name.to_string_with_sep n ++ "." ++ s
-| (mk_numeral v n)         := name.to_string_with_sep n ++ "." ++ to_string v
+| (mk_string s n)          := name.to_string_with_sep n ++ sep ++ s
+| (mk_numeral v n)         := name.to_string_with_sep n ++ sep ++ to_string v
 
 definition name.to_string : name → string :=
   name.to_string_with_sep "."

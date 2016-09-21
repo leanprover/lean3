@@ -58,6 +58,7 @@ class anf_transform_fn : public compiler_step_visitor {
     virtual expr visit_app(expr const & e) {
         buffer<expr> args;
         buffer<expr> lifted_args;
+        std::cout << "anf:" << e << std::endl;
         expr fn = get_app_args(e, args);
 
         if (is_constant(fn) && is_cases_on(m_ctx.env(), fn)) {
@@ -75,18 +76,21 @@ class anf_transform_fn : public compiler_step_visitor {
 
             return mk_app(fn, lifted_args);
         } else {
-            buffer<pair<name, expr>> & scope = this->m_bindings_stack.back();
-
             for (auto arg : args) {
                 auto n = mk_fresh_name();
                 auto local = mk_local(n, mk_neutral_expr());
-                scope.push_back(pair<name, expr>(n, arg));
+                // I'm scared this might be problematic, so doing it inside
+                // the loop.
+                auto binding = pair<name, expr>(n, visit(arg));
+                buffer<pair<name, expr>> & scope = this->m_bindings_stack.back();
+                scope.push_back(binding);
                 lifted_args.push_back(local);
             }
 
             if (!is_constant(fn)) {
                 auto n = mk_fresh_name();
                 auto fn_local = mk_local(n, mk_neutral_expr());
+                buffer<pair<name, expr>> & scope = this->m_bindings_stack.back();
                 scope.push_back(pair<name, expr>(n, fn));
                 return mk_app(fn_local, lifted_args);
             } else {
