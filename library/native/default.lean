@@ -26,6 +26,9 @@ definition assert_name : ir.expr → result name
 | (ir.expr.lit _) := mk_error "expected name, found: lit "
 | (ir.expr.mk_object _ _) := mk_error "expected name, found: obj "
 
+meta_definition mk_local (n : name) : expr :=
+  expr.local_const n n binder_info.default (expr.const n [])
+
 -- attribute [instance]
 -- definition state_functor (S : Type) : functor (state S) :=
 --   functor.mk (@state.map S)
@@ -88,7 +91,7 @@ meta_definition compile_expr_to_ir_expr : expr → result ir.expr
 | (expr.var i) := mk_error "there should be no bound variables in compiled terms"
 | (expr.sort _) := mk_error "found sort"
 | (expr.meta _ _) := mk_error "found meta"
-| (expr.local_const _ _ _ _) := mk_error "found local const"
+| (expr.local_const n _ _ _) := return $ ir.expr.name n
 | (expr.app f x) :=
   have head : name, from expr.const_name $ expr.app_fn (expr.app f x),
   have args : list expr, from expr.get_app_args (expr.app f x), do
@@ -110,7 +113,6 @@ meta_definition compile_app_expr_to_ir_stmt (head : name) (args : list expr) : r
   else mk_error "can only compile return in head position"
 
 meta_definition compile_expr_to_ir_stmt : expr -> result ir.stmt
-| (expr.sort _) := mk_error "found sort"
 | (expr.const n _) := mk_error "found const"
 | (expr.meta _ _) := mk_error "found meta"
 | (expr.local_const _ _ _ _) := mk_error "found local const"
@@ -122,7 +124,9 @@ meta_definition compile_expr_to_ir_stmt : expr -> result ir.stmt
   else mk_error "unexpected expr in head position"
 | (expr.lam _ _ _ _) := mk_error "found lam"
 | (expr.pi _ _ _ _) := mk_error "found pi, should not be translating a Pi for any reason (yet ...)"
-| (expr.elet n _ v body) := ir.stmt.letb n <$> compile_expr_to_ir_expr v <*> compile_expr_to_ir_stmt body
+| (expr.elet n _ v body) :=
+  ir.stmt.letb n <$> compile_expr_to_ir_expr v <*>
+  compile_expr_to_ir_stmt (expr.instantiate_vars body [mk_local n])
 | e' := ir.stmt.e <$> compile_expr_to_ir_expr e'
 
 meta_definition get_arity : expr -> nat
@@ -133,9 +137,17 @@ definition repeat {A : Type} : nat -> A -> list A
 | 0 _ := []
 | (n + 1) a := a :: repeat n a
 
-meta_definition compile_decl_to_ir (decl_name : name) (arity : nat) (body : expr) : result ir.decl := do
+definition zip {A B : Type} : list A → list B → list (A × B)
+| [] [] := []
+| [] (y :: ys) := []
+| (x :: xs) [] := []
+| (x :: xs) (y :: ys) := (x, y) :: zip xs ys
+
+meta_definition compile_decl_to_ir (decl_name : name) (args : list name) (body : expr) : result ir.decl := do
   system.result.and_then (compile_expr_to_ir_stmt body)
-  (fun (body' : ir.stmt), pure (ir.decl.mk decl_name (repeat arity (ir.ty.ref ir.ty.object)) ir.ty.object body'))
+  (fun (body' : ir.stmt),
+  let params := (zip args (repeat (list.length args) (ir.ty.ref ir.ty.object))) in
+  pure (ir.decl.mk decl_name params ir.ty.object body'))
 
 meta_definition mangle_name (n : name) : format :=
 to_fmt $ name.to_string_with_sep "_" n
@@ -174,8 +186,14 @@ meta_definition format_concat : list format → format
 | [] := format.nil
 | (f :: fs) := f ++ format_concat fs
 
-meta_definition format_argument_list (tys : list ir.ty) : format :=
-  format.bracket "(" ")" (format_concat (intersperse (format.of_string "," ++ format.space) (list.map format_ir_ty tys)))
+meta_definition format_param (param : name × ir.ty) :=
+  format_ir_ty (prod.pr2 param) ++ format.space ++ mangle_name (prod.pr1 param)
+
+meta_definition comma_sep (items : list format) : format :=
+  format_concat (intersperse (format.of_string "," ++ format.space) items)
+
+meta_definition format_argument_list (tys : list (name × ir.ty)) : format :=
+  format.bracket "(" ")" (comma_sep (list.map format_param tys))
 
 -- meta_definition format_prototypes ()
 meta_definition format_ir (decl : ir.decl) : format :=
@@ -196,8 +214,6 @@ private meta_definition take_arguments' : expr → list name → (list name × e
 | (expr.lam n _ _ body) ns := take_arguments' body (n :: ns)
 | e' ns := (ns, e')
 
-meta_definition mk_local (n : name) : expr :=
-  expr.local_const n n binder_info.default (expr.const n [])
 
 meta_definition take_arguments : expr → (list name × expr)
 | e :=
@@ -208,8 +224,8 @@ meta_definition take_arguments : expr → (list name × expr)
 
 meta_definition compile_decl (decl_name : name) (e : expr) : format :=
   have arity : nat, from get_arity e,
-  have args_and_body : _, from take_arguments e,
-  have ir : _, from compile_decl_to_ir decl_name arity (prod.pr2 args_and_body),
+  let (args, body) := take_arguments e in
+  have ir : _, from compile_decl_to_ir decl_name args body,
   unwrap_or_else ir format_ir (fun e, error.cases_on e (fun s, format.of_string s))
 
 end native
