@@ -83,6 +83,9 @@ meta constant expr.lower_vars    : expr → nat → nat → expr
 /- (copy_pos_info src tgt) copy position information from src to tgt. -/
 meta constant expr.copy_pos_info : expr → expr → expr
 
+meta_constant expr.is_internal_cnstr : expr → option unsigned
+meta_constant expr.get_nat_value : expr → option nat
+
 namespace expr
 open decidable
 

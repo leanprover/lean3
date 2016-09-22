@@ -14,9 +14,10 @@ inductive literal
 
 inductive expr
 | call : name -> list name -> expr
-| name : name -> expr
+| global : name -> expr
 | lit : literal -> expr
 | mk_object : nat -> list name -> expr
+| locl : name → expr
 
 inductive stmt : Type
 | ite : expr -> stmt -> stmt -> stmt

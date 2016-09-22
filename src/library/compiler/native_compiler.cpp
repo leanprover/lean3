@@ -668,6 +668,10 @@ void native_compile(environment const & env,
         expr body = p.second;
         vm_obj result = S.invoke(cc, to_obj(p.first), to_obj(p.second));
         auto fmt = to_format(result);
+        lean_output << "expr:\n";
+        lean_output << p.second << std::endl;
+        lean_output << "-------------------------------";
+        lean_output << "ir:\n";
         lean_output << fmt << std::endl;
         compiler(n, body);
     }

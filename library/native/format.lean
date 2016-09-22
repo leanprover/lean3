@@ -1,0 +1,88 @@
+import init.meta.format
+import native.ir
+
+definition intersperse {A : Type} (elem : A) : list A -> list A
+| [] := []
+| (x :: []) := [x]
+| (x :: xs) := x :: elem :: intersperse xs
+
+meta_definition format_concat : list format → format
+| [] := format.nil
+| (f :: fs) := f ++ format_concat fs
+
+meta_definition comma_sep (items : list format) : format :=
+format_concat
+  (intersperse (format.of_string "," ++ format.space) items)
+
+namespace format_cpp
+
+meta_definition mangle_name (n : name) : format :=
+to_fmt $ name.to_string_with_sep "_" n
+
+private meta_definition mk_constructor_args : list name → list format
+| [] := []
+| (n :: ns) := mangle_name n :: mk_constructor_args ns
+
+private meta_definition mk_constructor
+  (arity : nat)
+  (fs : list name) : format :=
+  "lean::mk_constructor(" ++ to_fmt arity ++ "," ++
+  (format.bracket "{" "}" (comma_sep $ mk_constructor_args fs))
+
+private meta_definition mk_call (symbol : name) (args : list name) : format :=
+  mangle_name symbol ++ (format.bracket "(" ")" (comma_sep $ list.map mangle_name args))
+
+meta_definition literal : ir.literal → format
+| (ir.literal.nat n) := to_fmt "lean::mk_vm_nat(" ++ to_fmt n ++ ")"
+
+meta_definition expr : ir.expr -> format
+| (ir.expr.call f xs) := mk_call f xs
+| (ir.expr.mk_object n fs) :=
+  if n = 0
+  -- Over time I should remove these special case functions,
+  -- and just use the definition language of the IR.
+  then to_fmt "lean::mk_vm_simple(0)"
+  else mk_constructor n fs
+| (ir.expr.global n) :=
+  mk_call n []
+| (ir.expr.locl n) :=
+  mangle_name n
+| (ir.expr.lit l) :=
+   literal l
+
+meta_definition stmt : ir.stmt → format
+| (ir.stmt.e e) := expr e
+| (ir.stmt.return e) :=
+  format.of_string "return"  ++
+  format.space ++
+  expr e ++ format.of_string ";"
+| (ir.stmt.letb n v body) :=
+  to_fmt "lean::vm_obj " ++ (mangle_name n) ++ (to_fmt " = ") ++ (expr v) ++ to_fmt ";" ++
+  format.line ++ stmt body
+| _ := format.of_string "NYI"
+
+meta_definition ty : ir.ty → format
+| ir.ty.object := format.of_string "lean::vm_obj"
+| (ir.ty.ref T) := ty T ++ format.of_string " const &"
+| (ir.ty.mut_ref T) := ty T ++ format.of_string " &"
+| (ir.ty.tag _ _) := format.of_string "an_error"
+
+meta_definition format_param (param : name × ir.ty) :=
+  ty (prod.pr2 param) ++
+  format.space ++
+  mangle_name (prod.pr1 param)
+
+meta_definition format_argument_list (tys : list (name × ir.ty)) : format :=
+  format.bracket "(" ")" (comma_sep (list.map format_param tys))
+
+-- meta_definition format_prototypes ()
+meta_definition decl (d : ir.decl) : format :=
+  match d with
+  | ir.decl.mk n arg_tys ret_ty body :=
+    have body : format, from stmt body,
+    (ty ret_ty) ++ format.space ++ (mangle_name n) ++
+    (format_argument_list arg_tys) ++ format.space ++
+    (format.bracket "{" "}" $ format.line ++ (format.nest 4 body) ++ format.line)
+  end
+
+end format_cpp
