@@ -17,7 +17,8 @@ structure mul_zero_class [class] (A : Type) extends has_mul A, has_zero A :=
 structure zero_ne_one_class [class] (A : Type) extends has_zero A, has_one A :=
 (zero_ne_one : zero ≠ one)
 
-structure semiring [class] (A : Type) extends add_comm_monoid A, monoid A,
-  distrib A, mul_zero_class A, zero_ne_one_class A
+structure semiring [class] (A : Type) extends comm_monoid A renaming
+  mul→add mul_assoc→add_assoc one→zero one_mul→zero_add mul_one→add_zero mul_comm→add_comm,
+  monoid A, distrib A, mul_zero_class A, zero_ne_one_class A
 
 end algebra
