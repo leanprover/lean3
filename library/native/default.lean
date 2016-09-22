@@ -59,23 +59,23 @@ meta_definition compile_expr_app_to_ir_expr
   (action : expr -> result ir.expr) : result ir.expr := do
     args' <- @monad.sequence result _ _ $ list.map action args,
     if expr.is_constant head = bool.tt
-    then match expr.is_internal_cnstr head with
+    then match is_internal_cnstr head with
     | option.none := mk_call (expr.const_name head) args'
     | option.some n := mk_object n args'
     end else (mk_error ("unsupported call position" ++ (to_string head)))
 
 meta_definition compile_expr_macro_to_ir_expr (e : expr) : result ir.expr :=
-  match expr.get_nat_value e with
+  match native.get_nat_value e with
   | option.none := mk_error "unsupported macro"
   | option.some n := mk_nat_literal n
   end
-  
+
 meta_definition compile_local (n : name) : result name :=
   return $ (mk_str_name "_$local$_" (name.to_string_with_sep "_" n))
 
 meta_definition compile_expr_to_ir_expr : expr → result ir.expr
 | (expr.const n ls) :=
-  match expr.is_internal_cnstr (expr.const n ls) with
+  match native.is_internal_cnstr (expr.const n ls) with
   | option.none := pure $ ir.expr.global n
   | option.some arity := pure $ ir.expr.mk_object (unsigned.to_nat arity) []
   end

@@ -24,8 +24,6 @@ Author: Leonardo de Moura
 #include "library/vm/vm_option.h"
 #include "library/vm/vm_level.h"
 #include "library/vm/vm_list.h"
-#include "library/compiler/simp_inductive.h"
-#include "library/compiler/nat_value.h"
 
 namespace lean {
 struct vm_macro_definition : public vm_external {

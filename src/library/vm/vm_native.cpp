@@ -9,6 +9,8 @@ Author: Jared Roesch
 #include "library/vm/vm.h"
 #include "library/vm/vm_string.h"
 #include "library/vm/vm_expr.h"
+#include "library/compiler/simp_inductive.h"
+#include "library/compiler/nat_value.h"
 
 namespace lean {
 
