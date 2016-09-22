@@ -186,7 +186,7 @@ calc
     ... ≃* π[k] A                           : (homotopy_group_pequiv_loop_ptrunc k A)⁻¹ᵉ*
 
 definition freudenthal_homotopy_group_isomorphism (A : Type*) {n k : ℕ} [is_conn n A]
-  (H : k + 1 ≤ 2 * n) : πg[k+1 +1] (psusp A) ≃g πg[k+1] A :=
+  (H : k + 1 ≤ 2 * n) : πg[k+2] (psusp A) ≃g πg[k + 1] A :=
 begin
   fapply isomorphism_of_equiv,
   { exact equiv_of_pequiv (freudenthal_homotopy_group_pequiv A H)},
@@ -206,7 +206,7 @@ namespace susp
   freudenthal_homotopy_group_pequiv (iterate_psusp n A) H
 
   definition iterate_psusp_stability_isomorphism (A : Type*) {k n : ℕ} [is_conn 0 A]
-    (H : k + 1 ≤ 2 * n) : πg[k+1 +1] (iterate_psusp (n + 1) A) ≃g πg[k+1] (iterate_psusp n A) :=
+    (H : k + 1 ≤ 2 * n) : πg[k+2] (iterate_psusp (n + 1) A) ≃g πg[k+1] (iterate_psusp n A) :=
   have is_conn n (iterate_psusp n A), by rewrite [-zero_add n]; exact _,
   freudenthal_homotopy_group_isomorphism (iterate_psusp n A) H
 

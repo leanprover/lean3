@@ -6,9 +6,9 @@ Authors: Floris van Doorn
 homotopy groups of a pointed space
 -/
 
-import .trunc_group types.trunc .group_theory
+import .trunc_group types.trunc .group_theory types.nat.hott
 
-open nat eq pointed trunc is_trunc algebra group function equiv unit is_equiv
+open nat eq pointed trunc is_trunc algebra group function equiv unit is_equiv nat
 
 -- TODO: consistently make n an argument before A
 namespace eq
@@ -32,17 +32,18 @@ namespace eq
 
   local attribute comm_group_homotopy_group [instance]
 
-  definition ghomotopy_group [constructor] (n : ℕ) (A : Type*) : Group :=
-  Group.mk (π[succ n] A) _
+  definition ghomotopy_group [constructor] : Π(n : ℕ) [is_succ n] (A : Type*), Group
+  | (succ n) x A := Group.mk (π[succ n] A) _
 
-  definition cghomotopy_group [constructor] (n : ℕ) (A : Type*) : CommGroup :=
-  CommGroup.mk (π[succ (succ n)] A) _
+  definition cghomotopy_group [constructor] :
+    Π(n : ℕ) [is_at_least_two n] (A : Type*), CommGroup
+  | (succ (succ n)) x A := CommGroup.mk (π[succ (succ n)] A) _
 
   definition fundamental_group [constructor] (A : Type*) : Group :=
-  ghomotopy_group zero A
+  ghomotopy_group 1 A
 
-  notation `πg[`:95  n:0 ` +1]`:0 := ghomotopy_group n
-  notation `πag[`:95 n:0 ` +2]`:0 := cghomotopy_group n
+  notation `πg[`:95  n:0 `]`:0 := ghomotopy_group n
+  notation `πag[`:95 n:0 `]`:0 := cghomotopy_group n
 
   notation `π₁` := fundamental_group -- should this be notation for the group or pointed type?
 
@@ -92,9 +93,9 @@ namespace eq
   definition homotopy_group_succ_in (A : Type*) (n : ℕ) : π[n + 1] A ≃* π[n] (Ω A) :=
   ptrunc_pequiv_ptrunc 0 (loopn_succ_in A n)
 
-  definition ghomotopy_group_succ_out (A : Type*) (n : ℕ) : πg[n +1] A = π₁ (Ω[n] A) := idp
+  definition ghomotopy_group_succ_out (A : Type*) (n : ℕ) : πg[n + 1] A = π₁ (Ω[n] A) := idp
 
-  definition homotopy_group_succ_in_con {A : Type*} {n : ℕ} (g h : πg[succ n +1] A) :
+  definition homotopy_group_succ_in_con {A : Type*} {n : ℕ} (g h : πg[n + 2] A) :
     homotopy_group_succ_in A (succ n) (g * h) =
     homotopy_group_succ_in A (succ n) g * homotopy_group_succ_in A (succ n) h :=
   begin
@@ -102,7 +103,7 @@ namespace eq
     apply ap tr, apply loopn_succ_in_con
   end
 
-  definition ghomotopy_group_succ_in (A : Type*) (n : ℕ) : πg[succ n +1] A ≃g πg[n +1] (Ω A) :=
+  definition ghomotopy_group_succ_in (A : Type*) (n : ℕ) : πg[n + 2] A ≃g πg[n + 1] (Ω A) :=
   begin
     fapply isomorphism_of_equiv,
     { exact homotopy_group_succ_in A (succ n)},
@@ -159,7 +160,7 @@ namespace eq
 
   definition homotopy_group_functor_mul [constructor] (n : ℕ) {A B : Type*} (g : A →* B)
     (p q : πg[n+1] A) :
-    (π→[n + 1] g) (p *[πg[n+1] A] q) = (π→[n + 1] g) p *[πg[n+1] B] (π→[n + 1] g) q :=
+    (π→[n + 1] g) (p *[πg[n+1] A] q) = (π→[n+1] g) p *[πg[n+1] B] (π→[n + 1] g) q :=
   begin
     unfold [ghomotopy_group, homotopy_group] at *,
     refine @trunc.rec _ _ _ (λq, !is_trunc_eq) _ p, clear p, intro p,
@@ -167,22 +168,25 @@ namespace eq
     apply ap tr, apply apn_con
   end
 
-  definition homotopy_group_homomorphism [constructor] (n : ℕ) {A B : Type*} (f : A →* B)
-    : πg[n+1] A →g πg[n+1] B :=
+  definition homotopy_group_homomorphism [constructor] (n : ℕ) [H : is_succ n] {A B : Type*}
+    (f : A →* B) : πg[n] A →g πg[n] B :=
   begin
-    fconstructor,
+    induction H with n, fconstructor,
     { exact homotopy_group_functor (n+1) f},
     { apply homotopy_group_functor_mul}
   end
 
+  notation `π→g[`:95 n:0 `]`:0 := homotopy_group_homomorphism n
+
   definition homotopy_group_isomorphism_of_pequiv [constructor] (n : ℕ) {A B : Type*} (f : A ≃* B)
     : πg[n+1] A ≃g πg[n+1] B :=
   begin
-    apply isomorphism.mk (homotopy_group_homomorphism n f),
+    apply isomorphism.mk (homotopy_group_homomorphism (succ n) f),
     esimp, apply is_equiv_trunc_functor, apply is_equiv_apn,
   end
 
-  definition homotopy_group_add (A : Type*) (n m : ℕ) : πg[n+m +1] A ≃g πg[n +1] (Ω[m] A) :=
+  definition homotopy_group_add (A : Type*) (n m : ℕ) :
+    πg[n+m+1] A ≃g πg[n+1] (Ω[m] A) :=
   begin
     revert A, induction m with m IH: intro A,
     { reflexivity},
@@ -246,7 +250,5 @@ namespace eq
   begin
     intro g h, exact ap inv (mul.comm g h) ⬝ mul_inv h g,
   end
-
-  notation `π→g[`:95 n:0 ` +1]`:0 := homotopy_group_homomorphism n
 
 end eq
