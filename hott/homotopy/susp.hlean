@@ -321,19 +321,19 @@ namespace susp
     { intro f, exact ap1 f ∘* loop_susp_unit X},
     { intro g, exact loop_susp_counit Y ∘* psusp_functor g},
     { intro g, apply eq_of_phomotopy, esimp,
-      refine !pwhisker_right !ap1_compose ⬝* _,
+      refine !pwhisker_right !ap1_pcompose ⬝* _,
       refine !passoc ⬝* _,
       refine !pwhisker_left !loop_susp_unit_natural⁻¹* ⬝* _,
       refine !passoc⁻¹* ⬝* _,
       refine !pwhisker_right !loop_susp_counit_unit ⬝* _,
-      apply pid_comp},
+      apply pid_pcompose},
     { intro f, apply eq_of_phomotopy, esimp,
       refine !pwhisker_left !psusp_functor_compose ⬝* _,
       refine !passoc⁻¹* ⬝* _,
       refine !pwhisker_right !loop_susp_counit_natural⁻¹* ⬝* _,
       refine !passoc ⬝* _,
       refine !pwhisker_left !loop_susp_unit_counit ⬝* _,
-      apply comp_pid},
+      apply pcompose_pid},
   end
 
   definition susp_adjoint_loop_nat_right (f : psusp X →* Y) (g : Y →* Z)
@@ -342,7 +342,7 @@ namespace susp
     esimp [susp_adjoint_loop],
     refine _ ⬝* !passoc,
     apply pwhisker_right,
-    apply ap1_compose
+    apply ap1_pcompose
   end
 
   definition susp_adjoint_loop_nat_left (f : Y →* Ω Z) (g : X →* Y)

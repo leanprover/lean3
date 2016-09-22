@@ -34,13 +34,13 @@ namespace is_trunc
       have H3 : is_contr (ptrunc k A), from is_conn_of_le A (of_nat_le_of_nat H),
       have H4 : is_contr (Ω[k](ptrunc k A)), from !is_trunc_loop_of_is_trunc,
       apply is_trunc_equiv_closed_rev,
-      { apply equiv_of_pequiv (phomotopy_group_pequiv_loop_ptrunc k A)}
+      { apply equiv_of_pequiv (homotopy_group_pequiv_loop_ptrunc k A)}
   end
 
   -- Corollary 8.3.3
   section
   open sphere sphere.ops sphere_index
-  theorem homotopy_group_sphere_le (n k : ℕ) (H : k < n) : is_contr (π[k] (S. n)) :=
+  theorem homotopy_group_sphere_le (n k : ℕ) (H : k < n) : is_contr (π[k] (S* n)) :=
   begin
     cases n with n,
     { exfalso, apply not_lt_zero, exact H},
@@ -54,12 +54,12 @@ namespace is_trunc
   @(trivial_homotopy_group_of_is_conn (pfiber f) H2) (H pt)
 
   theorem homotopy_group_trunc_of_le (A : Type*) (n k : ℕ) (H : k ≤ n)
-    : π*[k] (ptrunc n A) ≃* π*[k] A :=
+    : π[k] (ptrunc n A) ≃* π[k] A :=
   begin
-    refine !phomotopy_group_pequiv_loop_ptrunc ⬝e* _,
+    refine !homotopy_group_pequiv_loop_ptrunc ⬝e* _,
     refine loopn_pequiv_loopn _ (ptrunc_ptrunc_pequiv_left _ _) ⬝e* _,
     exact of_nat_le_of_nat H,
-    exact !phomotopy_group_pequiv_loop_ptrunc⁻¹ᵉ*,
+    exact !homotopy_group_pequiv_loop_ptrunc⁻¹ᵉ*,
   end
 
   /- Corollaries of the LES of homotopy groups -/
@@ -96,11 +96,11 @@ namespace is_trunc
   theorem is_equiv_π_of_is_connected.{u v} {A : pType.{u}} {B : pType.{v}} {n k : ℕ} (f : A →* B)
     (H2 : k ≤ n) [H : is_conn_fun n f] : is_equiv (π→[k] f) :=
   begin
-    have π→*[k] pdown.{v u} ∘* π→*[k] (plift_functor f) ∘* π→*[k] pup.{u v} ~* π→*[k] f,
+    have π→[k] pdown.{v u} ∘* π→[k] (plift_functor f) ∘* π→[k] pup.{u v} ~* π→[k] f,
     begin
-      refine pwhisker_left _ !phomotopy_group_functor_compose⁻¹* ⬝* _,
-      refine !phomotopy_group_functor_compose⁻¹* ⬝* _,
-      apply phomotopy_group_functor_phomotopy, apply plift_functor_phomotopy
+      refine pwhisker_left _ !homotopy_group_functor_compose⁻¹* ⬝* _,
+      refine !homotopy_group_functor_compose⁻¹* ⬝* _,
+      apply homotopy_group_functor_phomotopy, apply plift_functor_phomotopy
     end,
     have π→[k] pdown.{v u} ∘ π→[k] (plift_functor f) ∘ π→[k] pup.{u v} ~ π→[k] f, from this,
     apply is_equiv.homotopy_closed, rotate 1,
@@ -112,8 +112,8 @@ namespace is_trunc
   end
 
   definition π_equiv_π_of_is_connected {A B : Type*} {n k : ℕ} (f : A →* B)
-     (H2 : k ≤ n) [H : is_conn_fun n f] : π*[k] A ≃* π*[k] B :=
-  pequiv_of_pmap (π→*[k] f) (is_equiv_π_of_is_connected f H2)
+     (H2 : k ≤ n) [H : is_conn_fun n f] : π[k] A ≃* π[k] B :=
+  pequiv_of_pmap (π→[k] f) (is_equiv_π_of_is_connected f H2)
 
   -- TODO: prove this for A and B in different universe levels
   theorem is_surjective_π_of_is_connected.{u} {A B : pType.{u}} (n : ℕ) (f : A →* B)
@@ -128,7 +128,7 @@ namespace is_trunc
   -/
   definition whitehead_principle (n : ℕ₋₂) {A B : Type}
     [HA : is_trunc n A] [HB : is_trunc n B] (f : A → B) (H' : is_equiv (trunc_functor 0 f))
-    (H : Πa k, is_equiv (π→*[k + 1] (pmap_of_map f a))) : is_equiv f :=
+    (H : Πa k, is_equiv (π→[k + 1] (pmap_of_map f a))) : is_equiv f :=
   begin
     revert A B HA HB f H' H, induction n with n IH: intros,
     { apply is_equiv_of_is_contr},
@@ -138,24 +138,24 @@ namespace is_trunc
       apply IH, do 2 (esimp; exact _),
       { rexact H a 0},
       intro p k,
-      have is_equiv (π→*[k + 1] (Ω→(pmap_of_map f a))),
-        from is_equiv_phomotopy_group_functor_ap1 (k+1) (pmap_of_map f a),
+      have is_equiv (π→[k + 1] (Ω→(pmap_of_map f a))),
+        from is_equiv_homotopy_group_functor_ap1 (k+1) (pmap_of_map f a),
       have Π(b : A) (p : a = b),
-        is_equiv (pmap.to_fun (π→*[k + 1] (pmap_of_map (ap f) p))),
+        is_equiv (pmap.to_fun (π→[k + 1] (pmap_of_map (ap f) p))),
       begin
         intro b p, induction p, apply is_equiv.homotopy_closed, exact this,
-        refine phomotopy_group_functor_phomotopy _ _,
+        refine homotopy_group_functor_phomotopy _ _,
         apply ap1_pmap_of_map
       end,
-      have is_equiv (phomotopy_group_pequiv _
+      have is_equiv (homotopy_group_pequiv _
                       (pequiv_of_eq_pt (!idp_con⁻¹ : ap f p = Ω→ (pmap_of_map f a) p)) ∘
-           pmap.to_fun (π→*[k + 1] (pmap_of_map (ap f) p))),
+           pmap.to_fun (π→[k + 1] (pmap_of_map (ap f) p))),
       begin
         apply is_equiv_compose, exact this a p,
       end,
       apply is_equiv.homotopy_closed, exact this,
-      refine !phomotopy_group_functor_compose⁻¹* ⬝* _,
-      apply phomotopy_group_functor_phomotopy,
+      refine !homotopy_group_functor_compose⁻¹* ⬝* _,
+      apply homotopy_group_functor_phomotopy,
       fapply phomotopy.mk,
       { esimp, intro q, refine !idp_con⁻¹},
       { esimp, refine !idp_con⁻¹},
@@ -165,23 +165,23 @@ namespace is_trunc
 
   definition whitehead_principle_pointed (n : ℕ₋₂) {A B : Type*}
     [HA : is_trunc n A] [HB : is_trunc n B] [is_conn 0 A] (f : A →* B)
-    (H : Πk, is_equiv (π→*[k] f)) : is_equiv f :=
+    (H : Πk, is_equiv (π→[k] f)) : is_equiv f :=
   begin
     apply whitehead_principle n, rexact H 0,
     intro a k, revert a, apply is_conn.elim -1,
-    have is_equiv (π→*[k + 1] (pointed_eta_pequiv B ⬝e* (pequiv_of_eq_pt (respect_pt f))⁻¹ᵉ*)
-           ∘* π→*[k + 1] f ∘* π→*[k + 1] (pointed_eta_pequiv A)⁻¹ᵉ*),
+    have is_equiv (π→[k + 1] (pointed_eta_pequiv B ⬝e* (pequiv_of_eq_pt (respect_pt f))⁻¹ᵉ*)
+           ∘* π→[k + 1] f ∘* π→[k + 1] (pointed_eta_pequiv A)⁻¹ᵉ*),
     begin
       apply is_equiv_compose
-              (π→*[k + 1] (pointed_eta_pequiv B ⬝e* (pequiv_of_eq_pt (respect_pt f))⁻¹ᵉ*)),
-      apply is_equiv_compose (π→*[k + 1] f),
+              (π→[k + 1] (pointed_eta_pequiv B ⬝e* (pequiv_of_eq_pt (respect_pt f))⁻¹ᵉ*)),
+      apply is_equiv_compose (π→[k + 1] f),
       all_goals apply is_equiv_homotopy_group_functor,
     end,
     refine @(is_equiv.homotopy_closed _) _ this _,
     apply to_homotopy,
-    refine pwhisker_left _ !phomotopy_group_functor_compose⁻¹* ⬝* _,
-    refine !phomotopy_group_functor_compose⁻¹* ⬝* _,
-    apply phomotopy_group_functor_phomotopy, apply phomotopy_pmap_of_map
+    refine pwhisker_left _ !homotopy_group_functor_compose⁻¹* ⬝* _,
+    refine !homotopy_group_functor_compose⁻¹* ⬝* _,
+    apply homotopy_group_functor_phomotopy, apply phomotopy_pmap_of_map
   end
 
   open pointed.ops
@@ -236,7 +236,7 @@ namespace is_trunc
   have H3 : Πa, is_contr (ptrunc n (pfiber (pmap_of_map f a))),
   begin
     intro a, apply is_contr_of_trivial_homotopy_nat_pointed n,
-    { intro k H, apply is_trunc_equiv_closed_rev, exact phomotopy_group_ptrunc_of_le H _,
+    { intro k H, apply is_trunc_equiv_closed_rev, exact homotopy_group_ptrunc_of_le H _,
       rexact @is_contr_of_is_embedding_of_is_surjective +3ℕ
                (LES_of_homotopy_groups (pmap_of_map f a)) (k, 0)
                (is_exact_LES_of_homotopy_groups _ _)

@@ -255,29 +255,29 @@ namespace sphere
 
   namespace ops
     abbreviation S := sphere
-    notation `S.` := psphere
+    notation `S*` := psphere
   end ops
   open sphere.ops
 
   definition sphere_minus_one : S -1 = empty := idp
   definition sphere_succ [unfold_full] (n : ℕ₋₁) : S n.+1 = susp (S n) := idp
-  definition psphere_succ [unfold_full] (n : ℕ) : S. (n + 1) = psusp (S. n) := idp
+  definition psphere_succ [unfold_full] (n : ℕ) : S* (n + 1) = psusp (S* n) := idp
   definition psphere_eq_iterate_susp (n : ℕ)
-    : S. n = pointed.MK (iterate_susp (succ n) empty) !north :=
+    : S* n = pointed.MK (iterate_susp (succ n) empty) !north :=
   begin
     esimp,
     apply ap (λx, pointed.MK (susp x) (@north x)); apply ap (λx, iterate_susp x empty),
     apply add_one_sub_one
   end
 
-  definition equator [constructor] (n : ℕ) : S. n →* Ω (S. (succ n)) :=
-  loop_susp_unit (S. n)
+  definition equator [constructor] (n : ℕ) : S* n →* Ω (S* (succ n)) :=
+  loop_susp_unit (S* n)
 
-  definition surf {n : ℕ} : Ω[n] S. n :=
+  definition surf {n : ℕ} : Ω[n] (S* n) :=
   begin
     induction n with n s,
     { exact @base 0},
-    { exact (loop_space_succ_in (S. (succ n)) n)⁻¹ᵉ* (apn n (equator n) s), }
+    { exact (loopn_succ_in (S* (succ n)) n)⁻¹ᵉ* (apn n (equator n) s), }
   end
 
   definition bool_of_sphere [unfold 1] : S 0 → bool :=
@@ -293,24 +293,24 @@ namespace sphere
            (λb, match b with | tt := idp | ff := idp end)
            (λx, proof susp.rec_on x idp idp (empty.rec _) qed)
 
-  definition psphere_pequiv_pbool : S. 0 ≃* pbool :=
+  definition psphere_pequiv_pbool : S* 0 ≃* pbool :=
   pequiv_of_equiv sphere_equiv_bool idp
 
   definition sphere_eq_bool : S 0 = bool :=
   ua sphere_equiv_bool
 
-  definition sphere_eq_pbool : S. 0 = pbool :=
+  definition sphere_eq_pbool : S* 0 = pbool :=
   pType_eq sphere_equiv_bool idp
 
   -- TODO1: the commented-out part makes the forward function below "apn _ surf" (the next def also)
   -- TODO2: we could make this a pointed equivalence
-  definition pmap_sphere (A : Type*) (n : ℕ) : (S. n →* A) ≃ Ω[n] A :=
+  definition psphere_pmap_equiv (A : Type*) (n : ℕ) : (S* n →* A) ≃ Ω[n] A :=
   begin
     -- fapply equiv_change_fun,
     -- {
       revert A, induction n with n IH: intro A,
-      { refine _ ⬝e !pmap_bool_equiv, exact equiv_ppcompose_right psphere_pequiv_pbool⁻¹ᵉ*},
-      { refine susp_adjoint_loop (S. n) A ⬝e !IH ⬝e !loop_space_succ_in⁻¹ᵉ* }
+      { refine _ ⬝e !pmap_bool_equiv, exact pequiv_ppcompose_right psphere_pequiv_pbool⁻¹ᵉ*},
+      { refine susp_adjoint_loop (S* n) A ⬝e !IH ⬝e !loopn_succ_in⁻¹ᵉ* }
     -- },
     -- { intro f, exact apn n f surf},
     -- { revert A, induction n with n IH: intro A f,
@@ -318,25 +318,25 @@ namespace sphere
     --   { exact sorry}}
   end
 
-  -- definition pmap_sphere' (A : Type*) (n : ℕ) : (S. n →* A) ≃ Ω[n] A :=
+  -- definition psphere_pmap_equiv' (A : Type*) (n : ℕ) : (S* n →* A) ≃ Ω[n] A :=
   -- begin
   --   fapply equiv.MK,
   --   { intro f, exact apn n f surf },
   --   { revert A, induction n with n IH: intro A p,
   --     { exact !pmap_bool_equiv⁻¹ᵉ p ∘* psphere_pequiv_pbool },
-  --     { refine (susp_adjoint_loop (S. n) A)⁻¹ᵉ (IH (Ω A) _),
-  --       exact loop_space_succ_in A n p }},
+  --     { refine (susp_adjoint_loop (S* n) A)⁻¹ᵉ (IH (Ω A) _),
+  --       exact loopn_succ_in A n p }},
   --   { exact sorry},
   --   { exact sorry}
   -- end
 
-  protected definition elim {n : ℕ} {P : Type*} (p : Ω[n] P) : S. n →* P :=
-  to_inv !pmap_sphere p
+  protected definition elim {n : ℕ} {P : Type*} (p : Ω[n] P) : S* n →* P :=
+  to_inv !psphere_pmap_equiv p
 
   -- definition elim_surf {n : ℕ} {P : Type*} (p : Ω[n] P) : apn n (sphere.elim p) surf = p :=
   -- begin
   --   induction n with n IH,
-  --   { esimp [apn,surf,sphere.elim,pmap_sphere], apply sorry},
+  --   { esimp [apn,surf,sphere.elim,psphere_pmap_equiv], apply sorry},
   --   { apply sorry}
   -- end
 
@@ -354,7 +354,7 @@ namespace sphere
       apply is_conn_susp }
   end
 
-  theorem is_conn_psphere [instance] (n : ℕ) : is_conn (n.-1) (S. n) :=
+  theorem is_conn_psphere [instance] (n : ℕ) : is_conn (n.-1) (S* n) :=
   transport (λx, is_conn x (sphere n)) (of_nat_sub_one n) (is_conn_sphere n)
 
 end sphere
@@ -364,12 +364,12 @@ open sphere sphere.ops
 namespace is_trunc
   open trunc_index
   variables {n : ℕ} {A : Type}
-  definition is_trunc_of_pmap_sphere_constant
-    (H : Π(a : A) (f : S. n →* pointed.Mk a) (x : S n), f x = f base) : is_trunc (n.-2.+1) A :=
+  definition is_trunc_of_psphere_pmap_equiv_constant
+    (H : Π(a : A) (f : S* n →* pointed.Mk a) (x : S n), f x = f base) : is_trunc (n.-2.+1) A :=
   begin
     apply iff.elim_right !is_trunc_iff_is_contr_loop,
     intro a,
-    apply is_trunc_equiv_closed, apply pmap_sphere,
+    apply is_trunc_equiv_closed, apply psphere_pmap_equiv,
     fapply is_contr.mk,
     { exact pmap.mk (λx, a) idp},
     { intro f, fapply pmap_eq,
@@ -380,27 +380,27 @@ namespace is_trunc
   definition is_trunc_iff_map_sphere_constant
     (H : Π(f : S n → A) (x : S n), f x = f base) : is_trunc (n.-2.+1) A :=
   begin
-    apply is_trunc_of_pmap_sphere_constant,
+    apply is_trunc_of_psphere_pmap_equiv_constant,
     intros, cases f with f p, esimp at *, apply H
   end
 
-  definition pmap_sphere_constant_of_is_trunc' [H : is_trunc (n.-2.+1) A]
-    (a : A) (f : S. n →* pointed.Mk a) (x : S n) : f x = f base :=
+  definition psphere_pmap_equiv_constant_of_is_trunc' [H : is_trunc (n.-2.+1) A]
+    (a : A) (f : S* n →* pointed.Mk a) (x : S n) : f x = f base :=
   begin
     let H' := iff.elim_left (is_trunc_iff_is_contr_loop n A) H a,
-    note H'' := @is_trunc_equiv_closed_rev _ _ _ !pmap_sphere H',
+    note H'' := @is_trunc_equiv_closed_rev _ _ _ !psphere_pmap_equiv H',
     have p : (f = pmap.mk (λx, f base) (respect_pt f)),
       by apply is_prop.elim,
     exact ap10 (ap pmap.to_fun p) x
   end
 
-  definition pmap_sphere_constant_of_is_trunc [H : is_trunc (n.-2.+1) A]
-    (a : A) (f : S. n →* pointed.Mk a) (x y : S n) : f x = f y :=
-  let H := pmap_sphere_constant_of_is_trunc' a f in !H ⬝ !H⁻¹
+  definition psphere_pmap_equiv_constant_of_is_trunc [H : is_trunc (n.-2.+1) A]
+    (a : A) (f : S* n →* pointed.Mk a) (x y : S n) : f x = f y :=
+  let H := psphere_pmap_equiv_constant_of_is_trunc' a f in !H ⬝ !H⁻¹
 
   definition map_sphere_constant_of_is_trunc [H : is_trunc (n.-2.+1) A]
     (f : S n → A) (x y : S n) : f x = f y :=
-  pmap_sphere_constant_of_is_trunc (f base) (pmap.mk f idp) x y
+  psphere_pmap_equiv_constant_of_is_trunc (f base) (pmap.mk f idp) x y
 
   definition map_sphere_constant_of_is_trunc_self [H : is_trunc (n.-2.+1) A]
     (f : S n → A) (x : S n) : map_sphere_constant_of_is_trunc f x x = idp :=

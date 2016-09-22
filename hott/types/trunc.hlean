@@ -420,15 +420,15 @@ namespace is_trunc
     : is_trunc n A ↔ Π(a : A), is_contr (Ω[succ n](pointed.Mk a)) :=
   begin
     revert A, induction n with n IH,
-    { intro A, esimp [iterated_ploop_space], transitivity _,
+    { intro A, esimp [loopn], transitivity _,
       { apply is_trunc_succ_iff_is_trunc_loop, apply le.refl},
       { apply pi_iff_pi, intro a, esimp, apply is_prop_iff_is_contr, reflexivity}},
-    { intro A, esimp [iterated_ploop_space],
+    { intro A, esimp [loopn],
       transitivity _,
       { apply @is_trunc_succ_iff_is_trunc_loop @n, esimp, apply minus_one_le_succ},
       apply pi_iff_pi, intro a, transitivity _, apply IH,
       transitivity _, apply pi_iff_pi, intro p,
-      rewrite [iterated_loop_space_loop_irrel n p], apply iff.refl, esimp,
+      rewrite [loopn_space_loop_irrel n p], apply iff.refl, esimp,
       apply imp_iff, reflexivity}
   end
 
@@ -437,7 +437,7 @@ namespace is_trunc
     : is_trunc (n.-2.+1) A ↔ (Π(a : A), is_contr (Ω[n](pointed.Mk a))) :=
   begin
     induction n with n,
-    { esimp [sub_two,iterated_ploop_space], apply iff.intro,
+    { esimp [sub_two,loopn], apply iff.intro,
         intro H a, exact is_contr_of_inhabited_prop a,
         intro H, apply is_prop_of_imp_is_contr, exact H},
     { apply is_trunc_iff_is_contr_loop_succ},
@@ -718,34 +718,34 @@ namespace trunc
   encode_con p q
 
   -- rename
-  definition iterated_loop_ptrunc_pequiv (n : ℕ₋₂) (k : ℕ) (A : Type*) :
+  definition loopn_ptrunc_pequiv (n : ℕ₋₂) (k : ℕ) (A : Type*) :
     Ω[k] (ptrunc (n+k) A) ≃* ptrunc n (Ω[k] A) :=
   begin
     revert n, induction k with k IH: intro n,
     { reflexivity},
     { refine _ ⬝e* loop_ptrunc_pequiv n (Ω[k] A),
-      rewrite [iterated_ploop_space_succ], apply loop_pequiv_loop,
+      rewrite [loopn_succ_eq], apply loop_pequiv_loop,
       refine _ ⬝e* IH (n.+1),
       rewrite succ_add_nat}
   end
 
-  definition iterated_loop_ptrunc_pequiv_con {n : ℕ₋₂} {k : ℕ} {A : Type*}
+  definition loopn_ptrunc_pequiv_con {n : ℕ₋₂} {k : ℕ} {A : Type*}
     (p q : Ω[succ k] (ptrunc (n+succ k) A)) :
-    iterated_loop_ptrunc_pequiv n (succ k) A (p ⬝ q) =
-    tconcat (iterated_loop_ptrunc_pequiv n (succ k) A p)
-            (iterated_loop_ptrunc_pequiv n (succ k) A q)  :=
+    loopn_ptrunc_pequiv n (succ k) A (p ⬝ q) =
+    tconcat (loopn_ptrunc_pequiv n (succ k) A p)
+            (loopn_ptrunc_pequiv n (succ k) A q)  :=
   begin
     refine _ ⬝ loop_ptrunc_pequiv_con _ _,
     exact ap !loop_ptrunc_pequiv !loop_pequiv_loop_con
   end
 
-  definition iterated_loop_ptrunc_pequiv_inv_con {n : ℕ₋₂} {k : ℕ} {A : Type*}
+  definition loopn_ptrunc_pequiv_inv_con {n : ℕ₋₂} {k : ℕ} {A : Type*}
     (p q : ptrunc n (Ω[succ k] A)) :
-    (iterated_loop_ptrunc_pequiv n (succ k) A)⁻¹ᵉ* (tconcat p q) =
-    (iterated_loop_ptrunc_pequiv n (succ k) A)⁻¹ᵉ* p ⬝
-    (iterated_loop_ptrunc_pequiv n (succ k) A)⁻¹ᵉ* q :=
-  equiv.inv_preserve_binary (iterated_loop_ptrunc_pequiv n (succ k) A) concat tconcat
-    (@iterated_loop_ptrunc_pequiv_con n k A) p q
+    (loopn_ptrunc_pequiv n (succ k) A)⁻¹ᵉ* (tconcat p q) =
+    (loopn_ptrunc_pequiv n (succ k) A)⁻¹ᵉ* p ⬝
+    (loopn_ptrunc_pequiv n (succ k) A)⁻¹ᵉ* q :=
+  equiv.inv_preserve_binary (loopn_ptrunc_pequiv n (succ k) A) concat tconcat
+    (@loopn_ptrunc_pequiv_con n k A) p q
 
   definition ptrunc_functor_pcompose [constructor] {X Y Z : Type*} (n : ℕ₋₂) (g : Y →* Z)
     (f : X →* Y) : ptrunc_functor n (g ∘* f) ~* ptrunc_functor n g ∘* ptrunc_functor n f :=

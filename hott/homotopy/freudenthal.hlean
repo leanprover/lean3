@@ -178,12 +178,12 @@ definition freudenthal_equiv {A : Type*} {n k : ℕ} [is_conn n A] (H : k ≤ 2 
 freudenthal_pequiv A H
 
 definition freudenthal_homotopy_group_pequiv (A : Type*) {n k : ℕ} [is_conn n A] (H : k ≤ 2 * n)
-  : π*[k + 1] (psusp A) ≃* π*[k] A  :=
+  : π[k + 1] (psusp A) ≃* π[k] A  :=
 calc
-  π*[k + 1] (psusp A) ≃* π*[k] (Ω (psusp A)) : phomotopy_group_succ_in (psusp A) k
-    ... ≃* Ω[k] (ptrunc k (Ω (psusp A)))     : phomotopy_group_pequiv_loop_ptrunc k (Ω (psusp A))
+  π[k + 1] (psusp A) ≃* π[k] (Ω (psusp A)) : homotopy_group_succ_in (psusp A) k
+    ... ≃* Ω[k] (ptrunc k (Ω (psusp A)))     : homotopy_group_pequiv_loop_ptrunc k (Ω (psusp A))
     ... ≃* Ω[k] (ptrunc k A)                 : loopn_pequiv_loopn k (freudenthal_pequiv A H)
-    ... ≃* π*[k] A                           : (phomotopy_group_pequiv_loop_ptrunc k A)⁻¹ᵉ*
+    ... ≃* π[k] A                           : (homotopy_group_pequiv_loop_ptrunc k A)⁻¹ᵉ*
 
 definition freudenthal_homotopy_group_isomorphism (A : Type*) {n k : ℕ} [is_conn n A]
   (H : k + 1 ≤ 2 * n) : πg[k+1 +1] (psusp A) ≃g πg[k+1] A :=
@@ -191,17 +191,17 @@ begin
   fapply isomorphism_of_equiv,
   { exact equiv_of_pequiv (freudenthal_homotopy_group_pequiv A H)},
   { intro g h,
-    refine _ ⬝ !phomotopy_group_pequiv_loop_ptrunc_inv_con,
-    apply ap !phomotopy_group_pequiv_loop_ptrunc⁻¹ᵉ*,
+    refine _ ⬝ !homotopy_group_pequiv_loop_ptrunc_inv_con,
+    apply ap !homotopy_group_pequiv_loop_ptrunc⁻¹ᵉ*,
     refine ap (loopn_pequiv_loopn _ _) _ ⬝ !loopn_pequiv_loopn_con,
-    refine ap !phomotopy_group_pequiv_loop_ptrunc _ ⬝ !phomotopy_group_pequiv_loop_ptrunc_con,
-    apply phomotopy_group_succ_in_con}
+    refine ap !homotopy_group_pequiv_loop_ptrunc _ ⬝ !homotopy_group_pequiv_loop_ptrunc_con,
+    apply homotopy_group_succ_in_con}
 end
 
 namespace susp
 
   definition iterate_psusp_stability_pequiv (A : Type*) {k n : ℕ} [is_conn 0 A]
-    (H : k ≤ 2 * n) : π*[k + 1] (iterate_psusp (n + 1) A) ≃* π*[k] (iterate_psusp n A) :=
+    (H : k ≤ 2 * n) : π[k + 1] (iterate_psusp (n + 1) A) ≃* π[k] (iterate_psusp n A) :=
   have is_conn n (iterate_psusp n A), by rewrite [-zero_add n]; exact _,
   freudenthal_homotopy_group_pequiv (iterate_psusp n A) H
 
@@ -227,8 +227,8 @@ namespace susp
   end
 
   definition iterate_susp_stability_pequiv (A : Type) {k n : ℕ}
-    (H : k + 2 ≤ 2 * n) : π*[k + 1] (pointed.MK (iterate_susp (n + 2) A) !north) ≃*
-                          π*[k    ] (pointed.MK (iterate_susp (n + 1) A) !north) :=
+    (H : k + 2 ≤ 2 * n) : π[k + 1] (pointed.MK (iterate_susp (n + 2) A) !north) ≃*
+                          π[k    ] (pointed.MK (iterate_susp (n + 1) A) !north) :=
   have is_conn (pred n) (carrier (pointed.MK (iterate_susp (n + 1) A) !north)), from
     stability_helper2 A H,
   freudenthal_homotopy_group_pequiv (pointed.MK (iterate_susp (n + 1) A) !north)

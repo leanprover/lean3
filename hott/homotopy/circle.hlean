@@ -220,7 +220,7 @@ namespace circle
   pointed.mk base
 
   definition pcircle [constructor] : Type* := pointed.mk' S¹
-  notation `S¹.` := pcircle
+  notation `S¹*` := pcircle
 
   definition loop_neq_idp : loop ≠ idp :=
   assume H : loop = idp,
@@ -295,13 +295,13 @@ namespace circle
   --the carrier of π₁(S¹) is the set-truncation of base = base.
   open algebra trunc group
 
-  definition fg_carrier_equiv_int : π[1](S¹.) ≃ ℤ :=
+  definition fg_carrier_equiv_int : π[1](S¹*) ≃ ℤ :=
   trunc_equiv_trunc 0 base_eq_base_equiv ⬝e @(trunc_equiv 0 ℤ) proof _ qed
 
   definition con_comm_base (p q : base = base) : p ⬝ q = q ⬝ p :=
   eq_of_fn_eq_fn base_eq_base_equiv (by esimp;rewrite [+encode_con,add.comm])
 
-  definition fundamental_group_of_circle : π₁(S¹.) ≃g gℤ :=
+  definition fundamental_group_of_circle : π₁(S¹*) ≃g gℤ :=
   begin
     apply (isomorphism_of_equiv fg_carrier_equiv_int),
     intros g h,
@@ -310,9 +310,9 @@ namespace circle
   end
 
   open nat
-  definition homotopy_group_of_circle (n : ℕ) : πg[n+1 +1] S¹. ≃g G0 :=
+  definition homotopy_group_of_circle (n : ℕ) : πg[n+2] S¹* ≃g G0 :=
   begin
-    refine @trivial_homotopy_add_of_is_set_loop_space S¹. 1 n _,
+    refine @trivial_homotopy_add_of_is_set_loopn S¹* 1 n _,
     apply is_trunc_equiv_closed_rev, apply base_eq_base_equiv
   end
 
@@ -337,8 +337,8 @@ namespace circle
   proposition is_conn_circle [instance] : is_conn 0 S¹ :=
   sphere.is_conn_sphere -1.+2
 
-  definition is_conn_pcircle [instance] : is_conn 0 S¹. := !is_conn_circle
-  definition is_trunc_pcircle [instance] : is_trunc 1 S¹. := !is_trunc_circle
+  definition is_conn_pcircle [instance] : is_conn 0 S¹* := !is_conn_circle
+  definition is_trunc_pcircle [instance] : is_trunc 1 S¹* := !is_trunc_circle
 
   definition circle_mul [reducible] (x y : S¹) : S¹ :=
   circle.elim y (circle_turn y) x

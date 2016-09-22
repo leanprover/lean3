@@ -220,7 +220,7 @@ namespace EM
   end ops
   open ops
 
-  definition phomotopy_group_EM (n : ℕ) : π*[n] (EM G n) ≃* pType_of_Group G :=
+  definition homotopy_group_EM (n : ℕ) : π[n] (EM G n) ≃* pType_of_Group G :=
   begin
     cases n with n,
     { rexact ptrunc_pequiv 0 (pType_of_Group G) _},
@@ -318,7 +318,7 @@ namespace EM
   (pEM1_pequiv e)⁻¹ᵉ* ⬝e* pEM1_pequiv !isomorphism.refl
 
   open circle int
-  definition EM_pequiv_circle : K agℤ 1 ≃* S¹. :=
+  definition EM_pequiv_circle : K agℤ 1 ≃* S¹* :=
   !EMadd1_pequiv_pEM1 ⬝e* pEM1_pequiv fundamental_group_of_circle
 
   /- loops of EM-spaces -/

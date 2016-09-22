@@ -36,10 +36,10 @@ namespace hopf
     apply inv (hopf.total S¹), apply inv (join.spheres 1 1), exact x
   end
 
-  definition complex_phopf [constructor] : S. 3 →* S. 2 :=
+  definition complex_phopf [constructor] : S* 3 →* S* 2 :=
   proof pmap.mk complex_hopf idp qed
 
-  definition pfiber_complex_phopf : pfiber complex_phopf ≃* S. 1 :=
+  definition pfiber_complex_phopf : pfiber complex_phopf ≃* S* 1 :=
   begin
     fapply pequiv_of_equiv,
     { esimp, unfold [complex_hopf],
