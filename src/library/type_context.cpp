@@ -813,7 +813,7 @@ expr type_context::infer_local(expr const & e) {
     if (is_local_decl_ref(e)) {
         auto d = m_lctx.get_local_decl(e);
         if (!d)
-            throw exception("infer type failed, unknown variable");
+            throw exception(sstream() << "type inference failed, unknown variable: " << e);
         lean_assert(d);
         return d->get_type();
     } else {
@@ -827,7 +827,7 @@ expr type_context::infer_metavar(expr const & e) {
     if (is_metavar_decl_ref(e)) {
         auto d = m_mctx.get_metavar_decl(e);
         if (!d)
-            throw exception("infer type failed, unknown metavariable");
+            throw exception(sstream() << "type inference failed, unknown metavariable: " << e);
         return d->get_type();
     } else {
         /* tmp metavariables should only occur in tmp_mode */
@@ -841,7 +841,7 @@ expr type_context::infer_constant(expr const & e) {
     auto const & ps = d.get_univ_params();
     auto const & ls = const_levels(e);
     if (length(ps) != length(ls))
-        throw exception("infer type failed, incorrect number of universe levels");
+        throw exception(sstream() << "type inference failed, incorrect number of universe levels (" << length(ls) << ") in: " << e);
     return instantiate_type_univ_params(d, ls);
 }
 
@@ -855,7 +855,7 @@ expr type_context::infer_macro(expr const & e) {
         get_delayed_abstraction_info(e, ns, es);
         auto d = m_mctx.get_metavar_decl(mvar);
         if (!d)
-            throw exception("infer type failed, unknown metavariable");
+            throw exception(sstream() << "type inference failed for macro " << e << ": unknown metavariable " << mvar);
         return push_delayed_abstraction(d->get_type(), ns, es);
     }
     auto def = macro_def(e);
@@ -915,7 +915,7 @@ level type_context::get_level(expr const & A) {
     if (auto r = get_level_core(A)) {
         return *r;
     } else {
-        throw exception("infer type failed, sort expected");
+        throw exception(sstream() << "type inference failed, sort expected: " << A);
     }
 }
 
@@ -952,7 +952,7 @@ expr type_context::infer_app(expr const & e) {
             lean_assert(m_transparency_mode == transparency_mode::All);
             f_type = whnf(instantiate_rev(f_type, i-j, args.data()+j));
             if (!is_pi(f_type))
-                throw exception("infer type failed, Pi expected");
+                throw exception(sstream() << "type inference of " << e << " failed, Pi expected in type: " << f_type);
             f_type = binding_body(f_type);
             j = i;
         }
