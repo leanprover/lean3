@@ -121,7 +121,6 @@ void tc_multigraph::erase(name const & e) {
     name tgt;
     list<pair<name, name>> new_succ_lst = filter(*succ_lst, [&](pair<name, name> const & p) {
             if (p.first == e) {
-                lean_assert(tgt.is_anonymous());
                 tgt = p.second;
                 return false;
             } else {
