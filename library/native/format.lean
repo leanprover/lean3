@@ -6,36 +6,36 @@ definition intersperse {A : Type} (elem : A) : list A -> list A
 | (x :: []) := [x]
 | (x :: xs) := x :: elem :: intersperse xs
 
-meta_definition format_concat : list format → format
+meta definition format_concat : list format → format
 | [] := format.nil
 | (f :: fs) := f ++ format_concat fs
 
-meta_definition comma_sep (items : list format) : format :=
+meta definition comma_sep (items : list format) : format :=
 format_concat
   (intersperse (format.of_string "," ++ format.space) items)
 
 namespace format_cpp
 
-meta_definition mangle_name (n : name) : format :=
+meta definition mangle_name (n : name) : format :=
 to_fmt $ name.to_string_with_sep "_" n
 
-private meta_definition mk_constructor_args : list name → list format
+private meta definition mk_constructor_args : list name → list format
 | [] := []
 | (n :: ns) := mangle_name n :: mk_constructor_args ns
 
-private meta_definition mk_constructor
+private meta definition mk_constructor
   (arity : nat)
   (fs : list name) : format :=
   "lean::mk_constructor(" ++ to_fmt arity ++ "," ++
   (format.bracket "{" "}" (comma_sep $ mk_constructor_args fs))
 
-private meta_definition mk_call (symbol : name) (args : list name) : format :=
+private meta definition mk_call (symbol : name) (args : list name) : format :=
   mangle_name symbol ++ (format.bracket "(" ")" (comma_sep $ list.map mangle_name args))
 
-meta_definition literal : ir.literal → format
+meta definition literal : ir.literal → format
 | (ir.literal.nat n) := to_fmt "lean::mk_vm_nat(" ++ to_fmt n ++ ")"
 
-meta_definition expr : ir.expr -> format
+meta definition expr : ir.expr -> format
 | (ir.expr.call f xs) := mk_call f xs
 | (ir.expr.mk_object n fs) :=
   if n = 0
@@ -50,7 +50,7 @@ meta_definition expr : ir.expr -> format
 | (ir.expr.lit l) :=
    literal l
 
-meta_definition stmt : ir.stmt → format
+meta definition stmt : ir.stmt → format
 | (ir.stmt.e e) := expr e
 | (ir.stmt.return e) :=
   format.of_string "return"  ++
@@ -61,22 +61,22 @@ meta_definition stmt : ir.stmt → format
   format.line ++ stmt body
 | _ := format.of_string "NYI"
 
-meta_definition ty : ir.ty → format
+meta definition ty : ir.ty → format
 | ir.ty.object := format.of_string "lean::vm_obj"
 | (ir.ty.ref T) := ty T ++ format.of_string " const &"
 | (ir.ty.mut_ref T) := ty T ++ format.of_string " &"
 | (ir.ty.tag _ _) := format.of_string "an_error"
 
-meta_definition format_param (param : name × ir.ty) :=
-  ty (prod.pr2 param) ++
+meta definition format_param (param : name × ir.ty) :=
+  ty (prod.snd param) ++
   format.space ++
-  mangle_name (prod.pr1 param)
+  mangle_name (prod.fst param)
 
-meta_definition format_argument_list (tys : list (name × ir.ty)) : format :=
+meta definition format_argument_list (tys : list (name × ir.ty)) : format :=
   format.bracket "(" ")" (comma_sep (list.map format_param tys))
 
 -- meta_definition format_prototypes ()
-meta_definition decl (d : ir.decl) : format :=
+meta definition decl (d : ir.decl) : format :=
   match d with
   | ir.decl.mk n arg_tys ret_ty body :=
     have body : format, from stmt body,

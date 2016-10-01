@@ -9,10 +9,10 @@ import native.format
 namespace native
 
 -- builtin stuff
-meta_constant is_internal_cnstr : expr → option unsigned
-meta_constant is_internal_cases : expr → option unsigned
-meta_constant is_internal_proj : expr → option unsigned
-meta_constant get_nat_value : expr → option nat
+meta constant is_internal_cnstr : expr → option unsigned
+meta constant is_internal_cases : expr → option unsigned
+meta constant is_internal_proj : expr → option unsigned
+meta constant get_nat_value : expr → option nat
 
 inductive error
 | string : string -> error
@@ -34,7 +34,7 @@ definition assert_name : ir.expr → result name
 | (ir.expr.mk_object _ _) := mk_error "expected name, found: obj "
 | (ir.expr.global _) := mk_error "expected local, found global"
 
-meta_definition mk_local (n : name) : expr :=
+meta definition mk_local (n : name) : expr :=
   expr.local_const n n binder_info.default (expr.const n [])
 
 -- code looks bad, weird monad errors again, there are some issues because I'm still using the old
@@ -44,16 +44,16 @@ definition mk_call (head : name) (args : list ir.expr) : result ir.expr :=
   do (args' : list name) <- @monad.sequence (@@result) _ _ args'',
   system.result.ok $ ir.expr.call head args'
 
-meta_definition mk_object (arity : unsigned) (args : list ir.expr) : result ir.expr :=
+meta definition mk_object (arity : unsigned) (args : list ir.expr) : result ir.expr :=
 have args'' : list (result name), from list.map assert_name args,
 do (args' : list name) <- @monad.sequence (@@result) _ _ args'',
 system.result.ok $ ir.expr.mk_object (unsigned.to_nat arity) args'
 
-meta_definition is_return (n : name) : bool :=
+meta definition is_return (n : name) : bool :=
   decidable.to_bool $ `native_compiler.return = n
 
 -- this code isnt' great working around the semi-functional frontend
-meta_definition compile_expr_app_to_ir_expr
+meta definition compile_expr_app_to_ir_expr
   (head : expr)
   (args : list expr)
   (action : expr -> result ir.expr) : result ir.expr := do
@@ -64,16 +64,16 @@ meta_definition compile_expr_app_to_ir_expr
     | option.some n := mk_object n args'
     end else (mk_error ("unsupported call position" ++ (to_string head)))
 
-meta_definition compile_expr_macro_to_ir_expr (e : expr) : result ir.expr :=
+meta definition compile_expr_macro_to_ir_expr (e : expr) : result ir.expr :=
   match native.get_nat_value e with
   | option.none := mk_error "unsupported macro"
   | option.some n := mk_nat_literal n
   end
 
-meta_definition compile_local (n : name) : result name :=
+meta definition compile_local (n : name) : result name :=
   return $ (mk_str_name "_$local$_" (name.to_string_with_sep "_" n))
 
-meta_definition compile_expr_to_ir_expr : expr → result ir.expr
+meta definition compile_expr_to_ir_expr : expr → result ir.expr
 | (expr.const n ls) :=
   match native.is_internal_cnstr (expr.const n ls) with
   | option.none := pure $ ir.expr.global n
@@ -81,7 +81,7 @@ meta_definition compile_expr_to_ir_expr : expr → result ir.expr
   end
 | (expr.var i) := mk_error "there should be no bound variables in compiled terms"
 | (expr.sort _) := mk_error "found sort"
-| (expr.meta _ _) := mk_error "unexpected meta-variable in expr"
+| (expr.mvar _ _) := mk_error "unexpected meta-variable in expr"
 | (expr.local_const n _ _ _) := ir.expr.locl <$> compile_local n
 | (expr.app f x) :=
   let head := expr.get_app_fn (expr.app f x),
@@ -90,23 +90,23 @@ meta_definition compile_expr_to_ir_expr : expr → result ir.expr
 | (expr.lam _ _ _ _) := mk_error "found lam"
 | (expr.pi _ _ _ _) := mk_error "found pi"
 | (expr.elet n _ v body) := mk_error "internal error: can not translate let binding into a ir_expr"
-| (expr.macro def sz args) := compile_expr_macro_to_ir_expr (expr.macro def sz args)
+| (expr.macro _ _ _) := mk_error "m" -- compile_expr_macro_to_ir_expr (expr.macro def sz args)
 
 -- vm_eval (compile_expr_app_to_ir_expr `foo [] compile_expr_to_ir_expr)
 
-meta_definition one_or_error (args : list expr) : result expr :=
+meta definition one_or_error (args : list expr) : result expr :=
   match args with
   | ((h : expr) :: []) := system.result.ok h
   | _ := mk_error "internal invariant violated, should only have one argument"
   end
 
-meta_definition compile_app_expr_to_ir_stmt (head : name) (args : list expr) : result ir.stmt :=
+meta definition compile_app_expr_to_ir_stmt (head : name) (args : list expr) : result ir.stmt :=
   if is_return head = bool.tt
   then do rexp <- one_or_error args,
     ir.stmt.return <$> compile_expr_to_ir_expr rexp
   else mk_error "can only compile return in head position"
 
-meta_definition compile_expr_to_ir_stmt : expr -> result ir.stmt
+meta definition compile_expr_to_ir_stmt : expr -> result ir.stmt
 | (expr.app f x) :=
   let head := expr.app_fn (expr.app f x),
       args := expr.get_app_args (expr.app f x)
@@ -122,7 +122,7 @@ meta_definition compile_expr_to_ir_stmt : expr -> result ir.stmt
   return (ir.stmt.letb n' v' body')
 | e' := ir.stmt.e <$> compile_expr_to_ir_expr e'
 
-meta_definition get_arity : expr -> nat
+meta definition get_arity : expr -> nat
 | (expr.lam _ _ _ body) := 1 + get_arity body
 | _ := 0
 
@@ -136,7 +136,7 @@ definition zip {A B : Type} : list A → list B → list (A × B)
 | (x :: xs) [] := []
 | (x :: xs) (y :: ys) := (x, y) :: zip xs ys
 
-meta_definition compile_decl_to_ir (decl_name : name) (args : list name) (body : expr) : result ir.decl := do
+meta definition compile_decl_to_ir (decl_name : name) (args : list name) (body : expr) : result ir.decl := do
   system.result.and_then (compile_expr_to_ir_stmt body)
   (fun (body' : ir.stmt),
   let params := (zip args (repeat (list.length args) (ir.ty.ref ir.ty.object))) in
@@ -147,21 +147,20 @@ definition unwrap_or_else {T E : Type} : result T → (T → E) → (error -> E)
 | (system.result.ok t) f err := f t
 
 -- TODO: fix naming here
-private meta_definition take_arguments' : expr → list name → (list name × expr)
+private meta definition take_arguments' : expr → list name → (list name × expr)
 | (expr.lam n _ _ body) ns := take_arguments' body (n :: ns)
 | e' ns := (ns, e')
 
-meta_definition take_arguments : expr → (list name × expr)
-| e :=
-  have res : _, from take_arguments' e [],
-  have arg_names : _, from prod.pr1 res,
-  have locals : _, from list.map mk_local arg_names,
-  (arg_names, expr.instantiate_vars (prod.pr2 res) (list.reverse locals))
+meta definition take_arguments (e : expr) : (list name × expr) :=
+  let res := take_arguments' e [],
+      arg_names := prod.fst res,
+      locals := list.map mk_local arg_names
+  in (arg_names, expr.instantiate_vars (prod.snd res) (list.reverse locals))
 
-meta_definition compile_decl (decl_name : name) (e : expr) : format :=
-  have arity : nat, from get_arity e,
-  let (args, body) := take_arguments e in
-  have ir : _, from compile_decl_to_ir decl_name args body,
-  unwrap_or_else ir format_cpp.decl (fun e, error.cases_on e (fun s, format.of_string s))
+meta definition compile_decl (decl_name : name) (e : expr) : format :=
+  let arity := get_arity e,
+      (args, body) := take_arguments e,
+      ir := compile_decl_to_ir decl_name args body
+  in unwrap_or_else ir format_cpp.decl (fun e, error.cases_on e (fun s, format.of_string s))
 
 end native
