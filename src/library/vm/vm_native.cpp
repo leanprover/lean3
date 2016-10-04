@@ -60,8 +60,8 @@ vm_obj native_get_nat_value(vm_obj const & o) {
 void initialize_vm_native() {
     // Not sure if we should expose ese or what?
     DECLARE_VM_BUILTIN(name({"native", "is_internal_cnstr"}), native_is_internal_cnstr);
-    DECLARE_VM_BUILTIN(name({"native", "is_internal_cases"}), native_is_internal_cnstr);
-    DECLARE_VM_BUILTIN(name({"native", "is_internal_proj"}), native_is_internal_cnstr);
+    DECLARE_VM_BUILTIN(name({"native", "is_internal_cases"}), native_is_internal_cases);
+    DECLARE_VM_BUILTIN(name({"native", "is_internal_proj"}), native_is_internal_proj);
     DECLARE_VM_BUILTIN(name({"native", "get_nat_value"}), native_get_nat_value);
 }
 

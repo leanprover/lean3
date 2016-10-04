@@ -76,7 +76,9 @@ extern_fn mk_extern(name n, unsigned arity) {
     return extern_fn(false, n, arity);
 }
 
+
 class native_compiler_fn {
+public:
     environment        m_env;
     cpp_emitter m_emitter;
     native_compiler_mode m_mode;
@@ -642,6 +644,7 @@ void native_compile(environment const & env,
                     native_compiler_mode mode) {
     native_compiler_fn compiler(env, mode);
 
+    buffer<name> ns;
     compiler.populate_arity_map(procs);
     compiler.populate_arity_map(extern_fns);
 
@@ -655,26 +658,25 @@ void native_compile(environment const & env,
         compiler.emit_prototype(p.first, p.second);
     }
 
-    auto compiler_name = name({"native", "compile_decl"});
-    auto cc = mk_native_closure(env, compiler_name, {});
+    // First we convert for Lean ...
+    vm_obj procs_list = mk_vm_simple(0);
+    for (auto & p : procs) {
+        auto tuple = mk_vm_constructor(0, { to_obj(p.first), to_obj(p.second) });
+        procs_list = mk_vm_constructor(1, { tuple, procs_list });
+    }
+
     vm_state S(env);
+    auto compiler_name = name({"native", "compile"});
+    auto cc = mk_native_closure(env, compiler_name, {});
 
     std::fstream lean_output("out.lean.cpp", std::ios_base::out);
 
-    // Iterate each processed decl, emitting code for it.
-    for (auto & p : procs) {
-        lean_trace(name({"native_compiler"}), tout() << "" << p.first << "\n";);
-        name & n = p.first;
-        expr body = p.second;
-        vm_obj result = S.invoke(cc, to_obj(p.first), to_obj(p.second));
-        auto fmt = to_format(result);
-        lean_output << "expr:\n";
-        lean_output << p.second << std::endl;
-        lean_output << "-------------------------------";
-        lean_output << "ir:\n";
-        lean_output << fmt << std::endl;
-        compiler(n, body);
-    }
+    vm_obj result = S.invoke(cc, procs_list);
+    auto fmt = to_format(result);
+    lean_output << "ir:\n";
+    lean_output << fmt << std::endl;
+    std::string fn = (sstream() << fmt << "\n\n").str();
+    compiler.m_emitter.emit_string(fn.c_str());
 
     if (mode == native_compiler_mode::AOT) {
         compiler.emit_main(procs);

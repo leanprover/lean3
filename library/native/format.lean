@@ -26,7 +26,7 @@ private meta definition mk_constructor_args : list name → list format
 private meta definition mk_constructor
   (arity : nat)
   (fs : list name) : format :=
-  "lean::mk_constructor(" ++ to_fmt arity ++ "," ++
+  "lean::mk_vm_constructor(" ++ to_fmt arity ++ "," ++
   (format.bracket "{" "}" (comma_sep $ mk_constructor_args fs))
 
 private meta definition mk_call (symbol : name) (args : list name) : format :=
@@ -35,7 +35,7 @@ private meta definition mk_call (symbol : name) (args : list name) : format :=
 meta definition literal : ir.literal → format
 | (ir.literal.nat n) := to_fmt "lean::mk_vm_nat(" ++ to_fmt n ++ ")"
 
-meta definition expr : ir.expr -> format
+meta definition expr' (action : ir.stmt -> format) : ir.expr -> format
 | (ir.expr.call f xs) := mk_call f xs
 | (ir.expr.mk_object n fs) :=
   if n = 0
@@ -49,17 +49,25 @@ meta definition expr : ir.expr -> format
   mangle_name n
 | (ir.expr.lit l) :=
    literal l
+| (ir.expr.block s) :=
+  format.bracket "{" "}" (action s)
+| (ir.expr.project obj n) :=
+  (mangle_name obj) ++ (format.bracket "[" "]" (to_fmt n))
+| (ir.expr.panic err_msg) :=
+  to_fmt "throw \"error\""
 
 meta definition stmt : ir.stmt → format
-| (ir.stmt.e e) := expr e
+| (ir.stmt.e e) := expr' stmt e
 | (ir.stmt.return e) :=
   format.of_string "return"  ++
   format.space ++
-  expr e ++ format.of_string ";"
+  expr' stmt e ++ format.of_string ";"
 | (ir.stmt.letb n v body) :=
-  to_fmt "lean::vm_obj " ++ (mangle_name n) ++ (to_fmt " = ") ++ (expr v) ++ to_fmt ";" ++
+  to_fmt "lean::vm_obj " ++ (mangle_name n) ++ (to_fmt " = ") ++ (expr' stmt v) ++ to_fmt ";" ++
   format.line ++ stmt body
 | _ := format.of_string "NYI"
+
+meta def expr := expr' stmt
 
 meta definition ty : ir.ty → format
 | ir.ty.object := format.of_string "lean::vm_obj"
@@ -70,7 +78,7 @@ meta definition ty : ir.ty → format
 meta definition format_param (param : name × ir.ty) :=
   ty (prod.snd param) ++
   format.space ++
-  mangle_name (prod.fst param)
+  to_fmt (name.to_string_with_sep "_" (mk_str_name "_$local$_" (name.to_string_with_sep "_" (prod.fst param))))
 
 meta definition format_argument_list (tys : list (name × ir.ty)) : format :=
   format.bracket "(" ")" (comma_sep (list.map format_param tys))
@@ -79,10 +87,10 @@ meta definition format_argument_list (tys : list (name × ir.ty)) : format :=
 meta definition decl (d : ir.decl) : format :=
   match d with
   | ir.decl.mk n arg_tys ret_ty body :=
-    have body : format, from stmt body,
+    let body := stmt body in
     (ty ret_ty) ++ format.space ++ (mangle_name n) ++
     (format_argument_list arg_tys) ++ format.space ++
-    (format.bracket "{" "}" $ format.line ++ (format.nest 4 body) ++ format.line)
+    (format.bracket "{" "}" $ format.nest 4 (format.line ++ body) ++ format.line)
   end
 
 end format_cpp

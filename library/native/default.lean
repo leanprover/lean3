@@ -27,42 +27,72 @@ definition mk_error {T} : string -> result T :=
 definition mk_nat_literal (n : nat) : result ir.expr :=
   return (ir.expr.lit $ ir.literal.nat n)
 
+-- HELPERS --
 definition assert_name : ir.expr → result name
 | (ir.expr.locl n) := system.result.ok n
 | (ir.expr.call _ _) := mk_error "expected name, found: call "
 | (ir.expr.lit _) := mk_error "expected name, found: lit "
 | (ir.expr.mk_object _ _) := mk_error "expected name, found: obj "
 | (ir.expr.global _) := mk_error "expected local, found global"
+| (ir.expr.block _) := mk_error "expected local, found block"
+| (ir.expr.project _ _) := mk_error "expected name, found project"
+| (ir.expr.panic _) := mk_error "expected name, found panic"
 
 meta definition mk_local (n : name) : expr :=
   expr.local_const n n binder_info.default (expr.const n [])
 
--- code looks bad, weird monad errors again, there are some issues because I'm still using the old
--- higher order unification based elab, which creates fucking insance solutions
 definition mk_call (head : name) (args : list ir.expr) : result ir.expr :=
-  have args'' : list (result name), from list.map assert_name args,
-  do (args' : list name) <- @monad.sequence (@@result) _ _ args'',
+  let args'' := list.map assert_name args
+  in do args' <- monad.sequence args'',
   system.result.ok $ ir.expr.call head args'
 
 meta definition mk_object (arity : unsigned) (args : list ir.expr) : result ir.expr :=
-have args'' : list (result name), from list.map assert_name args,
-do (args' : list name) <- @monad.sequence (@@result) _ _ args'',
-system.result.ok $ ir.expr.mk_object (unsigned.to_nat arity) args'
+  let args'' := list.map assert_name args
+  in do args' <- monad.sequence args'',
+        system.result.ok $ ir.expr.mk_object (unsigned.to_nat arity) args'
 
 meta definition is_return (n : name) : bool :=
   decidable.to_bool $ `native_compiler.return = n
+
+meta definition one_or_error (args : list expr) : result expr :=
+match args with
+| ((h : expr) :: []) := system.result.ok h
+| _ := mk_error "internal invariant violated, should only have one argument"
+end
+
+meta def panic (msg : string) : result ir.expr :=
+  return $ ir.expr.panic msg
+
+-- END HELPERS --
+
+meta def compile_case (case : expr) : result ir.expr :=
+  mk_error "failed to make case"
+
+meta def compile_cases_on_to_ir_expr
+    (scrutinee : name)
+    (cases : list expr)
+    (action : expr -> result ir.expr) : result ir.expr := do
+    default <- panic "default case should never be reached",
+    return (ir.expr.block $ (ir.stmt.switch scrutinee [] (ir.stmt.e default)))
 
 -- this code isnt' great working around the semi-functional frontend
 meta definition compile_expr_app_to_ir_expr
   (head : expr)
   (args : list expr)
   (action : expr -> result ir.expr) : result ir.expr := do
-    args' <- @monad.sequence result _ _ $ list.map action args,
+    args' <- monad.sequence $ list.map action args,
     if expr.is_constant head = bool.tt
-    then match is_internal_cnstr head with
-    | option.none := mk_call (expr.const_name head) args'
+    then if is_return (expr.const_name head) = bool.tt
+    then do
+      rexp <- one_or_error args,
+      (ir.expr.block ∘ ir.stmt.return) <$> action rexp
+    else match is_internal_cnstr head with
     | option.some n := mk_object n args'
-    end else (mk_error ("unsupported call position" ++ (to_string head)))
+    | option.none := match is_internal_cases head with
+    | option.some n := compile_cases_on_to_ir_expr (expr.const_name head) args action
+    | option.none := mk_call (expr.const_name head) args'
+    end end
+    else (mk_error ("unsupported call position" ++ (to_string head)))
 
 meta definition compile_expr_macro_to_ir_expr (e : expr) : result ir.expr :=
   match native.get_nat_value e with
@@ -90,30 +120,9 @@ meta definition compile_expr_to_ir_expr : expr → result ir.expr
 | (expr.lam _ _ _ _) := mk_error "found lam"
 | (expr.pi _ _ _ _) := mk_error "found pi"
 | (expr.elet n _ v body) := mk_error "internal error: can not translate let binding into a ir_expr"
-| (expr.macro _ _ _) := mk_error "m" -- compile_expr_macro_to_ir_expr (expr.macro def sz args)
-
--- vm_eval (compile_expr_app_to_ir_expr `foo [] compile_expr_to_ir_expr)
-
-meta definition one_or_error (args : list expr) : result expr :=
-  match args with
-  | ((h : expr) :: []) := system.result.ok h
-  | _ := mk_error "internal invariant violated, should only have one argument"
-  end
-
-meta definition compile_app_expr_to_ir_stmt (head : name) (args : list expr) : result ir.stmt :=
-  if is_return head = bool.tt
-  then do rexp <- one_or_error args,
-    ir.stmt.return <$> compile_expr_to_ir_expr rexp
-  else mk_error "can only compile return in head position"
+| (expr.macro d sz args) := compile_expr_macro_to_ir_expr (expr.macro d sz args)
 
 meta definition compile_expr_to_ir_stmt : expr -> result ir.stmt
-| (expr.app f x) :=
-  let head := expr.app_fn (expr.app f x),
-      args := expr.get_app_args (expr.app f x)
-  in if expr.is_constant f = bool.tt
-  then compile_app_expr_to_ir_stmt (expr.const_name f) args
-  else mk_error ("unexpected expr in head position:" ++ to_string f)
-| (expr.lam _ _ _ _) := mk_error "found lam"
 | (expr.pi _ _ _ _) := mk_error "found pi, should not be translating a Pi for any reason (yet ...)"
 | (expr.elet n _ v body) := do
   n' <- compile_local n,
@@ -162,5 +171,12 @@ meta definition compile_decl (decl_name : name) (e : expr) : format :=
       (args, body) := take_arguments e,
       ir := compile_decl_to_ir decl_name args body
   in unwrap_or_else ir format_cpp.decl (fun e, error.cases_on e (fun s, format.of_string s))
+
+meta definition compile_rec : list (name × expr) → format
+| [] := format.nil
+| ((n, e) :: rest) := compile_decl n e ++ format.line ++ format.line ++ compile_rec rest
+
+meta definition compile : list (name × expr) → format
+| p := compile_rec p
 
 end native

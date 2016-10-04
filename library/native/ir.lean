@@ -12,20 +12,24 @@ inductive ty
 inductive literal
 | nat : nat -> literal
 
-inductive expr
+-- TODO: eventually model ty.object, mk_object, project, etc in the IR itself
+mutual inductive expr, stmt
+with expr : Type
 | call : name -> list name -> expr
 | global : name -> expr
 | lit : literal -> expr
 | mk_object : nat -> list name -> expr
 | locl : name → expr
-
-inductive stmt : Type
+| block : stmt -> expr
+| project : name -> nat -> expr
+| panic : string -> expr
+with stmt : Type
 | ite : expr -> stmt -> stmt -> stmt
--- | switch : expr -> list (expr, stmt) -> ir_stmt -> ir_stmt
+| switch : name -> list (nat × stmt) -> stmt -> stmt
 | letb : name -> expr -> stmt -> stmt
 | e : expr -> stmt
 -- use a list here
-| seq : stmt -> stmt -> stmt
+| seq : list stmt -> stmt
 | return : expr -> stmt
 | nop : stmt
 
