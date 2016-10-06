@@ -5,6 +5,7 @@ import system.IO
 import system.result
 import native.ir
 import native.format
+import init.state
 
 namespace native
 
@@ -16,20 +17,59 @@ meta constant get_nat_value : expr → option nat
 
 inductive error
 | string : string -> error
+| many : list error -> error
 
 attribute [reducible]
 definition result (A : Type*) :=
   system.result error A
 
-definition mk_error {T} : string -> result T :=
-  fun s, system.result.err $ error.string s
+meta definition arity_map : Type :=
+  rb_map name nat
 
-definition mk_nat_literal (n : nat) : result ir.expr :=
+meta definition get_arity : expr -> nat
+| (expr.lam _ _ _ body) := 1 + get_arity body
+| _ := 0
+
+meta definition mk_arity_map : list (name × expr) -> arity_map
+| [] := rb_map.mk name nat
+| ((n, body) :: rest) := rb_map.insert (mk_arity_map rest) n (get_arity body)
+
+@[reducible] meta definition ir_compiler (A : Type) :=
+  stateT arity_map result A
+
+-- An `exotic` monad combinator that accumulates errors.
+meta definition seq_error (ma mb : ir_compiler format) : ir_compiler format :=
+  fun s, match ma s with
+         | system.result.err e :=
+           match mb s with
+             | system.result.err e' := system.result.err $ error.many [e, e']
+             | ok := ok
+           end
+         | _ := (do
+          fa <- ma,
+          fb <- mb,
+          return (fa ++ fb)) s
+         end
+
+meta definition lift {A} (action : result A) : ir_compiler A :=
+  fun s, action >>= fun a, return (a, s)
+
+meta definition mk_error {T} : string -> ir_compiler T :=
+  fun s, lift (system.result.err $ error.string s)
+
+meta definition lookup_arity (n : name) : ir_compiler nat := do
+  map <- stateT.read,
+  match rb_map.find map n with
+  | option.none := mk_error $ "could not find arity for: " ++ to_string n
+  | option.some n := return n
+  end
+
+meta definition mk_nat_literal (n : nat) : ir_compiler ir.expr :=
   return (ir.expr.lit $ ir.literal.nat n)
 
 -- HELPERS --
-definition assert_name : ir.expr → result name
-| (ir.expr.locl n) := system.result.ok n
+meta definition assert_name : ir.expr → ir_compiler name
+| (ir.expr.locl n) := lift $ system.result.ok n
 | (ir.expr.call _ _) := mk_error "expected name, found: call "
 | (ir.expr.lit _) := mk_error "expected name, found: lit "
 | (ir.expr.mk_object _ _) := mk_error "expected name, found: obj "
@@ -41,37 +81,37 @@ definition assert_name : ir.expr → result name
 meta definition mk_local (n : name) : expr :=
   expr.local_const n n binder_info.default (expr.const n [])
 
-definition mk_call (head : name) (args : list ir.expr) : result ir.expr :=
+meta definition mk_call (head : name) (args : list ir.expr) : ir_compiler ir.expr :=
   let args'' := list.map assert_name args
   in do args' <- monad.sequence args'',
-  system.result.ok $ ir.expr.call head args'
+  lift (system.result.ok $ ir.expr.call head args')
 
-meta definition mk_object (arity : unsigned) (args : list ir.expr) : result ir.expr :=
+meta definition mk_object (arity : unsigned) (args : list ir.expr) : ir_compiler ir.expr :=
   let args'' := list.map assert_name args
   in do args' <- monad.sequence args'',
-        system.result.ok $ ir.expr.mk_object (unsigned.to_nat arity) args'
+        lift (system.result.ok $ ir.expr.mk_object (unsigned.to_nat arity) args')
 
 meta definition is_return (n : name) : bool :=
   decidable.to_bool $ `native_compiler.return = n
 
-meta definition one_or_error (args : list expr) : result expr :=
+meta definition one_or_error (args : list expr) : ir_compiler expr :=
 match args with
-| ((h : expr) :: []) := system.result.ok h
+| ((h : expr) :: []) := lift $ system.result.ok h
 | _ := mk_error "internal invariant violated, should only have one argument"
 end
 
-meta def panic (msg : string) : result ir.expr :=
+meta def panic (msg : string) : ir_compiler ir.expr :=
   return $ ir.expr.panic msg
 
 -- END HELPERS --
 
-meta def compile_case (case : expr) : result ir.expr :=
+meta def compile_case (case : expr) : ir_compiler ir.expr :=
   mk_error "failed to make case"
 
 meta def compile_cases_on_to_ir_expr
     (scrutinee : name)
     (cases : list expr)
-    (action : expr -> result ir.expr) : result ir.expr := do
+    (action : expr -> ir_compiler ir.expr) : ir_compiler ir.expr := do
     default <- panic "default case should never be reached",
     return (ir.expr.block $ (ir.stmt.switch scrutinee [] (ir.stmt.e default)))
 
@@ -79,7 +119,7 @@ meta def compile_cases_on_to_ir_expr
 meta definition compile_expr_app_to_ir_expr
   (head : expr)
   (args : list expr)
-  (action : expr -> result ir.expr) : result ir.expr := do
+  (action : expr -> ir_compiler ir.expr) : ir_compiler ir.expr := do
     args' <- monad.sequence $ list.map action args,
     if expr.is_constant head = bool.tt
     then if is_return (expr.const_name head) = bool.tt
@@ -94,16 +134,16 @@ meta definition compile_expr_app_to_ir_expr
     end end
     else (mk_error ("unsupported call position" ++ (to_string head)))
 
-meta definition compile_expr_macro_to_ir_expr (e : expr) : result ir.expr :=
+meta definition compile_expr_macro_to_ir_expr (e : expr) : ir_compiler ir.expr :=
   match native.get_nat_value e with
   | option.none := mk_error "unsupported macro"
   | option.some n := mk_nat_literal n
   end
 
-meta definition compile_local (n : name) : result name :=
+meta definition compile_local (n : name) : ir_compiler name :=
   return $ (mk_str_name "_$local$_" (name.to_string_with_sep "_" n))
 
-meta definition compile_expr_to_ir_expr : expr → result ir.expr
+meta definition compile_expr_to_ir_expr : expr → ir_compiler ir.expr
 | (expr.const n ls) :=
   match native.is_internal_cnstr (expr.const n ls) with
   | option.none := pure $ ir.expr.global n
@@ -122,7 +162,7 @@ meta definition compile_expr_to_ir_expr : expr → result ir.expr
 | (expr.elet n _ v body) := mk_error "internal error: can not translate let binding into a ir_expr"
 | (expr.macro d sz args) := compile_expr_macro_to_ir_expr (expr.macro d sz args)
 
-meta definition compile_expr_to_ir_stmt : expr -> result ir.stmt
+meta definition compile_expr_to_ir_stmt : expr -> ir_compiler ir.stmt
 | (expr.pi _ _ _ _) := mk_error "found pi, should not be translating a Pi for any reason (yet ...)"
 | (expr.elet n _ v body) := do
   n' <- compile_local n,
@@ -130,10 +170,6 @@ meta definition compile_expr_to_ir_stmt : expr -> result ir.stmt
   body' <- compile_expr_to_ir_stmt (expr.instantiate_vars body [mk_local n]),
   return (ir.stmt.letb n' v' body')
 | e' := ir.stmt.e <$> compile_expr_to_ir_expr e'
-
-meta definition get_arity : expr -> nat
-| (expr.lam _ _ _ body) := 1 + get_arity body
-| _ := 0
 
 definition repeat {A : Type} : nat -> A -> list A
 | 0 _ := []
@@ -145,13 +181,12 @@ definition zip {A B : Type} : list A → list B → list (A × B)
 | (x :: xs) [] := []
 | (x :: xs) (y :: ys) := (x, y) :: zip xs ys
 
-meta definition compile_decl_to_ir (decl_name : name) (args : list name) (body : expr) : result ir.decl := do
-  system.result.and_then (compile_expr_to_ir_stmt body)
-  (fun (body' : ir.stmt),
+meta definition compile_decl_to_ir (decl_name : name) (args : list name) (body : expr) : ir_compiler ir.decl := do
+  body' <- compile_expr_to_ir_stmt body,
   let params := (zip args (repeat (list.length args) (ir.ty.ref ir.ty.object))) in
-  pure (ir.decl.mk decl_name params ir.ty.object body'))
+  pure (ir.decl.mk decl_name params ir.ty.object body')
 
-definition unwrap_or_else {T E : Type} : result T → (T → E) → (error -> E) -> E
+definition unwrap_or_else {T R : Type} : result T → (T → R) → (error -> R) -> R
 | (system.result.err e) f err := err e
 | (system.result.ok t) f err := f t
 
@@ -166,17 +201,23 @@ meta definition take_arguments (e : expr) : (list name × expr) :=
       locals := list.map mk_local arg_names
   in (arg_names, expr.instantiate_vars (prod.snd res) (list.reverse locals))
 
-meta definition compile_decl (decl_name : name) (e : expr) : format :=
+meta definition compile_decl (decl_name : name) (e : expr) : ir_compiler format :=
   let arity := get_arity e,
-      (args, body) := take_arguments e,
-      ir := compile_decl_to_ir decl_name args body
-  in unwrap_or_else ir format_cpp.decl (fun e, error.cases_on e (fun s, format.of_string s))
+      (args, body) := take_arguments e in do
+      ir <- compile_decl_to_ir decl_name args body,
+      return $ format_cpp.decl ir
 
-meta definition compile_rec : list (name × expr) → format
-| [] := format.nil
-| ((n, e) :: rest) := compile_decl n e ++ format.line ++ format.line ++ compile_rec rest
+meta definition compile' : list (name × expr) → ir_compiler format
+| [] := return format.nil
+| ((n, e) :: rest) := do
+  let decl := (fun d, d ++ format.line ++ format.line) <$> compile_decl n e
+  in seq_error decl (compile' rest)
 
-meta definition compile : list (name × expr) → format
-| p := compile_rec p
+meta definition compile (procs : list (name × expr)) : format :=
+  let arities := mk_arity_map procs in
+  match compile' procs arities with
+  | system.result.err e := to_fmt "ERRRROR"
+  | system.result.ok (f, _) := f
+  end
 
 end native
