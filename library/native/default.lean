@@ -14,6 +14,7 @@ meta constant is_internal_cnstr : expr → option unsigned
 meta constant is_internal_cases : expr → option unsigned
 meta constant is_internal_proj : expr → option unsigned
 meta constant get_nat_value : expr → option nat
+meta constant get_builtin : name → option (name × nat)
 
 inductive error
 | string : string -> error
@@ -38,18 +39,19 @@ meta definition mk_arity_map : list (name × expr) -> arity_map
   stateT arity_map result A
 
 -- An `exotic` monad combinator that accumulates errors.
-meta definition seq_error (ma mb : ir_compiler format) : ir_compiler format :=
-  fun s, match ma s with
-         | system.result.err e :=
-           match mb s with
-             | system.result.err e' := system.result.err $ error.many [e, e']
-             | ok := ok
-           end
-         | _ := (do
-          fa <- ma,
-          fb <- mb,
-          return (fa ++ fb)) s
-         end
+meta definition sequence_err : list (ir_compiler format) → ir_compiler (list format × list error)
+| [] := return ([], [])
+| (action :: remaining) :=
+  fun s, match sequence_err remaining s with
+    | system.result.err e := system.result.err e
+    | system.result.ok ((res, errs), s') := match action s with
+      | system.result.err e := system.result.ok ((res, e :: errs), s')
+      | system.result.ok (v, s'') := system.result.ok ((v :: res, errs), s'')
+      end
+    end
+
+-- meta lemma sequence_err_always_ok :
+--   forall xs v s s', sequence_err xs s = system.result.ok (v, s') := sorry
 
 meta definition lift {A} (action : result A) : ir_compiler A :=
   fun s, action >>= fun a, return (a, s)
@@ -77,14 +79,30 @@ meta definition assert_name : ir.expr → ir_compiler name
 | (ir.expr.block _) := mk_error "expected local, found block"
 | (ir.expr.project _ _) := mk_error "expected name, found project"
 | (ir.expr.panic _) := mk_error "expected name, found panic"
+| (ir.expr.mk_native_closure _ _) := mk_error "expected name, found native closure"
 
 meta definition mk_local (n : name) : expr :=
   expr.local_const n n binder_info.default (expr.const n [])
 
 meta definition mk_call (head : name) (args : list ir.expr) : ir_compiler ir.expr :=
   let args'' := list.map assert_name args
-  in do args' <- monad.sequence args'',
-  lift (system.result.ok $ ir.expr.call head args')
+  in do
+    args' <- monad.sequence args'',
+    return (ir.expr.call head args')
+
+meta def mk_under_sat_call (head : name) (args : list ir.expr) : ir_compiler ir.expr :=
+let args'' := list.map assert_name args in do
+    args' <- monad.sequence args'',
+    return $ ir.expr.mk_native_closure head args'
+
+-- meta def mk_over_sat_call
+
+meta def compile_call (head : name) (arity : nat) (args : list ir.expr) : ir_compiler ir.expr := do
+  if list.length args = arity
+  then mk_call head args
+  else if list.length args < arity
+  then mk_under_sat_call head args
+  else (return $ ir.expr.call "case3" [])
 
 meta definition mk_object (arity : unsigned) (args : list ir.expr) : ir_compiler ir.expr :=
   let args'' := list.map assert_name args
@@ -130,7 +148,12 @@ meta definition compile_expr_app_to_ir_expr
     | option.some n := mk_object n args'
     | option.none := match is_internal_cases head with
     | option.some n := compile_cases_on_to_ir_expr (expr.const_name head) args action
-    | option.none := mk_call (expr.const_name head) args'
+    | option.none := match get_builtin (expr.const_name head) with
+      | option.some (n, arity) := compile_call n arity args'
+      | option.none := do
+        arity <- lookup_arity (expr.const_name head),
+        compile_call (expr.const_name head) arity args'
+      end
     end end
     else (mk_error ("unsupported call position" ++ (to_string head)))
 
@@ -201,23 +224,35 @@ meta definition take_arguments (e : expr) : (list name × expr) :=
       locals := list.map mk_local arg_names
   in (arg_names, expr.instantiate_vars (prod.snd res) (list.reverse locals))
 
+meta def replace_main (n : name) : name :=
+     if n = `main
+     then "___lean__main"
+     else n
+
 meta definition compile_decl (decl_name : name) (e : expr) : ir_compiler format :=
   let arity := get_arity e,
       (args, body) := take_arguments e in do
-      ir <- compile_decl_to_ir decl_name args body,
+      ir <- compile_decl_to_ir (replace_main decl_name) args body,
       return $ format_cpp.decl ir
 
-meta definition compile' : list (name × expr) → ir_compiler format
-| [] := return format.nil
+meta definition compile' : list (name × expr) → list (ir_compiler format)
+| [] := []
 | ((n, e) :: rest) := do
   let decl := (fun d, d ++ format.line ++ format.line) <$> compile_decl n e
-  in seq_error decl (compile' rest)
+  in decl :: (compile' rest)
+
+meta def format_error : error → format
+| (error.string s) := to_fmt s
+| (error.many es) := format_concat (list.map format_error es)
 
 meta definition compile (procs : list (name × expr)) : format :=
   let arities := mk_arity_map procs in
-  match compile' procs arities with
+  match sequence_err (compile' procs) arities with
   | system.result.err e := to_fmt "ERRRROR"
-  | system.result.ok (f, _) := f
+  | system.result.ok ((decls, errs), _) :=
+    if list.length errs = 0
+    then format_concat decls
+    else format_error (error.many errs)
   end
 
 end native

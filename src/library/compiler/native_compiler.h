@@ -13,7 +13,15 @@ namespace lean {
 void set_install_path(std::string s);
 std::string get_install_path();
 
-struct extern_fn;
+struct extern_fn {
+    bool m_in_lean_namespace;
+    name m_name;
+    unsigned m_arity;
+    extern_fn(bool in_lean_namespace, name n, unsigned arity) :
+        m_in_lean_namespace(in_lean_namespace), m_name(n), m_arity(arity) {}
+};
+
+optional<extern_fn> get_builtin(name const & n);
 
 enum native_compiler_mode { JIT, AOT };
 void native_compile(environment const & env, buffer<pair<name, expr>> & procs, native_compiler_mode & mode);

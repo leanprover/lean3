@@ -9,6 +9,9 @@ Author: Jared Roesch
 #include "library/vm/vm.h"
 #include "library/vm/vm_string.h"
 #include "library/vm/vm_expr.h"
+#include "library/vm/vm_name.h"
+#include "library/vm/vm_option.h"
+#include "library/compiler/native_compiler.h"
 #include "library/compiler/simp_inductive.h"
 #include "library/compiler/nat_value.h"
 
@@ -57,12 +60,26 @@ vm_obj native_get_nat_value(vm_obj const & o) {
     }
 }
 
+vm_obj native_get_builtin(vm_obj const & o) {
+    name n = to_name(o);
+    auto efn = get_builtin(n);
+    if (efn) {
+        std::cout << efn->m_name << std::endl;
+        std::cout << efn->m_arity << std::endl;
+        auto pair = mk_vm_constructor(0, { to_obj(efn->m_name), mk_vm_simple(efn->m_arity) });
+        return mk_vm_some(pair);
+    } else {
+        return mk_vm_none();
+    }
+}
+
 void initialize_vm_native() {
     // Not sure if we should expose ese or what?
     DECLARE_VM_BUILTIN(name({"native", "is_internal_cnstr"}), native_is_internal_cnstr);
     DECLARE_VM_BUILTIN(name({"native", "is_internal_cases"}), native_is_internal_cases);
     DECLARE_VM_BUILTIN(name({"native", "is_internal_proj"}), native_is_internal_proj);
     DECLARE_VM_BUILTIN(name({"native", "get_nat_value"}), native_get_nat_value);
+    DECLARE_VM_BUILTIN(name({"native", "get_builtin"}), native_get_builtin);
 }
 
 void finalize_vm_native() {

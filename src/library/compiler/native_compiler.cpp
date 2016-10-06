@@ -58,16 +58,6 @@ std::string get_install_path() {
     return *g_lean_install_path;
 }
 
-optional<extern_fn> get_builtin(name const & n);
-
-struct extern_fn {
-    bool m_in_lean_namespace;
-    name m_name;
-    unsigned m_arity;
-    extern_fn(bool in_lean_namespace, name n, unsigned arity) :
-        m_in_lean_namespace(in_lean_namespace), m_name(n), m_arity(arity) {}
-};
-
 extern_fn mk_lean_extern(name n, unsigned arity) {
     return extern_fn(true, n, arity);
 }
@@ -75,7 +65,6 @@ extern_fn mk_lean_extern(name n, unsigned arity) {
 extern_fn mk_extern(name n, unsigned arity) {
     return extern_fn(false, n, arity);
 }
-
 
 class native_compiler_fn {
 public:

@@ -23,6 +23,7 @@ with expr : Type
 | block : stmt -> expr
 | project : name -> nat -> expr
 | panic : string -> expr
+| mk_native_closure : name → list name → expr
 with stmt : Type
 | ite : expr -> stmt -> stmt -> stmt
 | switch : name -> list (nat × stmt) -> stmt -> stmt
