@@ -62,13 +62,16 @@ meta definition expr' (action : ir.stmt -> format) : ir.expr -> format
 "lean::mk_native_closure(*g_env, lean::name({\"" ++ name.to_string_with_sep "\", \"" n ++ "\"})" ++ "," ++
    format.bracket "{" "}" (comma_sep (list.map format_local args)) ++ ")"
 
--- meta def case : 
-
 meta def block (body : format) : format :=
   format.bracket "{" "}" (format.nest 4 (format.line ++ body ++ format.line))
 
 meta def default_case (body : format) : format :=
   to_fmt "default:" ++ block body
+
+meta def cases (e : list (ℕ × ir.stmt)) : format :=
+format.nil
+
+-- set_option trace.eqn_compiler.elim_match true
 
 meta def stmt : ir.stmt → format
 | (ir.stmt.e e) := expr' stmt e
@@ -79,13 +82,12 @@ meta def stmt : ir.stmt → format
 | (ir.stmt.letb n v body) :=
   to_fmt "lean::vm_obj " ++ (mangle_name n) ++ (to_fmt " = ") ++ (expr' stmt v) ++ to_fmt ";" ++
   format.line ++ stmt body
-| (ir.stmt.switch _ _ _) := format.of_string "a"
-
-  -- (to_fmt "switch (cidx(") ++ (mangle_name scrut) ++ (to_fmt "))") ++
-  -- (block (to_fmt "cases")) ++
-  -- default_case "unreach"
-
-| _ := format.of_string "NYI"
+| (ir.stmt.switch scrut cs default) :=
+  (to_fmt "switch (cidx(") ++ (mangle_name scrut) ++ (to_fmt "))") ++
+  (block (cases cs)) ++ default_case (stmt default)
+| ir.stmt.nop := format.of_string "NYI"
+| (ir.stmt.ite _ _ _) := format.of_string "NYI"
+| (ir.stmt.seq _ ) := format.of_string "NYI"
 
 meta def expr := expr' stmt
 
