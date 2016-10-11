@@ -111,4 +111,17 @@ def dropn : ℕ → list A → list A
 | (succ n) [] := []
 | (succ n) (x::r) := dropn n r
 
+def zip : list A → list B → list (prod A B)
+| []      _       := []
+| _       []      := []
+| (x::xs) (y::ys) := (prod.mk x y) :: zip xs ys
+
+def repeat (a : A) : ℕ → list A
+| 0 := []
+| (succ n) := a :: repeat n
+
+def iota : ℕ → list ℕ
+| 0 := []
+| (succ n) := iota n ++ [succ n]
+
 end list
