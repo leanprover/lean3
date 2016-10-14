@@ -27,12 +27,11 @@ Author: Leonardo de Moura
 #include "kernel/formatter.h"
 #include "library/standard_kernel.h"
 #include "library/module.h"
-#include "library/flycheck.h"
 #include "library/type_context.h"
 #include "library/io_state_stream.h"
 #include "library/definition_cache.h"
 #include "library/export.h"
-#include "library/error_handling.h"
+#include "library/message_builder.h"
 #include "frontends/lean/parser.h"
 #include "frontends/lean/pp.h"
 #include "frontends/lean/dependencies.h"
@@ -41,6 +40,8 @@ Author: Leonardo de Moura
 #include "init/init.h"
 #include "shell/emscripten.h"
 #include "shell/simple_pos_info_provider.h"
+#include "shell/json.h"
+#include "shell/server.h"
 #include "version.h"
 #include "githash.h" // NOLINT
 
@@ -97,7 +98,8 @@ static void display_help(std::ostream & out) {
     std::cout << "  --threads=num -j  number of threads used to process lean files\n";
 #endif
     std::cout << "  --deps            just print dependencies of a Lean input\n";
-    std::cout << "  --flycheck        print structured error message for flycheck\n";
+    std::cout << "  --json            print JSON-formatted structured error messages\n";
+    std::cout << "  --server          start lean in server mode\n";
     std::cout << "  --cache=file -c   load/save cached definitions from/to the given file\n";
     std::cout << "  --profile         display elaboration/type checking time for each definition/theorem\n";
 #if defined(LEAN_USE_BOOST)
@@ -137,7 +139,8 @@ static struct option g_long_options[] = {
     {"quiet",        no_argument,       0, 'q'},
     {"cache",        required_argument, 0, 'c'},
     {"deps",         no_argument,       0, 'd'},
-    {"flycheck",     no_argument,       0, 'F'},
+    {"json",         no_argument,       0, 'J'},
+    {"server",       no_argument,       0, 'S'},
 #if defined(LEAN_USE_BOOST)
     {"tstack",       required_argument, 0, 's'},
 #endif
@@ -222,6 +225,8 @@ int main(int argc, char ** argv) {
     unsigned num_threads    = 1;
     bool read_cache         = false;
     bool save_cache         = false;
+    bool json_output        = false;
+    bool server             = false;
     options opts;
     std::string output;
     std::string cache_name;
@@ -289,8 +294,13 @@ int main(int argc, char ** argv) {
                 return 1;
             }
             break;
-        case 'F':
-            opts = opts.update("flycheck", true);
+        case 'J':
+            opts = opts.update(lean::name{"trace", "as_messages"}, true);
+            json_output = true;
+            break;
+        case 'S':
+            opts = opts.update(lean::name{"trace", "as_messages"}, true);
+            server = true;
             break;
         case 'P':
             opts = opts.update("profile", true);
@@ -349,10 +359,16 @@ int main(int argc, char ** argv) {
     lean_assert(num_threads == 1);
     #endif
 
+    environment env = mk_environment(trust_lvl);
+    io_state ios(opts, lean::mk_pretty_formatter_factory());
+    if (json_output) {
+        ios.set_message_channel(std::make_shared<lean::json_message_stream>(std::cout));
+        // Redirect uncaptured non-json messages to stdout
+        ios.set_regular_channel(ios.get_diagnostic_channel_ptr());
+    }
+
     if (smt2) {
         // Note: the smt2 flag may override other flags
-        environment env = mk_environment(trust_lvl);
-        io_state ios(opts, lean::mk_pretty_formatter_factory());
         bool ok = true;
         for (int i = optind; i < argc; i++) {
             try {
@@ -360,16 +376,20 @@ int main(int argc, char ** argv) {
             } catch (lean::exception & ex) {
                 ok = false;
                 type_context tc(env, ios.get_options());
-                auto out = diagnostic(env, ios, tc);
                 simple_pos_info_provider pp(argv[i]);
-                lean::display_error(out, &pp, ex);
+                lean::message_builder(&pp, std::make_shared<type_context>(env, ios.get_options()),
+                                      env, ios, argv[i], pos_info(1, 1), lean::ERROR)
+                        .set_exception(ex).report();
             }
         }
         return ok ? 0 : 1;
     }
 
-    environment env = mk_environment(trust_lvl);
-    io_state ios(opts, lean::mk_pretty_formatter_factory());
+    if (server) {
+        lean::server(num_threads, env, ios).run();
+        return 0;
+    }
+
     definition_cache   cache;
     definition_cache * cache_ptr = nullptr;
     if (read_cache) {
@@ -381,16 +401,11 @@ int main(int argc, char ** argv) {
                 cache.load(in);
         } catch (lean::throwable & ex) {
             cache_ptr = nullptr;
-            // I'm using flycheck_error instead off flycheck_warning because
-            // the :error-patterns at lean-flycheck.el do not work after
-            // I add a rule for FLYCHECK_WARNING.
-            // Same for display_error_pos vs display_warning_pos.
-            lean::flycheck_error warn(ios);
-            if (optind < argc)
-                display_error_pos(ios.get_regular_stream(), ios.get_options(), argv[optind], 1, 0);
-            ios.get_regular_stream()
-                << "failed to load cache file '" << cache_name << "', "
-                << ex.what() << ". cache is going to be ignored\n";
+            auto out = lean::message_builder(env, ios, argv[optind], lean::pos_info(1, 1), lean::WARNING);
+            out << "failed to load cache file '" << cache_name << "'\n";
+            out.set_exception(ex);
+            out << "cache is going to be ignored";
+            out.report();
         }
     }
     try {
@@ -405,11 +420,8 @@ int main(int argc, char ** argv) {
                     ok = false;
                 }
             } catch (lean::exception & ex) {
-                simple_pos_info_provider pp(argv[i]);
                 ok = false;
-                type_context tc(env, ios.get_options());
-                auto out = diagnostic(env, ios, tc);
-                lean::display_error(out, &pp, ex);
+                lean::message_builder(env, ios, argv[i], lean::pos_info(1, 1), lean::ERROR).set_exception(ex).report();
             }
         }
         if (save_cache) {
@@ -434,9 +446,7 @@ int main(int argc, char ** argv) {
         }
         return ok ? 0 : 1;
     } catch (lean::throwable & ex) {
-        type_context tc(env, ios.get_options());
-        auto out = diagnostic(env, ios, tc);
-        lean::display_error(out, nullptr, ex);
+        lean::message_builder(env, ios, "<unknown>", lean::pos_info(1, 1), lean::ERROR).set_exception(ex).report();
     } catch (std::bad_alloc & ex) {
         std::cerr << "out of memory" << std::endl;
         return 1;

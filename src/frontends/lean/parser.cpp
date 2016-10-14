@@ -40,10 +40,8 @@ Author: Leonardo de Moura
 #include "library/num.h"
 #include "library/string.h"
 #include "library/sorry.h"
-#include "library/flycheck.h"
 #include "library/pp_options.h"
 #include "library/noncomputable.h"
-#include "library/error_handling.h"
 #include "library/scope_pos_info_provider.h"
 #include "library/type_context.h"
 #include "library/equations_compiler/equations.h"
@@ -168,16 +166,41 @@ void parser::init_stop_at(options const & opts) {
     }
 }
 
+class parser_message_stream : public message_stream {
+    parser * m_p;
+    std::shared_ptr<message_stream> m_orig_message_stream;
+public:
+    parser_message_stream(parser * p, std::shared_ptr<message_stream> const & orig_message_stream) :
+            m_p(p), m_orig_message_stream(orig_message_stream) {}
+    void report(message const & msg) override {
+        m_p->add_message(msg);
+        m_orig_message_stream->report(msg);
+    }
+};
+
 parser::parser(environment const & env, io_state const & ios,
                std::istream & strm, char const * strm_name, optional<std::string> const & base_dir,
                bool use_exceptions, unsigned num_threads,
                snapshot const * s, snapshot_vector * sv):
     m_env(env), m_ios(ios),
     m_verbose(true), m_use_exceptions(use_exceptions),
-    m_scanner(strm, strm_name, s ? s->m_line : 1),
-    m_base_dir(base_dir),
+    m_scanner(strm, strm_name, s ? s->m_pos : pos_info(1, 0)),
+    m_base_dir(base_dir), m_imports_parsed(false),
     m_snapshot_vector(sv), m_cache(nullptr) {
+    if (s) {
+        m_env                = s->m_env;
+        m_ios.set_options(s->m_options);
+        m_messages           = s->m_messages;
+        m_local_level_decls  = s->m_lds;
+        m_local_decls        = s->m_eds;
+        m_level_variables    = s->m_lvars;
+        m_variables          = s->m_vars;
+        m_include_vars       = s->m_include_vars;
+        m_imports_parsed     = s->m_imports_parsed;
+        m_parser_scope_stack = s->m_parser_scope_stack;
+    }
     m_ignore_noncomputable = false;
+    m_ios.set_message_channel(std::make_shared<parser_message_stream>(this, m_ios.get_message_channel_ptr()));
     m_profile     = ios.get_options().get_bool("profile", false);
     init_stop_at(ios.get_options());
     if (num_threads > 1 && m_profile)
@@ -185,14 +208,6 @@ parser::parser(environment const & env, io_state const & ios,
     m_in_quote = false;
     m_in_pattern = false;
     m_has_params = false;
-    if (s) {
-        m_local_level_decls  = s->m_lds;
-        m_local_decls        = s->m_eds;
-        m_level_variables    = s->m_lvars;
-        m_variables          = s->m_vars;
-        m_include_vars       = s->m_include_vars;
-        m_parser_scope_stack = s->m_parser_scope_stack;
-    }
     m_num_threads  = num_threads;
     m_id_behavior  = id_behavior::ErrorIfUndef;
     m_found_errors = false;
@@ -216,35 +231,33 @@ void parser::scan() {
             if (curr_is_identifier()) {
                 name const & id = get_name_val();
                 if (p.second <= m_info_at_col && m_info_at_col < p.second + id.utf8_size()) {
-                    print_lean_info_header(m_ios.get_regular_stream());
+                    auto out = mk_message(INFORMATION);
                     bool ok = true;
                     try {
                         bool show_value = false;
-                        ok = print_id_info(*this, id, show_value, p);
+                        ok = print_id_info(*this, out, id, show_value, p);
                     } catch (exception &) {
                         ok = false;
                     }
                     if (!ok)
-                        m_ios.get_regular_stream() << "unknown identifier '" << id << "'\n";
-                    print_lean_info_footer(m_ios.get_regular_stream());
+                        out << "unknown identifier '" << id << "'\n";
+                    out.report();
                     m_info_at = false;
                 }
             } else if (curr_is_keyword()) {
                 name const & tk = get_token_info().token();
                 if (p.second <= m_info_at_col && m_info_at_col < p.second + tk.utf8_size()) {
-                    print_lean_info_header(m_ios.get_regular_stream());
+                    auto out = mk_message(INFORMATION);
                     try {
-                        print_token_info(*this, tk);
+                        print_token_info(*this, out, tk);
                     } catch (exception &) {}
-                    print_lean_info_footer(m_ios.get_regular_stream());
+                    out.report();
                     m_info_at = false;
                 }
             } else if (curr_is_command()) {
                 name const & tk = get_token_info().token();
                 if (p.second <= m_info_at_col && m_info_at_col < p.second + tk.utf8_size()) {
-                    print_lean_info_header(m_ios.get_regular_stream());
-                    m_ios.get_regular_stream() << "'" << tk << "' is a command\n";
-                    print_lean_info_footer(m_ios.get_regular_stream());
+                    (mk_message(INFORMATION) << "'" << tk << "' is a command").report();
                     m_info_at = false;
                 }
             }
@@ -284,9 +297,7 @@ expr parser::mk_sorry(pos_info const & p) {
         // TODO(Leo): remove the #ifdef.
         // The compilation option LEAN_IGNORE_SORRY is a temporary hack for the nightly builds
         // We use it to avoid a buch of warnings on cdash.
-        flycheck_warning wrn(m_ios);
-        display_warning_pos(p.first, p.second);
-        m_ios.get_regular_stream() << " using 'sorry'" << std::endl;
+        (mk_message(p, WARNING) << "using 'sorry'").report();
 #endif
     }
     return save_pos(::lean::mk_sorry(), p);
@@ -306,38 +317,6 @@ void parser::updt_options() {
             }
         }
     }
-}
-
-void parser::display_warning_pos(unsigned line, unsigned pos) {
-    type_context tc(env(), get_options());
-    auto out = regular(env(), ios(), tc);
-    ::lean::display_warning_pos(out, get_stream_name().c_str(), line, pos);
-}
-void parser::display_warning_pos(pos_info p) { display_warning_pos(p.first, p.second); }
-
-void parser::display_information_pos(pos_info pos) {
-    ::lean::display_information_pos(ios().get_regular_stream(), get_options(),
-                                    get_stream_name().c_str(), pos.first, pos.second);
-}
-
-void parser::display_error_pos(unsigned line, unsigned pos) {
-    ::lean::display_error_pos(ios().get_regular_stream(), get_options(),
-                              get_stream_name().c_str(), line, pos);
-}
-void parser::display_error_pos(pos_info p) { display_error_pos(p.first, p.second); }
-
-void parser::display_error(char const * msg, unsigned line, unsigned pos) {
-    flycheck_error err(ios());
-    display_error_pos(line, pos);
-    ios().get_regular_stream() << " " << msg << std::endl;
-}
-
-void parser::display_error(char const * msg, pos_info p) { display_error(msg, p.first, p.second); }
-
-void parser::display_error(throwable const & ex) {
-    type_context tc(env(), get_options());
-    auto out = regular(env(), ios(), tc);
-    ::lean::display_error(out, this, ex);
 }
 
 void parser::throw_parser_exception(char const * msg, pos_info p) {
@@ -364,21 +343,21 @@ void parser::protected_call(std::function<void()> && f, std::function<void()> &&
             ex.get_exception().rethrow();
         }
     } catch (parser_exception & ex) {
-        CATCH(flycheck_error err(ios()); ios().get_regular_stream() << ex.what() << std::endl,
-              throw);
+        CATCH(ios().report(ex), throw);
     } catch (parser_error & ex) {
-        CATCH(display_error(ex.what(), ex.m_pos),
+        CATCH((mk_message(ex.m_pos, ERROR) << ex.get_msg()).report(),
               throw_parser_exception(ex.what(), ex.m_pos));
     } catch (interrupted & ex) {
         reset_interrupt();
         if (m_verbose)
-            ios().get_regular_stream() << "!!!Interrupted!!!" << std::endl;
+            (mk_message(m_last_cmd_pos, ERROR) << "!!!Interrupted!!!").report();
         sync();
         if (m_use_exceptions)
             throw;
     } catch (throwable & ex) {
         reset_interrupt();
-        CATCH(display_error(ex), throw_nested_exception(ex, m_last_cmd_pos));
+        CATCH(mk_message(m_last_cmd_pos, ERROR).set_exception(ex).report(),
+              throw_nested_exception(ex, m_last_cmd_pos));
     }
 }
 
@@ -2067,7 +2046,7 @@ void parser::parse_command() {
         lazy_type_context tc(m_env, get_options());
         scope_global_ios scope1(m_ios);
         scope_trace_env  scope2(m_env, m_ios.get_options(), tc);
-        flycheck_output_scope flycheck(get_file_name(), pos());
+        scope_traces_as_messages traces_as_messages(get_stream_name(), pos());
         if (is_notation_cmd(cmd_name)) {
             in_notation_ctx ctx(*this);
             if (it->get_skip_token())
@@ -2094,6 +2073,7 @@ static optional<std::string> try_file(std::string const & base, optional<unsigne
 }
 
 void parser::parse_imports() {
+    m_last_cmd_pos = pos();
     buffer<module_name> olean_files;
     bool prelude     = false;
     std::string base = m_base_dir ? *m_base_dir : dirname(get_stream_name().c_str());
@@ -2108,13 +2088,11 @@ void parser::parse_imports() {
             olean_files.push_back(module_name(k, f));
         } else {
             m_found_errors = true;
-            if (!m_use_exceptions && m_show_errors) {
-                flycheck_error err(ios());
-                display_error_pos(pos());
-                ios().get_regular_stream() << " invalid import, unknown module '" << f << "'" << std::endl;
-            }
+            parser_error error(sstream() << "invalid import, unknown module '" << f << "'", pos());
+            if (!m_use_exceptions && m_show_errors)
+                ios().report(message(get_file_name(), error.m_pos, ERROR, error.get_msg()));
             if (m_use_exceptions)
-                throw parser_error(sstream() << "invalid import, unknown module '" << f << "'", pos());
+                throw error;
         }
     };
     if (!prelude) {
@@ -2162,8 +2140,23 @@ void parser::parse_imports() {
     m_env = update_fingerprint(m_env, fingerprint);
     m_env = activate_export_decls(m_env, {}); // explicitly activate exports in root namespace
     m_env = replay_export_decls_core(m_env, m_ios);
+    check_modules_up_to_date();
+    m_imports_parsed = true;
     if (imported)
         save_snapshot();
+}
+
+void parser::check_modules_up_to_date() {
+    list<module_name> out_of_date = get_out_of_date_imports(m_env);
+    if (empty(out_of_date)) return;
+    auto msg = mk_message(m_last_cmd_pos, WARNING);
+    msg << "imported modules are out of date: ";
+    bool first = true;
+    for_each(out_of_date, [&] (module_name const & mname) {
+        if (first) { first = false; } else { msg << ", "; }
+        msg << mname.get_name();
+    });
+    msg.report();
 }
 
 bool parser::parse_commands() {
@@ -2173,18 +2166,15 @@ bool parser::parse_commands() {
     scope_pos_info_provider scope1(*this);
     try {
         bool done = false;
-        protected_call([&]() {
-                parse_imports();
-            },
-            [&]() { sync_command(); });
+        // Only parse imports when we are at the beginning, i.e. not when starting from a snapshot.
+        if (!m_imports_parsed)
+            protected_call([&]() { parse_imports(); }, [&]() { sync_command(); });
         if (has_sorry(m_env)) {
 #ifndef LEAN_IGNORE_SORRY
             // TODO(Leo): remove the #ifdef.
             // The compilation option LEAN_IGNORE_SORRY is a temporary hack for the nightly builds
             // We use it to avoid a buch of warnings on cdash.
-            flycheck_warning wrn(ios());
-            display_warning_pos(pos());
-            ios().get_regular_stream() << " imported file uses 'sorry'" << std::endl;
+            (mk_message(WARNING) << "imported file uses 'sorry'").report();
 #endif
         }
         while (!done) {
@@ -2217,7 +2207,7 @@ bool parser::parse_commands() {
         if (has_open_scopes(m_env)) {
             m_found_errors = true;
             if (!m_use_exceptions && m_show_errors)
-                display_error("invalid end of module, expecting 'end'", pos());
+                (mk_message(ERROR) << "invalid end of module, expecting 'end'").report();
             else if (m_use_exceptions)
                 throw_parser_exception("invalid end of module, expecting 'end'", pos());
         }
@@ -2267,10 +2257,10 @@ environment parser::reveal_all_theorems() {
 void parser::save_snapshot() {
     if (!m_snapshot_vector)
         return;
-    if (m_snapshot_vector->empty() || static_cast<int>(m_snapshot_vector->back().m_line) != m_scanner.get_line())
-        m_snapshot_vector->push_back(snapshot(m_env, m_local_level_decls, m_local_decls,
+    if (m_snapshot_vector->empty() || m_snapshot_vector->back().m_pos != m_scanner.get_pos_info())
+        m_snapshot_vector->push_back(snapshot(m_env, m_messages, m_local_level_decls, m_local_decls,
                                               m_level_variables, m_variables, m_include_vars,
-                                              m_ios.get_options(), m_parser_scope_stack, m_scanner.get_line()));
+                                              m_ios.get_options(), m_imports_parsed, m_parser_scope_stack, m_scanner.get_pos_info()));
 }
 
 optional<pos_info> parser::get_pos_info(expr const & e) const {
@@ -2289,6 +2279,14 @@ pos_info parser::get_some_pos() const {
 
 char const * parser::get_file_name() const {
     return get_stream_name().c_str();
+}
+
+message_builder parser::mk_message(pos_info const &p, message_severity severity) {
+    std::shared_ptr<abstract_type_context> tc = std::make_shared<type_context>(env(), get_options());
+    return message_builder(this, tc, env(), ios(), get_file_name(), p, severity);
+}
+message_builder parser::mk_message(message_severity severity) {
+    return mk_message(pos(), severity);
 }
 
 bool parse_commands(environment & env, io_state & ios, std::istream & in, char const * strm_name,

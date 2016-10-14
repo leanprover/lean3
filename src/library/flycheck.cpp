@@ -5,41 +5,31 @@ Released under Apache 2.0 license as described in the file LICENSE.
 Author: Leonardo de Moura
 */
 #include "library/flycheck.h"
-#include "library/error_handling.h"
 
 namespace lean {
-flycheck_scope::flycheck_scope(std::ostream & out, options const & o, char const * kind):
-    m_out(out),
-    m_flycheck(o.get_bool("flycheck", false)) {
-    if (m_flycheck) m_out << "FLYCHECK_BEGIN " << kind << std::endl;
-}
-flycheck_scope::~flycheck_scope() {
-    if (m_flycheck) m_out << "FLYCHECK_END" << std::endl;
-}
-flycheck_output_scope::flycheck_output_scope(io_state const & ios, char const * stream_name, pos_info const & pos) :
-        m_stream_name(stream_name), m_pos(pos),
-        m_out(ios.get_regular_stream()),
-        m_redirected_ios(ios),
-        m_scoped_ios(), m_buffer() {
-    if (ios.get_options().get_bool("flycheck", false)) {
-        m_buffer = std::shared_ptr<string_output_channel>(new string_output_channel);
-        m_redirected_ios.set_diagnostic_channel(m_buffer);
-        m_scoped_ios = std::unique_ptr<scope_global_ios>(new scope_global_ios(m_redirected_ios));
-        lean_assert(enabled());
+
+static char const * flycheck_kind_of_severity(message_severity severity) {
+    switch (severity) {
+        case INFORMATION: return "INFORMATION";
+        case WARNING:     return "WARNING";
+        case ERROR:       return "ERROR";
+        default: lean_unreachable();
     }
 }
-flycheck_output_scope::flycheck_output_scope(pos_info_provider const * provider, expr const & ref) :
-    flycheck_output_scope(provider ? provider->get_file_name() : "unknown",
-                          provider ? provider->get_pos_info_or_some(ref) : pos_info(0, 0)) {}
-flycheck_output_scope::~flycheck_output_scope() {
-    if (enabled()) {
-        auto redirected_output = m_buffer->str();
-        if (!redirected_output.empty()) {
-            m_out << "FLYCHECK_BEGIN INFORMATION" << std::endl;
-            display_pos(m_out, m_stream_name, m_pos.first, m_pos.second);
-            m_out << " information:" << std::endl << redirected_output;
-            m_out << "FLYCHECK_END" << std::endl;
-        }
+
+void flycheck_message_stream::report(message const & msg) {
+    m_out << "FLYCHECK_BEGIN " << flycheck_kind_of_severity(msg.get_severity()) << std::endl;
+    m_out << msg.get_file_name()
+          << ":" << msg.get_pos().first << ":" << msg.get_pos().second << ": ";
+    switch (msg.get_severity()) {
+        case INFORMATION: m_out << "information: "; break;
+        case WARNING:     m_out << "warning: "; break;
+        case ERROR:       m_out << "error: "; break;
     }
+    if (!msg.get_caption().empty())
+        m_out << msg.get_caption() << ":\n";
+    m_out << msg.get_text() << "\n";
+    m_out << "FLYCHECK_END" << std::endl;
 }
+
 }

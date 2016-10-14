@@ -16,6 +16,7 @@ Author: Leonardo de Moura
 #include "library/abstract_parser.h"
 #include "library/io_state.h"
 #include "library/io_state_stream.h"
+#include "library/message_builder.h"
 #include "library/definition_cache.h"
 #include "frontends/lean/scanner.h"
 #include "frontends/lean/local_decls.h"
@@ -52,21 +53,21 @@ typedef list<parser_scope> parser_scope_stack;
 /** \brief Snapshot of the state of the Lean parser */
 struct snapshot {
     environment        m_env;
+    list<message>      m_messages;
     local_level_decls  m_lds;
     local_expr_decls   m_eds;
     name_set           m_lvars; // subset of m_lds that is tagged as level variable
     name_set           m_vars; // subset of m_eds that is tagged as variable
     name_set           m_include_vars; // subset of m_eds that must be included
     options            m_options;
+    bool               m_imports_parsed;
     parser_scope_stack m_parser_scope_stack;
-    unsigned           m_line;
-    snapshot():m_line(0) {}
-    snapshot(environment const & env, options const & o):m_env(env), m_options(o), m_line(1) {}
-    snapshot(environment const & env, local_level_decls const & lds,
+    pos_info           m_pos;
+    snapshot(environment const & env, list<message> const & messages, local_level_decls const & lds,
              local_expr_decls const & eds, name_set const & lvars, name_set const & vars,
-             name_set const & includes, options const & opts, parser_scope_stack const & pss, unsigned line):
-        m_env(env), m_lds(lds), m_eds(eds), m_lvars(lvars), m_vars(vars), m_include_vars(includes),
-        m_options(opts), m_parser_scope_stack(pss), m_line(line) {}
+             name_set const & includes, options const & opts, bool imports_parsed, parser_scope_stack const & pss, pos_info const & pos):
+        m_env(env), m_messages(messages), m_lds(lds), m_eds(eds), m_lvars(lvars), m_vars(vars), m_include_vars(includes),
+        m_options(opts), m_imports_parsed(imports_parsed), m_parser_scope_stack(pss), m_pos(pos) {}
 };
 
 typedef std::vector<snapshot> snapshot_vector;
@@ -82,6 +83,7 @@ enum class id_behavior {
 class parser : public abstract_parser {
     environment             m_env;
     io_state                m_ios;
+    list<message>           m_messages;
     bool                    m_verbose;
     bool                    m_use_exceptions;
     bool                    m_show_errors;
@@ -95,6 +97,7 @@ class parser : public abstract_parser {
     name_set                m_level_variables;
     name_set                m_variables; // subset of m_local_decls that is marked as variables
     name_set                m_include_vars; // subset of m_local_decls that is marked as include
+    bool                    m_imports_parsed;
     parser_scope_stack      m_parser_scope_stack;
     parser_scope_stack      m_quote_stack;
     bool                    m_in_quote;
@@ -135,11 +138,6 @@ class parser : public abstract_parser {
     // noncomputable definitions not tagged as noncomputable.
     bool                   m_ignore_noncomputable;
 
-    void display_warning_pos(unsigned line, unsigned pos);
-    void display_error_pos(unsigned line, unsigned pos);
-    void display_error_pos(pos_info p);
-    void display_error(char const * msg, unsigned line, unsigned pos);
-    void display_error(char const * msg, pos_info p);
     void throw_parser_exception(char const * msg, pos_info p);
     void throw_nested_exception(throwable const & ex, pos_info p);
 
@@ -159,6 +157,7 @@ class parser : public abstract_parser {
     level parse_level_led(level left);
 
     void parse_imports();
+    void check_modules_up_to_date();
     void parse_command();
     bool parse_commands();
     unsigned curr_lbp_core() const;
@@ -202,6 +201,9 @@ class parser : public abstract_parser {
 
     void save_snapshot();
 
+    friend class parser_message_stream;
+    void add_message(message const & msg) { m_messages = cons(msg, m_messages); }
+
     void init_stop_at(options const & opts);
 
     void replace_theorem(certified_declaration const & thm);
@@ -212,8 +214,6 @@ public:
            bool use_exceptions = false, unsigned num_threads = 1,
            snapshot const * s = nullptr, snapshot_vector * sv = nullptr);
     ~parser();
-
-    void display_error(throwable const & ex);
 
     bool ignore_noncomputable() const { return m_ignore_noncomputable; }
     void set_ignore_noncomputable() { m_ignore_noncomputable = true; }
@@ -240,6 +240,11 @@ public:
     environment const & env() const { return m_env; }
     io_state const & ios() const { return m_ios; }
 
+    list<message> const & get_messages() const { return m_messages; }
+
+    message_builder mk_message(pos_info const & p, message_severity severity);
+    message_builder mk_message(message_severity severity);
+
     local_level_decls const & get_local_level_decls() const { return m_local_level_decls; }
     local_expr_decls const & get_local_expr_decls() const { return m_local_decls; }
 
@@ -256,7 +261,6 @@ public:
     pos_info pos_of(expr const & e) const { return pos_of(e, pos()); }
     pos_info cmd_pos() const { return m_last_cmd_pos; }
     name const & get_cmd_token() const { return m_cmd_token; }
-    void set_line(unsigned p) { return m_scanner.set_line(p); }
 
     expr mk_app(expr fn, expr arg, pos_info const & p);
     expr mk_app(expr fn, buffer<expr> const & args, pos_info const & p);
@@ -478,9 +482,6 @@ public:
 
     expr mk_sorry(pos_info const & p);
     bool used_sorry() const { return m_used_sorry; }
-
-    void display_information_pos(pos_info p);
-    void display_warning_pos(pos_info p);
 
     /** return true iff profiling is enabled */
     bool profiling() const { return m_profile; }

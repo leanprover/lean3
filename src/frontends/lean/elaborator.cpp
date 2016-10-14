@@ -26,9 +26,7 @@ Author: Leonardo de Moura
 #include "library/typed_expr.h"
 #include "library/annotation.h"
 #include "library/pp_options.h"
-#include "library/flycheck.h"
 #include "library/replace_visitor.h"
-#include "library/error_handling.h"
 #include "library/locals.h"
 #include "library/private.h"
 #include "library/attribute_manager.h"
@@ -174,7 +172,7 @@ expr elaborator::mk_type_metavar(expr const & ref) {
 }
 
 expr elaborator::mk_instance_core(local_context const & lctx, expr const & C, expr const & ref) {
-    flycheck_output_scope flycheck(get_pos_info_provider(), ref);
+    scope_traces_as_messages traces_as_messages(get_pos_info_provider(), ref);
 
     optional<expr> inst = m_ctx.mk_class_instance_at(lctx, C);
     if (!inst) {
@@ -2289,18 +2287,15 @@ void elaborator::show_goal(tactic_state const & s, expr const & start_ref, expr 
     if (curr_pos->first < line || (curr_pos->first == line && curr_pos->second < col))
         return;
     m_show_goal_pos = optional<pos_info>();
-    auto out = regular(m_env, get_global_ios(), m_ctx);
-    print_lean_info_header(out.get_stream());
-    out << "position " << curr_pos->first << ":" << curr_pos->second << "\n";
-    out << s.pp(get_global_ios().get_formatter_factory()) << "\n";
-    print_lean_info_footer(out.get_stream());
+    get_global_ios().report(message(provider->get_file_name(), *curr_pos, INFORMATION,
+        (sstream() << mk_pair(s.pp(get_global_ios().get_formatter_factory()), get_global_ios().get_options())).str()));
 }
 
 /* Apply the given tactic to the state 's'.
    Report any errors detected during the process using position information associated with 'ref'. */
 tactic_state elaborator::execute_tactic(expr const & tactic, tactic_state const & s, expr const & ref) {
     pos_info_provider * provider = get_pos_info_provider();
-    flycheck_output_scope flycheck(provider, ref);
+    scope_traces_as_messages traces_as_messages(provider, ref);
 
     /* Compile tactic into bytecode */
     name tactic_name("_tactic");
