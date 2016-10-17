@@ -159,6 +159,9 @@ private:
     expr ensure_function(expr const & e);
     expr visit_function(expr const & fn, bool has_args, expr const & ref);
     format mk_app_type_mismatch_error(expr const & t, expr const & arg, expr const & arg_type, expr const & expected_type);
+    format mk_app_arg_mismatch_error(expr const & t, expr const & arg, expr const & arg_type,
+                                     expr const & expected_mvar, expr const & expected_type);
+
     format mk_too_many_args_error(expr const & fn_type);
     [[ noreturn ]]
     void throw_app_type_mismatch(expr const & t, expr const & arg, expr const & arg_type, expr const & expected_type,

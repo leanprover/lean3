@@ -707,6 +707,18 @@ format elaborator::mk_app_type_mismatch_error(expr const & t, expr const & arg, 
     return msg;
 }
 
+format elaborator::mk_app_arg_mismatch_error(expr const & t, expr const & arg, expr const & arg_type,
+                                             expr const & expected_mvar, expr const & expected_type) {
+    auto pp_fn = mk_pp_ctx();
+    format msg = format("type mismatch at application");
+    msg += pp_indent(pp_fn, t);
+    msg += line() + format("unable to unify actual argument");
+    msg += pp_indent(pp_fn, arg) + space() + colon() + space() + pp_fn(arg_type);
+    msg += line() + format("with argument placeholder");
+    msg += pp_indent(pp_fn, expected_mvar) + space() + colon() + space() + pp_fn(expected_type);
+    return msg;
+}
+
 format elaborator::mk_too_many_args_error(expr const & fn_type) {
     auto pp_fn = mk_pp_ctx();
     return
@@ -973,11 +985,17 @@ expr elaborator::second_pass(expr const & fn, buffer<expr> const & args,
         expr new_arg      = visit(args[i], some_expr(info.args_expected_types[i]));
         expr new_arg_type = infer_type(new_arg);
         optional<expr> new_new_arg = ensure_has_type(new_arg, new_arg_type, info.args_expected_types[i], ref_arg);
-        if (!new_new_arg || !is_def_eq(info.args_mvars[i], *new_new_arg)) {
+        if (!new_new_arg) {
             info.new_args.shrink(info.new_args_size[i]);
             info.new_args.push_back(new_arg);
             format msg = mk_app_type_mismatch_error(mk_app(fn, info.new_args.size(), info.new_args.data()),
                                                     new_arg, new_arg_type, info.args_expected_types[i]);
+            throw elaborator_exception(ref, msg);
+        } else if (!is_def_eq(info.args_mvars[i], *new_new_arg)) {
+            info.new_args.shrink(info.new_args_size[i]);
+            info.new_args.push_back(new_arg);
+            format msg = mk_app_arg_mismatch_error(mk_app(fn, info.new_args.size(), info.new_args.data()),
+                                                   new_arg, new_arg_type, info.args_mvars[i], info.args_expected_types[i]);
             throw elaborator_exception(ref, msg);
         }
         info.new_args[info.new_args_size[i]] = *new_new_arg;
