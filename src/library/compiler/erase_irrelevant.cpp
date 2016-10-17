@@ -176,6 +176,15 @@ class erase_irrelevant_fn : public compiler_step_visitor {
         if (I_name == get_false_name())
             return *g_unreachable_expr;
         /* This preprocessing step assumes that recursive recursors have already been eliminated */
+        if (!is_recursive_datatype(env(), I_name)) {
+            std::cout << I_name << std::endl;
+            std::cout << fn << std::endl;
+            for (auto arg : args) {
+                std::cout <<  "----------------------------------" << std::endl;
+                std::cout << arg << std::endl;
+            }
+        }
+
         lean_assert(!is_recursive_datatype(env(), I_name));
         unsigned nparams            = *inductive::get_num_params(env(), I_name);
         unsigned nminors            = *inductive::get_num_minor_premises(env(), I_name);

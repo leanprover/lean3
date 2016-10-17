@@ -69,6 +69,26 @@ meta definition lookup_arity (n : name) : ir_compiler nat := do
 meta definition mk_nat_literal (n : nat) : ir_compiler ir.expr :=
   return (ir.expr.lit $ ir.literal.nat n)
 
+definition repeat {A : Type} : nat -> A -> list A
+| 0 _ := []
+| (n + 1) a := a :: repeat n a
+
+definition zip {A B : Type} : list A → list B → list (A × B)
+| [] [] := []
+| [] (y :: ys) := []
+| (x :: xs) [] := []
+| (x :: xs) (y :: ys) := (x, y) :: zip xs ys
+
+private def upto' : ℕ → list ℕ
+| 0 := []
+| (n + 1) := n :: upto' n
+
+def upto (n : ℕ) : list ℕ :=
+  list.reverse $ upto' n
+
+def label {A : Type} (xs : list A) : list (nat × A) :=
+  zip (upto (list.length xs)) xs
+
 -- HELPERS --
 meta definition assert_name : ir.expr → ir_compiler name
 | (ir.expr.locl n) := lift $ system.result.ok n
@@ -123,15 +143,29 @@ meta def panic (msg : string) : ir_compiler ir.expr :=
 
 -- END HELPERS --
 
-meta def compile_case (case : expr) : ir_compiler ir.expr :=
-  mk_error "failed to make case"
+meta def compile_cases (action : expr → ir_compiler ir.expr) : list (nat × expr) → ir_compiler (list (nat × ir.stmt))
+| [] := return []
+| ((n, body) :: cs) := do
+   p <- panic "case",
+   cs' <- compile_cases cs,
+   return $ (n, ir.stmt.e p) :: cs'
+
+meta def bind_value (val : ir.expr) (body : name → ir_compiler ir.stmt) : ir_compiler ir.stmt :=
+  let n := `scrut -- maybe generate fresh name here?
+  in ir.stmt.letb n val <$> (body n)
 
 meta def compile_cases_on_to_ir_expr
-    (scrutinee : name)
+    (case_name : name)
     (cases : list expr)
     (action : expr -> ir_compiler ir.expr) : ir_compiler ir.expr := do
     default <- panic "default case should never be reached",
-    return (ir.expr.block $ (ir.stmt.switch scrutinee [] (ir.stmt.e default)))
+    match cases with
+    | [] := mk_error $ "found " ++ to_string case_name ++ "applied to zero arguments"
+    | (h :: cs) := do
+      ir_scrut <- action h,
+      cs' <- compile_cases action (label cs),
+      ir.expr.block <$> bind_value ir_scrut (fun scrut, return (ir.stmt.switch scrut cs' (ir.stmt.e default)))
+    end
 
 -- this code isnt' great working around the semi-functional frontend
 meta definition compile_expr_app_to_ir_expr
@@ -193,16 +227,6 @@ meta definition compile_expr_to_ir_stmt : expr -> ir_compiler ir.stmt
   body' <- compile_expr_to_ir_stmt (expr.instantiate_vars body [mk_local n]),
   return (ir.stmt.letb n' v' body')
 | e' := ir.stmt.e <$> compile_expr_to_ir_expr e'
-
-definition repeat {A : Type} : nat -> A -> list A
-| 0 _ := []
-| (n + 1) a := a :: repeat n a
-
-definition zip {A B : Type} : list A → list B → list (A × B)
-| [] [] := []
-| [] (y :: ys) := []
-| (x :: xs) [] := []
-| (x :: xs) (y :: ys) := (x, y) :: zip xs ys
 
 meta definition compile_decl_to_ir (decl_name : name) (args : list name) (body : expr) : ir_compiler ir.decl := do
   body' <- compile_expr_to_ir_stmt body,
