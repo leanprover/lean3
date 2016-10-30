@@ -700,9 +700,9 @@ int congruence_closure::congr_key_cmp::operator()(congr_key const & k1, congr_ke
         return quick_cmp(k1.m_R, k2.m_R);
     if (k1.m_eq != k2.m_eq)
         return k1.m_eq ? -1 : 1;
-    if (k2.m_iff != k2.m_iff)
+    if (k1.m_iff != k2.m_iff)
         return k1.m_iff ? -1 : 1;
-    if (k2.m_symm_rel != k2.m_symm_rel)
+    if (k1.m_symm_rel != k2.m_symm_rel)
         return k1.m_symm_rel ? -1 : 1;
     if (k1.m_eq || k1.m_iff)
         return g_cc->cmp_eq_iff_keys(k1, k2);
