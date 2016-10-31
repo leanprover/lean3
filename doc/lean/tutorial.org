@@ -50,8 +50,8 @@ type of a given expression.
 #+END_SRC
 
 The last command returns =Prop → Prop → Prop=. That is, the type of
-=and= is a function that takes two _propositions_ and return a
-proposition, =Prop= is the type of propositions.
+=and= is a function that takes two _propositions_ and returns a
+proposition. =Prop= is the type of propositions.
 
 The command =import= loads existing libraries and extensions.
 
@@ -125,7 +125,7 @@ Because we use _proposition as types_, we must support _empty types_. For exampl
 the type =false= must be empty, since we don't have a proof for =false=.
 
 Most systems based on the _propositions as types_ paradigm are based on constructive logic.
-In Lean, we support classical and constructive logic. We can use
+In Lean, we support classical and constructive logic. We can use the
 _classical choice axiom_ by using =open classical=. When the classical
 extensions are loaded, the _excluded middle_ is a theorem,
 and =em p= is a proof for =p ∨ ¬ p=.
@@ -141,7 +141,7 @@ just to make Lean files more readable. We encourage users to use =axiom= only fo
 propositions, and =constant= for everything else.
 
 Similarly, a theorem is just a definition. The following command defines a new theorem
-called =nat_trans3=, and then use it to prove something else. In this
+called =nat_trans3=, and then uses it to prove something else. In this
 example, =eq.symm= is the symmetry theorem.
 
 #+BEGIN_SRC lean
@@ -159,7 +159,7 @@ example, =eq.symm= is the symmetry theorem.
   check nat_trans3 x y z w Hxy Hzy Hzw
 #+END_SRC
 
-The theorem =nat_trans3= has 7 parameters, it takes for natural numbers =a=, =b=, =c= and =d=,
+The theorem =nat_trans3= has 7 parameters, it takes four natural numbers =a=, =b=, =c= and =d=,
 and three proofs showing that =a = b=, =c = b= and =c = d=, and returns a proof that =a = d=.
 
 The theorem =nat_trans3= is somewhat inconvenient to use because it has 7 parameters.
@@ -169,7 +169,7 @@ the most basic form of automation provided by Lean.
 In the example above, we can use =check nat_trans3 _ _ _ _ Hxy Hzy Hzw=.
 
 Lean also supports _implicit arguments_.
-We mark implicit arguments using curly braces instead of parenthesis.
+We mark implicit arguments using curly braces instead of parentheses.
 In the following example, we define the theorem =nat_trans3i= using
 implicit arguments.
 
@@ -281,7 +281,7 @@ element of =Type.{j}= for =j > i=.
 
 To manipulate formulas with a richer logical structure, it is important to master the notation Lean uses for building
 composite logical expressions out of basic formulas using _logical connectives_. The logical connectives (=and=, =or=, =not=, etc)
-are defined in the file [[../../library/standard/logic.lean][logic.lean]]. This file also defines notational convention for writing formulas
+are defined in the file [[../../library/standard/logic.lean][logic.lean]]. This file also defines notational conventions for writing formulas
 in a natural way. Here is a table showing the notation for the so called propositional (or Boolean) connectives.
 
 
@@ -356,7 +356,7 @@ There are many variable-binding constructs in mathematics. Lean expresses
 all of them using just one _abstraction_, which is a converse operation to
 function application. Given a variable =x=, a type =A=, and a term =t= that
 may or may not contain =x=, one can construct the so-called _lambda abstraction_
-=fun x : A, t=, or using unicode notation =λ x : A, t=. Here is some simple
+=fun x : A, t=, or using unicode notation =λ x : A, t=. Here are some simple
 examples.
 
 #+BEGIN_SRC lean
@@ -436,7 +436,7 @@ axioms =Hxy=, =Hzy= and =Hzw=.
 ** Proving
 
 The Lean standard library contains basic theorems for creating proof terms. The
-basic theorems are useful for creating manual proofs. The are also the
+basic theorems are useful for creating manual proofs. They are also the
 basic building blocks used by all automated proof engines available in
 Lean. The theorems can be broken into three different categories:
 introduction, elimination, and rewriting. First, we cover the introduction
@@ -630,9 +630,9 @@ produces a proof for =a= from =H : false=.
 ** Dependent functions and quantifiers
 
 Lean supports _dependent functions_. In type theory, they are also called dependent product types or Pi-types.
-The idea is quite simple, suppose we have a type =A : Type=, and a family of types =B : A → Type= which assigns to each =a : A= a type =B a=. So a dependent function is a function whose range varies depending on its arguments.
+The idea is quite simple: we suppose we have a type =A : Type=, and a family of types =B : A → Type= which assigns to each =a : A= a type =B a=. So a dependent function is a function whose range varies depending on its arguments.
 In Lean, the type of a dependent function is written as =forall a : A, B a=,
-=Pi a : A, B a=, =∀ x : A, B a=, or =Π x : A, B a=. We usually use
+=Pi a : A, B a=, =∀ a : A, B a=, or =Π a : A, B a=. We usually use
 =forall= and =∀= for propositions, and =Pi= and =Π= for everything
 else. In the previous examples, we have seen many examples of
 dependent functions. The theorems =eq.refl=, =eq.trans= and =eq.symm=, and the
@@ -648,7 +648,7 @@ instantiation) proof rule.
 In Lean (and other systems based on propositions as types), this rule
 is just function application.
 In the following example we add an axiom stating that =f x= is =0=
-forall =x=.
+for all =x=.
 Then we instantiate the axiom using function application.
 
 #+BEGIN_SRC lean
@@ -713,7 +713,7 @@ Note that =exists.intro= also has implicit arguments. For example, Lean has to i
 =P : A → Prop=, a predicate (aka function to Prop). This creates complications. For example, suppose
 we have =Hg : g 0 0 = 0= and we invoke =exists.intro 0 Hg=. There are different possible values for =P=.
 Each possible value corresponds to a different theorem: =∃ x, g x x = x=, =∃ x, g x x = 0=,
-=∃ x, g x 0 = x=, etc. Lean uses the context where =exists.intro= occurs to infer the users intent.
+=∃ x, g x 0 = x=, etc. Lean uses the context where =exists.intro= occurs to infer the user's intent.
 In the example above, we were trying to prove the theorem =∃ a, a = w=. So, we are implicitly telling
 Lean how to choose =P=. In the following example, we demonstrate this issue. We ask Lean to display
 the implicit arguments using the option =pp.implicit=. We see that each instance of =exists.intro 0 Hg=
