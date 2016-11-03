@@ -65,7 +65,7 @@ protected:
     simp_result try_user_congrs(expr const & e);
     simp_result try_user_congr(expr const & e, simp_lemma const & cr);
 
-    optional<simp_result> try_auto_eq_congr(expr const & e);
+    optional<simp_result> try_auto_eq_congr(expr const & e, bool & has_extra_args);
 
     simp_result congr_fun_arg(simp_result const & r_f, simp_result const & r_arg);
     simp_result congr(simp_result const & r_f, simp_result const & r_arg);
