@@ -35,7 +35,7 @@ namespace group
   /- group homomorphisms -/
 
   definition is_homomorphism [class] [reducible]
-    {G₁ G₂ : Type} [group G₁] [group G₂] (φ : G₁ → G₂) : Type :=
+    {G₁ G₂ : Type} [has_mul G₁] [has_mul G₂] (φ : G₁ → G₂) : Type :=
   Π(g h : G₁), φ (g * h) = φ g * φ h
 
   section
