@@ -119,16 +119,12 @@ optional<std::string> get_doc_string(environment const & env, name const & n, do
         return optional<std::string>();
 }
 
-static void documentation_reader(deserializer & d, shared_environment & senv,
-                                 std::function<void(asynch_update_fn const &)> &,
-                                 std::function<void(delayed_update_fn const &)> &) {
+static void documentation_reader(deserializer & d, environment & env) {
     name n; std::string doc; unsigned idx;
     d >> n >> doc >> idx;
-    senv.update([=](environment const & env) -> environment {
-            auto ext = get_extension(env);
-            ext.m_doc_strings[idx].insert(n, doc);
-            return update(env, ext);
-        });
+    auto ext = get_extension(env);
+    ext.m_doc_strings[idx].insert(n, doc);
+    env = update(env, ext);
 }
 
 char const * to_string(doc_kind k) {
