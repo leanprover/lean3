@@ -13,11 +13,7 @@ Author: Leonardo de Moura
 
 namespace lean {
 vm_obj put_str(vm_obj const & str, vm_obj const &) {
-<<<<<<< HEAD
     get_global_ios().get_regular_stream() << to_string(str);
-=======
-    std::cout << to_string(str);
->>>>>>> feat(library/compiler): small tweaks
     return mk_vm_unit();
 }
 

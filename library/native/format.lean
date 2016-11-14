@@ -1,4 +1,4 @@
-import init.meta.format
+    import init.meta.format
 import native.ir
 
 definition intersperse {A : Type} (elem : A) : list A -> list A
@@ -38,6 +38,9 @@ meta definition literal : ir.literal → format
 meta def format_local (n : name) : format :=
   to_fmt (name.to_string_with_sep "_" n)
 
+meta def string_lit (s : string) : format :=
+  format.bracket "\"" "\"" (to_fmt s)
+
 meta definition expr' (action : ir.stmt -> format) : ir.expr -> format
 | (ir.expr.call f xs) := mk_call f xs
 | (ir.expr.mk_object n fs) :=
@@ -57,16 +60,23 @@ meta definition expr' (action : ir.stmt -> format) : ir.expr -> format
 | (ir.expr.project obj n) :=
   (mangle_name obj) ++ (format.bracket "[" "]" (to_fmt n))
 | (ir.expr.panic err_msg) :=
-  to_fmt "throw \"error\";"
+  to_fmt "throw " ++ string_lit err_msg ++ ";"
 | (ir.expr.mk_native_closure n args) :=
 "lean::mk_native_closure(*g_env, lean::name({\"" ++ name.to_string_with_sep "\", \"" n ++ "\"})" ++ "," ++
    format.bracket "{" "}" (comma_sep (list.map format_local args)) ++ ")"
 
 meta def block (body : format) : format :=
-  format.bracket "{" "}" (format.nest 4 (format.line ++ body ++ format.line))
+  format.bracket "{" "}" (format.nest 4 (format.line ++ body) ++ format.line)
 
 meta def default_case (body : format) : format :=
   to_fmt "default:" ++ block body
+
+meta def case (action : ir.stmt -> format) : (nat × ir.stmt) -> format
+| (n, s) := "case " ++ to_fmt n ++ ":" ++ block (action s ++ format.line ++ "break;" ++ format.line)
+
+meta def cases (action : ir.stmt -> format) : list (nat × ir.stmt) -> format
+| [] := format.nil
+| (c :: cs) := case action c ++ cases cs
 
 meta def stmt : ir.stmt → format
 | (ir.stmt.e e) := expr' stmt e
@@ -79,7 +89,7 @@ meta def stmt : ir.stmt → format
   format.line ++ stmt body
 | (ir.stmt.switch scrut cs default) :=
   (to_fmt "switch (cidx(") ++ (mangle_name scrut) ++ (to_fmt "))") ++
-  (block (format.line ++ default_case (stmt default)))
+  (block (format.line ++ cases stmt cs ++ default_case (stmt default)))
 | ir.stmt.nop := format.of_string "NYI"
 | (ir.stmt.ite _ _ _) := format.of_string "NYI"
 | (ir.stmt.seq _ ) := format.of_string "NYI"

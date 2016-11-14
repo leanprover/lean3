@@ -89,6 +89,16 @@ def upto (n : ℕ) : list ℕ :=
 def label {A : Type} (xs : list A) : list (nat × A) :=
   zip (upto (list.length xs)) xs
 
+-- lemma label_size_eq :
+--   forall A (xs : list A),
+--   list.length (label xs) = list.length xs :=
+-- begin
+--   intros,
+--   induction xs,
+--   apply sorry
+--   apply sorry
+-- end
+
 -- HELPERS --
 meta definition assert_name : ir.expr → ir_compiler name
 | (ir.expr.locl n) := lift $ system.result.ok n
@@ -100,6 +110,10 @@ meta definition assert_name : ir.expr → ir_compiler name
 | (ir.expr.project _ _) := mk_error "expected name, found project"
 | (ir.expr.panic _) := mk_error "expected name, found panic"
 | (ir.expr.mk_native_closure _ _) := mk_error "expected name, found native closure"
+
+meta definition assert_expr : ir.stmt -> ir_compiler ir.expr
+| (ir.stmt.e exp) := return exp
+| _ := mk_error "internal invariant violated"
 
 meta definition mk_local (n : name) : expr :=
   expr.local_const n n binder_info.default (expr.const n [])
@@ -143,12 +157,12 @@ meta def panic (msg : string) : ir_compiler ir.expr :=
 
 -- END HELPERS --
 
-meta def compile_cases (action : expr → ir_compiler ir.expr) : list (nat × expr) → ir_compiler (list (nat × ir.stmt))
+meta def compile_cases (action : expr → ir_compiler ir.stmt) : list (nat × expr) → ir_compiler (list (nat × ir.stmt))
 | [] := return []
 | ((n, body) :: cs) := do
-   p <- panic "case",
+   body' <- action body,
    cs' <- compile_cases cs,
-   return $ (n, ir.stmt.e p) :: cs'
+   return $ (n, body') :: cs'
 
 meta def bind_value (val : ir.expr) (body : name → ir_compiler ir.stmt) : ir_compiler ir.stmt :=
   let n := `scrut -- maybe generate fresh name here?
@@ -157,12 +171,12 @@ meta def bind_value (val : ir.expr) (body : name → ir_compiler ir.stmt) : ir_c
 meta def compile_cases_on_to_ir_expr
     (case_name : name)
     (cases : list expr)
-    (action : expr -> ir_compiler ir.expr) : ir_compiler ir.expr := do
+    (action : expr -> ir_compiler ir.stmt) : ir_compiler ir.expr := do
     default <- panic "default case should never be reached",
     match cases with
     | [] := mk_error $ "found " ++ to_string case_name ++ "applied to zero arguments"
     | (h :: cs) := do
-      ir_scrut <- action h,
+      ir_scrut <- action h >>= assert_expr,
       cs' <- compile_cases action (label cs),
       ir.expr.block <$> bind_value ir_scrut (fun scrut, return (ir.stmt.switch scrut cs' (ir.stmt.e default)))
     end
@@ -171,13 +185,13 @@ meta def compile_cases_on_to_ir_expr
 meta definition compile_expr_app_to_ir_expr
   (head : expr)
   (args : list expr)
-  (action : expr -> ir_compiler ir.expr) : ir_compiler ir.expr := do
-    args' <- monad.sequence $ list.map action args,
+  (action : expr -> ir_compiler ir.stmt) : ir_compiler ir.expr := do
+    args' <- monad.sequence $ list.map (fun x, action x >>= assert_expr) args,
     if expr.is_constant head = bool.tt
     then if is_return (expr.const_name head) = bool.tt
     then do
       rexp <- one_or_error args,
-      (ir.expr.block ∘ ir.stmt.return) <$> action rexp
+      (ir.expr.block ∘ ir.stmt.return) <$> ((action rexp) >>= assert_expr)
     else match is_internal_cnstr head with
     | option.some n := mk_object n args'
     | option.none := match is_internal_cases head with
@@ -200,10 +214,13 @@ meta definition compile_expr_macro_to_ir_expr (e : expr) : ir_compiler ir.expr :
 meta definition compile_local (n : name) : ir_compiler name :=
   return $ (mk_str_name "_$local$_" (name.to_string_with_sep "_" n))
 
-meta definition compile_expr_to_ir_expr : expr → ir_compiler ir.expr
+meta definition compile_expr_to_ir_expr (action : expr -> ir_compiler ir.stmt): expr → ir_compiler ir.expr
 | (expr.const n ls) :=
   match native.is_internal_cnstr (expr.const n ls) with
-  | option.none := pure $ ir.expr.global n
+  | option.none :=
+  if n = "_neutral_"
+  then (pure $ ir.expr.mk_object 0 [])
+  else (pure $ ir.expr.global n)
   | option.some arity := pure $ ir.expr.mk_object (unsigned.to_nat arity) []
   end
 | (expr.var i) := mk_error "there should be no bound variables in compiled terms"
@@ -213,7 +230,7 @@ meta definition compile_expr_to_ir_expr : expr → ir_compiler ir.expr
 | (expr.app f x) :=
   let head := expr.get_app_fn (expr.app f x),
       args := expr.get_app_args (expr.app f x)
-  in compile_expr_app_to_ir_expr head args compile_expr_to_ir_expr
+  in compile_expr_app_to_ir_expr head args action
 | (expr.lam _ _ _ _) := mk_error "found lam"
 | (expr.pi _ _ _ _) := mk_error "found pi"
 | (expr.elet n _ v body) := mk_error "internal error: can not translate let binding into a ir_expr"
@@ -223,10 +240,10 @@ meta definition compile_expr_to_ir_stmt : expr -> ir_compiler ir.stmt
 | (expr.pi _ _ _ _) := mk_error "found pi, should not be translating a Pi for any reason (yet ...)"
 | (expr.elet n _ v body) := do
   n' <- compile_local n,
-  v' <- compile_expr_to_ir_expr v,
+  v' <- compile_expr_to_ir_expr compile_expr_to_ir_stmt v,
   body' <- compile_expr_to_ir_stmt (expr.instantiate_vars body [mk_local n]),
   return (ir.stmt.letb n' v' body')
-| e' := ir.stmt.e <$> compile_expr_to_ir_expr e'
+| e' := ir.stmt.e <$> compile_expr_to_ir_expr compile_expr_to_ir_stmt e'
 
 meta definition compile_decl_to_ir (decl_name : name) (args : list name) (body : expr) : ir_compiler ir.decl := do
   body' <- compile_expr_to_ir_stmt body,
