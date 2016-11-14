@@ -1,4 +1,4 @@
-    import init.meta.format
+import init.meta.format
 import native.ir
 
 definition intersperse {A : Type} (elem : A) : list A -> list A
@@ -64,6 +64,9 @@ meta definition expr' (action : ir.stmt -> format) : ir.expr -> format
 | (ir.expr.mk_native_closure n args) :=
 "lean::mk_native_closure(*g_env, lean::name({\"" ++ name.to_string_with_sep "\", \"" n ++ "\"})" ++ "," ++
    format.bracket "{" "}" (comma_sep (list.map format_local args)) ++ ")"
+ | (ir.expr.invoke n args) :=
+ "lean::invoke(" ++ name.to_string_with_sep "_" n ++ ", " ++
+ (comma_sep (list.map format_local args)) ++ ")"
 
 meta def block (body : format) : format :=
   format.bracket "{" "}" (format.nest 4 (format.line ++ body) ++ format.line)

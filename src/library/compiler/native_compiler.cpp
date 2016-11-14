@@ -650,6 +650,8 @@ void native_compile(environment const & env,
     // First we convert for Lean ...
     vm_obj procs_list = mk_vm_simple(0);
     for (auto & p : procs) {
+        std::cout << p.first << std::endl;
+        std::cout << p.second << std::endl;
         auto tuple = mk_vm_constructor(0, { to_obj(p.first), to_obj(p.second) });
         procs_list = mk_vm_constructor(1, { tuple, procs_list });
     }

@@ -36,31 +36,50 @@ meta definition mk_arity_map : list (name × expr) -> arity_map
 | ((n, body) :: rest) := rb_map.insert (mk_arity_map rest) n (get_arity body)
 
 @[reducible] meta definition ir_compiler (A : Type) :=
-  stateT arity_map result A
+  system.resultT (state arity_map) error A
 
 -- An `exotic` monad combinator that accumulates errors.
+
+check @system.resultT.run 
+
+meta def run {M E A} (res : system.resultT M E A) : M (system.result E A) :=
+  match res with
+  | (| action |) := action
+  end
+
 meta definition sequence_err : list (ir_compiler format) → ir_compiler (list format × list error)
 | [] := return ([], [])
 | (action :: remaining) :=
-  fun s, match sequence_err remaining s with
-    | system.result.err e := system.result.err e
-    | system.result.ok ((res, errs), s') := match action s with
-      | system.result.err e := system.result.ok ((res, e :: errs), s')
-      | system.result.ok (v, s'') := system.result.ok ((v :: res, errs), s'')
-      end
-    end
+    (| fun s,
+       match (run (sequence_err remaining)) s with
+       | (system.result.err e, s') := (system.result.err e, s)
+       | (system.result.ok (res, errs), s') :=
+         match (run action) s' with
+         | (system.result.err e, s'') := (system.result.ok (res, e :: errs), s'')
+         | (system.result.ok v, s'') := (system.result.ok (v :: res, errs), s'')
+         end
+         end
+     |)
 
 -- meta lemma sequence_err_always_ok :
 --   forall xs v s s', sequence_err xs s = system.result.ok (v, s') := sorry
 
-meta definition lift {A} (action : result A) : ir_compiler A :=
-  fun s, action >>= fun a, return (a, s)
+meta definition lift_result {A} (action : result A) : ir_compiler A :=
+  (| fun s, (action, s) |)
+
+meta def lift {A} (action : state arity_map A) : ir_compiler A :=
+  (| fmap (fun (a : A), system.result.ok a) action |)
+
+-- meta def lift_state {A} (action : state arity_map A) : ir_compiler A :=
+--   fun (s : arity_map), match action s with
+--   | (a, s) := (return a, s)
+--   end
 
 meta definition mk_error {T} : string -> ir_compiler T :=
-  fun s, lift (system.result.err $ error.string s)
+  fun s, lift_result (system.result.err $ error.string s)
 
 meta definition lookup_arity (n : name) : ir_compiler nat := do
-  map <- stateT.read,
+  map <- lift state.read,
   match rb_map.find map n with
   | option.none := mk_error $ "could not find arity for: " ++ to_string n
   | option.some n := return n
@@ -101,7 +120,7 @@ def label {A : Type} (xs : list A) : list (nat × A) :=
 
 -- HELPERS --
 meta definition assert_name : ir.expr → ir_compiler name
-| (ir.expr.locl n) := lift $ system.result.ok n
+| (ir.expr.locl n) := lift_result $ system.result.ok n
 | (ir.expr.call _ _) := mk_error "expected name, found: call "
 | (ir.expr.lit _) := mk_error "expected name, found: lit "
 | (ir.expr.mk_object _ _) := mk_error "expected name, found: obj "
@@ -110,10 +129,11 @@ meta definition assert_name : ir.expr → ir_compiler name
 | (ir.expr.project _ _) := mk_error "expected name, found project"
 | (ir.expr.panic _) := mk_error "expected name, found panic"
 | (ir.expr.mk_native_closure _ _) := mk_error "expected name, found native closure"
+| (ir.expr.invoke _ _) := mk_error "expected name, found invoke"
 
 meta definition assert_expr : ir.stmt -> ir_compiler ir.expr
 | (ir.stmt.e exp) := return exp
-| _ := mk_error "internal invariant violated"
+| s := mk_error ("internal invariant violated, found: " ++ (to_string (format_cpp.stmt s)))
 
 meta definition mk_local (n : name) : expr :=
   expr.local_const n n binder_info.default (expr.const n [])
@@ -141,14 +161,19 @@ meta def compile_call (head : name) (arity : nat) (args : list ir.expr) : ir_com
 meta definition mk_object (arity : unsigned) (args : list ir.expr) : ir_compiler ir.expr :=
   let args'' := list.map assert_name args
   in do args' <- monad.sequence args'',
-        lift (system.result.ok $ ir.expr.mk_object (unsigned.to_nat arity) args')
+        lift_result (system.result.ok $ ir.expr.mk_object (unsigned.to_nat arity) args')
+
+meta definition mk_invoke (loc : name) (args : list ir.expr) : ir_compiler ir.expr :=
+  let args'' := list.map assert_name args
+  in do args' <- monad.sequence args'',
+  lift_result (system.result.ok $ ir.expr.invoke loc args')
 
 meta definition is_return (n : name) : bool :=
   decidable.to_bool $ `native_compiler.return = n
 
 meta definition one_or_error (args : list expr) : ir_compiler expr :=
 match args with
-| ((h : expr) :: []) := lift $ system.result.ok h
+| ((h : expr) :: []) := lift_result $ system.result.ok h
 | _ := mk_error "internal invariant violated, should only have one argument"
 end
 
@@ -186,23 +211,31 @@ meta definition compile_expr_app_to_ir_expr
   (head : expr)
   (args : list expr)
   (action : expr -> ir_compiler ir.stmt) : ir_compiler ir.expr := do
-    args' <- monad.sequence $ list.map (fun x, action x >>= assert_expr) args,
     if expr.is_constant head = bool.tt
     then if is_return (expr.const_name head) = bool.tt
     then do
       rexp <- one_or_error args,
       (ir.expr.block ∘ ir.stmt.return) <$> ((action rexp) >>= assert_expr)
     else match is_internal_cnstr head with
-    | option.some n := mk_object n args'
+    | option.some n := do
+      args' <- monad.sequence $ list.map (fun x, action x >>= assert_expr) args,
+      mk_object n args'
     | option.none := match is_internal_cases head with
     | option.some n := compile_cases_on_to_ir_expr (expr.const_name head) args action
     | option.none := match get_builtin (expr.const_name head) with
-      | option.some (n, arity) := compile_call n arity args'
+      | option.some (n, arity) := do
+        args' <- monad.sequence $ list.map (fun x, action x >>= assert_expr) args,
+        compile_call n arity args'
       | option.none := do
+        args' <- monad.sequence $ list.map (fun x, action x >>= assert_expr) args,
         arity <- lookup_arity (expr.const_name head),
         compile_call (expr.const_name head) arity args'
       end
     end end
+    else if expr.is_local_constant head
+    then do
+      args' <- monad.sequence $ list.map (fun x, action x >>= assert_expr) args,
+      mk_invoke (expr.local_uniq_name head) args'
     else (mk_error ("unsupported call position" ++ (to_string head)))
 
 meta definition compile_expr_macro_to_ir_expr (e : expr) : ir_compiler ir.expr :=
@@ -288,9 +321,10 @@ meta def format_error : error → format
 
 meta definition compile (procs : list (name × expr)) : format :=
   let arities := mk_arity_map procs in
-  match sequence_err (compile' procs) arities with
-  | system.result.err e := to_fmt "ERRRROR"
-  | system.result.ok ((decls, errs), _) :=
+  -- Put this in a combinator or something ...
+  match run (sequence_err (compile' procs)) arities with
+  | (system.result.err e, s) := to_fmt "ERRRROR"
+  | (system.result.ok (decls, errs), s) :=
     if list.length errs = 0
     then format_concat decls
     else format_error (error.many errs)
