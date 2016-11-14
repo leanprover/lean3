@@ -67,7 +67,7 @@ definition add_semigroup.is_set_carrier [instance] [priority 900] (A : Type) [H 
 
 definition has_add_of_add_semigroup [reducible] [trans_instance] (A : Type) [H : add_semigroup A] :
   has_add A :=
-has_add.mk (@mul A (@semigroup.to_has_mul A H))
+has_add.mk (@semigroup.mul A H)
 
 definition add.assoc [s : add_semigroup A] (a b c : A) : a + b + c = a + (b + c) :=
 @mul.assoc A s a b c
@@ -133,7 +133,7 @@ definition add_semigroup_of_add_monoid [reducible] [trans_instance] (A : Type)
 
 definition has_zero_of_add_monoid [reducible] [trans_instance] (A : Type)
   [H : add_monoid A] : has_zero A :=
-has_zero.mk (@one A (@monoid.to_has_one A H))
+has_zero.mk (@monoid.one A H)
 
 definition zero_add [s : add_monoid A] (a : A) : 0 + a = a := @monoid.one_mul A s a
 
@@ -355,7 +355,7 @@ definition add_semigroup_of_add_group [reducible] [trans_instance] (A : Type)
 
 definition has_zero_of_add_group [reducible] [trans_instance] (A : Type)
   [H : add_group A] : has_neg A :=
-has_neg.mk (@inv A (@group.to_has_inv A H))
+has_neg.mk (@group.inv A H)
 
 definition add_group.to_group {A : Type} [s : add_group A] : group A := s
 definition group.to_add_group {A : Type} [s : group A] : add_group A := s
