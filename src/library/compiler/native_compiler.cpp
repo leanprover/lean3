@@ -721,10 +721,21 @@ bool is_internal_decl(declaration const & d) {
 
 optional<extern_fn> get_builtin(name const & n) {
     auto internal_name = get_vm_builtin_internal_name(n);
-    if (internal_name && get_vm_builtin_kind(n) == vm_builtin_kind::CFun) {
-        auto arity = get_vm_builtin_arity(n);
-        return optional<extern_fn>(
-            mk_lean_extern(internal_name, arity));
+    if (internal_name) {
+        switch (get_vm_builtin_kind(n)) {
+            case vm_builtin_kind::VMFun: {
+                return optional<extern_fn>();
+            }
+            case vm_builtin_kind::CFun: {
+                auto arity = get_vm_builtin_arity(n);
+                return optional<extern_fn>(
+                    mk_lean_extern(internal_name, arity));
+            }
+            case vm_builtin_kind::Cases: {
+                return optional<extern_fn>(
+                    mk_lean_extern(internal_name, 2u));
+            }
+        }
     } else {
         return optional<extern_fn>();
     }

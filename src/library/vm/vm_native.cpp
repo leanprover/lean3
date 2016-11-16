@@ -62,14 +62,29 @@ vm_obj native_get_nat_value(vm_obj const & o) {
 
 vm_obj native_get_builtin(vm_obj const & o) {
     name n = to_name(o);
-    auto efn = get_builtin(n);
-    if (efn) {
-        std::cout << efn->m_name << std::endl;
-        std::cout << efn->m_arity << std::endl;
-        auto pair = mk_vm_constructor(0, { to_obj(efn->m_name), mk_vm_simple(efn->m_arity) });
-        return mk_vm_some(pair);
-    } else {
+
+    if (!get_vm_builtin_internal_name(n)) {
         return mk_vm_none();
+    }
+
+    switch (get_vm_builtin_kind(n)) {
+        case vm_builtin_kind::VMFun: {
+            name internal_name = name(get_vm_builtin_internal_name(n));
+            auto b = mk_vm_constructor(2, { to_obj(internal_name) });
+            return mk_vm_some(b);
+        }
+        case vm_builtin_kind::CFun: {
+            auto efn = *get_builtin(n);
+            auto pair = mk_vm_constructor(0, { to_obj(efn.m_name), mk_vm_simple(efn.m_arity) });
+            return mk_vm_some(pair);
+        }
+        case vm_builtin_kind::Cases: {
+            auto efn = *get_builtin(n);
+            auto pair = mk_vm_constructor(1, { to_obj(efn.m_name), mk_vm_simple(efn.m_arity) });
+            return mk_vm_some(pair);
+        }
+        default:
+            return mk_vm_none();
     }
 }
 

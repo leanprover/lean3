@@ -41,6 +41,9 @@ meta def format_local (n : name) : format :=
 meta def string_lit (s : string) : format :=
   format.bracket "\"" "\"" (to_fmt s)
 
+meta def block (body : format) : format :=
+format.bracket "{" "}" (format.nest 4 (format.line ++ body) ++ format.line)
+
 meta definition expr' (action : ir.stmt -> format) : ir.expr -> format
 | (ir.expr.call f xs) := mk_call f xs
 | (ir.expr.mk_object n fs) :=
@@ -56,9 +59,10 @@ meta definition expr' (action : ir.stmt -> format) : ir.expr -> format
 | (ir.expr.lit l) :=
    literal l
 | (ir.expr.block s) :=
-  format.bracket "{" "}" (action s)
+  block (action s)
+-- project really should only work for like fields/primtive arrays, this is a temporary hack
 | (ir.expr.project obj n) :=
-  (mangle_name obj) ++ (format.bracket "[" "]" (to_fmt n))
+  "cfield(" ++ (mangle_name obj) ++ ", " ++ (to_fmt n) ++ ")"
 | (ir.expr.panic err_msg) :=
   to_fmt "throw " ++ string_lit err_msg ++ ";"
 | (ir.expr.mk_native_closure n args) :=
@@ -67,9 +71,9 @@ meta definition expr' (action : ir.stmt -> format) : ir.expr -> format
  | (ir.expr.invoke n args) :=
  "lean::invoke(" ++ name.to_string_with_sep "_" n ++ ", " ++
  (comma_sep (list.map format_local args)) ++ ")"
+ | (ir.expr.uninitialized) := ";"
+ | (ir.expr.assign n val) := mangle_name n ++ " = " ++ expr' val
 
-meta def block (body : format) : format :=
-  format.bracket "{" "}" (format.nest 4 (format.line ++ body) ++ format.line)
 
 meta def default_case (body : format) : format :=
   to_fmt "default:" ++ block body
@@ -87,15 +91,18 @@ meta def stmt : ir.stmt → format
   format.of_string "return"  ++
   format.space ++
   expr' stmt e ++ format.of_string ";"
+| (ir.stmt.letb n ir.expr.uninitialized nop) :=
+  to_fmt "lean::vm_obj " ++ (mangle_name n) ++ to_fmt ";" ++ format.line
 | (ir.stmt.letb n v body) :=
   to_fmt "lean::vm_obj " ++ (mangle_name n) ++ (to_fmt " = ") ++ (expr' stmt v) ++ to_fmt ";" ++
   format.line ++ stmt body
 | (ir.stmt.switch scrut cs default) :=
-  (to_fmt "switch (cidx(") ++ (mangle_name scrut) ++ (to_fmt "))") ++
+  (to_fmt "switch (") ++ (mangle_name scrut) ++ (to_fmt ")") ++
   (block (format.line ++ cases stmt cs ++ default_case (stmt default)))
-| ir.stmt.nop := format.of_string "NYI"
+| ir.stmt.nop := format.of_string ";"
 | (ir.stmt.ite _ _ _) := format.of_string "NYI"
-| (ir.stmt.seq _ ) := format.of_string "NYI"
+| (ir.stmt.seq cs) :=
+  format_concat (list.map (fun c, stmt c ++ format.line) cs)
 
 meta def expr := expr' stmt
 

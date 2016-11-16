@@ -25,6 +25,8 @@ with expr : Type
 | panic : string -> expr
 | mk_native_closure : name → list name → expr
 | invoke : name -> list name -> expr
+| assign : name -> expr -> expr
+| uninitialized : expr
 with stmt : Type
 | ite : expr -> stmt -> stmt -> stmt
 | switch : name -> list (nat × stmt) -> stmt -> stmt
