@@ -422,8 +422,9 @@ meta def emit_main (procs : list (name × expr)) : ir.defn :=
     -- *this->m_output_stream << ";\n return 0;\n}" << std::endl;
   ]
 
-
+-- Not getting trace output here.
 meta definition compile (procs : list (name × expr)) : format :=
+  trace "At start of compiler" (fun u,
   let arities := mk_arity_map procs in
   -- Put this in a combinator or something ...
   match run (sequence_err (compile' procs)) arities with
@@ -432,6 +433,6 @@ meta definition compile (procs : list (name × expr)) : format :=
     if list.length errs = 0
     then format_concat decls
     else format_error (error.many errs)
-  end
+  end)
 
 end native
