@@ -350,13 +350,13 @@ public:
     }
 };
 
-buffer<name> extern_names(environment const & env, buffer<pair<name, expr>> const & procs) {
+buffer<name> extern_names(environment const & env, buffer<procedure> const & procs) {
     used_defs live_names(env, [&] (declaration const & d) {
         live_names.names_in_decl(d);
     });
 
     for (auto p : procs) {
-        live_names.names_in_preprocessed_body(p.second);
+        live_names.names_in_preprocessed_body(p.m_code);
     }
 
     buffer<name> extern_ns;

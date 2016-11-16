@@ -1167,17 +1167,6 @@ void vm_state::invoke_builtin(vm_decl const & d) {
     m_pc++;
 }
 
-LEAN_THREAD_VALUE(vm_state *, g_vm_state, nullptr);
-
-scope_vm_state::scope_vm_state(vm_state & s):
-    m_prev(g_vm_state) {
-    g_vm_state = &s;
-}
-
-scope_vm_state::~scope_vm_state() {
-    g_vm_state = m_prev;
-}
-
 void vm_state::invoke_cfun(vm_decl const & d) {
     flet<vm_state *> Set(g_vm_state, this);
     auto & S       = m_stack;
@@ -2615,6 +2604,8 @@ unsigned get_vm_builtin_arity(name const & fn) {
     if (auto p = g_vm_cbuiltins->find(fn))
         return std::get<0>(*p);
     lean_unreachable();
+}
+
 void* get_extern_symbol(
  std::string library_name,
     std::string extern_name) {
@@ -2636,7 +2627,7 @@ static environment vm_monitor_register_core(environment const & env, name const 
 
 environment vm_monitor_register(environment const & env, name const & d) {
     auto new_env = vm_monitor_register_core(env, d);
-ode);return module::add(new_env, *g_vm_monitor_key, [=](environment const &, serializer & s) { s << d; });
+    return module::add(new_env, *g_vm_monitor_key, [=](environment const &, serializer & s) { s << d; });
 }
 
 environment load_external_fn(environment & env, name const & extern_n) {

@@ -6,21 +6,10 @@ import system.result
 import native.ir
 import native.format
 import init.state
+import native.internal
+import native.anf
 
 namespace native
-
--- builtin stuff
-meta constant is_internal_cnstr : expr → option unsigned
-meta constant is_internal_cases : expr → option unsigned
-meta constant is_internal_proj : expr → option unsigned
-meta constant get_nat_value : expr → option nat
-
-inductive builtin
-| cfun : name -> nat -> builtin
-| cases : name -> nat -> builtin
-| vm : name -> builtin
-
-meta constant get_builtin : name → option builtin
 
 inductive error
 | string : string -> error
@@ -138,17 +127,7 @@ def label {A : Type} (xs : list A) : list (nat × A) :=
 -- HELPERS --
 meta definition assert_name : ir.expr → ir_compiler name
 | (ir.expr.locl n) := lift_result $ system.result.ok n
-| (ir.expr.call _ _) := mk_error "expected name, found: call "
-| (ir.expr.lit _) := mk_error "expected name, found: lit "
-| (ir.expr.mk_object _ _) := mk_error "expected name, found: obj "
-| (ir.expr.global _) := mk_error "expected local, found global"
-| (ir.expr.block _) := mk_error "expected local, found block"
-| (ir.expr.project _ _) := mk_error "expected name, found project"
-| (ir.expr.panic _) := mk_error "expected name, found panic"
-| (ir.expr.mk_native_closure _ _) := mk_error "expected name, found native closure"
-| (ir.expr.invoke _ _) := mk_error "expected name, found invoke"
-| (ir.expr.assign _ _) := mk_error "expected name, found assign"
-| ir.expr.uninitialized := mk_error "expected name, found assign"
+| e := mk_error $ "expected name found: " ++ to_string (format_cpp.expr e)
 
 meta definition assert_expr : ir.stmt -> ir_compiler ir.expr
 | (ir.stmt.e exp) := return exp
@@ -402,31 +381,8 @@ meta def replace_main (n : name) : name :=
      then "___lean__main"
      else n
 
- meta def trace_expr (e : expr) : ir_compiler unit :=
-   trace ("trace_expr: " ++ to_string e) (fun u, return ())
-
-@[reducible] meta def anf_monad :=
-state (list (list (name × expr × expr)))
-
-meta def let_bind (n : name) (ty : expr) (e : expr) : anf_monad unit := do
-scopes <- state.read,
-match scopes with
-| [] := return ()
-| (s :: ss) := state.write $ ((n, ty, e) :: s) :: ss
-end
-
-meta def anf' : expr -> anf_monad expr
-| (expr.elet n ty val body) := do
-  let_bind n ty val,
-  anf' body
-| (expr.app f arg) :=
-  let fn := expr.get_app_fn (expr.app f arg),
-  args := expr.get_app_args (expr.app f arg)
-  in return $ expr.app f arg
-| e := return e
-
-meta def anf (e : expr) : expr :=
-  prod.fst $ (anf' e) []
+meta def trace_expr (e : expr) : ir_compiler unit :=
+  trace ("trace_expr: " ++ to_string e) (fun u, return ())
 
 meta definition compile_defn (decl_name : name) (e : expr) : ir_compiler format :=
   trace "compile_defn" (fun u, let arity := get_arity e,
@@ -436,13 +392,6 @@ meta definition compile_defn (decl_name : name) (e : expr) : ir_compiler format 
     trace_expr anf_body,
     ir <- compile_defn_to_ir (replace_main decl_name) args anf_body,
     return $ format_cpp.defn ir)
-
-meta def enter_scope {A} (action : anf_monad A) : anf_monad A := do
-  scopes <- state.read,
-  state.write ([] :: scopes),
-  result <- action,
-  state.write scopes,
-  return result
 
 meta definition compile' : list (name × expr) → list (ir_compiler format)
 | [] := []
@@ -475,16 +424,14 @@ meta def emit_main (procs : list (name × expr)) : ir.defn :=
 
 
 meta definition compile (procs : list (name × expr)) : format :=
-  trace "hello world!@!!!!!!!!!!!!!!l" (fun u, format.nil)
-
-  -- let arities := mk_arity_map procs in
-  -- -- Put this in a combinator or something ...
-  -- match run (sequence_err (compile' procs)) arities with
-  -- | (system.result.err e, s) := to_fmt "ERRRROR"
-  -- | (system.result.ok (decls, errs), s) :=
-  --   if list.length errs = 0
-  --   then format_concat decls
-  --   else format_error (error.many errs)
-  -- end
+  let arities := mk_arity_map procs in
+  -- Put this in a combinator or something ...
+  match run (sequence_err (compile' procs)) arities with
+  | (system.result.err e, s) := to_fmt "ERRRROR"
+  | (system.result.ok (decls, errs), s) :=
+    if list.length errs = 0
+    then format_concat decls
+    else format_error (error.many errs)
+  end
 
 end native

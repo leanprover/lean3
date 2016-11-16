@@ -24,6 +24,8 @@ Author: Leonardo de Moura
 #include "library/vm/vm_option.h"
 #include "library/vm/vm_level.h"
 #include "library/vm/vm_list.h"
+#include "library/compiler/simp_inductive.h"
+#include "library/compiler/nat_value.h"
 
 namespace lean {
 struct vm_macro_definition : public vm_external {
@@ -328,19 +330,6 @@ vm_obj expr_copy_pos_info(vm_obj const & src, vm_obj const & tgt) {
 }
 
 vm_obj expr_is_internal_cnstr(vm_obj const & e) {
-    std::cout << "!!!!!!!!" << to_expr(e) << std::endl;
-    auto opt_unsigned = is_internal_cnstr(to_expr(e));
-    if (opt_unsigned) {
-        std::cout << *opt_unsigned << std::endl;
-        vm_obj u = to_obj(*opt_unsigned);
-        return mk_vm_constructor(1, { u });
-    } else {
-        return mk_vm_constructor(0, {});
-    }
-}
-
-vm_obj expr_is_internal_cases(vm_obj const & e) {
-    std::cout << "!!!!!!!!" << to_expr(e) << std::endl;
     auto opt_unsigned = is_internal_cnstr(to_expr(e));
     if (opt_unsigned) {
         std::cout << *opt_unsigned << std::endl;
@@ -352,7 +341,6 @@ vm_obj expr_is_internal_cases(vm_obj const & e) {
 }
 
 vm_obj expr_is_internal_proj(vm_obj const & e) {
-    std::cout << "!!!!!!!!" << to_expr(e) << std::endl;
     auto opt_unsigned = is_internal_proj(to_expr(e));
     if (opt_unsigned) {
         std::cout << *opt_unsigned << std::endl;
@@ -364,7 +352,6 @@ vm_obj expr_is_internal_proj(vm_obj const & e) {
 }
 
 vm_obj expr_is_internal_cases(vm_obj const & e) {
-    std::cout << "!!!!!!!!" << to_expr(e) << std::endl;
     auto opt_unsigned = is_internal_cases(to_expr(e));
     if (opt_unsigned) {
         std::cout << *opt_unsigned << std::endl;

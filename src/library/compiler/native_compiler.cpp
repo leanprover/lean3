@@ -135,9 +135,9 @@ public:
         this->m_emitter.emit_prototype(n, get_arity(e));
     }
 
-    void populate_arity_map(buffer<pair<name, expr>> const & procs) {
+    void populate_arity_map(buffer<procedure> const & procs) {
         for (auto & p : procs) {
-            m_arity_map.insert(p.first, get_arity(p.second));
+            m_arity_map.insert(p.m_name, get_arity(p.m_code));
         }
     }
 
@@ -225,7 +225,7 @@ void add_shared_dependencies(cpp_compiler & compiler) {
 
 void native_compile(environment const & env,
                     buffer<extern_fn> & extern_fns,
-                    buffer<pair<name, expr>> & procs,
+                    buffer<procedure> & procs,
                     native_compiler_mode mode) {
     native_compiler_fn compiler(env, mode);
 
@@ -240,19 +240,23 @@ void native_compile(environment const & env,
     compiler.emit_prototypes(extern_fns);
 
     for (auto & p : procs) {
-        compiler.emit_prototype(p.first, p.second);
+        compiler.emit_prototype(p.m_name, p.m_code);
     }
 
     // First we convert for Lean ...
     vm_obj procs_list = mk_vm_simple(0);
     for (auto & p : procs) {
-        std::cout << p.first << std::endl;
+        std::cout << p.m_name << std::endl;
         // std::cout << p.second << std::endl;
-        auto tuple = mk_vm_constructor(0, { to_obj(p.first), to_obj(p.second) });
+        auto tuple = mk_vm_constructor(0, { to_obj(p.m_name), to_obj(p.m_code) });
         procs_list = mk_vm_constructor(1, { tuple, procs_list });
     }
 
-    vm_state S(env);
+    /* Ensure tracing is turned on ... */
+    scope_trace_env scope(get_global_ios().get_options());
+
+    vm_state S(env, get_global_ios().get_options());
+    std::cout << "About to compile" << std::endl;
     auto compiler_name = name({"native", "compile"});
     auto cc = mk_native_closure(env, compiler_name, {});
 
@@ -280,20 +284,12 @@ void native_compile(environment const & env,
        .run();
 }
 
-void native_preprocess(environment const & env, declaration const & d, buffer<pair<name, expr>> & procs) {
+void native_preprocess(environment const & env, declaration const & d, buffer<procedure> & procs) {
     lean_trace(name({"compiler", "native"}),
       tout() << "native_preprocess:" << d.get_name() << "\n";);
 
-    buffer<pair<name, expr>> raw_procs;
     // Run the normal preprocessing and optimizations.
-    preprocess(env, d, raw_procs);
-
-    // std::cout << "Found some user code:" << decl.get_value() << std::endl;
-    // Run the native specific optimizations.
-    for (auto proc : raw_procs) {
-        pair<name, expr> p = pair<name, expr>(proc.first, proc.second);
-        procs.push_back(p);
-    }
+    preprocess(env, d, procs);
 }
 
 bool is_internal_decl(declaration const & d) {
@@ -348,14 +344,14 @@ void native_compile_module(environment const & env, buffer<declaration> decls) {
     std::cout << "compiled native module" << std::endl;
 
     // Preprocess the main function.
-    buffer<pair<name, expr>> all_procs;
-    buffer<pair<name, expr>> main_procs;
+    buffer<procedure> all_procs;
+    buffer<procedure> main_procs;
     buffer<extern_fn> extern_fns;
 
     // Compute the live set of names, we attach a callback that will be
     // invoked for every declaration encountered.
     used_defs used_names(env, [&] (declaration const & d) {
-        buffer<pair<name, expr>> procs;
+        buffer<procedure> procs;
         // The the name is an internal decl we should not add it to the live set.
         if (is_internal_decl(d)) {
             return;
@@ -370,7 +366,7 @@ void native_compile_module(environment const & env, buffer<declaration> decls) {
         } else {
             native_preprocess(env, d, procs);
             for (auto pair : procs) {
-                used_names.names_in_expr(pair.second);
+                used_names.names_in_expr(pair.m_code);
                 all_procs.push_back(pair);
             }
         }
@@ -404,15 +400,15 @@ void native_compile_binary(environment const & env, declaration const & d) {
         tout() << "main_body: " << d.get_value() << "\n";);
 
     // Preprocess the main function.
-    buffer<pair<name, expr>> all_procs;
-    buffer<pair<name, expr>> main_procs;
+    buffer<procedure> all_procs;
+    buffer<procedure> main_procs;
     buffer<extern_fn> extern_fns;
     native_preprocess(env, d, main_procs);
 
     // Compute the live set of names, we attach a callback that will be
     // invoked for every declaration encountered.
     used_defs used_names(env, [&] (declaration const & d) {
-        buffer<pair<name, expr>> procs;
+        buffer<procedure> procs;
         if (is_internal_decl(d)) {
             return;
         } else if (auto p = get_builtin(d.get_name())) {
@@ -423,7 +419,7 @@ void native_compile_binary(environment const & env, declaration const & d) {
         } else {
             native_preprocess(env, d, procs);
             for (auto pair : procs) {
-                used_names.names_in_expr(pair.second);
+                used_names.names_in_expr(pair.m_code);
                 all_procs.push_back(pair);
             }
         }
@@ -433,7 +429,7 @@ void native_compile_binary(environment const & env, declaration const & d) {
     // main function, we transitively collect all names.
     for (auto pair : main_procs) {
         all_procs.push_back(pair);
-        used_names.names_in_preprocessed_body(pair.second);
+        used_names.names_in_preprocessed_body(pair.m_code);
     }
 
     populate_extern_fns(env, used_names, extern_fns, false);
