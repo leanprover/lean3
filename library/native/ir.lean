@@ -8,6 +8,9 @@ inductive ty
 | ref : ty -> ty
 | mut_ref : ty -> ty
 | tag : tag_ty -> ty -> ty
+-- these are temporary
+| int : ty
+| object_buffer : ty
 
 inductive literal
 | nat : nat -> literal
@@ -30,7 +33,7 @@ with expr : Type
 with stmt : Type
 | ite : expr -> stmt -> stmt -> stmt
 | switch : name -> list (nat × stmt) -> stmt -> stmt
-| letb : name -> expr -> stmt -> stmt
+| letb : name -> ty -> expr -> stmt -> stmt
 | e : expr -> stmt
 -- use a list here
 | seq : list stmt -> stmt

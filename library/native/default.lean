@@ -169,7 +169,7 @@ let args'' := list.map assert_name args in do
 
 meta def bind_value (val : ir.expr) (body : name → ir_compiler ir.stmt) : ir_compiler ir.stmt :=
 let n := `scrut -- maybe generate fresh name here?
-in ir.stmt.letb n val <$> (body n)
+in ir.stmt.letb n ir.ty.object val <$> (body n)
 
 -- not in love with this --solution-- hack, revisit
 meta definition compile_local (n : name) : ir_compiler name :=
@@ -189,7 +189,7 @@ let fst' := list.map assert_name fst,
   args'' <- monad.sequence snd',
   invoke <- ir.stmt.e <$> (mk_invoke `foo (fmap ir.expr.locl args'')),
   return $ ir.expr.block (ir.stmt.seq [
-    ir.stmt.letb `foo (ir.expr.call head args') ir.stmt.nop,
+    ir.stmt.letb `foo ir.ty.object (ir.expr.call head args') ir.stmt.nop,
     invoke
   ])
 
@@ -223,14 +223,14 @@ meta def bind_case_fields' (scrut : name) : list (nat × name) -> ir.stmt -> ir_
 | [] body := return body
 | ((n, f) :: fs) body := do
   loc <- compile_local f,
-  ir.stmt.letb f (ir.expr.project scrut n) <$> (bind_case_fields' fs body)
+  ir.stmt.letb f ir.ty.object (ir.expr.project scrut n) <$> (bind_case_fields' fs body)
 
 meta def bind_case_fields (scrut : name) (fs : list name) (body : ir.stmt) : ir_compiler ir.stmt :=
   bind_case_fields' scrut (label fs) body
 
 meta def mk_cases_on (case_name scrut : name) (cases : list (nat × ir.stmt)) (default : ir.stmt) : ir.stmt :=
 ir.stmt.seq [
-  ir.stmt.letb `cidx (ir.expr.call `cidx [scrut]) ir.stmt.nop,
+  ir.stmt.letb `cidx ir.ty.int (ir.expr.call `cidx [scrut]) ir.stmt.nop,
   ir.stmt.switch `cidx cases default
 ]
 
@@ -262,7 +262,7 @@ meta def bind_builtin_case_fields' (scrut : name) : list (nat × name) -> ir.stm
 | [] body := return body
 | ((n, f) :: fs) body := do
   loc <- compile_local f,
-  ir.stmt.letb loc (ir.expr.project scrut n) <$> (bind_builtin_case_fields' fs body)
+  ir.stmt.letb loc ir.ty.object (ir.expr.project scrut n) <$> (bind_builtin_case_fields' fs body)
 
 meta def bind_builtin_case_fields (scrut : name) (fs : list name) (body : ir.stmt) : ir_compiler ir.stmt :=
 bind_builtin_case_fields' scrut (label fs) body
@@ -280,8 +280,8 @@ meta def compile_builtin_cases (action : expr → ir_compiler ir.stmt) (scrut : 
 meta def mk_builtin_cases_on (case_name scrut : name) (cases : list (nat × ir.stmt)) (default : ir.stmt) : ir.stmt :=
 -- replace `ctor_index with a generated name
 ir.stmt.seq [
-  ir.stmt.letb `buffer ir.expr.uninitialized ir.stmt.nop,
-  ir.stmt.letb `ctor_index (ir.expr.call case_name [scrut, `buffer]) ir.stmt.nop,
+  ir.stmt.letb `buffer ir.ty.object_buffer ir.expr.uninitialized ir.stmt.nop,
+  ir.stmt.letb `ctor_index ir.ty.int (ir.expr.call case_name [scrut, `buffer]) ir.stmt.nop,
   ir.stmt.switch `ctor_index cases default
 ]
 
@@ -381,8 +381,8 @@ meta definition compile_expr_to_ir_stmt : expr -> ir_compiler ir.stmt
   body' <- compile_expr_to_ir_stmt (expr.instantiate_vars body [mk_local n]),
   -- not the best solution, here need to think hard about how to prevent thing, more aggressive anf? 
   match v' with
-  | ir.expr.block stmt := return (ir.stmt.seq [ir.stmt.letb n' ir.expr.uninitialized ir.stmt.nop, body'])
-  | _ := return (ir.stmt.letb n' v' body')
+  | ir.expr.block stmt := return (ir.stmt.seq [ir.stmt.letb n' ir.ty.object ir.expr.uninitialized ir.stmt.nop, body'])
+  | _ := return (ir.stmt.letb n' ir.ty.object v' body')
   end
 | e' := ir.stmt.e <$> compile_expr_to_ir_expr compile_expr_to_ir_stmt e'
 

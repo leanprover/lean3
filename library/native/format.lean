@@ -85,16 +85,24 @@ meta def cases (action : ir.stmt -> format) : list (nat × ir.stmt) -> format
 | [] := format.nil
 | (c :: cs) := case action c ++ cases cs
 
+meta definition ty : ir.ty → format
+| ir.ty.object := format.of_string "lean::vm_obj"
+| (ir.ty.ref T) := ty T ++ format.of_string " const &"
+| (ir.ty.mut_ref T) := ty T ++ format.of_string " &"
+| (ir.ty.tag _ _) := format.of_string "an_error"
+| (ir.ty.int) := "auto "
+| (ir.ty.object_buffer) := "buffer<lean::vm_obj> "
+
 meta def stmt : ir.stmt → format
 | (ir.stmt.e e) := expr' stmt e
 | (ir.stmt.return e) :=
   format.of_string "return"  ++
   format.space ++
   expr' stmt e ++ format.of_string ";"
-| (ir.stmt.letb n ir.expr.uninitialized nop) :=
-  to_fmt "lean::vm_obj " ++ (mangle_name n) ++ to_fmt ";" ++ format.line
-| (ir.stmt.letb n v body) :=
-  to_fmt "lean::vm_obj " ++ (mangle_name n) ++ (to_fmt " = ") ++ (expr' stmt v) ++ to_fmt ";" ++
+| (ir.stmt.letb n t ir.expr.uninitialized nop) :=
+  ty t ++ (mangle_name n) ++ to_fmt ";" ++ format.line
+| (ir.stmt.letb n t v body) :=
+  ty t ++ (mangle_name n) ++ (to_fmt " = ") ++ (expr' stmt v) ++ to_fmt ";" ++
   format.line ++ stmt body
 | (ir.stmt.switch scrut cs default) :=
   (to_fmt "switch (") ++ (mangle_name scrut) ++ (to_fmt ")") ++
@@ -106,11 +114,6 @@ meta def stmt : ir.stmt → format
 
 meta def expr := expr' stmt
 
-meta definition ty : ir.ty → format
-| ir.ty.object := format.of_string "lean::vm_obj"
-| (ir.ty.ref T) := ty T ++ format.of_string " const &"
-| (ir.ty.mut_ref T) := ty T ++ format.of_string " &"
-| (ir.ty.tag _ _) := format.of_string "an_error"
 
 meta definition format_param (param : name × ir.ty) :=
 ty (prod.snd param) ++
