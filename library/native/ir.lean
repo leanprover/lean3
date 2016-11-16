@@ -11,6 +11,7 @@ inductive ty
 -- these are temporary
 | int : ty
 | object_buffer : ty
+| name : name → ty
 
 inductive literal
 | nat : nat -> literal
@@ -40,8 +41,15 @@ with stmt : Type
 | return : expr -> stmt
 | nop : stmt
 
+inductive defn
+| mk : name -> list (name × ty) -> ty -> stmt -> defn
+
 inductive decl
-| mk : name -> list (name × ty) -> ty -> stmt -> decl
+| mk : name -> list (name × ty) -> ty -> decl
+
+inductive item
+| defn : defn -> item
+| decl : decl -> item
 
 end ir
 

@@ -83,10 +83,9 @@ private meta definition take_arguments' : expr → list name → (list name × e
 | e' ns := (ns, e')
 
 meta definition take_arguments (e : expr) : (list name × expr) :=
-let res := take_arguments' e [],
-arg_names := prod.fst res,
-locals := list.map mk_local arg_names
-in (arg_names, expr.instantiate_vars (prod.snd res) (list.reverse locals))
+let (arg_names, body) := take_arguments' e [],
+    locals := list.map mk_local arg_names
+in (list.reverse arg_names, expr.instantiate_vars body (list.reverse locals))
 
 -- meta def lift_state {A} (action : state arity_map A) : ir_compiler A :=
 --   fun (s : arity_map), match action s with
@@ -382,53 +381,110 @@ meta definition compile_expr_to_ir_stmt : expr -> ir_compiler ir.stmt
   n' <- compile_local n,
   v' <- compile_expr_to_ir_expr compile_expr_to_ir_stmt v,
   body' <- compile_expr_to_ir_stmt (expr.instantiate_vars body [mk_local n]),
-  -- not the best solution, here need to think hard about how to prevent thing, more aggressive anf? 
+  -- not the best solution, here need to think hard about how to prevent thing, more aggressive anf?
   match v' with
   | ir.expr.block stmt := return (ir.stmt.seq [ir.stmt.letb n' ir.ty.object ir.expr.uninitialized ir.stmt.nop, body'])
   | _ := return (ir.stmt.letb n' ir.ty.object v' body')
   end
 | e' := ir.stmt.e <$> compile_expr_to_ir_expr compile_expr_to_ir_stmt e'
 
-meta definition compile_decl_to_ir (decl_name : name) (args : list name) (body : expr) : ir_compiler ir.decl := do
+meta definition compile_defn_to_ir (decl_name : name) (args : list name) (body : expr) : ir_compiler ir.defn := do
   body' <- compile_expr_to_ir_stmt body,
   let params := (zip args (repeat (list.length args) (ir.ty.ref ir.ty.object))) in
-  pure (ir.decl.mk decl_name params ir.ty.object body')
+  pure (ir.defn.mk decl_name params ir.ty.object body')
 
 definition unwrap_or_else {T R : Type} : result T → (T → R) → (error -> R) -> R
 | (system.result.err e) f err := err e
 | (system.result.ok t) f err := f t
-
 
 meta def replace_main (n : name) : name :=
      if n = `main
      then "___lean__main"
      else n
 
-meta definition compile_decl (decl_name : name) (e : expr) : ir_compiler format :=
-  let arity := get_arity e,
-      (args, body) := take_arguments e in do
-      ir <- compile_decl_to_ir (replace_main decl_name) args body,
-      return $ format_cpp.decl ir
+ meta def trace_expr (e : expr) : ir_compiler unit :=
+   trace ("trace_expr: " ++ to_string e) (fun u, return ())
+
+@[reducible] meta def anf_monad :=
+state (list (list (name × expr × expr)))
+
+meta def let_bind (n : name) (ty : expr) (e : expr) : anf_monad unit := do
+scopes <- state.read,
+match scopes with
+| [] := return ()
+| (s :: ss) := state.write $ ((n, ty, e) :: s) :: ss
+end
+
+meta def anf' : expr -> anf_monad expr
+| (expr.elet n ty val body) := do
+  let_bind n ty val,
+  anf' body
+| (expr.app f arg) :=
+  let fn := expr.get_app_fn (expr.app f arg),
+  args := expr.get_app_args (expr.app f arg)
+  in return $ expr.app f arg
+| e := return e
+
+meta def anf (e : expr) : expr :=
+  prod.fst $ (anf' e) []
+
+meta definition compile_defn (decl_name : name) (e : expr) : ir_compiler format :=
+  trace "compile_defn" (fun u, let arity := get_arity e,
+      (args, body) := take_arguments e,
+      anf_body := anf body
+  in do
+    trace_expr anf_body,
+    ir <- compile_defn_to_ir (replace_main decl_name) args anf_body,
+    return $ format_cpp.defn ir)
+
+meta def enter_scope {A} (action : anf_monad A) : anf_monad A := do
+  scopes <- state.read,
+  state.write ([] :: scopes),
+  result <- action,
+  state.write scopes,
+  return result
 
 meta definition compile' : list (name × expr) → list (ir_compiler format)
 | [] := []
 | ((n, e) :: rest) := do
-  let decl := (fun d, d ++ format.line ++ format.line) <$> compile_decl n e
+  let decl := (fun d, d ++ format.line ++ format.line) <$> compile_defn n e
   in decl :: (compile' rest)
 
 meta def format_error : error → format
 | (error.string s) := to_fmt s
 | (error.many es) := format_concat (list.map format_error es)
 
+meta def emit_main (procs : list (name × expr)) : ir.defn :=
+    ir.defn.mk `main [] ir.ty.int $ ir.stmt.seq [
+    ir.stmt.e $ ir.expr.call (in_lean_ns `initialize) [],
+    ir.stmt.letb `env (ir.ty.name (in_lean_ns `environment)) ir.expr.uninitialized ir.stmt.nop
+    -- this->emit_indented_line("lean::vm_state S(env);");
+    -- loop doing this this->m_emitter.emit_declare_vm_builtin(p.first);
+    -- ir.stmt.letb `S (ir.ty.name (in_lean_ns `vm_state)) 
+    -- this->emit_indented_line("lean::scope_vm_state scoped(S);");
+    -- this->emit_indented_line("g_env = &env;");
+    -- call_mains
+    -- buffer<expr> args;
+    -- auto unit = mk_neutral_expr();
+    -- args.push_back(unit);
+    -- // Make sure to invoke the C call machinery since it is non-deterministic
+    -- // which case we enter here.
+    -- compile_to_c_call(main_fn, args, 0, name_map<unsigned>());
+    -- *this->m_output_stream << ";\n return 0;\n}" << std::endl;
+  ]
+
+
 meta definition compile (procs : list (name × expr)) : format :=
-  let arities := mk_arity_map procs in
-  -- Put this in a combinator or something ...
-  match run (sequence_err (compile' procs)) arities with
-  | (system.result.err e, s) := to_fmt "ERRRROR"
-  | (system.result.ok (decls, errs), s) :=
-    if list.length errs = 0
-    then format_concat decls
-    else format_error (error.many errs)
-  end
+  trace "hello world!@!!!!!!!!!!!!!!l" (fun u, format.nil)
+
+  -- let arities := mk_arity_map procs in
+  -- -- Put this in a combinator or something ...
+  -- match run (sequence_err (compile' procs)) arities with
+  -- | (system.result.err e, s) := to_fmt "ERRRROR"
+  -- | (system.result.ok (decls, errs), s) :=
+  --   if list.length errs = 0
+  --   then format_concat decls
+  --   else format_error (error.many errs)
+  -- end
 
 end native

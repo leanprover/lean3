@@ -17,10 +17,18 @@ Author: Leonardo de Moura
 #include "library/compiler/compiler_step_visitor.h"
 #include "library/compiler/simp_inductive.h"
 #include "library/compiler/erase_irrelevant.h"
-#include "library/compiler/anf_transform.h"
 #include "library/vm/vm.h"
 
 namespace lean {
+
+// bool is_cases_on(environment const & env, expr const & e) {
+//     lean_assert(is_constant(e));
+//     return (get_vm_builtin_cases_idx(env, const_name(e)) ||
+//     is_cases_on_recursor(env, const_name(e)) ||
+//     is_internal_cases(e) ||
+//     is_constant(e, get_nat_cases_on_name()));
+// }
+
 class cf_fn : public compiler_step_visitor {
     expr m_current_location;
 
@@ -41,28 +49,28 @@ class cf_fn : public compiler_step_visitor {
     }
 
     virtual expr visit_let(expr const & e) {
-        auto n = let_name(e);
-        auto v = let_value(e);
-        auto b = let_body(e);
-
-        if (is_app(v)) {
-            buffer<expr> args;
-            expr fn = get_app_args(v, args);
-
-            if (is_constant(fn) && is_cases_on(m_ctx.env(), fn)) {
-                // THis has a recursion problem
-                m_current_location = mk_local(n, mk_neutral_expr());
-                auto v_prime = visit(v);
-                m_current_location = expr();
-                auto b_prime = visit(b);
-                return mk_let(n, mk_neutral_expr(), uninitialized(), initialize(n, v_prime, b_prime));
-            } else {
-                return mk_let(n, mk_neutral_expr(), v, visit(b));
-            }
-        } else {
-            auto b = let_body(e);
-            return mk_let(n, mk_neutral_expr(), v, visit(b));
-        }
+        // auto n = let_name(e);
+        // auto v = let_value(e);
+        // auto b = let_body(e);
+        //
+        // if (is_app(v)) {
+        //     buffer<expr> args;
+        //     expr fn = get_app_args(v, args);
+        //
+        //     if (is_constant(fn) && is_cases_on(m_ctx.env(), fn)) {
+        //         // THis has a recursion problem
+        //         m_current_location = mk_local(n, mk_neutral_expr());
+        //         auto v_prime = visit(v);
+        //         m_current_location = expr();
+        //         auto b_prime = visit(b);
+        //         return mk_let(n, mk_neutral_expr(), uninitialized(), initialize(n, v_prime, b_prime));
+        //     } else {
+        //         return mk_let(n, mk_neutral_expr(), v, visit(b));
+        //     }
+        // } else {
+        //     auto b = let_body(e);
+        //     return mk_let(n, mk_neutral_expr(), v, visit(b));
+        // }
     }
 
     virtual expr visit_app(expr const & e) {

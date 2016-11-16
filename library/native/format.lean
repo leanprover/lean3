@@ -92,6 +92,7 @@ meta definition ty : ir.ty → format
 | (ir.ty.tag _ _) := format.of_string "an_error"
 | (ir.ty.int) := "auto "
 | (ir.ty.object_buffer) := "lean::buffer<lean::vm_obj> "
+| (ir.ty.name n) := to_fmt n
 
 meta def stmt : ir.stmt → format
 | (ir.stmt.e e) := expr' stmt e
@@ -124,9 +125,9 @@ meta definition format_argument_list (tys : list (name × ir.ty)) : format :=
   format.bracket "(" ")" (comma_sep (list.map format_param tys))
 
 -- meta_definition format_prototypes ()
-meta definition decl (d : ir.decl) : format :=
+meta definition defn (d : ir.defn) : format :=
   match d with
-  | ir.decl.mk n arg_tys ret_ty body :=
+  | ir.defn.mk n arg_tys ret_ty body :=
     let body := stmt body in
     (ty ret_ty) ++ format.space ++ (mangle_name n) ++
     (format_argument_list arg_tys) ++ format.space ++

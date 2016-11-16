@@ -17,7 +17,6 @@ Author: Jared Roesch
 #include "library/compiler/compiler_step_visitor.h"
 #include "library/compiler/simp_inductive.h"
 #include "library/compiler/erase_irrelevant.h"
-#include "library/compiler/anf_transform.h"
 // causes a linking error? not sure why?
 // #include "library/compiler/cf.h"
 #include "library/vm/vm.h"
