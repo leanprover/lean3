@@ -484,7 +484,9 @@ public:
         this->m_emitter.emit_string("namespace lean {\n");
 
         for (auto fn : in_lean_namespace) {
-            if (get_vm_builtin_cases_idx(m_env, fn.m_name)) {
+            auto np = get_vm_builtin_internal_name(fn.m_name);
+            if (np && get_vm_builtin_kind(fn.m_name) == vm_builtin_kind::Cases) {
+                std::cout << fn.m_name << std::endl;
                 auto np = get_vm_builtin_internal_name(fn.m_name);
                 lean_assert(np);
                 this->m_emitter.emit_string("unsigned ");

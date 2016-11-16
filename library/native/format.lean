@@ -86,12 +86,12 @@ meta def cases (action : ir.stmt -> format) : list (nat × ir.stmt) -> format
 | (c :: cs) := case action c ++ cases cs
 
 meta definition ty : ir.ty → format
-| ir.ty.object := format.of_string "lean::vm_obj"
-| (ir.ty.ref T) := ty T ++ format.of_string " const &"
+| ir.ty.object := format.of_string "lean::vm_obj "
+| (ir.ty.ref T) := ty T ++ format.of_string " const & "
 | (ir.ty.mut_ref T) := ty T ++ format.of_string " &"
 | (ir.ty.tag _ _) := format.of_string "an_error"
 | (ir.ty.int) := "auto "
-| (ir.ty.object_buffer) := "buffer<lean::vm_obj> "
+| (ir.ty.object_buffer) := "lean::buffer<lean::vm_obj> "
 
 meta def stmt : ir.stmt → format
 | (ir.stmt.e e) := expr' stmt e

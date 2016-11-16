@@ -230,8 +230,8 @@ meta def bind_case_fields (scrut : name) (fs : list name) (body : ir.stmt) : ir_
 
 meta def mk_cases_on (case_name scrut : name) (cases : list (nat × ir.stmt)) (default : ir.stmt) : ir.stmt :=
 ir.stmt.seq [
-  ir.stmt.letb `cidx ir.ty.int (ir.expr.call `cidx [scrut]) ir.stmt.nop,
-  ir.stmt.switch `cidx cases default
+  ir.stmt.letb `ctor_index ir.ty.int (ir.expr.call `cidx [scrut]) ir.stmt.nop,
+  ir.stmt.switch `ctor_index cases default
 ]
 
 meta def compile_cases (action : expr → ir_compiler ir.stmt) (scrut : name)
@@ -277,11 +277,14 @@ meta def compile_builtin_cases (action : expr → ir_compiler ir.stmt) (scrut : 
   case <- bind_builtin_case_fields scrut fs body'',
   return $ (n, case) :: cs'
 
+meta def in_lean_ns (n : name) : name :=
+  mk_simple_name ("lean::" ++ name.to_string_with_sep "_" n)
+
 meta def mk_builtin_cases_on (case_name scrut : name) (cases : list (nat × ir.stmt)) (default : ir.stmt) : ir.stmt :=
 -- replace `ctor_index with a generated name
 ir.stmt.seq [
   ir.stmt.letb `buffer ir.ty.object_buffer ir.expr.uninitialized ir.stmt.nop,
-  ir.stmt.letb `ctor_index ir.ty.int (ir.expr.call case_name [scrut, `buffer]) ir.stmt.nop,
+  ir.stmt.letb `ctor_index ir.ty.int (ir.expr.call (in_lean_ns case_name) [scrut, `buffer]) ir.stmt.nop,
   ir.stmt.switch `ctor_index cases default
 ]
 
