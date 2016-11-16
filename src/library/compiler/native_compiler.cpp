@@ -252,9 +252,6 @@ void native_compile(environment const & env,
         procs_list = mk_vm_constructor(1, { tuple, procs_list });
     }
 
-    /* Ensure tracing is turned on ... */
-    scope_trace_env scope(get_global_ios().get_options());
-
     vm_state S(env, get_global_ios().get_options());
     std::cout << "About to compile" << std::endl;
     auto compiler_name = name({"native", "compile"});

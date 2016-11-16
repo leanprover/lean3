@@ -96,5 +96,11 @@ private meta def anf' : expr -> anf_monad expr
 meta def init_state : anf_state :=
   ([], 0)
 
+meta def trace_anf (s : string) : anf_monad unit :=
+  trace s (fun u, return u)
+
 meta def anf (e : expr) : expr :=
-  trace "anf" (fun u, prod.fst $ (anf' e) init_state)
+  trace ("anf: " ++ to_string e)
+  (fun u, let res := prod.fst $ (anf' e) init_state
+    in (trace $ "anf_done :" ++ to_string res) (fun u, res))
+
