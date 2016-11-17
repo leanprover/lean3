@@ -27,6 +27,7 @@ used_defs::used_defs(environment const & env, std::function<void(declaration con
 // marking it as seen, and queuing it to be processed.
 void used_defs::add_name(name const & n) {
     if (!this->m_used_names.contains(n)) {
+        std::cout << "Making " << n << " live" << std::endl;
         this->m_used_names.insert(n);
         this->m_names_to_process.push_back(n);
     }
@@ -40,6 +41,7 @@ void used_defs::empty_stack() {
         // Is a definition and not a synthetic compiler name.
         auto d = this->m_env.find(n);
         if (d && d.value().is_definition()) {
+            std::cout << d.value().get_value() << std::endl;
             m_action(d.value());
         }
     }
@@ -101,7 +103,7 @@ void used_defs::names_in_expr(expr const & e) {
             auto ex = e;
             while (is_binding(ex)) {
                 expr d = instantiate_rev(binding_domain(ex), ls.size(), ls.data());
-                this->names_in_expr(d);
+                // this->names_in_expr(d);
                 auto n = mk_fresh_name(); // (name const & prefix, unsigned k);
                 expr l = mk_local(n, binding_name(ex), d, binding_info(ex));
                 ls.push_back(l);

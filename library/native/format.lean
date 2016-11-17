@@ -90,7 +90,7 @@ meta definition ty : ir.ty → format
 | (ir.ty.ref T) := ty T ++ format.of_string " const & "
 | (ir.ty.mut_ref T) := ty T ++ format.of_string " &"
 | (ir.ty.tag _ _) := format.of_string "an_error"
-| (ir.ty.int) := "auto "
+| (ir.ty.int) := "int "
 | (ir.ty.object_buffer) := "lean::buffer<lean::vm_obj> "
 | (ir.ty.name n) := to_fmt n
 

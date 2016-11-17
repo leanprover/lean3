@@ -431,7 +431,7 @@ meta definition compile (procs : list (name × expr)) : format :=
   | (system.result.err e, s) := to_fmt "ERRRROR"
   | (system.result.ok (decls, errs), s) :=
     if list.length errs = 0
-    then format_concat decls
+    then format_concat (decls ++ [format_cpp.defn $ emit_main procs])
     else format_error (error.many errs)
   end)
 
