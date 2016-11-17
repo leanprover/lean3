@@ -27,7 +27,6 @@ used_defs::used_defs(environment const & env, std::function<void(declaration con
 // marking it as seen, and queuing it to be processed.
 void used_defs::add_name(name const & n) {
     if (!this->m_used_names.contains(n)) {
-        std::cout << "Making " << n << " live" << std::endl;
         this->m_used_names.insert(n);
         this->m_names_to_process.push_back(n);
     }
