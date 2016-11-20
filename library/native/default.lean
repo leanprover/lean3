@@ -8,12 +8,18 @@ import native.format
 import init.state
 import native.internal
 import native.anf
+import native.cf
+import native.util
 
 namespace native
 
 inductive error
 | string : string -> error
 | many : list error -> error
+
+meta def error.to_string : error → string
+| (error.string s) := s
+| (error.many es) := to_string $ list.map error.to_string es
 
 attribute [reducible]
 definition result (A : Type*) :=
@@ -30,11 +36,16 @@ meta definition mk_arity_map : list (name × expr) -> arity_map
 | [] := rb_map.mk name nat
 | ((n, body) :: rest) := rb_map.insert (mk_arity_map rest) n (get_arity body)
 
+@[reducible] meta def ir_compiler_state :=
+  (arity_map × nat)
+
 @[reducible] meta definition ir_compiler (A : Type) :=
-  system.resultT (state arity_map) error A
+  system.resultT (state ir_compiler_state) error A
+
+meta def trace_ir (s : string) : ir_compiler unit :=
+  trace s (fun u, return u)
 
 -- An `exotic` monad combinator that accumulates errors.
-
 meta def run {M E A} (res : system.resultT M E A) : M (system.result E A) :=
   match res with
   | (| action |) := action
@@ -60,11 +71,8 @@ meta definition sequence_err : list (ir_compiler format) → ir_compiler (list f
 meta definition lift_result {A} (action : result A) : ir_compiler A :=
   (| fun s, (action, s) |)
 
-meta def lift {A} (action : state arity_map A) : ir_compiler A :=
+meta def lift {A} (action : state ir_compiler_state A) : ir_compiler A :=
   (| fmap (fun (a : A), system.result.ok a) action |)
-
-meta definition mk_local (n : name) : expr :=
-expr.local_const n n binder_info.default (expr.const n [])
 
 -- TODO: fix naming here
 private meta definition take_arguments' : expr → list name → (list name × expr)
@@ -85,11 +93,18 @@ meta definition mk_error {T} : string -> ir_compiler T :=
   fun s, lift_result (system.result.err $ error.string s)
 
 meta definition lookup_arity (n : name) : ir_compiler nat := do
-  map <- lift state.read,
+  (map, counter) <- lift state.read,
   match rb_map.find map n with
   | option.none := mk_error $ "could not find arity for: " ++ to_string n
   | option.some n := return n
   end
+
+meta def fresh_name : ir_compiler name := do
+  (map, counter) <- lift state.read,
+  let fresh := name.mk_numeral (unsigned.of_nat counter) `native._ir_compiler_
+  in do
+    lift $ state.write (map, counter + 1),
+    return fresh
 
 meta definition mk_nat_literal (n : nat) : ir_compiler ir.expr :=
   return (ir.expr.lit $ ir.literal.nat n)
@@ -98,7 +113,7 @@ definition repeat {A : Type} : nat -> A -> list A
 | 0 _ := []
 | (n + 1) a := a :: repeat n a
 
-definition zip {A B : Type} : list A → list B → list (A × B)
+def zip {A B : Type} : list A → list B → list (A × B)
 | [] [] := []
 | [] (y :: ys) := []
 | (x :: xs) [] := []
@@ -133,7 +148,6 @@ meta definition assert_expr : ir.stmt -> ir_compiler ir.expr
 | (ir.stmt.e exp) := return exp
 | s := mk_error ("internal invariant violated, found: " ++ (to_string (format_cpp.stmt s)))
 
-
 meta definition mk_call (head : name) (args : list ir.expr) : ir_compiler ir.expr :=
   let args'' := list.map assert_name args
   in do
@@ -165,9 +179,11 @@ let fst' := list.map assert_name fst,
     snd' := list.map assert_name snd in do
   args' <- monad.sequence fst',
   args'' <- monad.sequence snd',
-  invoke <- ir.stmt.e <$> (mk_invoke `foo (fmap ir.expr.locl args'')),
+  fresh <- fresh_name,
+  locl <- compile_local fresh,
+  invoke <- ir.stmt.e <$> (mk_invoke fresh (fmap ir.expr.locl args'')),
   return $ ir.expr.block (ir.stmt.seq [
-    ir.stmt.letb `foo ir.ty.object (ir.expr.call head args') ir.stmt.nop,
+    ir.stmt.letb locl ir.ty.object (ir.expr.call head args') ir.stmt.nop,
     invoke
   ])
 
@@ -285,6 +301,7 @@ meta definition compile_expr_app_to_ir_expr
   (head : expr)
   (args : list expr)
   (action : expr -> ir_compiler ir.stmt) : ir_compiler ir.expr := do
+    trace_ir (to_string head ++ to_string args),
     if expr.is_constant head = bool.tt
     then if is_return (expr.const_name head) = bool.tt
     then do
@@ -387,10 +404,11 @@ meta def trace_expr (e : expr) : ir_compiler unit :=
 meta definition compile_defn (decl_name : name) (e : expr) : ir_compiler format :=
   trace "compile_defn" (fun u, let arity := get_arity e,
       (args, body) := take_arguments e,
-      anf_body := anf body
+      anf_body := anf body,
+      cf_body := cf anf_body
   in do
     trace_expr anf_body,
-    ir <- compile_defn_to_ir (replace_main decl_name) args anf_body,
+    ir <- compile_defn_to_ir (replace_main decl_name) args cf_body,
     return $ format_cpp.defn ir)
 
 meta definition compile' : list (name × expr) → list (ir_compiler format)
@@ -403,35 +421,62 @@ meta def format_error : error → format
 | (error.string s) := to_fmt s
 | (error.many es) := format_concat (list.map format_error es)
 
-meta def emit_main (procs : list (name × expr)) : ir.defn :=
-    ir.defn.mk `main [] ir.ty.int $ ir.stmt.seq [
+meta def mk_lean_name (n : name) : ir.expr :=
+  ir.expr.constructor (in_lean_ns `name) (name.components n)
+
+meta def emit_declare_vm_builtins : list (name × expr) -> ir_compiler (list ir.stmt)
+| [] := return []
+| ((n, body) :: es) := do
+  vm_name <- pure $ (mk_lean_name n),
+  tail <- emit_declare_vm_builtins es,
+  fresh <- fresh_name,
+  let cpp_name := in_lean_ns `name,
+    single_binding := ir.stmt.seq [
+    ir.stmt.letb fresh (ir.ty.name cpp_name) vm_name ir.stmt.nop,
+    ir.stmt.e $ ir.expr.assign `env (ir.expr.call `add_native [`env, fresh, replace_main n])
+  ] in return $ single_binding :: tail
+
+meta def emit_main (procs : list (name × expr)) : ir_compiler ir.defn := do
+  builtins <- emit_declare_vm_builtins procs,
+  arity <- lookup_arity `main,
+  vm_simple_obj <- fresh_name,
+  call_main <- compile_call "___lean__main" arity [ir.expr.locl vm_simple_obj],
+  return (ir.defn.mk `main [] ir.ty.int $ ir.stmt.seq ([
     ir.stmt.e $ ir.expr.call (in_lean_ns `initialize) [],
     ir.stmt.letb `env (ir.ty.name (in_lean_ns `environment)) ir.expr.uninitialized ir.stmt.nop
-    -- this->emit_indented_line("lean::vm_state S(env);");
-    -- loop doing this this->m_emitter.emit_declare_vm_builtin(p.first);
-    -- ir.stmt.letb `S (ir.ty.name (in_lean_ns `vm_state)) 
-    -- this->emit_indented_line("lean::scope_vm_state scoped(S);");
-    -- this->emit_indented_line("g_env = &env;");
-    -- call_mains
-    -- buffer<expr> args;
-    -- auto unit = mk_neutral_expr();
-    -- args.push_back(unit);
-    -- // Make sure to invoke the C call machinery since it is non-deterministic
-    -- // which case we enter here.
-    -- compile_to_c_call(main_fn, args, 0, name_map<unsigned>());
-    -- *this->m_output_stream << ";\n return 0;\n}" << std::endl;
-  ]
+  ] ++ builtins ++ [
+    ir.stmt.letb `ios (ir.ty.name (in_lean_ns `io_state)) (ir.expr.call (in_lean_ns `get_global_ios) []) ir.stmt.nop,
+    ir.stmt.letb `opts (ir.ty.name (in_lean_ns `options)) (ir.expr.call (in_lean_ns `get_options_from_ios) [`ios]) ir.stmt.nop,
+    ir.stmt.letb `S (ir.ty.name (in_lean_ns `vm_state)) (ir.expr.constructor (in_lean_ns `vm_state) [`env, `opts]) ir.stmt.nop,
+    ir.stmt.letb `scoped (ir.ty.name (in_lean_ns `scope_vm_state)) (ir.expr.constructor (in_lean_ns `scope_vm_state) [`S]) ir.stmt.nop,
+    ir.stmt.e $ ir.expr.assign `g_env (ir.expr.address_of `env),
+    ir.stmt.letb vm_simple_obj ir.ty.object (ir.expr.mk_object 0 []) ir.stmt.nop,
+    ir.stmt.e call_main
+]))
 
--- Not getting trace output here.
+  --   -- call_mains
+  --   -- buffer<expr> args;
+  --   -- auto unit = mk_neutral_expr();
+  --   -- args.push_back(unit);
+  --   -- // Make sure to invoke the C call machinery since it is non-deterministic
+  --   -- // which case we enter here.
+  --   -- compile_to_c_call(main_fn, args, 0, name_map<unsigned>());
+  --   -- *this->m_output_stream << ";\n return 0;\n}" << std::endl;
+  -- ]
+meta definition driver (procs : list (name × expr)) : ir_compiler (list format × list error) := do
+     (fmt_decls, errs) <- sequence_err (compile' procs),
+  main <- emit_main procs,
+  return (format_cpp.defn main :: fmt_decls, errs)
+
 meta definition compile (procs : list (name × expr)) : format :=
   trace "At start of compiler" (fun u,
   let arities := mk_arity_map procs in
   -- Put this in a combinator or something ...
-  match run (sequence_err (compile' procs)) arities with
-  | (system.result.err e, s) := to_fmt "ERRRROR"
+  match run (driver procs) (arities, 0) with
+  | (system.result.err e, s) := error.to_string e
   | (system.result.ok (decls, errs), s) :=
     if list.length errs = 0
-    then format_concat (decls ++ [format_cpp.defn $ emit_main procs])
+    then format_concat decls
     else format_error (error.many errs)
   end)
 

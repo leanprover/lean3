@@ -19,6 +19,7 @@ void cpp_emitter::emit_headers() {
         "#include \"util/numerics/mpz.h\"" << std::endl <<
         "#include \"library/vm/vm_io.h\"" << std::endl <<
         "#include \"library/vm/vm.h\"" << std::endl <<
+        "#include \"library/io_state.h\"" << std::endl <<
         "#include \"init/init.h\"" << std::endl << std::endl <<
         "static lean::environment * g_env = nullptr;" << std::endl << std::endl;
 }

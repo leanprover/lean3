@@ -100,9 +100,7 @@ public:
 
         for (auto fn : in_lean_namespace) {
             auto np = get_vm_builtin_internal_name(fn.m_name);
-            std::cout << "Proessing: " << fn.m_name << std::endl;
             if (np && get_vm_builtin_kind(fn.m_name) == vm_builtin_kind::Cases) {
-                std::cout << "BUILTIN_CASES: " << fn.m_name << std::endl;
                 auto np = get_vm_builtin_internal_name(fn.m_name);
                 lean_assert(np);
                 this->m_emitter.emit_string("unsigned ");
@@ -131,7 +129,17 @@ public:
         // this->m_emitter.emit_string("}\n\n");
     }
 
+    unsigned get_arity(expr e) {
+        unsigned r = 0;
+        while (is_lambda(e)) {
+            r++;
+            e = binding_body(e);
+        }
+        return r;
+    }
+    
     void emit_prototype(name const & n, expr e) {
+        std::cout << "generating prototype for " << n << " " << e << std::endl;
         this->m_emitter.emit_prototype(n, get_arity(e));
     }
 
@@ -246,14 +254,14 @@ void native_compile(environment const & env,
     // First we convert for Lean ...
     vm_obj procs_list = mk_vm_simple(0);
     for (auto & p : procs) {
-        std::cout << p.m_name << std::endl;
+        // std::cout << p.m_name << std::endl;
         // std::cout << p.second << std::endl;
         auto tuple = mk_vm_constructor(0, { to_obj(p.m_name), to_obj(p.m_code) });
         procs_list = mk_vm_constructor(1, { tuple, procs_list });
     }
 
     vm_state S(env, get_global_ios().get_options());
-    std::cout << "About to compile" << std::endl;
+    // std::cout << "About to compile" << std::endl;
     auto compiler_name = name({"native", "compile"});
     auto cc = mk_native_closure(env, compiler_name, {});
 

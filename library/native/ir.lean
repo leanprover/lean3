@@ -31,6 +31,8 @@ with expr : Type
 | invoke : name -> list name -> expr
 | assign : name -> expr -> expr
 | uninitialized : expr
+| constructor : name -> list name -> expr
+| address_of : name -> expr
 with stmt : Type
 | ite : expr -> stmt -> stmt -> stmt
 | switch : name -> list (nat × stmt) -> stmt -> stmt
@@ -59,7 +61,7 @@ end ir
 -- definition lookup {K V} (key : K) (map : map K V) : option V :=
 --   sorry
 
--- definition context := 
+-- definition context :=
 --   map name ir_decl
 
 -- inductive value
@@ -85,5 +87,4 @@ end ir
 -- inductive step_stmt : context -> local_context -> ir_stmt -> ir_stmt -> Prop
 -- | nop : forall ctxt local_ctxt,
 --   step_stmt ctxt local_ctxt nop nop
--- | 
-
+-- |

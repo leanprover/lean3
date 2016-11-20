@@ -73,7 +73,8 @@ meta definition expr' (action : ir.stmt -> format) : ir.expr -> format
  (comma_sep (list.map format_local args)) ++ ")"
  | (ir.expr.uninitialized) := ";"
  | (ir.expr.assign n val) := mangle_name n ++ " = " ++ expr' val
-
+ | (ir.expr.constructor _ _) := "NYI"
+ | (ir.expr.address_of e) := "& " ++ mangle_name e ++ ";"
 
 meta def default_case (body : format) : format :=
   to_fmt "default:" ++ block body
@@ -92,16 +93,27 @@ meta definition ty : ir.ty → format
 | (ir.ty.tag _ _) := format.of_string "an_error"
 | (ir.ty.int) := "int "
 | (ir.ty.object_buffer) := "lean::buffer<lean::vm_obj> "
-| (ir.ty.name n) := to_fmt n
+| (ir.ty.name n) := to_fmt n ++ format.space
+
+meta def parens (inner : format) : format :=
+  format.bracket "(" ")" inner
 
 meta def stmt : ir.stmt → format
-| (ir.stmt.e e) := expr' stmt e
+| (ir.stmt.e e) := expr' stmt e ++ ";"
 | (ir.stmt.return e) :=
   format.of_string "return"  ++
   format.space ++
   expr' stmt e ++ format.of_string ";"
 | (ir.stmt.letb n t ir.expr.uninitialized nop) :=
   ty t ++ (mangle_name n) ++ to_fmt ";" ++ format.line
+  -- type checking should establish that these two types are equal
+| (ir.stmt.letb n t (ir.expr.constructor ty_name args) nop) :=
+  -- temporary hack, need to think about how to model this better
+  if ty_name = "lean::name"
+  then let ctor_args := comma_sep (list.map (string_lit ∘ to_string) args) in
+    ty t ++ (mangle_name n) ++ " = lean::name({" ++ ctor_args ++ "})" ++ to_fmt ";" ++ format.line
+  else let ctor_args := parens $ comma_sep (list.map mangle_name args) in
+       ty t ++ (mangle_name n) ++ ctor_args ++ to_fmt ";" ++ format.line
 | (ir.stmt.letb n t v body) :=
   ty t ++ (mangle_name n) ++ (to_fmt " = ") ++ (expr' stmt v) ++ to_fmt ";" ++
   format.line ++ stmt body
@@ -114,7 +126,6 @@ meta def stmt : ir.stmt → format
   format_concat (list.map (fun c, stmt c ++ format.line) cs)
 
 meta def expr := expr' stmt
-
 
 meta definition format_param (param : name × ir.ty) :=
 ty (prod.snd param) ++

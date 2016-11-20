@@ -40,7 +40,6 @@ void used_defs::empty_stack() {
         // Is a definition and not a synthetic compiler name.
         auto d = this->m_env.find(n);
         if (d && d.value().is_definition()) {
-            std::cout << d.value().get_value() << std::endl;
             m_action(d.value());
         }
     }

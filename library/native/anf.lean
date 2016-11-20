@@ -7,6 +7,7 @@ import system.result
 import native.ir
 import native.format
 import native.builtin
+import native.util
 import init.state
 
 @[reducible] meta def binding :=
@@ -26,23 +27,6 @@ private meta def let_bind (n : name) (ty : expr) (e : expr) : anf_monad unit := 
   match scopes with
   | ([], _) := return ()
   | ((s :: ss), count) := state.write $ (((n, ty, e) :: s) :: ss, count)
-  end
-
-meta definition mk_local (n : name) : expr :=
-  expr.local_const n n binder_info.default (expr.const n [])
-
-private meta def is_cases_on (head : expr) : bool :=
-  match native.is_internal_cases head with
-  | option.some _ := bool.tt
-  | option.none :=
-    match native.get_builtin (expr.const_name head) with
-    | option.some b :=
-      match b with
-      | builtin.cases _ _ := bool.tt
-      | _ := bool.ff
-      end
-    | option.none := bool.ff
-    end
   end
 
 private meta def mk_let : list binding -> expr -> expr
@@ -72,11 +56,6 @@ private meta def fresh_name : anf_monad name := do
   state.write (ss, count + 1),
   return n
 
-private meta def mk_neutral_expr : expr :=
-  expr.const `_neutral_ []
-
-check @monad.forM
-
 -- Hoist a set of expressions above the result of the callback
 -- function.
 meta def hoist
@@ -91,10 +70,6 @@ meta def hoist
        return fresh),
      kont ns
 
-private meta def mk_call : expr → list expr → expr
-| head [] := head
-| head (e :: es) := mk_call (expr.app head e) es
-
 private meta def anf_call (head : expr) (args : list expr) (anf : expr -> anf_monad expr) : anf_monad expr := do
   hoist anf (fun ns, match ns with
   -- need to think about how to refactor this, we should get at least one back from here always
@@ -103,14 +78,7 @@ private meta def anf_call (head : expr) (args : list expr) (anf : expr -> anf_mo
   | (head' :: args') := return $ mk_call (mk_local head') (list.map mk_local args')
   end) (head :: args)
 
--- we should collect all the binders and instantiate in one go
-private meta def under_lambda (action : expr -> anf_monad expr) : expr → anf_monad expr
-| (expr.lam n bi ty body) := do
-  body' <- action $ expr.instantiate_var body (mk_local n),
-  return $ expr.lam n bi ty (expr.abstract body (mk_local n))
-| e := action e
-
-private meta def anf_case (action : expr -> anf_monad expr) (e : expr) : anf_monad expr := do
+private meta def anf_case (action : expr -> anf_monad expr) (e : expr) : anf_monad expr :=
   under_lambda (fun e', enter_scope (action e')) e
 
 private meta def anf_cases_on (head : expr) (args : list expr) (anf : expr -> anf_monad expr) : anf_monad expr := do
