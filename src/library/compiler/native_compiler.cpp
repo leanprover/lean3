@@ -137,7 +137,7 @@ public:
         }
         return r;
     }
-    
+
     void emit_prototype(name const & n, expr e) {
         std::cout << "generating prototype for " << n << " " << e << std::endl;
         this->m_emitter.emit_prototype(n, get_arity(e));
@@ -261,22 +261,15 @@ void native_compile(environment const & env,
     }
 
     vm_state S(env, get_global_ios().get_options());
+    scope_vm_state scoped(S);
     // std::cout << "About to compile" << std::endl;
     auto compiler_name = name({"native", "compile"});
     auto cc = mk_native_closure(env, compiler_name, {});
 
-    std::fstream lean_output("out.lean.cpp", std::ios_base::out);
-
     vm_obj result = S.invoke(cc, procs_list);
     auto fmt = to_format(result);
-    lean_output << "ir:\n";
-    lean_output << fmt << std::endl;
     std::string fn = (sstream() << fmt << "\n\n").str();
     compiler.m_emitter.emit_string(fn.c_str());
-
-    // if (mode == native_compiler_mode::AOT) {
-    //    compiler.emit_main(procs);
-    // }
 
     // Get a compiler with the config specified by native options, placed
     // in the correct mode.

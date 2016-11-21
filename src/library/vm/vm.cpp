@@ -105,12 +105,8 @@ vm_obj mk_native_closure(environment const & env, name const & n, std::initializ
 }
 
 vm_obj mk_native_closure(environment const & env, name const & n, unsigned sz, vm_obj const * data) {
-      auto idx = lean::get_vm_constant_idx(env, n);
-      if (idx) {
-          return lean::mk_vm_closure(*idx, sz, data);
-      } else {
-          throw std::runtime_error("unknown native function");
-      }
+    std::cout << "mk native clo" << std::endl;
+    return get_vm_state().get_constant(n);
 }
 
 vm_obj mk_vm_closure(unsigned fn_idx, unsigned sz, vm_obj const * data) {
