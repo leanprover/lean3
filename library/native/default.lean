@@ -79,10 +79,18 @@ private meta definition take_arguments' : expr → list name → (list name × e
 | (expr.lam n _ _ body) ns := take_arguments' body (n :: ns)
 | e' ns := (ns, e')
 
-meta definition take_arguments (e : expr) : (list name × expr) :=
-let (arg_names, body) := take_arguments' e [],
-    locals := list.map mk_local arg_names
-in (list.reverse arg_names, expr.instantiate_vars body (list.reverse locals))
+meta def fresh_name : ir_compiler name := do
+  (map, counter) <- lift state.read,
+  let fresh := name.mk_numeral (unsigned.of_nat counter) `native._ir_compiler_
+  in do
+    lift $ state.write (map, counter + 1),
+    return fresh
+
+meta definition take_arguments (e : expr) : ir_compiler (list name × expr) :=
+let (arg_names, body) := take_arguments' e [] in do
+  fresh_names <- monad.mapM (fun x, fresh_name) arg_names,
+  let locals := list.map mk_local fresh_names in
+  return $ (fresh_names, expr.instantiate_vars body (list.reverse locals))
 
 -- meta def lift_state {A} (action : state arity_map A) : ir_compiler A :=
 --   fun (s : arity_map), match action s with
@@ -98,13 +106,6 @@ meta definition lookup_arity (n : name) : ir_compiler nat := do
   | option.none := mk_error $ "could not find arity for: " ++ to_string n
   | option.some n := return n
   end
-
-meta def fresh_name : ir_compiler name := do
-  (map, counter) <- lift state.read,
-  let fresh := name.mk_numeral (unsigned.of_nat counter) `native._ir_compiler_
-  in do
-    lift $ state.write (map, counter + 1),
-    return fresh
 
 meta definition mk_nat_literal (n : nat) : ir_compiler ir.expr :=
   return (ir.expr.lit $ ir.literal.nat n)
@@ -232,7 +233,7 @@ meta def compile_cases (action : expr → ir_compiler ir.stmt) (scrut : name)
 : list (nat × expr) → ir_compiler (list (nat × ir.stmt))
 | [] := return []
 | ((n, body) :: cs) := do
-  let (fs, body') := take_arguments body in do
+  (fs, body') <- take_arguments body,
   body'' <- action body',
   cs' <- compile_cases cs,
   case <- bind_case_fields scrut fs body'',
@@ -264,8 +265,8 @@ bind_builtin_case_fields' scrut (label fs) body
 meta def compile_builtin_cases (action : expr → ir_compiler ir.stmt) (scrut : name)
   : list (nat × expr) → ir_compiler (list (nat × ir.stmt))
 | [] := return []
-| ((n, body) :: cs) :=
-  let (fs, body') := take_arguments body in do
+| ((n, body) :: cs) := do
+  (fs, body') <- take_arguments body,
   body'' <- action body',
   cs' <- compile_builtin_cases cs,
   case <- bind_builtin_case_fields scrut fs body'',
@@ -402,14 +403,14 @@ meta def trace_expr (e : expr) : ir_compiler unit :=
   trace ("trace_expr: " ++ to_string e) (fun u, return ())
 
 meta definition compile_defn (decl_name : name) (e : expr) : ir_compiler format :=
-  trace "compile_defn" (fun u, let arity := get_arity e,
-      (args, body) := take_arguments e,
-      anf_body := anf body,
+  let arity := get_arity e in do
+      (args, body) <- take_arguments e,
+  let anf_body := anf body,
       cf_body := cf anf_body
   in do
     trace_expr anf_body,
     ir <- compile_defn_to_ir (replace_main decl_name) args cf_body,
-    return $ format_cpp.defn ir)
+    return $ format_cpp.defn ir
 
 meta definition compile' : list (name × expr) → list (ir_compiler format)
 | [] := []

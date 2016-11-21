@@ -20,7 +20,7 @@ Author: Leonardo de Moura
 
 namespace lean {
 class vm_obj;
-enum class vm_obj_kind { Simple, Constructor, Closure, MPZ, External, Pointer };
+enum class vm_obj_kind { Simple, Constructor, Closure, MPZ, External };
 
 /** \brief Base class for VM objects.
 
