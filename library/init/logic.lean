@@ -817,11 +817,11 @@ lemma if_simp_congr {α : Type u} {b c : Prop} [dec_b : decidable b] {x y u v : 
 @if_ctx_simp_congr α b c dec_b x y u v h_c (λ h, h_t) (λ h, h_e)
 
 @[simp]
-def if_true {α : Type u} [H : decidable true] (t e : α) : (@ite true H α t e) = t :=
+def if_true {α : Type u} {H : decidable true} (t e : α) : (@ite true H α t e) = t :=
 if_pos trivial
 
 @[simp]
-def if_false {α : Type u} [H : decidable false] (t e : α) : (@ite false H α t e) = e :=
+def if_false {α : Type u} {H : decidable false} (t e : α) : (@ite false H α t e) = e :=
 if_neg not_false
 
 lemma if_ctx_congr_prop {b c x y u v : Prop} [dec_b : decidable b] [dec_c : decidable c]
