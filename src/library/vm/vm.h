@@ -578,7 +578,6 @@ class vm_state {
     vm_obj invoke_closure(vm_obj const & fn, unsigned nargs);
 
     vm_decl const & get_decl(unsigned idx) const {
-        std::cout << "index: " << idx << std::endl;
         lean_assert(idx < m_decl_vector.size());
         vm_decl const & d = m_decl_vector[idx];
         if (d) return d;

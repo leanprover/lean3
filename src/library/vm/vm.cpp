@@ -105,7 +105,6 @@ vm_obj mk_native_closure(environment const & env, name const & n, std::initializ
 }
 
 vm_obj mk_native_closure(environment const & env, name const & n, unsigned sz, vm_obj const * data) {
-    std::cout << "mk native clo" << std::endl;
     return get_vm_state().get_constant(n);
 }
 

@@ -8,6 +8,7 @@ import native.ir
 import native.format
 import native.builtin
 import native.util
+import native.pass
 import init.state
 
 @[reducible] meta def binding :=
@@ -63,12 +64,15 @@ meta def hoist
   (kont : list name -> anf_monad expr) : list expr → anf_monad expr
 | [] := kont []
 | es := do
-     ns <- monad.forM es $ (fun x, do
+     ns <- monad.for es $ (fun x, do
        value <- recursive x,
        fresh <- fresh_name,
        let_bind fresh mk_neutral_expr value,
        return fresh),
      kont ns
+
+private meta def anf_constructor (head : expr) (args : list expr) (anf : expr -> anf_monad expr) : anf_monad expr :=
+  hoist anf (fun args', return $ mk_call head (list.map mk_local args')) args
 
 private meta def anf_call (head : expr) (args : list expr) (anf : expr -> anf_monad expr) : anf_monad expr := do
   hoist anf (fun ns, match ns with
@@ -78,8 +82,11 @@ private meta def anf_call (head : expr) (args : list expr) (anf : expr -> anf_mo
   | (head' :: args') := return $ mk_call (mk_local head') (list.map mk_local args')
   end) (head :: args)
 
-private meta def anf_case (action : expr -> anf_monad expr) (e : expr) : anf_monad expr :=
-  under_lambda (fun e', enter_scope (action e')) e
+private meta def anf_case (action : expr -> anf_monad expr) (e : expr) : anf_monad expr := do
+  trace_anf ("anf_case : " ++ to_string e),
+  res <- under_lambda (fun e', enter_scope (action e')) e,
+  trace_anf ("anf_case : " ++ to_string res),
+  return res
 
 private meta def anf_cases_on (head : expr) (args : list expr) (anf : expr -> anf_monad expr) : anf_monad expr := do
   -- again first case should never arise
@@ -88,9 +95,12 @@ private meta def anf_cases_on (head : expr) (args : list expr) (anf : expr -> an
   | (scrut :: cases) := do
     trace_anf "inside cases on",
     scrut' <- anf scrut,
-    cases' <- monad.mapM (anf_case anf) cases,
+    cases' <- monad.mapm (anf_case anf) cases,
     return $ mk_call head (scrut' :: cases')
   end
+
+-- stop deleting this, not sure why I keep removing this line of code
+open application_kind
 
 private meta def anf' : expr -> anf_monad expr
 | (expr.elet n ty val body) := do
@@ -101,18 +111,22 @@ private meta def anf' : expr -> anf_monad expr
   trace_anf "processing app",
   let fn := expr.get_app_fn (expr.app f arg),
       args := expr.get_app_args (expr.app f arg)
-   in if is_cases_on fn
-      then anf_cases_on fn args anf'
-      else anf_call fn args anf'
+   in match app_kind fn with
+   | cases := anf_cases_on fn args anf'
+   | constructor := anf_constructor fn args anf'
+   | other := anf_call fn args anf'
+   end
 | e := return e
 
--- | e := return $ expr.app (expr.const `native_compiler.return []) e
-
-meta def init_state : anf_state :=
+private meta def init_state : anf_state :=
   ([], 0)
 
-meta def anf (e : expr) : expr :=
+private meta def anf_transform (e : expr) : expr :=
   trace ("anf: " ++ to_string e)
   (fun u, let res := prod.fst $ (enter_scope $ anf' e) init_state
     in (trace $ "anf_done :" ++ to_string res) (fun u, res))
 
+meta def anf : pass := {
+  name := "anf",
+  transform := anf_transform
+}

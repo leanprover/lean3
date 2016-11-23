@@ -37,3 +37,17 @@ meta def under_lambda {M} [monad M] (action : expr -> M expr) : expr → M expr
   return $ expr.lam n bi ty (expr.abstract body (mk_local n))
 | e := action e
 
+inductive application_kind
+| cases
+| constructor
+| other
+
+-- I like this pattern of hiding the annoying C++ interfaces
+-- behind more typical FP constructs so we can do case analysis instead.
+meta def app_kind (head : expr) : application_kind :=
+if is_cases_on head
+then application_kind.cases
+else match native.is_internal_cnstr head with
+| some _ := application_kind.constructor
+| none := application_kind.other
+end

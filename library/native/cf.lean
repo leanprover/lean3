@@ -8,6 +8,7 @@ import native.ir
 import native.format
 import native.builtin
 import native.util
+import native.pass
 import init.state
 
 namespace cf
@@ -29,7 +30,7 @@ private meta def cf_cases_on (head : expr) (args : list expr) (cf : expr -> cf_m
   | [] := return $ mk_call head []
   | (scrut :: cases) := do
     trace_cf "inside cases on",
-    cases' <- monad.mapM (cf_case cf) cases,
+    cases' <- monad.mapm (cf_case cf) cases,
     return $ mk_call head (scrut :: cases')
   end
 
@@ -49,8 +50,10 @@ meta def init_state : cf_state := 0
 
 end cf
 
-meta def cf (e : expr) : expr :=
-  trace ("cf: " ++ to_string e)
-  (fun u, let res := prod.fst $ (cf.cf' e) cf.init_state
-    in (trace $ "cf_done :" ++ to_string res) (fun u, res))
+private meta def cf_transform (e : expr) : expr :=
+  prod.fst $ (cf.cf' e) cf.init_state
 
+meta def cf : pass := {
+  name := "control_flow",
+  transform := cf_transform
+}

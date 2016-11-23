@@ -9,6 +9,7 @@ import init.state
 import native.internal
 import native.anf
 import native.cf
+import native.pass
 import native.util
 
 namespace native
@@ -75,7 +76,7 @@ meta def lift {A} (action : state ir_compiler_state A) : ir_compiler A :=
   (| fmap (fun (a : A), system.result.ok a) action |)
 
 -- TODO: fix naming here
-private meta definition take_arguments' : expr → list name → (list name × expr)
+private meta def take_arguments' : expr → list name → (list name × expr)
 | (expr.lam n _ _ body) ns := take_arguments' body (n :: ns)
 | e' ns := (ns, e')
 
@@ -88,7 +89,7 @@ meta def fresh_name : ir_compiler name := do
 
 meta definition take_arguments (e : expr) : ir_compiler (list name × expr) :=
 let (arg_names, body) := take_arguments' e [] in do
-  fresh_names <- monad.mapM (fun x, fresh_name) arg_names,
+  fresh_names <- monad.mapm (fun x, fresh_name) arg_names,
   let locals := list.map mk_local fresh_names in
   return $ (fresh_names, expr.instantiate_vars body (list.reverse locals))
 
@@ -98,7 +99,9 @@ let (arg_names, body) := take_arguments' e [] in do
 --   end
 
 meta definition mk_error {T} : string -> ir_compiler T :=
-  fun s, lift_result (system.result.err $ error.string s)
+  fun s, do
+  trace_ir "CREATEDERROR",
+  lift_result (system.result.err $ error.string s)
 
 meta definition lookup_arity (n : name) : ir_compiler nat := do
   (map, counter) <- lift state.read,
@@ -192,6 +195,7 @@ meta definition is_return (n : name) : bool :=
 decidable.to_bool $ `native_compiler.return = n
 
 meta def compile_call (head : name) (arity : nat) (args : list ir.expr) : ir_compiler ir.expr := do
+  trace_ir $ "compile_call: " ++ (to_string head),
   if list.length args = arity
   then mk_call head args
   else if list.length args < arity
@@ -405,11 +409,10 @@ meta def trace_expr (e : expr) : ir_compiler unit :=
 meta definition compile_defn (decl_name : name) (e : expr) : ir_compiler format :=
   let arity := get_arity e in do
       (args, body) <- take_arguments e,
-  let anf_body := anf body,
-      cf_body := cf anf_body
+  let body' := run_passes [anf, cf] body
   in do
-    trace_expr anf_body,
-    ir <- compile_defn_to_ir (replace_main decl_name) args cf_body,
+    trace_expr body',
+    ir <- compile_defn_to_ir (replace_main decl_name) args body',
     return $ format_cpp.defn ir
 
 meta definition compile' : list (name × expr) → list (ir_compiler format)
@@ -465,7 +468,7 @@ meta def emit_main (procs : list (name × expr)) : ir_compiler ir.defn := do
   --   -- *this->m_output_stream << ";\n return 0;\n}" << std::endl;
   -- ]
 meta definition driver (procs : list (name × expr)) : ir_compiler (list format × list error) := do
-     (fmt_decls, errs) <- sequence_err (compile' procs),
+  (fmt_decls, errs) <- sequence_err (compile' procs),
   main <- emit_main procs,
   return (format_cpp.defn main :: fmt_decls, errs)
 

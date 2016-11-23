@@ -139,7 +139,6 @@ public:
     }
 
     void emit_prototype(name const & n, expr e) {
-        std::cout << "generating prototype for " << n << " " << e << std::endl;
         this->m_emitter.emit_prototype(n, get_arity(e));
     }
 

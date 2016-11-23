@@ -16,6 +16,10 @@ inductive ty
 inductive literal
 | nat : nat -> literal
 
+-- inductive value : Type
+-- | name : name → value
+-- | lit : literal → value
+
 -- TODO: eventually model ty.object, mk_object, project, etc in the IR itself
 mutual inductive expr, stmt
 with expr : Type
@@ -33,6 +37,7 @@ with expr : Type
 | uninitialized : expr
 | constructor : name -> list name -> expr
 | address_of : name -> expr
+-- | value : value -> expr
 with stmt : Type
 | ite : expr -> stmt -> stmt -> stmt
 | switch : name -> list (nat × stmt) -> stmt -> stmt

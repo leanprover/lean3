@@ -6,11 +6,13 @@ Author: Jared Roesch
 */
 #include <string>
 #include <iostream>
+#include <fstream>
 #include "library/vm/vm.h"
 #include "library/vm/vm_string.h"
 #include "library/vm/vm_expr.h"
 #include "library/vm/vm_name.h"
 #include "library/vm/vm_option.h"
+#include "library/vm/vm_format.h"
 #include "library/compiler/native_compiler.h"
 #include "library/compiler/simp_inductive.h"
 #include "library/compiler/nat_value.h"
@@ -85,6 +87,18 @@ vm_obj native_get_builtin(vm_obj const & o) {
     }
 }
 
+vm_obj native_dump_format(vm_obj const & string_obj, vm_obj const & format_obj) {
+    auto file_path = to_string(string_obj);
+    auto fmt = to_format(format_obj);
+
+    std::fstream dump_file(file_path, std::ios_base::out);
+    pretty(dump_file, 80, true, fmt);
+
+    dump_file.close();
+
+    return mk_vm_nat(0);
+}
+
 void initialize_vm_native() {
     // Not sure if we should expose ese or what?
     DECLARE_VM_BUILTIN(name({"native", "is_internal_cnstr"}), native_is_internal_cnstr);
@@ -92,6 +106,7 @@ void initialize_vm_native() {
     DECLARE_VM_BUILTIN(name({"native", "is_internal_proj"}), native_is_internal_proj);
     DECLARE_VM_BUILTIN(name({"native", "get_nat_value"}), native_get_nat_value);
     DECLARE_VM_BUILTIN(name({"native", "get_builtin"}), native_get_builtin);
+    DECLARE_VM_BUILTIN(name({"native", "dump_format"}), native_dump_format);
 }
 
 void finalize_vm_native() {
