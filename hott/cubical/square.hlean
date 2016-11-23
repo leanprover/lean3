@@ -102,14 +102,6 @@ namespace eq
     : square (ap f p₁₀) (ap f p₁₂) (ap f p₀₁) (ap f p₂₁) :=
   by induction s₁₁;exact ids
 
-  definition natural_square [unfold 8] {f g : A → B} (p : f ~ g) (q : a = a') :
-    square (ap f q) (ap g q) (p a) (p a') :=
-  eq.rec_on q hrfl
-
-  definition natural_square_tr [unfold 8] {f g : A → B} (p : f ~ g) (q : a = a') :
-    square (p a) (p a') (ap f q) (ap g q) :=
-  eq.rec_on q vrfl
-
   /- canceling, whiskering and moving thinks along the sides of the square -/
   definition whisker_tl (p : a = a₀₀) (s₁₁ : square p₁₀ p₁₂ p₀₁ p₂₁)
     : square (p ⬝ p₁₀) p₁₂ (p ⬝ p₀₁) p₂₁ :=
@@ -583,6 +575,14 @@ namespace eq
   definition vp_eq_v {p : a₀₂ = a₂₂} (r : p₁₂ = p) :
     s₁₁ ⬝vp r = s₁₁ ⬝v vdeg_square r :=
   by cases r; cases s₁₁; esimp
+
+  definition natural_square [unfold 8] {f g : A → B} (p : f ~ g) (q : a = a') :
+    square (p a) (p a') (ap f q) (ap g q) :=
+  square_of_pathover (apd p q)
+
+  definition natural_square_tr [unfold 8] {f g : A → B} (p : f ~ g) (q : a = a') :
+    square (ap f q) (ap g q) (p a) (p a') :=
+  transpose (natural_square p q)
 
   definition natural_square011 {A A' : Type} {B : A → Type}
     {a a' : A} {p : a = a'} {b : B a} {b' : B a'} (q : b =[p] b')

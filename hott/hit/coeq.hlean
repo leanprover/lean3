@@ -6,7 +6,7 @@ Authors: Floris van Doorn
 Declaration of the coequalizer
 -/
 
-import .quotient_functor types.equiv
+import types.equiv .quotient
 
 open quotient eq equiv is_trunc sigma sigma.ops
 

@@ -8,7 +8,7 @@ Declaration of a join as a special case of a pushout
 
 import hit.pushout .sphere cubical.cube
 
-open eq function prod equiv is_trunc bool sigma.ops
+open eq function prod equiv is_trunc bool sigma.ops pointed
 
 definition join (A B : Type) : Type := @pushout.pushout (A × B) A B pr1 pr2
 
@@ -65,7 +65,9 @@ namespace join
 
 end
 
-end join
+end join open join
+
+definition pjoin [constructor] (A B : Type*) : Type* := pointed.MK (join A B) (inl pt)
 
 attribute join.inl join.inr [constructor]
 attribute join.rec [recursor]
@@ -231,7 +233,7 @@ namespace join
     fapply is_contr.mk, exact inl (center A),
     intro x, induction x with a b a b, apply ap inl, apply center_eq,
     apply glue, apply pathover_of_tr_eq,
-    apply concat, apply transport_eq_Fr, esimp, rewrite ap_id,
+    apply concat, apply eq_transport_Fr, esimp, rewrite ap_id,
     generalize center_eq a, intro p, cases p, apply idp_con,
   end
 
@@ -436,7 +438,7 @@ section join_switch
     {b : B} {p₀₁ : Π a, b₀ a = b₁ a} {p₀ : Π a, b₀ a = b} {p₁ : Π a, b₁ a = b}
     {x y : A} {q : x = y} {sqx : square (p₀₁ x) idp (p₀ x) (p₁ x)}
     {sqy : square (p₀₁ y) idp (p₀ y) (p₁ y)}
-    (c : cube (natural_square_tr _ _) ids (square_Flr_ap_idp p₀ q) (square_Flr_ap_idp p₁ q)
+    (c : cube (natural_square _ _) ids (square_Flr_ap_idp p₀ q) (square_Flr_ap_idp p₁ q)
        sqx sqy) :
     sqx =[q] sqy :=
   by cases q; apply pathover_of_eq_tr; apply eq_of_deg12_cube; exact c
@@ -446,10 +448,10 @@ section join_switch
     (sq : square (ap g (ap f p)) p u v) : u =[p] v :=
   by cases p; apply eq_pathover; apply transpose; exact sq
 
-  private definition natural_square_tr_beta {A B : Type} {f₁ f₂ : A → B}
+  private definition natural_square_beta {A B : Type} {f₁ f₂ : A → B}
     (p : Π a, f₁ a = f₂ a) {x y : A} (q : x = y) {sq : square (p x) (p y) (ap f₁ q) (ap f₂ q)}
     (e : apd p q = eq_pathover sq) :
-    natural_square_tr p q = sq :=
+    natural_square p q = sq :=
   begin
     cases q, esimp at *, apply concat, apply inverse, apply vdeg_square_idp,
     apply concat, apply ap vdeg_square, apply ap eq_of_pathover_idp e,
@@ -464,7 +466,7 @@ section join_switch
     refine pathover_of_triangle_cube _,
     esimp, apply cube_transport011,
     apply inverse, rotate 1, apply switch_inv_cube,
-    apply natural_square_tr_beta, apply join.rec_glue,
+    apply natural_square_beta, apply join.rec_glue,
   end
 
   protected definition switch_involutive (x : join (join A B) C) :

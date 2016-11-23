@@ -296,7 +296,7 @@ namespace hide
     intro b,
     induction b with n b n b,
     { apply eq_constructors},
-    { apply (equiv.to_inv !pathover_eq_equiv_r), apply eq_constructors_comp}
+    { apply (equiv.to_inv !eq_pathover_equiv_r), apply eq_constructors_comp}
   end
 
   end

@@ -9,27 +9,27 @@ This file will be rewritten in the future, when we develop are more systematic n
 describing homomorphisms
 -/
 
-import algebra.category.category algebra.hott
+import algebra.category.category algebra.bundled
 
-open eq algebra pointed function is_trunc pi category equiv is_equiv
+open eq algebra pointed function is_trunc pi equiv is_equiv
 set_option class.force_new true
 
 namespace group
   definition pointed_Group [instance] [constructor] (G : Group) : pointed G :=
   pointed.mk 1
-  definition pType_of_Group [constructor] [reducible] (G : Group) : Type* :=
-  pointed.MK G 1
-  definition Set_of_Group [constructor] (G : Group) : Set := trunctype.mk G _
 
-  definition Group_of_CommGroup [coercion] [constructor] (G : CommGroup) : Group :=
-  Group.mk G _
+  definition Group.struct' [instance] [reducible] (G : Group) : group G :=
+  Group.struct G
 
   definition comm_group_Group_of_CommGroup [instance] [constructor] [priority 900]
     (G : CommGroup) : comm_group (Group_of_CommGroup G) :=
   begin esimp, exact _ end
 
-  definition group_pType_of_Group [instance] [priority 900] (G : Group) :
-    group (pType_of_Group G) :=
+  definition comm_group_pSet_of_Group [instance] (G : CommGroup) : comm_group (pSet_of_Group G) :=
+  CommGroup.struct G
+
+  definition group_pSet_of_Group [instance] [priority 900] (G : Group) :
+    group (pSet_of_Group G) :=
   Group.struct G
 
   /- group homomorphisms -/
@@ -43,7 +43,8 @@ namespace group
             [group G] [group G₁] [group G₂] [group G₃]
             [is_homomorphism ψ] [is_homomorphism φ₁] [is_homomorphism φ₂] [is_homomorphism φ]
 
-  definition respect_mul /- φ -/ : Π(g h : G₁), φ (g * h) = φ g * φ h :=
+  definition respect_mul {G₁ G₂ : Type} [has_mul G₁] [has_mul G₂] (φ : G₁ → G₂)
+    [is_homomorphism φ] : Π(g h : G₁), φ (g * h) = φ g * φ h :=
   by assumption
 
   theorem respect_one /- φ -/ : φ 1 = 1 :=
@@ -78,7 +79,7 @@ namespace group
 
   section additive
 
-  definition is_add_homomorphism [class] [reducible] {G₁ G₂ : Type} [add_group G₁] [add_group G₂]
+  definition is_add_homomorphism [class] [reducible] {G₁ G₂ : Type} [has_add G₁] [has_add G₂]
     (φ : G₁ → G₂) : Type :=
   Π(g h : G₁), φ (g + h) = φ g + φ h
 
@@ -106,11 +107,11 @@ namespace group
   infix ` →g `:55 := homomorphism
 
   definition group_fun [unfold 3] [coercion] := @homomorphism.φ
-  definition homomorphism.struct [instance] [priority 900] {G₁ : Group} {G₂ : Group} (φ : G₁ →g G₂)
-    : is_homomorphism φ :=
+  definition homomorphism.struct [unfold 3] [instance] [priority 900] {G₁ G₂ : Group}
+    (φ : G₁ →g G₂) : is_homomorphism φ :=
   homomorphism.p φ
 
-  definition homomorphism.mulstruct [instance] [priority 2000] {G₁ G₂ : Group } (φ : G₁ →g G₂)
+  definition homomorphism.mulstruct [instance] [priority 2000] {G₁ G₂ : Group} (φ : G₁ →g G₂)
     : is_homomorphism φ :=
   homomorphism.p φ
 
@@ -147,8 +148,12 @@ namespace group
   end
 
   variables {G₁ G₂}
-  definition pmap_of_homomorphism [constructor] /- φ -/ : pType_of_Group G₁ →* pType_of_Group G₂ :=
+  definition pmap_of_homomorphism [constructor] /- φ -/ : G₁ →* G₂ :=
   pmap.mk φ begin esimp, exact respect_one φ end
+
+  definition homomorphism_change_fun [constructor] {G₁ G₂ : Group}
+    (φ : G₁ →g G₂) (f : G₁ → G₂) (p : φ ~ f) : G₁ →g G₂ :=
+  homomorphism.mk f (λg h, (p (g * h))⁻¹ ⬝ to_respect_mul φ g h ⬝ ap011 mul (p g) (p h))
 
   definition homomorphism_eq (p : group_fun φ₁ ~ group_fun φ₂) : φ₁ = φ₂ :=
   begin
@@ -205,6 +210,7 @@ namespace group
   homomorphism.mk (@id G) (is_homomorphism_id G)
   variable {G}
 
+  abbreviation gid [constructor] := @homomorphism_id
   infixr ` ∘g `:75 := homomorphism_compose
   notation 1       := homomorphism_id _
 
@@ -215,24 +221,32 @@ namespace group
   infix ` ≃g `:25 := isomorphism
   attribute isomorphism.to_hom [coercion]
   attribute isomorphism.is_equiv_to_hom [instance]
+  attribute isomorphism._trans_of_to_hom [unfold 3]
 
   definition equiv_of_isomorphism [constructor] (φ : G₁ ≃g G₂) : G₁ ≃ G₂ :=
   equiv.mk φ _
 
   definition pequiv_of_isomorphism [constructor] (φ : G₁ ≃g G₂) :
-    pType_of_Group G₁ ≃* pType_of_Group G₂ :=
+    G₁ ≃* G₂ :=
   pequiv.mk φ begin esimp, exact _ end begin esimp, exact respect_one φ end
 
   definition isomorphism_of_equiv [constructor] (φ : G₁ ≃ G₂)
     (p : Πg₁ g₂, φ (g₁ * g₂) = φ g₁ * φ g₂) : G₁ ≃g G₂ :=
   isomorphism.mk (homomorphism.mk φ p) !to_is_equiv
 
-  definition eq_of_isomorphism {G₁ G₂ : Group} (φ : G₁ ≃g G₂) : G₁ = G₂ :=
-  Group_eq (equiv_of_isomorphism φ) (respect_mul φ)
-
-  definition isomorphism_of_eq {G₁ G₂ : Group} (φ : G₁ = G₂) : G₁ ≃g G₂ :=
+  definition isomorphism_of_eq [constructor] {G₁ G₂ : Group} (φ : G₁ = G₂) : G₁ ≃g G₂ :=
   isomorphism_of_equiv (equiv_of_eq (ap Group.carrier φ))
     begin intros, induction φ, reflexivity end
+
+  definition pequiv_of_isomorphism_of_eq {G₁ G₂ : Group} (p : G₁ = G₂) :
+    pequiv_of_isomorphism (isomorphism_of_eq p) = pequiv_of_eq (ap pType_of_Group p) :=
+  begin
+    induction p,
+    apply pequiv_eq,
+    fapply pmap_eq,
+    { intro g, reflexivity},
+    { apply is_prop.elim}
+  end
 
   definition to_ginv [constructor] (φ : G₁ ≃g G₂) : G₂ →g G₁ :=
   homomorphism.mk φ⁻¹
@@ -265,18 +279,14 @@ namespace group
   infixl ` ⬝gp `:75 := isomorphism.trans_eq
   infixl ` ⬝pg `:75 := isomorphism.eq_trans
 
-  -- TODO
-  -- definition Group_univalence (G₁ G₂ : Group) : (G₁ ≃g G₂) ≃ (G₁ = G₂) :=
-  -- begin
-  --   fapply equiv.MK,
-  --   { exact eq_of_isomorphism},
-  --   { intro p, apply transport _ p, reflexivity},
-  --   { intro p, induction p, esimp, },
-  --   { }
-  -- end
+  definition pmap_of_isomorphism [constructor] (φ : G₁ ≃g G₂) :
+    G₁ →* G₂ :=
+  pequiv_of_isomorphism φ
 
   /- category of groups -/
 
+  section
+  open category
   definition precategory_group [constructor] : precategory Group :=
   precategory.mk homomorphism
                  @homomorphism_compose
@@ -284,6 +294,7 @@ namespace group
                  (λG₁ G₂ G₃ G₄ φ₃ φ₂ φ₁, homomorphism_eq (λg, idp))
                  (λG₁ G₂ φ, homomorphism_eq (λg, idp))
                  (λG₁ G₂ φ, homomorphism_eq (λg, idp))
+  end
 
   -- TODO
   -- definition category_group : category Group :=
@@ -339,6 +350,17 @@ namespace group
   end
 
   variable (G)
+
+  /- the trivial group -/
+  open unit
+  definition trivial_group [constructor] : group unit :=
+  group.mk (λx y, star) _ (λx y z, idp) star (unit.rec idp) (unit.rec idp) (λx, star) (λx, idp)
+
+  definition Trivial_group [constructor] : Group :=
+  Group.mk _ trivial_group
+
+  abbreviation G0 := Trivial_group
+
   definition trivial_group_of_is_contr [H : is_contr G] : G ≃g G0 :=
   begin
     fapply isomorphism_of_equiv,
@@ -346,8 +368,6 @@ namespace group
     { intros, reflexivity}
   end
 
-  definition trivial_group_of_is_contr' (G : Group) [H : is_contr G] : G = G0 :=
-  eq_of_isomorphism (trivial_group_of_is_contr G)
   variable {G}
 
   /-
@@ -376,5 +396,114 @@ namespace group
             mul_pt := mul_one,
             mul_left_inv_pt := mul.left_inv⦄
   end
+
+  definition Group_of_pgroup (G : Type*) [pgroup G] : Group :=
+  Group.mk G _
+
+  definition pgroup_Group [instance] (G : Group) : pgroup G :=
+  ⦃ pgroup, Group.struct G,
+    pt_mul := one_mul,
+    mul_pt := mul_one,
+    mul_left_inv_pt := mul.left_inv ⦄
+
+  /- equality of groups and abelian groups -/
+
+  definition group.to_has_mul {A : Type} (H : group A) : has_mul A := _
+  definition group.to_has_inv {A : Type} (H : group A) : has_inv A := _
+  definition group.to_has_one {A : Type} (H : group A) : has_one A := _
+  local attribute group.to_has_mul group.to_has_inv [coercion]
+
+  universe variable l
+  variables {A B : Type.{l}}
+  definition group_eq {G H : group A} (same_mul' : Π(g h : A), @mul A G g h = @mul A H g h)
+    : G = H :=
+  begin
+    have foo : Π(g : A), @inv A G g = (@inv A G g * g) * @inv A H g,
+      from λg, !mul_inv_cancel_right⁻¹,
+    cases G with Gm Gs Gh1 G1 Gh2 Gh3 Gi Gh4,
+    cases H with Hm Hs Hh1 H1 Hh2 Hh3 Hi Hh4,
+    rewrite [↑[semigroup.to_has_mul,group.to_has_inv] at (same_mul',foo)],
+    have same_mul : Gm = Hm, from eq_of_homotopy2 same_mul',
+    cases same_mul,
+    have same_one : G1 = H1, from calc
+      G1 = Hm G1 H1 : Hh3
+     ... = H1 : Gh2,
+    have same_inv : Gi = Hi, from eq_of_homotopy (take g, calc
+      Gi g = Hm (Hm (Gi g) g) (Hi g) : foo
+       ... = Hm G1 (Hi g) : by rewrite Gh4
+       ... = Hi g : Gh2),
+    cases same_one, cases same_inv,
+    have ps  : Gs  = Hs,  from !is_prop.elim,
+    have ph1 : Gh1 = Hh1, from !is_prop.elim,
+    have ph2 : Gh2 = Hh2, from !is_prop.elim,
+    have ph3 : Gh3 = Hh3, from !is_prop.elim,
+    have ph4 : Gh4 = Hh4, from !is_prop.elim,
+    cases ps, cases ph1, cases ph2, cases ph3, cases ph4, reflexivity
+  end
+
+  definition group_pathover {G : group A} {H : group B} {p : A = B}
+    (resp_mul : Π(g h : A), cast p (g * h) = cast p g * cast p h) : G =[p] H :=
+  begin
+    induction p,
+    apply pathover_idp_of_eq, exact group_eq (resp_mul)
+  end
+
+  definition Group_eq_of_eq {G H : Group} (p : Group.carrier G = Group.carrier H)
+    (resp_mul : Π(g h : G), cast p (g * h) = cast p g * cast p h) : G = H :=
+  begin
+    cases G with Gc G, cases H with Hc H,
+    apply (apd011 Group.mk p),
+    exact group_pathover resp_mul
+  end
+
+  definition Group_eq {G H : Group} (f : Group.carrier G ≃ Group.carrier H)
+    (resp_mul : Π(g h : G), f (g * h) = f g * f h) : G = H :=
+  Group_eq_of_eq (ua f) (λg h, !cast_ua ⬝ resp_mul g h ⬝ ap011 mul !cast_ua⁻¹ !cast_ua⁻¹)
+
+  definition eq_of_isomorphism {G₁ G₂ : Group} (φ : G₁ ≃g G₂) : G₁ = G₂ :=
+  Group_eq (equiv_of_isomorphism φ) (respect_mul φ)
+
+  definition comm_group.to_has_mul {A : Type} (H : comm_group A) : has_mul A := _
+  local attribute comm_group.to_has_mul [coercion]
+
+  definition comm_group_eq {A : Type} {G H : comm_group A}
+    (same_mul : Π(g h : A), @mul A G g h = @mul A H g h)
+    : G = H :=
+  begin
+    have g_eq : @comm_group.to_group A G = @comm_group.to_group A H, from group_eq same_mul,
+    cases G with Gm Gs Gh1 G1 Gh2 Gh3 Gi Gh4 Gh5,
+    cases H with Hm Hs Hh1 H1 Hh2 Hh3 Hi Hh4 Hh5,
+    have pm : Gm = Hm, from ap (@mul _ ∘ group.to_has_mul) g_eq,
+    have pi : Gi = Hi, from ap (@inv _ ∘ group.to_has_inv) g_eq,
+    have p1 : G1 = H1, from ap (@one _ ∘ group.to_has_one) g_eq,
+    induction pm, induction pi, induction p1,
+    have ps  : Gs  = Hs,  from !is_prop.elim,
+    have ph1 : Gh1 = Hh1, from !is_prop.elim,
+    have ph2 : Gh2 = Hh2, from !is_prop.elim,
+    have ph3 : Gh3 = Hh3, from !is_prop.elim,
+    have ph4 : Gh4 = Hh4, from !is_prop.elim,
+    have ph5 : Gh5 = Hh5, from !is_prop.elim,
+    induction ps, induction ph1, induction ph2, induction ph3, induction ph4, induction ph5,
+    reflexivity
+  end
+
+  definition comm_group_pathover {A B : Type} {G : comm_group A} {H : comm_group B} {p : A = B}
+    (resp_mul : Π(g h : A), cast p (g * h) = cast p g * cast p h) : G =[p] H :=
+  begin
+    induction p,
+    apply pathover_idp_of_eq, exact comm_group_eq (resp_mul)
+  end
+
+  definition CommGroup_eq_of_isomorphism {G₁ G₂ : CommGroup} (φ : G₁ ≃g G₂) : G₁ = G₂ :=
+  begin
+    induction G₁, induction G₂,
+    apply apd011 CommGroup.mk (ua (equiv_of_isomorphism φ)),
+    apply comm_group_pathover,
+    intro g h, exact !cast_ua ⬝ respect_mul φ g h ⬝ ap011 mul !cast_ua⁻¹ !cast_ua⁻¹
+  end
+
+  definition trivial_group_of_is_contr' (G : Group) [H : is_contr G] : G = G0 :=
+  eq_of_isomorphism (trivial_group_of_is_contr G)
+
 
 end group

@@ -26,7 +26,7 @@ namespace pointed
 
   definition pt [reducible] [unfold 2] [H : pointed A] := point A
   definition Point [reducible] [unfold 1] (A : Type*) := pType.Point A
-  abbreviation carrier [unfold 1] (A : Type*) := pType.carrier A
+  definition carrier [reducible] [unfold 1] (A : Type*) := pType.carrier A
   protected definition Mk [constructor] {A : Type} (a : A) := pType.mk A a
   protected definition MK [constructor] (A : Type) (a : A) := pType.mk A a
   protected definition mk' [constructor] (A : Type) [H : pointed A] : Type* :=
@@ -39,7 +39,7 @@ open pointed
 
 section
   universe variable u
-  structure ptrunctype (n : trunc_index) extends trunctype.{u} n, pType.{u}
+  structure ptrunctype (n : ℕ₋₂) extends trunctype.{u} n, pType.{u}
 
   definition is_trunc_ptrunctype [instance] {n : ℕ₋₂} (X : ptrunctype n)
     : is_trunc n (ptrunctype.to_pType X) :=
@@ -53,17 +53,18 @@ notation `Set*` := pSet
 
 namespace pointed
 
-  protected definition ptrunctype.mk' [constructor] (n : trunc_index)
+  protected definition ptrunctype.mk' [constructor] (n : ℕ₋₂)
     (A : Type) [pointed A] [is_trunc n A] : n-Type* :=
   ptrunctype.mk A _ pt
 
   protected definition pSet.mk [constructor] := @ptrunctype.mk (-1.+1)
   protected definition pSet.mk' [constructor] := ptrunctype.mk' (-1.+1)
 
-  definition ptrunctype_of_trunctype [constructor] {n : trunc_index} (A : n-Type) (a : A) : n-Type* :=
+  definition ptrunctype_of_trunctype [constructor] {n : ℕ₋₂} (A : n-Type) (a : A)
+    : n-Type* :=
   ptrunctype.mk A _ a
 
-  definition ptrunctype_of_pType [constructor] {n : trunc_index} (A : Type*) (H : is_trunc n A)
+  definition ptrunctype_of_pType [constructor] {n : ℕ₋₂} (A : Type*) (H : is_trunc n A)
     : n-Type* :=
   ptrunctype.mk A _ pt
 
@@ -83,6 +84,11 @@ namespace pointed
 end pointed
 
 /- pointed maps -/
+structure ppi (A : Type*) (P : A → Type*) :=
+  (to_fun : Π a : A, P a)
+  (resp_pt : to_fun (Point A) = Point (P (Point A)))
+
+-- definition pmap (A B : Type*) := @ppi A (λa, B)
 structure pmap (A B : Type*) :=
   (to_fun : A → B)
   (resp_pt : to_fun (Point A) = Point B)
@@ -91,7 +97,12 @@ namespace pointed
   abbreviation respect_pt [unfold 3] := @pmap.resp_pt
   notation `map₊` := pmap
   infix ` →* `:30 := pmap
-  attribute pmap.to_fun [coercion]
+  attribute pmap.to_fun ppi.to_fun [coercion]
+  notation `Π*` binders `, ` r:(scoped P, ppi _ P) := r
+  -- definition pmap.mk [constructor] {A B : Type*} (f : A → B) (p : f pt = pt) : A →* B :=
+  -- ppi.mk f p
+  -- definition pmap.to_fun [coercion] [unfold 3] {A B : Type*} (f : A →* B) : A → B := f
+
 end pointed open pointed
 
 /- pointed homotopies -/
@@ -112,8 +123,8 @@ namespace pointed
 
   attribute pequiv._trans_of_to_pmap pequiv._trans_of_to_equiv pequiv.to_pmap pequiv.to_equiv
             [unfold 3]
-
-  infix ` ≃* `:25 := pequiv
-  attribute pequiv.to_pmap [coercion]
   attribute pequiv.to_is_equiv [instance]
+  attribute pequiv.to_pmap [coercion]
+  infix ` ≃* `:25 := pequiv
+
 end pointed

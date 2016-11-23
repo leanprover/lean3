@@ -6,7 +6,7 @@ Authors: Floris van Doorn
 Declaration of mapping cylinders
 -/
 
-import hit.quotient
+import hit.quotient types.fiber
 
 open quotient eq sum equiv fiber
 

@@ -103,7 +103,7 @@ namespace susp
       apply trunc.rec,
       intro a',
       apply pathover_of_tr_eq,
-      rewrite [transport_eq_Fr,idp_con],
+      rewrite [eq_transport_Fr,idp_con],
       revert H, induction n with [n, IH],
       { intro H, apply is_prop.elim },
       { intros H,
@@ -119,10 +119,7 @@ namespace susp
     }
   end
 
-end susp
-
-/- Flattening lemma -/
-namespace susp
+  /- Flattening lemma -/
 
   open prod prod.ops
   section
@@ -206,8 +203,12 @@ definition psusp [constructor] (X : Type) : Type* :=
 pointed.mk' (susp X)
 
 namespace susp
-  open pointed
+  open pointed is_trunc
   variables {X Y Z : Type*}
+
+  definition is_conn_psusp [instance] (n : trunc_index) (A : Type*)
+    [H : is_conn n A] : is_conn (n .+1) (psusp A) :=
+  is_conn_susp n A
 
   definition psusp_functor [constructor] (f : X →* Y) : psusp X →* psusp Y :=
   begin
@@ -238,15 +239,15 @@ namespace susp
 
   -- adjunction from Coq-HoTT
 
-  definition loop_susp_unit [constructor] (X : Type*) : X →* Ω(psusp X) :=
+  definition loop_psusp_unit [constructor] (X : Type*) : X →* Ω(psusp X) :=
   begin
     fconstructor,
-    { intro x, exact merid x ⬝ (merid pt)⁻¹},
-    { apply con.right_inv},
+    { intro x, exact merid x ⬝ (merid pt)⁻¹ },
+    { apply con.right_inv },
   end
 
-  definition loop_susp_unit_natural (f : X →* Y)
-    : loop_susp_unit Y ∘* f ~* ap1 (psusp_functor f) ∘* loop_susp_unit X :=
+  definition loop_psusp_unit_natural (f : X →* Y)
+    : loop_psusp_unit Y ∘* f ~* ap1 (psusp_functor f) ∘* loop_psusp_unit X :=
   begin
     induction X with X x, induction Y with Y y, induction f with f pf, esimp at *, induction pf,
     fconstructor,
@@ -255,105 +256,140 @@ namespace susp
         !idp_con ⬝
         (!ap_con ⬝
         whisker_left _ !ap_inv) ⬝
-        (!elim_merid ◾ (inverse2 !elim_merid))
-        },
+        (!elim_merid ◾ (inverse2 !elim_merid)) },
     { rewrite [▸*,idp_con (con.right_inv _)],
       apply inv_con_eq_of_eq_con,
       refine _ ⬝ !con.assoc',
       rewrite inverse2_right_inv,
       refine _ ⬝ !con.assoc',
       rewrite [ap_con_right_inv],
-      xrewrite [idp_con_idp, -ap_compose (concat idp)]},
+      xrewrite [idp_con_idp, -ap_compose (concat idp)] },
   end
 
-  definition loop_susp_counit [constructor] (X : Type*) : psusp (Ω X) →* X :=
+  definition loop_psusp_counit [constructor] (X : Type*) : psusp (Ω X) →* X :=
   begin
     fconstructor,
-    { intro x, induction x, exact pt, exact pt, exact a},
-    { reflexivity},
+    { intro x, induction x, exact pt, exact pt, exact a },
+    { reflexivity },
   end
 
-  definition loop_susp_counit_natural (f : X →* Y)
-    : f ∘* loop_susp_counit X ~* loop_susp_counit Y ∘* (psusp_functor (ap1 f)) :=
+  definition loop_psusp_counit_natural (f : X →* Y)
+    : f ∘* loop_psusp_counit X ~* loop_psusp_counit Y ∘* (psusp_functor (ap1 f)) :=
   begin
     induction X with X x, induction Y with Y y, induction f with f pf, esimp at *, induction pf,
     fconstructor,
     { intro x', induction x' with p,
-      { reflexivity},
-      { reflexivity},
+      { reflexivity },
+      { reflexivity },
       { esimp, apply eq_pathover, apply hdeg_square,
         xrewrite [ap_compose' f, ap_compose' (susp.elim (f x) (f x) (λ (a : f x = f x), a)),▸*],
-        xrewrite [+elim_merid,▸*,idp_con]}},
-    { reflexivity}
+        xrewrite [+elim_merid,▸*,idp_con] }},
+    { reflexivity }
   end
 
-  definition loop_susp_counit_unit (X : Type*)
-    : ap1 (loop_susp_counit X) ∘* loop_susp_unit (Ω X) ~* pid (Ω X) :=
+  definition loop_psusp_counit_unit (X : Type*)
+    : ap1 (loop_psusp_counit X) ∘* loop_psusp_unit (Ω X) ~* pid (Ω X) :=
   begin
     induction X with X x, fconstructor,
     { intro p, esimp,
       refine !idp_con ⬝
              (!ap_con ⬝
              whisker_left _ !ap_inv) ⬝
-             (!elim_merid ◾ inverse2 !elim_merid)},
+             (!elim_merid ◾ inverse2 !elim_merid) },
     { rewrite [▸*,inverse2_right_inv (elim_merid id idp)],
       refine !con.assoc ⬝ _,
-      xrewrite [ap_con_right_inv (susp.elim x x (λa, a)) (merid idp),idp_con_idp,-ap_compose]}
+      xrewrite [ap_con_right_inv (susp.elim x x (λa, a)) (merid idp),idp_con_idp,-ap_compose] }
   end
 
-  definition loop_susp_unit_counit (X : Type*)
-    : loop_susp_counit (psusp X) ∘* psusp_functor (loop_susp_unit X) ~* pid (psusp X) :=
+  definition loop_psusp_unit_counit (X : Type*)
+    : loop_psusp_counit (psusp X) ∘* psusp_functor (loop_psusp_unit X) ~* pid (psusp X) :=
   begin
     induction X with X x, fconstructor,
     { intro x', induction x',
-      { reflexivity},
-      { exact merid pt},
+      { reflexivity },
+      { exact merid pt },
       { apply eq_pathover,
         xrewrite [▸*, ap_id, ap_compose' (susp.elim north north (λa, a)), +elim_merid,▸*],
-        apply square_of_eq, exact !idp_con ⬝ !inv_con_cancel_right⁻¹}},
-    { reflexivity}
+        apply square_of_eq, exact !idp_con ⬝ !inv_con_cancel_right⁻¹ }},
+    { reflexivity }
+  end
+
+  definition psusp.elim [constructor] {X Y : Type*} (f : X →* Ω Y) : psusp X →* Y :=
+  loop_psusp_counit Y ∘* psusp_functor f
+
+  definition loop_psusp_intro [constructor] {X Y : Type*} (f : psusp X →* Y) : X →* Ω Y :=
+  ap1 f ∘* loop_psusp_unit X
+
+
+  definition psusp_adjoint_loop_right_inv {X Y : Type*} (g : X →* Ω Y) :
+    loop_psusp_intro (psusp.elim g) ~* g :=
+  begin
+    refine !pwhisker_right !ap1_pcompose ⬝* _,
+    refine !passoc ⬝* _,
+    refine !pwhisker_left !loop_psusp_unit_natural⁻¹* ⬝* _,
+    refine !passoc⁻¹* ⬝* _,
+    refine !pwhisker_right !loop_psusp_counit_unit ⬝* _,
+    apply pid_pcompose
+  end
+
+  definition psusp_adjoint_loop_left_inv {X Y : Type*} (f : psusp X →* Y) :
+    psusp.elim (loop_psusp_intro f) ~* f :=
+  begin
+    refine !pwhisker_left !psusp_functor_compose ⬝* _,
+    refine !passoc⁻¹* ⬝* _,
+    refine !pwhisker_right !loop_psusp_counit_natural⁻¹* ⬝* _,
+    refine !passoc ⬝* _,
+    refine !pwhisker_left !loop_psusp_unit_counit ⬝* _,
+    apply pcompose_pid
   end
 
   -- TODO: rename to psusp_adjoint_loop (also in above lemmas)
-  definition susp_adjoint_loop [constructor] (X Y : Type*) : psusp X →* Y ≃ X →* Ω Y :=
+  definition psusp_adjoint_loop_unpointed [constructor] (X Y : Type*) : psusp X →* Y ≃ X →* Ω Y :=
   begin
     fapply equiv.MK,
-    { intro f, exact ap1 f ∘* loop_susp_unit X},
-    { intro g, exact loop_susp_counit Y ∘* psusp_functor g},
-    { intro g, apply eq_of_phomotopy, esimp,
-      refine !pwhisker_right !ap1_pcompose ⬝* _,
-      refine !passoc ⬝* _,
-      refine !pwhisker_left !loop_susp_unit_natural⁻¹* ⬝* _,
-      refine !passoc⁻¹* ⬝* _,
-      refine !pwhisker_right !loop_susp_counit_unit ⬝* _,
-      apply pid_pcompose},
-    { intro f, apply eq_of_phomotopy, esimp,
-      refine !pwhisker_left !psusp_functor_compose ⬝* _,
-      refine !passoc⁻¹* ⬝* _,
-      refine !pwhisker_right !loop_susp_counit_natural⁻¹* ⬝* _,
-      refine !passoc ⬝* _,
-      refine !pwhisker_left !loop_susp_unit_counit ⬝* _,
-      apply pcompose_pid},
+    { exact loop_psusp_intro },
+    { exact psusp.elim },
+    { intro g, apply eq_of_phomotopy, exact psusp_adjoint_loop_right_inv g },
+    { intro f, apply eq_of_phomotopy, exact psusp_adjoint_loop_left_inv f }
   end
 
-  definition susp_adjoint_loop_nat_right (f : psusp X →* Y) (g : Y →* Z)
-    : susp_adjoint_loop X Z (g ∘* f) ~* ap1 g ∘* susp_adjoint_loop X Y f :=
+  definition psusp_adjoint_loop_pconst (X Y : Type*) :
+    psusp_adjoint_loop_unpointed X Y (pconst (psusp X) Y) ~* pconst X (Ω Y) :=
   begin
-    esimp [susp_adjoint_loop],
+    refine pwhisker_right _ !ap1_pconst ⬝* _,
+    apply pconst_pcompose
+  end
+
+  definition psusp_adjoint_loop [constructor] (X Y : Type*) : ppmap (psusp X) Y ≃* ppmap X (Ω Y) :=
+  begin
+    apply pequiv_of_equiv (psusp_adjoint_loop_unpointed X Y),
+    apply eq_of_phomotopy,
+    apply psusp_adjoint_loop_pconst
+  end
+
+  definition ap1_psusp_elim {A : Type*} {X : Type*} (p : A →* Ω X) :
+    Ω→(psusp.elim p) ∘* loop_psusp_unit A ~* p :=
+  psusp_adjoint_loop_right_inv p
+
+  definition psusp_adjoint_loop_nat_right (f : psusp X →* Y) (g : Y →* Z)
+    : psusp_adjoint_loop X Z (g ∘* f) ~* ap1 g ∘* psusp_adjoint_loop X Y f :=
+  begin
+    esimp [psusp_adjoint_loop],
     refine _ ⬝* !passoc,
     apply pwhisker_right,
     apply ap1_pcompose
   end
 
-  definition susp_adjoint_loop_nat_left (f : Y →* Ω Z) (g : X →* Y)
-    : (susp_adjoint_loop X Z)⁻¹ᵉ (f ∘* g) ~* (susp_adjoint_loop Y Z)⁻¹ᵉ f ∘* psusp_functor g :=
+  definition psusp_adjoint_loop_nat_left (f : Y →* Ω Z) (g : X →* Y)
+    : (psusp_adjoint_loop X Z)⁻¹ᵉ (f ∘* g) ~* (psusp_adjoint_loop Y Z)⁻¹ᵉ f ∘* psusp_functor g :=
   begin
-    esimp [susp_adjoint_loop],
+    esimp [psusp_adjoint_loop],
     refine _ ⬝* !passoc⁻¹*,
     apply pwhisker_left,
     apply psusp_functor_compose
   end
 
+  /- iterated suspension -/
   definition iterate_susp (n : ℕ) (A : Type) : Type := iterate susp n A
   definition iterate_psusp (n : ℕ) (A : Type*) : Type* := iterate (λX, psusp X) n A
 
@@ -378,5 +414,31 @@ namespace susp
   definition is_conn_iterate_psusp_zero [instance] (m : ℕ) (A : Type*)
     [H : is_conn 0 A] : is_conn m (iterate_psusp m A) :=
   begin induction m with m IH, exact H, exact @is_conn_susp _ _ IH end
+
+  definition iterate_psusp_functor (n : ℕ) {A B : Type*} (f : A →* B) :
+    iterate_psusp n A →* iterate_psusp n B :=
+  begin
+    induction n with n g,
+    { exact f },
+    { exact psusp_functor g }
+  end
+
+  definition iterate_psusp_succ_in (n : ℕ) (A : Type*) :
+    iterate_psusp (succ n) A ≃* iterate_psusp n (psusp A) :=
+  begin
+    induction n with n IH,
+    { reflexivity},
+    { exact psusp_equiv IH}
+  end
+
+  definition iterate_psusp_adjoint_loopn [constructor] (X Y : Type*) (n : ℕ) :
+    ppmap (iterate_psusp n X) Y ≃* ppmap X (Ω[n] Y) :=
+  begin
+    revert X Y, induction n with n IH: intro X Y,
+    { reflexivity },
+    { refine !psusp_adjoint_loop ⬝e* !IH ⬝e* _, apply pequiv_ppcompose_left,
+      symmetry, apply loopn_succ_in }
+  end
+
 
 end susp

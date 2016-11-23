@@ -576,6 +576,10 @@ namespace eq
     transport (P ∘ f) p z  =  transport P (ap f p) z :=
   by induction p; reflexivity
 
+  definition tr_ap (P : B → Type) (f : A → B) (p : x = y) (z : P (f x)) :
+    transport P (ap f p) z = transport (P ∘ f) p z :=
+  (tr_compose P f p z)⁻¹
+
   definition ap_precompose (f : A → B) (g g' : B → C) (p : g = g') :
     ap (λh, h ∘ f) p = transport (λh : B → C, g ∘ f = h ∘ f) p idp :=
   by induction p; reflexivity
@@ -619,7 +623,7 @@ namespace eq
   definition inverse2 [unfold 6] {p q : x = y} (h : p = q) : p⁻¹ = q⁻¹ :=
   ap inverse h
 
-  infixl ` ◾ `:75 := concat2
+  infixl ` ◾ `:80 := concat2
   postfix [parsing_only] `⁻²`:(max+10) := inverse2 --this notation is abusive, should we use it?
 
   /- Whiskering -/
@@ -678,7 +682,7 @@ namespace eq
   -- The interchange law for concatenation.
   definition con2_con_con2 {p p' p'' : x = y} {q q' q'' : y = z}
       (a : p = p') (b : p' = p'') (c : q = q') (d : q' = q'') :
-    (a ◾ c) ⬝ (b ◾ d) = (a ⬝ b) ◾ (c ⬝ d) :=
+    a ◾ c ⬝ b ◾ d = (a ⬝ b) ◾ (c ⬝ d) :=
   by induction d; induction c; induction b;induction a; reflexivity
 
   definition con2_eq_rl {A : Type} {x y z : A} {p p' : x = y} {q q' : y = z}
@@ -742,22 +746,13 @@ namespace eq
   definition ap02_con2 (f : A → B) {x y z : A} {p p' : x = y} {q q' :y = z} (r : p = p')
     (s : q = q') :
       ap02 f (r ◾ s) = ap_con f p q
-                        ⬝ (ap02 f r  ◾  ap02 f s)
+                        ⬝ (ap02 f r ◾ ap02 f s)
                         ⬝ (ap_con f p' q')⁻¹ :=
   by induction r; induction s; induction q; induction p; reflexivity
 
   definition apdt02 [unfold 8] {p q : x = y} (f : Π x, P x) (r : p = q) :
     apdt f p = transport2 P r (f x) ⬝ apdt f q :=
   by induction r; exact !idp_con⁻¹
-
-  -- And now for a lemma whose statement is much longer than its proof.
-  definition apdt02_con {P : A → Type} (f : Π x:A, P x) {x y : A}
-      {p1 p2 p3 : x = y} (r1 : p1 = p2) (r2 : p2 = p3) :
-    apdt02 f (r1 ⬝ r2) = apdt02 f r1
-      ⬝ whisker_left (transport2 P r1 (f x)) (apdt02 f r2)
-      ⬝ con.assoc' _ _ _
-      ⬝ (whisker_right (tr2_con r1 r2 (f x))⁻¹ (apdt f p3)) :=
-  by induction r2; induction r1; induction p1; reflexivity
 
 end eq
 

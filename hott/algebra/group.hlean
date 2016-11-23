@@ -201,6 +201,9 @@ section group
   theorem inv_eq_one_iff_eq_one (a : A) : a⁻¹ = 1 ↔ a = 1 :=
   one_inv ▸ inv_eq_inv_iff_eq a 1
 
+  theorem inv_eq_one {a : A} (H : a = 1) : a⁻¹ = 1 :=
+  iff.mpr (inv_eq_one_iff_eq_one a) H
+
   theorem eq_one_of_inv_eq_one (a : A) : a⁻¹ = 1 → a = 1 :=
     iff.mp !inv_eq_one_iff_eq_one
 

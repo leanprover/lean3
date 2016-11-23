@@ -88,7 +88,7 @@ namespace eq
            (ap (ap g ∘ ap f) r)
            (ap_compose g f p)
            (ap_compose g f q) :=
-  natural_square (ap_compose g f) r
+  natural_square_tr (ap_compose g f) r
 
   theorem whisker_right_eq_of_con_inv_eq_idp {p q : a₁ = a₂} (r : p ⬝ q⁻¹ = idp) :
     whisker_right (eq_of_con_inv_eq_idp r) q⁻¹ ⬝ con.right_inv q = r :=
@@ -118,8 +118,8 @@ namespace eq
     con_tr idp q u = ap (λp, p ▸ u) (idp_con q) :=
   by induction q;reflexivity
 
-  definition transport_eq_Fl_idp_left {A B : Type} {a : A} {b : B} (f : A → B) (q : f a = b)
-    : transport_eq_Fl idp q = !idp_con⁻¹ :=
+  definition eq_transport_Fl_idp_left {A B : Type} {a : A} {b : B} (f : A → B) (q : f a = b)
+    : eq_transport_Fl idp q = !idp_con⁻¹ :=
   by induction q; reflexivity
 
   definition whisker_left_idp_con_eq_assoc

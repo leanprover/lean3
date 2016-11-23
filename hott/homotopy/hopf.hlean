@@ -94,7 +94,7 @@ section
 
   definition transport_codes_merid (a a' : A)
     : transport codes (merid a) a' = a * a' :> A :=
-  by krewrite elim_type_merid
+  ap10 (elim_type_merid _ _ _ a) a'
 
   definition is_trunc_codes [instance] (x : susp A) : is_trunc 1 (codes x) :=
   begin
@@ -112,19 +112,14 @@ section
 
   definition transport_codes_merid_one_inv (a : A)
     : transport codes (merid 1)⁻¹ a = a :=
-  begin
-    rewrite tr_inv,
-    apply @inv_eq_of_eq A A (transport codes (merid 1)) _ a a,
-    krewrite elim_type_merid,
-    change a = 1 * a,
-    rewrite one_mul
-  end
+  ap10 (elim_type_merid_inv _ _ _ 1) a ⬝ begin apply to_inv_eq_of_eq, esimp, refine !one_mul⁻¹ end
 
   proposition encode_decode' (a : A) : encode (decode' a) = a :=
   begin
-    unfold decode', unfold encode, unfold encode₀,
-    rewrite [con_tr,transport_codes_merid,mul_one,tr_inv],
-    apply transport_codes_merid_one_inv
+    esimp [encode, decode', encode₀],
+    refine !con_tr ⬝ _,
+    refine (ap (transport _ _) !transport_codes_merid ⬝ !transport_codes_merid_one_inv) ⬝ _,
+    apply mul_one
   end
 
   include coh
@@ -172,17 +167,23 @@ section
     { exact (λa, tr (merid a)) },
     { apply pi.arrow_pathover_left, esimp, intro a',
       apply pathover_of_tr_eq, krewrite susp.elim_type_merid, esimp,
-      krewrite [trunc_transport,transport_eq_r], apply inverse,
+      krewrite [trunc_transport,eq_transport_r], apply inverse,
       apply homomorphism }
   end
 
-  proposition decode_encode {x : susp A} : Πt : P x, decode (encode t) = t :=
+  definition decode_encode {x : susp A} : Πt : P x, decode (encode t) = t :=
   begin
     apply trunc.rec, intro p, cases p, apply ap tr, apply con.right_inv
   end
 
+  /-
+     We define main_lemma by first defining its inverse, because normally equiv.MK changes
+     the left_inv-component of an equivalence to adjointify it, but in this case we want the
+     left_inv-component to be encode_decode'. So we adjointify its inverse, so that only the
+     right_inv-component is changed.
+  -/
   definition main_lemma : trunc 1 (north = north :> susp A) ≃ A :=
-  equiv.MK encode decode' encode_decode' decode_encode
+  (equiv.MK decode' encode decode_encode encode_decode')⁻¹ᵉ
 
   definition main_lemma_point
     : ptrunc 1 (Ω(psusp A)) ≃* pointed.MK A 1 :=
@@ -190,6 +191,33 @@ section
 
   protected definition delooping : Ω (ptrunc 2 (psusp A)) ≃* pointed.MK A 1 :=
   loop_ptrunc_pequiv 1 (psusp A) ⬝e* main_lemma_point
+
+  /- characterization of the underlying pointed maps -/
+  definition to_pmap_main_lemma_point_pinv
+    : main_lemma_point⁻¹ᵉ* ~* !ptr ∘* loop_psusp_unit (pointed.MK A 1) :=
+  begin
+    fapply phomotopy.mk,
+    { intro a, reflexivity },
+    { reflexivity }
+  end
+
+  definition to_pmap_delooping_pinv :
+    delooping⁻¹ᵉ* ~* Ω→ !ptr ∘* loop_psusp_unit (pointed.MK A 1) :=
+  begin
+    refine !trans_pinv ⬝* _,
+    refine pwhisker_left _ !to_pmap_main_lemma_point_pinv ⬝* _,
+    refine !passoc⁻¹* ⬝* _,
+    refine pwhisker_right _ !ap1_ptr⁻¹*,
+  end
+
+  definition hopf_delooping_elim {B : Type*} (f : pointed.MK A 1 →* Ω B) [H2 : is_trunc 2 B] :
+    Ω→(ptrunc.elim 2 (psusp.elim f)) ∘* (hopf.delooping A coh)⁻¹ᵉ* ~* f :=
+  begin
+    refine pwhisker_left _ !to_pmap_delooping_pinv ⬝* _,
+    refine !passoc⁻¹* ⬝* _,
+    refine pwhisker_right _ (!ap1_pcompose⁻¹* ⬝* ap1_phomotopy !ptrunc_elim_ptr) ⬝* _,
+    apply ap1_psusp_elim
+  end
 
 end
 

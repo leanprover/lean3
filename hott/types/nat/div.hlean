@@ -48,7 +48,7 @@ calc
             ... = succ (x / z)        : {!nat.add_sub_cancel}
 
 theorem add_div_self_left {x : ℕ} (z : ℕ) (H : x > 0) : (x + z) / x = succ (z / x) :=
-!add.comm ▸ !add_div_self H
+by rewrite add.comm; exact !add_div_self H
 
 local attribute succ_mul [simp]
 
@@ -110,7 +110,7 @@ by_cases_zero_pos z
                 ... = x % z             : nat.add_sub_cancel)
 
 theorem add_mod_self_left [simp] (x z : ℕ) : (x + z) % x = z % x :=
-!add.comm ▸ !add_mod_self
+by rewrite add.comm; apply add_mod_self
 
 local attribute succ_mul [simp]
 

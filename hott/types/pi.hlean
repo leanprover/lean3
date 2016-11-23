@@ -384,12 +384,4 @@ namespace pi
       : pointed (Πx, P x) :=
   pointed.mk (λx, pt)
 
-  definition ppi [constructor] {A : Type} (P : A → Type*) : Type* :=
-  pointed.mk' (Πa, P a)
-
-  notation `Π*` binders `, ` r:(scoped P, ppi P) := r
-
-  definition ptpi [constructor] {n : ℕ₋₂} {A : Type} (P : A → n-Type*) : n-Type* :=
-  ptrunctype.mk' n (Πa, P a)
-
 end pi

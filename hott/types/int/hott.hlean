@@ -30,13 +30,13 @@ namespace int
   notation `agℤ` := CommGroup_int
   end
 
-  definition is_equiv_succ [instance] : is_equiv succ :=
+  definition is_equiv_succ [constructor] [instance] : is_equiv succ :=
   adjointify succ pred (λa, !add_sub_cancel) (λa, !sub_add_cancel)
-  definition equiv_succ : ℤ ≃ ℤ := equiv.mk succ _
+  definition equiv_succ [constructor] : ℤ ≃ ℤ := equiv.mk succ _
 
-  definition is_equiv_neg [instance] : is_equiv (neg : ℤ → ℤ) :=
+  definition is_equiv_neg [constructor] [instance] : is_equiv (neg : ℤ → ℤ) :=
   adjointify neg neg (λx, !neg_neg) (λa, !neg_neg)
-  definition equiv_neg : ℤ ≃ ℤ := equiv.mk neg _
+  definition equiv_neg [constructor] : ℤ ≃ ℤ := equiv.mk neg _
 
   definition iterate {A : Type} (f : A ≃ A) (a : ℤ) : A ≃ A :=
   rec_nat_on a erfl

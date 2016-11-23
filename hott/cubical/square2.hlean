@@ -25,7 +25,7 @@ namespace eq
   by induction p; reflexivity
 
   theorem ap_is_constant_natural_square {g : B → C} {f : A → B} (H : Πa, g (f a) = c) (p : a = a') :
-    (ap_is_constant H p)⁻¹ ⬝ph natural_square_tr H p ⬝hp ap_constant p c =
+    (ap_is_constant H p)⁻¹ ⬝ph natural_square H p ⬝hp ap_constant p c =
       whisker_bl (H a') (whisker_tl (H a) ids) :=
   begin induction p, esimp, rewrite inv_inv, rewrite whisker_bl_whisker_tl_eq end
 

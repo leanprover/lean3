@@ -47,5 +47,3 @@ namespace unit
   end
 
 end unit
-
-open unit is_trunc

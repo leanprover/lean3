@@ -137,13 +137,13 @@ namespace arrow
     unfold inv_homotopy_of_homotopy_post,
     unfold inv_homotopy_of_homotopy_pre,
     rewrite [adj f a,-(ap_compose β f)],
-    rewrite [eq_of_square (natural_square_tr p (left_inv f a))],
+    rewrite [eq_of_square (natural_square p (left_inv f a))],
     rewrite [ap_inv f'⁻¹,ap_con f'⁻¹,con_inv,con.assoc,con.assoc],
     apply whisker_left (ap f'⁻¹ (p a))⁻¹,
     apply eq_of_square, rewrite [ap_inv α,-(ap_compose f'⁻¹ (f' ∘ α))],
     apply hinverse, rewrite [ap_compose (f'⁻¹ ∘ f') α],
     refine vconcat_eq _ (ap_id (ap α (left_inv f a))),
-    apply natural_square (left_inv f') (ap α (left_inv f a))
+    apply natural_square_tr (left_inv f') (ap α (left_inv f a))
   end
 
   definition ap_bot_inv_commute_of_commute (p : f' ∘ α ~ β ∘ f) (b : B)
@@ -163,7 +163,7 @@ namespace arrow
       (con_inv (p (f⁻¹ b)) (ap β (right_inv f b))),
     refine vconcat_eq _
       (ap_id (p (f⁻¹ b) ⬝ ap β (right_inv f b))⁻¹),
-    apply natural_square (right_inv f')
+    apply natural_square_tr (right_inv f')
       (p (f⁻¹ b) ⬝ ap β (right_inv f b))⁻¹
   end
 

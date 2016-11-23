@@ -80,7 +80,7 @@ namespace hopf
     induction x,
     { apply inverse, exact circle_mul_base (y*) },
     { apply eq_pathover, induction y,
-      { exact natural_square_tr
+      { exact natural_square
           (λa : S¹, ap (λb : S¹, b*) (circle_mul_base a)) loop },
       { apply is_prop.elimo } }
   end

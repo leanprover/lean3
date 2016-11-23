@@ -151,7 +151,7 @@ namespace chain_complex
   begin
     refine _ ⬝ !con.assoc⁻¹,
     apply whisker_left,
-    refine transport_eq_Fl _ _ ⬝ _,
+    refine eq_transport_Fl _ _ ⬝ _,
     apply whisker_right,
     refine inverse2 !ap_inv ⬝ !inv_inv ⬝ _,
     refine ap_compose (fiber_sequence_fun n) pr₁ _ ⬝
@@ -219,7 +219,7 @@ namespace chain_complex
     { reflexivity},
     { reflexivity},
     refine ap (whisker_left _)
-              (transport_eq_Fl_idp_left (fiber_sequence_fun n)
+              (eq_transport_Fl_idp_left (fiber_sequence_fun n)
                                         (respect_pt (fiber_sequence_fun n))) ⬝ _,
     apply whisker_left_idp_con_eq_assoc
   end
@@ -264,26 +264,26 @@ namespace chain_complex
 
   /- Now we are ready to define the long exact sequence of homotopy groups.
      First we define its carrier -/
-  definition loopns : ℕ → Type*
+  definition loop_spaces : ℕ → Type*
   | 0     := Y
   | 1     := X
   | 2     := pfiber f
-  | (k+3) := Ω (loopns k)
+  | (k+3) := Ω (loop_spaces k)
 
   /- The maps between the homotopy groups -/
-  definition loopns_fun
-    : Π(n : ℕ), loopns (n+1) →* loopns n
+  definition loop_spaces_fun
+    : Π(n : ℕ), loop_spaces (n+1) →* loop_spaces n
   | 0     := proof f qed
   | 1     := proof ppoint f qed
   | 2     := proof boundary_map qed
-  | (k+3) := proof ap1 (loopns_fun k) qed
+  | (k+3) := proof ap1 (loop_spaces_fun k) qed
 
-  definition loopns_fun_add3 [unfold_full] (n : ℕ) :
-    loopns_fun (n + 3) = ap1 (loopns_fun n) :=
+  definition loop_spaces_fun_add3 [unfold_full] (n : ℕ) :
+    loop_spaces_fun (n + 3) = ap1 (loop_spaces_fun n) :=
   proof idp qed
 
-  definition fiber_sequence_pequiv_loopns :
-    Πn, fiber_sequence_carrier n ≃* loopns n
+  definition fiber_sequence_pequiv_loop_spaces :
+    Πn, fiber_sequence_carrier n ≃* loop_spaces n
   | 0     := by reflexivity
   | 1     := by reflexivity
   | 2     := by reflexivity
@@ -291,22 +291,22 @@ namespace chain_complex
     begin
       refine fiber_sequence_carrier_pequiv k ⬝e* _,
       apply loop_pequiv_loop,
-      exact fiber_sequence_pequiv_loopns k
+      exact fiber_sequence_pequiv_loop_spaces k
     end
 
-  definition fiber_sequence_pequiv_loopns_add3 (n : ℕ)
-    : fiber_sequence_pequiv_loopns (n + 3) =
-      ap1 (fiber_sequence_pequiv_loopns n) ∘* fiber_sequence_carrier_pequiv n :=
+  definition fiber_sequence_pequiv_loop_spaces_add3 (n : ℕ)
+    : fiber_sequence_pequiv_loop_spaces (n + 3) =
+      ap1 (fiber_sequence_pequiv_loop_spaces n) ∘* fiber_sequence_carrier_pequiv n :=
   by reflexivity
 
-  definition fiber_sequence_pequiv_loopns_3_phomotopy
-    : fiber_sequence_pequiv_loopns 3 ~* proof fiber_sequence_carrier_pequiv nat.zero qed :=
+  definition fiber_sequence_pequiv_loop_spaces_3_phomotopy
+    : fiber_sequence_pequiv_loop_spaces 3 ~* proof fiber_sequence_carrier_pequiv nat.zero qed :=
   begin
     refine pwhisker_right _ ap1_pid ⬝* _,
     apply pid_pcompose
   end
 
-  definition pid_or_pinverse : Π(n : ℕ), loopns n ≃* loopns n
+  definition pid_or_pinverse : Π(n : ℕ), loop_spaces n ≃* loop_spaces n
   | 0     := pequiv.rfl
   | 1     := pequiv.rfl
   | 2     := pequiv.rfl
@@ -321,15 +321,15 @@ namespace chain_complex
     pid_or_pinverse (n + 4) ~* pinverse ∘* Ω→(pid_or_pinverse (n + 1))
   | 0     := begin rewrite [pid_or_pinverse_add4, + to_pmap_pequiv_trans],
                    replace pid_or_pinverse (0 + 1) with pequiv.refl X,
-                   rewrite [loop_pequiv_loop_rfl, ▸*], refine !pid_pcompose ⬝* _,
+                   refine pwhisker_right _ !loop_pequiv_loop_rfl ⬝* _, refine !pid_pcompose ⬝* _,
                    exact !pcompose_pid⁻¹* ⬝* pwhisker_left _ !ap1_pid⁻¹* end
   | 1     := begin rewrite [pid_or_pinverse_add4, + to_pmap_pequiv_trans],
                    replace pid_or_pinverse (1 + 1) with pequiv.refl (pfiber f),
-                   rewrite [loop_pequiv_loop_rfl, ▸*], refine !pid_pcompose ⬝* _,
+                   refine pwhisker_right _ !loop_pequiv_loop_rfl ⬝* _, refine !pid_pcompose ⬝* _,
                    exact !pcompose_pid⁻¹* ⬝* pwhisker_left _ !ap1_pid⁻¹* end
   | 2     := begin rewrite [pid_or_pinverse_add4, + to_pmap_pequiv_trans],
                    replace pid_or_pinverse (2 + 1) with pequiv.refl (Ω Y),
-                   rewrite [loop_pequiv_loop_rfl, ▸*], refine !pid_pcompose ⬝* _,
+                   refine pwhisker_right _ !loop_pequiv_loop_rfl ⬝* _, refine !pid_pcompose ⬝* _,
                    exact !pcompose_pid⁻¹* ⬝* pwhisker_left _ !ap1_pid⁻¹* end
   | (k+3) :=
     begin
@@ -343,30 +343,30 @@ namespace chain_complex
       { refine !ap1_pinverse⁻¹*}
     end
 
-  theorem fiber_sequence_phomotopy_loopns : Π(n : ℕ),
-    fiber_sequence_pequiv_loopns n ∘* fiber_sequence_fun n ~*
-      (loopns_fun n ∘* pid_or_pinverse (n + 1)) ∘* fiber_sequence_pequiv_loopns (n + 1)
+  theorem fiber_sequence_phomotopy_loop_spaces : Π(n : ℕ),
+    fiber_sequence_pequiv_loop_spaces n ∘* fiber_sequence_fun n ~*
+      (loop_spaces_fun n ∘* pid_or_pinverse (n + 1)) ∘* fiber_sequence_pequiv_loop_spaces (n + 1)
   | 0     := proof proof phomotopy.rfl qed ⬝* pwhisker_right _ !pcompose_pid⁻¹* qed
   | 1     := by reflexivity
   | 2     :=
     begin
       refine !pid_pcompose ⬝* _,
-      replace loopns_fun 2 with boundary_map,
-      refine _ ⬝* pwhisker_left _ fiber_sequence_pequiv_loopns_3_phomotopy⁻¹*,
+      replace loop_spaces_fun 2 with boundary_map,
+      refine _ ⬝* pwhisker_left _ fiber_sequence_pequiv_loop_spaces_3_phomotopy⁻¹*,
       apply phomotopy_of_pinv_right_phomotopy,
       exact !pid_pcompose⁻¹*
     end
   | (k+3) :=
     begin
       replace (k + 3 + 1) with (k + 1 + 3),
-      rewrite [fiber_sequence_pequiv_loopns_add3 k,
-               fiber_sequence_pequiv_loopns_add3 (k+1)],
+      rewrite [fiber_sequence_pequiv_loop_spaces_add3 k,
+               fiber_sequence_pequiv_loop_spaces_add3 (k+1)],
       refine !passoc ⬝* _,
       refine pwhisker_left _ (fiber_sequence_fun_phomotopy k) ⬝* _,
       refine !passoc⁻¹* ⬝* _ ⬝* !passoc,
       apply pwhisker_right,
       replace (k + 1 + 3) with (k + 4),
-      xrewrite [loopns_fun_add3, pid_or_pinverse_add4, to_pmap_pequiv_trans],
+      xrewrite [loop_spaces_fun_add3, pid_or_pinverse_add4, to_pmap_pequiv_trans],
       refine _ ⬝* !passoc⁻¹*,
       refine _ ⬝* pwhisker_left _ !passoc⁻¹*,
       refine _ ⬝* pwhisker_left _ (pwhisker_left _ !ap1_pcompose_pinverse),
@@ -374,16 +374,16 @@ namespace chain_complex
       apply pwhisker_right,
       refine !ap1_pcompose⁻¹* ⬝* _ ⬝* !ap1_pcompose ⬝* pwhisker_right _ !ap1_pcompose,
       apply ap1_phomotopy,
-      exact fiber_sequence_phomotopy_loopns k
+      exact fiber_sequence_phomotopy_loop_spaces k
     end
 
-  definition pid_or_pinverse_right : Π(n : ℕ), loopns n →* loopns n
+  definition pid_or_pinverse_right : Π(n : ℕ), loop_spaces n →* loop_spaces n
   | 0     := !pid
   | 1     := !pid
   | 2     := !pid
   | (k+3) := Ω→(pid_or_pinverse_right k) ∘* pinverse
 
-  definition pid_or_pinverse_left : Π(n : ℕ), loopns n →* loopns n
+  definition pid_or_pinverse_left : Π(n : ℕ), loop_spaces n →* loop_spaces n
   | 0     := pequiv.rfl
   | 1     := pequiv.rfl
   | 2     := pequiv.rfl
@@ -400,14 +400,14 @@ namespace chain_complex
   by reflexivity
 
   theorem pid_or_pinverse_commute_right : Π(n : ℕ),
-    loopns_fun n ~* pid_or_pinverse_right n ∘* loopns_fun n ∘* pid_or_pinverse (n + 1)
+    loop_spaces_fun n ~* pid_or_pinverse_right n ∘* loop_spaces_fun n ∘* pid_or_pinverse (n + 1)
   | 0     := proof !pcompose_pid⁻¹* ⬝* !pid_pcompose⁻¹* qed
   | 1     := proof !pcompose_pid⁻¹* ⬝* !pid_pcompose⁻¹* qed
   | 2     := proof !pcompose_pid⁻¹* ⬝* !pid_pcompose⁻¹* qed
   | (k+3) :=
     begin
       replace (k + 3 + 1) with (k + 4),
-      rewrite [pid_or_pinverse_right_add3, loopns_fun_add3],
+      rewrite [pid_or_pinverse_right_add3, loop_spaces_fun_add3],
       refine _ ⬝* pwhisker_left _ (pwhisker_left _ !pid_or_pinverse_add4_rev⁻¹*),
       refine ap1_phomotopy (pid_or_pinverse_commute_right k) ⬝* _,
       refine !ap1_pcompose ⬝* _ ⬝* !passoc⁻¹*,
@@ -421,7 +421,7 @@ namespace chain_complex
     end
 
   theorem pid_or_pinverse_commute_left : Π(n : ℕ),
-    loopns_fun n ∘* pid_or_pinverse_left (n + 1) ~* pid_or_pinverse n ∘* loopns_fun n
+    loop_spaces_fun n ∘* pid_or_pinverse_left (n + 1) ~* pid_or_pinverse n ∘* loop_spaces_fun n
   | 0     := proof !pcompose_pid ⬝* !pid_pcompose⁻¹* qed
   | 1     := proof !pcompose_pid ⬝* !pid_pcompose⁻¹* qed
   | 2     := proof !pcompose_pid ⬝* !pid_pcompose⁻¹* qed
@@ -431,7 +431,7 @@ namespace chain_complex
       replace (k + 4 + 1) with (k + 5),
       rewrite [pid_or_pinverse_left_add5, pid_or_pinverse_add4, to_pmap_pequiv_trans],
       replace (k + 4) with (k + 1 + 3),
-      rewrite [loopns_fun_add3],
+      rewrite [loop_spaces_fun_add3],
       refine !passoc⁻¹* ⬝* _ ⬝* !passoc⁻¹*,
       refine _ ⬝* pwhisker_left _ !ap1_pcompose_pinverse,
       refine _ ⬝* !passoc,
@@ -440,23 +440,23 @@ namespace chain_complex
       exact ap1_phomotopy (pid_or_pinverse_commute_left (k+1))
     end
 
-  definition LES_of_loopns' [constructor] : type_chain_complex +ℕ :=
+  definition LES_of_loop_spaces' [constructor] : type_chain_complex +ℕ :=
   transfer_type_chain_complex
     fiber_sequence
-    (λn, loopns_fun n ∘* pid_or_pinverse (n + 1))
-    fiber_sequence_pequiv_loopns
-    fiber_sequence_phomotopy_loopns
+    (λn, loop_spaces_fun n ∘* pid_or_pinverse (n + 1))
+    fiber_sequence_pequiv_loop_spaces
+    fiber_sequence_phomotopy_loop_spaces
 
-  definition LES_of_loopns [constructor] : type_chain_complex +ℕ :=
+  definition LES_of_loop_spaces [constructor] : type_chain_complex +ℕ :=
   type_chain_complex_cancel_aut
-    LES_of_loopns'
-    loopns_fun
+    LES_of_loop_spaces'
+    loop_spaces_fun
     pid_or_pinverse
     pid_or_pinverse_right
     (λn x, idp)
     pid_or_pinverse_commute_right
 
-  definition is_exact_LES_of_loopns : is_exact_t LES_of_loopns :=
+  definition is_exact_LES_of_loop_spaces : is_exact_t LES_of_loop_spaces :=
   begin
     intro n,
     refine is_exact_at_t_cancel_aut n pid_or_pinverse_left _ _ pid_or_pinverse_commute_left _,
@@ -470,37 +470,37 @@ namespace chain_complex
       PART 3
    --------------/
 
-  definition loopns2 [reducible] : +3ℕ → Type*
+  definition loop_spaces2 [reducible] : +3ℕ → Type*
   | (n, fin.mk 0 H) := Ω[n] Y
   | (n, fin.mk 1 H) := Ω[n] X
   | (n, fin.mk k H) := Ω[n] (pfiber f)
 
-  definition loopns2_add1 (n : ℕ) : Π(x : fin 3),
-    loopns2 (n+1, x) = Ω (loopns2 (n, x))
+  definition loop_spaces2_add1 (n : ℕ) : Π(x : fin 3),
+    loop_spaces2 (n+1, x) = Ω (loop_spaces2 (n, x))
   | (fin.mk 0 H) := by reflexivity
   | (fin.mk 1 H) := by reflexivity
   | (fin.mk 2 H) := by reflexivity
   | (fin.mk (k+3) H) := begin exfalso, apply lt_le_antisymm H, apply le_add_left end
 
-  definition loopns_fun2 : Π(n : +3ℕ), loopns2 (S n) →* loopns2 n
+  definition loop_spaces_fun2 : Π(n : +3ℕ), loop_spaces2 (S n) →* loop_spaces2 n
   | (n, fin.mk 0 H) := proof Ω→[n] f qed
   | (n, fin.mk 1 H) := proof Ω→[n] (ppoint f) qed
   | (n, fin.mk 2 H) := proof Ω→[n] boundary_map ∘* loopn_succ_in Y n qed
   | (n, fin.mk (k+3) H) := begin exfalso, apply lt_le_antisymm H, apply le_add_left end
 
-  definition loopns_fun2_add1_0 (n : ℕ) (H : 0 < succ 2)
-    : loopns_fun2 (n+1, fin.mk 0 H) ~*
-      cast proof idp qed ap1 (loopns_fun2 (n, fin.mk 0 H)) :=
+  definition loop_spaces_fun2_add1_0 (n : ℕ) (H : 0 < succ 2)
+    : loop_spaces_fun2 (n+1, fin.mk 0 H) ~*
+      cast proof idp qed ap1 (loop_spaces_fun2 (n, fin.mk 0 H)) :=
   by reflexivity
 
-  definition loopns_fun2_add1_1 (n : ℕ) (H : 1 < succ 2)
-    : loopns_fun2 (n+1, fin.mk 1 H) ~*
-      cast proof idp qed ap1 (loopns_fun2 (n, fin.mk 1 H)) :=
+  definition loop_spaces_fun2_add1_1 (n : ℕ) (H : 1 < succ 2)
+    : loop_spaces_fun2 (n+1, fin.mk 1 H) ~*
+      cast proof idp qed ap1 (loop_spaces_fun2 (n, fin.mk 1 H)) :=
   by reflexivity
 
-  definition loopns_fun2_add1_2 (n : ℕ) (H : 2 < succ 2)
-    : loopns_fun2 (n+1, fin.mk 2 H) ~*
-      cast proof idp qed ap1 (loopns_fun2 (n, fin.mk 2 H)) :=
+  definition loop_spaces_fun2_add1_2 (n : ℕ) (H : 2 < succ 2)
+    : loop_spaces_fun2 (n+1, fin.mk 2 H) ~*
+      cast proof idp qed ap1 (loop_spaces_fun2 (n, fin.mk 2 H)) :=
   proof !ap1_pcompose⁻¹* qed
 
   definition nat_of_str [unfold 2] [reducible] {n : ℕ} : ℕ × fin (succ n) → ℕ :=
@@ -537,39 +537,39 @@ namespace chain_complex
     note: in the following theorem the (n+1) case is 3 times the same,
     so maybe this can be simplified
   -/
-  definition loopns2_pequiv' : Π(n : ℕ) (x : fin (nat.succ 2)),
-    loopns (nat_of_str (n, x)) ≃* loopns2 (n, x)
+  definition loop_spaces2_pequiv' : Π(n : ℕ) (x : fin (nat.succ 2)),
+    loop_spaces (nat_of_str (n, x)) ≃* loop_spaces2 (n, x)
   |  0    (fin.mk 0 H)     := by reflexivity
   |  0    (fin.mk 1 H)     := by reflexivity
   |  0    (fin.mk 2 H)     := by reflexivity
   | (n+1) (fin.mk 0 H)     :=
     begin
       apply loop_pequiv_loop,
-      rexact loopns2_pequiv' n (fin.mk 0 H)
+      rexact loop_spaces2_pequiv' n (fin.mk 0 H)
     end
   | (n+1) (fin.mk 1 H)     :=
     begin
       apply loop_pequiv_loop,
-      rexact loopns2_pequiv' n (fin.mk 1 H)
+      rexact loop_spaces2_pequiv' n (fin.mk 1 H)
     end
   | (n+1) (fin.mk 2 H)     :=
     begin
       apply loop_pequiv_loop,
-      rexact loopns2_pequiv' n (fin.mk 2 H)
+      rexact loop_spaces2_pequiv' n (fin.mk 2 H)
     end
   | n     (fin.mk (k+3) H) := begin exfalso, apply lt_le_antisymm H, apply le_add_left end
 
-  definition loopns2_pequiv : Π(x : +3ℕ),
-    loopns (nat_of_str x) ≃* loopns2 x
-  | (n, x) := loopns2_pequiv' n x
+  definition loop_spaces2_pequiv : Π(x : +3ℕ),
+    loop_spaces (nat_of_str x) ≃* loop_spaces2 x
+  | (n, x) := loop_spaces2_pequiv' n x
 
   local attribute loop_pequiv_loop [reducible]
 
   /- all cases where n>0 are basically the same -/
-  definition loopns_fun2_phomotopy (x : +3ℕ) :
-    loopns2_pequiv x ∘* loopns_fun (nat_of_str x) ~*
-      (loopns_fun2 x ∘* loopns2_pequiv (S x))
-    ∘* pcast (ap (loopns) (nat_of_str_3S x)) :=
+  definition loop_spaces_fun2_phomotopy (x : +3ℕ) :
+    loop_spaces2_pequiv x ∘* loop_spaces_fun (nat_of_str x) ~*
+      (loop_spaces_fun2 x ∘* loop_spaces2_pequiv (S x))
+    ∘* pcast (ap (loop_spaces) (nat_of_str_3S x)) :=
   begin
     cases x with n x, cases x with k H,
     do 3 (cases k with k; rotate 1),
@@ -579,7 +579,7 @@ namespace chain_complex
       { refine !pid_pcompose ⬝* _ ⬝* !pcompose_pid⁻¹* ⬝* !pcompose_pid⁻¹*,
         reflexivity},
       { refine _ ⬝* !pcompose_pid⁻¹*,
-        refine _ ⬝* pwhisker_right _ !loopns_fun2_add1_0⁻¹*,
+        refine _ ⬝* pwhisker_right _ !loop_spaces_fun2_add1_0⁻¹*,
         refine !ap1_pcompose⁻¹* ⬝* _ ⬝* !ap1_pcompose, apply ap1_phomotopy,
         exact IH ⬝* !pcompose_pid}},
     { /-k=1-/
@@ -587,7 +587,7 @@ namespace chain_complex
       { refine !pid_pcompose ⬝* _ ⬝* !pcompose_pid⁻¹* ⬝* !pcompose_pid⁻¹*,
         reflexivity},
       { refine _ ⬝* !pcompose_pid⁻¹*,
-        refine _ ⬝* pwhisker_right _ !loopns_fun2_add1_1⁻¹*,
+        refine _ ⬝* pwhisker_right _ !loop_spaces_fun2_add1_1⁻¹*,
         refine !ap1_pcompose⁻¹* ⬝* _ ⬝* !ap1_pcompose, apply ap1_phomotopy,
         exact IH ⬝* !pcompose_pid}},
     { /-k=2-/
@@ -595,36 +595,36 @@ namespace chain_complex
       { refine !pid_pcompose ⬝* _ ⬝* !pcompose_pid⁻¹*,
         refine !pcompose_pid⁻¹* ⬝* pconcat2 _ _,
         { exact (pcompose_pid (chain_complex.boundary_map f))⁻¹*},
-        { refine cast (ap (λx, _ ~* x) !loop_pequiv_loop_rfl)⁻¹ _, reflexivity}},
+        { refine !loop_pequiv_loop_rfl⁻¹* }},
       { refine _ ⬝* !pcompose_pid⁻¹*,
-        refine _ ⬝* pwhisker_right _ !loopns_fun2_add1_2⁻¹*,
+        refine _ ⬝* pwhisker_right _ !loop_spaces_fun2_add1_2⁻¹*,
         refine !ap1_pcompose⁻¹* ⬝* _ ⬝* !ap1_pcompose, apply ap1_phomotopy,
         exact IH ⬝* !pcompose_pid}},
   end
 
-  definition LES_of_loopns2 [constructor] : type_chain_complex +3ℕ :=
+  definition LES_of_loop_spaces2 [constructor] : type_chain_complex +3ℕ :=
   transfer_type_chain_complex2
-    LES_of_loopns
+    LES_of_loop_spaces
     !fin_prod_nat_equiv_nat
     nat_of_str_3S
-    @loopns_fun2
-    @loopns2_pequiv
+    @loop_spaces_fun2
+    @loop_spaces2_pequiv
     begin
       intro m x,
-      refine loopns_fun2_phomotopy m x ⬝ _,
-      apply ap (loopns_fun2 m), apply ap (loopns2_pequiv (S m)),
+      refine loop_spaces_fun2_phomotopy m x ⬝ _,
+      apply ap (loop_spaces_fun2 m), apply ap (loop_spaces2_pequiv (S m)),
       esimp, exact ap010 cast !ap_compose⁻¹ x
     end
 
-  definition is_exact_LES_of_loopns2 : is_exact_t LES_of_loopns2 :=
+  definition is_exact_LES_of_loop_spaces2 : is_exact_t LES_of_loop_spaces2 :=
   begin
     intro n,
     apply is_exact_at_t_transfer2,
-    apply is_exact_LES_of_loopns
+    apply is_exact_LES_of_loop_spaces
   end
 
   definition LES_of_homotopy_groups' [constructor] : chain_complex +3ℕ :=
-  trunc_chain_complex LES_of_loopns2
+  trunc_chain_complex LES_of_loop_spaces2
 
 /--------------
     PART 4
@@ -635,8 +635,8 @@ namespace chain_complex
   | (n, fin.mk 1 H) := π[n] X
   | (n, fin.mk k H) := π[n] (pfiber f)
 
-  definition homotopy_groups_pequiv_loopns2 [reducible]
-    : Π(n : +3ℕ), ptrunc 0 (loopns2 n) ≃* homotopy_groups n
+  definition homotopy_groups_pequiv_loop_spaces2 [reducible]
+    : Π(n : +3ℕ), ptrunc 0 (loop_spaces2 n) ≃* homotopy_groups n
   | (n, fin.mk 0 H) := by reflexivity
   | (n, fin.mk 1 H) := by reflexivity
   | (n, fin.mk 2 H) := by reflexivity
@@ -649,9 +649,9 @@ namespace chain_complex
     proof π→[n] boundary_map ∘* homotopy_group_succ_in Y n qed
   | (n, fin.mk (k+3) H) := begin exfalso, apply lt_le_antisymm H, apply le_add_left end
 
-  definition homotopy_groups_fun_phomotopy_loopns_fun2 [reducible]
-    : Π(n : +3ℕ), homotopy_groups_pequiv_loopns2 n ∘* ptrunc_functor 0 (loopns_fun2 n) ~*
-      homotopy_groups_fun n ∘* homotopy_groups_pequiv_loopns2 (S n)
+  definition homotopy_groups_fun_phomotopy_loop_spaces_fun2 [reducible]
+    : Π(n : +3ℕ), homotopy_groups_pequiv_loop_spaces2 n ∘* ptrunc_functor 0 (loop_spaces_fun2 n) ~*
+      homotopy_groups_fun n ∘* homotopy_groups_pequiv_loop_spaces2 (S n)
   | (n, fin.mk 0 H) := by reflexivity
   | (n, fin.mk 1 H) := by reflexivity
   | (n, fin.mk 2 H) :=
@@ -665,15 +665,15 @@ namespace chain_complex
   transfer_chain_complex
     LES_of_homotopy_groups'
     homotopy_groups_fun
-    homotopy_groups_pequiv_loopns2
-    homotopy_groups_fun_phomotopy_loopns_fun2
+    homotopy_groups_pequiv_loop_spaces2
+    homotopy_groups_fun_phomotopy_loop_spaces_fun2
 
   definition is_exact_LES_of_homotopy_groups : is_exact LES_of_homotopy_groups :=
   begin
     intro n,
     apply is_exact_at_transfer,
     apply is_exact_at_trunc,
-    apply is_exact_LES_of_loopns2
+    apply is_exact_LES_of_loop_spaces2
   end
 
   variable (n : ℕ)
@@ -777,14 +777,14 @@ namespace chain_complex
   | (n, fin.mk (k+3) H) := begin exfalso, apply lt_le_antisymm H, apply le_add_left end
 
   definition fibration_sequence_pequiv : Π(x : +3ℕ),
-     loopns2 f x ≃* fibration_sequence_car x
+     loop_spaces2 f x ≃* fibration_sequence_car x
   | (n, fin.mk 0 H) := by reflexivity
   | (n, fin.mk 1 H) := by reflexivity
   | (n, fin.mk 2 H) := loopn_pequiv_loopn n e
   | (n, fin.mk (k+3) H) := begin exfalso, apply lt_le_antisymm H, apply le_add_left end
 
   definition fibration_sequence_fun_phomotopy : Π(x : +3ℕ),
-    fibration_sequence_pequiv x ∘* loopns_fun2 f x ~*
+    fibration_sequence_pequiv x ∘* loop_spaces_fun2 f x ~*
       (fibration_sequence_fun x ∘* fibration_sequence_pequiv (S x))
   | (n, fin.mk 0 H) := by reflexivity
   | (n, fin.mk 1 H) :=
@@ -796,7 +796,7 @@ namespace chain_complex
 
   definition type_fibration_sequence [constructor] : type_chain_complex +3ℕ :=
   transfer_type_chain_complex
-    (LES_of_loopns2 f)
+    (LES_of_loop_spaces2 f)
     fibration_sequence_fun
     fibration_sequence_pequiv
     fibration_sequence_fun_phomotopy
@@ -805,7 +805,7 @@ namespace chain_complex
   begin
     intro n,
     apply is_exact_at_t_transfer,
-    apply is_exact_LES_of_loopns2
+    apply is_exact_LES_of_loop_spaces2
   end
 
   definition fibration_sequence [constructor] : chain_complex +3ℕ :=

@@ -10,8 +10,6 @@ Theorems about path types (identity types)
 import types.sigma
 open eq sigma sigma.ops equiv is_equiv is_trunc
 
--- TODO: Rename transport_eq_... and pathover_eq_... to eq_transport_... and eq_pathover_...
-
 namespace eq
   /- Path spaces -/
   section
@@ -126,40 +124,40 @@ namespace eq
      - `F` means application of a function to that (varying) endpoint.
   -/
 
-  definition transport_eq_l (p : a₁ = a₂) (q : a₁ = a₃)
+  definition eq_transport_l (p : a₁ = a₂) (q : a₁ = a₃)
     : transport (λx, x = a₃) p q = p⁻¹ ⬝ q :=
   by induction p; induction q; reflexivity
 
-  definition transport_eq_r (p : a₂ = a₃) (q : a₁ = a₂)
+  definition eq_transport_r (p : a₂ = a₃) (q : a₁ = a₂)
     : transport (λx, a₁ = x) p q = q ⬝ p :=
   by induction p; induction q; reflexivity
 
-  definition transport_eq_lr (p : a₁ = a₂) (q : a₁ = a₁)
+  definition eq_transport_lr (p : a₁ = a₂) (q : a₁ = a₁)
     : transport (λx, x = x) p q = p⁻¹ ⬝ q ⬝ p :=
   by induction p; rewrite [▸*,idp_con]
 
-  definition transport_eq_Fl (p : a₁ = a₂) (q : f a₁ = b)
+  definition eq_transport_Fl (p : a₁ = a₂) (q : f a₁ = b)
     : transport (λx, f x = b) p q = (ap f p)⁻¹ ⬝ q :=
   by induction p; induction q; reflexivity
 
-  definition transport_eq_Fr (p : a₁ = a₂) (q : b = f a₁)
+  definition eq_transport_Fr (p : a₁ = a₂) (q : b = f a₁)
     : transport (λx, b = f x) p q = q ⬝ (ap f p) :=
   by induction p; reflexivity
 
-  definition transport_eq_FlFr (p : a₁ = a₂) (q : f a₁ = g a₁)
+  definition eq_transport_FlFr (p : a₁ = a₂) (q : f a₁ = g a₁)
     : transport (λx, f x = g x) p q = (ap f p)⁻¹ ⬝ q ⬝ (ap g p) :=
   by induction p; rewrite [▸*,idp_con]
 
-  definition transport_eq_FlFr_D {B : A → Type} {f g : Πa, B a}
+  definition eq_transport_FlFr_D {B : A → Type} {f g : Πa, B a}
     (p : a₁ = a₂) (q : f a₁ = g a₁)
       : transport (λx, f x = g x) p q = (apdt f p)⁻¹ ⬝ ap (transport B p) q ⬝ (apdt g p) :=
   by induction p; rewrite [▸*,idp_con,ap_id]
 
-  definition transport_eq_FFlr (p : a₁ = a₂) (q : h (f a₁) = a₁)
+  definition eq_transport_FFlr (p : a₁ = a₂) (q : h (f a₁) = a₁)
     : transport (λx, h (f x) = x) p q = (ap h (ap f p))⁻¹ ⬝ q ⬝ p :=
   by induction p; rewrite [▸*,idp_con]
 
-  definition transport_eq_lFFr (p : a₁ = a₂) (q : a₁ = h (f a₁))
+  definition eq_transport_lFFr (p : a₁ = a₂) (q : a₁ = h (f a₁))
     : transport (λx, x = h (f x)) p q = p⁻¹ ⬝ q ⬝ (ap h (ap f p)) :=
   by induction p; rewrite [▸*,idp_con]
 
@@ -170,44 +168,48 @@ namespace eq
   -- we should probably try to do everything just with pathover_eq (defined in cubical.square),
   -- the following definitions may be removed in future.
 
-  definition pathover_eq_l (p : a₁ = a₂) (q : a₁ = a₃) : q =[p] p⁻¹ ⬝ q := /-(λx, x = a₃)-/
+  definition eq_pathover_l (p : a₁ = a₂) (q : a₁ = a₃) : q =[p] p⁻¹ ⬝ q := /-(λx, x = a₃)-/
   by induction p; induction q; exact idpo
 
-  definition pathover_eq_r (p : a₂ = a₃) (q : a₁ = a₂) : q =[p] q ⬝ p := /-(λx, a₁ = x)-/
+  definition eq_pathover_r (p : a₂ = a₃) (q : a₁ = a₂) : q =[p] q ⬝ p := /-(λx, a₁ = x)-/
   by induction p; induction q; exact idpo
 
-  definition pathover_eq_lr (p : a₁ = a₂) (q : a₁ = a₁) : q =[p] p⁻¹ ⬝ q ⬝ p := /-(λx, x = x)-/
+  definition eq_pathover_lr (p : a₁ = a₂) (q : a₁ = a₁) : q =[p] p⁻¹ ⬝ q ⬝ p := /-(λx, x = x)-/
   by induction p; rewrite [▸*,idp_con]; exact idpo
 
-  definition pathover_eq_Fl (p : a₁ = a₂) (q : f a₁ = b) : q =[p] (ap f p)⁻¹ ⬝ q := /-(λx, f x = b)-/
+  definition eq_pathover_Fl (p : a₁ = a₂) (q : f a₁ = b) : q =[p] (ap f p)⁻¹ ⬝ q := /-(λx, f x = b)-/
   by induction p; induction q; exact idpo
 
-  definition pathover_eq_Fr (p : a₁ = a₂) (q : b = f a₁) : q =[p] q ⬝ (ap f p) := /-(λx, b = f x)-/
+  definition eq_pathover_Fl' (p : a₁ = a₂) (q : f a₂ = b) : (ap f p) ⬝ q =[p] q := /-(λx, f x = b)-/
+  by induction p; induction q; exact idpo
+
+
+  definition eq_pathover_Fr (p : a₁ = a₂) (q : b = f a₁) : q =[p] q ⬝ (ap f p) := /-(λx, b = f x)-/
   by induction p; exact idpo
 
-  definition pathover_eq_FlFr (p : a₁ = a₂) (q : f a₁ = g a₁) : q =[p] (ap f p)⁻¹ ⬝ q ⬝ (ap g p) :=
+  definition eq_pathover_FlFr (p : a₁ = a₂) (q : f a₁ = g a₁) : q =[p] (ap f p)⁻¹ ⬝ q ⬝ (ap g p) :=
   /-(λx, f x = g x)-/
   by induction p; rewrite [▸*,idp_con]; exact idpo
 
-  definition pathover_eq_FlFr_D {B : A → Type} {f g : Πa, B a} (p : a₁ = a₂) (q : f a₁ = g a₁)
+  definition eq_pathover_FlFr_D {B : A → Type} {f g : Πa, B a} (p : a₁ = a₂) (q : f a₁ = g a₁)
     : q =[p] (apdt f p)⁻¹ ⬝ ap (transport B p) q ⬝ (apdt g p) := /-(λx, f x = g x)-/
   by induction p; rewrite [▸*,idp_con,ap_id];exact idpo
 
-  definition pathover_eq_FFlr (p : a₁ = a₂) (q : h (f a₁) = a₁) : q =[p] (ap h (ap f p))⁻¹ ⬝ q ⬝ p :=
+  definition eq_pathover_FFlr (p : a₁ = a₂) (q : h (f a₁) = a₁) : q =[p] (ap h (ap f p))⁻¹ ⬝ q ⬝ p :=
   /-(λx, h (f x) = x)-/
   by induction p; rewrite [▸*,idp_con];exact idpo
 
-  definition pathover_eq_lFFr (p : a₁ = a₂) (q : a₁ = h (f a₁)) : q =[p] p⁻¹ ⬝ q ⬝ (ap h (ap f p)) :=
+  definition eq_pathover_lFFr (p : a₁ = a₂) (q : a₁ = h (f a₁)) : q =[p] p⁻¹ ⬝ q ⬝ (ap h (ap f p)) :=
   /-(λx, x = h (f x))-/
   by induction p; rewrite [▸*,idp_con];exact idpo
 
-  definition pathover_eq_r_idp (p : a₁ = a₂) : idp =[p] p := /-(λx, a₁ = x)-/
+  definition eq_pathover_r_idp (p : a₁ = a₂) : idp =[p] p := /-(λx, a₁ = x)-/
   by induction p; exact idpo
 
-  definition pathover_eq_l_idp (p : a₁ = a₂) : idp =[p] p⁻¹ := /-(λx, x = a₁)-/
+  definition eq_pathover_l_idp (p : a₁ = a₂) : idp =[p] p⁻¹ := /-(λx, x = a₁)-/
   by induction p; exact idpo
 
-  definition pathover_eq_l_idp' (p : a₁ = a₂) : idp =[p⁻¹] p := /-(λx, x = a₂)-/
+  definition eq_pathover_l_idp' (p : a₁ = a₂) : idp =[p⁻¹] p := /-(λx, x = a₂)-/
   by induction p; exact idpo
 
   -- The Functorial action of paths is [ap].
@@ -253,6 +255,10 @@ namespace eq
 
   definition eq_equiv_eq_closed [constructor] (p : a₁ = a₂) (q : a₃ = a₄) : (a₁ = a₃) ≃ (a₂ = a₄) :=
   equiv.trans (equiv_eq_closed_left a₃ p) (equiv_eq_closed_right a₂ q)
+
+  definition loop_equiv_eq_closed [constructor] {A : Type} {a a' : A} (p : a = a')
+    : (a = a) ≃ (a' = a') :=
+  eq_equiv_eq_closed p p
 
   definition is_equiv_whisker_left [constructor] (p : a₁ = a₂) (q r : a₂ = a₃)
   : is_equiv (whisker_left p : q = r → p ⬝ q = p ⬝ r) :=
@@ -398,36 +404,36 @@ namespace eq
 
   /- Pathover Equivalences -/
 
-  definition pathover_eq_equiv_l (p : a₁ = a₂) (q : a₁ = a₃) (r : a₂ = a₃) : q =[p] r ≃ q = p ⬝ r :=
+  definition eq_pathover_equiv_l (p : a₁ = a₂) (q : a₁ = a₃) (r : a₂ = a₃) : q =[p] r ≃ q = p ⬝ r :=
   /-(λx, x = a₃)-/
   by induction p; exact !pathover_idp ⬝e !equiv_eq_closed_right !idp_con⁻¹
 
-  definition pathover_eq_equiv_r (p : a₂ = a₃) (q : a₁ = a₂) (r : a₁ = a₃) : q =[p] r ≃ q ⬝ p = r :=
+  definition eq_pathover_equiv_r (p : a₂ = a₃) (q : a₁ = a₂) (r : a₁ = a₃) : q =[p] r ≃ q ⬝ p = r :=
   /-(λx, a₁ = x)-/
   by induction p; apply pathover_idp
 
-  definition pathover_eq_equiv_lr (p : a₁ = a₂) (q : a₁ = a₁) (r : a₂ = a₂)
+  definition eq_pathover_equiv_lr (p : a₁ = a₂) (q : a₁ = a₁) (r : a₂ = a₂)
     : q =[p] r ≃ q ⬝ p = p ⬝ r := /-(λx, x = x)-/
   by induction p; exact !pathover_idp ⬝e !equiv_eq_closed_right !idp_con⁻¹
 
-  definition pathover_eq_equiv_Fl (p : a₁ = a₂) (q : f a₁ = b) (r : f a₂ = b)
+  definition eq_pathover_equiv_Fl (p : a₁ = a₂) (q : f a₁ = b) (r : f a₂ = b)
     : q =[p] r ≃ q = ap f p ⬝ r := /-(λx, f x = b)-/
   by induction p; exact !pathover_idp ⬝e !equiv_eq_closed_right !idp_con⁻¹
 
-  definition pathover_eq_equiv_Fr (p : a₁ = a₂) (q : b = f a₁) (r : b = f a₂)
+  definition eq_pathover_equiv_Fr (p : a₁ = a₂) (q : b = f a₁) (r : b = f a₂)
     : q =[p] r ≃ q ⬝ ap f p = r := /-(λx, b = f x)-/
   by induction p; apply pathover_idp
 
-  definition pathover_eq_equiv_FlFr (p : a₁ = a₂) (q : f a₁ = g a₁) (r : f a₂ = g a₂)
+  definition eq_pathover_equiv_FlFr (p : a₁ = a₂) (q : f a₁ = g a₁) (r : f a₂ = g a₂)
     : q =[p] r ≃ q ⬝ ap g p = ap f p ⬝ r := /-(λx, f x = g x)-/
   by induction p; exact !pathover_idp ⬝e !equiv_eq_closed_right !idp_con⁻¹
 
-  definition pathover_eq_equiv_FFlr (p : a₁ = a₂) (q : h (f a₁) = a₁) (r : h (f a₂) = a₂)
+  definition eq_pathover_equiv_FFlr (p : a₁ = a₂) (q : h (f a₁) = a₁) (r : h (f a₂) = a₂)
     : q =[p] r ≃ q ⬝ p = ap h (ap f p) ⬝ r :=
   /-(λx, h (f x) = x)-/
   by induction p; exact !pathover_idp ⬝e !equiv_eq_closed_right !idp_con⁻¹
 
-  definition pathover_eq_equiv_lFFr (p : a₁ = a₂) (q : a₁ = h (f a₁)) (r : a₂ = h (f a₂))
+  definition eq_pathover_equiv_lFFr (p : a₁ = a₂) (q : a₁ = h (f a₁)) (r : a₂ = h (f a₂))
     : q =[p] r ≃ q ⬝ ap h (ap f p) = p ⬝ r :=
   /-(λx, x = h (f x))-/
   by induction p; exact !pathover_idp ⬝e !equiv_eq_closed_right !idp_con⁻¹

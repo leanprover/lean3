@@ -271,12 +271,12 @@ namespace sphere
   end
 
   definition equator [constructor] (n : ℕ) : S* n →* Ω (S* (succ n)) :=
-  loop_susp_unit (S* n)
+  loop_psusp_unit (S* n)
 
   definition surf {n : ℕ} : Ω[n] (S* n) :=
   begin
     induction n with n s,
-    { exact @base 0},
+    { exact south },
     { exact (loopn_succ_in (S* (succ n)) n)⁻¹ᵉ* (apn n (equator n) s), }
   end
 
@@ -287,13 +287,13 @@ namespace sphere
   | ff := proof north qed
   | tt := proof south qed
 
-  definition sphere_equiv_bool : S 0 ≃ bool :=
+  definition sphere_equiv_bool [constructor] : S 0 ≃ bool :=
   equiv.MK bool_of_sphere
            sphere_of_bool
            (λb, match b with | tt := idp | ff := idp end)
            (λx, proof susp.rec_on x idp idp (empty.rec _) qed)
 
-  definition psphere_pequiv_pbool : S* 0 ≃* pbool :=
+  definition psphere_pequiv_pbool [constructor] : S* 0 ≃* pbool :=
   pequiv_of_equiv sphere_equiv_bool idp
 
   definition sphere_eq_bool : S 0 = bool :=
@@ -302,36 +302,26 @@ namespace sphere
   definition sphere_eq_pbool : S* 0 = pbool :=
   pType_eq sphere_equiv_bool idp
 
-  -- TODO1: the commented-out part makes the forward function below "apn _ surf" (the next def also)
-  -- TODO2: we could make this a pointed equivalence
-  definition psphere_pmap_equiv (A : Type*) (n : ℕ) : (S* n →* A) ≃ Ω[n] A :=
+  definition psphere_pmap_pequiv' (A : Type*) (n : ℕ) : ppmap (S* n) A ≃* Ω[n] A :=
   begin
-    -- fapply equiv_change_fun,
-    -- {
-      revert A, induction n with n IH: intro A,
-      { refine _ ⬝e !pmap_bool_equiv, exact pequiv_ppcompose_right psphere_pequiv_pbool⁻¹ᵉ*},
-      { refine susp_adjoint_loop (S* n) A ⬝e !IH ⬝e !loopn_succ_in⁻¹ᵉ* }
-    -- },
-    -- { intro f, exact apn n f surf},
-    -- { revert A, induction n with n IH: intro A f,
-    --   { exact sorry},
-    --   { exact sorry}}
+    revert A, induction n with n IH: intro A,
+    { refine _ ⬝e* !pmap_pbool_pequiv, exact pequiv_ppcompose_right psphere_pequiv_pbool⁻¹ᵉ* },
+    { refine psusp_adjoint_loop (S* n) A ⬝e* IH (Ω A) ⬝e* !loopn_succ_in⁻¹ᵉ*  }
   end
 
-  -- definition psphere_pmap_equiv' (A : Type*) (n : ℕ) : (S* n →* A) ≃ Ω[n] A :=
-  -- begin
-  --   fapply equiv.MK,
-  --   { intro f, exact apn n f surf },
-  --   { revert A, induction n with n IH: intro A p,
-  --     { exact !pmap_bool_equiv⁻¹ᵉ p ∘* psphere_pequiv_pbool },
-  --     { refine (susp_adjoint_loop (S* n) A)⁻¹ᵉ (IH (Ω A) _),
-  --       exact loopn_succ_in A n p }},
-  --   { exact sorry},
-  --   { exact sorry}
-  -- end
+  definition psphere_pmap_pequiv (A : Type*) (n : ℕ) : ppmap (S* n) A ≃* Ω[n] A :=
+  begin
+    fapply pequiv_change_fun,
+    { exact psphere_pmap_pequiv' A n },
+    { exact papn_fun A surf },
+    { revert A, induction n with n IH: intro A,
+      { reflexivity },
+      { intro f, refine ap !loopn_succ_in⁻¹ᵉ* (IH (Ω A) _ ⬝ !apn_pcompose _) ⬝ _,
+        exact !loopn_succ_in_inv_natural⁻¹* _ }}
+  end
 
   protected definition elim {n : ℕ} {P : Type*} (p : Ω[n] P) : S* n →* P :=
-  to_inv !psphere_pmap_equiv p
+  !psphere_pmap_pequiv⁻¹ᵉ* p
 
   -- definition elim_surf {n : ℕ} {P : Type*} (p : Ω[n] P) : apn n (sphere.elim p) surf = p :=
   -- begin
@@ -369,7 +359,7 @@ namespace is_trunc
   begin
     apply iff.elim_right !is_trunc_iff_is_contr_loop,
     intro a,
-    apply is_trunc_equiv_closed, apply psphere_pmap_equiv,
+    apply is_trunc_equiv_closed, exact !psphere_pmap_pequiv,
     fapply is_contr.mk,
     { exact pmap.mk (λx, a) idp},
     { intro f, fapply pmap_eq,
@@ -388,8 +378,9 @@ namespace is_trunc
     (a : A) (f : S* n →* pointed.Mk a) (x : S n) : f x = f base :=
   begin
     let H' := iff.elim_left (is_trunc_iff_is_contr_loop n A) H a,
-    note H'' := @is_trunc_equiv_closed_rev _ _ _ !psphere_pmap_equiv H',
-    have p : (f = pmap.mk (λx, f base) (respect_pt f)),
+    note H'' := @is_trunc_equiv_closed_rev _ _ _ !psphere_pmap_pequiv H',
+    esimp at H'',
+    have p : f = pmap.mk (λx, f base) (respect_pt f),
       by apply is_prop.elim,
     exact ap10 (ap pmap.to_fun p) x
   end

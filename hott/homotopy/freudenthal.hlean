@@ -17,12 +17,12 @@ namespace freudenthal section
   /-
     This proof is ported from Agda
     This is the 95% version of the Freudenthal Suspension Theorem, which means that we don't
-    prove that loop_susp_unit : A →* Ω(psusp A) is 2n-connected (if A is n-connected),
+    prove that loop_psusp_unit : A →* Ω(psusp A) is 2n-connected (if A is n-connected),
     but instead we only prove that it induces an equivalence on the first 2n homotopy groups.
   -/
 
   private definition up (a : A) : north = north :> susp A :=
-  loop_susp_unit A a
+  loop_psusp_unit A a
 
   definition code_merid : A → ptrunc (n + n) A → ptrunc (n + n) A :=
   begin
@@ -162,7 +162,7 @@ namespace freudenthal section
   pequiv_of_equiv equiv' decode_north_pt
 
   -- We don't prove this:
-  -- theorem freudenthal_suspension : is_conn_fun (n+n) (loop_susp_unit A) := sorry
+  -- theorem freudenthal_suspension : is_conn_fun (n+n) (loop_psusp_unit A) := sorry
 
 end end freudenthal
 
@@ -197,6 +197,23 @@ begin
     refine ap !homotopy_group_pequiv_loop_ptrunc _ ⬝ !homotopy_group_pequiv_loop_ptrunc_con,
     apply homotopy_group_succ_in_con}
 end
+
+  definition to_pmap_freudenthal_pequiv {A : Type*} (n k : ℕ) [is_conn n A] (H : k ≤ 2 * n)
+    : freudenthal_pequiv A H ~* ptrunc_functor k (loop_psusp_unit A) :=
+  begin
+    fapply phomotopy.mk,
+    { intro x, induction x with a, reflexivity },
+    { refine !idp_con ⬝ _, refine _ ⬝ ap02 _ !idp_con⁻¹, refine _ ⬝ !ap_compose, apply ap_compose }
+  end
+
+  definition ptrunc_elim_freudenthal_pequiv {A B : Type*} (n k : ℕ) [is_conn n A] (H : k ≤ 2 * n)
+    (f : A →* Ω B) [is_trunc (k.+1) (B)] :
+    ptrunc.elim k (Ω→ (psusp.elim f)) ∘* freudenthal_pequiv A H ~* ptrunc.elim k f :=
+  begin
+    refine pwhisker_left _ !to_pmap_freudenthal_pequiv ⬝* _,
+    refine !ptrunc_elim_ptrunc_functor ⬝* _,
+    exact ptrunc_elim_phomotopy k !ap1_psusp_elim,
+  end
 
 namespace susp
 
@@ -241,5 +258,24 @@ namespace susp
     @stability_helper2 A (k+1) n H,
   freudenthal_homotopy_group_isomorphism (pointed.MK (iterate_susp (n + 1) A) !north)
                                          (stability_helper1 H)
+
+  definition iterated_freudenthal_pequiv (A : Type*) {n k m : ℕ} [HA : is_conn n A] (H : k ≤ 2 * n)
+    : ptrunc k A ≃* ptrunc k (Ω[m] (iterate_psusp m A)) :=
+  begin
+    revert A n k HA H, induction m with m IH: intro A n k HA H,
+    { reflexivity},
+    { have H2 : succ k ≤ 2 * succ n,
+      from calc
+        succ k ≤ succ (2 * n) : succ_le_succ H
+           ... ≤ 2 * succ n   : self_le_succ,
+      exact calc
+        ptrunc k A ≃* ptrunc k (Ω (psusp A))   : freudenthal_pequiv A H
+          ... ≃* Ω (ptrunc (succ k) (psusp A)) : loop_ptrunc_pequiv
+          ... ≃* Ω (ptrunc (succ k) (Ω[m] (iterate_psusp m (psusp A)))) :
+                   loop_pequiv_loop (IH (psusp A) (succ n) (succ k) _ H2)
+          ... ≃* ptrunc k (Ω[succ m] (iterate_psusp m (psusp A))) : loop_ptrunc_pequiv
+          ... ≃* ptrunc k (Ω[succ m] (iterate_psusp (succ m) A)) :
+                   ptrunc_pequiv_ptrunc _ (loopn_pequiv_loopn _ !iterate_psusp_succ_in)}
+  end
 
 end susp

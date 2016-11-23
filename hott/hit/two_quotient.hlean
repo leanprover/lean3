@@ -606,7 +606,7 @@ namespace trunc_two_quotient
   begin
     note Ht' := ap_ap_e_closure_elim tr (elim P0 P1 P2) (two_quotient.incl1 R Q) t',
     note Ht := ap_ap_e_closure_elim tr (elim P0 P1 P2) (two_quotient.incl1 R Q) t,
-    note Hn := natural_square (ap_compose (elim P0 P1 P2) tr) (two_quotient.incl2 R Q q),
+    note Hn := natural_square_tr (ap_compose (elim P0 P1 P2) tr) (two_quotient.incl2 R Q q),
     note H7 := eq_top_of_square (Ht⁻¹ʰ ⬝h Hn⁻¹ᵛ ⬝h Ht'), clear [Hn, Ht, Ht'],
     unfold [ap02,incl2], rewrite [+ap_con,ap_inv,-ap_compose (ap _)],
     xrewrite [H7, ↑function.compose, eq_top_of_square (elim_incl2 P0 P1 P2 q)], clear [H7],

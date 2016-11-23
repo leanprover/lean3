@@ -1,14 +1,14 @@
 /-
 Copyright (c) 2015-16 Floris van Doorn. All rights reserved.
 Released under Apache 2.0 license as described in the file LICENSE.
-Authors: Floris van Doorn, Ulrik Buchholtz
+Authors: Floris van Doorn, Ulrik Buchholtz, Jakob von Raumer
 
 Declaration and properties of the pushout
 -/
 
 import .quotient types.sigma types.arrow_2
 
-open quotient eq sum equiv is_trunc
+open quotient eq sum equiv is_trunc pointed
 
 namespace pushout
 section
@@ -338,5 +338,41 @@ namespace pushout
 
     protected definition equiv : pushout f g ≃ pushout f' g' :=
     equiv.mk (pushout.functor f g f' g' tl bl tr fh gh) _
+  end
+
+  definition pointed_pushout [instance] [constructor] {TL BL TR : Type} [HTL : pointed TL]
+    [HBL : pointed BL] [HTR : pointed TR] (f : TL → BL) (g : TL → TR) : pointed (pushout f g) :=
+  pointed.mk (inl (point _))
+end pushout open pushout
+
+definition ppushout [constructor] {TL BL TR : Type*} (f : TL →* BL) (g : TL →* TR) : Type* :=
+pointed.mk' (pushout f g)
+
+namespace pushout
+  section
+  parameters {TL BL TR : Type*} (f : TL →* BL) (g : TL →* TR)
+
+  parameters {f g}
+  definition pinl [constructor] : BL →* ppushout f g :=
+  pmap.mk inl idp
+
+  definition pinr [constructor] : TR →* ppushout f g :=
+  pmap.mk inr ((ap inr (respect_pt g))⁻¹ ⬝ !glue⁻¹ ⬝ (ap inl (respect_pt f)))
+
+  definition pglue (x : TL) : pinl (f x) = pinr (g x) := -- TODO do we need this?
+  !glue
+
+  end
+
+  section
+  variables {TL BL TR : Type*} (f : TL →* BL) (g : TL →* TR)
+
+  protected definition psymm [constructor] : ppushout f g ≃* ppushout g f :=
+  begin
+    fapply pequiv_of_equiv,
+    { apply pushout.symm},
+    { exact ap inr (respect_pt f)⁻¹ ⬝ !glue⁻¹ ⬝ ap inl (respect_pt g)}
+  end
+
   end
 end pushout

@@ -255,7 +255,7 @@ namespace eq
     {b : Πa, B (f a)} {b₂ : Πa, B (g a)} {q : Π(a' : A'), f a' = g a'}
     (r : pathover B (b a') (q a') (b₂ a'))
     (r₂ : pathover B (b a₂') (q a₂') (b₂ a₂'))
-    (s : squareover B (natural_square_tr q p) r r₂
+    (s : squareover B (natural_square q p) r r₂
                       (pathover_ap B f (apd b p)) (pathover_ap B g (apd b₂ p)))
     : pathover (λa, pathover B (b a) (q a) (b₂ a)) r p r₂ :=
   begin

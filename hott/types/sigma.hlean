@@ -264,8 +264,11 @@ namespace sigma
   sigma_equiv_sigma equiv.rfl Hg
 
   definition sigma_equiv_sigma_left [constructor] (Hf : A ≃ A') :
-      (Σa, B a) ≃ (Σa', B (to_inv Hf a')) :=
+    (Σa, B a) ≃ (Σa', B (to_inv Hf a')) :=
   sigma_equiv_sigma Hf (λ a, equiv_ap B !right_inv⁻¹)
+
+  definition sigma_equiv_sigma_left' [constructor] (Hf : A' ≃ A) : (Σa, B (Hf a)) ≃ (Σa', B a') :=
+  sigma_equiv_sigma Hf (λa, erfl)
 
   definition ap_sigma_functor_eq_dpair (p : a = a') (q : b =[p] b') :
     ap (sigma_functor f g) (sigma_eq p q) = sigma_eq (ap f p) (pathover.rec_on q idpo) :=

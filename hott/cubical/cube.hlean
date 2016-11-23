@@ -106,7 +106,16 @@ namespace eq
     (c : cube vrfl vrfl vrfl vrfl s s') : s = s' :=
   by induction s; exact eq_of_cube c
 
-  definition square_pathover [unfold 7]
+  definition square_pathover {A B : Type} {a a' : A} {b₁ b₂ b₃ b₄ : A → B}
+    {f₁ : b₁ ~ b₂} {f₂ : b₃ ~ b₄} {f₃ : b₁ ~ b₃} {f₄ : b₂ ~ b₄} {p : a = a'}
+    {q : square (f₁ a) (f₂ a) (f₃ a) (f₄ a)}
+    {r : square (f₁ a') (f₂ a') (f₃ a') (f₄ a')}
+    (s : cube (natural_square f₁ p) (natural_square f₂ p)
+              (natural_square f₃ p) (natural_square f₄ p) q r) : q =[p] r :=
+  by induction p; apply pathover_idp_of_eq; exact eq_of_deg12_cube s
+
+  -- a special case where the endpoints do not depend on `p`
+  definition square_pathover'
     {f₁ : A → b₁ = b₂} {f₂ : A → b₃ = b₄} {f₃ : A → b₁ = b₃} {f₄ : A → b₂ = b₄}
     {p : a = a'}
     {q : square (f₁ a) (f₂ a) (f₃ a) (f₄ a)}
@@ -298,7 +307,43 @@ namespace eq
 
   definition cube_inverse3 : cube s₀₁₁⁻¹ᵛ s₂₁₁⁻¹ᵛ s₁₀₁⁻¹ᵛ s₁₂₁⁻¹ᵛ s₁₁₂ s₁₁₀ :=
   by cases c; exact idc
-
   omit c
+
+  definition eq_concat1 {s₀₁₁' : square p₀₁₀ p₀₁₂ p₀₀₁ p₀₂₁} (r : s₀₁₁' = s₀₁₁)
+    (c : cube s₀₁₁ s₂₁₁ s₁₀₁ s₁₂₁ s₁₁₀ s₁₁₂) : cube s₀₁₁' s₂₁₁ s₁₀₁ s₁₂₁ s₁₁₀ s₁₁₂ :=
+  by induction r; exact c
+
+  definition concat1_eq {s₂₁₁' : square p₂₁₀ p₂₁₂ p₂₀₁ p₂₂₁}
+    (c : cube s₀₁₁ s₂₁₁ s₁₀₁ s₁₂₁ s₁₁₀ s₁₁₂) (r : s₂₁₁ = s₂₁₁')
+    : cube s₀₁₁ s₂₁₁' s₁₀₁ s₁₂₁ s₁₁₀ s₁₁₂ :=
+  by induction r; exact c
+
+  definition eq_concat2 {s₁₀₁' : square p₁₀₀ p₁₀₂ p₀₀₁ p₂₀₁} (r : s₁₀₁' = s₁₀₁)
+    (c : cube s₀₁₁ s₂₁₁ s₁₀₁ s₁₂₁ s₁₁₀ s₁₁₂) : cube s₀₁₁ s₂₁₁ s₁₀₁' s₁₂₁ s₁₁₀ s₁₁₂ :=
+  by induction r; exact c
+
+  definition concat2_eq {s₁₂₁' : square p₁₂₀ p₁₂₂ p₀₂₁ p₂₂₁}
+    (c : cube s₀₁₁ s₂₁₁ s₁₀₁ s₁₂₁ s₁₁₀ s₁₁₂) (r : s₁₂₁ = s₁₂₁')
+    : cube s₀₁₁ s₂₁₁ s₁₀₁ s₁₂₁' s₁₁₀ s₁₁₂ :=
+  by induction r; exact c
+
+  definition eq_concat3 {s₁₁₀' : square p₀₁₀ p₂₁₀ p₁₀₀ p₁₂₀} (r : s₁₁₀' = s₁₁₀)
+    (c : cube s₀₁₁ s₂₁₁ s₁₀₁ s₁₂₁ s₁₁₀ s₁₁₂) : cube s₀₁₁ s₂₁₁ s₁₀₁ s₁₂₁ s₁₁₀' s₁₁₂ :=
+  by induction r; exact c
+
+  definition concat3_eq {s₁₁₂' : square p₀₁₂ p₂₁₂ p₁₀₂ p₁₂₂}
+    (c : cube s₀₁₁ s₂₁₁ s₁₀₁ s₁₂₁ s₁₁₀ s₁₁₂) (r : s₁₁₂ = s₁₁₂')
+    : cube s₀₁₁ s₂₁₁ s₁₀₁ s₁₂₁ s₁₁₀ s₁₁₂' :=
+  by induction r; exact c
+
+  infix ` ⬝1 `:75 := cube_concat1
+  infix ` ⬝2 `:75 := cube_concat2
+  infix ` ⬝3 `:75 := cube_concat3
+  infix ` ⬝p1 `:75 := eq_concat1
+  infix ` ⬝1p `:75 := concat1_eq
+  infix ` ⬝p2 `:75 := eq_concat3
+  infix ` ⬝2p `:75 := concat2_eq
+  infix ` ⬝p3 `:75 := eq_concat3
+  infix ` ⬝3p `:75 := concat3_eq
 
 end eq

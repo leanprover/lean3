@@ -18,7 +18,7 @@ chain complexes:
 
 -/
 
-import types.int algebra.group_theory types.fin
+import types.int algebra.group_theory types.fin types.unit
 
 open eq pointed int unit is_equiv equiv is_trunc trunc function algebra group sigma.ops
      sum prod nat bool fin
@@ -61,7 +61,20 @@ notation `-6ℕ` := stratified -ℕ 5
 notation `+6ℤ` := stratified +ℤ 5
 notation `-6ℤ` := stratified -ℤ 5
 
+namespace succ_str
+  protected definition add [reducible] {N : succ_str} (n : N) (k : ℕ) : N :=
+  iterate S k n
+
+  infix ` +' `:65 := succ_str.add
+
+  definition add_succ {N : succ_str} (n : N) (k : ℕ) : n +' (k + 1) = (S n) +' k :=
+  by induction k with k p; reflexivity; exact ap S p
+
+end succ_str
+
 namespace chain_complex
+
+  export [notation] succ_str
 
   /-
     We define "type chain complexes" which are chain complexes without the
@@ -74,7 +87,6 @@ namespace chain_complex
 
   section
   variables {N : succ_str} (X : type_chain_complex N) (n : N)
-
   definition tcc_to_car [unfold 2] [coercion] := @type_chain_complex.car
   definition tcc_to_fn  [unfold 2] : X (S n) →* X n := type_chain_complex.fn X n
   definition tcc_is_chain_complex  [unfold 2]

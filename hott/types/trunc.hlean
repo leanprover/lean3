@@ -322,17 +322,17 @@ namespace is_trunc
   definition tua_refl {n : ℕ₋₂} (A : n-Type) : tua (@erfl A) = idp :=
   begin
     refine ap (trunctype_eq_equiv n A A)⁻¹ᶠ (ua_refl A) ⬝ _,
-    esimp, refine ap (eq_of_fn_eq_fn _) _ ⬝ !eq_of_fn_eq_fn'_idp ,
-    esimp, apply ap (dpair_eq_dpair idp), apply is_prop.elim
+    refine ap (eq_of_fn_eq_fn _) _ ⬝ !eq_of_fn_eq_fn'_idp ,
+    apply ap (dpair_eq_dpair idp), apply is_prop.elim
   end
 
   definition tua_trans {n : ℕ₋₂} {A B C : n-Type} (f : A ≃ B) (g : B ≃ C)
     : tua (f ⬝e g) = tua f ⬝ tua g :=
   begin
     refine ap (trunctype_eq_equiv n A C)⁻¹ᶠ (ua_trans f g) ⬝ _,
-    esimp, refine ap (eq_of_fn_eq_fn _) _ ⬝ !eq_of_fn_eq_fn'_con,
+    refine ap (eq_of_fn_eq_fn _) _ ⬝ !eq_of_fn_eq_fn'_con,
     refine _ ⬝ !dpair_eq_dpair_con,
-    apply ap (dpair_eq_dpair _), apply is_prop.elim
+    apply ap (dpair_eq_dpair _), esimp, apply is_prop.elim
   end
 
   definition tua_symm {n : ℕ₋₂} {A B : n-Type} (f : A ≃ B) : tua f⁻¹ᵉ = (tua f)⁻¹ :=
@@ -372,7 +372,7 @@ namespace is_trunc
         to_fun (equiv.symm !heq_pi) H2,
       have H4 : imp (refl a) ⬝ p = imp (refl a), from
         calc
-          imp (refl a) ⬝ p = transport (λx, a = x) p (imp (refl a)) : transport_eq_r
+          imp (refl a) ⬝ p = transport (λx, a = x) p (imp (refl a)) : eq_transport_r
             ... = imp (transport (λx, R a x) p (refl a)) : H3
             ... = imp (refl a) : is_prop.elim,
       cancel_left (imp (refl a)) H4)
@@ -674,19 +674,31 @@ namespace trunc
       exact tr (fiber.mk (tr a) (ap tr p))}
   end
 
-  /- truncation of pointed types and its functorial action -/
+  /- truncation of pointed types -/
   definition ptrunc [constructor] (n : ℕ₋₂) (X : Type*) : n-Type* :=
   ptrunctype.mk (trunc n X) _ (tr pt)
 
+  /- pointed maps involving ptrunc -/
   definition ptrunc_functor [constructor] {X Y : Type*} (n : ℕ₋₂) (f : X →* Y)
     : ptrunc n X →* ptrunc n Y :=
   pmap.mk (trunc_functor n f) (ap tr (respect_pt f))
 
+  definition ptr [constructor] (n : ℕ₋₂) (A : Type*) : A →* ptrunc n A :=
+  pmap.mk tr idp
+
+  definition puntrunc [constructor] (n : ℕ₋₂) (A : Type*) [is_trunc n A] : ptrunc n A →* A :=
+  pmap.mk untrunc_of_is_trunc idp
+
+  definition ptrunc.elim [constructor] (n : ℕ₋₂) {X Y : Type*} [is_trunc n Y] (f : X →* Y) :
+    ptrunc n X →* Y :=
+  pmap.mk (trunc.elim f) (respect_pt f)
+
+  /- pointed equivalences involving ptrunc -/
   definition ptrunc_pequiv_ptrunc [constructor] (n : ℕ₋₂) {X Y : Type*} (H : X ≃* Y)
     : ptrunc n X ≃* ptrunc n Y :=
   pequiv_of_equiv (trunc_equiv_trunc n H) (ap tr (respect_pt H))
 
-  definition ptrunc_pequiv [constructor] (n : ℕ₋₂) (X : Type*) (H : is_trunc n X)
+  definition ptrunc_pequiv [constructor] (n : ℕ₋₂) (X : Type*) [H : is_trunc n X]
     : ptrunc n X ≃* X :=
   pequiv_of_equiv (trunc_equiv n X) idp
 
@@ -705,7 +717,7 @@ namespace trunc
   ptrunc_ptrunc_pequiv_left B H
 
   definition ptrunc_ptrunc_pequiv_ptrunc_ptrunc [constructor] (n m : ℕ₋₂) (A : Type*)
-    : ptrunc n (ptrunc m A) ≃ ptrunc m (ptrunc n A) :=
+    : ptrunc n (ptrunc m A) ≃* ptrunc m (ptrunc n A) :=
   pequiv_of_equiv (trunc_trunc_equiv_trunc_trunc n m A) idp
 
   definition loop_ptrunc_pequiv [constructor] (n : ℕ₋₂) (A : Type*) :
@@ -717,7 +729,6 @@ namespace trunc
       tconcat (loop_ptrunc_pequiv n A p) (loop_ptrunc_pequiv n A q) :=
   encode_con p q
 
-  -- rename
   definition loopn_ptrunc_pequiv (n : ℕ₋₂) (k : ℕ) (A : Type*) :
     Ω[k] (ptrunc (n+k) A) ≃* ptrunc n (Ω[k] A) :=
   begin
@@ -747,6 +758,7 @@ namespace trunc
   equiv.inv_preserve_binary (loopn_ptrunc_pequiv n (succ k) A) concat tconcat
     (@loopn_ptrunc_pequiv_con n k A) p q
 
+  /- pointed homotopies involving ptrunc -/
   definition ptrunc_functor_pcompose [constructor] {X Y Z : Type*} (n : ℕ₋₂) (g : Y →* Z)
     (f : X →* Y) : ptrunc_functor n (g ∘* f) ~* ptrunc_functor n g ∘* ptrunc_functor n f :=
   begin
@@ -787,6 +799,59 @@ namespace trunc
     fapply phomotopy.mk,
     { intro a, induction p, esimp, exact !trunc_functor_id⁻¹},
     { induction p, reflexivity}
+  end
+
+  definition ptrunc_elim_ptr [constructor] (n : ℕ₋₂) {X Y : Type*} [is_trunc n Y] (f : X →* Y) :
+    ptrunc.elim n f ∘* ptr n X ~* f :=
+  begin
+    fapply phomotopy.mk,
+    { reflexivity },
+    { reflexivity }
+  end
+
+  definition ptrunc_elim_phomotopy (n : ℕ₋₂) {X Y : Type*} [is_trunc n Y] {f g : X →* Y}
+    (H : f ~* g) : ptrunc.elim n f ~* ptrunc.elim n g :=
+  begin
+    fapply phomotopy.mk,
+    { intro x, induction x with x, exact H x },
+    { exact to_homotopy_pt H }
+  end
+
+  definition ap1_ptrunc_functor (n : ℕ₋₂) {A B : Type*} (f : A →* B) :
+    Ω→ (ptrunc_functor (n.+1) f) ∘* (loop_ptrunc_pequiv n A)⁻¹ᵉ* ~*
+    (loop_ptrunc_pequiv n B)⁻¹ᵉ* ∘* ptrunc_functor n (Ω→ f) :=
+  begin
+    fapply phomotopy.mk,
+    { intro p, induction p with p,
+      refine (!ap_inv⁻¹ ◾ !ap_compose⁻¹ ◾ idp) ⬝ _ ⬝ !ap_con⁻¹,
+      apply whisker_right, refine _ ⬝ !ap_con⁻¹, exact whisker_left _ !ap_compose },
+    { induction B with B b, induction f with f p, esimp at f, esimp at p, induction p, reflexivity }
+  end
+
+  definition ap1_ptrunc_elim (n : ℕ₋₂) {A B : Type*} (f : A →* B) [is_trunc (n.+1) B] :
+    Ω→ (ptrunc.elim (n.+1) f) ∘* (loop_ptrunc_pequiv n A)⁻¹ᵉ* ~*
+    ptrunc.elim n (Ω→ f) :=
+  begin
+    fapply phomotopy.mk,
+    { intro p, induction p with p, exact idp ◾ !ap_compose⁻¹ ◾ idp },
+    { reflexivity }
+  end
+
+  definition ap1_ptr (n : ℕ₋₂) (A : Type*) :
+    Ω→ (ptr (n.+1) A) ~* (loop_ptrunc_pequiv n A)⁻¹ᵉ* ∘* ptr n (Ω A) :=
+  begin
+    fapply phomotopy.mk,
+    { intro p, apply idp_con },
+    { reflexivity }
+  end
+
+  definition ptrunc_elim_ptrunc_functor (n : ℕ₋₂) {A B C : Type*} (g : B →* C) (f : A →* B)
+    [is_trunc n C] :
+    ptrunc.elim n g ∘* ptrunc_functor n f ~* ptrunc.elim n (g ∘* f) :=
+  begin
+    fapply phomotopy.mk,
+    { intro x, induction x with a, reflexivity },
+    { esimp, exact !idp_con ⬝ whisker_right !ap_compose _ },
   end
 
 end trunc open trunc

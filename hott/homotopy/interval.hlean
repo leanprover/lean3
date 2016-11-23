@@ -60,7 +60,7 @@ namespace interval
   by rewrite [tr_eq_cast_ap_fn,↑interval.elim_type,elim_seg];apply cast_ua_fn
 
   definition is_contr_interval [instance] [priority 900] : is_contr interval :=
-  is_contr.mk zero (λx, interval.rec_on x idp seg !pathover_eq_r_idp)
+  is_contr.mk zero (λx, interval.rec_on x idp seg !eq_pathover_r_idp)
 
   definition naive_funext_of_interval : naive_funext :=
   λA P f g p, ap (λ(i : interval) (x : A), interval.elim_on i (f x) (g x) (p x)) seg

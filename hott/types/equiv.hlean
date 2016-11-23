@@ -7,7 +7,7 @@ Ported from Coq HoTT
 Theorems about the types equiv and is_equiv
 -/
 
-import .fiber .arrow arity ..prop_trunc cubical.square
+import .fiber .arrow arity ..prop_trunc cubical.square .pointed
 
 open eq is_trunc sigma sigma.ops pi fiber function equiv
 
@@ -108,7 +108,7 @@ namespace is_equiv
   begin
     rewrite [↑[inv_commute',eq_of_fn_eq_fn'],+ap_con,-adj_inv f,+con.assoc,inv_con_cancel_left,
        adj f,+ap_inv,-+ap_compose,
-       eq_bot_of_square (natural_square (λb, (left_inv f (h b))⁻¹ ⬝ ap f⁻¹ (p b)) (left_inv f b))⁻¹ʰ,
+       eq_bot_of_square (natural_square_tr (λb, (left_inv f (h b))⁻¹ ⬝ ap f⁻¹ (p b)) (left_inv f b))⁻¹ʰ,
        con_inv,inv_inv,+con.assoc],
     do 3 apply whisker_left,
     rewrite [con_inv_cancel_left,con.left_inv]
@@ -136,7 +136,7 @@ namespace is_equiv
       apply inverse, apply eq_bot_of_square,
       apply eq_hconcat (ap02 α (adj_inv f b)),
       apply eq_hconcat (ap_compose α f⁻¹ (right_inv f b))⁻¹,
-      apply natural_square_tr q (right_inv f b)
+      apply natural_square q (right_inv f b)
     end end
     abstract begin
       intro p, apply eq_of_homotopy, intro a,
@@ -149,7 +149,7 @@ namespace is_equiv
       apply inverse, apply eq_bot_of_square,
       refine hconcat_eq _ (ap02 β (adj f a))⁻¹,
       refine hconcat_eq _ (ap_compose β f (left_inv f a)),
-      apply natural_square_tr p (left_inv f a)
+      apply natural_square p (left_inv f a)
     end end
   end pre_compose
 
@@ -172,7 +172,7 @@ namespace is_equiv
       apply eq_hconcat (adj_inv f (β c))⁻¹,
       apply eq_vconcat (ap_compose f⁻¹ f (q c))⁻¹,
       refine vconcat_eq _ (ap_id (q c)),
-      apply natural_square (left_inv f) (q c)
+      apply natural_square_tr (left_inv f) (q c)
     end end
     abstract begin
       intro p, apply eq_of_homotopy, intro c,
@@ -186,7 +186,7 @@ namespace is_equiv
       refine hconcat_eq _ (adj f (α c)),
       apply eq_vconcat (ap_compose f f⁻¹ (p c))⁻¹,
       refine vconcat_eq _ (ap_id (p c)),
-      apply natural_square (right_inv f) (p c)
+      apply natural_square_tr (right_inv f) (p c)
     end end
 
   end post_compose
@@ -306,3 +306,13 @@ namespace equiv
   end
 
 end equiv
+
+namespace pointed
+  open equiv is_equiv
+  definition pequiv_eq {A B : Type*} {p q : A ≃* B} (H : p = q :> (A →* B)) : p = q :=
+  begin
+    cases p with f Hf, cases q with g Hg, esimp at *,
+    exact apd011 pequiv_of_pmap H !is_prop.elimo
+  end
+
+end pointed

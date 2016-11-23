@@ -103,7 +103,8 @@ namespace eq
     apply ap tr, apply loopn_succ_in_con
   end
 
-  definition ghomotopy_group_succ_in (A : Type*) (n : ℕ) : πg[n + 2] A ≃g πg[n + 1] (Ω A) :=
+  definition ghomotopy_group_succ_in [constructor] (A : Type*) (n : ℕ) :
+    πg[n + 2] A ≃g πg[n + 1] (Ω A) :=
   begin
     fapply isomorphism_of_equiv,
     { exact homotopy_group_succ_in A (succ n)},
@@ -119,6 +120,9 @@ namespace eq
   definition homotopy_group_functor_phomotopy [constructor] (n : ℕ) {A B : Type*} {f g : A →* B}
     (p : f ~* g) : π→[n] f ~* π→[n] g :=
   ptrunc_functor_phomotopy 0 (apn_phomotopy n p)
+
+  definition homotopy_group_functor_pid (n : ℕ) (A : Type*) : π→[n] (pid A) ~* pid (π[n] A) :=
+  ptrunc_functor_phomotopy 0 !apn_pid ⬝* !ptrunc_functor_pid
 
   definition homotopy_group_functor_compose [constructor] (n : ℕ) {A B C : Type*} (g : B →* C)
     (f : A →* B) : π→[n] (g ∘* f) ~* π→[n] g ∘* π→[n] f :=
@@ -227,7 +231,7 @@ namespace eq
   begin
     fapply isomorphism_of_equiv,
     { exact homotopy_group_ptrunc (k+1) A},
-    { intro g₁ g₂, esimp,
+    { intro g₁ g₂,
       refine _ ⬝ !homotopy_group_pequiv_loop_ptrunc_inv_con,
       apply ap ((homotopy_group_pequiv_loop_ptrunc (k+1) A)⁻¹ᵉ*),
       refine _ ⬝ !loopn_pequiv_loopn_con ,

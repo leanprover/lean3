@@ -90,7 +90,7 @@ calc
 protected theorem sub.right_comm (m n k : ℕ) : m - n - k = m - k - n :=
 calc
   m - n - k = m - (n + k) : !nat.sub_sub
-        ... = m - (k + n) : {!add.comm}
+        ... = m - (k + n) : by rewrite add.comm
         ... = m - k - n   : !nat.sub_sub⁻¹
 
 theorem sub_one (n : ℕ) : n - 1 = pred n :=

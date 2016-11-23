@@ -15,10 +15,15 @@ namespace cofiber
   section
   parameters {A B : Type} (f : A → B)
 
-  protected definition base [constructor] : cofiber f := inl ⋆
+  protected definition base : cofiber f := inl ⋆
 
-  protected definition cod [constructor] : B → cofiber f := inr
+  protected definition cod : B → cofiber f := inr
 
+  parameter {f}
+  protected definition glue (a : A) : cofiber.base f = cofiber.cod f (f a) :=
+  pushout.glue a
+
+  parameter (f)
   protected definition contr_of_equiv [H : is_equiv f] : is_contr (cofiber f) :=
   begin
     fapply is_contr.mk, exact base,
@@ -30,52 +35,41 @@ namespace cofiber
       refine _ ⬝hp (ap (ap inr) !adj⁻¹), refine _ ⬝hp !ap_compose, apply square_Flr_idp_ap },
   end
 
-  protected definition rec {A : Type} {B : Type} {f : A → B} {P : cofiber f → Type}
-    (Pinl : P (inl ⋆)) (Pinr : Π (x : B), P (inr x))
-    (Pglue : Π (x : A), pathover P Pinl (glue x) (Pinr (f x))) :
+  parameter {f}
+  protected definition rec {P : cofiber f → Type}
+    (Pbase : P base) (Pcod : Π (b : B), P (cod b))
+    (Pglue : Π (a : A), pathover P Pbase (glue a) (Pcod (f a))) :
     (Π y, P y) :=
   begin
-    intro y, induction y, induction x, exact Pinl, exact Pinr x, esimp, exact Pglue x,
+    intro y, induction y, induction x, exact Pbase, exact Pcod x, esimp, exact Pglue x,
   end
 
-  protected definition rec_on {A : Type} {B : Type} {f : A → B} {P : cofiber f → Type}
-    (y : cofiber f) (Pinl : P (inl ⋆)) (Pinr : Π (x : B), P (inr x))
-    (Pglue : Π (x : A), pathover P Pinl (glue x) (Pinr (f x))) : P y :=
-   begin
-     induction y, induction x, exact Pinl, exact Pinr x, esimp, exact Pglue x,
-   end
+  protected definition rec_on {P : cofiber f → Type} (y : cofiber f)
+    (Pbase : P base) (Pcod : Π (b : B), P (cod b))
+    (Pglue : Π (a : A), pathover P Pbase (glue a) (Pcod (f a))) : P y :=
+  cofiber.rec Pbase Pcod Pglue y
+
+  protected definition elim {P : Type} (Pbase : P) (Pcod : B → P)
+    (Pglue : Π (x : A), Pbase = Pcod (f x)) (y : cofiber f) : P :=
+  pushout.elim (λu, Pbase) Pcod Pglue y
+
+  protected definition elim_on {P : Type} (y : cofiber f) (Pbase : P) (Pcod : B → P)
+    (Pglue : Π (x : A), Pbase = Pcod (f x)) : P :=
+  cofiber.elim Pbase Pcod Pglue y
 
   end
 end cofiber
 
+attribute cofiber.base cofiber.cod [constructor]
+attribute cofiber.rec cofiber.elim [recursor 8] [unfold 8]
+attribute cofiber.rec_on cofiber.elim_on [unfold 5]
+
 -- pointed version
 
-definition pcofiber {A B : Type*} (f : A →* B) : Type* := ppushout (pconst A punit) f
+definition pcofiber [constructor] {A B : Type*} (f : A →* B) : Type* :=
+pointed.MK (cofiber f) !cofiber.base
 
 namespace cofiber
-
-  protected definition prec {A B : Type*} {f : A →* B} {P : pcofiber f → Type}
-    (Pinl : P (inl ⋆)) (Pinr : Π (x : B), P (inr x))
-    (Pglue : Π (x : A), pathover P Pinl (pglue x) (Pinr (f x))) :
-    (Π (y : pcofiber f), P y) :=
-  begin
-    intro y, induction y, induction x, exact Pinl, exact Pinr x, esimp, exact Pglue x
-  end
-
-  protected definition prec_on {A B : Type*} {f : A →* B} {P : pcofiber f → Type}
-    (y : pcofiber f) (Pinl : P (inl ⋆)) (Pinr : Π (x : B), P (inr x))
-    (Pglue : Π (x : A), pathover P Pinl (pglue x) (Pinr (f x))) : P y :=
-  begin
-    induction y, induction x, exact Pinl, exact Pinr x, esimp, exact Pglue x
-  end
-
-  protected definition pelim_on {A B C : Type*} {f : A →* B} (y : pcofiber f)
-    (c : C) (g : B → C) (p : Π x, c = g (f x)) : C :=
-  begin
-    fapply pushout.elim_on y, exact (λ x, c), exact g, exact p
-  end
-
-  --TODO more pointed recursors
 
   variables (A : Type*)
 
