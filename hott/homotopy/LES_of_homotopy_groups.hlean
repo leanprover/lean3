@@ -716,20 +716,20 @@ namespace chain_complex
   | (fin.mk 2     H) := begin rexact group_homotopy_group n (pfiber f) end
   | (fin.mk (k+3) H) := begin exfalso, apply lt_le_antisymm H, apply le_add_left end
 
-  definition comm_group_LES_of_homotopy_groups (n : ℕ) : Π(x : fin (succ 2)),
-    comm_group (LES_of_homotopy_groups (n + 2, x))
-  | (fin.mk 0 H) := proof comm_group_homotopy_group n Y qed
-  | (fin.mk 1 H) := proof comm_group_homotopy_group n X qed
-  | (fin.mk 2 H) := proof comm_group_homotopy_group n (pfiber f) qed
+  definition ab_group_LES_of_homotopy_groups (n : ℕ) : Π(x : fin (succ 2)),
+    ab_group (LES_of_homotopy_groups (n + 2, x))
+  | (fin.mk 0 H) := proof ab_group_homotopy_group n Y qed
+  | (fin.mk 1 H) := proof ab_group_homotopy_group n X qed
+  | (fin.mk 2 H) := proof ab_group_homotopy_group n (pfiber f) qed
   | (fin.mk (k+3) H) := begin exfalso, apply lt_le_antisymm H, apply le_add_left end
 
   definition Group_LES_of_homotopy_groups (x : +3ℕ) : Group.{u} :=
   Group.mk (LES_of_homotopy_groups (nat.succ (pr1 x), pr2 x))
               (group_LES_of_homotopy_groups (pr1 x) (pr2 x))
 
-  definition CommGroup_LES_of_homotopy_groups (n : +3ℕ) : CommGroup.{u} :=
-  CommGroup.mk (LES_of_homotopy_groups (pr1 n + 2, pr2 n))
-                  (comm_group_LES_of_homotopy_groups (pr1 n) (pr2 n))
+  definition AbGroup_LES_of_homotopy_groups (n : +3ℕ) : AbGroup.{u} :=
+  AbGroup.mk (LES_of_homotopy_groups (pr1 n + 2, pr2 n))
+                  (ab_group_LES_of_homotopy_groups (pr1 n) (pr2 n))
 
   definition homomorphism_LES_of_homotopy_groups_fun : Π(k : +3ℕ),
     Group_LES_of_homotopy_groups (S k) →g Group_LES_of_homotopy_groups k

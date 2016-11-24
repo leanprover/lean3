@@ -279,6 +279,7 @@ namespace simple_two_quotient
     ⦃a : A⦄ ⦃r : T a a⦄ (q : Q r) : ap (elim P0 P1 P2) (incl2' q base) = idpath (P0 a) :=
   !elim_eq_of_rel
 
+  local attribute whisker_right [reducible]
   protected theorem elim_incl2w {P : Type} (P0 : A → P)
     (P1 : Π⦃a a' : A⦄ (s : R a a'), P0 a = P0 a')
     (P2 : Π⦃a : A⦄ ⦃r : T a a⦄ (q : Q r), e_closure.elim P1 r = idp)

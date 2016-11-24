@@ -50,7 +50,7 @@ namespace smash
   gluel' a pt ⬝ gluer' pt b
 
   definition glue_pt_left (b : B) : glue (Point A) b = gluer' pt b :=
-  whisker_right !con.right_inv _ ⬝ !idp_con
+  whisker_right _ !con.right_inv ⬝ !idp_con
 
   definition glue_pt_right (a : A) : glue a (Point B) = gluel' a pt :=
   proof whisker_left _ !con.right_inv qed
@@ -82,11 +82,11 @@ namespace smash
     { exact gluel pt ▸ Pmk pt pt },
     { exact gluer pt ▸ Pmk pt pt },
     { refine change_path _ (Pg a pt ⬝o !pathover_tr),
-      refine whisker_right !glue_pt_right _ ⬝ _, esimp, refine !con.assoc ⬝ _,
+      refine whisker_right _ !glue_pt_right ⬝ _, esimp, refine !con.assoc ⬝ _,
       apply whisker_left, apply con.left_inv },
     { refine change_path _ ((Pg pt b)⁻¹ᵒ ⬝o !pathover_tr),
-      refine whisker_right !glue_pt_left⁻² _ ⬝ _,
-      refine whisker_right !inv_con_inv_right _ ⬝ _, refine !con.assoc ⬝ _,
+      refine whisker_right _ !glue_pt_left⁻² ⬝ _,
+      refine whisker_right _ !inv_con_inv_right ⬝ _, refine !con.assoc ⬝ _,
       apply whisker_left, apply con.left_inv }
   end
 

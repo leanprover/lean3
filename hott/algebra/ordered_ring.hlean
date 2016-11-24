@@ -34,7 +34,7 @@ structure ordered_semiring (A : Type)
 --   ordered_semiring.to_ordered_mul_cancel_comm_monoid to be an instance -/
 attribute ordered_semiring [class]
 
-definition add_comm_group_of_ordered_semiring [trans_instance] [reducible] (A : Type)
+definition add_ab_group_of_ordered_semiring [trans_instance] [reducible] (A : Type)
   [H : ordered_semiring A] : semiring A :=
 @ordered_semiring.to_semiring A H
 
@@ -209,7 +209,7 @@ structure decidable_linear_ordered_semiring [class] (A : Type)
 
 /- ring structures -/
 
-structure ordered_ring (A : Type) extends ring A, ordered_mul_comm_group A renaming
+structure ordered_ring (A : Type) extends ring A, ordered_mul_ab_group A renaming
   mul→add mul_assoc→add_assoc one→zero one_mul→zero_add mul_one→add_zero inv→neg
   mul_left_inv→add_left_inv mul_comm→add_comm mul_le_mul_left→add_le_add_left
   mul_lt_mul_left→add_lt_add_left,
@@ -218,16 +218,16 @@ structure ordered_ring (A : Type) extends ring A, ordered_mul_comm_group A renam
 (mul_pos : Πa b, lt zero a → lt zero b → lt zero (mul a b))
 
 -- /- we make it a class now (and not as part of the structure) to avoid
---   ordered_ring.to_ordered_mul_comm_group to be an instance -/
+--   ordered_ring.to_ordered_mul_ab_group to be an instance -/
 attribute ordered_ring [class]
 
-definition add_comm_group_of_ordered_ring [reducible] [trans_instance] (A : Type)
+definition add_ab_group_of_ordered_ring [reducible] [trans_instance] (A : Type)
   [H : ordered_ring A] : ring A :=
 @ordered_ring.to_ring A H
 
 definition monoid_of_ordered_ring [reducible] [trans_instance] (A : Type)
-  [H : ordered_ring A] : ordered_comm_group A :=
-@ordered_ring.to_ordered_mul_comm_group A H
+  [H : ordered_ring A] : ordered_ab_group A :=
+@ordered_ring.to_ordered_mul_ab_group A H
 
 definition zero_ne_one_class_of_ordered_ring [reducible] [trans_instance] (A : Type)
   [H : ordered_ring A] : zero_ne_one_class A :=
@@ -486,7 +486,7 @@ end
    Search on mult_le_cancel_right1 in Rings.thy. -/
 
 structure decidable_linear_ordered_comm_ring [class] (A : Type) extends linear_ordered_comm_ring A,
-    decidable_linear_ordered_mul_comm_group A renaming
+    decidable_linear_ordered_mul_ab_group A renaming
   mul→add mul_assoc→add_assoc one→zero one_mul→zero_add mul_one→add_zero inv→neg
   mul_left_inv→add_left_inv mul_comm→add_comm mul_le_mul_left→add_le_add_left
   mul_lt_mul_left→add_lt_add_left
@@ -500,10 +500,10 @@ definition linear_ordered_comm_ring_of_decidable_linear_ordered_comm_ring [reduc
   linear_ordered_comm_ring A :=
 @decidable_linear_ordered_comm_ring.to_linear_ordered_comm_ring A H
 
-definition decidable_linear_ordered_comm_group_of_decidable_linear_ordered_comm_ring [reducible]
+definition decidable_linear_ordered_ab_group_of_decidable_linear_ordered_comm_ring [reducible]
   [trans_instance] (A : Type) [H : decidable_linear_ordered_comm_ring A] :
-  decidable_linear_ordered_comm_group A :=
-@decidable_linear_ordered_comm_ring.to_decidable_linear_ordered_mul_comm_group A H
+  decidable_linear_ordered_ab_group A :=
+@decidable_linear_ordered_comm_ring.to_decidable_linear_ordered_mul_ab_group A H
 
 section
   variable [s : decidable_linear_ordered_comm_ring A]

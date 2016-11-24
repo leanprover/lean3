@@ -192,7 +192,7 @@ end EM
 open hopf susp
 namespace EM
   /- EM1 G is an h-space if G is an abelian group. This allows us to construct K(G,n) for n ≥ 2 -/
-  variables {G : CommGroup} (n : ℕ)
+  variables {G : AbGroup} (n : ℕ)
 
   definition EM1_mul [unfold 2 3] (x x' : EM1' G) : EM1' G :=
   begin
@@ -260,7 +260,7 @@ namespace EM
       refine freudenthal_pequiv _ this }
   end
 
-  definition loopn_EMadd1_pequiv_EM1 (G : CommGroup) (n : ℕ) : EM1 G ≃* Ω[n] (EMadd1 G n) :=
+  definition loopn_EMadd1_pequiv_EM1 (G : AbGroup) (n : ℕ) : EM1 G ≃* Ω[n] (EMadd1 G n) :=
   begin
     induction n with n e,
     { reflexivity },
@@ -270,7 +270,7 @@ namespace EM
   end
 
   -- use loopn_EMadd1_pequiv_EM1 in this definition?
-  definition loopn_EMadd1 (G : CommGroup) (n : ℕ) : G ≃* Ω[succ n] (EMadd1 G n) :=
+  definition loopn_EMadd1 (G : AbGroup) (n : ℕ) : G ≃* Ω[succ n] (EMadd1 G n) :=
   begin
     induction n with n e,
     { apply loop_EM1 },
@@ -279,15 +279,15 @@ namespace EM
       exact e }
   end
 
-  definition loopn_EMadd1_succ [unfold_full] (G : CommGroup) (n : ℕ) : loopn_EMadd1 G (succ n) ~*
+  definition loopn_EMadd1_succ [unfold_full] (G : AbGroup) (n : ℕ) : loopn_EMadd1 G (succ n) ~*
     !loopn_succ_in⁻¹ᵉ* ∘* apn (succ n) !loop_EMadd1 ∘* loopn_EMadd1 G n :=
   by reflexivity
 
-  definition EM_up {G : CommGroup} {X : Type*} {n : ℕ} (e : Ω[succ (succ n)] X ≃* G)
+  definition EM_up {G : AbGroup} {X : Type*} {n : ℕ} (e : Ω[succ (succ n)] X ≃* G)
     : Ω[succ n] (Ω X) ≃* G :=
   !loopn_succ_in⁻¹ᵉ* ⬝e* e
 
-  definition is_homomorphism_EM_up {G : CommGroup} {X : Type*} {n : ℕ}
+  definition is_homomorphism_EM_up {G : AbGroup} {X : Type*} {n : ℕ}
     (e : Ω[succ (succ n)] X ≃* G)
     (r : Π(p q : Ω[succ (succ n)] X), e (p ⬝ q) = e p * e q)
     (p q : Ω[succ n] (Ω X)) : EM_up e (p ⬝ q) = EM_up e p * EM_up e q :=
@@ -295,7 +295,7 @@ namespace EM
     refine _ ⬝ !r, apply ap e, esimp, apply apn_con
   end
 
-  definition EMadd1_pmap [unfold 8] {G : CommGroup} {X : Type*} (n : ℕ)
+  definition EMadd1_pmap [unfold 8] {G : AbGroup} {X : Type*} (n : ℕ)
     (e : Ω[succ n] X ≃* G)
     (r : Πp q, e (p ⬝ q) = e p * e q)
     [H1 : is_conn n X] [H2 : is_trunc (n.+1) X] : EMadd1 G n →* X :=
@@ -307,12 +307,12 @@ namespace EM
             (psusp.elim (f _ (EM_up e) (is_homomorphism_EM_up e r) _ _)),
   end
 
-  definition EMadd1_pmap_succ {G : CommGroup} {X : Type*} (n : ℕ) (e : Ω[succ (succ n)] X ≃* G)
+  definition EMadd1_pmap_succ {G : AbGroup} {X : Type*} (n : ℕ) (e : Ω[succ (succ n)] X ≃* G)
     r [H1 : is_conn (succ n) X] [H2 : is_trunc ((succ n).+1) X] : EMadd1_pmap (succ n) e r =
     ptrunc.elim ((succ n).+1) (psusp.elim (EMadd1_pmap n (EM_up e) (is_homomorphism_EM_up e r))) :=
   by reflexivity
 
-  definition loop_EMadd1_pmap {G : CommGroup} {X : Type*} {n : ℕ} (e : Ω[succ (succ n)] X ≃* G)
+  definition loop_EMadd1_pmap {G : AbGroup} {X : Type*} {n : ℕ} (e : Ω[succ (succ n)] X ≃* G)
     (r : Πp q, e (p ⬝ q) = e p * e q)
     [H1 : is_conn (succ n) X] [H2 : is_trunc ((succ n).+1) X] :
     Ω→(EMadd1_pmap (succ n) e r) ∘* loop_EMadd1 G n ~*
@@ -329,7 +329,7 @@ namespace EM
       reflexivity }
   end
 
-  definition loopn_EMadd1_pmap' {G : CommGroup} {X : Type*} {n : ℕ} (e : Ω[succ n] X ≃* G)
+  definition loopn_EMadd1_pmap' {G : AbGroup} {X : Type*} {n : ℕ} (e : Ω[succ n] X ≃* G)
     (r : Πp q, e (p ⬝ q) = e p * e q)
     [H1 : is_conn n X] [H2 : is_trunc (n.+1) X] :
     Ω→[succ n](EMadd1_pmap n e r) ∘* loopn_EMadd1 G n ~* e⁻¹ᵉ* :=
@@ -346,7 +346,7 @@ namespace EM
     apply pinv_pcompose_cancel_left
   end
 
-  definition EMadd1_pequiv' {G : CommGroup} {X : Type*} (n : ℕ) (e : Ω[succ n] X ≃* G)
+  definition EMadd1_pequiv' {G : AbGroup} {X : Type*} (n : ℕ) (e : Ω[succ n] X ≃* G)
     (r : Π(p q : Ω[succ n] X), e (p ⬝ q) = e p * e q)
     [H1 : is_conn n X] [H2 : is_trunc (n.+1) X] : EMadd1 G n ≃* X :=
   begin
@@ -365,7 +365,7 @@ namespace EM
       do 2 exact trivial_homotopy_group_of_is_trunc _ H}
   end
 
-  definition EMadd1_pequiv {G : CommGroup} {X : Type*} (n : ℕ) (e : πg[n+1] X ≃g G)
+  definition EMadd1_pequiv {G : AbGroup} {X : Type*} (n : ℕ) (e : πg[n+1] X ≃g G)
     [H1 : is_conn n X] [H2 : is_trunc (n.+1) X] : EMadd1 G n ≃* X :=
   begin
     have is_set (Ω[succ n] X), from !is_set_loopn,
@@ -373,7 +373,7 @@ namespace EM
     intro p q, esimp, exact to_respect_mul e (tr p) (tr q)
   end
 
-  definition EMadd1_pequiv_succ {G : CommGroup} {X : Type*} (n : ℕ) (e : πag[n+2] X ≃g G)
+  definition EMadd1_pequiv_succ {G : AbGroup} {X : Type*} (n : ℕ) (e : πag[n+2] X ≃g G)
     [H1 : is_conn (n.+1) X] [H2 : is_trunc (n.+2) X] : EMadd1 G (succ n) ≃* X :=
   EMadd1_pequiv (succ n) e
 
@@ -389,7 +389,7 @@ namespace EM
   EMadd1_pequiv_succ n !isomorphism.refl
 
   /- K(G, n) -/
-  definition EM (G : CommGroup) : ℕ → Type*
+  definition EM (G : AbGroup) : ℕ → Type*
   | 0     := G
   | (k+1) := EMadd1 G k
 
@@ -449,7 +449,7 @@ namespace EM
     { reflexivity }
   end
 
-  definition EMadd1_functor [constructor] {G H : CommGroup} (φ : G →g H) (n : ℕ) :
+  definition EMadd1_functor [constructor] {G H : AbGroup} (φ : G →g H) (n : ℕ) :
     EMadd1 G n →* EMadd1 H n :=
   begin
     induction n with n ψ,
@@ -457,7 +457,7 @@ namespace EM
     { apply ptrunc_functor, apply psusp_functor, exact ψ }
   end
 
-  definition EM_functor [unfold 4] {G H : CommGroup} (φ : G →g H) (n : ℕ) :
+  definition EM_functor [unfold 4] {G H : AbGroup} (φ : G →g H) (n : ℕ) :
     K G n →* K H n :=
   begin
     cases n with n,
@@ -481,7 +481,7 @@ namespace EM
            begin intro X, apply ptruncconntype_eq, esimp, exact EM1_pequiv_type X end
            begin intro G, apply eq_of_isomorphism, apply fundamental_group_EM1 end
 
-  /- Equivalence of CommGroups and pointed n-connected (n+1)-truncated types (n ≥ 1) -/
+  /- Equivalence of AbGroups and pointed n-connected (n+1)-truncated types (n ≥ 1) -/
 
   open trunc_index
   definition ptruncconntype_pequiv : Π(n : ℕ) (X Y : (n.+1)-Type*[n])
@@ -497,16 +497,16 @@ namespace EM
     EMadd1 (πag[n+2] X) (succ n) ≃* X :=
   EMadd1_pequiv_type X n
 
-  definition CommGroup_equiv_ptruncconntype' [constructor] (n : ℕ) :
-    CommGroup ≃ (n + 1 + 1)-Type*[n+1] :=
+  definition AbGroup_equiv_ptruncconntype' [constructor] (n : ℕ) :
+    AbGroup ≃ (n + 1 + 1)-Type*[n+1] :=
   equiv.MK
     (λG, ptruncconntype.mk (EMadd1 G (n+1)) _ pt _)
     (λX, πag[n+2] X)
     begin intro X, apply ptruncconntype_eq, apply EMadd1_pequiv_type end
-    begin intro G, apply CommGroup_eq_of_isomorphism, exact ghomotopy_group_EMadd1 G (n+1) end
+    begin intro G, apply AbGroup_eq_of_isomorphism, exact ghomotopy_group_EMadd1 G (n+1) end
 
-  definition CommGroup_equiv_ptruncconntype [constructor] (n : ℕ) :
-    CommGroup ≃ (n.+2)-Type*[n.+1] :=
-  CommGroup_equiv_ptruncconntype' n
+  definition AbGroup_equiv_ptruncconntype [constructor] (n : ℕ) :
+    AbGroup ≃ (n.+2)-Type*[n.+1] :=
+  AbGroup_equiv_ptruncconntype' n
 
 end EM

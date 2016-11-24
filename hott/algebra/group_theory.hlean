@@ -21,12 +21,12 @@ namespace group
   definition Group.struct' [instance] [reducible] (G : Group) : group G :=
   Group.struct G
 
-  definition comm_group_Group_of_CommGroup [instance] [constructor] [priority 900]
-    (G : CommGroup) : comm_group (Group_of_CommGroup G) :=
+  definition ab_group_Group_of_AbGroup [instance] [constructor] [priority 900]
+    (G : AbGroup) : ab_group (Group_of_AbGroup G) :=
   begin esimp, exact _ end
 
-  definition comm_group_pSet_of_Group [instance] (G : CommGroup) : comm_group (pSet_of_Group G) :=
-  CommGroup.struct G
+  definition ab_group_pSet_of_Group [instance] (G : AbGroup) : ab_group (pSet_of_Group G) :=
+  AbGroup.struct G
 
   definition group_pSet_of_Group [instance] [priority 900] (G : Group) :
     group (pSet_of_Group G) :=
@@ -463,14 +463,14 @@ namespace group
   definition eq_of_isomorphism {G₁ G₂ : Group} (φ : G₁ ≃g G₂) : G₁ = G₂ :=
   Group_eq (equiv_of_isomorphism φ) (respect_mul φ)
 
-  definition comm_group.to_has_mul {A : Type} (H : comm_group A) : has_mul A := _
-  local attribute comm_group.to_has_mul [coercion]
+  definition ab_group.to_has_mul {A : Type} (H : ab_group A) : has_mul A := _
+  local attribute ab_group.to_has_mul [coercion]
 
-  definition comm_group_eq {A : Type} {G H : comm_group A}
+  definition ab_group_eq {A : Type} {G H : ab_group A}
     (same_mul : Π(g h : A), @mul A G g h = @mul A H g h)
     : G = H :=
   begin
-    have g_eq : @comm_group.to_group A G = @comm_group.to_group A H, from group_eq same_mul,
+    have g_eq : @ab_group.to_group A G = @ab_group.to_group A H, from group_eq same_mul,
     cases G with Gm Gs Gh1 G1 Gh2 Gh3 Gi Gh4 Gh5,
     cases H with Hm Hs Hh1 H1 Hh2 Hh3 Hi Hh4 Hh5,
     have pm : Gm = Hm, from ap (@mul _ ∘ group.to_has_mul) g_eq,
@@ -487,18 +487,18 @@ namespace group
     reflexivity
   end
 
-  definition comm_group_pathover {A B : Type} {G : comm_group A} {H : comm_group B} {p : A = B}
+  definition ab_group_pathover {A B : Type} {G : ab_group A} {H : ab_group B} {p : A = B}
     (resp_mul : Π(g h : A), cast p (g * h) = cast p g * cast p h) : G =[p] H :=
   begin
     induction p,
-    apply pathover_idp_of_eq, exact comm_group_eq (resp_mul)
+    apply pathover_idp_of_eq, exact ab_group_eq (resp_mul)
   end
 
-  definition CommGroup_eq_of_isomorphism {G₁ G₂ : CommGroup} (φ : G₁ ≃g G₂) : G₁ = G₂ :=
+  definition AbGroup_eq_of_isomorphism {G₁ G₂ : AbGroup} (φ : G₁ ≃g G₂) : G₁ = G₂ :=
   begin
     induction G₁, induction G₂,
-    apply apd011 CommGroup.mk (ua (equiv_of_isomorphism φ)),
-    apply comm_group_pathover,
+    apply apd011 AbGroup.mk (ua (equiv_of_isomorphism φ)),
+    apply ab_group_pathover,
     intro g h, exact !cast_ua ⬝ respect_mul φ g h ⬝ ap011 mul !cast_ua⁻¹ !cast_ua⁻¹
   end
 

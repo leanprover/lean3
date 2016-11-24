@@ -63,7 +63,7 @@ namespace is_trunc
   end
 
   /- Corollaries of the LES of homotopy groups -/
-  local attribute comm_group.to_group [coercion]
+  local attribute ab_group.to_group [coercion]
   local attribute is_equiv_tinverse [instance]
   open prod chain_complex group fin equiv function is_equiv lift
 

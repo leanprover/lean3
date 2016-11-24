@@ -63,29 +63,29 @@ Group.struct G
 
 attribute AddGroup.struct Group.struct [instance] [priority 2000]
 
-structure CommGroup :=
-(carrier : Type) (struct : comm_group carrier)
+structure AbGroup :=
+(carrier : Type) (struct : ab_group carrier)
 
-attribute CommGroup.carrier [coercion]
+attribute AbGroup.carrier [coercion]
 
-definition AddCommGroup : Type := CommGroup
+definition AddAbGroup : Type := AbGroup
 
-definition AddCommGroup.mk [constructor] [reducible] (G : Type) (H : add_comm_group G) :
-  AddCommGroup :=
-CommGroup.mk G H
+definition AddAbGroup.mk [constructor] [reducible] (G : Type) (H : add_ab_group G) :
+  AddAbGroup :=
+AbGroup.mk G H
 
-definition AddCommGroup.struct [reducible] (G : AddCommGroup) : add_comm_group G :=
-CommGroup.struct G
+definition AddAbGroup.struct [reducible] (G : AddAbGroup) : add_ab_group G :=
+AbGroup.struct G
 
-attribute AddCommGroup.struct CommGroup.struct [instance] [priority 2000]
+attribute AddAbGroup.struct AbGroup.struct [instance] [priority 2000]
 
-definition Group_of_CommGroup [coercion] [constructor] (G : CommGroup) : Group :=
+definition Group_of_AbGroup [coercion] [constructor] (G : AbGroup) : Group :=
 Group.mk G _
 
-attribute algebra._trans_of_Group_of_CommGroup_1
-          algebra._trans_of_Group_of_CommGroup
-          algebra._trans_of_Group_of_CommGroup_3 [constructor]
-attribute algebra._trans_of_Group_of_CommGroup_2 [unfold 1]
+attribute algebra._trans_of_Group_of_AbGroup_1
+          algebra._trans_of_Group_of_AbGroup
+          algebra._trans_of_Group_of_AbGroup_3 [constructor]
+attribute algebra._trans_of_Group_of_AbGroup_2 [unfold 1]
 
 
 -- structure AddSemigroup :=
@@ -118,9 +118,9 @@ attribute algebra._trans_of_Group_of_CommGroup_2 [unfold 1]
 -- attribute AddGroup.carrier [coercion]
 -- attribute AddGroup.struct [instance]
 
--- structure AddCommGroup :=
--- (carrier : Type) (struct : add_comm_group carrier)
+-- structure AddAbGroup :=
+-- (carrier : Type) (struct : add_ab_group carrier)
 
--- attribute AddCommGroup.carrier [coercion]
--- attribute AddCommGroup.struct [instance]
+-- attribute AddAbGroup.carrier [coercion]
+-- attribute AddAbGroup.struct [instance]
 end algebra

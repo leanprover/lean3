@@ -186,17 +186,17 @@ end comm_semiring
 
 /- ring -/
 
-structure ring (A : Type) extends comm_group A renaming mul→add mul_assoc→add_assoc
+structure ring (A : Type) extends ab_group A renaming mul→add mul_assoc→add_assoc
   one→zero one_mul→zero_add mul_one→add_zero inv→neg mul_left_inv→add_left_inv mul_comm→add_comm,
   monoid A, distrib A
 
 /- we make it a class now (and not as part of the structure) to avoid
-  ring.to_comm_group to be an instance -/
+  ring.to_ab_group to be an instance -/
 attribute ring [class]
 
-definition add_comm_group_of_ring [reducible] [trans_instance] (A : Type)
-  [H : ring A] : add_comm_group A :=
-@ring.to_comm_group A H
+definition add_ab_group_of_ring [reducible] [trans_instance] (A : Type)
+  [H : ring A] : add_ab_group A :=
+@ring.to_ab_group A H
 
 definition monoid_of_ring [reducible] [trans_instance] (A : Type)
   [H : ring A] : monoid A :=
@@ -485,7 +485,7 @@ theorem mk_cong (op : A → A) (a b : A) (H : a = b) : op a = op b :=
 
 theorem mk_eq (a : A) : a = a := rfl
 
-theorem neg_add_neg_eq_of_add_add_eq_zero [s : add_comm_group A] (a b c : A) (H : c + a + b = 0) :
+theorem neg_add_neg_eq_of_add_add_eq_zero [s : add_ab_group A] (a b c : A) (H : c + a + b = 0) :
         -a + -b = c :=
   begin
     apply add_neg_eq_of_eq_add,
@@ -493,26 +493,26 @@ theorem neg_add_neg_eq_of_add_add_eq_zero [s : add_comm_group A] (a b c : A) (H 
     rewrite [add.comm, add.assoc, add.comm b, -add.assoc, H]
   end
 
-theorem neg_add_neg_helper [s : add_comm_group A] (a b c : A) (H : a + b = c) : -a + -b = -c :=
+theorem neg_add_neg_helper [s : add_ab_group A] (a b c : A) (H : a + b = c) : -a + -b = -c :=
   begin apply iff.mp !neg_eq_neg_iff_eq, rewrite [neg_add, *neg_neg, H] end
 
-theorem neg_add_pos_eq_of_eq_add [s : add_comm_group A] (a b c : A) (H : b = c + a) : -a + b = c :=
+theorem neg_add_pos_eq_of_eq_add [s : add_ab_group A] (a b c : A) (H : b = c + a) : -a + b = c :=
   begin apply neg_add_eq_of_eq_add, rewrite add.comm, exact H end
 
-theorem neg_add_pos_helper1 [s : add_comm_group A] (a b c : A) (H : b + c = a) : -a + b = -c :=
+theorem neg_add_pos_helper1 [s : add_ab_group A] (a b c : A) (H : b + c = a) : -a + b = -c :=
   begin apply neg_add_eq_of_eq_add, apply eq_add_neg_of_add_eq H end
 
-theorem neg_add_pos_helper2 [s : add_comm_group A] (a b c : A) (H : a + c = b) : -a + b = c :=
+theorem neg_add_pos_helper2 [s : add_ab_group A] (a b c : A) (H : a + c = b) : -a + b = c :=
   begin apply neg_add_eq_of_eq_add, rewrite H end
 
-theorem pos_add_neg_helper [s : add_comm_group A] (a b c : A) (H : b + a = c) : a + b = c :=
+theorem pos_add_neg_helper [s : add_ab_group A] (a b c : A) (H : b + a = c) : a + b = c :=
   by rewrite [add.comm, H]
 
-theorem sub_eq_add_neg_helper [s : add_comm_group A] (t₁ t₂ e w₁ w₂: A) (H₁ : t₁ = w₁)
+theorem sub_eq_add_neg_helper [s : add_ab_group A] (t₁ t₂ e w₁ w₂: A) (H₁ : t₁ = w₁)
         (H₂ : t₂ = w₂) (H : w₁ + -w₂ = e) : t₁ - t₂ = e :=
   by rewrite [sub_eq_add_neg, H₁, H₂, H]
 
-theorem pos_add_pos_helper [s : add_comm_group A] (a b c h₁ h₂ : A) (H₁ : a = h₁) (H₂ : b = h₂)
+theorem pos_add_pos_helper [s : add_ab_group A] (a b c h₁ h₂ : A) (H₁ : a = h₁) (H₂ : b = h₂)
         (H : h₁ + h₂ = c) : a + b = c :=
   by rewrite [H₁, H₂, H]
 

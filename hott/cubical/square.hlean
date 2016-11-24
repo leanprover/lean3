@@ -378,11 +378,11 @@ namespace eq
   by induction r;induction p;reflexivity
 
   definition eq_of_square_eq_vconcat {p : a₀₀ = a₂₀} (r : p = p₁₀) (s₁₁ : square p₁₀ p₁₂ p₀₁ p₂₁)
-    : eq_of_square (r ⬝pv s₁₁) = whisker_right r p₂₁ ⬝ eq_of_square s₁₁ :=
+    : eq_of_square (r ⬝pv s₁₁) = whisker_right p₂₁ r ⬝ eq_of_square s₁₁ :=
   by induction s₁₁;cases r;reflexivity
 
   definition eq_of_square_eq_hconcat {p : a₀₀ = a₀₂} (r : p = p₀₁) (s₁₁ : square p₁₀ p₁₂ p₀₁ p₂₁)
-    : eq_of_square (r ⬝ph s₁₁) = eq_of_square s₁₁ ⬝ (whisker_right r p₁₂)⁻¹ :=
+    : eq_of_square (r ⬝ph s₁₁) = eq_of_square s₁₁ ⬝ (whisker_right p₁₂ r)⁻¹ :=
   by induction r;reflexivity
 
   definition eq_of_square_vconcat_eq {p : a₀₂ = a₂₂} (s₁₁ : square p₁₀ p₁₂ p₀₁ p₂₁) (r : p₁₂ = p)

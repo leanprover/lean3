@@ -174,12 +174,12 @@ namespace is_equiv
   (left_inv f x)⁻¹ ⬝ ap f⁻¹ q ⬝ left_inv f y
 
   definition ap_eq_of_fn_eq_fn' {x y : A} (q : f x = f y) : ap f (eq_of_fn_eq_fn' f q) = q :=
-  !ap_con ⬝ whisker_right !ap_con _
+  !ap_con ⬝ whisker_right _ !ap_con
           ⬝ ((!ap_inv ⬝ inverse2 (adj f _)⁻¹)
             ◾ (inverse (ap_compose f f⁻¹ _))
             ◾ (adj f _)⁻¹)
           ⬝ con_ap_con_eq_con_con (right_inv f) _ _
-          ⬝ whisker_right !con.left_inv _
+          ⬝ whisker_right _ !con.left_inv
           ⬝ !idp_con
 
   definition eq_of_fn_eq_fn'_ap {x y : A} (q : x = y) : eq_of_fn_eq_fn' f (ap f q) = q :=

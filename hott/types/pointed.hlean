@@ -383,7 +383,7 @@ namespace pointed
                                                                        (respect_pt g))
           ...  ≃ Σ(p : pmap.to_fun f = pmap.to_fun g), respect_pt f = ap10 p pt ⬝ respect_pt g
                  : sigma_equiv_sigma_right
-                     (λp, equiv_eq_closed_right _ (whisker_right (ap_eq_apd10 p _) _))
+                     (λp, equiv_eq_closed_right _ (whisker_right _ (ap_eq_apd10 p _)))
           ...  ≃ Σ(p : pmap.to_fun f ~ pmap.to_fun g), respect_pt f = p pt ⬝ respect_pt g
                  : sigma_equiv_sigma_left' eq_equiv_homotopy
           ...  ≃ Σ(p : pmap.to_fun f ~ pmap.to_fun g), p pt ⬝ respect_pt g = respect_pt f
@@ -448,7 +448,7 @@ namespace pointed
   begin
     fconstructor,
     { intro p, esimp, refine !con.assoc ⬝ _ ⬝ !con_inv⁻¹, apply whisker_left,
-      refine whisker_right !ap_inv _ ⬝ _ ⬝ !con_inv⁻¹, apply whisker_left,
+      refine whisker_right _ !ap_inv ⬝ _ ⬝ !con_inv⁻¹, apply whisker_left,
       exact !inv_inv⁻¹},
     { induction B with B b, induction f with f pf, esimp at *, induction pf, reflexivity},
   end

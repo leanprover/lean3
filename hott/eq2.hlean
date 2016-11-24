@@ -44,7 +44,7 @@ namespace eq
   theorem ap_con_left_inv_sq {A B : Type} {a1 a2 : A} (f : A → B) (p : a1 = a2) :
     square (ap (ap f) (con.left_inv p))
            (con.left_inv (ap f p))
-           (ap_con f p⁻¹ p ⬝ whisker_right (ap_inv f p) _)
+           (ap_con f p⁻¹ p ⬝ whisker_right _ (ap_inv f p))
            idp :=
   by cases p;apply vrefl
 
@@ -91,7 +91,7 @@ namespace eq
   natural_square_tr (ap_compose g f) r
 
   theorem whisker_right_eq_of_con_inv_eq_idp {p q : a₁ = a₂} (r : p ⬝ q⁻¹ = idp) :
-    whisker_right (eq_of_con_inv_eq_idp r) q⁻¹ ⬝ con.right_inv q = r :=
+    whisker_right q⁻¹ (eq_of_con_inv_eq_idp r) ⬝ con.right_inv q = r :=
   by induction q; esimp at r; cases r; reflexivity
 
   theorem ap_eq_of_con_inv_eq_idp (f : A → B) {p q : a₁ = a₂} (r : p ⬝ q⁻¹ = idp)

@@ -164,10 +164,10 @@ namespace is_equiv
       intro q, apply eq_of_homotopy, intro c,
       unfold inv_homotopy_of_homotopy_post,
       unfold homotopy_of_inv_homotopy_post,
-      apply trans (whisker_right
+      apply trans (whisker_right (left_inv f (α c))
        (ap_con f⁻¹ (right_inv f (β c))⁻¹ (ap f (q c))
-       ⬝ whisker_right (ap_inv f⁻¹ (right_inv f (β c)))
-        (ap f⁻¹ (ap f (q c)))) (left_inv f (α c))),
+       ⬝ whisker_right (ap f⁻¹ (ap f (q c)))
+       (ap_inv f⁻¹ (right_inv f (β c))))),
       apply inverse, apply eq_bot_of_square,
       apply eq_hconcat (adj_inv f (β c))⁻¹,
       apply eq_vconcat (ap_compose f⁻¹ f (q c))⁻¹,

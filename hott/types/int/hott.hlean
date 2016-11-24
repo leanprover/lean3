@@ -24,10 +24,10 @@ namespace int
 
   notation `gℤ` := group_integers
 
-  definition CommGroup_int [reducible] [constructor] : AddCommGroup :=
-  AddCommGroup.mk ℤ _
+  definition AbGroup_int [reducible] [constructor] : AddAbGroup :=
+  AddAbGroup.mk ℤ _
 
-  notation `agℤ` := CommGroup_int
+  notation `agℤ` := AbGroup_int
   end
 
   definition is_equiv_succ [constructor] [instance] : is_equiv succ :=

@@ -28,7 +28,7 @@ namespace eq
   end
 
   theorem whisker_right_con_right (q : a₂ = a₃) (r : p = p') (s : p' = p'')
-    : whisker_right (r ⬝ s) q = whisker_right r q ⬝ whisker_right s q :=
+    : whisker_right q (r ⬝ s) = whisker_right q r ⬝ whisker_right q s :=
   begin
     induction q, induction r, induction s, reflexivity
   end
@@ -40,7 +40,7 @@ namespace eq
   end
 
   theorem whisker_right_con_left {p p' : a₁ = a₂} (q : a₂ = a₃) (q' : a₃ = a₄) (r : p = p')
-    : whisker_right r (q ⬝ q') = !con.assoc' ⬝ whisker_right (whisker_right r q) q' ⬝ !con.assoc :=
+    : whisker_right (q ⬝ q') r = !con.assoc' ⬝ whisker_right q' (whisker_right q r) ⬝ !con.assoc :=
   begin
     induction q', induction q, induction r, induction p, reflexivity
   end
@@ -56,7 +56,7 @@ namespace eq
   by induction r; reflexivity
 
   theorem whisker_right_inv {p p' : a₁ = a₂} (q : a₂ = a₃) (r : p = p')
-    : whisker_right r⁻¹ q = (whisker_right r q)⁻¹ :=
+    : whisker_right q r⁻¹ = (whisker_right q r)⁻¹ :=
   by induction r; reflexivity
 
   theorem ap_eq_apd10 {B : A → Type} {f g : Πa, B a} (p : f = g) (a : A) :
@@ -75,7 +75,7 @@ namespace eq
   by induction p;reflexivity
 
   theorem ap_con_left_inv (f : A → B) (p : a₁ = a₂)
-    : ap_con f p⁻¹ p ⬝ whisker_right (ap_inv f p) _ ⬝ con.left_inv (ap f p)
+    : ap_con f p⁻¹ p ⬝ whisker_right _ (ap_inv f p) ⬝ con.left_inv (ap f p)
       = ap (ap f) (con.left_inv p) :=
   by induction p;reflexivity
 
@@ -282,7 +282,7 @@ namespace eq
   equiv.mk _ !is_equiv_whisker_left
 
   definition is_equiv_whisker_right [constructor] {p q : a₁ = a₂} (r : a₂ = a₃)
-    : is_equiv (λs, whisker_right s r : p = q → p ⬝ r = q ⬝ r) :=
+    : is_equiv (λs, whisker_right r s : p = q → p ⬝ r = q ⬝ r) :=
   begin
   fapply adjointify,
     {intro s, apply (!cancel_right s)},

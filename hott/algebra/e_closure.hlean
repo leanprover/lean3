@@ -158,7 +158,7 @@ section
       ap_e_closure_elim_h e p t =
       ap_e_closure_elim_h (λa a' s, ap g (e s)) (λa a' s, (ap_compose h g (e s))⁻¹ ⬝ p s) t :=
   begin
-    refine whisker_right (eq_of_square (ap_ap_e_closure_elim g h e t)⁻¹ʰ)⁻¹ _ ⬝ _,
+    refine whisker_right _ (eq_of_square (ap_ap_e_closure_elim g h e t)⁻¹ʰ)⁻¹ ⬝ _,
     refine !con.assoc ⬝ _, apply inv_con_eq_of_eq_con, apply eq_of_square,
     apply transpose,
     -- the rest of the proof is almost the same as the proof of ap_ap_e_closure_elim[_h].

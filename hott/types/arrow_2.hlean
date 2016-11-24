@@ -158,7 +158,7 @@ namespace arrow
                        (p (f⁻¹ b))⁻¹],
     apply eq_of_square,
     refine vconcat_eq _
-      (whisker_right (ap_inv β (right_inv f b)) (p (f⁻¹ b))⁻¹)⁻¹,
+      (whisker_right (p (f⁻¹ b))⁻¹ (ap_inv β (right_inv f b)))⁻¹,
     refine vconcat_eq _
       (con_inv (p (f⁻¹ b)) (ap β (right_inv f b))),
     refine vconcat_eq _

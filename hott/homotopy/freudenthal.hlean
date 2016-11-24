@@ -110,7 +110,7 @@ namespace freudenthal section
     apply trunc_pathover,
     apply eq_pathover_constant_left_id_right,
     apply square_of_eq,
-    exact whisker_right !con.right_inv (merid a)
+    exact whisker_right (merid a) !con.right_inv
   end
 
   definition decode_coh_g (a' : A) : tr (up a') =[merid pt] decode_south (code_merid pt (tr a')) :=
@@ -122,7 +122,7 @@ namespace freudenthal section
   end
 
   definition decode_coh_lem {A : Type} {a a' : A} (p : a = a')
-    : whisker_right (con.right_inv p) p = inv_con_cancel_right p p ⬝ (idp_con p)⁻¹ :=
+    : whisker_right p (con.right_inv p) = inv_con_cancel_right p p ⬝ (idp_con p)⁻¹ :=
   by induction p; reflexivity
 
   theorem decode_coh (a : A) : decode_north =[merid a] decode_south :=

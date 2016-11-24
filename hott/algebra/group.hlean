@@ -346,7 +346,7 @@ section group
 
 end group
 
-structure comm_group [class] (A : Type) extends group A, comm_monoid A
+structure ab_group [class] (A : Type) extends group A, comm_monoid A
 
 /- additive group -/
 
@@ -551,21 +551,21 @@ section add_group
 
 end add_group
 
-definition add_comm_group [class] : Type → Type := comm_group
+definition add_ab_group [class] : Type → Type := ab_group
 
-definition add_group_of_add_comm_group [reducible] [trans_instance] (A : Type)
-  [H : add_comm_group A] : add_group A :=
-@comm_group.to_group A H
+definition add_group_of_add_ab_group [reducible] [trans_instance] (A : Type)
+  [H : add_ab_group A] : add_group A :=
+@ab_group.to_group A H
 
-definition add_comm_monoid_of_add_comm_group [reducible] [trans_instance] (A : Type)
-  [H : add_comm_group A] : add_comm_monoid A :=
-@comm_group.to_comm_monoid A H
+definition add_comm_monoid_of_add_ab_group [reducible] [trans_instance] (A : Type)
+  [H : add_ab_group A] : add_comm_monoid A :=
+@ab_group.to_comm_monoid A H
 
-definition add_comm_group.to_comm_group {A : Type} [s : add_comm_group A] : comm_group A := s
-definition comm_group.to_add_comm_group {A : Type} [s : comm_group A] : add_comm_group A := s
+definition add_ab_group.to_ab_group {A : Type} [s : add_ab_group A] : ab_group A := s
+definition ab_group.to_add_ab_group {A : Type} [s : ab_group A] : add_ab_group A := s
 
-section add_comm_group
-  variable [s : add_comm_group A]
+section add_ab_group
+  variable [s : add_ab_group A]
   include s
 
   theorem sub_add_eq_sub_sub (a b c : A) : a - (b + c) = a - b - c :=
@@ -606,7 +606,7 @@ section add_comm_group
 
   theorem neg_neg_sub_neg (a b : A) : - (-a - -b) = a - b :=
     by rewrite [neg_sub, sub_neg_eq_add, neg_add_eq_sub]
-end add_comm_group
+end add_ab_group
 
 definition group_of_add_group (A : Type) [G : add_group A] : group A :=
 ⦃group,

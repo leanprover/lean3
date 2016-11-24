@@ -96,9 +96,9 @@ namespace algebra
     mul_left_inv := algebra.trunc_mul_left_inv 0 mul_left_inv,
    is_set_carrier := _⦄
 
-  definition trunc_comm_group [constructor] (mul_comm : ∀a b, mul a b = mul b a)
-    : comm_group (trunc 0 A) :=
-  ⦃comm_group, trunc_group, mul_comm := algebra.trunc_mul_comm 0 mul_comm⦄
+  definition trunc_ab_group [constructor] (mul_comm : ∀a b, mul a b = mul b a)
+    : ab_group (trunc 0 A) :=
+  ⦃ab_group, trunc_group, mul_comm := algebra.trunc_mul_comm 0 mul_comm⦄
 
   end
 end algebra

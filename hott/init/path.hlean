@@ -631,7 +631,7 @@ namespace eq
   definition whisker_left [unfold 8] (p : x = y) {q r : y = z} (h : q = r) : p ⬝ q = p ⬝ r :=
   idp ◾ h
 
-  definition whisker_right [unfold 7] {p q : x = y} (h : p = q) (r : y = z) : p ⬝ r = q ⬝ r :=
+  definition whisker_right [unfold 7] {p q : x = y} (r : y = z) (h : p = q) : p ⬝ r = q ⬝ r :=
   h ◾ idp
 
   -- Unwhiskering, a.k.a. cancelling
@@ -640,16 +640,16 @@ namespace eq
   λs, !inv_con_cancel_left⁻¹ ⬝ whisker_left p⁻¹ s ⬝ !inv_con_cancel_left
 
   definition cancel_right {x y z : A} {p q : x = y} (r : y = z) : (p ⬝ r = q ⬝ r) → (p = q) :=
-  λs, !con_inv_cancel_right⁻¹ ⬝ whisker_right s r⁻¹ ⬝ !con_inv_cancel_right
+  λs, !con_inv_cancel_right⁻¹ ⬝ whisker_right r⁻¹ s ⬝ !con_inv_cancel_right
 
   -- Whiskering and identity paths.
 
   definition whisker_right_idp {p q : x = y} (h : p = q) :
-    whisker_right h idp = h :=
+    whisker_right idp h = h :=
   by induction h; induction p; reflexivity
 
   definition whisker_right_idp_left [unfold_full] (p : x = y) (q : y = z) :
-    whisker_right idp q = idp :> (p ⬝ q = p ⬝ q) :=
+    whisker_right q idp = idp :> (p ⬝ q = p ⬝ q) :=
   idp
 
   definition whisker_left_idp_right [unfold_full] (p : x = y) (q : y = z) :
@@ -668,7 +668,7 @@ namespace eq
   end
 
   definition con2_idp [unfold_full] {p q : x = y} (h : p = q) :
-    h ◾ idp = whisker_right h idp :> (p ⬝ idp = q ⬝ idp) :=
+    h ◾ idp = whisker_right idp h :> (p ⬝ idp = q ⬝ idp) :=
   idp
 
   definition idp_con2 [unfold_full] {p q : x = y} (h : p = q) :
@@ -686,16 +686,16 @@ namespace eq
   by induction d; induction c; induction b;induction a; reflexivity
 
   definition con2_eq_rl {A : Type} {x y z : A} {p p' : x = y} {q q' : y = z}
-    (a : p = p') (b : q = q') : a ◾ b = whisker_right a q ⬝ whisker_left p' b :=
+    (a : p = p') (b : q = q') : a ◾ b = whisker_right q a ⬝ whisker_left p' b :=
   by induction b; induction a; reflexivity
 
   definition con2_eq_lf {A : Type} {x y z : A} {p p' : x = y} {q q' : y = z}
-    (a : p = p') (b : q = q') : a ◾ b = whisker_left p b ⬝ whisker_right a q' :=
+    (a : p = p') (b : q = q') : a ◾ b = whisker_left p b ⬝ whisker_right q' a :=
   by induction b; induction a; reflexivity
 
   definition whisker_right_con_whisker_left {x y z : A} {p p' : x = y} {q q' : y = z}
     (a : p = p') (b : q = q') :
-    (whisker_right a q) ⬝ (whisker_left p' b) = (whisker_left p b) ⬝ (whisker_right a q') :=
+    (whisker_right q a) ⬝ (whisker_left p' b) = (whisker_left p b) ⬝ (whisker_right q' a) :=
   by induction b; induction a; reflexivity
 
   -- Structure corresponding to the coherence equations of a bicategory.
@@ -704,13 +704,13 @@ namespace eq
   definition pentagon {v w x y z : A} (p : v = w) (q : w = x) (r : x = y) (s : y = z) :
     whisker_left p (con.assoc' q r s)
       ⬝ con.assoc' p (q ⬝ r) s
-      ⬝ whisker_right (con.assoc' p q r) s
+      ⬝ whisker_right s (con.assoc' p q r)
     = con.assoc' p q (r ⬝ s) ⬝ con.assoc' (p ⬝ q) r s :=
   by induction s;induction r;induction q;induction p;reflexivity
 
   -- The 3-cell witnessing the left unit triangle.
   definition triangulator (p : x = y) (q : y = z) :
-    con.assoc' p idp q ⬝ whisker_right (con_idp p) q = whisker_left p (idp_con q) :=
+    con.assoc' p idp q ⬝ whisker_right q (con_idp p) = whisker_left p (idp_con q) :=
   by induction q; induction p; reflexivity
 
   definition eckmann_hilton (p q : idp = idp :> a = a) : p ⬝ q = q ⬝ p :=

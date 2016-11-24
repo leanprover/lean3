@@ -764,8 +764,8 @@ namespace trunc
   begin
     fapply phomotopy.mk,
     { apply trunc_functor_compose},
-    { esimp, refine !idp_con ⬝ _, refine whisker_right !ap_compose'⁻¹ᵖ _ ⬝ _,
-      esimp, refine whisker_right (ap_compose' tr g _) _ ⬝ _, exact !ap_con⁻¹},
+    { esimp, refine !idp_con ⬝ _, refine whisker_right _ !ap_compose'⁻¹ᵖ ⬝ _,
+      esimp, refine whisker_right _ (ap_compose' tr g _) ⬝ _, exact !ap_con⁻¹},
   end
 
   definition ptrunc_functor_pid [constructor] (X : Type*) (n : ℕ₋₂) :
@@ -851,7 +851,7 @@ namespace trunc
   begin
     fapply phomotopy.mk,
     { intro x, induction x with a, reflexivity },
-    { esimp, exact !idp_con ⬝ whisker_right !ap_compose _ },
+    { esimp, exact !idp_con ⬝ whisker_right _ !ap_compose },
   end
 
 end trunc open trunc

@@ -26,18 +26,18 @@ namespace eq
     group (carrier (ptrunctype.to_pType (π[k + 1] A))) :=
   group_homotopy_group k A
 
-  definition comm_group_homotopy_group [constructor] [reducible] (n : ℕ) (A : Type*)
-    : comm_group (π[succ (succ n)] A) :=
-  trunc_comm_group concat inverse idp con.assoc idp_con con_idp con.left_inv eckmann_hilton
+  definition ab_group_homotopy_group [constructor] [reducible] (n : ℕ) (A : Type*)
+    : ab_group (π[succ (succ n)] A) :=
+  trunc_ab_group concat inverse idp con.assoc idp_con con_idp con.left_inv eckmann_hilton
 
-  local attribute comm_group_homotopy_group [instance]
+  local attribute ab_group_homotopy_group [instance]
 
   definition ghomotopy_group [constructor] : Π(n : ℕ) [is_succ n] (A : Type*), Group
   | (succ n) x A := Group.mk (π[succ n] A) _
 
   definition cghomotopy_group [constructor] :
-    Π(n : ℕ) [is_at_least_two n] (A : Type*), CommGroup
-  | (succ (succ n)) x A := CommGroup.mk (π[succ (succ n)] A) _
+    Π(n : ℕ) [is_at_least_two n] (A : Type*), AbGroup
+  | (succ (succ n)) x A := AbGroup.mk (π[succ (succ n)] A) _
 
   definition fundamental_group [constructor] (A : Type*) : Group :=
   ghomotopy_group 1 A
