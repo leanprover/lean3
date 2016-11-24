@@ -5,9 +5,9 @@ Authors: Jakob von Raumer
 
 The Cofiber Type
 -/
-import hit.pointed_pushout function .susp types.unit
+import hit.pushout function .susp types.unit
 
-open eq pushout unit pointed is_trunc is_equiv susp unit
+open eq pushout unit pointed is_trunc is_equiv susp unit equiv
 
 definition cofiber {A B : Type} (f : A → B) := pushout (λ (a : A), ⋆) f
 
@@ -57,6 +57,11 @@ namespace cofiber
     (Pglue : Π (x : A), Pbase = Pcod (f x)) : P :=
   cofiber.elim Pbase Pcod Pglue y
 
+  protected theorem elim_glue {P : Type} (y : cofiber f) (Pbase : P) (Pcod : B → P)
+    (Pglue : Π (x : A), Pbase = Pcod (f x)) (a : A)
+    : ap (elim Pbase Pcod Pglue) (glue a) = Pglue a :=
+  !pushout.elim_glue
+
   end
 end cofiber
 
@@ -79,15 +84,15 @@ namespace cofiber
     { fconstructor, intro x, induction x, exact north, exact south, exact merid x,
       reflexivity },
     { esimp, fapply adjointify,
-      intro s, induction s, exact inl ⋆, exact inr ⋆, apply glue a,
-      intro s, induction s, do 2 reflexivity, esimp,
-      apply eq_pathover, refine _ ⬝hp !ap_id⁻¹, apply hdeg_square,
-      refine !(ap_compose (pushout.elim _ _ _)) ⬝ _,
-      refine ap _ !elim_merid ⬝ _, apply elim_glue,
-      intro c, induction c with [n, s], induction n, reflexivity,
-      induction s, reflexivity, esimp, apply eq_pathover, apply hdeg_square,
-      refine _ ⬝ !ap_id⁻¹, refine !(ap_compose (pushout.elim _ _ _)) ⬝ _,
-      refine ap _ !elim_glue ⬝ _, apply elim_merid },
+      { intro s, induction s, exact inl ⋆, exact inr ⋆, apply glue a },
+      { intro s, induction s, do 2 reflexivity, esimp,
+        apply eq_pathover, refine _ ⬝hp !ap_id⁻¹, apply hdeg_square,
+        refine !(ap_compose (pushout.elim _ _ _)) ⬝ _,
+        refine ap _ !elim_merid ⬝ _, apply elim_glue },
+      { intro c, induction c with s, reflexivity,
+        induction s, reflexivity, esimp, apply eq_pathover, apply hdeg_square,
+        refine _ ⬝ !ap_id⁻¹, refine !(ap_compose (pushout.elim _ _ _)) ⬝ _,
+        refine ap02 _ !elim_glue ⬝ _, apply elim_merid }},
   end
 
 end cofiber

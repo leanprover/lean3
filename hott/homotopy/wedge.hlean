@@ -5,11 +5,28 @@ Authors: Jakob von Raumer, Ulrik Buchholtz
 
 The Wedge Sum of Two Pointed Types
 -/
-import hit.pointed_pushout .connectedness types.unit
+import hit.pushout .connectedness types.unit
 
 open eq pushout pointed unit trunc_index
 
-definition pwedge (A B : Type*) : Type* := ppushout (pconst punit A) (pconst punit B)
+definition wedge (A B : Type*) : Type := ppushout (pconst punit A) (pconst punit B)
+local attribute wedge [reducible]
+definition pwedge (A B : Type*) : Type* := pointed.mk' (wedge A B)
+
+namespace wedge
+
+  protected definition rec {A B : Type*} {P : wedge A B → Type} (Pinl : Π(x : A), P (inl x))
+    (Pinr : Π(x : B), P (inr x)) (Pglue : pathover P (Pinl pt) (glue ⋆) (Pinr pt))
+    (y : wedge A B) : P y :=
+  by induction y; apply Pinl; apply Pinr; induction x; exact Pglue
+
+  protected definition elim {A B : Type*} {P : Type} (Pinl : A → P)
+    (Pinr : B → P) (Pglue : Pinl pt = Pinr pt) (y : wedge A B) : P :=
+  by induction y with a b x; exact Pinl a; exact Pinr b; induction x; exact Pglue
+
+end wedge
+
+attribute wedge.rec wedge.elim [recursor 7] [unfold 7]
 
 namespace wedge
 
