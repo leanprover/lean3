@@ -10,6 +10,12 @@ Author: Leonardo de Moura
 #include <cstdlib>
 #include <getopt.h>
 #include <string>
+#include <utility>
+#include <vector>
+#include <library/st_task_queue.h>
+#include <library/mt_task_queue.h>
+#include "library/module_mgr.h"
+#include "util/realpath.h"
 #include "util/stackinfo.h"
 #include "util/macros.h"
 #include "util/debug.h"
@@ -48,23 +54,7 @@ Author: Leonardo de Moura
 #include "version.h"
 #include "githash.h" // NOLINT
 
-using lean::unreachable_reached;
-using lean::environment;
-using lean::io_state;
-using lean::io_state_stream;
-using lean::regular;
-using lean::mk_environment;
-using lean::pos_info;
-using lean::pos_info_provider;
-using lean::optional;
-using lean::expr;
-using lean::options;
-using lean::module_name;
-using lean::simple_pos_info_provider;
-using lean::shared_file_lock;
-using lean::exclusive_file_lock;
-using lean::type_context;
-using lean::type_checker;
+using namespace lean; // NOLINT
 
 static void display_header(std::ostream & out) {
     out << "Lean (version " << LEAN_VERSION_MAJOR << "."
@@ -88,7 +78,7 @@ static void display_help(std::ostream & out) {
     std::cout << "  --version -v      display version number\n";
     std::cout << "  --githash         display the git commit hash number used to build this binary\n";
     std::cout << "  --path            display the path used for finding Lean libraries and extensions\n";
-    std::cout << "  --output=file -o  save the final environment in binary format in the given file\n";
+    std::cout << "  --make            create olean files\n";
     std::cout << "  --trust=num -t    trust level (default: max) 0 means do not trust any macro,\n"
               << "                    and type check all imported modules\n";
     std::cout << "  --quiet -q        do not print verbose messages\n";
@@ -104,7 +94,6 @@ static void display_help(std::ostream & out) {
     std::cout << "  --json            print JSON-formatted structured error messages\n";
     std::cout << "  --server          start lean in server mode\n";
 #endif
-    std::cout << "  --cache=file -c   load/save cached definitions from/to the given file\n";
     std::cout << "  --profile         display elaboration/type checking time for each definition/theorem\n";
 #if defined(LEAN_USE_BOOST)
     std::cout << "  --tstack=num -s   thread stack size in Kb\n";
@@ -113,11 +102,6 @@ static void display_help(std::ostream & out) {
     std::cout << "  --debug=tag       enable assertions with the given tag\n";
         )
     std::cout << "  -D name=value     set a configuration option (see set_option command)\n";
-    std::cout << "  --dir=directory   display information about identifier or token in the given posivition\n";
-    std::cout << "Frontend query interface:\n";
-    std::cout << "  --line=value      line number for query\n";
-    std::cout << "  --col=value       column number for query\n";
-    std::cout << "  --info            display information about identifier or token in the given posivition\n";
     std::cout << "Exporting data:\n";
     std::cout << "  --export=file -E  export final environment as textual low-level file\n";
     std::cout << "  --export-all=file -A  export final environment (and all dependencies) as textual low-level file\n";
@@ -129,15 +113,13 @@ static struct option g_long_options[] = {
     {"smt2",         no_argument,       0, 'Y'},
     {"path",         no_argument,       0, 'p'},
     {"githash",      no_argument,       0, 'g'},
-    {"output",       required_argument, 0, 'o'},
+    {"make",         no_argument,       0, 'm'},
     {"export",       required_argument, 0, 'E'},
     {"export-all",   required_argument, 0, 'A'},
     {"memory",       required_argument, 0, 'M'},
     {"trust",        required_argument, 0, 't'},
     {"profile",      no_argument,       0, 'P'},
-#if defined(LEAN_MULTI_THREAD)
     {"threads",      required_argument, 0, 'j'},
-#endif
     {"quiet",        no_argument,       0, 'q'},
     {"deps",         no_argument,       0, 'd'},
 #if defined(LEAN_SERVER)
@@ -147,32 +129,21 @@ static struct option g_long_options[] = {
 #if defined(LEAN_USE_BOOST)
     {"tstack",       required_argument, 0, 's'},
 #endif
-    {"line",         required_argument, 0, 'L'},
-    {"col",          required_argument, 0, 'O'},
-    {"info",         no_argument,       0, 'I'},
-    {"dir",          required_argument, 0, 'T'},
 #ifdef LEAN_DEBUG
     {"debug",        required_argument, 0, 'B'},
 #endif
-    {"dir",          required_argument, 0, 'T'},
     {0, 0, 0, 0}
 };
 
-#define OPT_STR "PFdD:qupgvhk:012t:012o:E:L:012O:012GZAIT:B:"
-
+static char const * g_opt_str =
+    "PdD:qpgvht:012E:AB:j:012"
 #if defined(LEAN_TRACK_MEMORY)
-#define OPT_STR2 OPT_STR "M:012"
-#else
-#define OPT_STR2 OPT_STR
+    "M:012"
 #endif
-
 #if defined(LEAN_USE_BOOST) && defined(LEAN_MULTI_THREAD)
-static char const * g_opt_str = OPT_STR2 "j:012s:012";
-#elif !defined(LEAN_USE_BOOST) && defined(LEAN_MULTI_THREAD)
-static char const * g_opt_str = OPT_STR2 "j:012";
-#else
-static char const * g_opt_str = OPT_STR2;
+    "s:012"
 #endif
+; // NOLINT
 
 options set_config_option(options const & opts, char const * in) {
     if (!in) return opts;
@@ -224,6 +195,40 @@ public:
     }
 };
 
+class progress_message_stream : public stream_message_buffer {
+    mutex m_mutex;
+    bool m_showing_task = false;
+    std::ostream & m_out;
+
+    void clear_shown_task() {
+        if (m_showing_task) {
+            m_out << "\33[2K\r";
+            m_showing_task = false;
+        }
+    }
+
+public:
+    progress_message_stream(std::ostream & out) :
+            stream_message_buffer(out), m_out(out) {}
+
+    ~progress_message_stream() {
+        clear_shown_task();
+    }
+
+    void report(message_bucket_id const & bucket, message const & msg) override {
+        unique_lock<mutex> lock(m_mutex);
+        clear_shown_task();
+        stream_message_buffer::report(bucket, msg);
+    }
+
+    void show_current_task(std::string const & desc) {
+        unique_lock<mutex> lock(m_mutex);
+        clear_shown_task();
+        m_out << desc << std::flush;
+        m_showing_task = true;
+    }
+};
+
 int main(int argc, char ** argv) {
 #if defined(LEAN_EMSCRIPTEN)
     EM_ASM(
@@ -244,30 +249,28 @@ int main(int argc, char ** argv) {
             console.log(e);
         });
 #endif
-    initializer init;
-    bool export_objects     = false;
+    ::initializer init;
+    bool make_mode          = false;
     unsigned trust_lvl      = LEAN_BELIEVER_TRUST_LEVEL+1;
     bool smt2               = false;
     bool only_deps          = false;
-    unsigned num_threads    = 1;
+    unsigned num_threads    = 0;
+#if defined(LEAN_MULTI_THREAD)
+    num_threads = hardware_concurrency();
+#endif
 #if defined(LEAN_SERVER)
     bool json_output        = false;
 #endif
     options opts;
-    std::string output;
-    std::string cache_name;
-    optional<unsigned> line;
-    optional<unsigned> column;
     optional<std::string> export_txt;
     optional<std::string> export_all_txt;
-    optional<std::string> base_dir;
     while (true) {
         int c = getopt_long(argc, argv, g_opt_str, g_long_options, NULL);
         if (c == -1)
             break; // end of command line
         switch (c) {
         case 'j':
-            num_threads = atoi(optarg);
+            num_threads = static_cast<unsigned>(atoi(optarg));
             break;
         case 'v':
             display_header(std::cout);
@@ -287,9 +290,8 @@ int main(int argc, char ** argv) {
         case 's':
             lean::set_thread_stack_size(atoi(optarg)*1024);
             break;
-        case 'o':
-            output         = optarg;
-            export_objects = true;
+        case 'm':
+            make_mode = true;
             break;
         case 'M':
             lean::set_max_memory_megabyte(atoi(optarg));
@@ -325,12 +327,6 @@ int main(int argc, char ** argv) {
         case 'P':
             opts = opts.update("profiler", true);
             break;
-        case 'L':
-            line = atoi(optarg);
-            break;
-        case 'O':
-            column = atoi(optarg);
-            break;
         case 'E':
             export_txt = std::string(optarg);
             break;
@@ -342,9 +338,6 @@ int main(int argc, char ** argv) {
         case 'A':
             export_all_txt = std::string(optarg);
             break;
-        case 'T':
-            base_dir = std::string(optarg);
-            break;
         default:
             std::cerr << "Unknown command line option\n";
             display_help(std::cerr);
@@ -352,23 +345,8 @@ int main(int argc, char ** argv) {
         }
     }
 
-    #if defined(__GNUC__) && !defined(__CLANG__)
-    #pragma GCC diagnostic ignored "-Wmaybe-uninitialized"
-    #endif
-
-    #if !defined(LEAN_MULTI_THREAD)
-    lean_assert(num_threads == 1);
-    #endif
-
     environment env = mk_environment(trust_lvl);
     io_state ios(opts, lean::mk_pretty_formatter_factory());
-#if defined(LEAN_SERVER)
-    if (json_output) {
-        ios.set_message_channel(std::make_shared<lean::json_message_stream>(std::cout));
-        // Redirect uncaptured non-json messages to stderr
-        ios.set_regular_channel(ios.get_diagnostic_channel_ptr());
-    }
-#endif
 
     if (smt2) {
         // Note: the smt2 flag may override other flags
@@ -393,47 +371,126 @@ int main(int argc, char ** argv) {
         /* Disable assertion violation dialog:
            (C)ontinue, (A)bort, (S)top, Invoke (G)DB */
         lean::enable_debug_dialog(false);
-        lean::server(num_threads, env, ios).run();
+        server(num_threads, env, ios).run();
         return 0;
     }
 #endif
 
-    try {
-        bool ok = true;
-        for (int i = optind; i < argc; i++) {
-            try {
-                if (only_deps) {
-                    if (!display_deps(env, std::cout, std::cerr, argv[i]))
-                        ok = false;
-                } else if (!parse_commands(env, ios, argv[i], base_dir, false, num_threads)) {
-                    ok = false;
+    std::shared_ptr<message_buffer> msg_buf =
+            std::make_shared<progress_message_stream>(std::cout);
+#if defined(LEAN_SERVER)
+    if (json_output) {
+        msg_buf = std::make_shared<json_message_stream>(std::cout);
+        ios.set_regular_channel(ios.get_diagnostic_channel_ptr());
+    }
+#endif
+
+    scope_global_ios scope_ios(ios);
+    scoped_message_buffer scope_msg_buf(msg_buf.get());
+    scope_message_context scope_msg_ctx(message_bucket_id { "_global", 1 });
+
+    std::vector<std::string> args(argv + optind, argv + argc);
+    if (make_mode) {
+        if (args.empty()) args.push_back(".");
+        std::vector<std::string> files;
+        for (auto & f : args) {
+            if (auto i_d = is_dir(f)) {
+                if (*i_d) {
+                    recursive_list_files(f, files);
+                } else {
+                    files.push_back(f);
                 }
-            } catch (lean::exception & ex) {
-                ok = false;
-                lean::message_builder(env, ios, argv[i], lean::pos_info(1, 1), lean::ERROR).set_exception(ex).report();
             }
         }
-        if (export_objects && ok) {
-            exclusive_file_lock output_lock(output);
-            std::ofstream out(output, std::ofstream::binary);
-            export_module(out, env);
+        args.clear();
+        for (auto & f : files) {
+            if (is_lean_file(f))
+                args.push_back(f);
         }
-        if (export_txt) {
-            exclusive_file_lock expor_lock(*export_txt);
+    }
+    std::vector<std::string> module_args;
+    for (auto & f : args) module_args.push_back(lrealpath(f.c_str()));
+
+    std::shared_ptr<task_queue> tq;
+#if defined(LEAN_MULTI_THREAD)
+    if (num_threads == 0) {
+        tq = std::make_shared<st_task_queue>();
+    } else {
+        tq = std::make_shared<mt_task_queue>(num_threads);
+    }
+#else
+    tq = std::make_shared<st_task_queue>();
+#endif
+    scope_global_task_queue scope(tq.get());
+
+    if (make_mode) {
+        if (auto prog_msg_buf = std::dynamic_pointer_cast<progress_message_stream>(msg_buf))
+            tq->set_progress_callback([=](generic_task * t) {
+                if (!t->is_tiny())
+                    prog_msg_buf->show_current_task(t->description());
+            });
+    }
+
+    fs_module_vfs vfs;
+    if (!make_mode || export_txt || export_all_txt) {
+        for (auto & mod_id : module_args)
+            vfs.m_modules_to_load_from_source.insert(mod_id);
+    }
+
+    module_mgr mod_mgr(&vfs, msg_buf.get(), env, ios);
+    mod_mgr.set_save_olean(make_mode);
+
+    try {
+        bool ok = true;
+
+        if (only_deps) {
+            for (auto & mod_fn : module_args) {
+                try {
+                    if (!display_deps(env, std::cout, std::cerr, mod_fn.c_str()))
+                        ok = false;
+                } catch (lean::exception &ex) {
+                    ok = false;
+                    lean::message_builder(env, ios, mod_fn, lean::pos_info(1, 1), lean::ERROR).set_exception(
+                            ex).report();
+                }
+            }
+
+            return ok ? 0 : 1;
+        }
+
+        std::vector<std::pair<module_id, module_info>> mods;
+        std::vector<std::pair<module_id, task_result<std::string>>> olean_contents;
+        for (auto & mod : module_args) {
+            auto mod_info = mod_mgr.get_module(mod);
+            mods.push_back({mod, mod_info});
+        }
+
+        for (auto & mod : mods) {
+            try {
+                auto res = mod.second.m_result.get();
+                if (mod.second.m_olean_task) mod.second.m_olean_task.get();
+                ok = ok && res.m_ok;
+            } catch (exception & ex) {
+                ok = false;
+                message_builder(env, ios, mod.first, {1, 0}, ERROR).set_exception(ex).report();
+            }
+        }
+
+        if (export_txt && !mods.empty()) {
+            exclusive_file_lock export_lock(*export_txt);
             std::ofstream out(*export_txt);
-            export_module_as_lowtext(out, env);
+            export_module_as_lowtext(out, *mods.front().second.m_result.get().m_env);
         }
-        if (export_all_txt) {
+        if (export_all_txt && !mods.empty()) {
             exclusive_file_lock export_lock(*export_all_txt);
             std::ofstream out(*export_all_txt);
-            export_all_as_lowtext(out, env);
+            export_all_as_lowtext(out, *mods.front().second.m_result.get().m_env);
         }
         return ok ? 0 : 1;
     } catch (lean::throwable & ex) {
         lean::message_builder(env, ios, "<unknown>", lean::pos_info(1, 1), lean::ERROR).set_exception(ex).report();
     } catch (std::bad_alloc & ex) {
         std::cerr << "out of memory" << std::endl;
-        return 1;
     }
     return 1;
 }

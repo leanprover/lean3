@@ -6,6 +6,8 @@ Author: Leonardo de Moura
 */
 #include <utility>
 #include <vector>
+#include <library/task_queue.h>
+#include <library/module_mgr.h>
 #include "util/interrupt.h"
 #include "util/lbool.h"
 #include "util/flet.h"
@@ -745,9 +747,43 @@ static void check_duplicated_params(environment const & env, declaration const &
     }
 }
 
-certified_declaration check(environment const & env, declaration const & d) {
-    if (d.is_definition())
-        check_no_mlocal(env, d.get_name(), d.get_value(), false);
+static void check_definition(environment const & env, declaration const & d, type_checker & checker) {
+    check_no_mlocal(env, d.get_name(), d.get_value(), false);
+    expr val_type = checker.check(d.get_value(), d.get_univ_params());
+    if (!checker.is_def_eq(val_type, d.get_type())) {
+        throw_kernel_exception(env, d.get_value(), [=](formatter const &fmt) {
+            return pp_def_type_mismatch(fmt, d.get_name(), d.get_type(), val_type, true);
+        });
+    }
+}
+
+class proof_checking_task : public task<expr> {
+    environment m_env;
+    declaration m_decl;
+public:
+    proof_checking_task(environment const & env, declaration const & d) :
+            m_env(env), m_decl(d) {
+        lean_assert(d.is_theorem());
+    }
+
+    void description(std::ostream & out) const override {
+        out << "type-checking " << m_decl.get_name();
+    }
+
+    std::vector<generic_task_result> get_dependencies() override {
+        return { m_decl.get_value_task() };
+    }
+
+    expr execute() override {
+        bool memoize = true;
+        bool trusted_only = m_decl.is_trusted();
+        type_checker checker(m_env, memoize, trusted_only);
+        check_definition(m_env, m_decl, checker);
+        return m_decl.get_value();
+    }
+};
+
+certified_declaration check(environment const & env, declaration const & d, bool immediately) {
     check_no_mlocal(env, d.get_name(), d.get_type(), true);
     check_name(env, d.get_name());
     check_duplicated_params(env, d);
@@ -756,14 +792,27 @@ certified_declaration check(environment const & env, declaration const & d) {
     expr sort = checker.check(d.get_type(), d.get_univ_params());
     checker.ensure_sort(sort, d.get_type());
     if (d.is_definition()) {
-        expr val_type = checker.check(d.get_value(), d.get_univ_params());
-        if (!checker.is_def_eq(val_type, d.get_type())) {
-            throw_kernel_exception(env, d.get_value(), [=](formatter const & fmt) {
-                    return pp_def_type_mismatch(fmt, d.get_name(), d.get_type(), val_type, true);
-                });
+        if (!immediately && env.trust_lvl() != 0 && d.is_theorem()) {
+            auto checked_proof = get_global_task_queue().submit<proof_checking_task>(env, d);
+            return certified_declaration(env.get_id(),
+                                         mk_theorem(d.get_name(), d.get_univ_params(), d.get_type(), checked_proof));
         }
+        check_definition(env, d, checker);
     }
     return certified_declaration(env.get_id(), d);
+}
+
+certified_declaration certify_unchecked::certify(environment const & env, declaration const & d) {
+    if (env.trust_lvl() == 0)
+        throw_kernel_exception(env, "environment trust level does not allow users to add declarations that were not type checked");
+    return certified_declaration(env.get_id(), d);
+}
+
+certified_declaration certify_unchecked::certify_or_check(environment const & env, declaration const & d) {
+    if (env.trust_lvl() == 0)
+        return check(env, d);
+    else
+        return certify(env, d);
 }
 
 void initialize_type_checker() {

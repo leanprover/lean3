@@ -6,6 +6,7 @@ Author: Gabriel Ebner
 */
 #include "library/message_builder.h"
 #include "library/type_context.h"
+#include "library/message_buffer.h"
 #include <string>
 
 namespace lean {
@@ -15,7 +16,7 @@ message_builder::message_builder(pos_info_provider const * provider,
                                  environment const & env, io_state const & ios,
                                  std::string const & file_name, const pos_info & pos,
                                  message_severity severity) :
-    m_pos_info_provider(provider), m_ios(ios), m_tc(tc),
+    m_pos_info_provider(provider), m_tc(tc),
     m_file_name(file_name), m_pos(pos), m_severity(severity),
     m_caption(), m_text(std::make_shared<string_output_channel>()),
     m_text_stream(env, ios.get_formatter_factory()(env, ios.get_options(), *tc), m_text) {}
@@ -33,15 +34,15 @@ message message_builder::build() {
     return message(m_file_name, m_pos, m_severity, m_caption, text);
 }
 
-message_builder & message_builder::set_exception(throwable const & ex) {
+message_builder & message_builder::set_exception(throwable const & ex, bool use_pos) {
     if (auto ext_ex = dynamic_cast<ext_exception const *>(&ex)) {
-        if (m_pos_info_provider && ext_ex->get_main_expr()) {
+        if (use_pos && m_pos_info_provider && ext_ex->get_main_expr()) {
             if (auto main_pos = m_pos_info_provider->get_pos_info(*ext_ex->get_main_expr()))
                 m_pos = *main_pos;
         }
         *this << *ext_ex;
     } else if (auto f_ex = dynamic_cast<formatted_exception const *>(&ex)) {
-        if (m_pos_info_provider && f_ex->get_main_expr()) {
+        if (use_pos && m_pos_info_provider && f_ex->get_main_expr()) {
             if (auto main_pos = m_pos_info_provider->get_pos_info(*f_ex->get_main_expr()))
                 m_pos = *main_pos;
         }
@@ -50,6 +51,10 @@ message_builder & message_builder::set_exception(throwable const & ex) {
         *this << ex.what();
     }
     return *this;
+}
+
+void message_builder::report() {
+    report_message(build());
 }
 
 }

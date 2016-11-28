@@ -55,7 +55,6 @@ Author: Leonardo de Moura
 
 namespace lean {
 MK_THREAD_LOCAL_GET(type_context_cache_manager, get_tcm, true /* use binder information at infer_cache */);
-LEAN_THREAD_PTR(info_manager, g_infom);
 
 static name * g_level_prefix = nullptr;
 static name * g_elab_strategy = nullptr;
@@ -112,22 +111,19 @@ elaborator_strategy get_elaborator_strategy(environment const & env, name const 
 #define trace_elab_debug(CODE) lean_trace("elaborator_debug", scope_trace_env _scope(m_env, m_ctx); CODE)
 
 elaborator::elaborator(environment const & env, options const & opts, metavar_context const & mctx,
-                       local_context const & lctx, optional<info_manager> & infom):
+                       local_context const & lctx):
     m_env(env), m_opts(opts),
-    m_ctx(env, opts, mctx, lctx, get_tcm(), transparency_mode::Semireducible), m_owns_infom(infom) {
-    if (infom) {
-        g_infom = &*infom;
-    }
+    m_ctx(env, opts, mctx, lctx, get_tcm(), transparency_mode::Semireducible),
+    m_uses_infom(get_global_info_manager() != nullptr) {
 }
 
 elaborator::~elaborator() {
-    if (g_infom) {
-        m_info.instantiate_mvars(m_ctx.mctx());
-        g_infom->merge(m_info);
-    }
-    if (m_owns_infom) {
-        g_infom = nullptr;
-    }
+    try {
+        if (m_uses_infom && get_global_info_manager()) {
+            m_info.instantiate_mvars(m_ctx.mctx());
+            get_global_info_manager()->merge(m_info);
+        }
+    } catch (...) {}
 }
 
 auto elaborator::mk_pp_ctx() -> pp_fn {
@@ -673,7 +669,7 @@ expr elaborator::visit_const_core(expr const & e) {
 
 /** \brief Auxiliary function for saving information about which overloaded identifier was used by the elaborator. */
 void elaborator::save_identifier_info(expr const & f) {
-    if (!m_no_info && g_infom && get_pos_info_provider() && (is_constant(f) || is_local(f))) {
+    if (!m_no_info && m_uses_infom && get_pos_info_provider() && (is_constant(f) || is_local(f))) {
         if (auto p = get_pos_info_provider()->get_pos_info(f)) {
             m_info.add_identifier_info(p->first, p->second, is_constant(f) ? const_name(f) : local_pp_name(f));
             m_info.add_type_info(p->first, p->second, infer_type(f));
@@ -2355,7 +2351,7 @@ void elaborator::synthesize_type_class_instances() {
 }
 
 void elaborator::add_tactic_state_info(tactic_state const & s, expr const & ref) {
-    if (!g_infom) return;
+    if (!get_global_info_manager()) return;
     pos_info_provider * pip = get_pos_info_provider();
     if (!pip) return;
     if (auto p = pip->get_pos_info(ref))
@@ -2616,17 +2612,29 @@ struct sanitize_param_names_fn : public replace_visitor {
     name_map<level> m_R; /* map from tagged g_level_prefix to "clean" name not in L. */
     name_map<level> m_U; /* map from universe metavariable name to "clean" name not in L. */
     unsigned        m_idx{1};
-    bool            m_sanitized{false};
     buffer<name> &  m_new_param_names;
+    /* If m_fixed == true, then m_R, m_L and m_U are read only. We set m_fixed when elaborating
+       theorem proofs.
+       Remark: we should be able to infer the set of universe variables using just the
+       theorem type. */
+    bool            m_fixed;
 
     sanitize_param_names_fn(type_context & ctx, buffer<name> & new_lp_names):
-        m_ctx(ctx), m_new_param_names(new_lp_names) {}
+        m_ctx(ctx), m_new_param_names(new_lp_names), m_fixed(false) {}
+
+    sanitize_param_names_fn(type_context & ctx, elaborator::theorem_finalization_info const & info,
+                            buffer<name> & new_lp_names):
+        m_ctx(ctx), m_L(info.m_L), m_R(info.m_R), m_U(info.m_U),
+        m_new_param_names(new_lp_names), m_fixed(true) {}
 
     level mk_param() {
         while (true) {
             name new_n = m_p.append_after(m_idx);
             m_idx++;
             if (!m_L.contains(new_n)) {
+                if (m_fixed) {
+                    throw exception(sstream() << "theorem/lemma proof uses universe '" << new_n << "' which does not occur in its type");
+                }
                 m_new_param_names.push_back(new_n);
                 return mk_param_univ(new_n);
             }
@@ -2642,6 +2650,10 @@ struct sanitize_param_names_fn : public replace_visitor {
                         if (auto new_l = m_R.find(n)) {
                             return some_level(*new_l);
                         } else {
+                            if (m_fixed) {
+                                throw exception(sstream() << "theorem/lemma proof uses universe '" << n << "'"
+                                                << " which does not occur in its type (possible solution: use def instead of theorem)");
+                            }
                             level r = mk_param();
                             m_R.insert(n, r);
                             return some_level(r);
@@ -2655,6 +2667,10 @@ struct sanitize_param_names_fn : public replace_visitor {
                         if (auto new_l = m_U.find(n)) {
                             return some_level(*new_l);
                         } else {
+                            if (m_fixed) {
+                                throw exception(sstream() << "theorem/lemma proof contains an unassigned universe metavariable '" << n << "'"
+                                                << " (possible solution: use def instead of theorem)");
+                            }
                             level r = mk_param();
                             m_U.insert(n, r);
                             return some_level(r);
@@ -2674,12 +2690,10 @@ struct sanitize_param_names_fn : public replace_visitor {
     }
 
     void collect_params(expr const & e) {
-        lean_assert(!m_sanitized);
         m_L = collect_univ_params(e, m_L);
     }
 
     void collect_local_context_params() {
-        lean_assert(!m_sanitized);
         m_ctx.lctx().for_each([&](local_decl const & l) {
                 collect_params(m_ctx.instantiate_mvars(l.get_type()));
                 if (auto v = l.get_value())
@@ -2689,8 +2703,11 @@ struct sanitize_param_names_fn : public replace_visitor {
 
     expr sanitize(expr const & e) {
         expr r = operator()(e);
-        m_sanitized = true;
         return r;
+    }
+
+    elaborator::theorem_finalization_info mk_info() {
+        return elaborator::theorem_finalization_info(m_L, m_R, m_U);
     }
 };
 
@@ -2715,6 +2732,7 @@ static expr replace_with_simple_metavars(metavar_context mctx, name_map<expr> & 
 }
 
 expr elaborator::elaborate(expr const & e) {
+    scoped_info_manager scope_infom(&m_info);
     expr r = visit(e,  none_expr());
     trace_elab_detail(tout() << "result before final checkpoint\n" << r << "\n";);
     synthesize();
@@ -2722,6 +2740,7 @@ expr elaborator::elaborate(expr const & e) {
 }
 
 expr elaborator::elaborate_type(expr const & e) {
+    scoped_info_manager scope_infom(&m_info);
     expr const & ref = e;
     expr new_e = ensure_type(visit(e, none_expr()), ref);
     synthesize();
@@ -2729,6 +2748,7 @@ expr elaborator::elaborate_type(expr const & e) {
 }
 
 expr_pair elaborator::elaborate_with_type(expr const & e, expr const & e_type) {
+    scoped_info_manager scope_infom(&m_info);
     expr const & ref = e;
     expr new_e, new_e_type;
     {
@@ -2750,8 +2770,8 @@ expr_pair elaborator::elaborate_with_type(expr const & e, expr const & e_type) {
     return mk_pair(new_e, new_e_type);
 }
 
-void elaborator::finalize(buffer<expr> & es, buffer<name> & new_lp_names, bool check_unassigned, bool to_simple_metavar) {
-    sanitize_param_names_fn S(m_ctx, new_lp_names);
+void elaborator::finalize_core(sanitize_param_names_fn & S, buffer<expr> & es,
+                               bool check_unassigned, bool to_simple_metavar, bool collect_local_ctx) {
     name_map<expr> to_simple_mvar_cache;
     for (expr & e : es) {
         e = instantiate_mvars(e);
@@ -2764,10 +2784,16 @@ void elaborator::finalize(buffer<expr> & es, buffer<name> & new_lp_names, bool c
         e = instantiate_mvars(e);
         S.collect_params(e);
     }
-    S.collect_local_context_params();
+    if (collect_local_ctx)
+        S.collect_local_context_params();
     for (expr & e : es) {
         e = S.sanitize(e);
     }
+}
+
+void elaborator::finalize(buffer<expr> & es, buffer<name> & new_lp_names, bool check_unassigned, bool to_simple_metavar) {
+    sanitize_param_names_fn S(m_ctx, new_lp_names);
+    finalize_core(S, es, check_unassigned, to_simple_metavar, true);
 }
 
 pair<expr, level_param_names> elaborator::finalize(expr const & e, bool check_unassigned, bool to_simple_metavar) {
@@ -2777,11 +2803,33 @@ pair<expr, level_param_names> elaborator::finalize(expr const & e, bool check_un
     return mk_pair(es[0], to_list(new_lp_names));
 }
 
+auto elaborator::finalize_theorem_type(expr const & type, buffer<name> & new_lp_names)
+    -> pair<expr, theorem_finalization_info> {
+    sanitize_param_names_fn S(m_ctx, new_lp_names);
+    buffer<expr> es; es.push_back(type);
+    bool check_unassigned  = true;
+    bool to_simple_metavar = false;
+    bool collect_local_ctx = true;
+    finalize_core(S, es, check_unassigned, to_simple_metavar, collect_local_ctx);
+    return mk_pair(es[0], S.mk_info());
+}
+
+expr elaborator::finalize_theorem_proof(expr const & val, theorem_finalization_info const & info) {
+    buffer<name> dummy;
+    sanitize_param_names_fn S(m_ctx, info, dummy);
+    buffer<expr> es; es.push_back(val);
+    bool check_unassigned  = true;
+    bool to_simple_metavar = false;
+    bool collect_local_ctx = false;
+    finalize_core(S, es, check_unassigned, to_simple_metavar, collect_local_ctx);
+    return es[0];
+}
+
 pair<expr, level_param_names>
 elaborate(environment & env, options const & opts,
           metavar_context & mctx, local_context const & lctx, expr const & e,
-          bool check_unassigned, optional<info_manager> & infom) {
-    elaborator elab(env, opts, mctx, lctx, infom);
+          bool check_unassigned) {
+    elaborator elab(env, opts, mctx, lctx);
     expr r = elab.elaborate(e);
     auto p = elab.finalize(r, check_unassigned, true);
     mctx = elab.mctx();
@@ -2880,8 +2928,7 @@ static expr resolve_names(environment const & env, local_context const & lctx, e
 
 expr nested_elaborate(environment & env, options const & opts, metavar_context & mctx, local_context const & lctx,
                       expr const & e, bool relaxed) {
-    optional<info_manager> infom;
-    elaborator elab(env, opts, mctx, lctx, infom);
+    elaborator elab(env, opts, mctx, lctx);
     expr r = elab.elaborate(resolve_names(env, lctx, e));
     if (!relaxed)
         elab.ensure_no_unassigned_metavars(r);
@@ -2893,17 +2940,17 @@ expr nested_elaborate(environment & env, options const & opts, metavar_context &
 static vm_obj tactic_save_type_info(vm_obj const & _e, vm_obj const & ref, vm_obj const & _s) {
     expr const & e = to_expr(_e);
     tactic_state const & s = to_tactic_state(_s);
-    if (!g_infom || !get_pos_info_provider()) return mk_tactic_success(s);
+    if (!get_global_info_manager() || !get_pos_info_provider()) return mk_tactic_success(s);
     auto pos = get_pos_info_provider()->get_pos_info(to_expr(ref));
     if (!pos) return mk_tactic_success(s);
     type_context ctx = mk_type_context_for(s);
     try {
         expr type = ctx.infer(e);
-        g_infom->add_type_info(pos->first, pos->second, type);
+        get_global_info_manager()->add_type_info(pos->first, pos->second, type);
         if (is_constant(e))
-            g_infom->add_identifier_info(pos->first, pos->second, const_name(e));
+            get_global_info_manager()->add_identifier_info(pos->first, pos->second, const_name(e));
         else if (is_local(e))
-            g_infom->add_identifier_info(pos->first, pos->second, local_pp_name(e));
+            get_global_info_manager()->add_identifier_info(pos->first, pos->second, local_pp_name(e));
     } catch (exception & ex) {
         return mk_tactic_exception(ex, s);
     }
