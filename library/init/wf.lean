@@ -58,7 +58,6 @@ end
 
 variables {α : Type u} {C : α → Type v} {r : α → α → Prop}
 
-<<<<<<< HEAD
 -- Well-founded fixpoint
 def fix (hwf : well_founded r) (F : Π x, (Π y, r y x → C y) → C x) (x : α) : C x :=
 fix_F F x (apply hwf x)
@@ -67,12 +66,6 @@ fix_F F x (apply hwf x)
 lemma fix_eq (hwf : well_founded r) (F : Π x, (Π y, r y x → C y) → C x) (x : α) :
   fix hwf F x = F x (λ y h, fix hwf F y) :=
 fix_F_eq F x (apply hwf x)
-=======
-  -- Well-founded fixpoint satisfies fixpoint equation
-  lemma fix_eq (hwf : well_founded r) (F : Π x, (Π y, r y x → C y) → C x) (x : α) :
-    fix hwf F x = F x (λ y h, fix hwf F y) :=
-  fix_F_eq F x (apply hwf x)
->>>>>>> fix(library): update comments and copyright, remove unecessary code
 end well_founded
 
 open well_founded
