@@ -10,8 +10,10 @@ Author: Leonardo de Moura
 #include <gmp.h>
 
 namespace lean {
+
 class obj;
-enum class obj_kind { Constructor, Closure, MPN };
+
+enum class obj_kind { Constructor, Closure, MPN, RawPtr };
 
 class obj_cell {
     atomic<unsigned> m_rc;
@@ -31,12 +33,14 @@ class obj_cell {
     obj_cell(void * fn, unsigned arity, unsigned sz, obj const * fs);
     friend obj mk_obj(unsigned cidx, unsigned n, obj const * fs);
     friend obj mk_closure_core(void * fn, unsigned arity, unsigned n, obj const * fs);
+    friend obj mk_raw_ptr(void* raw_ptr);
     void ** field_addr() {
         return reinterpret_cast<void **>(reinterpret_cast<char*>(this)+sizeof(obj_cell));
     }
     void ** fn_ptr_addr() { return field_addr() + m_size; }
     void copy_fields(obj_cell const & src);
 public:
+    obj_cell(void* raw_ptr);
     obj_cell(obj_cell const & src, obj const & a1);
     obj_cell(obj_cell const & src, obj const & a1, obj const & a2);
     obj_cell(obj_cell const & src, obj const & a1, obj const & a2, obj const & a3);
@@ -50,7 +54,7 @@ public:
              obj const & a6, obj const & a7, obj const & a8);
     unsigned get_rc() const { return atomic_load(&m_rc); }
     void inc_ref() { atomic_fetch_add_explicit(&m_rc, 1u, memory_order_relaxed); }
-    void dec_ref() { if (dec_ref_core()) { dealloc(); } }
+    void dec_ref() { /* if (dec_ref_core()) { dealloc(); } */ }
     obj_kind kind() const { return static_cast<obj_kind>(m_kind); }
     size_t cidx() const { return m_cidx; }
     unsigned size() const { return m_size; }
@@ -58,8 +62,14 @@ public:
     obj const * field_ptr() const {
         return reinterpret_cast<obj const *>(reinterpret_cast<char const *>(this)+sizeof(obj_cell));
     }
+
     void * fn_ptr() const {
         return *(reinterpret_cast<void **>(const_cast<obj*>(field_ptr()))+m_size);
+    }
+
+    void * raw_ptr() {
+        auto base = field_addr();
+        return *base;
     }
 };
 
@@ -77,7 +87,8 @@ public:
     obj():m_data(LEAN_BOX(0)) { static_assert(sizeof(obj) == sizeof(void *), "unexpected class obj size"); } // NOLINT
     obj(unsigned cidx):m_data(LEAN_BOX(cidx)) {}
     obj(obj_cell * c):m_data(c) { m_data->inc_ref(); }
-    obj(obj const & o):m_data(o.m_data) { if (LEAN_IS_PTR(m_data)) m_data->inc_ref(); }
+    obj(obj const & o):m_data(o.m_data) {
+        if (LEAN_IS_PTR(m_data) && m_data->kind() != obj_kind::RawPtr) m_data->inc_ref(); }
     obj(obj && o):m_data(o.m_data) { o.m_data = LEAN_BOX(0); }
     ~obj() { if (LEAN_IS_PTR(m_data)) m_data->dec_ref(); }
 
@@ -107,6 +118,7 @@ public:
 
     unsigned arity() const { return m_data->arity(); }
     void * fn_ptr() const { return m_data->fn_ptr(); }
+    void * raw_ptr() const { return m_data->raw_ptr(); }
 
     obj apply(obj const &) const;
     obj apply(obj const &, obj const &) const;
@@ -121,6 +133,7 @@ public:
     obj apply(unsigned, obj const *) const;
 };
 
+obj mk_raw_ptr(void* raw_ptr);
 inline obj mk_obj(unsigned cidx) { return obj(cidx); }
 obj mk_obj(unsigned cidx, unsigned n, obj const * fs);
 inline obj mk_obj(unsigned cidx, obj const & o) { return mk_obj(cidx, 1, &o); }
@@ -135,4 +148,27 @@ template<typename T>
 obj mk_closure(T fn, unsigned arity, std::initializer_list<obj> const & os) {
     return mk_closure_core(reinterpret_cast<void*>(fn), arity, os.size(), os.begin());
 }
+
+// The optimizer should eventually take of this.
+lean::obj run_io_main(lean::obj io_action) {
+    // std::cout << "io_main" << std::endl;
+    auto real_world = lean::mk_obj(0);
+    return io_action[0].apply(real_world);
+}
+
+obj run_lean_main(obj (*main_fn)()) {
+    return run_io_main(main_fn());
+}
+
+obj runtime_error(const char * msg) {
+    printf("lean runtime error: %s\n", msg);
+    exit(1);
+}
+
+obj nothing_error() {
+    runtime_error("nothing can not be evaluted");
+    exit(1);
+}
+
+static lean::obj nothing = lean::mk_closure(nothing_error, 0, 0, nullptr);
 }

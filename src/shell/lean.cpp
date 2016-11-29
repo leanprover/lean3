@@ -40,6 +40,9 @@ Author: Leonardo de Moura
 #include "frontends/lean/server.h"
 #include "frontends/lean/dependencies.h"
 #include "frontends/lean/opt_cmd.h"
+#include "backends/cpp_backend.h"
+#include "backends/rust_backend.h"
+#include "backends/config.h"
 #include "init/init.h"
 #include "shell/emscripten.h"
 #include "shell/simple_pos_info_provider.h"
@@ -169,6 +172,8 @@ static struct option g_long_options[] = {
     {"discard",      no_argument,       0, 'r'},
     {"to_axiom",     no_argument,       0, 'X'},
     {"profile",      no_argument,       0, 'P'},
+    {"compile-to",   required_argument, 0, 'C'},
+    // {"main_fn",      required_argument, 0, 'M'}, optional_arg?
 #if defined(LEAN_MULTI_THREAD)
     {"server",       no_argument,       0, 'S'},
     {"threads",      required_argument, 0, 'j'},
@@ -258,6 +263,7 @@ int main(int argc, char ** argv) {
     bool export_objects     = false;
     unsigned trust_lvl      = LEAN_BELIEVER_TRUST_LEVEL+1;
     bool server             = false;
+    bool compile            = false;
     bool only_deps          = false;
     unsigned num_threads    = 1;
     bool read_cache         = false;
@@ -270,6 +276,7 @@ int main(int argc, char ** argv) {
     std::string index_name;
     optional<unsigned> line;
     optional<unsigned> column;
+    optional<std::string> compiler_target;
     optional<std::string> export_txt;
     optional<std::string> export_all_txt;
     optional<std::string> base_dir;
@@ -381,6 +388,10 @@ int main(int argc, char ** argv) {
 #ifdef LEAN_DEBUG
         case 'B':
             lean::enable_debug(optarg);
+            break;
+        case 'C':
+            compiler_target = std::string(optarg);
+            compile = true;
             break;
 #endif
         case 'A':
@@ -510,6 +521,24 @@ int main(int argc, char ** argv) {
                 default_type_context tc(env, ios.get_options());
                 auto out = diagnostic(env, ios, tc);
                 lean::display_error(out, &pp, ex);
+            }
+        }
+        if (ok && compile && default_k == input_kind::Lean) {
+            // TODO : @jroesch print error if try to do
+            // extraction in the HoTT core, not sure how
+            // to implement a sophisticated usage analysis
+            // to do erasure.
+            lean::config conf((optional<std::string>()), optional<std::string>());
+
+            if (compiler_target.value() == std::string("rust")) {
+                lean::rust_backend backend(env, conf);
+                backend.generate_code();
+            } else if (compiler_target.value() == std::string("cpp")) {
+                lean::cpp_backend backend(env, conf);
+                backend.generate_code();
+            } else {
+                std::cout << "unknown compiler target: " << compiler_target.value() << std::endl;
+                exit(1);
             }
         }
         if (ok && server && (default_k == input_kind::Lean || default_k == input_kind::HLean)) {

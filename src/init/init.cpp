@@ -20,6 +20,7 @@ Author: Leonardo de Moura
 #include "library/print.h"
 #include "compiler/init_module.h"
 #include "frontends/lean/init_module.h"
+#include "backends/init_module.h"
 #include "init/init.h"
 
 namespace lean {
@@ -39,9 +40,11 @@ void initialize() {
     initialize_definitional_module();
     initialize_compiler_module();
     initialize_frontend_lean_module();
+    initialize_backends_module();
 }
 void finalize() {
     run_thread_finalizers();
+    finalize_backends_module();
     finalize_frontend_lean_module();
     finalize_compiler_module();
     finalize_definitional_module();

@@ -31,13 +31,13 @@ public:
     }
 
     void * allocate(unsigned n) {
-        if (n < LEAN_NUM_OBJ_FREE_LISTS && m_free_list[n] != nullptr) {
-            void * r = m_free_list[n];
-            m_free_list[n] = *(reinterpret_cast<void **>(r));
-            return r;
-        } else {
+        // if (n < LEAN_NUM_OBJ_FREE_LISTS && m_free_list[n] != nullptr) {
+        //     void * r = m_free_list[n];
+        //     m_free_list[n] = *(reinterpret_cast<void **>(r));
+        //     return r;
+        // } else {
             return malloc(sizeof(obj_cell) + sizeof(void*)*n); // NOLINT
-        }
+        // }
     }
 
     void recycle(void * ptr, unsigned n) {
@@ -64,6 +64,12 @@ void * alloc_obj(unsigned n) {
         register_post_thread_finalizer(finalize_obj_pool, g_obj_pool);
     }
     return g_obj_pool->allocate(n);
+}
+
+obj_cell::obj_cell(void* raw_ptr):
+    m_rc(0), m_kind(static_cast<unsigned>(obj_kind::RawPtr)), m_size(1), m_cidx(0) {
+    void ** mem = field_addr();
+    new (mem) (void*)(raw_ptr);
 }
 
 obj_cell::obj_cell(unsigned cidx, unsigned sz, obj const * fs):
@@ -94,6 +100,7 @@ obj_cell::obj_cell(obj_cell const & src, obj const & a1):
     copy_fields(src);
     void ** f = field_addr();
     new (f + src.m_size) obj(a1);
+    *fn_ptr_addr() = src.fn_ptr();
 }
 
 obj_cell::obj_cell(obj_cell const & src, obj const & a1, obj const & a2):
@@ -102,6 +109,7 @@ obj_cell::obj_cell(obj_cell const & src, obj const & a1, obj const & a2):
     void ** f = field_addr();
     new (f + src.m_size)     obj(a1);
     new (f + src.m_size + 1) obj(a2);
+    *fn_ptr_addr() = src.fn_ptr();
 }
 
 obj_cell::obj_cell(obj_cell const & src, obj const & a1, obj const & a2, obj const & a3):
@@ -111,6 +119,7 @@ obj_cell::obj_cell(obj_cell const & src, obj const & a1, obj const & a2, obj con
     new (f + src.m_size)     obj(a1);
     new (f + src.m_size + 1) obj(a2);
     new (f + src.m_size + 2) obj(a3);
+    *fn_ptr_addr() = src.fn_ptr();
 }
 
 obj_cell::obj_cell(obj_cell const & src, obj const & a1, obj const & a2, obj const & a3, obj const & a4):
@@ -121,6 +130,7 @@ obj_cell::obj_cell(obj_cell const & src, obj const & a1, obj const & a2, obj con
     new (f + src.m_size + 1) obj(a2);
     new (f + src.m_size + 2) obj(a3);
     new (f + src.m_size + 3) obj(a4);
+    *fn_ptr_addr() = src.fn_ptr();
 }
 
 obj_cell::obj_cell(obj_cell const & src, obj const & a1, obj const & a2, obj const & a3, obj const & a4, obj const & a5):
@@ -132,6 +142,7 @@ obj_cell::obj_cell(obj_cell const & src, obj const & a1, obj const & a2, obj con
     new (f + src.m_size + 2) obj(a3);
     new (f + src.m_size + 3) obj(a4);
     new (f + src.m_size + 4) obj(a5);
+    *fn_ptr_addr() = src.fn_ptr();
 }
 
 obj_cell::obj_cell(obj_cell const & src, obj const & a1, obj const & a2, obj const & a3, obj const & a4, obj const & a5,
@@ -145,6 +156,7 @@ obj_cell::obj_cell(obj_cell const & src, obj const & a1, obj const & a2, obj con
     new (f + src.m_size + 3) obj(a4);
     new (f + src.m_size + 4) obj(a5);
     new (f + src.m_size + 5) obj(a6);
+    *fn_ptr_addr() = src.fn_ptr();
 }
 
 obj_cell::obj_cell(obj_cell const & src, obj const & a1, obj const & a2, obj const & a3, obj const & a4, obj const & a5,
@@ -159,6 +171,7 @@ obj_cell::obj_cell(obj_cell const & src, obj const & a1, obj const & a2, obj con
     new (f + src.m_size + 4) obj(a5);
     new (f + src.m_size + 5) obj(a6);
     new (f + src.m_size + 6) obj(a7);
+    *fn_ptr_addr() = src.fn_ptr();
 }
 
 obj_cell::obj_cell(obj_cell const & src, obj const & a1, obj const & a2, obj const & a3, obj const & a4, obj const & a5,
@@ -174,6 +187,7 @@ obj_cell::obj_cell(obj_cell const & src, obj const & a1, obj const & a2, obj con
     new (f + src.m_size + 5) obj(a6);
     new (f + src.m_size + 6) obj(a7);
     new (f + src.m_size + 7) obj(a8);
+    *fn_ptr_addr() = src.fn_ptr();
 }
 
 #define DEC_FIELDS(o, todo) {                                   \
@@ -202,10 +216,16 @@ void obj_cell::dealloc() {
             case obj_kind::Closure:
                 DEC_FIELDS(it, todo);
                 it->~obj_cell();
-                g_obj_pool->recycle(it, sz+1);
+                // trying to recycle closures and raw ptrs causes crashes
+                // g_obj_pool->recycle(it, sz+1);
                 break;
             case obj_kind::MPN:
                 // TODO(Leo):
+                break;
+            case obj_kind::RawPtr:
+                // Eventually support attaching a finalizer/destructor
+                it->~obj_cell();
+                // g_obj_pool->recycle(it, sz);
                 break;
             }
         }
@@ -213,6 +233,11 @@ void obj_cell::dealloc() {
         // We need this catch, because push_back may fail when expanding the buffer.
         // In this case, we avoid the crash, and "accept" the memory leak.
     }
+}
+
+obj mk_raw_ptr(void * raw_ptr) {
+    void * mem = alloc_obj(1);
+    return obj(new (mem) obj_cell(raw_ptr));
 }
 
 obj mk_obj(unsigned cidx, unsigned n, obj const * fs) {
@@ -355,7 +380,8 @@ obj obj::apply(obj const & a1) const {
         default: return mk_closure(*this, a1).apply();
         }
     } else {
-        return mk_closure(*this, a1);
+        // TODO: return mk_closure(*this, a1); don't understand why this fails
+        return mk_closure(this->fn_ptr(), this->arity(), { a1 });
     }
 }
 
@@ -372,6 +398,8 @@ obj obj::apply(obj const & a1, obj const & a2) const {
         case 8:  return FN8(fld(0), fld(1), fld(2), fld(3), fld(4), fld(5), a1, a2);
         default: return mk_closure(*this, a1, a2).apply();
         }
+    } else if (ar < size() + 2) {
+        return apply(a1).apply(a2);
     } else {
         return mk_closure(*this, a1, a2);
     }
@@ -389,6 +417,12 @@ obj obj::apply(obj const & a1, obj const & a2, obj const & a3) const {
         case 8:  return FN8(fld(0), fld(1), fld(2), fld(3), fld(4), a1, a2, a3);
         default: return mk_closure(*this, a1, a2, a3).apply();
         }
+    } else if (ar < size() + 3) {
+        switch (ar - size()) {
+        case 1: return apply(a1).apply(a2, a3);
+        case 2: return apply(a1, a2).apply(a3);
+        default: return lean::runtime_error("apply3 error");
+        }
     } else {
         return mk_closure(*this, a1, a2, a3);
     }
@@ -404,6 +438,13 @@ obj obj::apply(obj const & a1, obj const & a2, obj const & a3, obj const & a4) c
         case 7:  return FN7(fld(0), fld(1), fld(2), a1, a2, a3, a4);
         case 8:  return FN8(fld(0), fld(1), fld(2), fld(3), a1, a2, a3, a4);
         default: return mk_closure(*this, a1, a2, a3, a4).apply();
+        }
+    } else if (ar < size() + 4) {
+        switch (ar - size()) {
+        case 1: return apply(a1).apply(a2, a3, a4);
+        case 2: return apply(a1, a2).apply(a3, a4);
+        case 3: return apply(a1, a2, a3).apply(a4);
+        default: return lean::runtime_error("apply4 error");
         }
     } else {
         return mk_closure(*this, a1, a2, a3, a4);
