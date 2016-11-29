@@ -41,6 +41,10 @@ option(USE_GITHASH        "GIT_HASH"          ON)
 option(AUTO_THREAD_FINALIZATION "AUTO_THREAD_FINALIZATION" ON)
 # Directory that include lean emacs mode dependecies
 set(EMACS_DEPENDENCIES "${CMAKE_SOURCE_DIR}/emacs/dependencies")
+if (NOT NINJA_PATH)
+  # Path to ninja binary
+  set(NINJA_PATH "USE DEFAULT")
+endif()
 
 message(STATUS "Emacs dependecies directory " ${EMACS_DEPENDENCIES})
 
