@@ -327,7 +327,7 @@ void populate_extern_fns(
 {
     used.m_used_names.for_each([&] (name const & n) {
         if (auto builtin = get_builtin(n)) {
-             std::cout << "extern fn: " << n << std::endl;
+             // std::cout << "extern fn: " << n << std::endl;
              extern_fns.push_back(mk_lean_extern(n, builtin.value().m_arity));
         } else if (has_extern_attribute(env, n)) {
             extern_fns.push_back(mk_extern(n, 0));

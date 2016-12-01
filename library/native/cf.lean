@@ -9,6 +9,7 @@ import native.format
 import native.builtin
 import native.util
 import native.pass
+import native.procedure
 import init.state
 
 namespace cf
@@ -22,8 +23,15 @@ namespace cf
 meta def trace_cf (s : string) : cf_monad unit :=
   trace s (fun u, return u)
 
+meta def fresh_name : cf_monad name := do
+  count <- state.read,
+  -- need to replace this with unique prefix as per our earlier conversation
+  n <- pure $ name.mk_numeral (unsigned.of_nat count) `_anf_,
+  state.write (count + 1),
+  return n
+
 private meta def cf_case (action : expr -> cf_monad expr) (e : expr) : cf_monad expr := do
-  under_lambda (fun e', action e') e
+  under_lambda fresh_name (fun e', action e') e
 
 private meta def cf_cases_on (head : expr) (args : list expr) (cf : expr -> cf_monad expr) : cf_monad expr :=
   match args with
@@ -51,9 +59,9 @@ meta def init_state : cf_state := 0
 end cf
 
 private meta def cf_transform (e : expr) : expr :=
-  prod.fst $ (cf.cf' e) cf.init_state
+  prod.fst $ (under_lambda cf.fresh_name cf.cf' e) cf.init_state
 
 meta def cf : pass := {
   name := "control_flow",
-  transform := cf_transform
+  transform := fun proc, procedure.map_body cf_transform proc
 }

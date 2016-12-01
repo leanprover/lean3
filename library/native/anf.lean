@@ -60,12 +60,12 @@ private meta def fresh_name : anf_monad name := do
 -- Hoist a set of expressions above the result of the callback
 -- function.
 meta def hoist
-  (recursive : expr -> anf_monad expr)
+  (anf : expr -> anf_monad expr)
   (kont : list name -> anf_monad expr) : list expr → anf_monad expr
 | [] := kont []
 | es := do
      ns <- monad.for es $ (fun x, do
-       value <- recursive x,
+       value <- anf x,
        fresh <- fresh_name,
        let_bind fresh mk_neutral_expr value,
        return fresh),
@@ -84,7 +84,7 @@ private meta def anf_call (head : expr) (args : list expr) (anf : expr -> anf_mo
 
 private meta def anf_case (action : expr -> anf_monad expr) (e : expr) : anf_monad expr := do
   trace_anf ("anf_case : " ++ to_string e),
-  res <- under_lambda (fun e', enter_scope (action e')) e,
+  res <- under_lambda fresh_name (fun e', enter_scope (action e')) e,
   trace_anf ("anf_case : " ++ to_string res),
   return res
 
@@ -93,7 +93,7 @@ private meta def anf_cases_on (head : expr) (args : list expr) (anf : expr -> an
   match args with
   | [] := return $ mk_call head []
   | (scrut :: cases) := do
-    trace_anf "inside cases on",
+    trace_anf ("inside cases_on " ++ to_string scrut),
     scrut' <- anf scrut,
     cases' <- monad.mapm (anf_case anf) cases,
     return $ mk_call head (scrut' :: cases')
@@ -102,13 +102,16 @@ private meta def anf_cases_on (head : expr) (args : list expr) (anf : expr -> an
 -- stop deleting this, not sure why I keep removing this line of code
 open application_kind
 
+print inductive expr
+
 private meta def anf' : expr -> anf_monad expr
 | (expr.elet n ty val body) := do
-  trace_anf "processing let",
-  let_bind n ty val,
-  anf' body
+  fresh <- fresh_name,
+  val' <- anf' val,
+  let_bind fresh ty val',
+  anf' (expr.instantiate_vars body [mk_local fresh])
 | (expr.app f arg) := do
-  trace_anf "processing app",
+  trace_anf $ "head: " ++ to_string (expr.get_app_fn (expr.app f arg)),
   let fn := expr.get_app_fn (expr.app f arg),
       args := expr.get_app_args (expr.app f arg)
    in match app_kind fn with
@@ -122,11 +125,9 @@ private meta def init_state : anf_state :=
   ([], 0)
 
 private meta def anf_transform (e : expr) : expr :=
-  trace ("anf: " ++ to_string e)
-  (fun u, let res := prod.fst $ (enter_scope $ anf' e) init_state
-    in (trace $ "anf_done :" ++ to_string res) (fun u, res))
+  prod.fst $ (under_lambda fresh_name (enter_scope ∘ anf') e) init_state
 
 meta def anf : pass := {
   name := "anf",
-  transform := anf_transform
+  transform := fun proc, procedure.map_body anf_transform proc
 }

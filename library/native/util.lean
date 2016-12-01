@@ -8,6 +8,7 @@ import native.internal
 import native.builtin
 
 meta def is_cases_on (head : expr) : bool :=
+  trace ("IS CASES ON: " ++ to_string head) (fun u, 
   match native.is_internal_cases head with
   | option.some _ := bool.tt
   | option.none :=
@@ -19,7 +20,7 @@ meta def is_cases_on (head : expr) : bool :=
       end
     | option.none := bool.ff
     end
-  end
+  end)
 
 meta definition mk_local (n : name) : expr :=
   expr.local_const n n binder_info.default (expr.const n [])
@@ -31,10 +32,12 @@ meta def mk_call : expr → list expr → expr
 | head [] := head
 | head (e :: es) := mk_call (expr.app head e) es
 
-meta def under_lambda {M} [monad M] (action : expr -> M expr) : expr → M expr
+-- really need to get out of the meta language so I can prove things, I should just have a unit test lemma
+meta def under_lambda {M} [monad M] (fresh_name : M name) (action : expr -> M expr) : expr → M expr
 | (expr.lam n bi ty body) := do
-  body' <- action $ expr.instantiate_var body (mk_local n),
-  return $ expr.lam n bi ty (expr.abstract body (mk_local n))
+  fresh <- fresh_name,
+  body' <- under_lambda $ expr.instantiate_var body (mk_local fresh),
+  return $ expr.lam n bi ty (expr.abstract body' (mk_local fresh))
 | e := action e
 
 inductive application_kind

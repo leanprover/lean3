@@ -381,6 +381,7 @@ meta definition compile_expr_to_ir_stmt : expr -> ir_compiler ir.stmt
 | (expr.elet n _ v body) := do
   n' <- compile_local n,
   v' <- compile_expr_to_ir_expr compile_expr_to_ir_stmt v,
+  -- this is a scoping fail, we need to fix how we compile locals
   body' <- compile_expr_to_ir_stmt (expr.instantiate_vars body [mk_local n]),
   -- not the best solution, here need to think hard about how to prevent thing, more aggressive anf?
   match v' with
@@ -408,11 +409,8 @@ meta def trace_expr (e : expr) : ir_compiler unit :=
 
 meta definition compile_defn (decl_name : name) (e : expr) : ir_compiler format :=
   let arity := get_arity e in do
-      (args, body) <- take_arguments e,
-  let body' := run_passes [anf, cf] body
-  in do
-    trace_expr body',
-    ir <- compile_defn_to_ir (replace_main decl_name) args body',
+    (args, body) <- take_arguments e,
+    ir <- compile_defn_to_ir (replace_main decl_name) args body,
     return $ format_cpp.defn ir
 
 meta definition compile' : list (name × expr) → list (ir_compiler format)
@@ -467,13 +465,23 @@ meta def emit_main (procs : list (name × expr)) : ir_compiler ir.defn := do
   --   -- compile_to_c_call(main_fn, args, 0, name_map<unsigned>());
   --   -- *this->m_output_stream << ";\n return 0;\n}" << std::endl;
   -- ]
-meta definition driver (procs : list (name × expr)) : ir_compiler (list format × list error) := do
-  (fmt_decls, errs) <- sequence_err (compile' procs),
-  main <- emit_main procs,
+
+meta def unzip {A B} : list (A × B) → (list A × list B)
+| [] := ([], [])
+| ((x, y) :: rest) :=
+  let (xs, ys) := unzip rest
+  in (x :: xs, y :: ys)
+
+meta definition apply_pre_ir_passes (procs : list procedure) : list procedure :=
+  run_passes [anf, cf] procs
+
+meta definition driver (procs : list (name × expr)) : ir_compiler (list format × list error) :=
+  let procs' := apply_pre_ir_passes procs in do
+  (fmt_decls, errs) <- sequence_err (compile' procs'),
+  main <- emit_main procs',
   return (format_cpp.defn main :: fmt_decls, errs)
 
 meta definition compile (procs : list (name × expr)) : format :=
-  trace "At start of compiler" (fun u,
   let arities := mk_arity_map procs in
   -- Put this in a combinator or something ...
   match run (driver procs) (arities, 0) with
@@ -482,6 +490,6 @@ meta definition compile (procs : list (name × expr)) : format :=
     if list.length errs = 0
     then format_concat decls
     else format_error (error.many errs)
-  end)
+  end
 
 end native
