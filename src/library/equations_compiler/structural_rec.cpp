@@ -436,6 +436,10 @@ struct structural_rec_fn {
                     return none_expr();
                 }
             } else {
+                if (is_constant(fn, get_and_name())) {
+                    trace_debug_struct_aux(tout() << "note: support for structural recursion eliminating into 'Prop' is limited; "
+                                           << "either use well-founded recursion or wrap the 'Prop' in a structure and then project.\n";);
+                }
                 return none_expr();
             }
         }
