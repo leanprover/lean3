@@ -290,6 +290,14 @@ if(NOT "${JEMALLOC_FOUND}")
   endif()
 endif()
 
+if((JEMALLOC AND ${JEMALLOC_FOUND}) OR (TCMALLOC AND ${TCMALLOC_FOUND}))
+  if("${CMAKE_CXX_COMPILER_ID}" MATCHES "GNU")
+    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -fno-builtin-malloc -fno-builtin-calloc -fno-builtin-realloc -fno-builtin-free")
+  elseif("${CMAKE_CXX_COMPILER_ID}" MATCHES "Clang")
+    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -fno-builtin")
+  endif()
+endif()
+
 # Readline
 if(READLINE)
   find_package(Readline)
