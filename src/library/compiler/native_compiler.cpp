@@ -47,8 +47,7 @@ expr mk_local(name const & n) {
 }
 
 // Helper functions for setting up the install path on boot-up.
-// TODO: this is not currently cross platform
-void set_install_path(std::string s) {
+void initialize_install_path() {
     // 8 is the size of the string bin/lean which we want to remove from
     // the installed version of Lean.
     auto path = get_exe_location();
@@ -448,7 +447,7 @@ static std::string *g_native_module_key = nullptr;
 
 static void native_module_reader(
     deserializer & d,
-    shared_environment & senv,
+    shared_environment & _senv,
     std::function<void(asynch_update_fn const &)> &,
     std::function<void(delayed_update_fn const &)> &)
 {
