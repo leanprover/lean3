@@ -436,9 +436,28 @@ void native_compile_binary(environment const & env, declaration const & d) {
     native_compile(env, extern_fns, all_procs, native_compiler_mode::AOT);
 }
 
+// +void decls_to_native_compile(environment const & env, buffer<declaration> & decls) {
+//  +    // module_ext const & ext = get_extension(env);
+//  +    //
+//  +    // // Collect all the declarations that should be compiled from this
+//  +    // // module.
+//  +    // for (auto decl_name : ext.m_module_decls) {
+//  +    //     auto decl = env.get(decl_name);
+//  +    //     if (is_noncomputable(env, decl_name) ||
+//  +    //         !decl.is_definition() ||
+//  +    //         is_vm_builtin_function(decl_name)) {
+//  +    //             continue;
+//  +    //     } else {
+//  +    //         std::cout << decl.get_name() << std::endl;
+//  +    //         decls.push_back(decl);
+//  +    //     }
+//  +    // }
+//  +}
+
 void native_compile_module(environment const & env) {
     buffer<declaration> decls;
-    decls_to_native_compile(env, decls);
+    // TODO: bring this code back
+    // decls_to_native_compile(env, decls);
     native_compile_module(env, decls);
 }
 
@@ -447,10 +466,7 @@ static std::string *g_native_module_key = nullptr;
 
 static void native_module_reader(
     deserializer & d,
-    shared_environment & _senv,
-    std::function<void(asynch_update_fn const &)> &,
-    std::function<void(delayed_update_fn const &)> &)
-{
+    environment & env) {
     name fn;
     d >> fn;
     std::cout << "reading native module from meta-data: " << fn << std::endl;

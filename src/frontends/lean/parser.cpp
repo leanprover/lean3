@@ -679,7 +679,8 @@ std::string parser::parse_string_lit() {
 }
 
 name_map<std::string> parser::parse_kv_pairs() {
-    // name_map<std::string> pairs;
+    name_map<std::string> pairs;
+    return pairs;
     // check_token_next(get_lparen_tk(), "invalid attribute options, '(' expected");
     // bool comma = false;
     // while (!p.curr_is_token(get_rparen_tk())) {
