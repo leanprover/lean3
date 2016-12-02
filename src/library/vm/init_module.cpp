@@ -59,7 +59,6 @@ void finalize_vm_core_module() {
     finalize_vm_options();
     finalize_vm_name();
     finalize_vm_io();
-    finalize_vm_io();
     finalize_vm_aux();
     finalize_vm_nat();
     finalize_vm_core();
