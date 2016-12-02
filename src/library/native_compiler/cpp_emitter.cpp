@@ -24,30 +24,6 @@ void cpp_emitter::emit_headers() {
         "static lean::environment * g_env = nullptr;" << std::endl << std::endl;
 }
 
-void cpp_emitter::emit_unreachable() {
-    *this->m_output_stream << "lean_unreachable()";
-}
-
-void cpp_emitter::emit_local(unsigned idx) {
-    *this->m_output_stream << "_$local_" << idx;
-}
-
-void cpp_emitter::emit_sconstructor(unsigned idx) {
-    *this->m_output_stream << "lean::mk_vm_simple(" << idx << ")";
-}
-
-void cpp_emitter::emit_mpz(mpz n) {
-    *this->m_output_stream << "lean::mk_vm_mpz(lean::mpz(" << n << "))";
-}
-
-void cpp_emitter::emit_mk_nat(mpz n) {
-    *this->m_output_stream << "lean::mk_vm_nat(" << n << ")";
-}
-
-void cpp_emitter::emit_projection(unsigned idx) {
-    *this->m_output_stream << "[" << idx << "]";
-}
-
 void cpp_emitter::indent() {
     this->m_width += 4;
 }
@@ -112,13 +88,4 @@ void cpp_emitter::emit_indented_line(const char * str) {
     this->m_output_stream->width(this->m_width);
 }
 
-void cpp_emitter::emit_builtin_fields(name const & scrut, buffer<unsigned> fields) {
-    for (unsigned i = 0; i < fields.size(); i++) {
-        this->emit_string("lean::vm_obj ");
-        emit_local(fields[i]);
-        this->emit_string(" = ");
-        this->emit_string(scrut.to_string().c_str());
-        *this->m_output_stream << ".data()[" << i << "];\n";
-    }
-}
 }
