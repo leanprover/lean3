@@ -105,6 +105,9 @@ meta definition mk_error {T} : string -> ir_compiler T :=
 
 meta definition lookup_arity (n : name) : ir_compiler nat := do
   (map, counter) <- lift state.read,
+  if n = `nat.cases_on
+  then pure 2
+  else
   match rb_map.find map n with
   | option.none := mk_error $ "could not find arity for: " ++ to_string n
   | option.some n := return n
@@ -163,9 +166,12 @@ let args'' := list.map assert_name args in do
     args' <- monad.sequence args'',
     return $ ir.expr.mk_native_closure head args'
 
+meta def bind_value_with_ty (val : ir.expr) (ty : ir.ty) (body : name → ir_compiler ir.stmt) : ir_compiler ir.stmt := do
+  fresh <- fresh_name,
+  ir.stmt.letb fresh ty val <$> (body fresh)
+
 meta def bind_value (val : ir.expr) (body : name → ir_compiler ir.stmt) : ir_compiler ir.stmt :=
-let n := `scrut -- maybe generate fresh name here?
-in ir.stmt.letb n ir.ty.object val <$> (body n)
+  bind_value_with_ty val ir.ty.object body
 
 -- not in love with this --solution-- hack, revisit
 meta definition compile_local (n : name) : ir_compiler name :=
@@ -301,17 +307,116 @@ match cases with
     return (mk_builtin_cases_on case_name scrut cs' (ir.stmt.e default)))
 end
 
+meta def mk_is_simple (scrut : name) : ir.expr :=
+  ir.expr.call `is_simple [scrut]
+
+meta def mk_is_zero (n : name) : ir.expr :=
+  ir.expr.equals (ir.expr.raw_int 0) (ir.expr.locl n)
+
+meta def mk_cidx (obj : name) : ir.expr :=
+  ir.expr.call `cidx [obj]
+
+-- we should add applicative brackets
+meta def mk_simple_nat_cases_on (scrut : name) (zero_case succ_case : ir.stmt) : ir_compiler ir.stmt :=
+  bind_value_with_ty (mk_cidx scrut) (ir.ty.name `int) (fun cidx,
+    bind_value_with_ty (mk_is_zero cidx) (ir.ty.name `bool) (fun is_zero,
+    pure $ ir.stmt.ite is_zero zero_case succ_case))
+
+meta def mk_mpz_nat_cases_on (scrut : name) (zero_case succ_case : ir.stmt) : ir_compiler ir.stmt :=
+  ir.stmt.e <$> panic "mpz"
+
+meta def mk_nat_cases_on (scrut : name) (zero_case succ_case : ir.stmt) : ir_compiler ir.stmt :=
+  bind_value_with_ty (mk_is_simple scrut) (ir.ty.name `bool) (fun is_simple,
+    ir.stmt.ite is_simple <$>
+      mk_simple_nat_cases_on scrut zero_case succ_case <*>
+      mk_mpz_nat_cases_on scrut zero_case succ_case)
+
+meta def assert_two_cases (cases : list expr) : ir_compiler (expr × expr) :=
+  match cases with
+  | c1 :: c2 :: _ := return (c1, c2)
+  | _ := mk_error "nat.cases_on should have exactly two cases"
+  end
+
+meta def mk_vm_nat (n : name) : ir.expr :=
+  ir.expr.call (in_lean_ns `mk_vm_simple) [n]
+
+meta def compile_succ_case (action : expr → ir_compiler ir.stmt) (scrut : name) (succ_case : expr) : ir_compiler ir.stmt := do
+  (fs, body') <- take_arguments succ_case,
+  body'' <- action body',
+  match fs with
+  | pred :: _ := do
+    loc <- compile_local pred,
+    fresh <- fresh_name,
+    bind_value_with_ty (mk_cidx scrut) (ir.ty.name `int) (fun cidx,
+      bind_value_with_ty (ir.expr.sub (ir.expr.locl cidx) (ir.expr.raw_int 1)) (ir.ty.name `int) (fun sub,
+      pure $ ir.stmt.letb loc ir.ty.object (mk_vm_nat sub) body''
+    ))
+  | _ := mk_error "compile_succ_case too many fields"
+  end
+
+meta def compile_nat_cases_on_to_ir_expr
+(case_name : name)
+(cases : list expr)
+(action : expr -> ir_compiler ir.stmt) : ir_compiler ir.expr :=
+  match cases with
+  | [] := mk_error $ "found " ++ to_string case_name ++ "applied to zero arguments"
+  | (h :: cs) := do
+    ir_scrut <- action h >>= assert_expr,
+    (zero_case, succ_case) <- assert_two_cases cs,
+    trace_ir (to_string zero_case),
+    trace_ir (to_string succ_case),
+    ir.expr.block <$> bind_value ir_scrut (fun scrut, do
+      zc <- action zero_case,
+      sc <- compile_succ_case action scrut succ_case,
+      mk_nat_cases_on scrut zc sc
+    )
+  end
+
+            -- this->emit_indented("if (is_simple(");
+            -- action(scrutinee);
+            -- this->emit_string("))");
+            -- this->emit_block([&] () {
+            --     this->emit_indented("if (cidx(");
+            --     action(scrutinee);
+            --     this->emit_string(") == 0) ");
+            --     this->emit_block([&] () {
+            --         action(zero_case);
+            --         *this->m_output_stream << ";\n";
+            --     });
+            --     this->emit_string("else ");
+            --     this->emit_block([&] () {
+            --         action(succ_case);
+            --         *this->m_output_stream << ";\n";
+            --     });
+            -- });
+            -- this->emit_string("else ");
+            -- this->emit_block([&] () {
+            --     this->emit_indented("if (to_mpz(");
+            --     action(scrutinee);
+            --     this->emit_string(") == 0) ");
+            --     this->emit_block([&] () {
+            --         action(zero_case);
+            --         *this->m_output_stream << ";\n";
+            --     });
+            --     this->emit_string("else ");
+            --     this->emit_block([&] () {
+            --         action(succ_case);
+            --     });
+            -- });
+
 -- this code isnt' great working around the semi-functional frontend
 meta definition compile_expr_app_to_ir_expr
   (head : expr)
   (args : list expr)
   (action : expr -> ir_compiler ir.stmt) : ir_compiler ir.expr := do
-    trace_ir (to_string head ++ to_string args),
+    trace_ir (to_string head  ++ to_string args),
     if expr.is_constant head = bool.tt
-    then if is_return (expr.const_name head) = bool.tt
+    then (if is_return (expr.const_name head)
     then do
       rexp <- one_or_error args,
       (ir.expr.block ∘ ir.stmt.return) <$> ((action rexp) >>= assert_expr)
+    else if is_nat_cases_on (expr.const_name head)
+    then compile_nat_cases_on_to_ir_expr (expr.const_name head) args action
     else match is_internal_cnstr head with
     | option.some n := do
       args' <- monad.sequence $ list.map (fun x, action x >>= assert_expr) args,
@@ -333,7 +438,7 @@ meta definition compile_expr_app_to_ir_expr
         arity <- lookup_arity (expr.const_name head),
         compile_call (expr.const_name head) arity args'
       end
-    end end
+    end end)
     else if expr.is_local_constant head
     then do
       args' <- monad.sequence $ list.map (fun x, action x >>= assert_expr) args,

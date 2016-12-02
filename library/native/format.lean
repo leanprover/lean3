@@ -64,7 +64,7 @@ meta definition expr' (action : ir.stmt -> format) : ir.expr -> format
 | (ir.expr.project obj n) :=
   "cfield(" ++ (mangle_name obj) ++ ", " ++ (to_fmt n) ++ ")"
 | (ir.expr.panic err_msg) :=
-  to_fmt "throw " ++ string_lit err_msg ++ ";"
+  to_fmt "throw std::runtime_error(" ++ string_lit err_msg ++ ");"
 | (ir.expr.mk_native_closure n args) :=
 "lean::mk_native_closure(*g_env, lean::name({\"" ++ name.to_string_with_sep "\", \"" n ++ "\"})" ++ "," ++
    format.bracket "{" "}" (comma_sep (list.map format_local args)) ++ ")"
@@ -75,6 +75,10 @@ meta definition expr' (action : ir.stmt -> format) : ir.expr -> format
  | (ir.expr.assign n val) := mangle_name n ++ " = " ++ expr' val
  | (ir.expr.constructor _ _) := "NYI"
  | (ir.expr.address_of e) := "& " ++ mangle_name e ++ ";"
+ | (ir.expr.equals e1 e2) := expr' e1 ++ " == " ++ expr' e2
+ | (ir.expr.raw_int n) := to_string n
+ | (ir.expr.sub e1 e2) :=
+   expr' e1 ++ " - " ++ expr' e2
 
 meta def default_case (body : format) : format :=
   to_fmt "default:" ++ block body
@@ -121,7 +125,12 @@ meta def stmt : ir.stmt → format
   (to_fmt "switch (") ++ (mangle_name scrut) ++ (to_fmt ")") ++
   (block (format.line ++ cases stmt cs ++ default_case (stmt default)))
 | ir.stmt.nop := format.of_string ";"
-| (ir.stmt.ite _ _ _) := format.of_string "NYI"
+| (ir.stmt.ite cond tbranch fbranch) :=
+  "if (" ++ mangle_name cond ++ ") {" ++ format.line ++
+    stmt tbranch ++ format.line ++
+  "} else {" ++ format.line ++
+    stmt fbranch ++ format.line ++
+  "}" ++ format.line
 | (ir.stmt.seq cs) :=
   format_concat (list.map (fun c, stmt c ++ format.line) cs)
 

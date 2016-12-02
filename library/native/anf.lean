@@ -83,17 +83,13 @@ private meta def anf_call (head : expr) (args : list expr) (anf : expr -> anf_mo
   end) (head :: args)
 
 private meta def anf_case (action : expr -> anf_monad expr) (e : expr) : anf_monad expr := do
-  trace_anf ("anf_case : " ++ to_string e),
-  res <- under_lambda fresh_name (fun e', enter_scope (action e')) e,
-  trace_anf ("anf_case : " ++ to_string res),
-  return res
+  under_lambda fresh_name (fun e', enter_scope (action e')) e
 
 private meta def anf_cases_on (head : expr) (args : list expr) (anf : expr -> anf_monad expr) : anf_monad expr := do
   -- again first case should never arise
   match args with
   | [] := return $ mk_call head []
   | (scrut :: cases) := do
-    trace_anf ("inside cases_on " ++ to_string scrut),
     scrut' <- anf scrut,
     cases' <- monad.mapm (anf_case anf) cases,
     return $ mk_call head (scrut' :: cases')
@@ -111,7 +107,6 @@ private meta def anf' : expr -> anf_monad expr
   let_bind fresh ty val',
   anf' (expr.instantiate_vars body [mk_local fresh])
 | (expr.app f arg) := do
-  trace_anf $ "head: " ++ to_string (expr.get_app_fn (expr.app f arg)),
   let fn := expr.get_app_fn (expr.app f arg),
       args := expr.get_app_args (expr.app f arg)
    in match app_kind fn with

@@ -7,8 +7,13 @@ import init.state
 import native.internal
 import native.builtin
 
+meta def is_nat_cases_on (n : name) : bool :=
+  decidable.to_bool $ `nat.cases_on = n
+
 meta def is_cases_on (head : expr) : bool :=
-  trace ("IS CASES ON: " ++ to_string head) (fun u, 
+  if is_nat_cases_on (expr.const_name head)
+  then bool.tt
+  else
   match native.is_internal_cases head with
   | option.some _ := bool.tt
   | option.none :=
@@ -20,7 +25,7 @@ meta def is_cases_on (head : expr) : bool :=
       end
     | option.none := bool.ff
     end
-  end)
+  end
 
 meta definition mk_local (n : name) : expr :=
   expr.local_const n n binder_info.default (expr.const n [])
@@ -54,3 +59,4 @@ else match native.is_internal_cnstr head with
 | some _ := application_kind.constructor
 | none := application_kind.other
 end
+

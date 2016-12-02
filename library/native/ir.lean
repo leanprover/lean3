@@ -37,9 +37,13 @@ with expr : Type
 | uninitialized : expr
 | constructor : name -> list name -> expr
 | address_of : name -> expr
+-- hack for now, do in secon pass clean up
+| equals : expr → expr → expr
+| sub : expr → expr → expr 
+| raw_int : nat → expr
 -- | value : value -> expr
 with stmt : Type
-| ite : expr -> stmt -> stmt -> stmt
+| ite : name -> stmt -> stmt -> stmt
 | switch : name -> list (nat × stmt) -> stmt -> stmt
 | letb : name -> ty -> expr -> stmt -> stmt
 | e : expr -> stmt
