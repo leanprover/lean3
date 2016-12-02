@@ -431,7 +431,8 @@ struct elim_match_fn {
        \remark It may not be because of dependent pattern matching. */
     bool is_next_var(problem const & P) {
         lean_assert(P.m_var_stack);
-        expr const & x = head(P.m_var_stack);
+        type_context ctx = mk_type_context(P);
+        expr const & x = whnf_constructor(ctx, head(P.m_var_stack));
         return is_local(x);
     }
 
