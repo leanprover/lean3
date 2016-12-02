@@ -5,7 +5,7 @@ Released under Apache 2.0 license as described in the file LICENSE.
 Author: Jared Roesch, and Leonardo de Moura
 */
 #include "util/sexpr/option_declarations.h"
-#include "library/compiler/options.h"
+#include "library/native_compiler/options.h"
 
 #ifndef LEAN_DEFAULT_NATIVE_LIBRARY_PATH
 #define LEAN_DEFAULT_NATIVE_LIBRARY_PATH ""

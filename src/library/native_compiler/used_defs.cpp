@@ -7,7 +7,7 @@ Author: Jared Roesch
 
 #include <iostream>
 #include <utility>
-#include "used_names.h"
+#include "used_defs.h"
 #include "kernel/environment.h"
 #include "kernel/instantiate.h"
 #include "kernel/inductive/inductive.h"

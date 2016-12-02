@@ -28,7 +28,8 @@ Author: Leonardo de Moura
 #include "library/vm/vm_expr.h"
 #include "library/normalize.h"
 #include "util/dynamic_library.h"
-#include "library/compiler/extern.h"
+#include "library/native_compiler/extern.h"
+
 #ifndef LEAN_DEFAULT_PROFILER
 #define LEAN_DEFAULT_PROFILER false
 #endif

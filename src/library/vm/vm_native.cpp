@@ -13,7 +13,7 @@ Author: Jared Roesch
 #include "library/vm/vm_name.h"
 #include "library/vm/vm_option.h"
 #include "library/vm/vm_format.h"
-#include "library/compiler/native_compiler.h"
+#include "library/native_compiler/native_compiler.h"
 #include "library/compiler/simp_inductive.h"
 #include "library/compiler/nat_value.h"
 

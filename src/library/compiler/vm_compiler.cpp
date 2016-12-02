@@ -21,8 +21,12 @@ Author: Leonardo de Moura
 #include "library/compiler/nat_value.h"
 #include "library/compiler/preprocess.h"
 #include "library/compiler/comp_irrelevant.h"
-#include "library/compiler/extern.h"
-#include "library/compiler/used_names.h"
+
+/* These are used for loading external native dependencies in the virtual
+   machine.
+*/
+#include "library/native_compiler/extern.h"
+#include "library/native_compiler/used_defs.h"
 
 namespace lean {
 class vm_compiler_fn {
