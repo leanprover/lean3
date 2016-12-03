@@ -18,54 +18,76 @@ environment_header::environment_header(unsigned trust_lvl, std::unique_ptr<norma
 environment_extension::~environment_extension() {}
 
 struct environment_id::path {
-    unsigned m_next_depth;
-    unsigned m_start_depth;
-    mutex    m_mutex;
-    path *   m_prev;
+    atomic<unsigned> m_next_depth;
+    unsigned         m_start_depth;
+    path *           m_prev1;
+    path *           m_prev2;
     MK_LEAN_RC(); // Declare m_rc counter
     void dealloc() { delete this; }
 
-    path():m_next_depth(1), m_start_depth(0), m_prev(nullptr), m_rc(1) {}
-    path(unsigned start_depth, path * prev):m_next_depth(start_depth + 1), m_start_depth(start_depth), m_prev(prev), m_rc(1) {
-        if (prev) prev->inc_ref();
+    path(unsigned start_depth = 0, path * prev1 = nullptr, path * prev2 = nullptr) :
+            m_next_depth(start_depth + 1), m_start_depth(start_depth),
+            m_prev1(prev1), m_prev2(prev2), m_rc(0) {
+        if (prev1) prev1->inc_ref();
+        if (prev2) prev2->inc_ref();
     }
-    ~path() { if (m_prev) m_prev->dec_ref(); }
+    ~path() {
+        if (m_prev1) m_prev1->dec_ref();
+        if (m_prev2) m_prev2->dec_ref();
+    }
 };
 
-environment_id::environment_id():m_ptr(new path()), m_depth(0) {}
+environment_id::environment_id() : m_ptr(new path()), m_depth(0) { m_ptr->inc_ref(); }
 environment_id::environment_id(environment_id const & ancestor, bool) {
     if (ancestor.m_depth == std::numeric_limits<unsigned>::max())
         throw exception("maximal depth in is_descendant tree has been reached, use 'forget' method to workaround this limitation");
-    lock_guard<mutex> lock(ancestor.m_ptr->m_mutex);
-    if (ancestor.m_ptr->m_next_depth == ancestor.m_depth + 1) {
-        m_ptr   = ancestor.m_ptr;
-        m_depth = ancestor.m_depth + 1;
-        m_ptr->m_next_depth++;
-        m_ptr->inc_ref();
+
+    m_depth = ancestor.m_depth + 1;
+    unsigned expected = m_depth;
+    if (ancestor.m_ptr->m_next_depth
+            .compare_exchange_strong(expected, m_depth + 1)) {
+        m_ptr = ancestor.m_ptr;
     } else {
-        m_ptr   = new path(ancestor.m_depth+1, ancestor.m_ptr);
-        m_depth = ancestor.m_depth + 1;
+        m_ptr = new path(m_depth, ancestor.m_ptr);
     }
-    lean_assert(m_depth == ancestor.m_depth+1);
-    lean_assert(m_ptr->m_next_depth == m_depth+1);
+    m_ptr->inc_ref();
+}
+environment_id::environment_id(environment_id const & anc1, environment_id const & anc2) {
+    if (anc1.m_depth == std::numeric_limits<unsigned>::max() || anc2.m_depth == std::numeric_limits<unsigned>::max())
+        throw exception("maximal depth in is_descendant tree has been reached, use 'forget' method to workaround this limitation");
+    auto path1 = new path(anc1.m_depth, anc1.m_ptr);
+    auto path2 = new path(anc2.m_depth, anc2.m_ptr);
+    m_depth = std::max(anc1.m_depth, anc2.m_depth) + 1;
+    m_ptr = new path(m_depth, path1, path2);
+    m_ptr->inc_ref();
 }
 environment_id::environment_id(environment_id const & id):m_ptr(id.m_ptr), m_depth(id.m_depth) { if (m_ptr) m_ptr->inc_ref(); }
 environment_id::environment_id(environment_id && id):m_ptr(id.m_ptr), m_depth(id.m_depth) { id.m_ptr = nullptr; }
 environment_id::~environment_id() { if (m_ptr) m_ptr->dec_ref(); }
 environment_id & environment_id::operator=(environment_id const & s) { m_depth = s.m_depth; LEAN_COPY_REF(s); }
 environment_id & environment_id::operator=(environment_id && s) { m_depth = s.m_depth; LEAN_MOVE_REF(s); }
+
+bool environment_id::is_ancestor(path const * p, std::unordered_set<path const *> & visited) const {
+    while (p != nullptr) {
+        if (!visited.insert(p).second) return false;
+        if (p == m_ptr)
+            return true;
+        if (p->m_start_depth < m_depth)
+            return false;
+        if (p->m_prev2 && is_ancestor(p->m_prev2, visited))
+            return true;
+        p = p->m_prev1;
+    }
+    return false;
+}
 bool environment_id::is_descendant(environment_id const & id) const {
     if (m_depth < id.m_depth)
         return false;
-    path * p = m_ptr;
-    while (p != nullptr) {
-        if (p == id.m_ptr)
-            return true;
-        if (p->m_start_depth <= id.m_depth)
-            return false;
-        p = p->m_prev;
-    }
-    return false;
+    if (m_ptr == id.m_ptr) // fast case without allocation
+        return true;
+
+    std::unordered_set<path const *> visited;
+    return id.is_ancestor(m_ptr, visited);
 }
 
 environment::environment(header const & h, environment_id const & ancestor, declarations const & d, name_set const & g, extensions const & exts):

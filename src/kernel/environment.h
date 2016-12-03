@@ -8,6 +8,7 @@ Author: Leonardo de Moura
 #include <utility>
 #include <memory>
 #include <vector>
+#include <unordered_set>
 #include "util/rc.h"
 #include "util/optional.h"
 #include "util/list.h"
@@ -72,10 +73,14 @@ class environment_id {
         The bool field is just to make sure this constructor is not confused with a copy constructor
     */
     environment_id(environment_id const & ancestor, bool);
+    environment_id(environment_id const & anc1, environment_id const & anc2);
     /** \brief Create an identifier for an environment without ancestors (e.g., empty environment) */
     environment_id();
     /** Create an identifier for an environment that is a direct descendant of the given one. */
     static environment_id mk_descendant(environment_id const & ancestor) { return environment_id(ancestor, true); }
+    static environment_id mk_descendant(environment_id const & anc1, environment_id const & anc2) { return environment_id(anc1, anc2); }
+
+    bool is_ancestor(path const *, std::unordered_set<path const *> &) const;
 public:
     environment_id(environment_id const & id);
     environment_id(environment_id && id);
