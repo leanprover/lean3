@@ -8,7 +8,6 @@ Author: Leonardo de Moura
 #include "library/vm/vm_nat.h"
 #include "library/vm/vm_aux.h"
 #include "library/vm/vm_io.h"
-#include "library/vm/vm_ptr.h"
 #include "library/vm/vm_name.h"
 #include "library/vm/vm_options.h"
 #include "library/vm/vm_format.h"
@@ -29,7 +28,6 @@ void initialize_vm_core_module() {
     initialize_vm_nat();
     initialize_vm_aux();
     initialize_vm_io();
-    initialize_vm_ptr();
     initialize_vm_name();
     initialize_vm_options();
     initialize_vm_format();
