@@ -1,11 +1,13 @@
 import init.meta.format
 import init.meta.expr
-import init.string
+import init.category.state
+import init.data.string
+
 import system.IO
 import system.result
+
 import native.ir
 import native.format
-import init.state
 import native.internal
 import native.anf
 import native.cf
@@ -22,8 +24,7 @@ meta def error.to_string : error → string
 | (error.string s) := s
 | (error.many es) := to_string $ list.map error.to_string es
 
-attribute [reducible]
-definition result (A : Type*) :=
+@[reducible] def result (A : Type*) :=
   system.result error A
 
 meta definition arity_map : Type :=

@@ -1,9 +1,10 @@
 import init.meta.format
 import init.meta.expr
-import init.string
+import init.data.string
+import init.category.state
+
 import system.IO
 import system.result
-import init.state
 import native.internal
 import native.builtin
 
