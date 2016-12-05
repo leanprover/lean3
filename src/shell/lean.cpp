@@ -136,7 +136,7 @@ static struct option g_long_options[] = {
 };
 
 static char const * g_opt_str =
-    "PdD:qpgvht:012E:A:B:j:012rM:012"
+    "PdD:qpgvht:012E:A:B:j:012r:M:012"
 #if defined(LEAN_MULTI_THREAD)
     "s:012"
 #endif
@@ -293,7 +293,7 @@ int main(int argc, char ** argv) {
             make_mode = true;
             break;
         case 'r':
-            doc = optarg;
+            doc = std::string(optarg);
             break;
         case 'M':
             lean::set_max_memory_megabyte(atoi(optarg));
