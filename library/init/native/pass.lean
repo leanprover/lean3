@@ -1,9 +1,12 @@
-import native.internal
-import native.procedure
-import native.config
+prelude
+
+import init.native.internal
+import init.native.procedure
+import init.native.config
 import init.meta.expr
 import init.meta.format
-import system.io
+
+namespace native
 
 meta structure pass :=
   (name : string)
@@ -40,3 +43,5 @@ meta def inner_loop (conf : config) (p : pass) (es : list procedure) : list proc
 
 meta def run_passes (conf : config) (passes : list pass) (procs : list procedure) : list procedure :=
   list.foldl (fun pass procs, inner_loop conf procs pass) procs passes
+
+end native

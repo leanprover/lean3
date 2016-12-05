@@ -1,3 +1,8 @@
+prelude
+
+import init.meta.name
+import init.meta.expr
+
 meta def procedure :=
   name × expr
 

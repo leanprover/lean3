@@ -1,18 +1,17 @@
+prelude
+
 import init.meta.format
 import init.meta.expr
 import init.data.string
 import init.category.state
 
-import system.IO
-import system.result
-
-import native.internal
-import native.ir
-import native.format
-import native.builtin
-import native.util
-import native.pass
-import native.config
+import init.native.internal
+import init.native.ir
+import init.native.format
+import init.native.builtin
+import init.native.util
+import init.native.pass
+import init.native.config
 
 @[reducible] meta def binding :=
   (name × expr × expr)

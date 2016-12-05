@@ -1,3 +1,7 @@
+prelude
+
+import init.meta.name
+
 namespace ir
 
 inductive tag_ty
@@ -39,7 +43,7 @@ with expr : Type
 | address_of : name -> expr
 -- hack for now, do in secon pass clean up
 | equals : expr → expr → expr
-| sub : expr → expr → expr 
+| sub : expr → expr → expr
 | raw_int : nat → expr
 -- | value : value -> expr
 with stmt : Type

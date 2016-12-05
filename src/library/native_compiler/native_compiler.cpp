@@ -74,7 +74,7 @@ public:
     name_map<unsigned> m_arity_map;
 
 public:
-    native_compiler_fn(environment const & env, native_compiler_mode mode):
+    native_compiler_fn(environment const & env):
         m_env(env), m_emitter(cpp_emitter(std::string("out.cpp"))) {}
 
     void emit_headers() {
@@ -232,7 +232,7 @@ void add_shared_dependencies(cpp_compiler & compiler) {
 /* This function constructs a config value located in library/native/config.lean */
 vm_obj mk_lean_native_config() {
     auto native_conf = native::get_config();
-    native_conf.display(std::cout);
+    // native_conf.display(std::cout);
     std::cout << native_conf.m_native_dump << std::endl;
     if (native_conf.m_native_dump == std::string("")) {
         return mk_vm_simple(0);
@@ -245,7 +245,7 @@ void native_compile(environment const & env,
                     buffer<extern_fn> & extern_fns,
                     buffer<procedure> & procs,
                     native_compiler_mode mode) {
-    native_compiler_fn compiler(env, mode);
+    native_compiler_fn compiler(env);
 
     buffer<name> ns;
     compiler.populate_arity_map(procs);
@@ -280,6 +280,8 @@ void native_compile(environment const & env,
     std::string fn = (sstream() << fmt << "\n\n").str();
     compiler.m_emitter.emit_string(fn.c_str());
 
+    // For now just close this, then exit.
+    compiler.m_emitter.m_output_stream->close();
     // Get a compiler with the config specified by native options, placed
     // in the correct mode.
     auto gpp = compiler_with_native_config(mode);
@@ -502,7 +504,7 @@ void initialize_native_compiler() {
     initialize_install_path();
     register_trace_class({"compiler", "native"});
     register_trace_class({"compiler", "native", "preprocess"});
-    register_trace_class({"compiler", "native", "cpp_compiler"})
+    register_trace_class({"compiler", "native", "cpp_compiler"});
     g_native_module_key = new std::string("native_module_path");
     register_module_object_reader(*g_native_module_key, native_module_reader);
 }

@@ -1,3 +1,7 @@
+prelude
+
+import init.meta.name
+
 inductive builtin
 | cfun : name -> nat -> builtin
 | cases : name -> nat -> builtin

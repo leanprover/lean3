@@ -1,21 +1,22 @@
+prelude
+
 import init.meta.format
 import init.meta.expr
 import init.data.string
 import init.category.state
 
-import system.IO
-import system.result
-
-import native.ir
-import native.format
-import native.builtin
-import native.util
-import native.pass
-import native.procedure
-import native.internal
-import native.config
+import init.native.ir
+import init.native.format
+import init.native.builtin
+import init.native.util
+import init.native.pass
+import init.native.procedure
+import init.native.internal
+import init.native.config
 
 namespace cf
+
+open native
 
 @[reducible] meta def cf_state :=
   config × nat

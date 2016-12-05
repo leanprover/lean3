@@ -1,12 +1,13 @@
+prelude
+
 import init.meta.format
 import init.meta.expr
 import init.data.string
 import init.category.state
 
-import system.IO
-import system.result
-import native.internal
-import native.builtin
+import init.native.result
+import init.native.internal
+import init.native.builtin
 
 meta def is_nat_cases_on (n : name) : bool :=
   decidable.to_bool $ `nat.cases_on = n
@@ -60,4 +61,3 @@ else match native.is_internal_cnstr head with
 | some _ := application_kind.constructor
 | none := application_kind.other
 end
-

@@ -1,5 +1,9 @@
+prelude
+
+import init.meta.name
 import init.meta.format
-import native.ir
+import init.native.ir
+import init.function
 
 definition intersperse {A : Type} (elem : A) : list A -> list A
 | [] := []
@@ -17,7 +21,7 @@ format_concat
 namespace format_cpp
 
 meta definition mangle_name (n : name) : format :=
-to_fmt $ name.to_string_with_sep "_" n
+    to_fmt $ name.to_string_with_sep "_" n
 
 private meta definition mk_constructor_args : list name → list format
 | [] := []
