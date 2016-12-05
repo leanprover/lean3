@@ -229,6 +229,18 @@ void add_shared_dependencies(cpp_compiler & compiler) {
             .link("mpfr");
 }
 
+/* This function constructs a config value located in library/native/config.lean */
+vm_obj mk_lean_native_config() {
+    auto native_conf = native::get_config();
+    native_conf.display(std::cout);
+    std::cout << native_conf.m_native_dump << std::endl;
+    if (native_conf.m_native_dump == std::string("")) {
+        return mk_vm_simple(0);
+    } else {
+        return mk_vm_simple(1);
+    }
+}
+
 void native_compile(environment const & env,
                     buffer<extern_fn> & extern_fns,
                     buffer<procedure> & procs,
@@ -264,7 +276,8 @@ void native_compile(environment const & env,
     auto compiler_name = name({"native", "compile"});
     auto cc = mk_native_closure(env, compiler_name, {});
 
-    vm_obj result = S.invoke(cc, procs_list);
+    auto conf = mk_lean_native_config();
+    vm_obj result = S.invoke(cc, conf, procs_list);
     auto fmt = to_format(result);
     std::string fn = (sstream() << fmt << "\n\n").str();
     compiler.m_emitter.emit_string(fn.c_str());
@@ -488,6 +501,7 @@ environment set_native_module_path(environment & env, name const & n) {
 
 void initialize_native_compiler() {
     native::initialize_options();
+    initialize_install_path();
     register_trace_class({"compiler", "native"});
     register_trace_class({"compiler", "native", "preprocess"});
     g_native_module_key = new std::string("native_module_path");

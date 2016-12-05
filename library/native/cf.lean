@@ -13,23 +13,33 @@ import native.util
 import native.pass
 import native.procedure
 import native.internal
+import native.config
 
 namespace cf
 
 @[reducible] meta def cf_state :=
-  nat
+  config × nat
 
 @[reducible] meta def cf_monad :=
   state cf_state
 
+meta def when_debug (action : cf_monad unit) : cf_monad unit := do
+  (config, _) <- state.read,
+  if config.debug config
+  then action
+  else return ()
+
+-- point at the code where you can't synthesize?
+-- the error behavior here seems bad if you replace the unit
+-- with `u`
 meta def trace_cf (s : string) : cf_monad unit :=
-  trace s (fun u, return u)
+  when_debug (trace s (fun u, return ()))
 
 meta def fresh_name : cf_monad name := do
-  count <- state.read,
+  (config, count) <- state.read,
   -- need to replace this with unique prefix as per our earlier conversation
   n <- pure $ name.mk_numeral (unsigned.of_nat count) `_anf_,
-  state.write (count + 1),
+  state.write (config, count + 1),
   return n
 
 private meta def cf_case (action : expr -> cf_monad expr) (e : expr) : cf_monad expr := do
@@ -56,14 +66,15 @@ meta def cf' : expr -> cf_monad expr
    else return (mk_call (expr.const `native_compiler.return []) [(expr.app f arg)])
 | e := return $ expr.app (expr.const `native_compiler.return []) e
 
-meta def init_state : cf_state := 0
+meta def init_state : config -> cf_state :=
+  fun c, (c, 0)
 
 end cf
 
-private meta def cf_transform (e : expr) : expr :=
-  prod.fst $ (under_lambda cf.fresh_name cf.cf' e) cf.init_state
+private meta def cf_transform (conf : config) (e : expr) : expr :=
+  prod.fst $ (under_lambda cf.fresh_name cf.cf' e) (cf.init_state conf)
 
 meta def cf : pass := {
   name := "control_flow",
-  transform := fun proc, procedure.map_body cf_transform proc
+  transform := fun conf proc, procedure.map_body (fun e, cf_transform conf e) proc
 }

@@ -33,7 +33,7 @@ vm_obj get_line(vm_obj const &) {
     return to_obj(str);
 }
 
-vm_obj forever (vm_obj const & action) {
+vm_obj forever (vm_obj const & action, vm_obj const &) {
     while (true) {
         invoke(action, mk_vm_simple(0));
     }

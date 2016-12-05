@@ -503,23 +503,20 @@ int main(int argc, char ** argv) {
             }
         }
 
-        // Ensure tracing is turned on ...
-        // lean::scope_global_ios scope1(ios);
-        // auto opts = ios.get_options();
-       //  type_context tc(env, opts);
-       //  lean::scope_trace_env scope2(env, opts, tc);
-
-        // Get the native options.
-        // scope_traces_as_messages traces_as_messages(get_stream_name(), pos());
-        lean::native::scope_config scoped_native_config(ios.get_options());
-
-        if (ok && compile) {
-            native_compile_binary(env, env.get(lean::name("main")));
+        if (compile && !mods.empty()) {
+            auto opts = ios.get_options();
+            auto final_env = *mods.front().second->m_result.get().m_env;
+            type_context tc(final_env, opts);
+            lean::scope_trace_env scope2(final_env, opts, tc);
+            lean::native::scope_config scoped_native_config(
+                opts);
+            native_compile_binary(final_env, final_env.get(lean::name("main")));
         }
 
-        if (ok && export_native_objects) {
-            env = lean::set_native_module_path(env, lean::name(native_output));
-        }
+        // if (!mods.empty() && export_native_objects) {
+        //     // this code is now broken
+        //     env = lean::set_native_module_path(env, lean::name(native_output));
+        // }
 
         if (export_txt && !mods.empty()) {
             exclusive_file_lock export_lock(*export_txt);

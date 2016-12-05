@@ -12,6 +12,7 @@ import native.format
 import native.builtin
 import native.util
 import native.pass
+import native.config
 
 @[reducible] meta def binding :=
   (name × expr × expr)
@@ -88,7 +89,6 @@ private meta def anf_case (action : expr -> anf_monad expr) (e : expr) : anf_mon
   under_lambda fresh_name (fun e', enter_scope (action e')) e
 
 private meta def anf_cases_on (head : expr) (args : list expr) (anf : expr -> anf_monad expr) : anf_monad expr := do
-  -- again first case should never arise
   match args with
   | [] := return $ mk_call head []
   | (scrut :: cases) := do
@@ -99,8 +99,6 @@ private meta def anf_cases_on (head : expr) (args : list expr) (anf : expr -> an
 
 -- stop deleting this, not sure why I keep removing this line of code
 open application_kind
-
-print inductive expr
 
 private meta def anf' : expr -> anf_monad expr
 | (expr.elet n ty val body) := do
@@ -121,10 +119,10 @@ private meta def anf' : expr -> anf_monad expr
 private meta def init_state : anf_state :=
   ([], 0)
 
-private meta def anf_transform (e : expr) : expr :=
+private meta def anf_transform (conf : config) (e : expr) : expr :=
   prod.fst $ (under_lambda fresh_name (enter_scope ∘ anf') e) init_state
 
 meta def anf : pass := {
   name := "anf",
-  transform := fun proc, procedure.map_body anf_transform proc
+  transform := fun conf proc, procedure.map_body (fun e, anf_transform conf e) proc
 }

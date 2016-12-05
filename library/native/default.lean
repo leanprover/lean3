@@ -13,6 +13,7 @@ import native.anf
 import native.cf
 import native.pass
 import native.util
+import native.config
 
 namespace native
 
@@ -39,13 +40,19 @@ meta definition mk_arity_map : list (name × expr) -> arity_map
 | ((n, body) :: rest) := rb_map.insert (mk_arity_map rest) n (get_arity body)
 
 @[reducible] meta def ir_compiler_state :=
-  (arity_map × nat)
+  (config × arity_map × nat)
 
 @[reducible] meta definition ir_compiler (A : Type) :=
   system.resultT (state ir_compiler_state) error A
 
-meta def trace_ir (s : string) : ir_compiler unit :=
-  trace s (fun u, return u)
+meta def lift {A} (action : state ir_compiler_state A) : ir_compiler A :=
+(| fmap (fun (a : A), system.result.ok a) action |)
+
+meta def trace_ir (s : string) : ir_compiler unit := do
+  (conf, map, counter) <- lift $ state.read,
+  if config.debug conf
+  then trace s (fun u, return ())
+  else return ()
 
 -- An `exotic` monad combinator that accumulates errors.
 meta def run {M E A} (res : system.resultT M E A) : M (system.result E A) :=
@@ -73,8 +80,6 @@ meta definition sequence_err : list (ir_compiler format) → ir_compiler (list f
 meta definition lift_result {A} (action : result A) : ir_compiler A :=
   (| fun s, (action, s) |)
 
-meta def lift {A} (action : state ir_compiler_state A) : ir_compiler A :=
-  (| fmap (fun (a : A), system.result.ok a) action |)
 
 -- TODO: fix naming here
 private meta def take_arguments' : expr → list name → (list name × expr)
@@ -82,10 +87,10 @@ private meta def take_arguments' : expr → list name → (list name × expr)
 | e' ns := (ns, e')
 
 meta def fresh_name : ir_compiler name := do
-  (map, counter) <- lift state.read,
+  (conf, map, counter) <- lift state.read,
   let fresh := name.mk_numeral (unsigned.of_nat counter) `native._ir_compiler_
   in do
-    lift $ state.write (map, counter + 1),
+    lift $ state.write (conf, map, counter + 1),
     return fresh
 
 meta definition take_arguments (e : expr) : ir_compiler (list name × expr) :=
@@ -105,7 +110,7 @@ meta definition mk_error {T} : string -> ir_compiler T :=
   lift_result (system.result.err $ error.string s)
 
 meta definition lookup_arity (n : name) : ir_compiler nat := do
-  (map, counter) <- lift state.read,
+  (_, map, counter) <- lift state.read,
   if n = `nat.cases_on
   then pure 2
   else
@@ -542,7 +547,7 @@ meta def emit_declare_vm_builtins : list (name × expr) -> ir_compiler (list ir.
     single_binding := ir.stmt.seq [
     ir.stmt.letb fresh (ir.ty.name cpp_name) vm_name ir.stmt.nop,
     ir.stmt.e $ ir.expr.assign `env (ir.expr.call `add_native [`env, fresh, replace_main n])
-  ] in return $ single_binding :: tail
+ ] in return $ single_binding :: tail
 
 meta def emit_main (procs : list (name × expr)) : ir_compiler ir.defn := do
   builtins <- emit_declare_vm_builtins procs,
@@ -578,19 +583,23 @@ meta def unzip {A B} : list (A × B) → (list A × list B)
   let (xs, ys) := unzip rest
   in (x :: xs, y :: ys)
 
-meta definition apply_pre_ir_passes (procs : list procedure) : list procedure :=
-  run_passes [anf, cf] procs
+meta def configuration : ir_compiler config := do
+  (conf, _, _) <- lift $ state.read,
+  pure conf
 
-meta definition driver (procs : list (name × expr)) : ir_compiler (list format × list error) :=
-  let procs' := apply_pre_ir_passes procs in do
+meta definition apply_pre_ir_passes (procs : list procedure) (conf : config) : list procedure :=
+  run_passes conf [anf, cf] procs
+
+meta definition driver (procs : list (name × expr)) : ir_compiler (list format × list error) := do
+  procs' <- apply_pre_ir_passes procs <$> configuration,
   (fmt_decls, errs) <- sequence_err (compile' procs'),
   main <- emit_main procs',
   return (format_cpp.defn main :: fmt_decls, errs)
 
-meta definition compile (procs : list (name × expr)) : format :=
+meta definition compile (conf : config) (procs : list (name × expr)) : format :=
   let arities := mk_arity_map procs in
   -- Put this in a combinator or something ...
-  match run (driver procs) (arities, 0) with
+  match run (driver procs) (conf, arities, 0) with
   | (system.result.err e, s) := error.to_string e
   | (system.result.ok (decls, errs), s) :=
     if list.length errs = 0
@@ -598,4 +607,5 @@ meta definition compile (procs : list (name × expr)) : format :=
     else format_error (error.many errs)
   end
 
+-- meta def compile (procs : list (name))
 end native

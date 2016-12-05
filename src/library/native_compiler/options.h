@@ -16,8 +16,11 @@ struct config {
     char const * m_native_main_fn;
     bool         m_native_emit_dwarf;
     bool         m_native_dynamic;
+    char const * m_native_dump;
 
     config(options const & o);
+
+    void display(std::ostream & os);
 };
 
 struct scope_config {

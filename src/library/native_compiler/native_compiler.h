@@ -10,7 +10,7 @@ Author: Jared Roesch
 
 namespace lean {
 
-void set_install_path(std::string s);
+void initialize_install_path();
 std::string get_install_path();
 
 struct extern_fn {
