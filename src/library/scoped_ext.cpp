@@ -26,6 +26,15 @@ struct scope_mng_ext : public environment_extension {
     list<name>       m_namespaces;        // stack of namespaces/sections
     list<name>       m_headers;           // namespace/section header
     list<scope_kind> m_scope_kinds;
+
+    std::shared_ptr<environment_extension const> union_with(environment_extension const & ext) const override {
+        auto & o = static_cast<scope_mng_ext const &>(ext);
+        if (!empty(m_namespaces) || !empty(o.m_namespaces))
+            throw exception("union failed, namespaces/sections open");
+        auto u = std::make_shared<scope_mng_ext>();
+        u->m_namespace_set = merge(m_namespace_set, o.m_namespace_set);
+        return u;
+    }
 };
 
 struct scope_mng_ext_reg {

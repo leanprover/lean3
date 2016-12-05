@@ -139,7 +139,15 @@ struct inductive_env_ext : public environment_extension {
     name_map<name>                  m_intro_info;
     name_map<inductive_decl>        m_inductive_info;
 
-    inductive_env_ext() {}
+    std::shared_ptr<environment_extension const> union_with(environment_extension const & ext) const override {
+        auto & o = static_cast<inductive_env_ext const &>(ext);
+        auto u = std::make_shared<inductive_env_ext>();
+        u->m_elim_info = merge_prefer_first(m_elim_info, o.m_elim_info);
+        u->m_comp_rules = merge_prefer_first(m_comp_rules, o.m_comp_rules);
+        u->m_intro_info = merge_prefer_first(m_intro_info, o.m_intro_info);
+        u->m_inductive_info = merge_prefer_first(m_inductive_info, o.m_inductive_info);
+        return u;
+    }
 
     void add_elim(name const & n, name const & id_name, level_param_names const & ls,
                   unsigned num_ps, unsigned num_ace, unsigned num_indices, bool is_K_target,

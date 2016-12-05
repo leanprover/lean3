@@ -304,6 +304,13 @@ struct recursor_config {
     typedef recursor_state  state;
     typedef recursor_info   entry;
 
+    static recursor_state state_union(recursor_state const & a, recursor_state const & b) {
+        recursor_state u;
+        u.m_recursors = merge_prefer_first(a.m_recursors, b.m_recursors);
+        u.m_type2recursors = merge_prefer_first(a.m_type2recursors, b.m_type2recursors);
+        return u;
+    }
+
     static void add_entry(environment const &, io_state const &, state & s, entry const & e) {
         s.insert(e);
     }

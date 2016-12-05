@@ -128,6 +128,15 @@ public:
         return r;
     }
 
+    std::shared_ptr<environment_extension const> union_with(environment_extension const & ext) const override {
+        auto & o = static_cast<scoped_ext const &>(ext);
+        if (!empty(m_scopes) || !empty(o.m_scopes))
+            throw exception("cannot compute union of scoped_exts with non-empty scopes");
+        auto u = std::make_shared<scoped_ext>();
+        u->m_state = Config::state_union(m_state, o.m_state);
+        return u;
+    }
+
     struct reg {
         unsigned m_ext_id;
         reg() {

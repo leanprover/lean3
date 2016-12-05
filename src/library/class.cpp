@@ -5,6 +5,7 @@ Released under Apache 2.0 license as described in the file LICENSE.
 Author: Leonardo de Moura
 */
 #include <string>
+#include <algorithm>
 #include "util/lbool.h"
 #include "util/sstream.h"
 #include "util/fresh_name.h"
@@ -81,6 +82,22 @@ static std::string * g_key = nullptr;
 struct class_config {
     typedef class_state state;
     typedef class_entry entry;
+
+    static class_state state_union(class_state const & a, class_state const & b) {
+        return {
+            merge(a.m_instances, b.m_instances, [=] (name const &, list<name> const & is1, list<name> const & is2) {
+                auto is = is1;
+                for (auto i : is2)
+                    if (std::find(is.begin(), is.end(), i) == is.end())
+                        is = cons(i, is);
+                return is;
+            }),
+            merge(a.m_priorities, b.m_priorities, [=] (name const &, unsigned p1, unsigned p2) {
+                return std::max(p1, p2); // TODO(gabriel)
+            }),
+        };
+    }
+
     static void add_entry(environment const &, io_state const &, state & s, entry const & e) {
         switch (e.m_kind) {
         case class_entry_kind::Class:

@@ -24,6 +24,10 @@ static name * g_quotient_sound = nullptr;
 struct quotient_env_ext : public environment_extension {
     bool m_initialized;
     quotient_env_ext():m_initialized(false){}
+
+    std::shared_ptr<environment_extension const> union_with(environment_extension const &) const override {
+        return std::make_shared<quotient_env_ext>();
+    }
 };
 
 /** \brief Auxiliary object for registering the environment extension */

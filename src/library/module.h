@@ -26,14 +26,8 @@ struct module_name {
     name               m_name;
     optional<unsigned> m_relative;
 };
-
-struct loaded_module {
-    std::string m_module_name;
-    std::string m_obj_code;
-    std::vector<task_result<expr>> m_delayed_proofs;
-};
-using module_loader = std::function<loaded_module(std::string const &, module_name const &)>;
-module_loader mk_olean_loader();
+using module_loader = std::function<environment(std::string const &, module_name const &)>;
+module_loader mk_olean_loader(environment const & env0);
 module_loader mk_dummy_loader();
 
 /** \brief Return the list of declarations performed in the current module */
@@ -51,8 +45,9 @@ list<module_name> get_curr_module_imports(environment const & env);
     checked. The idea is to save memory.
 */
 environment
-import_module(environment const & env,
-              std::string const & current_mod, module_name const & ref,
+import_modules(environment const & env,
+              std::string const & current_mod,
+              std::vector<module_name> const & refs,
               module_loader const & mod_ldr);
 
 /** \brief Return the .olean file where decl_name was defined. The result is none if the declaration
@@ -68,12 +63,13 @@ environment add_transient_decl_pos_info(environment const & env, name const & de
 
 /** \brief Store/Export module using \c env to the output stream \c out. */
 void export_module(std::ostream & out, environment const & env);
-std::vector<task_result<expr>> export_module_delayed(std::ostream & out, environment const & env);
 
 std::pair<std::vector<module_name>, std::vector<char>> parse_olean(
         std::istream & in, std::string const & file_name, bool check_hash = true);
-void import_module(std::vector<char> const & olean_code, std::string const & file_name, environment & env,
-                   std::vector<task_result<expr>> const & delayed_proofs);
+void import_module(std::vector<char> const & olean_code, std::string const & file_name, environment & env);
+environment import_module(std::istream & in, std::string const & file_name,
+                          environment const & env0,
+                          module_loader const & mod_ldr, bool check_hash = true);
 
 /** \brief A reader for importing data from a stream using deserializer \c d.
     There is one way to update the environment being constructed.

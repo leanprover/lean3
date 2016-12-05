@@ -694,10 +694,10 @@ public:
         scoped_expr_caching disable(false);
         scoped_set_distinguishing_pp_options set(get_distinguishing_pp_options());
 
-        auto mod_ldr = mk_olean_loader();
         optional<unsigned> k;
-        m_env = import_module(m_env, get_stream_name(), {"init", k}, mod_ldr);
-        m_env = import_module(m_env, get_stream_name(), {"smt", k}, mod_ldr);
+        m_env = import_modules(m_env, get_stream_name(),
+                               {{"init", k}, {"smt", k}},
+                               mk_olean_loader(m_env));
 
         bool ok = true;
         try {

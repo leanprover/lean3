@@ -16,6 +16,27 @@ namespace lean {
 struct eqn_lemmas_ext : public environment_extension {
     name_map<list<simp_lemma>> m_lemmas;
     eqn_lemmas_ext() {}
+
+    std::shared_ptr<environment_extension const> union_with(environment_extension const & ext) const override {
+        auto & o = static_cast<eqn_lemmas_ext const &>(ext);
+        auto u = std::make_shared<eqn_lemmas_ext>();
+        u->m_lemmas = merge(m_lemmas, o.m_lemmas, [=] (name const &, list<simp_lemma> const & ls1, list<simp_lemma> const & ls2) {
+            auto ls = ls1;
+            for (auto l : ls2) {
+                bool already_included = false;
+                for (auto l_ : ls) {
+                    // TODO(gabriel): check more than pointer equality
+                    if (l.is_ptr_eq(l_)) {
+                        already_included = true;
+                        break;
+                    }
+                }
+                if (!already_included) ls = cons(l, ls);
+            }
+            return ls;
+        });
+        return u;
+    }
 };
 
 struct eqn_lemmas_ext_reg {

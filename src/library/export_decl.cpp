@@ -46,6 +46,21 @@ struct export_decl_env_ext : public environment_extension {
 
     export_decl_env_ext() {}
     export_decl_env_ext(name_map<list<export_decl>> const & ns_map): m_ns_map(ns_map) {}
+
+    std::shared_ptr<environment_extension const> union_with(environment_extension const & ext) const override {
+        auto & o = static_cast<export_decl_env_ext const &>(ext);
+        auto u = std::make_shared<export_decl_env_ext>();
+        u->m_ns_map = merge(m_ns_map, o.m_ns_map,
+            [] (name const & n, list<export_decl> const & ds1, list<export_decl> const & ds2) {
+                list<export_decl> ds = ds1;
+                for (auto & d : ds2) {
+                    if (std::find(ds.begin(), ds.end(), d) == ds.end())
+                        ds = cons(d, ds);
+                }
+                return ds;
+            });
+        return u;
+    }
 };
 
 /** \brief Auxiliary object for registering the environment extension */
@@ -98,6 +113,15 @@ environment add_export_decl(environment const & env, export_decl const & entry) 
 struct active_export_decls_config {
     typedef export_decl       entry;
     typedef list<export_decl> state;
+
+    static state state_union(state const & a, state const & b) {
+        auto s = a;
+        for (auto & d : b) {
+            if (std::find(s.begin(), s.end(), d) == s.end())
+                s = cons(d, s);
+        }
+        return s;
+    }
 
     static void add_entry(environment const &, io_state const &, state & s, entry const & e) {
         if (std::find(s.begin(), s.end(), e) == s.end()) {

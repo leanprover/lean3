@@ -116,6 +116,22 @@ struct aliases_ext : public environment_extension {
         ext.pop();
         return update(env, ext);
     }
+
+    std::shared_ptr<environment_extension const> union_with(environment_extension const & ext) const override {
+        auto & o = static_cast<aliases_ext const &>(ext);
+        if (!empty(m_scopes) || !empty(o.m_scopes))
+            throw exception("union failed, aliases extension has open scopes");
+        if (m_state.m_in_section || o.m_state.m_in_section)
+            throw exception("union failed, aliases extension is in a section");
+        auto u = std::make_shared<aliases_ext>();
+        // TODO(gabriel)
+        u->m_state.m_aliases = merge_prefer_first(m_state.m_aliases, o.m_state.m_aliases);
+        u->m_state.m_inv_aliases = merge_prefer_first(m_state.m_inv_aliases, o.m_state.m_inv_aliases);
+        u->m_state.m_level_aliases = merge_prefer_first(m_state.m_level_aliases, o.m_state.m_level_aliases);
+        u->m_state.m_inv_level_aliases = merge_prefer_first(m_state.m_inv_level_aliases, o.m_state.m_inv_level_aliases);
+        u->m_state.m_local_refs = merge_prefer_first(m_state.m_local_refs, o.m_state.m_local_refs);
+        return u;
+    }
 };
 
 struct aliases_ext_reg {
@@ -217,6 +233,10 @@ environment add_aliases(environment const & env, name const & prefix, name const
             }
         });
     return update(env, ext);
+}
+
+environment clear_aliases(environment const & env) {
+    return update(env, aliases_ext());
 }
 
 void for_each_expr_alias(environment const & env, std::function<void(name const &, list<name> const &)> const & fn) {

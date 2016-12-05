@@ -303,7 +303,7 @@ void display(std::ostream & out, vm_obj const & o) {
         vm_obj const * args = to_native_closure(o)->get_args();
         for (unsigned i = 0; i < to_native_closure(o)->get_num_args(); i++) {
             out << " ";
-            display(out, args[i], idx2name);
+            display(out, args[i]);
         }
         out << ")";
     } else {
@@ -910,6 +910,15 @@ struct vm_decls : public environment_extension {
                 unsigned idx = get_vm_index(n);
                 m_cases.insert(idx, std::get<1>(p));
             });
+    }
+
+    std::shared_ptr<environment_extension const> union_with(environment_extension const & ext) const override {
+        auto & o = static_cast<vm_decls const &>(ext);
+        auto u = std::make_shared<vm_decls>();
+        u->m_decls = merge_prefer_first(m_decls, o.m_decls);
+        u->m_cases = merge_prefer_first(m_cases, o.m_cases);
+        u->m_monitor = m_monitor;
+        return u;
     }
 
     void add_core(vm_decl const & d) {

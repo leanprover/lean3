@@ -57,6 +57,8 @@ public:
 class environment_extension {
 public:
     virtual ~environment_extension();
+
+    virtual std::shared_ptr<environment_extension const> union_with(environment_extension const &) const = 0;
 };
 
 typedef std::vector<std::shared_ptr<environment_extension const>> environment_extensions;
@@ -169,6 +171,8 @@ public:
           - The environment does not contain an axiom named <tt>t.get_declaration().get_name()</tt>
     */
     environment replace(certified_declaration const & t) const;
+
+    environment union_with(environment const &) const;
 
     /**
        \brief Register an environment extension. Every environment

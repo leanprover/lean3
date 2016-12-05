@@ -7,7 +7,9 @@ Author: Leonardo de Moura
 #include <utility>
 #include <vector>
 #include <limits>
+#include <algorithm>
 #include "util/thread.h"
+#include "util/sstream.h"
 #include "kernel/environment.h"
 #include "kernel/kernel_exception.h"
 
@@ -144,6 +146,42 @@ environment environment::remove_universe(name const & n) const {
 
 bool environment::is_universe(name const & n) const {
     return m_global_levels.contains(n);
+}
+
+environment environment::union_with(environment const & other) const {
+    if (this->is_descendant(other)) return *this;
+    if (other.is_descendant(*this)) return other;
+
+    if (m_header != other.m_header)
+        throw_kernel_exception(*this, "invalid union, environment headers are not the same");
+
+    environment_id new_id(m_id, other.m_id);
+
+    auto new_decls = merge_check_compat(m_declarations, other.m_declarations,
+        [=] (name const & n, declaration const & d1, declaration const & d2) {
+            if (d1 != d2)
+                throw_kernel_exception(*this, sstream()
+                        << "invalid union, mismatching declarations for " << n);
+        });
+
+    auto new_global_levels = merge(m_global_levels, other.m_global_levels);
+
+    auto exts_size = std::max(m_extensions->size(), other.m_extensions->size());
+    auto new_exts = std::make_shared<environment_extensions>(exts_size);
+    for (unsigned ext_idx = 0; ext_idx < exts_size; ext_idx++) {
+        std::shared_ptr<environment_extension const> ext1, ext2;
+        if (ext_idx < m_extensions->size())       ext1 = m_extensions->at(ext_idx);
+        if (ext_idx < other.m_extensions->size()) ext2 = other.m_extensions->at(ext_idx);
+        if (ext1 && ext2) {
+            (*new_exts)[ext_idx] = ext1->union_with(*ext2);
+        } else if (ext1) {
+            (*new_exts)[ext_idx] = ext1;
+        } else if (ext2) {
+            (*new_exts)[ext_idx] = ext2;
+        }
+    }
+
+    return environment(m_header, new_id, new_decls, new_global_levels, new_exts);
 }
 
 environment environment::replace(certified_declaration const & t) const {

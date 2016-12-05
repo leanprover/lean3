@@ -85,6 +85,13 @@ struct key_equivalence_ext : public environment_extension {
         if (!it2) return false;
         return find(*it1) == find(*it2);
     }
+
+    std::shared_ptr<environment_extension const> union_with(environment_extension const & ext) const override {
+        auto & o = static_cast<key_equivalence_ext const &>(ext);
+        auto u = std::make_shared<key_equivalence_ext>(*this);
+        // TODO(gabriel)
+        return u;
+    }
 };
 
 struct key_equivalence_ext_reg {

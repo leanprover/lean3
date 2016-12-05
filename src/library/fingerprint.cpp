@@ -12,6 +12,12 @@ namespace lean {
 struct fingerprint_ext : public environment_extension {
     uint64 m_fingerprint;
     fingerprint_ext():m_fingerprint(0) {}
+
+    std::shared_ptr<environment_extension const> union_with(environment_extension const & ext) const override {
+        auto u = std::make_shared<fingerprint_ext>();
+        u->m_fingerprint = hash(m_fingerprint, static_cast<fingerprint_ext const &>(ext).m_fingerprint);
+        return u;
+    }
 };
 
 struct fingerprint_ext_reg {

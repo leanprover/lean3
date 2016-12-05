@@ -128,5 +128,34 @@ void for_each(rb_map<K, T, CMP> const & m, F && f) {
     return m.for_each(f);
 }
 
+template <class K, class T, class CMP, class F>
+rb_map<K, T, CMP> merge(rb_map<K, T, CMP> const & m1, rb_map<K, T, CMP> const & m2, F && f) {
+    auto r = m1;
+    m2.for_each([&] (K const & k, T const & t2) {
+        if (auto t1 = r.find(k)) {
+            r.insert(k, f(k, *t1, t2));
+        } else {
+            r.insert(k, t2);
+        }
+    });
+    return r;
+};
+template <class K, class T, class CMP, class F>
+rb_map<K, T, CMP> merge_check_compat(rb_map<K, T, CMP> const & m1, rb_map<K, T, CMP> const & m2, F && f) {
+    auto r = m1;
+    m2.for_each([&] (K const & k, T const & t2) {
+        if (auto t1 = r.find(k)) {
+            f(k, *t1, t2);
+        } else {
+            r.insert(k, t2);
+        }
+    });
+    return r;
+};
+template <class K, class T, class CMP>
+rb_map<K, T, CMP> merge_prefer_first(rb_map<K, T, CMP> const & m1, rb_map<K, T, CMP> const & m2) {
+    return merge_check_compat(m1, m2, [] (K const &, T const &, T const &) {});
+};
+
 template<typename T> using unsigned_map = rb_map<unsigned, T, unsigned_cmp>;
 }

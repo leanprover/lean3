@@ -14,6 +14,14 @@ namespace lean {
 struct aux_recursor_ext : public environment_extension {
     name_set m_aux_recursor_set;
     name_set m_no_confusion_set;
+
+    std::shared_ptr<environment_extension const> union_with(environment_extension const & ext) const override {
+        auto & o = static_cast<aux_recursor_ext const &>(ext);
+        auto u = std::make_shared<aux_recursor_ext>();
+        u->m_aux_recursor_set = merge(m_aux_recursor_set, o.m_aux_recursor_set);
+        u->m_no_confusion_set = merge(m_no_confusion_set, o.m_no_confusion_set);
+        return u;
+    }
 };
 
 struct aux_recursor_ext_reg {

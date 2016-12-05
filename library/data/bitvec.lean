@@ -22,7 +22,7 @@ begin unfold bitvec, apply_instance end
 def zero {n : ℕ} : bitvec n := tuple.repeat ff
 
 -- Create a bitvector with the constant one.
-def one {n : ℕ} : bitvec (succ n) := tuple.append (tuple.repeat ff : bitvec n) [ tt ]
+def one {n : ℕ} : bitvec (succ n) := tuple.append (tuple.repeat ff : bitvec n) (tt :: nil)
 
 section shift
 

@@ -63,6 +63,11 @@ public:
     kind get_kind() const { return m_kind; }
     bool is_regular() const { return m_kind == Regular; }
     bool use_self_opt() const { return m_self_opt; }
+
+    bool operator==(reducibility_hints const & other) const {
+        return m_kind == other.m_kind && m_height == other.m_height && m_self_opt == other.m_self_opt;
+    }
+    bool operator!=(reducibility_hints const & other) const { return !(*this == other); }
 };
 
 int compare(reducibility_hints const & h1, reducibility_hints const & h2);
@@ -119,6 +124,9 @@ public:
     declaration & operator=(declaration && s);
 
     friend bool is_eqp(declaration const & d1, declaration const & d2) { return d1.m_ptr == d2.m_ptr; }
+
+    bool operator==(declaration const &) const;
+    bool operator!=(declaration const & that) const { return !(*this == that); }
 
     bool is_definition() const;
     bool is_axiom() const;

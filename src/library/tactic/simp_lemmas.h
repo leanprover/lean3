@@ -67,6 +67,8 @@ public:
     bool is_permutation() const;
 
     format pp(formatter const & fmt) const;
+
+    bool is_ptr_eq(simp_lemma const & o) const { return m_ptr == o.m_ptr; }
 };
 
 bool operator==(simp_lemma const & r1, simp_lemma const & r2);
