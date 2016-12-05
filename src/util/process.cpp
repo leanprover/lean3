@@ -26,16 +26,21 @@ process & process::arg(std::string a) {
     return *this;
 }
 
+#if defined(LEAN_WINDOWS) && !defined(LEAN_CYGWIN)
+void process::run() {
+    throw std::runtime_error("process::run not supported on Windows")
+}
+#else
+
 void process::run() {
     int pid = fork();
     if (pid == 0) {
         buffer<char*> pargs;
+
         for (auto arg : m_args) {
-            std::cout << arg << std::endl;
-            auto str = new char[100];
+            auto str = new char[arg.size() + 1];
             arg.copy(str, arg.size());
             str[arg.size()] = '\0';
-            // std::cout << str << std::endl;
             pargs.push_back(str);
         }
 
@@ -52,4 +57,6 @@ void process::run() {
         waitpid(pid, &status, 0);
     }
 }
+#endif
+
 }

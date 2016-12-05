@@ -264,8 +264,6 @@ void native_compile(environment const & env,
     // First we convert for Lean ...
     vm_obj procs_list = mk_vm_simple(0);
     for (auto & p : procs) {
-        // std::cout << p.m_name << std::endl;
-        // std::cout << p.second << std::endl;
         auto tuple = mk_vm_constructor(0, { to_obj(p.m_name), to_obj(p.m_code) });
         procs_list = mk_vm_constructor(1, { tuple, procs_list });
     }
@@ -504,6 +502,7 @@ void initialize_native_compiler() {
     initialize_install_path();
     register_trace_class({"compiler", "native"});
     register_trace_class({"compiler", "native", "preprocess"});
+    register_trace_class({"compiler", "native", "cpp_compiler"})
     g_native_module_key = new std::string("native_module_path");
     register_module_object_reader(*g_native_module_key, native_module_reader);
 }
