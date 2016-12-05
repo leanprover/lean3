@@ -3,15 +3,13 @@ open list
 
 -- set_option pp.all true
 
-set_option trace.native_compiler true
-
 definition main : io unit :=
   do l₁ ← get_line,
      l₂ ← get_line,
      put_str (l₂ ++ l₁)
 
-set_option trace.compiler.code_gen true
-vm_eval main
+-- vm_eval main
+-- set_option trace.compiler.code_gen true
 
 vm_eval put_str "hello\n"
 
