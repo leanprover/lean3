@@ -8,6 +8,7 @@ Author: Jared Roesch
 
 #include <iostream>
 #include <utility>
+#include <vector>
 #include "used_defs.h"
 #include "kernel/environment.h"
 #include "kernel/inductive/inductive.h"

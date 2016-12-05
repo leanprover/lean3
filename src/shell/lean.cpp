@@ -503,8 +503,9 @@ int main(int argc, char ** argv) {
             }
         }
 
+        // Options appear to be empty, pretty sure I'm making a mistake here.
         if (compile && !mods.empty()) {
-            auto opts = ios.get_options();
+            auto opts = mod_mgr.get_options(); // ios.get_options();
             auto final_env = *mods.front().second->m_result.get().m_env;
             type_context tc(final_env, opts);
             lean::scope_trace_env scope2(final_env, opts, tc);

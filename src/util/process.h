@@ -7,6 +7,7 @@ Author: Jared Roesch
 #pragma once
 
 #include <iostream>
+#include <string>
 #include "util/buffer.h"
 
 namespace lean  {

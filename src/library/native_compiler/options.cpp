@@ -115,8 +115,7 @@ void initialize_options() {
         "(native_compiler) flag controls whether to use dynamic linking");
 
     register_string_option(*native::g_native_dump, LEAN_DEFAULT_NATIVE_DUMP,
-        "(native_compiler) flag controls whether the native compiler dumps terms \
-                           before and after every pass");
+        "(native_compiler) flag controls whether the native compiler dumps terms before and after every pass");
 }
 
 void finalize_options() {

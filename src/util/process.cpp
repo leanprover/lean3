@@ -15,7 +15,7 @@ Author: Jared Roesch
 
 namespace lean {
 
-// TODO: make this cross platform
+// TODO(jroesch): make this cross platform
 
 process::process(std::string n): m_proc_name(n), m_args() {
     m_args.push_back(m_proc_name);
@@ -32,7 +32,7 @@ void process::run() {
         buffer<char*> pargs;
         for (auto arg : m_args) {
             std::cout << arg << std::endl;
-            auto str = (char*)malloc(sizeof(char) * 100);
+            auto str = new char[100];
             arg.copy(str, arg.size());
             str[arg.size()] = '\0';
             // std::cout << str << std::endl;
