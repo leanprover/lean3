@@ -7,10 +7,11 @@ Author: Jared Roesch
 #pragma once
 #include <string>
 #include "kernel/environment.h"
+#include "util/path.h"
 
 namespace lean {
 void initialize_install_path();
-std::string get_install_path();
+path get_install_path();
 
 struct extern_fn {
     bool m_in_lean_namespace;

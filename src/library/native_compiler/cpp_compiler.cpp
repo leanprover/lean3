@@ -34,7 +34,14 @@ namespace lean {
       return *this;
   }
 
-  cpp_compiler::cpp_compiler() : m_library_paths(), m_include_paths(), m_files(), m_link(), m_debug(false) {}
+  cpp_compiler::cpp_compiler() :
+    m_library_paths(),
+    m_include_paths(),
+    m_files(),
+    m_link(),
+    m_debug(false),
+    m_shared(false),
+    m_pic(false) {}
 
   cpp_compiler & cpp_compiler::shared_library(bool on) {
       m_shared = on;
@@ -100,7 +107,6 @@ namespace lean {
   // Setup a compiler for building executables.
   cpp_compiler mk_executable_compiler() {
       cpp_compiler gpp;
-      gpp.link(LEAN_STATIC_LIB);
       return gpp;
   }
 
