@@ -1,4 +1,4 @@
-import system.IO
+import system.io
 
-definition main : IO unit :=
+definition main : io unit :=
     put_str "Hello Lean!\n"
