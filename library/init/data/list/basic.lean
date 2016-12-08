@@ -135,6 +135,12 @@ def zip : list α → list β → list (prod α β)
 | _       []      := []
 | (x::xs) (y::ys) := (prod.mk x y) :: zip xs ys
 
+def unzip {A B} : list (A × B) → (list A × list B)
+| [] := ([], [])
+| ((x, y) :: rest) :=
+  let (xs, ys) := unzip rest
+  in (x :: xs, y :: ys)
+
 def repeat (a : α) : ℕ → list α
 | 0 := []
 | (succ n) := a :: repeat n
@@ -142,5 +148,10 @@ def repeat (a : α) : ℕ → list α
 def iota : ℕ → list ℕ
 | 0 := []
 | (succ n) := iota n ++ [succ n]
+
+def intersperse {A : Type} (elem : A) : list A → list A
+| [] := []
+| (x :: []) := [x]
+| (x :: xs) := x :: elem :: intersperse xs
 
 end list

@@ -8,8 +8,11 @@ prelude
 import init.meta.name
 import init.meta.expr
 
-meta def procedure :=
+@[reducible] meta def procedure :=
   name × expr
+
+@[reducible] def extern_fn :=
+  bool × name × unsigned
 
 meta def procedure.to_string : procedure → string
 | (n, e) := "def " ++ to_string n ++ " := \n" ++ to_string e

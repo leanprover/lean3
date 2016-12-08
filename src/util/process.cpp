@@ -41,6 +41,7 @@ void process::run() {
         buffer<char*> pargs;
 
         for (auto arg : m_args) {
+            std::cout << arg << std::endl;
             auto str = new char[arg.size() + 1];
             arg.copy(str, arg.size());
             str[arg.size()] = '\0';
