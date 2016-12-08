@@ -7,6 +7,7 @@ Author: Jared Roesch
 #pragma once
 #include <string>
 #include "kernel/environment.h"
+#include "library/vm/vm.h"
 #include "util/path.h"
 
 namespace lean {
@@ -19,6 +20,8 @@ struct extern_fn {
     unsigned m_arity;
     extern_fn(bool in_lean_namespace, name n, unsigned arity) :
         m_in_lean_namespace(in_lean_namespace), m_name(n), m_arity(arity) {}
+
+    vm_obj to_obj();
 };
 
 optional<extern_fn> get_builtin(name const & n);

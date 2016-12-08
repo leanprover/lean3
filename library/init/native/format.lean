@@ -11,18 +11,13 @@ import init.function
 
 import init.native.ir
 
-def intersperse {A : Type} (elem : A) : list A → list A
-| [] := []
-| (x :: []) := [x]
-| (x :: xs) := x :: elem :: intersperse xs
-
 meta def format_concat : list format → format
 | [] := format.nil
 | (f :: fs) := f ++ format_concat fs
 
 meta def comma_sep (items : list format) : format :=
 format_concat
-  (intersperse (format.of_string "," ++ format.space) items)
+  (list.intersperse (format.of_string "," ++ format.space) items)
 
 namespace format_cpp
 
@@ -163,5 +158,79 @@ meta def defn (d : ir.defn) : format :=
     (format_argument_list arg_tys) ++ format.space ++
     (format.bracket "{" "}" $ format.nest 4 (format.line ++ body) ++ format.line)
   end
+
+-- meta def item (i : ir.item) : format :=
+--   "an item"
+
+meta def format_lines : list format → format :=
+  fun fs, format_concat $ list.intersperse format.line fs
+
+meta def headers : format :=
+  format_lines [
+    "#include <iostream>",
+    "#include \"util/numerics/mpz.h\"",
+    "#include \"library/vm/vm_io.h\"",
+    "#include \"library/vm/vm.h\"",
+    "#include \"library/io_state.h\"",
+    "#include \"init/init.h\"",
+    -- pretty sure I can remove this
+    "static lean::environment * g_env = nullptr;"
+  ]
+
+meta def prototype : ir.defn → format
+| (ir.defn.mk n params ret_ty _) :=
+  ty ret_ty ++ " " ++ mangle_name n ++ format_argument_list params ++ ";" ++ format.line
+
+meta def defn_prototypes (defs : list ir.defn) : format :=
+  format_concat $ list.map prototype defs
+
+meta def split_items : list ir.item → (list ir.defn × list ir.decl)
+| [] := ([], [])
+| (i :: is) :=
+  let (defs, decls) := split_items is in
+  match i with
+  | ir.item.defn d := (d :: defs, decls)
+  | ir.item.decl d := (defs, d :: decls)
+  end
+
+meta def declaration : ir.decl → format
+| (ir.decl.mk n params ret_ty) :=
+  ty ret_ty ++ " " ++ mangle_name n ++ format_argument_list params ++ ";" ++ format.line
+
+meta def declarations (decls : list ir.decl) : format :=
+  "namespace lean {\n" ++ format_concat (list.map declaration decls) ++ "}"
+
+meta def definitions (defs : list ir.defn) : format :=
+  format_concat $ list.map defn defs
+
+meta def program (items : list ir.item) : format :=
+  let (defs, decls) := split_items items in
+  format_lines [
+    headers,
+    defn_prototypes defs,
+    declarations decls,
+    definitions defs
+  ]
+
+-- meta def emit_prototype (proc : procedure) : format :=
+--   "lean::vm_obj " ++
+
+-- void cpp_emitter::emit_prototype(name const & n, unsigned arity) {
+-- *this->m_output_stream << "lean::vm_obj ";
+-- mangle_name(n);
+-- auto comma = false;
+
+-- *this->m_output_stream << "(";
+-- for (unsigned i = 0; i < arity; i++) {
+-- if (comma) {
+-- *this->m_output_stream << ", ";
+-- } else {
+-- comma = true;
+-- }
+-- *this->m_output_stream << "lean::vm_obj const &";
+-- }
+-- *this->m_output_stream << ");" << std::endl;
+-- }
+
 
 end format_cpp

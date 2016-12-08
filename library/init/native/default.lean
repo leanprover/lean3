@@ -65,7 +65,7 @@ meta def run {M E A} (res : native.resultT M E A) : M (native.result E A) :=
   | ⟨action⟩ := action
   end
 
-meta def sequence_err : list (ir_compiler format) → ir_compiler (list format × list error)
+meta def sequence_err : list (ir_compiler ir.item) → ir_compiler (list ir.item × list error)
 | [] := return ([], [])
 | (action :: remaining) :=
     ⟨ fun s,
@@ -78,9 +78,6 @@ meta def sequence_err : list (ir_compiler format) → ir_compiler (list format �
          end
          end
      ⟩
-
--- meta lemma sequence_err_always_ok :
---   forall xs v s s', sequence_err xs s = native.result.ok (v, s') := sorry
 
 meta def lift_result {A} (action : ir_result A) : ir_compiler A :=
   ⟨fun s, (action, s)⟩
@@ -125,16 +122,6 @@ meta def lookup_arity (n : name) : ir_compiler nat := do
 meta def mk_nat_literal (n : nat) : ir_compiler ir.expr :=
   return (ir.expr.lit $ ir.literal.nat n)
 
-def repeat {A : Type} : nat → A → list A
-| 0 _ := []
-| (n + 1) a := a :: repeat n a
-
-def zip {A B : Type} : list A → list B → list (A × B)
-| [] [] := []
-| [] (y :: ys) := []
-| (x :: xs) [] := []
-| (x :: xs) (y :: ys) := (x, y) :: zip xs ys
-
 private def upto' : ℕ → list ℕ
 | 0 := []
 | (n + 1) := n :: upto' n
@@ -143,7 +130,7 @@ def upto (n : ℕ) : list ℕ :=
   list.reverse $ upto' n
 
 def label {A : Type} (xs : list A) : list (nat × A) :=
-  zip (upto (list.length xs)) xs
+  list.zip (upto (list.length xs)) xs
 
 -- lemma label_size_eq :
 --   forall A (xs : list A),
@@ -244,7 +231,7 @@ meta def bind_case_fields (scrut : name) (fs : list name) (body : ir.stmt) : ir_
 
 meta def mk_cases_on (case_name scrut : name) (cases : list (nat × ir.stmt)) (default : ir.stmt) : ir.stmt :=
 ir.stmt.seq [
-  ir.stmt.letb `ctor_index ir.ty.int (ir.expr.call `cidx [scrut]) ir.stmt.nop,
+  ir.stmt.letb `ctor_index (ir.ty.name `unsigned) (ir.expr.call `cidx [scrut]) ir.stmt.nop,
   ir.stmt.switch `ctor_index cases default
 ]
 
@@ -298,7 +285,7 @@ meta def mk_builtin_cases_on (case_name scrut : name) (cases : list (nat × ir.s
 -- replace `ctor_index with a generated name
 ir.stmt.seq [
   ir.stmt.letb `buffer ir.ty.object_buffer ir.expr.uninitialized ir.stmt.nop,
-  ir.stmt.letb `ctor_index ir.ty.int (ir.expr.call (in_lean_ns case_name) [scrut, `buffer]) ir.stmt.nop,
+  ir.stmt.letb `ctor_index (ir.ty.name `unsigned) (ir.expr.call (in_lean_ns case_name) [scrut, `buffer]) ir.stmt.nop,
   ir.stmt.switch `ctor_index cases default
 ]
 
@@ -333,6 +320,20 @@ meta def mk_simple_nat_cases_on (scrut : name) (zero_case succ_case : ir.stmt) :
 
 meta def mk_mpz_nat_cases_on (scrut : name) (zero_case succ_case : ir.stmt) : ir_compiler ir.stmt :=
   ir.stmt.e <$> panic "mpz"
+  -- this→emit_string("else ");
+  -- this→emit_block([&] () {
+  --     this→emit_indented("if (to_mpz(");
+  --     action(scrutinee);
+  --     this→emit_string(") == 0) ");
+  --     this→emit_block([&] () {
+  --         action(zero_case);
+  --         *this→m_output_stream << ";\n";
+  --     });
+  --     this→emit_string("else ");
+  --     this→emit_block([&] () {
+  --         action(succ_case);
+  --     });
+  -- });
 
 meta def mk_nat_cases_on (scrut : name) (zero_case succ_case : ir.stmt) : ir_compiler ir.stmt :=
   bind_value_with_ty (mk_is_simple scrut) (ir.ty.name `bool) (fun is_simple,
@@ -380,38 +381,6 @@ meta def compile_nat_cases_on_to_ir_expr
       mk_nat_cases_on scrut zc sc
     )
   end
-
-            -- this→emit_indented("if (is_simple(");
-            -- action(scrutinee);
-            -- this→emit_string("))");
-            -- this→emit_block([&] () {
-            --     this→emit_indented("if (cidx(");
-            --     action(scrutinee);
-            --     this→emit_string(") == 0) ");
-            --     this→emit_block([&] () {
-            --         action(zero_case);
-            --         *this→m_output_stream << ";\n";
-            --     });
-            --     this→emit_string("else ");
-            --     this→emit_block([&] () {
-            --         action(succ_case);
-            --         *this→m_output_stream << ";\n";
-            --     });
-            -- });
-            -- this→emit_string("else ");
-            -- this→emit_block([&] () {
-            --     this→emit_indented("if (to_mpz(");
-            --     action(scrutinee);
-            --     this→emit_string(") == 0) ");
-            --     this→emit_block([&] () {
-            --         action(zero_case);
-            --         *this→m_output_stream << ";\n";
-            --     });
-            --     this→emit_string("else ");
-            --     this→emit_block([&] () {
-            --         action(succ_case);
-            --     });
-            -- });
 
 -- this code isnt' great working around the semi-functional frontend
 meta def compile_expr_app_to_ir_expr
@@ -506,7 +475,7 @@ meta def compile_expr_to_ir_stmt : expr → ir_compiler ir.stmt
 
 meta def compile_defn_to_ir (decl_name : name) (args : list name) (body : expr) : ir_compiler ir.defn := do
   body' ← compile_expr_to_ir_stmt body,
-  let params := (zip args (repeat (list.length args) (ir.ty.ref ir.ty.object))),
+  let params := (list.zip args (list.repeat (ir.ty.ref ir.ty.object) (list.length args))) in
   pure (ir.defn.mk decl_name params ir.ty.object body')
 
 def unwrap_or_else {T R : Type} : ir_result T → (T → R) → (error → R) → R
@@ -521,17 +490,27 @@ meta def replace_main (n : name) : name :=
 meta def trace_expr (e : expr) : ir_compiler unit :=
   trace ("trace_expr: " ++ to_string e) (return ())
 
-meta def compile_defn (decl_name : name) (e : expr) : ir_compiler format :=
+meta def compile_defn (decl_name : name) (e : expr) : ir_compiler ir.defn :=
   let arity := get_arity e in do
     (args, body) ← take_arguments e,
-    ir ← compile_defn_to_ir (replace_main decl_name) args body,
-    return $ format_cpp.defn ir
+    compile_defn_to_ir (replace_main decl_name) args body
 
-meta def compile' : list (name × expr) → list (ir_compiler format)
-| [] := []
-| ((n, e) :: rest) := do
-  let decl := (fun d, d ++ format.line ++ format.line) <$> compile_defn n e,
-  decl :: (compile' rest)
+meta def compile_defns : list procedure → list (ir_compiler ir.item) :=
+  fun ps, list.map (fun p, ir.item.defn <$> compile_defn (prod.fst p) (prod.snd p)) ps
+
+meta def mk_builtin_cases_on_proto (n : name) : ir_compiler ir.decl := do
+  o <- fresh_name,
+  data <- fresh_name,
+  return $ ir.decl.mk n [(o, ir.ty.ref ir.ty.object), (data, ir.ty.mut_ref ir.ty.object_buffer)] (ir.ty.name `unsigned)
+
+meta def compile_decl : extern_fn → ir_compiler ir.item
+| (in_lean_ns, n, arity) :=
+  if is_cases_on (expr.const n [])
+  then ir.item.decl <$> mk_builtin_cases_on_proto n
+  else (return $ ir.item.decl $ ir.decl.mk n [] ir.ty.object)
+
+meta def compile_decls : list extern_fn → list (ir_compiler ir.item) :=
+  fun xs, list.map compile_decl xs
 
 meta def format_error : error → format
 | (error.string s) := to_fmt s
@@ -571,22 +550,6 @@ meta def emit_main (procs : list (name × expr)) : ir_compiler ir.defn := do
     ir.stmt.e call_main
 ]))
 
-  --   -- call_mains
-  --   -- buffer<expr> args;
-  --   -- auto unit = mk_neutral_expr();
-  --   -- args.push_back(unit);
-  --   -- // Make sure to invoke the C call machinery since it is non-deterministic
-  --   -- // which case we enter here.
-  --   -- compile_to_c_call(main_fn, args, 0, name_map<unsigned>());
-  --   -- *this→m_output_stream << ";\n return 0;\n}" << std::endl;
-  -- ]
-
-meta def unzip {A B} : list (A × B) → (list A × list B)
-| [] := ([], [])
-| ((x, y) :: rest) :=
-  let (xs, ys) := unzip rest
-  in (x :: xs, y :: ys)
-
 meta def configuration : ir_compiler config := do
   (conf, _, _) ← lift $ state.read,
   pure conf
@@ -594,20 +557,26 @@ meta def configuration : ir_compiler config := do
 meta def apply_pre_ir_passes (procs : list procedure) (conf : config) : list procedure :=
   run_passes conf [anf, cf] procs
 
-meta def driver (procs : list (name × expr)) : ir_compiler (list format × list error) := do
+meta def driver
+  (externs : list extern_fn)
+  (procs : list procedure) : ir_compiler (list ir.item × list error) := do
   procs' ← apply_pre_ir_passes procs <$> configuration,
-  (fmt_decls, errs) ← sequence_err (compile' procs'),
+  (defns, errs) ← sequence_err (compile_defns procs'),
+  (decls, errs) ← sequence_err (compile_decls externs),
   main ← emit_main procs',
-  return (format_cpp.defn main :: fmt_decls, errs)
+  return (ir.item.defn main :: defns ++ decls, errs)
 
-meta def compile (conf : config) (procs : list (name × expr)) : format :=
+meta def compile
+  (conf : config)
+  (extern_fns : list extern_fn)
+  (procs : list procedure) : format :=
   let arities := mk_arity_map procs in
   -- Put this in a combinator or something ...
-  match run (driver procs) (conf, arities, 0) with
+  match run (driver extern_fns procs) (conf, arities, 0) with
   | (native.result.err e, s) := error.to_string e
-  | (native.result.ok (decls, errs), s) :=
+  | (native.result.ok (items, errs), s) :=
     if list.length errs = 0
-    then format_concat decls
+    then format_cpp.program items
     else format_error (error.many errs)
   end
 

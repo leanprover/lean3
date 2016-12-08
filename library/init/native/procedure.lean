@@ -8,8 +8,11 @@ prelude
 import init.meta.name
 import init.meta.expr
 
-meta def procedure :=
-name × expr
+@[reducible] meta def procedure :=
+  name × expr
+
+@[reducible] def extern_fn :=
+  bool × name × unsigned
 
 meta def procedure.repr : procedure → string
 | (n, e) := "def " ++ to_string n ++ " := \n" ++ to_string e -- to_string for expr does not produce string that can be parsed by Lean
