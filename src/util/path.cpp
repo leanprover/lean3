@@ -76,7 +76,11 @@ static bool is_path_sep(char c) { return c == g_path_sep; }
 
 #endif
 
-static std::string normalize_path(std::string f) {
+// eventually expose this symbol, after rewriting lean_path.
+bool is_path_sep_dup(char c) { return is_path_sep(c); }
+char path_sep() { return g_path_sep; }
+
+std::string normalize_path_string(std::string f) {
     for (auto & c : f) {
         if (c == g_bad_sep)
             c = g_sep;
@@ -86,8 +90,8 @@ static std::string normalize_path(std::string f) {
 
 path::path(char const * p) : path(std::string(p)) {}
 
-path::path(std::string p) {
-    auto normalized = normalize_path(p);
+path::path(std::string p) : m_absolute(true) {
+    auto normalized = normalize_path_string(p);
 
     unsigned i  = 0;
     unsigned j  = 0;
@@ -109,10 +113,16 @@ path::path(path const & p) {
     for (auto c : p.m_components) {
         this->m_components.push_back(c);
     }
+    this->m_absolute = p.m_absolute;
 }
 
 std::ostream & operator<<(std::ostream & os, path const & p) {
+    if (p.m_absolute) {
+        os << g_sep;
+    }
+
     os << p.m_components[0];
+
     for (size_t i = 1; i < p.m_components.size(); i++) {
         os << g_sep << p.m_components[i];
     }
@@ -146,38 +156,5 @@ path path::append(char const * p) {
     p1.copy(p2);
     return p1;
 }
-
-path_var::path_var(std::string p) {
-    auto normalized = normalize_path(p);
-
-    unsigned i  = 0;
-    unsigned j  = 0;
-
-    unsigned sz = normalized.size();
-    for (; j < sz; j++) {
-        if (is_path_sep(normalized[j])) {
-            if (j > i) {
-                auto p = path(normalized.substr(i, j - i));
-                m_paths.push_back(p);
-            }
-            i = j + 1;
-        }
-    }
-
-    if (j > i) {
-        auto p = path(normalized.substr(i, j - i));
-        m_paths.push_back(p);
-    }
-}
-
-std::ostream & operator<<(std::ostream & os, path_var const & p) {
-    os << p.m_paths[0];
-    for (size_t i = 1; i < p.m_paths.size(); i++) {
-        os << g_path_sep << p.m_paths[i];
-    }
-
-    return os;
-}
-
 
 }

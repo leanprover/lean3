@@ -13,9 +13,15 @@ Author: Jared Roesch
 
 namespace lean {
 
-// a file system path
+std::string normalize_path_string(std::string f);
+bool is_path_sep_dup(char c);
+char path_sep();
+
+// A platform independent abstraction over file system paths.
 class path {
     std::vector<std::string> m_components;
+    // TODO: properly support relative vs. absolute
+    bool m_absolute;
 public:
     path(std::string p);
     path(char const * p);
@@ -36,18 +42,4 @@ public:
     }
 };
 
-// a set o file system paths
-class path_var {
-public:
-    std::vector<path> m_paths;
-    path_var(std::string pv);
-
-    friend std::ostream & operator<<(std::ostream & out, path_var const & pv);
-    // template<typename R>
-    // iterate(std::function<R(path const &)> for_each) {
-    //     for (const & path : m_paths) {
-    //         for_each()
-    //     }
-    // }
-};
 }
