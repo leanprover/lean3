@@ -34,7 +34,6 @@ Author: Jared Roesch and Leonardo de Moura
 #include "library/native_compiler/extern.h"
 #include "library/compiler/vm_compiler.h"
 #include "library/module.h"
-#include "library/native_compiler/cpp_emitter.h"
 #include "library/native_compiler/used_defs.h"
 #include "util/lean_path.h"
 #include "util/path.h"
@@ -192,10 +191,6 @@ lean::vm_obj to_lean_extern_fns(buffer<extern_fn> & extern_fns) {
     return externs_list;
 }
 
-// std::vector<std::pair<std::string, format>>> from_files(lean::vm_obj files_obj) {
-//     return std::vector();
-// }
-
 format invoke_native_compiler(
     environment const & env,
     buffer<extern_fn> & extern_fns,
@@ -225,16 +220,7 @@ void native_compile(environment const & env,
                     buffer<procedure> & procs,
                     native_compiler_mode mode) {
     std::fstream out("out.cpp", std::ios_base::out);
-
-    // Emit externs (currently only works for builtins).
-    // compiler.emit_prototypes(extern_fns);
-
-    // for (auto & p : procs) {
-    //    compiler.emit_prototype(p.m_name, p.m_code);
-    // }
-
     auto fmt = invoke_native_compiler(env, extern_fns, procs);
-
     out << fmt << "\n\n";
 
     // For now just close this, then exit.
@@ -247,14 +233,10 @@ void native_compile(environment const & env,
     // Add all the shared link dependencies.
     add_shared_dependencies(gpp);
 
-    gpp.file("out.cpp")
-       .run();
+    gpp.file("out.cpp").run();
 }
 
 void native_preprocess(environment const & env, declaration const & d, buffer<procedure> & procs) {
-    lean_trace(name({"compiler", "native"}),
-      tout() << "native_preprocess:" << d.get_name() << "\n";);
-
     // Run the normal preprocessing and optimizations.
     preprocess(env, d, procs);
 }
@@ -308,7 +290,6 @@ void populate_extern_fns(
 }
 
 void native_compile_module(environment const & env, buffer<declaration> decls) {
-    std::cout << "compiled native module" << std::endl;
 
     // Preprocess the main function.
     buffer<procedure> all_procs;
