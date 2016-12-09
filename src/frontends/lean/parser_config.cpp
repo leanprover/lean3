@@ -250,19 +250,18 @@ struct notation_config {
 
     static notation_state state_union(notation_state const & a, notation_state const & b) {
         notation_state u;
-        u.m_nud = a.m_nud.merge(b.m_nud, true);
-        u.m_led = a.m_led.merge(b.m_led, true);
+        u.m_nud = b.m_nud.merge(a.m_nud, true);
+        u.m_led = b.m_led.merge(a.m_led, true);
         u.m_num_map = merge(a.m_num_map, b.m_num_map, [] (mpz const &, list<expr> const & es1, list<expr> const & es2) {
             return append(es1, es2); // TODO(gabriel)
         });
         u.m_inv_map = a.m_inv_map;
         b.m_inv_map.for_each([&] (head_index const & i, list<notation_entry> const & es) {
-            for_each(es, [&] (notation_entry const & e) {
+            for (auto & e : reverse(es))
                 u.m_inv_map.insert(i, e); // TODO(gabriel)
-            });
         });
-        u.m_reserved_nud = a.m_reserved_nud.merge(b.m_reserved_nud, true);
-        u.m_reserved_led = a.m_reserved_led.merge(b.m_reserved_led, true);
+        u.m_reserved_nud = b.m_reserved_nud.merge(a.m_reserved_nud, true);
+        u.m_reserved_led = b.m_reserved_led.merge(a.m_reserved_led, true);
         return u;
     }
 

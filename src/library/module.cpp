@@ -370,7 +370,7 @@ environment import_modules(environment const & env0, std::string const & module_
     auto env = env0;
     for (auto & ref : refs) {
         auto env_to_import = mod_ldr(module_file_name, ref);
-//        if (!env_to_import.is_descendant(env))
+//        if (!env_to_import.is_descendant(env) && !env.is_descendant(env_to_import))
 //            report_message(message(module_file_name, {1,0}, WARNING, "not a zero-cost import: " + ref.m_name.to_string()));
         env = env.union_with(env_to_import);
     }

@@ -84,14 +84,12 @@ struct class_config {
     typedef class_entry entry;
 
     static class_state state_union(class_state const & a, class_state const & b) {
-        class_state u;
-        for (class_state const & x : {a, b}) {
-            x.m_instances.for_each([&](name const & c, list<name> const & is) {
-                u.add_class(c);
-                for (auto & i : reverse(is))
-                    u.add_instance(c, i, x.get_priority(i));
-            });
-        }
+        auto u = a;
+        b.m_instances.for_each([&](name const & c, list<name> const & is) {
+            u.add_class(c);
+            for (auto & i : reverse(is))
+                u.add_instance(c, i, b.get_priority(i));
+        });
         return u;
     }
 
