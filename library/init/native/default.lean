@@ -38,7 +38,7 @@ meta def get_arity : expr → nat
 | (expr.lam _ _ _ body) := 1 + get_arity body
 | _ := 0
 
-@[reducible] def ir_result (A : Type*) :=
+@[reducible] def ir_result (A : Type) :=
 native.result error A
 
 meta def mk_arity_map : list (name × expr) → arity_map
@@ -101,14 +101,8 @@ let (arg_names, body) := take_arguments' e [] in do
   let locals := list.map mk_local fresh_names in
   return $ (fresh_names, expr.instantiate_vars body (list.reverse locals))
 
--- meta def lift_state {A} (action : state arity_map A) : ir_compiler A :=
---   fun (s : arity_map), match action s with
---   | (a, s) := (return a, s)
---   end
-
 meta def mk_error {T} : string → ir_compiler T :=
   fun s, do
-  trace_ir "CREATEDERROR",
   lift_result (native.result.err $ error.string s)
 
 meta def lookup_arity (n : name) : ir_compiler nat := do
@@ -581,5 +575,4 @@ meta def compile
     else format_error (error.many errs)
   end
 
--- meta def compile (procs : list (name))
 end native

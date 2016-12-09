@@ -41,7 +41,8 @@ void process::run() {
         buffer<char*> pargs;
 
         for (auto arg : m_args) {
-            std::cout << arg << std::endl;
+            // std::cout << arg << std::endl;
+            // tried to remove the copying here, but it now crashes
             auto str = new char[arg.size() + 1];
             arg.copy(str, arg.size());
             str[arg.size()] = '\0';
@@ -51,6 +52,7 @@ void process::run() {
         pargs.data()[pargs.size()] = NULL;
 
         auto err = execvp(pargs.data()[0], pargs.data());
+
         if (err < 0) {
             throw std::runtime_error("executing process failed: ...");
         }
