@@ -133,6 +133,13 @@ public:
         lean_assert(!id8.is_descendant(id4));
         lean_assert(!id8.is_descendant(id5));
         lean_assert(!id8.is_descendant(id6));
+
+        auto id9 = environment_id::mk_descendant(id3, id6);
+        lean_assert(id9.is_descendant(id6));
+        lean_assert(id9.is_descendant(id4));
+        lean_assert(id9.is_descendant(id1));
+        lean_assert(id9.is_descendant(id3));
+        lean_assert(id9.is_descendant(id2));
     }
 
     static void tst2() {
