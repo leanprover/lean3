@@ -52,9 +52,6 @@ inline environment overwrite_aliases(environment const & env, name const & prefi
     return add_aliases(env, prefix, new_prefix, 0, nullptr, true);
 }
 
-// TODO(gabriel): just use scopes?
-environment clear_aliases(environment const & env);
-
 bool is_exception(name const & n, name const & prefix, unsigned num_exceptions, name const * exceptions);
 
 void for_each_expr_alias(environment const & env, std::function<void(name const &, list<name> const &)> const & fn);

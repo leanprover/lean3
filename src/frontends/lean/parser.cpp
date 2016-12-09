@@ -2190,6 +2190,7 @@ void parser::process_imports() {
         (mk_message(m_last_cmd_pos, WARNING) << "imported file uses 'sorry'").report();
 #endif
     }
+    m_env = push_scope(m_env, ios(), scope_kind::Namespace);
     m_imports_parsed = true;
 }
 
@@ -2258,7 +2259,7 @@ bool parser::parse_commands() {
         }
         scope_message_context scope_msg_ctx("end");
         save_snapshot(scope_parser_msgs);
-        m_env = clear_aliases(m_env);
+        m_env = pop_scope(m_env, ios());
         if (has_open_scopes(m_env)) {
             m_found_errors = true;
             if (!m_use_exceptions && m_show_errors)

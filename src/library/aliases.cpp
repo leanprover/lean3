@@ -235,10 +235,6 @@ environment add_aliases(environment const & env, name const & prefix, name const
     return update(env, ext);
 }
 
-environment clear_aliases(environment const & env) {
-    return update(env, aliases_ext());
-}
-
 void for_each_expr_alias(environment const & env, std::function<void(name const &, list<name> const &)> const & fn) {
     aliases_ext ext = get_extension(env);
     ext.for_each_expr_alias(fn);
