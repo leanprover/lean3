@@ -11,19 +11,20 @@ import init.meta.format
 import init.native.internal
 import init.native.procedure
 import init.native.config
+import init.native.ir.compiler
 
 namespace native
 
 meta structure pass :=
   (name : string)
-  (transform : config → procedure → procedure)
+  (transform : config → arity_map -> procedure → procedure)
 
 meta def file_name_for_dump (p : pass) :=
   (pass.name p)
 
 -- Unit functions get optimized away, need to talk to Leo about this one.
-meta def run_pass (conf : config) (p : pass) (proc : procedure) : (format × procedure × format) :=
-  let result := pass.transform p conf proc in
+meta def run_pass (conf : config) (arity : arity_map) (p : pass) (proc : procedure) : (format × procedure × format) :=
+  let result := pass.transform p conf arity proc in
   (repr proc, result, repr result)
 
 meta def collect_dumps {A : Type} : list (format × A × format) → format × list A × format
@@ -34,20 +35,20 @@ meta def collect_dumps {A : Type} : list (format × A × format) → format × l
       body :: bodies,
       post ++ format.line ++ format.line ++ post')
 
-meta def inner_loop_debug (conf : config) (p : pass) (es : list procedure) : list procedure :=
-  let (pre, bodies, post) := collect_dumps (list.map (fun e, run_pass conf p e) es) in
+meta def inner_loop_debug (conf : config) (arity : arity_map) (p : pass) (es : list procedure) : list procedure :=
+  let (pre, bodies, post) := collect_dumps (list.map (fun e, run_pass conf arity p e) es) in
   match native.dump_format (file_name_for_dump p ++ ".pre") pre with
   | n := match native.dump_format (file_name_for_dump p ++ ".post") post with
          | m := if n = m then bodies else bodies
          end
   end
 
-meta def inner_loop (conf : config) (p : pass) (es : list procedure) : list procedure :=
+meta def inner_loop (conf : config) (arity : arity_map) (p : pass) (es : list procedure) : list procedure :=
   if config.debug conf
-  then inner_loop_debug conf p es
-  else list.map (fun proc, pass.transform p conf proc) es
+  then inner_loop_debug conf arity p es
+  else list.map (fun proc, pass.transform p conf arity proc) es
 
-meta def run_passes (conf : config) (passes : list pass) (procs : list procedure) : list procedure :=
-  list.foldl (fun pass procs, inner_loop conf procs pass) procs passes
+meta def run_passes (conf : config) (arity : arity_map) (passes : list pass) (procs : list procedure) : list procedure :=
+  list.foldl (fun pass procs, inner_loop conf arity procs pass) procs passes
 
 end native

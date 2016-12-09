@@ -131,11 +131,9 @@ meta def stmt : ir.stmt → format
   (block (format.line ++ cases stmt cs ++ default_case (stmt default)))
 | ir.stmt.nop := format.of_string ";"
 | (ir.stmt.ite cond tbranch fbranch) :=
-  "if (" ++ mangle_name cond ++ ") {" ++ format.line ++
-    stmt tbranch ++ format.line ++
-  "} else {" ++ format.line ++
-    stmt fbranch ++ format.line ++
-  "}" ++ format.line
+  "if (" ++ mangle_name cond ++ ") " ++
+    block (stmt tbranch) ++
+    block (stmt fbranch) ++ format.line
 | (ir.stmt.seq cs) :=
   format_concat (list.map (fun c, stmt c ++ format.line) cs)
 
@@ -201,7 +199,7 @@ meta def declarations (decls : list ir.decl) : format :=
   "namespace lean {\n" ++ format_concat (list.map declaration decls) ++ "}"
 
 meta def definitions (defs : list ir.defn) : format :=
-  format_concat $ list.map defn defs
+  format_lines $ list.map defn defs
 
 meta def program (items : list ir.item) : format :=
   let (defs, decls) := split_items items in

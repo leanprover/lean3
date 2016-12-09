@@ -12,6 +12,7 @@ import init.data.string
 import init.data.list.instances
 
 import init.native.ir
+import init.native.ir.compiler
 import init.native.format
 import init.native.internal
 import init.native.anf
@@ -22,33 +23,6 @@ import init.native.config
 import init.native.result
 
 namespace native
-inductive error : Type
-| string : string → error
-| many   : list error → error
-
-meta def error.to_string : error → string
-| (error.string s) := s
-| (error.many es) := repr $ list.map error.to_string es
-
-meta def arity_map : Type :=
-  rb_map name nat
-
-meta def get_arity : expr → nat
-| (expr.lam _ _ _ body) := 1 + get_arity body
-| _ := 0
-
-@[reducible] def ir_result (A : Type) :=
-native.result error A
-
-meta def mk_arity_map : list (name × expr) → arity_map
-| [] := rb_map.mk name nat
-| ((n, body) :: rest) := rb_map.insert (mk_arity_map rest) n (get_arity body)
-
-@[reducible] meta def ir_compiler_state :=
-  (config × arity_map × nat)
-
-@[reducible] meta def ir_compiler (A : Type) :=
-  native.resultT (state ir_compiler_state) error A
 
 meta def lift {A} (action : state ir_compiler_state A) : ir_compiler A :=
 ⟨(fun (a : A), native.result.ok a) <$> action⟩
@@ -79,7 +53,7 @@ meta def sequence_err : list (ir_compiler ir.item) → ir_compiler (list ir.item
          end
      ⟩
 
-meta def lift_result {A} (action : ir_result A) : ir_compiler A :=
+meta def lift_result {A} (action : ir.result A) : ir_compiler A :=
   ⟨fun s, (action, s)⟩
 
 -- TODO: fix naming here
@@ -472,7 +446,7 @@ meta def compile_defn_to_ir (decl_name : name) (args : list name) (body : expr) 
   let params := (list.zip args (list.repeat (ir.ty.ref ir.ty.object) (list.length args))) in
   pure (ir.defn.mk decl_name params ir.ty.object body')
 
-def unwrap_or_else {T R : Type} : ir_result T → (T → R) → (error → R) → R
+def unwrap_or_else {T R : Type} : ir.result T → (T → R) → (error → R) → R
 | (native.result.err e) f err := err e
 | (native.result.ok t) f err := f t
 
@@ -501,7 +475,7 @@ meta def compile_decl : extern_fn → ir_compiler ir.item
 | (in_lean_ns, n, arity) :=
   if is_cases_on (expr.const n [])
   then ir.item.decl <$> mk_builtin_cases_on_proto n
-  else (return $ ir.item.decl $ ir.decl.mk n [] ir.ty.object)
+  else (return $ ir.item.decl $ ir.decl.mk n (list.repeat ("", ir.ty.object) (unsigned.to_nat arity)) ir.ty.object)
 
 meta def compile_decls : list extern_fn → list (ir_compiler ir.item) :=
   fun xs, list.map compile_decl xs
@@ -548,13 +522,14 @@ meta def configuration : ir_compiler config := do
   (conf, _, _) ← lift $ state.read,
   pure conf
 
-meta def apply_pre_ir_passes (procs : list procedure) (conf : config) : list procedure :=
-  run_passes conf [anf, cf] procs
+meta def apply_pre_ir_passes (procs : list procedure) (conf : config) (arity : arity_map) : list procedure :=
+  run_passes conf arity [anf, cf] procs
 
 meta def driver
   (externs : list extern_fn)
-  (procs : list procedure) : ir_compiler (list ir.item × list error) := do
-  procs' ← apply_pre_ir_passes procs <$> configuration,
+  (procs : list procedure)
+  (arity : arity_map): ir_compiler (list ir.item × list error) := do
+  procs' ← apply_pre_ir_passes procs <$> configuration <*> pure arity,
   (defns, errs) ← sequence_err (compile_defns procs'),
   (decls, errs) ← sequence_err (compile_decls externs),
   main ← emit_main procs',
@@ -566,7 +541,7 @@ meta def compile
   (procs : list procedure) : format :=
   let arities := mk_arity_map procs in
   -- Put this in a combinator or something ...
-  match run (driver extern_fns procs) (conf, arities, 0) with
+  match run (driver extern_fns procs arities) (conf, arities, 0) with
   | (native.result.err e, s) := error.to_string e
   | (native.result.ok (items, errs), s) :=
     if list.length errs = 0

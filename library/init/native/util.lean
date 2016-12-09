@@ -33,6 +33,10 @@ meta def is_cases_on (head : expr) : bool :=
     end
   end
 
+meta def get_arity : expr → nat
+| (expr.lam _ _ _ body) := 1 + get_arity body
+| _ := 0
+
 meta definition mk_local (n : name) : expr :=
   expr.local_const n n binder_info.default (expr.const n [])
 

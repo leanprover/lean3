@@ -81,5 +81,5 @@ private meta def cf_transform (conf : config) (e : expr) : expr :=
 
 meta def cf : pass := {
   name := "control_flow",
-  transform := fun conf proc, procedure.map_body (fun e, cf_transform conf e) proc
+  transform := fun conf arity proc, procedure.map_body (fun e, cf_transform conf e) proc
 }
