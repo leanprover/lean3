@@ -440,19 +440,23 @@ environment import_module(std::istream & in, std::string const & file_name, envi
     return env;
 }
 
-module_loader mk_olean_loader(environment const & env0) {
-    bool check_hash = false;
-    auto cache = std::make_shared<std::unordered_map<std::string, environment>>();
-    module_loader ldr = [=] (std::string const & module_fn, module_name const & ref) {
+static module_loader mk_olean_loader(environment const & env0, bool check_hash,
+                                     std::shared_ptr<std::unordered_map<std::string, environment>> const & cache) {
+    return[=] (std::string const & module_fn, module_name const & ref) {
         auto base_dir = dirname(module_fn.c_str());
         auto fn = find_file(base_dir, ref.m_relative, ref.m_name, ".olean");
         if (!cache->count(fn)) {
             std::ifstream in(fn, std::ios_base::binary);
-            (*cache)[fn] = import_module(in, fn, env0, ldr, check_hash);
+            (*cache)[fn] = import_module(in, fn, env0, mk_olean_loader(env0, check_hash, cache), check_hash);
         }
         return cache->at(fn);
     };
-    return ldr;
+}
+
+module_loader mk_olean_loader(environment const & env0) {
+    bool check_hash = false;
+    auto cache = std::make_shared<std::unordered_map<std::string, environment>>();
+    return mk_olean_loader(env0, check_hash, cache);
 }
 
 module_loader mk_dummy_loader() {
