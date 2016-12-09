@@ -30,7 +30,7 @@ environment_id::environment_id(environment_id const & ancestor, bool) {
             .compare_exchange_strong(expected, m_depth + 1)) {
         m_ptr = ancestor.m_ptr;
     } else {
-        m_ptr = new path(m_depth, ancestor.m_ptr);
+        m_ptr = new path(ancestor.m_depth, ancestor.m_ptr);
     }
     m_ptr->inc_ref();
 }
