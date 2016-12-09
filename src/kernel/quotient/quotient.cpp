@@ -25,8 +25,11 @@ struct quotient_env_ext : public environment_extension {
     bool m_initialized;
     quotient_env_ext():m_initialized(false){}
 
-    std::shared_ptr<environment_extension const> union_with(environment_extension const &) const override {
-        return std::make_shared<quotient_env_ext>();
+    std::shared_ptr<environment_extension const> union_with(environment_extension const & ext) const override {
+        auto & o = static_cast<quotient_env_ext const &>(ext);
+        auto u = std::make_shared<quotient_env_ext>();
+        u->m_initialized = m_initialized || o.m_initialized;
+        return u;
     }
 };
 
