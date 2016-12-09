@@ -84,18 +84,15 @@ struct class_config {
     typedef class_entry entry;
 
     static class_state state_union(class_state const & a, class_state const & b) {
-        return {
-            merge(a.m_instances, b.m_instances, [=] (name const &, list<name> const & is1, list<name> const & is2) {
-                auto is = is1;
-                for (auto i : is2)
-                    if (std::find(is.begin(), is.end(), i) == is.end())
-                        is = cons(i, is);
-                return is;
-            }),
-            merge(a.m_priorities, b.m_priorities, [=] (name const &, unsigned p1, unsigned p2) {
-                return std::max(p1, p2); // TODO(gabriel)
-            }),
-        };
+        class_state u;
+        for (class_state const & x : {a, b}) {
+            x.m_instances.for_each([&](name const & c, list<name> const & is) {
+                u.add_class(c);
+                for (auto & i : reverse(is))
+                    u.add_instance(c, i, x.get_priority(i));
+            });
+        }
+        return u;
     }
 
     static void add_entry(environment const &, io_state const &, state & s, entry const & e) {
