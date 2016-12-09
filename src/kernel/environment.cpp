@@ -51,13 +51,14 @@ environment_id & environment_id::operator=(environment_id && s) { m_depth = s.m_
 
 bool environment_id::is_ancestor(path const * p, std::unordered_set<path const *> & visited) const {
     while (p != nullptr) {
-        if (!visited.insert(p).second) return false;
         if (p == m_ptr)
             return true;
         if (p->m_start_depth < m_depth)
             return false;
-        if (p->m_prev2 && is_ancestor(p->m_prev2, visited))
-            return true;
+        if (p->m_prev2) {
+            if (!visited.insert(p).second) return false;
+            if (is_ancestor(p->m_prev2, visited)) return true;
+        }
         p = p->m_prev1;
     }
     return false;
