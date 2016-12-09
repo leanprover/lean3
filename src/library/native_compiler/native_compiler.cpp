@@ -194,8 +194,7 @@ lean::vm_obj to_lean_extern_fns(buffer<extern_fn> & extern_fns) {
 format invoke_native_compiler(
     environment const & env,
     buffer<extern_fn> & extern_fns,
-    buffer<procedure> & procs)
-{
+    buffer<procedure> & procs) {
     auto list_of_procs = to_lean_procs(procs);
     auto list_of_extern_fns = to_lean_extern_fns(extern_fns);
     auto conf_obj = mk_lean_native_config();
@@ -290,7 +289,6 @@ void populate_extern_fns(
 }
 
 void native_compile_module(environment const & env, buffer<declaration> decls) {
-
     // Preprocess the main function.
     buffer<procedure> all_procs;
     buffer<procedure> main_procs;
