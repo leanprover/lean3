@@ -67,7 +67,27 @@ typedef std::vector<std::shared_ptr<environment_extension const>> environment_ex
 class environment_id {
     friend class environment_id_tester;
     friend class environment; // Only the environment class can create object of this type.
-    struct path;
+
+    struct path {
+        atomic<unsigned> m_next_depth;
+        unsigned         m_start_depth;
+        path *           m_prev1;
+        path *           m_prev2;
+        MK_LEAN_RC(); // Declare m_rc counter
+        void dealloc() { delete this; }
+
+        path(unsigned start_depth = 0, path * prev1 = nullptr, path * prev2 = nullptr) :
+                m_next_depth(start_depth + 1), m_start_depth(start_depth),
+                m_prev1(prev1), m_prev2(prev2), m_rc(0) {
+            if (prev1) prev1->inc_ref();
+            if (prev2) prev2->inc_ref();
+        }
+        ~path() {
+            if (m_prev1) m_prev1->dec_ref();
+            if (m_prev2) m_prev2->dec_ref();
+        }
+    };
+
     path *   m_ptr;
     unsigned m_depth;
     /**
