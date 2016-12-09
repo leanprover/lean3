@@ -36,7 +36,6 @@ with expr : Type
 | lit : literal → expr
 | mk_object : nat → list name → expr
 | locl : name → expr
-| block : stmt → expr
 | project : name → nat → expr
 | panic : string → expr
 | mk_native_closure : name → list name → expr

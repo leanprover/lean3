@@ -63,8 +63,6 @@ meta def expr' (action : ir.stmt → format) : ir.expr → format
   mangle_name n
 | (ir.expr.lit l) :=
    literal l
-| (ir.expr.block s) :=
-  block (action s)
 -- project really should only work for like fields/primtive arrays, this is a temporary hack
 | (ir.expr.project obj n) :=
   "cfield(" ++ (mangle_name obj) ++ ", " ++ (to_fmt n) ++ ")"
@@ -157,9 +155,6 @@ meta def defn (d : ir.defn) : format :=
     (format.bracket "{" "}" $ format.nest 4 (format.line ++ body) ++ format.line)
   end
 
--- meta def item (i : ir.item) : format :=
---   "an item"
-
 meta def format_lines : list format → format :=
   fun fs, format_concat $ list.intersperse format.line fs
 
@@ -209,26 +204,5 @@ meta def program (items : list ir.item) : format :=
     declarations decls,
     definitions defs
   ]
-
--- meta def emit_prototype (proc : procedure) : format :=
---   "lean::vm_obj " ++
-
--- void cpp_emitter::emit_prototype(name const & n, unsigned arity) {
--- *this->m_output_stream << "lean::vm_obj ";
--- mangle_name(n);
--- auto comma = false;
-
--- *this->m_output_stream << "(";
--- for (unsigned i = 0; i < arity; i++) {
--- if (comma) {
--- *this->m_output_stream << ", ";
--- } else {
--- comma = true;
--- }
--- *this->m_output_stream << "lean::vm_obj const &";
--- }
--- *this->m_output_stream << ");" << std::endl;
--- }
-
 
 end format_cpp

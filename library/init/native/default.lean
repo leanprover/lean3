@@ -148,7 +148,7 @@ in do
   loc' ← compile_local loc,
   lift_result (native.result.ok $ ir.expr.invoke loc' args')
 
-meta def mk_over_sat_call (head : name) (fst snd : list ir.expr) : ir_compiler ir.expr :=
+meta def mk_over_sat_call (head : name) (fst snd : list ir.expr) : ir_compiler ir.stmt :=
 let fst' := list.map assert_name fst,
     snd' := list.map assert_name snd in do
   args' ← monad.sequence fst',
@@ -156,7 +156,7 @@ let fst' := list.map assert_name fst,
   fresh ← fresh_name,
   locl ← compile_local fresh,
   invoke ← ir.stmt.e <$> (mk_invoke fresh (ir.expr.locl <$> args'')),
-  return $ ir.expr.block (ir.stmt.seq [
+  return $ (ir.stmt.seq [
     ir.stmt.letb locl ir.ty.object (ir.expr.call head args') ir.stmt.nop,
     invoke
   ])
@@ -164,12 +164,12 @@ let fst' := list.map assert_name fst,
 meta def is_return (n : name) : bool :=
 `native_compiler.return = n
 
-meta def compile_call (head : name) (arity : nat) (args : list ir.expr) : ir_compiler ir.expr := do
+meta def compile_call (head : name) (arity : nat) (args : list ir.expr) : ir_compiler ir.stmt := do
   trace_ir $ "compile_call: " ++ to_string head,
   if list.length args = arity
-  then mk_call head args
+  then ir.stmt.e <$> mk_call head args
   else if list.length args < arity
-  then mk_under_sat_call head args
+  then ir.stmt.e <$> mk_under_sat_call head args
   else mk_over_sat_call head (list.take arity args) (list.drop arity args)
 
 meta def mk_object (arity : unsigned) (args : list ir.expr) : ir_compiler ir.expr :=
@@ -213,16 +213,16 @@ meta def compile_cases (action : expr → ir_compiler ir.stmt) (scrut : name)
   case ← bind_case_fields scrut fs body'',
   return $ (n, case) :: cs'
 
-meta def compile_cases_on_to_ir_expr
+meta def compile_cases_on_to_ir_stmt
     (case_name : name)
     (cases : list expr)
-    (action : expr → ir_compiler ir.stmt) : ir_compiler ir.expr := do
+    (action : expr → ir_compiler ir.stmt) : ir_compiler ir.stmt := do
     default ← panic "default case should never be reached",
     match cases with
     | [] := mk_error $ "found " ++ to_string case_name ++ " applied to zero arguments"
     | (h :: cs) := do
       ir_scrut ← action h >>= assert_expr,
-      ir.expr.block <$> bind_value ir_scrut (fun scrut, do
+      bind_value ir_scrut (fun scrut, do
         cs' ← compile_cases action scrut (label cs),
         return (mk_cases_on case_name scrut cs' (ir.stmt.e default)))
     end
@@ -260,13 +260,13 @@ ir.stmt.seq [
 meta def compile_builtin_cases_on_to_ir_expr
 (case_name : name)
 (cases : list expr)
-(action : expr → ir_compiler ir.stmt) : ir_compiler ir.expr := do
+(action : expr → ir_compiler ir.stmt) : ir_compiler ir.stmt := do
 default ← panic "default case should never be reached",
 match cases with
 | [] := mk_error $ "found " ++ to_string case_name ++ " applied to zero arguments"
 | (h :: cs) := do
   ir_scrut ← action h >>= assert_expr,
-  ir.expr.block <$> bind_value ir_scrut (fun scrut, do
+  bind_value ir_scrut (fun scrut, do
     cs' ← compile_builtin_cases action scrut (label cs),
     return (mk_builtin_cases_on case_name scrut cs' (ir.stmt.e default)))
 end
@@ -290,7 +290,7 @@ meta def mk_mpz_nat_cases_on (scrut : name) (zero_case succ_case : ir.stmt) : ir
   ir.stmt.e <$> panic "mpz"
   -- this→emit_string("else ");
   -- this→emit_block([&] () {
-  --     this→emit_indented("if (to_mpz(");
+
   --     action(scrutinee);
   --     this→emit_string(") == 0) ");
   --     this→emit_block([&] () {
@@ -335,7 +335,7 @@ meta def compile_succ_case (action : expr → ir_compiler ir.stmt) (scrut : name
 meta def compile_nat_cases_on_to_ir_expr
 (case_name : name)
 (cases : list expr)
-(action : expr → ir_compiler ir.stmt) : ir_compiler ir.expr :=
+(action : expr → ir_compiler ir.stmt) : ir_compiler ir.stmt :=
   match cases with
   | [] := mk_error $ "found " ++ to_string case_name ++ " applied to zero arguments"
   | (h :: cs) := do
@@ -343,32 +343,31 @@ meta def compile_nat_cases_on_to_ir_expr
     (zero_case, succ_case) ← assert_two_cases cs,
     trace_ir (to_string zero_case),
     trace_ir (to_string succ_case),
-    ir.expr.block <$> bind_value ir_scrut (fun scrut, do
+    bind_value ir_scrut (fun scrut, do
       zc ← action zero_case,
       sc ← compile_succ_case action scrut succ_case,
       mk_nat_cases_on scrut zc sc
     )
   end
 
--- this code isnt' great working around the semi-functional frontend
-meta def compile_expr_app_to_ir_expr
+meta def compile_expr_app_to_ir_stmt
   (head : expr)
   (args : list expr)
-  (action : expr → ir_compiler ir.stmt) : ir_compiler ir.expr := do
+  (action : expr → ir_compiler ir.stmt) : ir_compiler ir.stmt := do
     trace_ir (to_string head  ++ to_string args),
     if expr.is_constant head = bool.tt
     then (if is_return (expr.const_name head)
     then do
       rexp ← one_or_error args,
-      (ir.expr.block ∘ ir.stmt.return) <$> ((action rexp) >>= assert_expr)
+      ir.stmt.return <$> ((action rexp) >>= assert_expr)
     else if is_nat_cases_on (expr.const_name head)
     then compile_nat_cases_on_to_ir_expr (expr.const_name head) args action
     else match is_internal_cnstr head with
     | option.some n := do
       args' ← monad.sequence $ list.map (fun x, action x >>= assert_expr) args,
-      mk_object n args'
+      ir.stmt.e <$> mk_object n args'
     | option.none := match is_internal_cases head with
-    | option.some n := compile_cases_on_to_ir_expr (expr.const_name head) args action
+    | option.some n := compile_cases_on_to_ir_stmt (expr.const_name head) args action
     | option.none := match get_builtin (expr.const_name head) with
       | option.some b :=
         match b with
@@ -388,8 +387,8 @@ meta def compile_expr_app_to_ir_expr
     else if expr.is_local_constant head
     then do
       args' ← monad.sequence $ list.map (fun x, action x >>= assert_expr) args,
-      mk_invoke (expr.local_uniq_name head) args'
-    else (mk_error ("unsupported call position " ++ (to_string head)))
+      ir.stmt.e <$> mk_invoke (expr.local_uniq_name head) args'
+    else (mk_error ("unsupported call position" ++ (to_string head)))
 
 meta def compile_expr_macro_to_ir_expr (e : expr) : ir_compiler ir.expr :=
   match native.get_nat_value e with
@@ -397,7 +396,20 @@ meta def compile_expr_macro_to_ir_expr (e : expr) : ir_compiler ir.expr :=
   | option.some n := mk_nat_literal n
   end
 
-meta def compile_expr_to_ir_expr (action : expr → ir_compiler ir.stmt): expr → ir_compiler ir.expr
+meta def assign_stmt' (n : name) : ir.stmt → ir_compiler ir.stmt
+| (ir.stmt.e e) := do
+  pure $ ir.stmt.e $ ir.expr.assign n e
+| s := pure s
+
+meta def assign_stmt (n : name) (stmt : ir.stmt) : ir_compiler ir.stmt := do
+  n' <- compile_local n,
+  st <- assign_stmt' n' stmt,
+  pure $ ir.stmt.seq [
+    ir.stmt.letb n' ir.ty.object ir.expr.uninitialized ir.stmt.nop,
+    st
+  ]
+
+meta def compile_expr_to_ir_stmt : expr → ir_compiler ir.stmt
 | (expr.const n ls) :=
   match native.is_internal_cnstr (expr.const n ls) with
   | option.none :=
@@ -407,39 +419,30 @@ meta def compile_expr_to_ir_expr (action : expr → ir_compiler ir.stmt): expr �
       compile_call n arity []
     | _ :=
       if n = "_neutral_"
-      then (pure $ ir.expr.mk_object 0 [])
+      then (pure $ ir.stmt.e $ ir.expr.mk_object 0 [])
       else do
         arity ← lookup_arity n,
         compile_call n arity []
     end
-  | option.some arity := pure $ ir.expr.mk_object (unsigned.to_nat arity) []
+  | option.some arity := pure $ ir.stmt.e $ ir.expr.mk_object (unsigned.to_nat arity) []
   end
 | (expr.var i) := mk_error "there should be no bound variables in compiled terms"
 | (expr.sort _) := mk_error "found sort"
 | (expr.mvar _ _) := mk_error "unexpected meta-variable in expr"
-| (expr.local_const n _ _ _) := ir.expr.locl <$> compile_local n
+| (expr.local_const n _ _ _) := ir.stmt.e <$> (ir.expr.locl <$> compile_local n)
 | (expr.app f x) :=
   let head := expr.get_app_fn (expr.app f x),
       args := expr.get_app_args (expr.app f x)
-  in compile_expr_app_to_ir_expr head args action
+  in compile_expr_app_to_ir_stmt head args compile_expr_to_ir_stmt
 | (expr.lam _ _ _ _) := mk_error "found lam"
-| (expr.pi _ _ _ _) := mk_error "found pi"
-| (expr.elet n _ v body) := mk_error "internal error: can not translate let binding into a ir_expr"
-| (expr.macro d args) := compile_expr_macro_to_ir_expr (expr.macro d args)
-
-meta def compile_expr_to_ir_stmt : expr → ir_compiler ir.stmt
 | (expr.pi _ _ _ _) := mk_error "found pi, should not be translating a Pi for any reason (yet ...)"
+| (expr.macro d sz args) := ir.stmt.e <$> compile_expr_macro_to_ir_expr (expr.macro d sz args)
 | (expr.elet n _ v body) := do
   n' ← compile_local n,
-  v' ← compile_expr_to_ir_expr compile_expr_to_ir_stmt v,
-  -- this is a scoping fail, we need to fix how we compile locals
+  v' ← compile_expr_to_ir_stmt v,
+  assign <- assign_stmt n v',
   body' ← compile_expr_to_ir_stmt (expr.instantiate_vars body [mk_local n]),
-  -- not the best solution, here need to think hard about how to prevent thing, more aggressive anf?
-  match v' with
-  | ir.expr.block stmt := return (ir.stmt.seq [ir.stmt.letb n' ir.ty.object ir.expr.uninitialized ir.stmt.nop, body'])
-  | _ := return (ir.stmt.letb n' ir.ty.object v' body')
-  end
-| e' := ir.stmt.e <$> compile_expr_to_ir_expr compile_expr_to_ir_stmt e'
+  return $ ir.stmt.seq [assign, body']
 
 meta def compile_defn_to_ir (decl_name : name) (args : list name) (body : expr) : ir_compiler ir.defn := do
   body' ← compile_expr_to_ir_stmt body,
@@ -515,7 +518,7 @@ meta def emit_main (procs : list (name × expr)) : ir_compiler ir.defn := do
     ir.stmt.letb `scoped (ir.ty.name (in_lean_ns `scope_vm_state)) (ir.expr.constructor (in_lean_ns `scope_vm_state) [`S]) ir.stmt.nop,
     ir.stmt.e $ ir.expr.assign `g_env (ir.expr.address_of `env),
     ir.stmt.letb vm_simple_obj ir.ty.object (ir.expr.mk_object 0 []) ir.stmt.nop,
-    ir.stmt.e call_main
+    call_main
 ]))
 
 meta def configuration : ir_compiler config := do
