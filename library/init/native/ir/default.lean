@@ -28,7 +28,8 @@ inductive literal
 -- | name : name → value
 -- | lit : literal → value
 
--- TODO: eventually model ty.object, mk_object, project, etc in the IR itself
+-- TODO: eventually m
+-- odel ty.object, mk_object, project, etc in the IR itself
 mutual inductive expr, stmt
 with expr : Type
 | call : name → list name → expr

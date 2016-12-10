@@ -119,16 +119,16 @@ private meta def direct_call (head : expr) (args : list expr) (anf : expr → an
   hoist anf (fun args', return $ mk_call head (list.map mk_local args')) args
 
 private meta def anf_call (head : expr) (args : list expr) (anf : expr → anf_monad expr) : anf_monad expr := do
-  trace_anf (to_string head),
+  -- trace_anf (to_string head),
   if expr.is_constant head
   then do
     type <- get_call_type (expr.const_name head) (list.length args),
     match type with
     | call_type.saturated := do
-      trace_anf "sat",
+      -- trace_anf "sat",
       direct_call head args anf
     | call_type.over_sat arity := do
-      trace_anf "oversat",
+      -- trace_anf "oversat",
       let pre_args := list.taken arity args,
           post_args := list.dropn arity args
       in do
@@ -136,7 +136,7 @@ private meta def anf_call (head : expr) (args : list expr) (anf : expr → anf_m
         let_bind sat_call mk_neutral_expr <$> (direct_call head pre_args anf),
         anf_call' (expr.const sat_call []) post_args anf
     | call_type.under_sat := do
-      trace_anf "unsat",
+      -- trace_anf "unsat",
       anf_call' head args anf
     end
   else

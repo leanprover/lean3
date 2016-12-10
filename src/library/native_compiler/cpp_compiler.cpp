@@ -54,7 +54,7 @@ namespace lean {
   }
 
   void cpp_compiler::run() {
-      process p("g++");
+      process p("clang++");
       p.arg("-std=c++11");
 
       if (m_pic) {
