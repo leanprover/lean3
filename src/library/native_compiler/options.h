@@ -18,6 +18,8 @@ struct config {
     bool         m_native_dynamic;
     char const * m_native_dump;
     char const * m_native_cc;
+    char const * m_native_binary;
+    char const * m_native_store_code;
 
     config(options const & o);
 

@@ -21,10 +21,11 @@ class cpp_compiler {
     buffer<std::string> m_include_paths;
     buffer<std::string> m_files;
     buffer<std::string> m_link;
-
-    bool m_debug;
-    bool m_shared;
-    bool m_pic;
+    std::string         m_output;
+    std::string         m_cc;
+    bool                m_debug;
+    bool                m_shared;
+    bool                m_pic;
 
 public:
     cpp_compiler & link(std::string lib);
@@ -34,14 +35,15 @@ public:
     cpp_compiler & shared_library(bool on);
     cpp_compiler & pic(bool on);
     cpp_compiler & file(std::string file_path);
-    cpp_compiler();
+    cpp_compiler & output(std::string out);
+    cpp_compiler(std::string cc);
     void run();
 };
 
 // Setup a compiler for building executables.
-cpp_compiler mk_executable_compiler();
+cpp_compiler mk_executable_compiler(std::string cc);
 
 // Setup a compiler for building dynamic libraries.
-cpp_compiler mk_shared_compiler();
+cpp_compiler mk_shared_compiler(std::string cc);
 
 }

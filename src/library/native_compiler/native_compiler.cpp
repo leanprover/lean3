@@ -11,6 +11,7 @@ Author: Jared Roesch and Leonardo de Moura
 #include <unistd.h>
 #include <string>
 #include <vector>
+#include <cstdio>
 #include "util/fresh_name.h"
 #include "util/sstream.h"
 #include "kernel/instantiate.h"
@@ -110,11 +111,11 @@ std::vector<path> native_library_paths() {
 
 // Constructs a compiler with the native configuation options applied.
 cpp_compiler compiler_with_native_config(native_compiler_mode mode) {
-    cpp_compiler gpp;
     auto conf = native::get_config();
+    cpp_compiler gpp(conf.m_native_cc);
 
     if (mode == native_compiler_mode::AOT) {
-        gpp = mk_executable_compiler();
+        gpp = mk_executable_compiler(conf.m_native_cc);
         // The executable has two linkage strategies unlike the module compiler
         // we want to sometime use static linking, and sometimes dynamic.
         if (conf.m_native_dynamic) {
@@ -123,7 +124,7 @@ cpp_compiler compiler_with_native_config(native_compiler_mode mode) {
             gpp.link(LEAN_SHARED_LIB);
         }
     } else {
-        gpp = mk_shared_compiler();
+        gpp = mk_shared_compiler(conf.m_native_cc);
     }
 
     auto include_paths = native_include_paths();
@@ -141,6 +142,12 @@ cpp_compiler compiler_with_native_config(native_compiler_mode mode) {
     // Have g++ emit debug information.
     if (conf.m_native_emit_dwarf) {
         gpp.debug(true);
+    }
+
+    std::string binary(conf.m_native_binary);
+
+    if (binary.size()) {
+        gpp.output(binary);
     }
 
     return gpp;
@@ -214,11 +221,22 @@ format invoke_native_compiler(
     return to_format(fmt_obj);
 }
 
+std::string get_code_path() {
+    std::string store_code = native::get_config().m_native_store_code;
+    if (store_code.size() > 0) {
+        return store_code;
+    } else {
+        return std::string(std::tmpnam(nullptr)) + ".cpp";
+    }
+}
+
 void native_compile(environment const & env,
                     buffer<extern_fn> & extern_fns,
                     buffer<procedure> & procs,
                     native_compiler_mode mode) {
-    std::fstream out("out.cpp", std::ios_base::out);
+    auto output_path = get_code_path();
+    std::fstream out(output_path, std::ios_base::out);
+
     auto fmt = invoke_native_compiler(env, extern_fns, procs);
     out << fmt << "\n\n";
 
@@ -232,7 +250,7 @@ void native_compile(environment const & env,
     // Add all the shared link dependencies.
     add_shared_dependencies(gpp);
 
-    gpp.file("out.cpp").run();
+    gpp.file(output_path).run();
 }
 
 void native_preprocess(environment const & env, declaration const & d, buffer<procedure> & procs) {
