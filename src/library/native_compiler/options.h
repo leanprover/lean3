@@ -17,6 +17,7 @@ struct config {
     bool         m_native_emit_dwarf;
     bool         m_native_dynamic;
     char const * m_native_dump;
+    char const * m_native_cc;
 
     config(options const & o);
 

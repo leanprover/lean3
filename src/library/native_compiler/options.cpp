@@ -25,10 +25,14 @@ Author: Jared Roesch, and Leonardo de Moura
 #ifndef LEAN_DEFAULT_NATIVE_DUMP
 #define LEAN_DEFAULT_NATIVE_DUMP ""
 #endif
+#ifndef LEAN_DEFAULT_NATIVE_CC
+#define LEAN_DEFAULT_NATIVE_CC "g++"
+#endif
 
 
 namespace lean {
 namespace native {
+
 /* Options */
 static name * g_native_library_path    = nullptr;
 static name * g_native_main_fn         = nullptr;
@@ -36,6 +40,7 @@ static name * g_native_include_path    = nullptr;
 static name * g_native_emit_dwarf      = nullptr;
 static name * g_native_dynamic         = nullptr;
 static name * g_native_dump            = nullptr;
+static name * g_native_cc              = nullptr;
 
 char const * get_native_library_path(options const & o) {
     return o.get_string(*g_native_library_path, LEAN_DEFAULT_NATIVE_LIBRARY_PATH);
@@ -61,6 +66,10 @@ char const * get_native_dump(options const & o) {
     return o.get_string(*g_native_dump, LEAN_DEFAULT_NATIVE_DUMP);
 }
 
+char const * get_native_cc(options const & o) {
+    return o.get_string(*g_native_cc, LEAN_DEFAULT_NATIVE_CC);
+}
+
 config::config(options const & o) {
     m_native_library_path = get_native_library_path(o);
     m_native_main_fn      = get_native_main_fn(o);
@@ -68,6 +77,7 @@ config::config(options const & o) {
     m_native_emit_dwarf   = get_native_emit_dwarf(o);
     m_native_dynamic      = get_native_dynamic(o);
     m_native_dump         = get_native_dump(o);
+    m_native_cc           = get_native_cc(o);
 }
 
 void config::display(std::ostream & os) {
@@ -98,6 +108,7 @@ void initialize_options() {
     g_native_emit_dwarf   = new name{"native", "emit_dwarf"};
     g_native_dynamic      = new name{"native", "dynamic"};
     g_native_dump         = new name{"native", "dump"};
+    g_native_cc           = new name{"native", "cc"};
 
     register_string_option(*native::g_native_library_path, LEAN_DEFAULT_NATIVE_LIBRARY_PATH,
                          "(native_compiler) path used to search for native libraries, including liblean");
@@ -116,6 +127,9 @@ void initialize_options() {
 
     register_string_option(*native::g_native_dump, LEAN_DEFAULT_NATIVE_DUMP,
         "(native_compiler) flag controls whether the native compiler dumps terms before and after every pass");
+
+    register_string_option(*native::g_native_cc, LEAN_DEFAULT_NATIVE_CC,
+        "(native_compiler) flag controls which C++ compiler is invoked");
 }
 
 void finalize_options() {
@@ -125,5 +139,6 @@ void finalize_options() {
     delete g_native_emit_dwarf;
     delete g_native_dynamic;
     delete g_native_dump;
+    delete g_native_cc;
 }
 }}
