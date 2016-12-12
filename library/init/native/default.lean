@@ -21,6 +21,7 @@ import init.native.pass
 import init.native.util
 import init.native.config
 import init.native.result
+import init.native.attributes
 
 namespace native
 
@@ -544,18 +545,67 @@ meta def driver
 meta record context :=
   (items : rb_map name ir.item)
 
+meta def lookup_item (n : name) (ctxt : context) : option ir.item :=
+  none
+
+meta def make_list (type : expr) : list expr → tactic expr
+| [] := mk_mapp `list.nil [some type]
+| (e :: es) := do
+  tail <- make_list es,
+  mk_mapp `list.cons [some type, some e, some tail]
+
+meta def get_attribute_body (attr : name) (type : expr) : tactic expr := do
+  tactic.trace attr,
+  decl <- get_decl attr,
+  -- add type checking in here ...
+  match decl with
+  | (declaration.defn _ _ _ body _ _) := pure body
+  | _ := fail "NYI"
+  end
+
+meta def get_attribute_bodies (attr : name) (type : expr) : tactic expr := do
+  names <- attribute.get_instances attr,
+  bodies <- monad.for names (fun n, get_attribute_body n type),
+  make_list type bodies
+
+meta def get_ir_decls : tactic expr := do
+  ty <- mk_const `ir.decl,
+  get_attribute_bodies `ir_decl ty
+
+meta def get_ir_defns : tactic expr := do
+  ty <- mk_const `ir.defn,
+  get_attribute_bodies `ir_def ty
+
+meta def new_context (decls : list ir.decl) (defns : list ir.defn) : context := do
+  let items := list.map (ir.item.defn) defns ++ list.map (ir.item.decl) decls,
+      named_items := list.map (fun i, (ir.item.get_name i, i)) $ items in
+  context.mk $ rb_map.of_list named_items
+
+meta def compile'
+  (conf : config)
+  (extern_fns : list extern_fn)
+  (procs : list procedure)
+  (ctxt : context) : format := do
+  let arities := mk_arity_map procs in
+    match run (driver extern_fns procs arities) (conf, arities, 0) with
+    | (native.result.err e, s) := error.to_string e
+    | (native.result.ok (items, errs), s) :=
+    if list.length errs = 0
+    then (format_cpp.program items)
+    else (format_error (error.many errs))
+    end
+
 meta def compile
   (conf : config)
   (extern_fns : list extern_fn)
-  (procs : list procedure) : tactic format :=
-  let arities := mk_arity_map procs in
-  -- Put this in a combinator or something ...
-  match run (driver extern_fns procs arities) (conf, arities, 0) with
-  | (native.result.err e, s) := return $ error.to_string e
-  | (native.result.ok (items, errs), s) :=
-    if list.length errs = 0
-    then return (format_cpp.program items)
-    else return (format_error (error.many errs))
-  end
+  (procs : list procedure) : tactic format := do
+    decls_list_expr <- get_ir_decls,
+    defns_list_expr <- get_ir_defns,
+    decls <- eval_expr (list ir.decl) decls_list_expr,
+    defns <- eval_expr (list ir.defn) defns_list_expr,
+    let ctxt := new_context decls defns in do
+      tactic.trace (to_string decls),
+      tactic.trace (to_string defns),
+      pure $ compile' conf extern_fns procs ctxt
 
 end native

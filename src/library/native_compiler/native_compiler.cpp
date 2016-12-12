@@ -37,6 +37,7 @@ Author: Jared Roesch and Leonardo de Moura
 #include "library/module.h"
 #include "library/native_compiler/used_defs.h"
 #include "library/tactic/tactic_state.h"
+#include "library/tactic/elaborate.h"
 #include "util/lean_path.h"
 #include "util/path.h"
 #include "util/path_var.h"
@@ -230,8 +231,10 @@ format invoke_native_compiler(
 
     if (is_constructor(tactic_obj) && cidx(tactic_obj) == 0) {
         return to_format(cfield(tactic_obj , 0));
-    } else {
-        throw exception("NYI");
+    } else if (auto except = is_tactic_exception(S, tactic_obj)) {
+        auto msg = std::get<0>(*except);
+        std::cout << msg << std::endl;
+        throw "foo";
     }
 }
 

@@ -81,13 +81,35 @@ inductive stmt : Type
 inductive defn
 | mk : name → list (name × ty) → ty → stmt → defn
 
+def defn.to_string : defn → string
+| _ := "defn"
+
+instance defn_has_to_string : has_to_string defn :=
+  ⟨ defn.to_string ⟩
+
 inductive decl
 | mk : name → list (name × ty) → ty → decl
+
+def decl.to_string : decl → string
+| _ := "decl"
+
+instance decl_has_to_string : has_to_string decl :=
+ ⟨ decl.to_string ⟩
 
 inductive item
 | defn : defn → item
 | decl : decl → item
 
+def item.get_name : item → name
+| (item.defn (defn.mk n _ _ _)) := n
+| (item.decl (decl.mk n _ _)) := n
+
+def item.to_string : item → string
+| _ := "an item"
+
+instance : has_to_string item :=
+ ⟨ item.to_string ⟩
+ 
 end ir
 
 -- def map (K V : Type) : Type :=
