@@ -538,18 +538,20 @@ meta def driver
   main ← emit_main procs',
   return (ir.item.defn main :: defns ++ decls, errs)
 
+check true
+
 meta def compile
   (conf : config)
   (extern_fns : list extern_fn)
-  (procs : list procedure) : format :=
+  (procs : list procedure) : tactic format :=
   let arities := mk_arity_map procs in
   -- Put this in a combinator or something ...
   match run (driver extern_fns procs arities) (conf, arities, 0) with
-  | (native.result.err e, s) := error.to_string e
+  | (native.result.err e, s) := return $ error.to_string e
   | (native.result.ok (items, errs), s) :=
     if list.length errs = 0
-    then format_cpp.program items
-    else format_error (error.many errs)
+    then return (format_cpp.program items)
+    else return (format_error (error.many errs))
   end
 
 end native

@@ -36,6 +36,7 @@ Author: Jared Roesch and Leonardo de Moura
 #include "library/compiler/vm_compiler.h"
 #include "library/module.h"
 #include "library/native_compiler/used_defs.h"
+#include "library/tactic/tactic_state.h"
 #include "util/lean_path.h"
 #include "util/path.h"
 #include "util/path_var.h"
@@ -206,19 +207,32 @@ format invoke_native_compiler(
     auto list_of_extern_fns = to_lean_extern_fns(extern_fns);
     auto conf_obj = mk_lean_native_config();
 
-    vm_state S(env, get_global_ios().get_options());
+    options opts = get_global_ios().get_options();
+    vm_state S(env, opts);
     scope_vm_state scoped(S);
+
+    // We want the outer most layer of the compiler to be able to
+    // run in the tactic monad, the majority of it can be pure,
+    // and verifiable.
+    local_context lctx;
+
+    tactic_state s = mk_tactic_state_for(env, opts, lctx, mk_constant("true"));
 
     auto compiler_name = name({"native", "compile"});
     auto cc = mk_native_closure(env, compiler_name, {});
 
-    vm_obj fmt_obj = S.invoke(
+    vm_obj tactic_obj = S.invoke(
         cc,
         conf_obj,
         list_of_extern_fns,
-        list_of_procs);
+        list_of_procs,
+        to_obj(s));
 
-    return to_format(fmt_obj);
+    if (is_constructor(tactic_obj) && cidx(tactic_obj) == 0) {
+        return to_format(cfield(tactic_obj , 0));
+    } else {
+        throw exception("NYI");
+    }
 }
 
 std::string get_code_path() {
