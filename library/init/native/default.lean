@@ -100,14 +100,17 @@ def upto (n : ℕ) : list ℕ :=
 def label {A : Type} (xs : list A) : list (nat × A) :=
   list.zip (upto (list.length xs)) xs
 
+open tactic
+
+-- ask about this one
+
 -- lemma label_size_eq :
---   forall A (xs : list A),
---   list.length (label xs) = list.length xs :=
+--    forall A (xs : list A),
+--    list.length (label xs) = list.length xs :=
 -- begin
 --   intros,
 --   induction xs,
---   apply sorry
---   apply sorry
+--   unfold label,
 -- end
 
 -- HELPERS --
@@ -119,7 +122,7 @@ meta def assert_expr : ir.stmt → ir_compiler ir.expr
 | (ir.stmt.e exp) := return exp
 | s := mk_error ("internal invariant violated, found: " ++ to_string (format_cpp.stmt s))
 
-meta def mk_call (head : name) (args : list ir.expr) : ir_compiler ir.expr :=
+meta def mk_ir_call (head : name) (args : list ir.expr) : ir_compiler ir.expr :=
   let args'' := list.map assert_name args
   in do
     args' ← monad.sequence args'',
@@ -135,7 +138,7 @@ meta def bind_value_with_ty (val : ir.expr) (ty : ir.ty) (body : name → ir_com
   ir.stmt.letb fresh ty val <$> (body fresh)
 
 meta def bind_value (val : ir.expr) (body : name → ir_compiler ir.stmt) : ir_compiler ir.stmt :=
-  bind_value_with_ty val ir.ty.object body
+  bind_value_with_ty val (ir.ty.object none) body
 
 -- not in love with this --solution-- hack, revisit
 meta def compile_local (n : name) : ir_compiler name :=
@@ -157,7 +160,7 @@ let fst' := list.map assert_name fst,
   locl ← compile_local fresh,
   invoke ← ir.stmt.e <$> (mk_invoke fresh (ir.expr.locl <$> args'')),
   return $ (ir.stmt.seq [
-    ir.stmt.letb locl ir.ty.object (ir.expr.call head args') ir.stmt.nop,
+    ir.stmt.letb locl (ir.ty.object none) (ir.expr.call head args') ir.stmt.nop,
     invoke
   ])
 
@@ -167,7 +170,7 @@ meta def is_return (n : name) : bool :=
 meta def compile_call (head : name) (arity : nat) (args : list ir.expr) : ir_compiler ir.stmt := do
   trace_ir $ "compile_call: " ++ to_string head,
   if list.length args = arity
-  then ir.stmt.e <$> mk_call head args
+  then ir.stmt.e <$> mk_ir_call head args
   else if list.length args < arity
   then ir.stmt.e <$> mk_under_sat_call head args
   else mk_over_sat_call head (list.take arity args) (list.drop arity args)
@@ -192,7 +195,7 @@ meta def bind_case_fields' (scrut : name) : list (nat × name) → ir.stmt → i
 | [] body := return body
 | ((n, f) :: fs) body := do
   loc ← compile_local f,
-  ir.stmt.letb f ir.ty.object (ir.expr.project scrut n) <$> (bind_case_fields' fs body)
+  ir.stmt.letb f (ir.ty.object none) (ir.expr.project scrut n) <$> (bind_case_fields' fs body)
 
 meta def bind_case_fields (scrut : name) (fs : list name) (body : ir.stmt) : ir_compiler ir.stmt :=
   bind_case_fields' scrut (label fs) body
@@ -231,7 +234,7 @@ meta def bind_builtin_case_fields' (scrut : name) : list (nat × name) → ir.st
 | [] body := return body
 | ((n, f) :: fs) body := do
   loc ← compile_local f,
-  ir.stmt.letb loc ir.ty.object (ir.expr.project scrut n) <$> (bind_builtin_case_fields' fs body)
+  ir.stmt.letb loc (ir.ty.object none) (ir.expr.project scrut n) <$> (bind_builtin_case_fields' fs body)
 
 meta def bind_builtin_case_fields (scrut : name) (fs : list name) (body : ir.stmt) : ir_compiler ir.stmt :=
 bind_builtin_case_fields' scrut (label fs) body
@@ -327,7 +330,7 @@ meta def compile_succ_case (action : expr → ir_compiler ir.stmt) (scrut : name
     fresh ← fresh_name,
     bind_value_with_ty (mk_cidx scrut) (ir.ty.name `int) (fun cidx,
       bind_value_with_ty (ir.expr.sub (ir.expr.locl cidx) (ir.expr.raw_int 1)) (ir.ty.name `int) (fun sub,
-      pure $ ir.stmt.letb loc ir.ty.object (mk_vm_nat sub) body''
+      pure $ ir.stmt.letb loc (ir.ty.object none) (mk_vm_nat sub) body''
     ))
   | _ := mk_error "compile_succ_case too many fields"
   end
@@ -398,14 +401,14 @@ meta def compile_expr_macro_to_ir_expr (e : expr) : ir_compiler ir.expr :=
 
 meta def assign_stmt' (n : name) : ir.stmt → ir_compiler ir.stmt
 | (ir.stmt.e e) := do
-  pure $ ir.stmt.e $ ir.expr.assign n e
+  pure $ ir.stmt.assign n e
 | s := pure s
 
 meta def assign_stmt (n : name) (stmt : ir.stmt) : ir_compiler ir.stmt := do
   n' <- compile_local n,
   st <- assign_stmt' n' stmt,
   pure $ ir.stmt.seq [
-    ir.stmt.letb n' ir.ty.object ir.expr.uninitialized ir.stmt.nop,
+    ir.stmt.letb n' (ir.ty.object none) ir.expr.uninitialized ir.stmt.nop,
     st
   ]
 
@@ -446,8 +449,8 @@ meta def compile_expr_to_ir_stmt : expr → ir_compiler ir.stmt
 
 meta def compile_defn_to_ir (decl_name : name) (args : list name) (body : expr) : ir_compiler ir.defn := do
   body' ← compile_expr_to_ir_stmt body,
-  let params := (list.zip args (list.repeat (ir.ty.ref ir.ty.object) (list.length args))) in
-  pure (ir.defn.mk decl_name params ir.ty.object body')
+  let params := (list.zip args (list.repeat (ir.ty.ref (ir.ty.object none)) (list.length args))) in
+  pure (ir.defn.mk decl_name params (ir.ty.object none) body')
 
 def unwrap_or_else {T R : Type} : ir.result T → (T → R) → (error → R) → R
 | (native.result.err e) f err := err e
@@ -462,7 +465,7 @@ meta def trace_expr (e : expr) : ir_compiler unit :=
   trace ("trace_expr: " ++ to_string e) (return ())
 
 meta def compile_defn (decl_name : name) (e : expr) : ir_compiler ir.defn :=
-  let arity := get_arity e in do
+     let arity := native.get_arity e in do
     (args, body) ← take_arguments e,
     compile_defn_to_ir (replace_main decl_name) args body
 
@@ -472,13 +475,13 @@ meta def compile_defns : list procedure → list (ir_compiler ir.item) :=
 meta def mk_builtin_cases_on_proto (n : name) : ir_compiler ir.decl := do
   o <- fresh_name,
   data <- fresh_name,
-  return $ ir.decl.mk n [(o, ir.ty.ref ir.ty.object), (data, ir.ty.mut_ref ir.ty.object_buffer)] (ir.ty.name `unsigned)
+  return $ ir.decl.mk n [(o, ir.ty.ref (ir.ty.object none)), (data, ir.ty.mut_ref ir.ty.object_buffer)] (ir.ty.name `unsigned)
 
 meta def compile_decl : extern_fn → ir_compiler ir.item
 | (in_lean_ns, n, arity) :=
   if is_cases_on (expr.const n [])
   then ir.item.decl <$> mk_builtin_cases_on_proto n
-  else (return $ ir.item.decl $ ir.decl.mk n (list.repeat ("", ir.ty.object) (unsigned.to_nat arity)) ir.ty.object)
+  else (return $ ir.item.decl $ ir.decl.mk n (list.repeat ("", (ir.ty.object none)) (unsigned.to_nat arity)) (ir.ty.object none))
 
 meta def compile_decls : list extern_fn → list (ir_compiler ir.item) :=
   fun xs, list.map compile_decl xs
@@ -499,7 +502,7 @@ meta def emit_declare_vm_builtins : list (name × expr) → ir_compiler (list ir
   let cpp_name := in_lean_ns `name,
   let single_binding := ir.stmt.seq [
     ir.stmt.letb fresh (ir.ty.name cpp_name) vm_name ir.stmt.nop,
-    ir.stmt.e $ ir.expr.assign `env (ir.expr.call `add_native [`env, fresh, replace_main n])
+    ir.stmt.assign `env (ir.expr.call `add_native [`env, fresh, replace_main n])
  ],
   return $ single_binding :: tail
 
@@ -516,8 +519,8 @@ meta def emit_main (procs : list (name × expr)) : ir_compiler ir.defn := do
     ir.stmt.letb `opts (ir.ty.name (in_lean_ns `options)) (ir.expr.call (in_lean_ns `get_options_from_ios) [`ios]) ir.stmt.nop,
     ir.stmt.letb `S (ir.ty.name (in_lean_ns `vm_state)) (ir.expr.constructor (in_lean_ns `vm_state) [`env, `opts]) ir.stmt.nop,
     ir.stmt.letb `scoped (ir.ty.name (in_lean_ns `scope_vm_state)) (ir.expr.constructor (in_lean_ns `scope_vm_state) [`S]) ir.stmt.nop,
-    ir.stmt.e $ ir.expr.assign `g_env (ir.expr.address_of `env),
-    ir.stmt.letb vm_simple_obj ir.ty.object (ir.expr.mk_object 0 []) ir.stmt.nop,
+    ir.stmt.assign `g_env (ir.expr.address_of `env),
+    ir.stmt.letb vm_simple_obj (ir.ty.object none) (ir.expr.mk_object 0 []) ir.stmt.nop,
     call_main
 ]))
 
@@ -538,7 +541,8 @@ meta def driver
   main ← emit_main procs',
   return (ir.item.defn main :: defns ++ decls, errs)
 
-check true
+meta record context :=
+  (items : rb_map name ir.item)
 
 meta def compile
   (conf : config)

@@ -39,6 +39,7 @@ private meta def mk_call (symbol : name) (args : list name) : format :=
 
 meta def literal : ir.literal → format
 | (ir.literal.nat n) := to_fmt "lean::mk_vm_nat(" ++ to_fmt n ++ ")"
+| (ir.literal.string s) := to_fmt "NYI"
 
 meta def format_local (n : name) : format :=
   to_fmt (name.to_string_with_sep "_" n)
@@ -75,7 +76,6 @@ meta def expr' (action : ir.stmt → format) : ir.expr → format
  "lean::invoke(" ++ name.to_string_with_sep "_" n ++ ", " ++
  (comma_sep (list.map format_local args)) ++ ")"
  | (ir.expr.uninitialized) := ";"
- | (ir.expr.assign n val) := mangle_name n ++ " = " ++ expr' val
  | (ir.expr.constructor _ _) := "NYI"
  | (ir.expr.address_of e) := "& " ++ mangle_name e ++ ";"
  | (ir.expr.equals e1 e2) := expr' e1 ++ " == " ++ expr' e2
@@ -94,13 +94,13 @@ meta def cases (action : ir.stmt → format) : list (nat × ir.stmt) → format
 | (c :: cs) := case action c ++ cases cs
 
 meta def ty : ir.ty → format
-| ir.ty.object := format.of_string "lean::vm_obj "
+| (ir.ty.object _) := format.of_string "lean::vm_obj "
 | (ir.ty.ref T) := ty T ++ format.of_string " const & "
 | (ir.ty.mut_ref T) := ty T ++ format.of_string " &"
-| (ir.ty.tag _ _) := format.of_string "an_error"
 | (ir.ty.int) := "int "
 | (ir.ty.object_buffer) := "lean::buffer<lean::vm_obj> "
 | (ir.ty.name n) := to_fmt n ++ format.space
+| (ir.ty.base _) := "NYI"
 
 meta def parens (inner : format) : format :=
   format.bracket "(" ")" inner
@@ -134,6 +134,7 @@ meta def stmt : ir.stmt → format
     block (stmt fbranch) ++ format.line
 | (ir.stmt.seq cs) :=
   format_concat (list.map (fun c, stmt c ++ format.line) cs)
+| (ir.stmt.assign n val) := mangle_name n ++ " = " ++ expr' stmt val ++ ";"
 
 meta def expr := expr' stmt
 

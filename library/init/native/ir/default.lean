@@ -8,21 +8,40 @@ import init.meta.name
 
 namespace ir
 
-inductive tag_ty
-| mk
+inductive base_type
+-- primitive unsigned integer types
+| u8
+| u16
+| u32
+| u64
+| unsigned -- should we have these?
+-- primitive signed integer types
+| i8
+| i16
+| i32
+| i64
+| int -- should we have these?
+-- primitive string literals aka `const * char`
+| str
+-- an unbounded integer
+| integer
 
 inductive ty
-| object : ty
+| base : base_type -> ty
+| object : option ty -> ty
 | ref : ty → ty
 | mut_ref : ty → ty
-| tag : tag_ty → ty → ty
 -- these are temporary
 | int : ty
 | object_buffer : ty
 | name : name → ty
 
+instance : has_coe base_type ty :=
+ ⟨ fun bt, ty.base bt ⟩
+
 inductive literal
 | nat : nat → literal
+| string : string → literal
 
 -- inductive value : Type
 -- | name : name → value
@@ -30,8 +49,7 @@ inductive literal
 
 -- TODO: eventually m
 -- odel ty.object, mk_object, project, etc in the IR itself
-mutual inductive expr, stmt
-with expr : Type
+inductive expr : Type
 | call : name → list name → expr
 | global : name → expr
 | lit : literal → expr
@@ -41,7 +59,6 @@ with expr : Type
 | panic : string → expr
 | mk_native_closure : name → list name → expr
 | invoke : name → list name → expr
-| assign : name → expr → expr
 | uninitialized : expr
 | constructor : name → list name → expr
 | address_of : name → expr
@@ -50,13 +67,14 @@ with expr : Type
 | sub : expr → expr → expr
 | raw_int : nat → expr
 -- | value : value → expr
-with stmt : Type
+
+inductive stmt : Type
 | ite : name → stmt → stmt → stmt
 | switch : name → list (nat × stmt) → stmt → stmt
 | letb : name → ty → expr → stmt → stmt
 | e : expr → stmt
--- use a list here
 | seq : list stmt → stmt
+| assign : name → expr → stmt
 | return : expr → stmt
 | nop : stmt
 

@@ -155,7 +155,7 @@ private meta def anf_cases_on (head : expr) (args : list expr) (anf : expr → a
   end
 
 -- stop deleting this, not sure why I keep removing this line of code
-open application_kind
+open native.application_kind
 
 private meta def anf' : expr → anf_monad expr
 | (expr.elet n ty val body) := do

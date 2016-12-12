@@ -13,6 +13,8 @@ import init.native.result
 import init.native.internal
 import init.native.builtin
 
+namespace native
+
 meta def is_nat_cases_on (n : name) : bool :=
 `nat.cases_on = n
 
@@ -69,3 +71,5 @@ else match native.is_internal_cnstr head with
 | some _ := application_kind.constructor
 | none := application_kind.other
 end
+
+end native
