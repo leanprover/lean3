@@ -204,11 +204,14 @@ format invoke_native_compiler(
     environment const & env,
     buffer<extern_fn> & extern_fns,
     buffer<procedure> & procs) {
+  // auto env = env_;
     auto list_of_procs = to_lean_procs(procs);
     auto list_of_extern_fns = to_lean_extern_fns(extern_fns);
     auto conf_obj = mk_lean_native_config();
 
     options opts = get_global_ios().get_options();
+    // env = vm_monitor_register(env, {"debugger", "monitor"});
+    // lean_assert(has_monitor(env));
     vm_state S(env, opts);
     scope_vm_state scoped(S);
 
@@ -235,6 +238,8 @@ format invoke_native_compiler(
         auto msg = std::get<0>(*except);
         std::cout << msg << std::endl;
         throw "foo";
+    } else {
+        throw "blah";
     }
 }
 

@@ -27,8 +27,8 @@ fi
 
 echo "-- testing $f"
 
-"$LEAN" --compile "$f" -D native.library_path="$LIBRARY" -D native.include_path="$INCLUDE" -D native.binary="$f.out" &> "$f.compile.out"
-DYLD_LIBRARY_PATH="$LIBRARY" "./$f.out" &> "$f.produced.out"
+"$LEAN" --compile "$f" -D native.library_path="$LIBRARY" -D native.include_path="$INCLUDE" -D native.binary="$f.bin" &> "$f.compile.out"
+DYLD_LIBRARY_PATH="$LIBRARY" "./$f.bin" &> "$f.produced.out"
 sed "/warning: imported file uses 'sorry'/d" "$f.produced.out" > "$f.produced.out.tmp"
 sed "/warning: using 'sorry'/d" "$f.produced.out.tmp" > "$f.produced.out"
 sed "s|^$ff|$f|" "$f.produced.out" > "$f.produced.out.tmp"

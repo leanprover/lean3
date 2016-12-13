@@ -22,24 +22,25 @@ import init.native.util
 import init.native.config
 import init.native.result
 import init.native.attributes
+import init.debugger
+import init.debugger.cli
+
+set_option debugger true
 
 namespace native
 
-meta def lift {A} (action : state ir_compiler_state A) : ir_compiler A :=
-⟨(fun (a : A), native.result.ok a) <$> action⟩
-
 meta def trace_ir (s : string) : ir_compiler unit := do
-  (conf, map, counter) ← lift $ state.read,
+  conf <- configuration,
   if config.debug conf
   then trace s (return ())
   else return ()
 
--- An `exotic` monad combinator that accumulates errors.
 meta def run {M E A} (res : native.resultT M E A) : M (native.result E A) :=
   match res with
   | ⟨action⟩ := action
   end
 
+-- An `exotic` monad combinator that accumulates errors.
 meta def sequence_err : list (ir_compiler ir.item) → ir_compiler (list ir.item × list error)
 | [] := return ([], [])
 | (action :: remaining) :=
@@ -62,14 +63,15 @@ private meta def take_arguments' : expr → list name → (list name × expr)
 | (expr.lam n _ _ body) ns := take_arguments' body (n :: ns)
 | e' ns := (ns, e')
 
+
 meta def fresh_name : ir_compiler name := do
-  (conf, map, counter) ← lift state.read,
-  let fresh := name.mk_numeral (unsigned.of_nat' counter) `native._ir_compiler_,
-  lift $ state.write (conf, map, counter + 1),
-  return fresh
+  (ctxt, conf, map, counter) ← lift state.read,
+  let fresh := name.mk_numeral (unsigned.of_nat counter) `native._ir_compiler_
+    lift $ state.write (ctxt, conf, map, counter + 1),
+    return fresh
 
 meta def take_arguments (e : expr) : ir_compiler (list name × expr) :=
-let (arg_names, body) := take_arguments' e [] in do
+  let (arg_names, body) := take_arguments' e [] in do
   fresh_names ← monad.mapm (fun x, fresh_name) arg_names,
   let locals := list.map mk_local fresh_names,
   return $ (fresh_names, expr.instantiate_vars body (list.reverse locals))
@@ -79,7 +81,7 @@ meta def mk_error {T} : string → ir_compiler T :=
   lift_result (native.result.err $ error.string s)
 
 meta def lookup_arity (n : name) : ir_compiler nat := do
-  (_, map, counter) ← lift state.read,
+  map ← arities,
   if n = `nat.cases_on
   then pure 2
   else
@@ -465,10 +467,23 @@ meta def replace_main (n : name) : name :=
 meta def trace_expr (e : expr) : ir_compiler unit :=
   trace ("trace_expr: " ++ to_string e) (return ())
 
-meta def compile_defn (decl_name : name) (e : expr) : ir_compiler ir.defn :=
-     let arity := native.get_arity e in do
-    (args, body) ← take_arguments e,
+meta def has_ir_refinement (n : name) : ir_compiler (option ir.item) := do
+  ctxt <- get_context,
+  pure $ ir.lookup_item n ctxt
+
+meta def compile_defn (decl_name : name) (e : expr) : ir_compiler ir.defn := do
+  trace_ir (to_string decl_name),
+  refinement <- has_ir_refinement decl_name,
+  match refinement with
+  | some item :=
+    match item with
+    | ir.item.defn d := (do trace_ir "here", pure d)
+    | _ := mk_error "not sure what to do here yet"
+    end
+  | none :=
+    let arity := native.get_arity e in do (args, body) ← take_arguments e,
     compile_defn_to_ir (replace_main decl_name) args body
+  end
 
 meta def compile_defns : list procedure → list (ir_compiler ir.item) :=
   fun ps, list.map (fun p, ir.item.defn <$> compile_defn (prod.fst p) (prod.snd p)) ps
@@ -525,28 +540,22 @@ meta def emit_main (procs : list (name × expr)) : ir_compiler ir.defn := do
     call_main
 ]))
 
-meta def configuration : ir_compiler config := do
-  (conf, _, _) ← lift $ state.read,
-  pure conf
-
-meta def apply_pre_ir_passes (procs : list procedure) (conf : config) (arity : arity_map) : list procedure :=
+meta def apply_pre_ir_passes
+  (procs : list procedure)
+  (conf : config)
+  (arity : arity_map) : list procedure :=
   run_passes conf arity [anf, cf] procs
 
-meta def driver
+@[breakpoint] meta def driver
   (externs : list extern_fn)
-  (procs : list procedure)
-  (arity : arity_map): ir_compiler (list ir.item × list error) := do
-  procs' ← apply_pre_ir_passes procs <$> configuration <*> pure arity,
+  (procs : list procedure) : ir_compiler (list ir.item × list error) := do
+  trace_ir "driver",
+  map <- arities,
+  procs' ← apply_pre_ir_passes procs <$> configuration <*> pure map,
   (defns, errs) ← sequence_err (compile_defns procs'),
   (decls, errs) ← sequence_err (compile_decls externs),
   main ← emit_main procs',
   return (ir.item.defn main :: defns ++ decls, errs)
-
-meta record context :=
-  (items : rb_map name ir.item)
-
-meta def lookup_item (n : name) (ctxt : context) : option ir.item :=
-  none
 
 meta def make_list (type : expr) : list expr → tactic expr
 | [] := mk_mapp `list.nil [some type]
@@ -576,26 +585,25 @@ meta def get_ir_defns : tactic expr := do
   ty <- mk_const `ir.defn,
   get_attribute_bodies `ir_def ty
 
-meta def new_context (decls : list ir.decl) (defns : list ir.defn) : context := do
-  let items := list.map (ir.item.defn) defns ++ list.map (ir.item.decl) decls,
-      named_items := list.map (fun i, (ir.item.get_name i, i)) $ items in
-  context.mk $ rb_map.of_list named_items
+meta def run_ir {A : Type} (action : ir_compiler A) (inital : ir_compiler_state): result error A :=
+  prod.fst $ run action inital
 
 meta def compile'
   (conf : config)
   (extern_fns : list extern_fn)
   (procs : list procedure)
-  (ctxt : context) : format := do
-  let arities := mk_arity_map procs in
-    match run (driver extern_fns procs arities) (conf, arities, 0) with
-    | (native.result.err e, s) := error.to_string e
-    | (native.result.ok (items, errs), s) :=
-    if list.length errs = 0
-    then (format_cpp.program items)
-    else (format_error (error.many errs))
+  (ctxt : ir.context) : format := do
+    let arity := mk_arity_map procs in
+    let action : ir_compiler _ := driver extern_fns procs in
+    match (run_ir action (ctxt, conf, arity, 0)) with
+    | result.err e := error.to_string e
+    | result.ok (items, errs) :=
+      if list.length errs = 0
+      then (format_cpp.program items)
+      else (format_error (error.many errs))
     end
 
-meta def compile
+@[breakpoint] meta def compile
   (conf : config)
   (extern_fns : list extern_fn)
   (procs : list procedure) : tactic format := do
@@ -603,9 +611,7 @@ meta def compile
     defns_list_expr <- get_ir_defns,
     decls <- eval_expr (list ir.decl) decls_list_expr,
     defns <- eval_expr (list ir.defn) defns_list_expr,
-    let ctxt := new_context decls defns in do
-      tactic.trace (to_string decls),
-      tactic.trace (to_string defns),
-      pure $ compile' conf extern_fns procs ctxt
+    let ctxt := ir.new_context decls defns in
+    pure $ compile' conf extern_fns procs ctxt
 
 end native

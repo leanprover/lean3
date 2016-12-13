@@ -1,19 +1,29 @@
 import init.native.ir
+import data.bitvec
+import data.list
+import system.io
+import init.debugger.cli
 
-constant u8 : Type
+set_option debugger true
 
-constant u8.add : u8 → u8 → u8
-constant u8.of_nat : nat → u8
+@[reducible] def u8 : Type := bitvec 8
 
-@[ir_decl] def u8.ir.add : ir.decl :=
-  ir.decl.mk `u8.add [(`a, ir.ty.object none), (`b, ir.ty.object none)] (ir.ty.object none)
+def u8.add : u8 → u8 → u8 := bitvec.add
 
-@[ir_defn] def u8.ir.of_nat : ir.defn :=
-  ir.defn.mk `u8.of_nat [(`n, ir.ty.object none)] (ir.ty.object none) ir.stmt.nop
+def u8.put : u8 → io unit :=
+  fun u, put_str_ln u
 
-noncomputable instance : has_coe nat u8 :=
-  ⟨ u8.of_nat ⟩
+@[ir_def] def u8.ir.add : ir.defn :=
+  ir.defn.mk `u8.add [(`a, ir.ty.object none), (`b, ir.ty.object none)] (ir.ty.object none) $ (
+    ir.stmt.seq [
+      ir.stmt.e $ ir.expr.panic "need to implement u8.add"
+    ])
 
-noncomputable def main :=
-  u8.add (0 : nat) (1 : nat)
+@[ir_def] def u8.ir.put : ir.defn :=
+  ir.defn.mk `u8.put [(`n, ir.ty.object none)] (ir.ty.object none) ir.stmt.nop
 
+@[breakpoint] def main : io unit :=
+  u8.put $ (u8.add 0 1)
+
+local attribute [breakpoint] native.compile
+-- vm_eval main
