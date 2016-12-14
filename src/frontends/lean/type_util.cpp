@@ -16,6 +16,8 @@ environment add_alias(parser & p, environment env, name const & id, name const &
     if (!empty(ctx_levels) || !ctx_params.empty()) {
         expr r = mk_local_ref(full_id, ctx_levels, ctx_params);
         env = p.add_local_ref(env, id, r);
+        if (full_id != id)
+            env = p.add_local_ref(env, full_id, r);
     }
     if (full_id != id)
         env = add_expr_alias_rec(env, id, full_id);
