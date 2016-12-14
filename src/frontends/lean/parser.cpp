@@ -1753,8 +1753,17 @@ expr parser::id_to_expr(name const & id, pos_info const & p, bool resolve_only) 
         buffer<expr> new_as;
         if (r)
             new_as.push_back(*r);
-        for (auto const & e : as) {
-            new_as.push_back(copy_with_new_pos(mk_constant(e, ls), p));
+        for (auto const & a : as) {
+            expr e;
+            if (auto it1 = m_local_decls.find(a)) {
+                if (ls)
+                    throw parser_error("invalid use of explicit universe parameter, identifier is a variable, "
+                                       "parameter or a constant bound to parameters in a section", p);
+                e = *it1;
+            } else {
+                e = mk_constant(a, ls);
+            }
+            new_as.push_back(copy_with_new_pos(e, p));
         }
         r = save_pos(mk_choice(new_as.size(), new_as.data()), p);
     }
