@@ -27,13 +27,9 @@ struct extern_fn {
 optional<extern_fn> get_builtin(name const & n);
 
 enum native_compiler_mode { JIT, AOT };
-void native_compile(environment const & env, buffer<pair<name, expr>> & procs, native_compiler_mode & mode);
 void native_compile_binary(environment const & env, declaration const & d);
-void native_compile_module(environment const & env, buffer<declaration> decls);
-void native_compile_module(environment const & env);
-// void native_aot_compile(environment const & env, config & conf, declaration const & main);
-// void native_compile_file(environment const & env, config & conf, declaration const & main);
-environment set_native_module_path(environment & env, name const & n);
+void native_compile_package(environment const & env, path root);
+
 void initialize_native_compiler();
 void finalize_native_compiler();
 }

@@ -328,52 +328,29 @@ void populate_extern_fns(
     });
 }
 
-void native_compile_module(environment const & env, buffer<declaration> decls) {
-    // Preprocess the main function.
-    buffer<procedure> all_procs;
-    buffer<procedure> main_procs;
-    buffer<extern_fn> extern_fns;
-
-    // Compute the live set of names, we attach a callback that will be
-    // invoked for every declaration encountered.
-    used_defs used_names(env, [&] (declaration const & d) {
-        buffer<procedure> procs;
-        // The the name is an internal decl we should not add it to the live set.
-        if (is_internal_decl(d)) {
-            return;
-        // We should skip it if its a bulitin, or a builtin_cases on.
-        } else if (auto p = get_builtin(d.get_name())) {
-            return;
-            // extern_fns.push_back(p.value());
-        } else if (auto p =  get_vm_builtin_cases_idx(env, d.get_name())) {
-            return;
-        } else if (has_extern_attribute(env, d.get_name())) {
-            lean_unreachable()
-        } else {
-            native_preprocess(env, d, procs);
-            for (auto pair : procs) {
-                used_names.names_in_expr(pair.m_code);
-                all_procs.push_back(pair);
-            }
+void decls_to_native_compile(environment const & env, buffer<declaration> & decls) {
+    // vm_state & state = get_vm_state();
+    env.for_each_declaration([&] (declaration const & d) {
+        auto vdecl = get_vm_decl(env, d.get_name());
+        if (vdecl && vdecl->is_bytecode()) {
+            decls.push_back(d);
         }
     });
+}
 
-    // We then loop over the set of procs produced by preprocessing the
-    // main function, we transitively collect all names.
+void native_compile_package(environment const & env, path root) {
+    buffer<extern_fn> extern_fns;
+    buffer<declaration> decls;
+    buffer<procedure> all_procs; 
+
+    decls_to_native_compile(env, decls);
+
     for (auto decl : decls) {
-        used_names.names_in_decl(decl);
+        std::cout << decl.get_name() << std::endl;
+        buffer<procedure> procs;
+        native_preprocess(env, decl, procs);
+        all_procs.append(procs);
     }
-
-    // We now need to collect every function we are choosing to
-    // declare as external. We emit an extern decl for every
-    // function that exists in the Lean namespace, and then
-    // an extern decl for every other function, since the
-    // symbols must be visible to other shared libraries
-    // when loading them.
-    populate_extern_fns(env, used_names, extern_fns, true);
-
-    // Finally we assert that there are no more unprocessed declarations.
-    lean_assert(used_names.stack_is_empty());
 
     native_compile(env, extern_fns, all_procs, native_compiler_mode::JIT);
 }
@@ -483,12 +460,10 @@ void initialize_native_compiler() {
     register_trace_class({"compiler", "native"});
     register_trace_class({"compiler", "native", "preprocess"});
     register_trace_class({"compiler", "native", "cpp_compiler"});
-    native_module_path_modification::init();
 }
 
 void finalize_native_compiler() {
     native::finalize_options();
     delete g_lean_install_path;
-    native_module_path_modification::finalize();
 }
 }

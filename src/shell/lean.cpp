@@ -48,6 +48,7 @@ Author: Leonardo de Moura
 #include "library/native_compiler/native_compiler.h"
 #include "library/trace.h"
 #include "init/init.h"
+#include "unistd.h"
 #include "shell/simple_pos_info_provider.h"
 #include "shell/leandoc.h"
 #if defined(LEAN_JSON)
@@ -147,6 +148,7 @@ static struct option g_long_options[] = {
     {"compile",      optional_argument, 0, 'C'},
 #endif
     {"timeout",      optional_argument, 0, 'T'},
+    {"native",       no_argument,       0, 'N'},
 #if defined(LEAN_JSON)
     {"json",         no_argument,       0, 'J'},
     {"path",         no_argument,       0, 'p'},
@@ -163,7 +165,7 @@ static struct option g_long_options[] = {
 };
 
 static char const * g_opt_str =
-    "PdD:qpgvhet:012E:A:B:j:012rM:012T:012"
+    "PdD:Nqpgvhet:012E:A:B:j:012rM:012T:012"
 #if defined(LEAN_MULTI_THREAD)
     "s:012"
 #endif
@@ -372,6 +374,8 @@ int main(int argc, char ** argv) {
     optional<std::string> server_in;
     optional<std::string> run_arg;
     std::string native_output;
+    bool shared_library = false;
+
     while (true) {
         int c = getopt_long(argc, argv, g_opt_str, g_long_options, NULL);
         if (c == -1)
@@ -477,6 +481,12 @@ int main(int argc, char ** argv) {
             lean::enable_debug(optarg);
             break;
 #endif
+        case 'A':
+            export_all_txt = std::string(optarg);
+            break;
+        case 'N':
+            shared_library = true;
+            break;
         default:
             std::cerr << "Unknown command line option\n";
             display_help(std::cerr);
@@ -689,10 +699,16 @@ int main(int argc, char ** argv) {
             native_compile_binary(final_env, final_env.get(lean::name("main")));
         }
 
-        // if (!mods.empty() && export_native_objects) {
-        //     // this code is now broken
-        //     env = lean::set_native_module_path(env, lean::name(native_output));
-        // }
+        if (shared_library && !mods.empty()) {
+            auto final_env = *mods.front().second->m_result.get().m_env;
+            auto final_opts = mods.front().second->m_result.get().m_opts;
+            type_context tc(final_env, final_opts);
+            lean::scope_trace_env scope2(final_env, final_opts, tc);
+            lean::native::scope_config scoped_native_config(
+                final_opts);
+            auto cwd = lean::path("."); // make this work later
+            native_compile_package(final_env, cwd);
+        }
 
         if (export_txt && !mods.empty()) {
             buffer<std::shared_ptr<module_info const>> mod_infos;
