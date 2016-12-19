@@ -145,13 +145,17 @@ format elaborator::pp(expr const & e) {
     return fn(e);
 }
 
+format elaborator::pp_overload(pp_fn const & pp_fn, expr const & fn) {
+    return is_constant(fn) ? format(const_name(fn)) : pp_fn(fn);
+}
+
 format elaborator::pp_overloads(pp_fn const & pp_fn, buffer<expr> const & fns) {
     format r("overloads:");
     r += space();
     bool first = true;
     for (expr const & fn : fns) {
         if (first) first = false; else r += format(", ");
-        r += pp_fn(fn);
+        r += pp_overload(pp_fn, fn);
     }
     return paren(r);
 }
@@ -669,11 +673,13 @@ expr elaborator::visit_const_core(expr const & e) {
 }
 
 /** \brief Auxiliary function for saving information about which overloaded identifier was used by the elaborator. */
-void elaborator::save_identifier_info(expr const & f) {
+void elaborator::save_identifier_info(expr const & f, optional<pos_info> pos) {
     if (!m_no_info && m_uses_infom && get_pos_info_provider() && (is_constant(f) || is_local(f))) {
-        if (auto p = get_pos_info_provider()->get_pos_info(f)) {
-            m_info.add_identifier_info(p->first, p->second, is_constant(f) ? const_name(f) : local_pp_name(f));
-            m_info.add_type_info(p->first, p->second, infer_type(f));
+        if (!pos)
+            pos = get_pos_info_provider()->get_pos_info(f);
+        if (pos) {
+            m_info.add_identifier_info(pos->first, pos->second, is_constant(f) ? const_name(f) : local_pp_name(f));
+            m_info.add_type_info(pos->first, pos->second, infer_type(f));
         }
     }
 }
@@ -1174,8 +1180,7 @@ format elaborator::mk_no_overload_applicable_msg(buffer<expr> const & fns, buffe
     for (unsigned i = 0; i < fns.size(); i++) {
         if (i > 0) r += line();
         auto pp_fn = mk_pp_ctx();
-        format f_fmt = (is_constant(fns[i])) ? format(const_name(fns[i])) : pp_fn(fns[i]);
-        r += line() + format("error for") + space() + f_fmt;
+        r += line() + format("error for") + space() + pp_overload(pp_fn, fns[i]);
         r += line() + error_msgs[i].pp();
     }
     return r;
@@ -1300,7 +1305,13 @@ expr elaborator::visit_overloaded_app_with_expected(buffer<expr> const & fns, bu
             auto pp_fn = mk_pp_ctx();
             format msg = format("overload was disambiguated using expected type");
             msg += line() + pp_overloads(pp_fn, fns);
-            msg += line() + format("the only applicable one seemed to be: ") + pp(fn);
+            msg += line() + format("the only applicable one seemed to be: ") + pp_overload(pp_fn, fn);
+            msg += line();
+
+            for (auto const & error_msg : error_msgs) {
+                msg += line() + error_msg.pp();
+            }
+
             throw nested_elaborator_exception(ref, ex, msg);
         }
     }
@@ -1892,7 +1903,10 @@ expr elaborator::visit_field(expr const & e, optional<expr> const & expected_typ
     }
     expr proj  = copy_tag(e, mk_constant(full_fname));
     expr new_e = copy_tag(e, mk_app(proj, copy_tag(e, mk_as_is(s))));
-    return visit(new_e, expected_type);
+    expr r = visit(new_e, expected_type);
+    if (auto pos = get_field_notation_field_pos(e))
+        save_identifier_info(app_fn(r), pos);
+    return r;
 }
 
 expr elaborator::visit_structure_instance(expr const & e, optional<expr> const & _expected_type) {

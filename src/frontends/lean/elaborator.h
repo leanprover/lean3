@@ -97,6 +97,7 @@ private:
     format pp_indent(pp_fn const & pp_fn, expr const & e);
     format pp_indent(expr const & e);
     format pp(expr const & e);
+    format pp_overload(pp_fn const & pp_fn, expr const & fn);
     format pp_overloads(pp_fn const & pp_fn, buffer<expr> const & fns);
 
     expr whnf(expr const & e) { return m_ctx.whnf(e); }
@@ -162,7 +163,7 @@ private:
     expr visit_sort(expr const & e);
     expr visit_const_core(expr const & e);
     expr ensure_function(expr const & e);
-    void save_identifier_info(expr const & f);
+    void save_identifier_info(expr const & f, optional<pos_info> pos = {});
     expr visit_function(expr const & fn, bool has_args, expr const & ref);
     format mk_app_type_mismatch_error(expr const & t, expr const & arg, expr const & arg_type, expr const & expected_type);
     format mk_app_arg_mismatch_error(expr const & t, expr const & arg, expr const & expected_arg);
