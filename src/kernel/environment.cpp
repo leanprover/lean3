@@ -7,7 +7,9 @@ Author: Leonardo de Moura
 #include <utility>
 #include <vector>
 #include <limits>
+#include <algorithm>
 #include "util/thread.h"
+#include "util/sstream.h"
 #include "kernel/environment.h"
 #include "kernel/kernel_exception.h"
 
@@ -17,55 +19,58 @@ environment_header::environment_header(unsigned trust_lvl, std::unique_ptr<norma
 
 environment_extension::~environment_extension() {}
 
-struct environment_id::path {
-    unsigned m_next_depth;
-    unsigned m_start_depth;
-    mutex    m_mutex;
-    path *   m_prev;
-    MK_LEAN_RC(); // Declare m_rc counter
-    void dealloc() { delete this; }
-
-    path():m_next_depth(1), m_start_depth(0), m_prev(nullptr), m_rc(1) {}
-    path(unsigned start_depth, path * prev):m_next_depth(start_depth + 1), m_start_depth(start_depth), m_prev(prev), m_rc(1) {
-        if (prev) prev->inc_ref();
-    }
-    ~path() { if (m_prev) m_prev->dec_ref(); }
-};
-
-environment_id::environment_id():m_ptr(new path()), m_depth(0) {}
+environment_id::environment_id() : m_ptr(new path()), m_depth(0) { m_ptr->inc_ref(); }
 environment_id::environment_id(environment_id const & ancestor, bool) {
     if (ancestor.m_depth == std::numeric_limits<unsigned>::max())
         throw exception("maximal depth in is_descendant tree has been reached, use 'forget' method to workaround this limitation");
-    lock_guard<mutex> lock(ancestor.m_ptr->m_mutex);
-    if (ancestor.m_ptr->m_next_depth == ancestor.m_depth + 1) {
-        m_ptr   = ancestor.m_ptr;
-        m_depth = ancestor.m_depth + 1;
-        m_ptr->m_next_depth++;
-        m_ptr->inc_ref();
+
+    m_depth = ancestor.m_depth + 1;
+    unsigned expected = m_depth;
+    if (ancestor.m_ptr->m_next_depth
+            .compare_exchange_strong(expected, m_depth + 1)) {
+        m_ptr = ancestor.m_ptr;
     } else {
-        m_ptr   = new path(ancestor.m_depth+1, ancestor.m_ptr);
-        m_depth = ancestor.m_depth + 1;
+        m_ptr = new path(ancestor.m_depth, ancestor.m_ptr);
     }
-    lean_assert(m_depth == ancestor.m_depth+1);
-    lean_assert(m_ptr->m_next_depth == m_depth+1);
+    m_ptr->inc_ref();
+}
+environment_id::environment_id(environment_id const & anc1, environment_id const & anc2) {
+    if (anc1.m_depth == std::numeric_limits<unsigned>::max() || anc2.m_depth == std::numeric_limits<unsigned>::max())
+        throw exception("maximal depth in is_descendant tree has been reached, use 'forget' method to workaround this limitation");
+    auto path1 = new path(anc1.m_depth, anc1.m_ptr);
+    auto path2 = new path(anc2.m_depth, anc2.m_ptr);
+    m_depth = std::max(anc1.m_depth, anc2.m_depth) + 1;
+    m_ptr = new path(m_depth, path1, path2);
+    m_ptr->inc_ref();
 }
 environment_id::environment_id(environment_id const & id):m_ptr(id.m_ptr), m_depth(id.m_depth) { if (m_ptr) m_ptr->inc_ref(); }
 environment_id::environment_id(environment_id && id):m_ptr(id.m_ptr), m_depth(id.m_depth) { id.m_ptr = nullptr; }
 environment_id::~environment_id() { if (m_ptr) m_ptr->dec_ref(); }
 environment_id & environment_id::operator=(environment_id const & s) { m_depth = s.m_depth; LEAN_COPY_REF(s); }
 environment_id & environment_id::operator=(environment_id && s) { m_depth = s.m_depth; LEAN_MOVE_REF(s); }
+
+bool environment_id::is_ancestor(path const * p, std::unordered_set<path const *> & visited) const {
+    while (p != nullptr) {
+        if (p == m_ptr)
+            return true;
+        if (p->m_start_depth < m_depth)
+            return false;
+        if (p->m_prev2) {
+            if (!visited.insert(p).second) return false;
+            if (is_ancestor(p->m_prev2, visited)) return true;
+        }
+        p = p->m_prev1;
+    }
+    return false;
+}
 bool environment_id::is_descendant(environment_id const & id) const {
     if (m_depth < id.m_depth)
         return false;
-    path * p = m_ptr;
-    while (p != nullptr) {
-        if (p == id.m_ptr)
-            return true;
-        if (p->m_start_depth <= id.m_depth)
-            return false;
-        p = p->m_prev;
-    }
-    return false;
+    if (m_ptr == id.m_ptr) // fast case without allocation
+        return true;
+
+    std::unordered_set<path const *> visited;
+    return id.is_ancestor(m_ptr, visited);
 }
 
 environment::environment(header const & h, environment_id const & ancestor, declarations const & d, name_set const & g, extensions const & exts):
@@ -122,6 +127,42 @@ environment environment::remove_universe(name const & n) const {
 
 bool environment::is_universe(name const & n) const {
     return m_global_levels.contains(n);
+}
+
+environment environment::union_with(environment const & other) const {
+    if (this->is_descendant(other)) return *this;
+    if (other.is_descendant(*this)) return other;
+
+    if (m_header != other.m_header)
+        throw_kernel_exception(*this, "invalid union, environment headers are not the same");
+
+    environment_id new_id(m_id, other.m_id);
+
+    auto new_decls = merge_check_compat(m_declarations, other.m_declarations,
+        [=] (name const & n, declaration const & d1, declaration const & d2) {
+            if (d1 != d2)
+                throw_kernel_exception(*this, sstream()
+                        << "invalid union, mismatching declarations for " << n);
+        });
+
+    auto new_global_levels = merge(m_global_levels, other.m_global_levels);
+
+    auto exts_size = std::max(m_extensions->size(), other.m_extensions->size());
+    auto new_exts = std::make_shared<environment_extensions>(exts_size);
+    for (unsigned ext_idx = 0; ext_idx < exts_size; ext_idx++) {
+        std::shared_ptr<environment_extension const> ext1, ext2;
+        if (ext_idx < m_extensions->size())       ext1 = m_extensions->at(ext_idx);
+        if (ext_idx < other.m_extensions->size()) ext2 = other.m_extensions->at(ext_idx);
+        if (ext1 && ext2) {
+            (*new_exts)[ext_idx] = ext1->union_with(*ext2);
+        } else if (ext1) {
+            (*new_exts)[ext_idx] = ext1;
+        } else if (ext2) {
+            (*new_exts)[ext_idx] = ext2;
+        }
+    }
+
+    return environment(m_header, new_id, new_decls, new_global_levels, new_exts);
 }
 
 environment environment::replace(certified_declaration const & t) const {

@@ -36,6 +36,12 @@ static std::string * g_key = nullptr;
 struct inverse_config {
     typedef inverse_state state;
     typedef inverse_entry entry;
+    static state state_union(state const & a, state const & b) {
+        state u;
+        u.m_fn_info = merge_prefer_first(a.m_fn_info, b.m_fn_info);
+        u.m_inv_info = merge_prefer_first(a.m_inv_info, b.m_inv_info);
+        return u;
+    }
     static void add_entry(environment const &, io_state const &, state & s, entry const & e) {
         s.add(e);
     }

@@ -106,6 +106,21 @@ struct attr_config {
     typedef attr_state state;
     typedef attr_entry entry;
 
+    static attr_state state_union(attr_state const & a, attr_state const & b) {
+        attr_state u;
+        u = merge(a, b, [] (name const &,
+                            pair<attr_records, unsigned> const & v1,
+                            pair<attr_records, unsigned> const & v2) {
+            attr_records r = v1.first;
+            v2.first.for_each([&] (attr_record const & rec2) {
+                if (!r.contains(rec2))
+                    r.insert(rec2, *v2.first.get_prio(rec2));
+            });
+            return std::make_pair(r, hash(v1.second, v2.second));
+        });
+        return u;
+    }
+
     static unsigned get_entry_hash(entry const & e) {
         return hash(hash(e.m_attr.hash(), e.m_record.hash()), e.m_prio);
     }

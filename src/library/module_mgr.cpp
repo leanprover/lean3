@@ -32,53 +32,77 @@ void module_mgr::mark_out_of_date(module_id const & id, buffer<module_id> & to_r
     }
 }
 
-class parse_lean_task : public task<module_info::parse_result> {
+class parse_task : public task<module_info::parse_result> {
+public:
+    using loaded_deps = std::vector<std::pair<module_name, std::shared_ptr<module_info const>>>;
+
+protected:
     environment m_initial_env;
     std::string m_contents;
+    loaded_deps m_deps;
+
+public:
+    parse_task(std::string const & contents, environment const & initial_env, loaded_deps const & deps) :
+            m_initial_env(initial_env), m_contents(contents), m_deps(deps) {}
+    task_kind get_kind() const override { return task_kind::parse; }
+
+    std::vector<generic_task_result> get_dependencies() override {
+        std::vector<generic_task_result> deps;
+        for (auto & d : m_deps) deps.push_back(d.second->m_result);
+        return deps;
+    }
+
+    module_loader mk_loader() {
+        return[=] (module_id const & base, module_name const & import) {
+            lean_assert(base == get_module_id());
+            for (auto & d : m_deps) {
+                if (d.first.m_name == import.m_name && d.first.m_relative == import.m_relative)
+                    return d.second->m_result.get().m_env;
+            }
+            throw exception(sstream() << "could not resolve import: " << import.m_name);
+        };
+    }
+};
+
+class parse_olean_task : public parse_task {
+public:
+    parse_olean_task(std::string const & contents, environment const & initial_env,
+                     loaded_deps const & deps) :
+        parse_task(contents, initial_env, deps) {}
+
+    void description(std::ostream & out) const override {
+        out << "loading olean for " << get_module_id();
+    }
+
+    module_info::parse_result execute() override {
+        std::istringstream in(m_contents, std::ios_base::binary);
+        module_info::parse_result res;
+        bool check_hash = true;
+        res.m_env = import_module(in, get_module_id(), m_initial_env, mk_loader(), check_hash);
+        res.m_ok = true;
+        return res;
+    }
+};
+
+class parse_lean_task : public parse_task {
     snapshot_vector m_snapshots;
     bool m_use_snapshots;
-    std::vector<std::tuple<module_id, module_name, std::shared_ptr<module_info const>>> m_deps;
 
 public:
     parse_lean_task(std::string const & contents, environment const & initial_env,
                     snapshot_vector const & snapshots, bool use_snapshots,
-                    std::vector<std::tuple<module_id, module_name, std::shared_ptr<module_info const>>> const & deps) :
-        m_initial_env(initial_env), m_contents(contents),
-        m_snapshots(snapshots), m_use_snapshots(use_snapshots),
-        m_deps(deps) {}
-    task_kind get_kind() const override { return task_kind::parse; }
+                    loaded_deps const & deps) :
+        parse_task(contents, initial_env, deps),
+        m_snapshots(snapshots), m_use_snapshots(use_snapshots) {}
 
     void description(std::ostream & out) const override {
         out << "parsing " << get_module_id();
     }
 
-    std::vector<generic_task_result> get_dependencies() override {
-        std::vector<generic_task_result> deps;
-        for (auto & d : m_deps) deps.push_back(std::get<2>(d)->m_result);
-        return deps;
-    }
-
     module_info::parse_result execute() override {
-        module_loader import_fn = [=] (module_id const & base, module_name const & import) {
-            for (auto & d : m_deps) {
-                if (std::get<0>(d) == base &&
-                        std::get<1>(d).m_name == import.m_name &&
-                        std::get<1>(d).m_relative == import.m_relative) {
-                    auto & mod_info = std::get<2>(d);
-
-                    return loaded_module {
-                            mod_info->m_mod,
-                            mod_info->m_result.get().m_obj_code,
-                            mod_info->m_result.get().m_obj_code_delayed_proofs,
-                    };
-                }
-            }
-            throw exception(sstream() << "could not resolve import: " << import.m_name);
-        };
-
         bool use_exceptions = false;
         std::istringstream in(m_contents);
-        parser p(m_initial_env, get_global_ios(), import_fn, in, get_module_id(),
+        parser p(m_initial_env, get_global_ios(), mk_loader(), in, get_module_id(),
                  use_exceptions,
                  (m_snapshots.empty() || !m_use_snapshots) ? std::shared_ptr<snapshot>() : m_snapshots.back(),
                  m_use_snapshots ? &m_snapshots : nullptr);
@@ -88,14 +112,8 @@ public:
 
         mod.m_snapshots = std::move(m_snapshots);
 
-        {
-            std::ostringstream obj_code_buf(std::ios_base::binary);
-            mod.m_obj_code_delayed_proofs =
-                    export_module_delayed(obj_code_buf, p.env());
-            mod.m_obj_code = obj_code_buf.str();
-        }
-
-        mod.m_env = optional<environment>(p.env());
+        mod.m_env = p.env();
+        lean_assert(p.env().is_descendant(m_initial_env));
 
         mod.m_opts = p.ios().get_options();
 
@@ -115,7 +133,7 @@ public:
     std::vector<generic_task_result> get_dependencies() override {
         if (auto res = m_mod->m_result.peek()) {
             std::vector<generic_task_result> deps;
-            res->m_env->for_each_declaration([&] (declaration const & d) {
+            res->m_env.for_each_declaration([&] (declaration const & d) {
                 if (d.is_theorem()) deps.push_back(d.get_value_task());
             });
             return deps;
@@ -132,7 +150,7 @@ public:
         if (m_mod->m_source != module_src::LEAN)
             throw exception("cannot build olean from olean");
         auto res = m_mod->m_result.get();
-        auto env = *res.m_env;
+        auto env = res.m_env;
 
         if (!res.m_ok)
             throw exception("not creating olean file because of errors");
@@ -164,7 +182,7 @@ void module_mgr::build_module(module_id const & id, bool can_use_olean, name_set
 
         scope_global_ios scope_ios(m_ios);
         scoped_message_buffer scoped_msg_buf(m_msg_buf);
-        scoped_task_context(id, {1, 0});
+        scoped_task_context _(id, {1, 0});
         message_bucket_id bucket_id { id, m_current_period };
         scope_message_context scope_msg_ctx(bucket_id);
         scope_traces_as_messages scope_trace_msgs(id, {1, 0});
@@ -181,7 +199,8 @@ void module_mgr::build_module(module_id const & id, bool can_use_olean, name_set
 
             std::istringstream in2(obj_code, std::ios_base::binary);
             auto olean_fn = olean_of_lean(id);
-            auto parsed_olean = parse_olean(in2, olean_fn);
+            bool check_hash = false;
+            auto parsed_olean = parse_olean(in2, olean_fn, check_hash);
 
             auto mod = std::make_shared<module_info>();
 
@@ -190,23 +209,24 @@ void module_mgr::build_module(module_id const & id, bool can_use_olean, name_set
             mod->m_version = m_current_period;
             mod->m_trans_mtime = mod->m_mtime = mtime;
 
+            parse_task::loaded_deps deps;
+
             for (auto & d : parsed_olean.first) {
                 auto d_id = resolve(id, d);
                 build_module(d_id, true, module_stack);
 
-                mod->m_deps.push_back(std::make_pair(d_id, d));
+                mod->m_deps.push_back({d_id, d});
 
                 auto & d_mod = m_modules[d_id];
                 mod->m_trans_mtime = std::max(mod->m_trans_mtime, d_mod->m_trans_mtime);
+
+                deps.push_back({d, d_mod});
             }
 
             if (mod->m_trans_mtime > mod->m_mtime)
                 return build_module(id, false, orig_module_stack);
 
-            module_info::parse_result res;
-            res.m_obj_code = obj_code;
-            res.m_ok = true;
-            mod->m_result = mk_pure_task_result(res, "Loading " + olean_fn);
+            mod->m_result = get_global_task_queue()->submit<parse_olean_task>(obj_code, m_initial_env, deps);
 
             get_global_task_queue()->cancel_if(
                     [=] (generic_task * t) {
@@ -237,12 +257,15 @@ void module_mgr::build_module(module_id const & id, bool can_use_olean, name_set
             mod->m_mod = id;
             mod->m_source = module_src::LEAN;
             mod->m_trans_mtime = mod->m_mtime = mtime;
+            parse_task::loaded_deps deps;
             for (auto & d : imports) {
                 module_id d_id;
                 try {
                     d_id = resolve(id, d);
                     build_module(d_id, true, module_stack);
-                    mod->m_trans_mtime = std::max(mod->m_trans_mtime, m_modules[d_id]->m_trans_mtime);
+                    auto & d_mod = m_modules[d_id];
+                    mod->m_trans_mtime = std::max(mod->m_trans_mtime, d_mod->m_trans_mtime);
+                    deps.push_back({d, d_mod});
                 } catch (throwable & ex) {
                     message_builder msg(m_initial_env, m_ios, id, pos_info {1, 0}, ERROR);
                     msg.set_exception(ex);
@@ -256,7 +279,6 @@ void module_mgr::build_module(module_id const & id, bool can_use_olean, name_set
             }
             mod->m_version = m_current_period;
 
-            auto deps = gather_transitive_imports(id, imports);
             mod->m_result = get_global_task_queue()->submit<parse_lean_task>(
                     contents, m_initial_env,
                     snapshots, m_use_snapshots,
@@ -366,30 +388,6 @@ std::vector<module_name> module_mgr::get_direct_imports(module_id const & id, st
     parser p(get_initial_env(), m_ios, nullptr, in, id, use_exceptions);
     std::vector<std::pair<module_name, module_id>> deps;
     return p.get_imports();
-}
-
-void module_mgr::gather_transitive_imports(std::vector<std::tuple<module_id, module_name, std::shared_ptr<module_info const>>> & res,
-                                           std::unordered_set<module_id> & visited,
-                                           module_id const & id,
-                                           module_name const & import) {
-    try {
-        auto import_id = resolve(id, import);
-        if (!m_modules[import_id]) return;
-        res.push_back(std::make_tuple(id, import, m_modules[import_id]));
-        if (!visited.count(import_id)) {
-            visited.insert(import_id);
-            for (auto & d : m_modules[import_id]->m_deps)
-                gather_transitive_imports(res, visited, import_id, d.second);
-        }
-    } catch (file_not_found_exception & ex) {}
-}
-
-std::vector<std::tuple<module_id, module_name, std::shared_ptr<module_info const>>> module_mgr::gather_transitive_imports(
-        module_id const & id, std::vector<module_name> const & imports) {
-    std::unordered_set<module_id> visited;
-    std::vector<std::tuple<module_id, module_name, std::shared_ptr<module_info const>>> res;
-    for (auto & i : imports) gather_transitive_imports(res, visited, id, i);
-    return res;
 }
 
 std::tuple<std::string, module_src, time_t> fs_module_vfs::load_module(module_id const & id, bool can_use_olean) {

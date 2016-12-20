@@ -38,12 +38,9 @@ struct module_info {
     period m_version = 0;
 
     struct parse_result {
-        optional<environment> m_env;
+        environment           m_env;
         options               m_opts;
         bool m_ok = false;
-
-        std::string m_obj_code;
-        std::vector<task_result<expr>> m_obj_code_delayed_proofs;
 
         snapshot_vector m_snapshots;
     };
@@ -85,12 +82,6 @@ class module_mgr {
     void mark_out_of_date(module_id const & id, buffer<module_id> & to_rebuild);
     void build_module(module_id const & id, bool can_use_olean, name_set module_stack);
     std::vector<module_name> get_direct_imports(module_id const & id, std::string const & contents);
-    void gather_transitive_imports(
-        std::vector<std::tuple<module_id, module_name, std::shared_ptr<module_info const>>> & res,
-        std::unordered_set<module_id> & visited,
-        module_id const & id, module_name const & import);
-    std::vector<std::tuple<module_id, module_name, std::shared_ptr<module_info const>>> gather_transitive_imports(
-            module_id const & id, std::vector<module_name> const & imports);
     bool get_snapshots_or_unchanged_module(
             module_id const & id, std::string const & contents, time_t mtime, snapshot_vector &vector);
 

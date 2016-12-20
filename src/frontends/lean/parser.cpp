@@ -2166,18 +2166,17 @@ void parser::process_imports() {
     unsigned fingerprint = 0;
     auto imports = parse_imports(fingerprint);
 
-    for (auto & n : imports) {
-        try {
-            m_env = import_module(m_env, m_file_name, n, m_import_fn);
-        } catch (exception & ex) {
-            m_found_errors = true;
-            parser_exception error((sstream() << "invalid import '" << n.m_name << "'").str(),
-                                   m_file_name.c_str(), m_last_cmd_pos.first, m_last_cmd_pos.second);
-            if (!m_use_exceptions && m_show_errors)
-                report_message(error);
-            if (m_use_exceptions)
-                throw error;
-        }
+    try {
+        m_env = import_modules(m_env, m_file_name, imports, m_import_fn);
+    } catch (exception & ex) {
+        m_found_errors = true;
+        // TODO(gabriel): better error message
+        parser_exception error((sstream() << "invalid import").str(),
+                               m_file_name.c_str(), m_last_cmd_pos.first, m_last_cmd_pos.second);
+        if (!m_use_exceptions && m_show_errors)
+            report_message(error);
+        if (m_use_exceptions)
+            throw error;
     }
 
     m_env = update_fingerprint(m_env, fingerprint);
@@ -2191,6 +2190,7 @@ void parser::process_imports() {
         (mk_message(m_last_cmd_pos, WARNING) << "imported file uses 'sorry'").report();
 #endif
     }
+    m_env = push_scope(m_env, ios(), scope_kind::Namespace);
     m_imports_parsed = true;
 }
 
@@ -2258,6 +2258,8 @@ bool parser::parse_commands() {
                 [&]() { sync_command(); });
         }
         scope_message_context scope_msg_ctx("end");
+        save_snapshot(scope_parser_msgs);
+        m_env = pop_scope(m_env, ios());
         if (has_open_scopes(m_env)) {
             m_found_errors = true;
             if (!m_use_exceptions && m_show_errors)
@@ -2265,7 +2267,6 @@ bool parser::parse_commands() {
             else if (m_use_exceptions)
                 throw_parser_exception("invalid end of module, expecting 'end'", pos());
         }
-        save_snapshot(scope_parser_msgs);
     } catch (interrupt_parser) {
         while (has_open_scopes(m_env))
             m_env = pop_scope_core(m_env, m_ios);
@@ -2332,8 +2333,7 @@ bool parse_commands(environment & env, io_state & ios, char const * fname) {
 
     auto mod = mod_mgr.get_module(fname)->m_result.get();
 
-    lean_assert(mod.m_env);
-    env = *mod.m_env;
+    env = mod.m_env;
 
     return mod.m_ok;
 }

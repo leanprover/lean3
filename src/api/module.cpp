@@ -5,6 +5,7 @@ Released under Apache 2.0 license as described in the file LICENSE.
 Author: Leonardo de Moura
 */
 #include <string>
+#include <vector>
 #include "util/lean_path.h"
 #include "library/module.h"
 #include "library/util.h"
@@ -21,9 +22,11 @@ lean_bool lean_env_import(lean_env env, lean_ios ios, lean_list_name modules, le
     check_nonnull(ios);
     check_nonnull(modules);
     auto new_env = to_env_ref(env);
+    std::vector<module_name> imports;
     for (name const & n : to_list_name_ref(modules)) {
-        new_env = import_module(new_env, "", {n, optional<unsigned>()}, mk_olean_loader());
+        imports.push_back({n, optional<unsigned>()});
     }
+    new_env = import_modules(new_env, "", imports, mk_olean_loader(new_env));
     *r = of_env(new environment(new_env));
     LEAN_CATCH;
 }

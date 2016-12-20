@@ -108,6 +108,22 @@ declaration mk_constant_assumption(name const & n, level_param_names const & par
     return declaration(new declaration::cell(n, params, t, false, trusted));
 }
 
+bool declaration::operator==(declaration const & other) const {
+    if (is_eqp(*this, other)) return true;
+    if (!m_ptr || !other.m_ptr) return false;
+    if (m_ptr->m_theorem != other.m_ptr->m_theorem) return false;
+    if (m_ptr->m_name != other.m_ptr->m_name) return false;
+    if (m_ptr->m_params != other.m_ptr->m_params) return false;
+    if (m_ptr->m_type != other.m_ptr->m_type) return false;
+    if (m_ptr->m_trusted != other.m_ptr->m_trusted) return false;
+    if (m_ptr->m_hints != other.m_ptr->m_hints) return false;
+    if (m_ptr->m_theorem && is_definition()) {
+        return m_ptr->m_proof == other.m_ptr->m_proof || get_value() == other.get_value();
+    } else {
+        return m_ptr->m_value == other.m_ptr->m_value;
+    }
+}
+
 bool use_untrusted(environment const & env, expr const & e) {
     bool found = false;
     for_each(e, [&](expr const & e, unsigned) {

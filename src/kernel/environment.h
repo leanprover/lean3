@@ -8,6 +8,7 @@ Author: Leonardo de Moura
 #include <utility>
 #include <memory>
 #include <vector>
+#include <unordered_set>
 #include "util/rc.h"
 #include "util/optional.h"
 #include "util/list.h"
@@ -56,6 +57,8 @@ public:
 class environment_extension {
 public:
     virtual ~environment_extension();
+
+    virtual std::shared_ptr<environment_extension const> union_with(environment_extension const &) const = 0;
 };
 
 typedef std::vector<std::shared_ptr<environment_extension const>> environment_extensions;
@@ -64,7 +67,27 @@ typedef std::vector<std::shared_ptr<environment_extension const>> environment_ex
 class environment_id {
     friend class environment_id_tester;
     friend class environment; // Only the environment class can create object of this type.
-    struct path;
+
+    struct path {
+        atomic<unsigned> m_next_depth;
+        unsigned         m_start_depth;
+        path *           m_prev1;
+        path *           m_prev2;
+        MK_LEAN_RC(); // Declare m_rc counter
+        void dealloc() { delete this; }
+
+        path(unsigned start_depth = 0, path * prev1 = nullptr, path * prev2 = nullptr) :
+                m_next_depth(start_depth + 1), m_start_depth(start_depth),
+                m_prev1(prev1), m_prev2(prev2), m_rc(0) {
+            if (prev1) prev1->inc_ref();
+            if (prev2) prev2->inc_ref();
+        }
+        ~path() {
+            if (m_prev1) m_prev1->dec_ref();
+            if (m_prev2) m_prev2->dec_ref();
+        }
+    };
+
     path *   m_ptr;
     unsigned m_depth;
     /**
@@ -72,10 +95,14 @@ class environment_id {
         The bool field is just to make sure this constructor is not confused with a copy constructor
     */
     environment_id(environment_id const & ancestor, bool);
+    environment_id(environment_id const & anc1, environment_id const & anc2);
     /** \brief Create an identifier for an environment without ancestors (e.g., empty environment) */
     environment_id();
     /** Create an identifier for an environment that is a direct descendant of the given one. */
     static environment_id mk_descendant(environment_id const & ancestor) { return environment_id(ancestor, true); }
+    static environment_id mk_descendant(environment_id const & anc1, environment_id const & anc2) { return environment_id(anc1, anc2); }
+
+    bool is_ancestor(path const *, std::unordered_set<path const *> &) const;
 public:
     environment_id(environment_id const & id);
     environment_id(environment_id && id);
@@ -164,6 +191,8 @@ public:
           - The environment does not contain an axiom named <tt>t.get_declaration().get_name()</tt>
     */
     environment replace(certified_declaration const & t) const;
+
+    environment union_with(environment const &) const;
 
     /**
        \brief Register an environment extension. Every environment

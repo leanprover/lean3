@@ -17,6 +17,14 @@ struct documentation_ext : public environment_extension {
     list<doc_entry>       m_module_doc;
     /** Doc strings for declarations (including imported ones). We store doc_strings for declarations in the .olean files. */
     name_map<std::string> m_doc_string_map;
+
+    std::shared_ptr<environment_extension const> union_with(environment_extension const & ext) const override {
+        auto & o = static_cast<documentation_ext const &>(ext);
+        auto u = std::make_shared<documentation_ext>();
+        // TODO(gabriel): u->m_module_doc
+        u->m_doc_string_map = merge_prefer_first(m_doc_string_map, o.m_doc_string_map);
+        return u;
+    }
 };
 
 struct documentation_ext_reg {

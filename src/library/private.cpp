@@ -7,6 +7,7 @@ Author: Leonardo de Moura
 #include <utility>
 #include <string>
 #include "util/hash.h"
+#include "util/sstream.h"
 #include "library/private.h"
 #include "library/module.h"
 #include "library/fingerprint.h"
@@ -16,6 +17,22 @@ struct private_ext : public environment_extension {
     unsigned       m_counter;
     name_map<name> m_inv_map;  // map: hidden-name -> user-name
     private_ext():m_counter(0) {}
+
+    std::shared_ptr<environment_extension const> union_with(environment_extension const & ext) const override {
+        auto & o = static_cast<private_ext const &>(ext);
+        auto u = std::make_shared<private_ext>();
+        u->m_counter = m_counter + o.m_counter;
+        u->m_inv_map = merge(m_inv_map, o.m_inv_map,
+                             [=] (name const & hidden, name const & user1, name const & user2) {
+                                if (user1 == user2) {
+                                    return user1;
+                                } else {
+                                    throw exception(sstream() << "union failed, private name " << hidden <<
+                                        " has different user names " << user1 << " and " << user2);
+                                }
+                             });
+        return u;
+    }
 };
 
 struct private_ext_reg {

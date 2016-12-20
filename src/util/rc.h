@@ -42,3 +42,41 @@ void dec_ref() { if (dec_ref_core()) { dealloc(); } }
     m_ptr   = Arg.m_ptr;                        \
     Arg.m_ptr = nullptr;                        \
     return *this;
+
+namespace lean {
+template <class T>
+class arc {
+    struct impl {
+        T m_value;
+        MK_LEAN_RC();
+        void dealloc() { delete this; }
+
+        impl(T const & t) : m_rc(0), m_value(t) {}
+        impl(T && t) : m_rc(0), m_value(t) {}
+    };
+
+    impl * m_ptr = nullptr;
+
+    arc(impl * ptr) : m_ptr(ptr) { if (ptr) ptr->inc_ref(); }
+
+public:
+    arc(T const & t) : arc(new impl(t)) {}
+    arc(T && t) : arc(new impl(t)) {}
+    arc(arc<T> const & a) : arc(a.m_ptr) {}
+    arc(arc<T> && a) : m_ptr(a.m_ptr) { a.m_ptr = nullptr; }
+    ~arc() { if (m_ptr) m_ptr->dec_ref(); }
+
+    arc<T> & operator=(arc<T> const & t) { LEAN_COPY_REF(t); }
+    arc<T> & operator=(arc<T> && t) { LEAN_MOVE_REF(t); }
+
+    T * operator->() const { return get(); }
+    T & operator*() const { return *get(); }
+
+    bool operator==(arc<T> const & that) const { return m_ptr == that.m_ptr; }
+    bool operator!=(arc<T> const & that) const { return m_ptr != that.m_ptr; }
+
+    T * get() const { return &m_ptr->m_value; }
+
+    operator bool() const { return m_ptr != nullptr; }
+};
+}

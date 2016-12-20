@@ -13,6 +13,13 @@ Author: Leonardo de Moura
 namespace lean {
 struct protected_ext : public environment_extension {
     name_set m_protected; // protected declarations
+
+    std::shared_ptr<environment_extension const> union_with(environment_extension const & ext) const override {
+        auto & o = static_cast<protected_ext const &>(ext);
+        auto u = std::make_shared<protected_ext>();
+        u->m_protected = merge(m_protected, o.m_protected);
+        return u;
+    }
 };
 
 struct protected_ext_reg {

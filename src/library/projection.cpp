@@ -21,6 +21,13 @@ namespace lean {
 struct projection_ext : public environment_extension {
     name_map<projection_info> m_info;
     projection_ext() {}
+
+    std::shared_ptr<environment_extension const> union_with(environment_extension const & ext) const override {
+        auto & o = static_cast<projection_ext const &>(ext);
+        auto u = std::make_shared<projection_ext>();
+        u->m_info = merge_prefer_first(m_info, o.m_info);
+        return u;
+    }
 };
 
 struct projection_ext_reg {

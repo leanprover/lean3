@@ -133,6 +133,13 @@ public:
         lean_assert(!id8.is_descendant(id4));
         lean_assert(!id8.is_descendant(id5));
         lean_assert(!id8.is_descendant(id6));
+
+        auto id9 = environment_id::mk_descendant(id3, id6);
+        lean_assert(id9.is_descendant(id6));
+        lean_assert(id9.is_descendant(id4));
+        lean_assert(id9.is_descendant(id1));
+        lean_assert(id9.is_descendant(id3));
+        lean_assert(id9.is_descendant(id2));
     }
 
     static void tst2() {
@@ -166,6 +173,14 @@ public:
             }
         }
     }
+
+    static void tst3() {
+        environment_id id0, id = id0;
+        for (unsigned i = 0; i < 100; i++)
+            id = environment_id::mk_descendant(id, id);
+        lean_assert(id.is_descendant(id0));
+        lean_assert(!environment_id().is_descendant(id0));
+    }
 };
 }
 
@@ -181,6 +196,7 @@ int main() {
     tst2();
     environment_id_tester::tst1();
     environment_id_tester::tst2();
+    environment_id_tester::tst3();
     finalize_library_module();
     finalize_library_core_module();
     finalize_kernel_module();

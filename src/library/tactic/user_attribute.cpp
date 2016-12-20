@@ -46,6 +46,20 @@ public:
 /* Persisting */
 struct user_attr_ext : public environment_extension {
     name_map<attribute_ptr> m_attrs;
+
+    std::shared_ptr<environment_extension const> union_with(environment_extension const & ext) const override {
+        auto & o = static_cast<user_attr_ext const &>(ext);
+        auto u = std::make_shared<user_attr_ext>();
+        u->m_attrs = merge(m_attrs, o.m_attrs, [=] (name const &, attribute_ptr const & a1, attribute_ptr const & a2) {
+            if (a1 == a2) {
+                return a1;
+            } else {
+                // TODO(gabriel): check for more than pointer equality
+                throw exception("union failed, different user attributes");
+            }
+        });
+        return u;
+    }
 };
 
 struct user_attr_ext_reg {

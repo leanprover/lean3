@@ -84,6 +84,19 @@ struct ginductive_env_ext : public environment_extension {
 
     ginductive_env_ext() {}
 
+    std::shared_ptr<environment_extension const> union_with(environment_extension const & ext_) const override {
+        auto & o = static_cast<ginductive_env_ext const &>(ext_);
+        auto u = std::make_shared<ginductive_env_ext>();
+        u->m_all_nested_inds = append(m_all_nested_inds, o.m_all_nested_inds); // TODO(gabriel)
+        u->m_all_mutual_inds = append(m_all_mutual_inds, o.m_all_mutual_inds); // TODO(gabriel)
+        u->m_ind_to_irs = merge_prefer_first(m_ind_to_irs, o.m_ind_to_irs);
+        u->m_ind_to_mut_inds = merge_prefer_first(m_ind_to_mut_inds, o.m_ind_to_mut_inds);
+        u->m_ind_to_kind = merge_prefer_first(m_ind_to_kind, o.m_ind_to_kind);
+        u->m_num_params = merge_prefer_first(m_num_params, o.m_num_params);
+        u->m_ir_to_ind = merge_prefer_first(m_ir_to_ind, o.m_ir_to_ind);
+        return u;
+    }
+
     void register_ginductive_entry(ginductive_entry const & entry) {
         buffer<list<name> > intro_rules;
         to_buffer(entry.m_intro_rules, intro_rules);

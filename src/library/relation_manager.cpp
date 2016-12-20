@@ -152,6 +152,17 @@ static std::string * g_key = nullptr;
 struct rel_config {
     typedef rel_state state;
     typedef rel_entry entry;
+
+    static rel_state state_union(rel_state const & a, rel_state const & o) {
+        rel_state u;
+        u.m_trans_table = merge_prefer_first(a.m_trans_table, o.m_trans_table);
+        u.m_refl_table = merge_prefer_first(a.m_refl_table, o.m_refl_table);
+        u.m_subst_table = merge_prefer_first(a.m_subst_table, o.m_subst_table);
+        u.m_symm_table = merge_prefer_first(a.m_symm_table, o.m_symm_table);
+        u.m_rop_table = merge_prefer_first(a.m_rop_table, o.m_rop_table);
+        return u;
+    }
+
     static void add_entry(environment const & env, io_state const &, state & s, entry const & e) {
         switch (e.m_kind) {
         case op_kind::Relation: s.register_rop(env, e.m_name); break;

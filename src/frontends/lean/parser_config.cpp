@@ -82,6 +82,13 @@ struct token_config {
     static name * g_class_name;
     static std::string * g_key;
 
+    static token_state state_union(token_state const & a, token_state const & b) {
+        token_state u;
+        u.m_table = a.m_table;
+        u.m_table.merge(b.m_table);
+        return u;
+    }
+
     static void add_entry(environment const &, io_state const &, state & s, entry const & e) {
         s.m_table = add_token(s.m_table, e.m_token.c_str(), e.m_prec);
     }
@@ -241,6 +248,23 @@ struct notation_config {
     static name * g_class_name;
     static std::string * g_key;
 
+    static notation_state state_union(notation_state const & a, notation_state const & b) {
+        notation_state u;
+        u.m_nud = b.m_nud.merge(a.m_nud, true);
+        u.m_led = b.m_led.merge(a.m_led, true);
+        u.m_num_map = merge(a.m_num_map, b.m_num_map, [] (mpz const &, list<expr> const & es1, list<expr> const & es2) {
+            return append(es1, es2); // TODO(gabriel)
+        });
+        u.m_inv_map = a.m_inv_map;
+        b.m_inv_map.for_each([&] (head_index const & i, list<notation_entry> const & es) {
+            for (auto & e : reverse(es))
+                u.m_inv_map.insert(i, e); // TODO(gabriel)
+        });
+        u.m_reserved_nud = b.m_reserved_nud.merge(a.m_reserved_nud, true);
+        u.m_reserved_led = b.m_reserved_led.merge(a.m_reserved_led, true);
+        return u;
+    }
+
     static void updt_inv_map(state & s, head_index const & idx, entry const & e) {
         if (!e.parse_only())
             s.m_inv_map.insert(idx, e);
@@ -369,6 +393,12 @@ struct cmd_ext : public environment_extension {
     cmd_table m_cmds;
     cmd_ext() {
         m_cmds        = get_builtin_cmds();
+    }
+
+    std::shared_ptr<environment_extension const> union_with(environment_extension const & ext) const override {
+        auto u = std::make_shared<cmd_ext>();
+        u->m_cmds = merge_prefer_first(static_cast<cmd_ext const &>(ext).m_cmds, m_cmds);
+        return u;
     }
 };
 

@@ -118,6 +118,20 @@ struct unification_hint_config {
     typedef unification_hint_entry entry;
     typedef unification_hint_state state;
 
+    static state state_union(state const & a, state const & b) {
+        state u;
+        u.m_hints = merge(a.m_hints, b.m_hints, [] (name_pair const &, unification_hint_queue const & q1, unification_hint_queue const & q2) {
+            auto q = q1;
+            q2.for_each([&] (unification_hint const & uh) {
+                if (!q.contains(uh))
+                    q.insert(uh, *q2.get_prio(uh));  // TODO(gabriel)
+            });
+            return q;
+        });
+        u.m_decl_names_to_prio = merge_prefer_first(a.m_decl_names_to_prio, b.m_decl_names_to_prio);
+        return u;
+    }
+
     static void add_entry(environment const & env, io_state const &, state & s, entry const & e) {
         declaration decl = env.get(e.m_decl_name);
         s.validate_type(decl.get_type());

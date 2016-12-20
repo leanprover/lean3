@@ -18,6 +18,12 @@ namespace lean {
 struct noncomputable_ext : public environment_extension {
     name_set m_noncomputable;
     noncomputable_ext() {}
+
+    std::shared_ptr<environment_extension const> union_with(environment_extension const & ext) const override {
+        auto u = std::make_shared<noncomputable_ext>();
+        u->m_noncomputable = merge(m_noncomputable, static_cast<noncomputable_ext const &>(ext).m_noncomputable);
+        return u;
+    }
 };
 
 struct noncomputable_ext_reg {
