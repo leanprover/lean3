@@ -2166,18 +2166,16 @@ void parser::process_imports() {
     unsigned fingerprint = 0;
     auto imports = parse_imports(fingerprint);
 
-    for (auto & n : imports) {
-        try {
-            m_env = import_module(m_env, m_file_name, n, m_import_fn);
-        } catch (exception & ex) {
-            m_found_errors = true;
-            parser_exception error((sstream() << "invalid import '" << n.m_name << "'").str(),
-                                   m_file_name.c_str(), m_last_cmd_pos.first, m_last_cmd_pos.second);
-            if (!m_use_exceptions && m_show_errors)
-                report_message(error);
-            if (m_use_exceptions)
-                throw error;
-        }
+    try {
+        m_env = import_modules(m_env, m_file_name, imports, m_import_fn);
+    } catch (exception & ex) {
+        m_found_errors = true;
+        parser_exception error((sstream() << "invalid import").str(),
+                               m_file_name.c_str(), m_last_cmd_pos.first, m_last_cmd_pos.second);
+        if (!m_use_exceptions && m_show_errors)
+            report_message(error);
+        if (m_use_exceptions)
+            throw error;
     }
 
     m_env = update_fingerprint(m_env, fingerprint);
@@ -2330,12 +2328,9 @@ bool parse_commands(environment & env, io_state & ios, char const * fname) {
     vfs.m_modules_to_load_from_source.insert(std::string(fname));
     module_mgr mod_mgr(&vfs, &get_global_message_buffer(), env, ios);
 
-    auto mod = mod_mgr.get_module(fname)->m_result.get();
-
-    lean_assert(mod.m_env);
-    env = *mod.m_env;
-
-    return mod.m_ok;
+    auto mod = mod_mgr.get_module(fname);
+    env = mod->get_produced_env();
+    return mod->m_result.get().m_ok;
 }
 
 void initialize_parser() {

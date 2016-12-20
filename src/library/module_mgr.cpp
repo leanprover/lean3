@@ -22,7 +22,7 @@ void module_mgr::mark_out_of_date(module_id const & id, buffer<module_id> & to_r
     for (auto & mod : m_modules) {
         if (!mod.second || mod.second->m_out_of_date) continue;
         for (auto & dep : mod.second->m_deps) {
-            if (dep.first == id) {
+            if (dep.m_mod_info->m_mod == id) {
                 mod.second->m_out_of_date = true;
                 to_rebuild.push_back(mod.first);
                 mark_out_of_date(mod.first, to_rebuild);
@@ -32,17 +32,52 @@ void module_mgr::mark_out_of_date(module_id const & id, buffer<module_id> & to_r
     }
 }
 
+static module_loader mk_loader(module_id const & cur_mod, std::vector<module_info::dependency> const & deps) {
+    auto deps_per_mod_ptr = std::make_shared<std::unordered_map<module_id, std::vector<module_info::dependency>>>();
+    auto & deps_per_mod = *deps_per_mod_ptr;
+
+    buffer<module_info const *> to_process;
+    for (auto & d : deps) {
+        deps_per_mod[cur_mod].push_back(d);
+        to_process.push_back(d.m_mod_info.get());
+    }
+    while (!to_process.empty()) {
+        auto & m = *to_process.back();
+        to_process.pop_back();
+        if (deps_per_mod.count(m.m_mod)) continue;
+
+        for (auto & d : m.m_deps) {
+            deps_per_mod[m.m_mod].push_back(d);
+            if (!deps_per_mod.count(d.m_mod_info->m_mod))
+                to_process.push_back(d.m_mod_info.get());
+        }
+    }
+
+    return[deps_per_mod_ptr] (std::string const & current_module, module_name const & import) {
+        try {
+            for (auto & d : deps_per_mod_ptr->at(current_module)) {
+                if (d.m_import_name.m_name == import.m_name && d.m_import_name.m_relative == import.m_relative) {
+                    return d.m_mod_info->m_result.get().m_loaded_module;
+                }
+            }
+        } catch (std::out_of_range) {
+            lean_unreachable();
+        }
+        throw exception(sstream() << "could not resolve import: " << import.m_name);
+    };
+}
+
 class parse_lean_task : public task<module_info::parse_result> {
     environment m_initial_env;
     std::string m_contents;
     snapshot_vector m_snapshots;
     bool m_use_snapshots;
-    std::vector<std::tuple<module_id, module_name, std::shared_ptr<module_info const>>> m_deps;
+    std::vector<module_info::dependency> m_deps;
 
 public:
     parse_lean_task(std::string const & contents, environment const & initial_env,
                     snapshot_vector const & snapshots, bool use_snapshots,
-                    std::vector<std::tuple<module_id, module_name, std::shared_ptr<module_info const>>> const & deps) :
+                    std::vector<module_info::dependency> const & deps) :
         m_initial_env(initial_env), m_contents(contents),
         m_snapshots(snapshots), m_use_snapshots(use_snapshots),
         m_deps(deps) {}
@@ -54,27 +89,12 @@ public:
 
     std::vector<generic_task_result> get_dependencies() override {
         std::vector<generic_task_result> deps;
-        for (auto & d : m_deps) deps.push_back(std::get<2>(d)->m_result);
+        for (auto & d : m_deps) deps.push_back(d.m_mod_info->m_result);
         return deps;
     }
 
     module_info::parse_result execute() override {
-        module_loader import_fn = [=] (module_id const & base, module_name const & import) {
-            for (auto & d : m_deps) {
-                if (std::get<0>(d) == base &&
-                        std::get<1>(d).m_name == import.m_name &&
-                        std::get<1>(d).m_relative == import.m_relative) {
-                    auto & mod_info = std::get<2>(d);
-
-                    return loaded_module {
-                            mod_info->m_mod,
-                            mod_info->m_result.get().m_obj_code,
-                            mod_info->m_result.get().m_obj_code_delayed_proofs,
-                    };
-                }
-            }
-            throw exception(sstream() << "could not resolve import: " << import.m_name);
-        };
+        auto import_fn = mk_loader(get_module_id(), m_deps);
 
         bool use_exceptions = false;
         std::istringstream in(m_contents);
@@ -88,14 +108,9 @@ public:
 
         mod.m_snapshots = std::move(m_snapshots);
 
-        {
-            std::ostringstream obj_code_buf(std::ios_base::binary);
-            mod.m_obj_code_delayed_proofs =
-                    export_module_delayed(obj_code_buf, p.env());
-            mod.m_obj_code = obj_code_buf.str();
-        }
-
-        mod.m_env = optional<environment>(p.env());
+        mod.m_loaded_module = cache_preimported_env(
+                export_module(p.env(), get_module_id()),
+                m_initial_env, [=] { return import_fn; });
 
         mod.m_opts = p.ios().get_options();
 
@@ -115,9 +130,8 @@ public:
     std::vector<generic_task_result> get_dependencies() override {
         if (auto res = m_mod->m_result.peek()) {
             std::vector<generic_task_result> deps;
-            res->m_env->for_each_declaration([&] (declaration const & d) {
-                if (d.is_theorem()) deps.push_back(d.get_value_task());
-            });
+            for (auto & mdf : res->m_loaded_module->m_modifications)
+                mdf->get_task_dependencies(deps);
             return deps;
         } else {
             return {m_mod->m_result};
@@ -132,15 +146,13 @@ public:
         if (m_mod->m_source != module_src::LEAN)
             throw exception("cannot build olean from olean");
         auto res = m_mod->m_result.get();
-        auto env = *res.m_env;
-
         if (!res.m_ok)
             throw exception("not creating olean file because of errors");
 
         auto olean_fn = olean_of_lean(m_mod->m_mod);
         exclusive_file_lock output_lock(olean_fn);
         std::ofstream out(olean_fn, std::ios_base::binary);
-        export_module(out, env);
+        write_module(*res.m_loaded_module, out);
         return {};
     }
 };
@@ -181,7 +193,8 @@ void module_mgr::build_module(module_id const & id, bool can_use_olean, name_set
 
             std::istringstream in2(obj_code, std::ios_base::binary);
             auto olean_fn = olean_of_lean(id);
-            auto parsed_olean = parse_olean(in2, olean_fn);
+            bool check_hash = false;
+            auto parsed_olean = parse_olean(in2, olean_fn, check_hash);
 
             auto mod = std::make_shared<module_info>();
 
@@ -194,9 +207,8 @@ void module_mgr::build_module(module_id const & id, bool can_use_olean, name_set
                 auto d_id = resolve(id, d);
                 build_module(d_id, true, module_stack);
 
-                mod->m_deps.push_back(std::make_pair(d_id, d));
-
                 auto & d_mod = m_modules[d_id];
+                mod->m_deps.push_back({ d_id, d, d_mod });
                 mod->m_trans_mtime = std::max(mod->m_trans_mtime, d_mod->m_trans_mtime);
             }
 
@@ -204,7 +216,13 @@ void module_mgr::build_module(module_id const & id, bool can_use_olean, name_set
                 return build_module(id, false, orig_module_stack);
 
             module_info::parse_result res;
-            res.m_obj_code = obj_code;
+
+            auto deps = mod->m_deps;
+            res.m_loaded_module = cache_preimported_env(
+                    { id, parsed_olean.first,
+                      parse_olean_modifications(parsed_olean.second, id), {} },
+                    m_initial_env, [=] { return mk_loader(id, deps); });
+
             res.m_ok = true;
             mod->m_result = mk_pure_task_result(res, "Loading " + olean_fn);
 
@@ -239,16 +257,18 @@ void module_mgr::build_module(module_id const & id, bool can_use_olean, name_set
             mod->m_trans_mtime = mod->m_mtime = mtime;
             for (auto & d : imports) {
                 module_id d_id;
+                std::shared_ptr<module_info const> d_mod;
                 try {
                     d_id = resolve(id, d);
                     build_module(d_id, true, module_stack);
-                    mod->m_trans_mtime = std::max(mod->m_trans_mtime, m_modules[d_id]->m_trans_mtime);
+                    d_mod = m_modules[d_id];
+                    mod->m_trans_mtime = std::max(mod->m_trans_mtime, d_mod->m_trans_mtime);
                 } catch (throwable & ex) {
                     message_builder msg(m_initial_env, m_ios, id, pos_info {1, 0}, ERROR);
                     msg.set_exception(ex);
                     msg.report();
                 }
-                mod->m_deps.push_back({ d_id, d });
+                mod->m_deps.push_back({ d_id, d, d_mod });
             }
             if (m_use_snapshots) {
                 mod->m_lean_contents = optional<std::string>(contents);
@@ -256,11 +276,10 @@ void module_mgr::build_module(module_id const & id, bool can_use_olean, name_set
             }
             mod->m_version = m_current_period;
 
-            auto deps = gather_transitive_imports(id, imports);
             mod->m_result = get_global_task_queue()->submit<parse_lean_task>(
                     contents, m_initial_env,
                     snapshots, m_use_snapshots,
-                    deps);
+                    mod->m_deps);
 
             if (m_save_olean)
                 mod->m_olean_task = get_global_task_queue()->submit<olean_compilation_task>(mod);
@@ -328,10 +347,11 @@ module_mgr::get_snapshots_or_unchanged_module(module_id const &id, std::string c
     if (mod->m_source != module_src::LEAN) return false;
 
     for (auto d : mod->m_deps) {
-        if (m_modules[d.first] && m_modules[d.first]->m_version > mod->m_version) {
-            mod->m_still_valid_snapshots.clear();
-            return false;
-        }
+        if (!d.m_mod_info && !m_modules[d.m_id]) continue;
+        if (d.m_mod_info && m_modules[d.m_id] && m_modules[d.m_id] == d.m_mod_info) continue;
+
+        mod->m_still_valid_snapshots.clear();
+        return false;
     }
 
     if (!mod->m_lean_contents) return false;
@@ -366,30 +386,6 @@ std::vector<module_name> module_mgr::get_direct_imports(module_id const & id, st
     parser p(get_initial_env(), m_ios, nullptr, in, id, use_exceptions);
     std::vector<std::pair<module_name, module_id>> deps;
     return p.get_imports();
-}
-
-void module_mgr::gather_transitive_imports(std::vector<std::tuple<module_id, module_name, std::shared_ptr<module_info const>>> & res,
-                                           std::unordered_set<module_id> & visited,
-                                           module_id const & id,
-                                           module_name const & import) {
-    try {
-        auto import_id = resolve(id, import);
-        if (!m_modules[import_id]) return;
-        res.push_back(std::make_tuple(id, import, m_modules[import_id]));
-        if (!visited.count(import_id)) {
-            visited.insert(import_id);
-            for (auto & d : m_modules[import_id]->m_deps)
-                gather_transitive_imports(res, visited, import_id, d.second);
-        }
-    } catch (file_not_found_exception & ex) {}
-}
-
-std::vector<std::tuple<module_id, module_name, std::shared_ptr<module_info const>>> module_mgr::gather_transitive_imports(
-        module_id const & id, std::vector<module_name> const & imports) {
-    std::unordered_set<module_id> visited;
-    std::vector<std::tuple<module_id, module_name, std::shared_ptr<module_info const>>> res;
-    for (auto & i : imports) gather_transitive_imports(res, visited, id, i);
-    return res;
 }
 
 std::tuple<std::string, module_src, time_t> fs_module_vfs::load_module(module_id const & id, bool can_use_olean) {
