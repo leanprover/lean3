@@ -225,7 +225,6 @@ def band (l : list bool) : bool := all l id
 
 def zip_with (f : α → β → γ) : list α → list β → list γ
 | (x::xs) (y::ys) := f x y :: zip_with xs ys
-  let (xs, ys) := unzip rest
 | _       _       := []
 
 def zip : list α → list β → list (prod α β) :=
