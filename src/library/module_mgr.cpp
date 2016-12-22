@@ -261,19 +261,17 @@ void module_mgr::build_module(module_id const & id, bool can_use_olean, name_set
             mod->m_source = module_src::LEAN;
             mod->m_trans_mtime = mod->m_mtime = mtime;
             for (auto & d : imports) {
-                module_id d_id;
-                std::shared_ptr<module_info const> d_mod;
                 try {
-                    d_id = resolve(id, d);
+                    module_id d_id = resolve(id, d);
                     build_module(d_id, true, module_stack);
-                    d_mod = m_modules[d_id];
+                    auto d_mod = m_modules[d_id];
                     mod->m_trans_mtime = std::max(mod->m_trans_mtime, d_mod->m_trans_mtime);
+                    mod->m_deps.push_back({ d_id, d, d_mod });
                 } catch (throwable & ex) {
                     message_builder msg(m_initial_env, m_ios, id, pos_info {1, 0}, ERROR);
                     msg.set_exception(ex);
                     msg.report();
                 }
-                mod->m_deps.push_back({ d_id, d, d_mod });
             }
             if (m_use_snapshots) {
                 mod->m_lean_contents = optional<std::string>(contents);
