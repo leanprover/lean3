@@ -700,7 +700,7 @@ int main(int argc, char ** argv) {
         }
 
         if (shared_library && !mods.empty()) {
-            auto final_env = *mods.front().second->m_result.get().m_env;
+            auto final_env = mods.front().second->get_produced_env();
             auto final_opts = mods.front().second->m_result.get().m_opts;
             type_context tc(final_env, final_opts);
             lean::scope_trace_env scope2(final_env, final_opts, tc);

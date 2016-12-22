@@ -43,7 +43,7 @@ Author: Jared Roesch and Leonardo de Moura
 #include "util/path_var.h"
 // #include "util/executable.h"
 
-static std::string * g_lean_install_path = nullptr;
+static lean::path * g_lean_install_path = nullptr;
 
 namespace lean {
 
@@ -341,7 +341,7 @@ void decls_to_native_compile(environment const & env, buffer<declaration> & decl
 void native_compile_package(environment const & env, path root) {
     buffer<extern_fn> extern_fns;
     buffer<declaration> decls;
-    buffer<procedure> all_procs; 
+    buffer<procedure> all_procs;
 
     decls_to_native_compile(env, decls);
 
@@ -401,57 +401,6 @@ void native_compile_binary(environment const & env, declaration const & d) {
     lean_assert(used_names.stack_is_empty());
 
     native_compile(env, extern_fns, all_procs, native_compiler_mode::AOT);
-}
-
-// +void decls_to_native_compile(environment const & env, buffer<declaration> & decls) {
-//  +    // module_ext const & ext = get_extension(env);
-//  +    //
-//  +    // // Collect all the declarations that should be compiled from this
-//  +    // // module.
-//  +    // for (auto decl_name : ext.m_module_decls) {
-//  +    //     auto decl = env.get(decl_name);
-//  +    //     if (is_noncomputable(env, decl_name) ||
-//  +    //         !decl.is_definition() ||
-//  +    //         is_vm_builtin_function(decl_name)) {
-//  +    //             continue;
-//  +    //     } else {
-//  +    //         std::cout << decl.get_name() << std::endl;
-//  +    //         decls.push_back(decl);
-//  +    //     }
-//  +    // }
-//  +}
-
-void native_compile_module(environment const & env) {
-    buffer<declaration> decls;
-    // TODO(Jared): bring this code back
-    // decls_to_native_compile(env, decls);
-    native_compile_module(env, decls);
-}
-
-struct native_module_path_modification : public modification {
-    LEAN_MODIFICATION("native_module_path")
-
-    name m_native_module_path;
-
-    native_module_path_modification() {}
-    native_module_path_modification(name const & fn) : m_native_module_path(fn) {}
-
-    void perform(environment &) const override {
-        // TODO(gabriel,jared): I have no idea what this is supposed to do.
-        // ???
-    }
-
-    void serialize(serializer & s) const override {
-        s << m_native_module_path;
-    }
-
-    static std::shared_ptr<modification const> deserialize(deserializer & d) {
-        return std::make_shared<native_module_path_modification>(read_name(d));
-    }
-};
-
-environment set_native_module_path(environment & env, name const & n) {
-    return module::add(env, std::make_shared<native_module_path_modification>(n));
 }
 
 void initialize_native_compiler() {
