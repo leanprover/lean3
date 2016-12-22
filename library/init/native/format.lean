@@ -21,8 +21,15 @@ format_concat
 
 namespace format_cpp
 
+meta def replace (c : char) (replacement : string) : string -> string
+| [] := []
+| (s :: ss) := 
+  if c = s
+  then replacement ++ replace ss
+  else c :: replace ss
+
 meta def mangle_name (n : name) : format :=
-    to_fmt $ name.to_string_with_sep "_" n
+  to_fmt $ replace #"c" "_$single_quote$_" $ name.to_string_with_sep "_" n
 
 private meta def mk_constructor_args : list name → list format
 | [] := []

@@ -26,7 +26,7 @@ struct extern_fn {
 
 optional<extern_fn> get_builtin(name const & n);
 
-enum native_compiler_mode { JIT, AOT };
+enum native_compiler_mode { Module, Executable };
 void native_compile_binary(environment const & env, declaration const & d);
 void native_compile_package(environment const & env, path root);
 

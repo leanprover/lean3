@@ -12,11 +12,16 @@ inductive backend
 | CPP
 | JS
 
+inductive compilation_mode 
+| module
+| executable
+
 -- eventually expose all the options here
 -- if you change this you change the corresponding
 -- code in library/native_compiler/native_compiler.cpp
 structure config :=
 (debug : bool)
+  (mode : compilation_mode)
   (compiler_backend : option backend)
 
 end native

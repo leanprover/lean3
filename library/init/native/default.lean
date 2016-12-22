@@ -22,10 +22,10 @@ import init.native.util
 import init.native.config
 import init.native.result
 import init.native.attributes
-import init.debugger
-import init.debugger.cli
 
-set_option debugger true
+-- import init.debugger
+-- import init.debugger.cli
+-- set_option debugger true
 
 namespace native
 
@@ -106,15 +106,14 @@ def label {A : Type} (xs : list A) : list (nat × A) :=
 open tactic
 
 -- ask about this one
-
 -- lemma label_size_eq :
---    forall A (xs : list A),
---    list.length (label xs) = list.length xs :=
--- begin
---   intros,
---   induction xs,
---   unfold label,
--- end
+--     forall A (xs : list A),
+--     list.length (label xs) = list.length xs :=
+--  begin
+--    intros,
+--    induction xs,
+--    unfold label,
+--  end
 
 -- HELPERS --
 meta def assert_name : ir.expr → ir_compiler name
@@ -546,7 +545,8 @@ meta def apply_pre_ir_passes
   (arity : arity_map) : list procedure :=
   run_passes conf arity [anf, cf] procs
 
-@[breakpoint] meta def driver
+-- @[breakpoint]
+meta def driver
   (externs : list extern_fn)
   (procs : list procedure) : ir_compiler (list ir.item × list error) := do
   trace_ir "driver",
@@ -603,7 +603,7 @@ meta def compile'
       else (format_error (error.many errs))
     end
 
-@[breakpoint] meta def compile
+meta def compile
   (conf : config)
   (extern_fns : list extern_fn)
   (procs : list procedure) : tactic format := do

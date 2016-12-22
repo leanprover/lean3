@@ -116,7 +116,7 @@ cpp_compiler compiler_with_native_config(native_compiler_mode mode) {
     auto conf = native::get_config();
     cpp_compiler gpp(conf.m_native_cc);
 
-    if (mode == native_compiler_mode::AOT) {
+    if (mode == native_compiler_mode::Executable) {
         gpp = mk_executable_compiler(conf.m_native_cc);
         // The executable has two linkage strategies unlike the module compiler
         // we want to sometime use static linking, and sometimes dynamic.
@@ -162,17 +162,26 @@ void add_shared_dependencies(cpp_compiler & compiler) {
 }
 
 /* This function constructs a config value located in library/native/config.lean */
-vm_obj mk_lean_native_config() {
+vm_obj mk_lean_native_config(native_compiler_mode mode) {
     auto native_conf = native::get_config();
 
-    lean::vm_obj dump_passes;
+    vm_obj dump_passes;
     if (native_conf.m_native_dump == std::string("")) {
         dump_passes = mk_vm_simple(0);
     } else {
         dump_passes = mk_vm_simple(1);
     }
 
-    return mk_vm_constructor(0, dump_passes, mk_vm_simple(0));
+    vm_obj compilation_mode;
+    if (mode == native_compiler_mode::Module) {
+        compilation_mode = mk_vm_simple(0);
+    } else if (mode == native_compiler_mode::Executable) {
+        compilation_mode = mk_vm_simple(1);
+    } else {
+        lean_unreachable();
+    }
+
+    return mk_vm_constructor(0, dump_passes, compilation_mode, mk_vm_simple(0));
 }
 
 lean::vm_obj to_lean_procs(buffer<procedure> & procs) {
@@ -203,11 +212,11 @@ lean::vm_obj to_lean_extern_fns(buffer<extern_fn> & extern_fns) {
 format invoke_native_compiler(
     environment const & env,
     buffer<extern_fn> & extern_fns,
-    buffer<procedure> & procs) {
-  // auto env = env_;
+    buffer<procedure> & procs,
+    native_compiler_mode mode) {
     auto list_of_procs = to_lean_procs(procs);
     auto list_of_extern_fns = to_lean_extern_fns(extern_fns);
-    auto conf_obj = mk_lean_native_config();
+    auto conf_obj = mk_lean_native_config(mode);
 
     options opts = get_global_ios().get_options();
     // env = vm_monitor_register(env, {"debugger", "monitor"});
@@ -215,16 +224,18 @@ format invoke_native_compiler(
     vm_state S(env, opts);
     scope_vm_state scoped(S);
 
-    // We want the outer most layer of the compiler to be able to
-    // run in the tactic monad, the majority of it can be pure,
-    // and verifiable.
+    // We want the outer most layer of the compiler to
+    // run in the tactic monad so it has access to prover APIs
+    // exposed by the tactic monad. Ideally a majority of the compiler
+    // will be pure Lean and thus verifiable.
     local_context lctx;
-
     tactic_state s = mk_tactic_state_for(env, opts, lctx, mk_constant("true"));
 
     auto compiler_name = name({"native", "compile"});
     auto cc = mk_native_closure(env, compiler_name, {});
 
+    // We can now just use the VM to evaluate the native compiler, this should
+    // handle the case where `cc` is either bytecode or native code.
     vm_obj tactic_obj = S.invoke(
         cc,
         conf_obj,
@@ -243,6 +254,8 @@ format invoke_native_compiler(
     }
 }
 
+// Returns the path at which we will generate code, if
+// unspecified by the user it is randomly generated.
 std::string get_code_path() {
     std::string store_code = native::get_config().m_native_store_code;
     if (store_code.size() > 0) {
@@ -259,7 +272,7 @@ void native_compile(environment const & env,
     auto output_path = get_code_path();
     std::fstream out(output_path, std::ios_base::out);
 
-    auto fmt = invoke_native_compiler(env, extern_fns, procs);
+    auto fmt = invoke_native_compiler(env, extern_fns, procs, mode);
     out << fmt << "\n\n";
 
     // For now just close this, then exit.
@@ -328,6 +341,16 @@ void populate_extern_fns(
     });
 }
 
+// This function returns the set of declarations eligble for native compilation.
+//
+// This function has some assumptions baked in. Our current model of module based
+// native compilation is to assume any declarations in the current environment
+// which *are* currently represented by bytecode are eligible for compilation.
+//
+// This means in order to perserve seperate compilation of packages you must
+// generate shared libraries from the deepest module outwards.
+//
+// We may need to revist this strategy in the future.
 void decls_to_native_compile(environment const & env, buffer<declaration> & decls) {
     // vm_state & state = get_vm_state();
     env.for_each_declaration([&] (declaration const & d) {
@@ -352,7 +375,7 @@ void native_compile_package(environment const & env, path root) {
         all_procs.append(procs);
     }
 
-    native_compile(env, extern_fns, all_procs, native_compiler_mode::JIT);
+    native_compile(env, extern_fns, all_procs, native_compiler_mode::Module);
 }
 
 void native_compile_binary(environment const & env, declaration const & d) {
@@ -397,10 +420,10 @@ void native_compile_binary(environment const & env, declaration const & d) {
 
     populate_extern_fns(env, used_names, extern_fns, false);
 
-    // Finally we assert that there are no more unprocessed declarations.
+    // Finally we assert that there are no unprocessed declarations.
     lean_assert(used_names.stack_is_empty());
 
-    native_compile(env, extern_fns, all_procs, native_compiler_mode::AOT);
+    native_compile(env, extern_fns, all_procs, native_compiler_mode::Executable);
 }
 
 void initialize_native_compiler() {
