@@ -271,6 +271,7 @@ std::string get_code_path() {
 environment load_native_compiler(environment const & env) {
     std::vector<module_name> imports;
     imports.push_back({{"tools", "native"}, optional<unsigned>()});
+    std::cout << "trying to import tools.native" << std::endl;
     return import_modules(env, "", imports, mk_olean_loader());
 }
 
@@ -280,6 +281,7 @@ void native_compile(environment const & env_without,
                     native_compiler_mode mode) {
     // Ensure we have loaded tools.native.
     auto env = load_native_compiler(env_without);
+    std::cout << "import succeded" << std::endl;
     auto output_path = get_code_path();
     std::fstream out(output_path, std::ios_base::out);
 
@@ -366,8 +368,9 @@ void populate_extern_fns(
 // We may need to revist this strategy in the future.
 void decls_to_native_compile(environment const & env, buffer<declaration> & decls) {
     env.for_each_declaration([&] (declaration const & d) {
+        auto decl_name = d.get_name();
         auto vdecl = get_vm_decl(env, d.get_name());
-        if (vdecl && vdecl->is_bytecode()) {
+        if (is_prefix_of("list", decl_name) && vdecl && vdecl->is_bytecode()) {
             decls.push_back(d);
         }
     });

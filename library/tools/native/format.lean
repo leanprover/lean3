@@ -204,12 +204,13 @@ meta def definitions (defs : list ir.defn) : format :=
   format_lines $ list.map defn defs
 
 meta def program (items : list ir.item) : format :=
+  timeit "format.program" (fun u,
   let (defs, decls) := split_items items in
   format_lines [
     headers,
     defn_prototypes defs,
     declarations decls,
     definitions defs
-  ]
+  ])
 
 end format_cpp

@@ -62,7 +62,6 @@ private meta def take_arguments' : expr → list name → (list name × expr)
 | (expr.lam n _ _ body) ns := take_arguments' body (n :: ns)
 | e' ns := (ns, e')
 
-
 meta def fresh_name : ir_compiler name := do
   (ctxt, conf, map, counter) ← lift state.read,
   let fresh := name.mk_numeral (unsigned.of_nat counter) `native._ir_compiler_
