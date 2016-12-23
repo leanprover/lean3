@@ -1,5 +1,3 @@
-prelude
-
 import init.meta.tactic
 import init.meta.constructor_tactic
 import init.meta.attribute

@@ -3,15 +3,14 @@ Copyright (c) 2016 Jared Roesch. All rights reserved.
 Released under Apache 2.0 license as described in the file LICENSE.
 Authors: Jared Roesch
 -/
-prelude
 
 import init.meta.expr
 import init.meta.format
 
-import init.native.internal
-import init.native.procedure
-import init.native.config
-import init.native.ir.compiler
+import tools.native.internal
+import tools.native.procedure
+import tools.native.config
+import tools.native.ir.compiler
 
 namespace native
 

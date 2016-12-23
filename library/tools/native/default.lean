@@ -3,7 +3,6 @@ Copyright (c) 2016 Jared Roesch. All rights reserved.
 Released under Apache 2.0 license as described in the file LICENSE.
 Authors: Jared Roesch
 -/
-prelude
 
 import init.meta.format
 import init.meta.expr
@@ -11,17 +10,17 @@ import init.category.state
 import init.data.string
 import init.data.list.instances
 
-import init.native.ir
-import init.native.ir.compiler
-import init.native.format
-import init.native.internal
-import init.native.anf
-import init.native.cf
-import init.native.pass
-import init.native.util
-import init.native.config
-import init.native.result
-import init.native.attributes
+import tools.native.ir
+import tools.native.ir.compiler
+import tools.native.format
+import tools.native.internal
+import tools.native.anf
+import tools.native.cf
+import tools.native.pass
+import tools.native.util
+import tools.native.config
+import tools.native.result
+import tools.native.attributes
 
 -- import init.debugger
 -- import init.debugger.cli
@@ -170,7 +169,7 @@ meta def is_return (n : name) : bool :=
 `native_compiler.return = n
 
 meta def compile_call (head : name) (arity : nat) (args : list ir.expr) : ir_compiler ir.stmt := do
-  trace_ir $ "compile_call: " ++ to_string head,
+  -- trace_ir $ "compile_call: " ++ (to_string head),
   if list.length args = arity
   then ir.stmt.e <$> mk_ir_call head args
   else if list.length args < arity
@@ -346,8 +345,8 @@ meta def compile_nat_cases_on_to_ir_expr
   | (h :: cs) := do
     ir_scrut ← action h >>= assert_expr,
     (zero_case, succ_case) ← assert_two_cases cs,
-    trace_ir (to_string zero_case),
-    trace_ir (to_string succ_case),
+    -- trace_ir (to_string zero_case),
+    -- trace_ir (to_string succ_case),
     bind_value ir_scrut (fun scrut, do
       zc ← action zero_case,
       sc ← compile_succ_case action scrut succ_case,
@@ -359,7 +358,7 @@ meta def compile_expr_app_to_ir_stmt
   (head : expr)
   (args : list expr)
   (action : expr → ir_compiler ir.stmt) : ir_compiler ir.stmt := do
-    trace_ir (to_string head  ++ to_string args),
+    -- trace_ir (to_string head  ++ to_string args),
     if expr.is_constant head = bool.tt
     then (if is_return (expr.const_name head)
     then do
@@ -470,8 +469,8 @@ meta def has_ir_refinement (n : name) : ir_compiler (option ir.item) := do
   ctxt <- get_context,
   pure $ ir.lookup_item n ctxt
 
-meta def compile_defn (decl_name : name) (e : expr) : ir_compiler ir.defn := do
-  trace_ir (to_string decl_name),
+meta def compile_defn (decl_name : name) (e : expr) : ir_compiler ir.defn :=
+  trace ("compiling: " ++ to_string decl_name) (fun u, do
   refinement <- has_ir_refinement decl_name,
   match refinement with
   | some item :=
@@ -482,7 +481,7 @@ meta def compile_defn (decl_name : name) (e : expr) : ir_compiler ir.defn := do
   | none :=
     let arity := native.get_arity e in do (args, body) ← take_arguments e,
     compile_defn_to_ir (replace_main decl_name) args body
-  end
+  end)
 
 meta def compile_defns : list procedure → list (ir_compiler ir.item) :=
   fun ps, list.map (fun p, ir.item.defn <$> compile_defn (prod.fst p) (prod.snd p)) ps
@@ -545,17 +544,19 @@ meta def apply_pre_ir_passes
   (arity : arity_map) : list procedure :=
   run_passes conf arity [anf, cf] procs
 
--- @[breakpoint]
 meta def driver
   (externs : list extern_fn)
   (procs : list procedure) : ir_compiler (list ir.item × list error) := do
-  trace_ir "driver",
+  conf <- configuration,
   map <- arities,
   procs' ← apply_pre_ir_passes procs <$> configuration <*> pure map,
   (defns, errs) ← sequence_err (compile_defns procs'),
   (decls, errs) ← sequence_err (compile_decls externs),
-  main ← emit_main procs',
-  return (ir.item.defn main :: defns ++ decls, errs)
+  if is_executable conf
+  then do
+    main ← emit_main procs',
+    return (ir.item.defn main :: defns ++ decls, errs)
+  else return (defns ++ decls, errs)
 
 meta def make_list (type : expr) : list expr → tactic expr
 | [] := mk_mapp `list.nil [some type]
@@ -564,7 +565,7 @@ meta def make_list (type : expr) : list expr → tactic expr
   mk_mapp `list.cons [some type, some e, some tail]
 
 meta def get_attribute_body (attr : name) (type : expr) : tactic expr := do
-  tactic.trace attr,
+  -- tactic.trace attr,
   decl <- get_decl attr,
   -- add type checking in here ...
   match decl with
@@ -598,15 +599,16 @@ meta def compile'
     match (run_ir action (ctxt, conf, arity, 0)) with
     | result.err e := error.to_string e
     | result.ok (items, errs) :=
-      if list.length errs = 0
+      trace "formatting" (fun u, if list.length errs = 0
       then (format_cpp.program items)
-      else (format_error (error.many errs))
+      else (format_error (error.many errs)))
     end
 
 meta def compile
   (conf : config)
   (extern_fns : list extern_fn)
   (procs : list procedure) : tactic format := do
+    tactic.trace "starting to execute the Lean compiler",
     decls_list_expr <- get_ir_decls,
     defns_list_expr <- get_ir_defns,
     decls <- eval_expr (list ir.decl) decls_list_expr,

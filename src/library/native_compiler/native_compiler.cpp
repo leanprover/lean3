@@ -213,7 +213,9 @@ format invoke_native_compiler(
     environment const & env,
     buffer<extern_fn> & extern_fns,
     buffer<procedure> & procs,
-    native_compiler_mode mode) {
+    native_compiler_mode mode)
+{
+    std::cout << "at the top of the native compiler" << std::endl;
     auto list_of_procs = to_lean_procs(procs);
     auto list_of_extern_fns = to_lean_extern_fns(extern_fns);
     auto conf_obj = mk_lean_native_config(mode);
@@ -234,6 +236,7 @@ format invoke_native_compiler(
     auto compiler_name = name({"native", "compile"});
     auto cc = mk_native_closure(env, compiler_name, {});
 
+    std::cout << "calling the native compiler" << std::endl;
     // We can now just use the VM to evaluate the native compiler, this should
     // handle the case where `cc` is either bytecode or native code.
     vm_obj tactic_obj = S.invoke(
@@ -265,15 +268,25 @@ std::string get_code_path() {
     }
 }
 
-void native_compile(environment const & env,
+environment load_native_compiler(environment const & env) {
+    std::vector<module_name> imports;
+    imports.push_back({{"tools", "native"}, optional<unsigned>()});
+    return import_modules(env, "", imports, mk_olean_loader());
+}
+
+void native_compile(environment const & env_without,
                     buffer<extern_fn> & extern_fns,
                     buffer<procedure> & procs,
                     native_compiler_mode mode) {
+    // Ensure we have loaded tools.native.
+    auto env = load_native_compiler(env_without);
     auto output_path = get_code_path();
     std::fstream out(output_path, std::ios_base::out);
 
     auto fmt = invoke_native_compiler(env, extern_fns, procs, mode);
+    std::cout << "about to print the output" << std::endl;
     out << fmt << "\n\n";
+    std::cout << "done with output" << std::endl;
 
     // For now just close this, then exit.
     out.close();
@@ -352,7 +365,6 @@ void populate_extern_fns(
 //
 // We may need to revist this strategy in the future.
 void decls_to_native_compile(environment const & env, buffer<declaration> & decls) {
-    // vm_state & state = get_vm_state();
     env.for_each_declaration([&] (declaration const & d) {
         auto vdecl = get_vm_decl(env, d.get_name());
         if (vdecl && vdecl->is_bytecode()) {
@@ -369,7 +381,7 @@ void native_compile_package(environment const & env, path root) {
     decls_to_native_compile(env, decls);
 
     for (auto decl : decls) {
-        std::cout << decl.get_name() << std::endl;
+        // std::cout << decl.get_name() << std::endl;
         buffer<procedure> procs;
         native_preprocess(env, decl, procs);
         all_procs.append(procs);

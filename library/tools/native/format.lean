@@ -3,13 +3,12 @@ Copyright (c) 2016 Jared Roesch. All rights reserved.
 Released under Apache 2.0 license as described in the file LICENSE.
 Authors: Jared Roesch
 -/
-prelude
 
 import init.meta.name
 import init.meta.format
 import init.function
 
-import init.native.ir
+import tools.native.ir
 
 meta def format_concat : list format → format
 | [] := format.nil
@@ -23,7 +22,7 @@ namespace format_cpp
 
 meta def replace (c : char) (replacement : string) : string -> string
 | [] := []
-| (s :: ss) := 
+| (s :: ss) :=
   if c = s
   then replacement ++ replace ss
   else c :: replace ss

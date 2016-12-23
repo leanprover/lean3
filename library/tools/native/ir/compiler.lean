@@ -11,10 +11,10 @@ import init.category.state
 import init.data.string
 import init.data.list.instances
 
-import init.native.util
-import init.native.config
-import init.native.result
-import init.native.ir.context
+import tools.native.util
+import tools.native.config
+import tools.native.result
+import tools.native.ir.context
 
 namespace native
 

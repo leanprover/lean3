@@ -3,20 +3,20 @@ Copyright (c) 2016 Jared Roesch. All rights reserved.
 Released under Apache 2.0 license as described in the file LICENSE.
 Authors: Jared Roesch
 -/
-prelude
+
 import init.meta.format
 import init.meta.expr
 import init.data.string
 import init.category.state
 
-import init.native.ir
-import init.native.format
-import init.native.builtin
-import init.native.util
-import init.native.pass
-import init.native.procedure
-import init.native.internal
-import init.native.config
+import tools.native.ir
+import tools.native.format
+import tools.native.builtin
+import tools.native.util
+import tools.native.pass
+import tools.native.procedure
+import tools.native.internal
+import tools.native.config
 
 open native
 

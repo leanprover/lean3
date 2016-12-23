@@ -3,15 +3,15 @@ Copyright (c) 2016 Jared Roesch. All rights reserved.
 Released under Apache 2.0 license as described in the file LICENSE.
 Authors: Jared Roesch
 -/
-prelude
+
 import init.meta.format
 import init.meta.expr
 import init.data.string
 import init.category.state
 
-import init.native.result
-import init.native.internal
-import init.native.builtin
+import tools.native.result
+import tools.native.internal
+import tools.native.builtin
 
 namespace native
 
