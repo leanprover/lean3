@@ -754,6 +754,53 @@ public:
         level lvl_2  = get_level(B);
         return ::lean::mk_app({mk_constant(get_congr_arg_name(), {lvl_1, lvl_2}), A, B, lhs, rhs, f, H});
     }
+
+    expr mk_congr_fun(expr const & H, expr const & a) {
+        expr eq = m_ctx.relaxed_whnf(m_ctx.infer(H));
+        expr pi, lhs, rhs;
+        if (!is_eq(eq, pi, lhs, rhs)) {
+            lean_app_builder_trace(tout() << "failed to build congr_fun, equality expected:\n" << eq << "\n";);
+            throw app_builder_exception();
+        }
+        pi = m_ctx.relaxed_whnf(pi);
+        if (!is_pi(pi)) {
+            lean_app_builder_trace(tout() << "failed to build congr_fun, function expected:\n" << pi << "\n";);
+            throw app_builder_exception();
+        }
+        expr A = binding_domain(pi);
+        expr B = mk_lambda(binding_name(pi), binding_domain(pi), binding_body(pi), binding_info(pi));
+
+        level lvl_1  = get_level(A);
+        level lvl_2  = get_level(::lean::mk_app(B, a));
+        expr result = ::lean::mk_app({mk_constant(get_congr_fun_name(), {lvl_1, lvl_2}), A, B, lhs, rhs, H, a});
+        return result;
+    }
+
+    expr mk_congr(expr const & H1, expr const & H2) {
+        expr eq1 = m_ctx.relaxed_whnf(m_ctx.infer(H1));
+        expr eq2 = m_ctx.relaxed_whnf(m_ctx.infer(H2));
+        expr pi, lhs1, rhs1;
+        if (!is_eq(eq1, pi, lhs1, rhs1)) {
+            lean_app_builder_trace(tout() << "failed to build congr, equality expected:\n" << eq1 << "\n";);
+            throw app_builder_exception();
+        }
+        expr lhs2, rhs2;
+        if (!is_eq(eq2, lhs2, rhs2)) {
+            lean_app_builder_trace(tout() << "failed to build congr, equality expected:\n" << eq2 << "\n";);
+            throw app_builder_exception();
+        }
+        pi = m_ctx.relaxed_whnf(pi);
+        if (!is_arrow(pi)) {
+            lean_app_builder_trace(tout() << "failed to build congr, non-dependent function expected:\n" << pi << "\n";);
+            throw app_builder_exception();
+        }
+        expr A = binding_domain(pi);
+        expr B = binding_body(pi);
+        level lvl_1  = get_level(A);
+        level lvl_2  = get_level(B);
+        expr result = ::lean::mk_app({mk_constant(get_congr_name(), {lvl_1, lvl_2}), A, B, lhs1, rhs1, lhs2, rhs2, H1, H2});
+        return result;
+    }
 };
 
 level get_level(type_context & ctx, expr const & A) {
@@ -857,13 +904,11 @@ expr mk_congr_arg(type_context & ctx, expr const & f, expr const & H) {
 }
 
 expr mk_congr_fun(type_context & ctx, expr const & H, expr const & a) {
-    // TODO(Leo): efficient version
-    return mk_app(ctx, get_congr_fun_name(), {H, a});
+    return app_builder(ctx).mk_congr_fun(H, a);
 }
 
 expr mk_congr(type_context & ctx, expr const & H1, expr const & H2) {
-    // TODO(Leo): efficient version
-    return mk_app(ctx, get_congr_name(), {H1, H2});
+    return app_builder(ctx).mk_congr(H1, H2);
 }
 
 expr mk_funext(type_context & ctx, expr const & lam_pf) {
