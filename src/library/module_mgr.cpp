@@ -161,6 +161,9 @@ public:
         if (!res.m_ok)
             throw exception("not creating olean file because of errors");
 
+        if (!res.m_ok)
+            throw exception("not creating olean file because of errors");
+
         auto olean_fn = olean_of_lean(m_mod->m_mod);
         exclusive_file_lock output_lock(olean_fn);
         std::ofstream out(olean_fn, std::ios_base::binary);
