@@ -76,6 +76,8 @@ public:
     std::tuple<std::string, module_src, time_t> load_module(module_id const & id, bool can_use_olean) override;
 };
 
+module_loader mk_loader(module_id const & cur_mod, std::vector<module_info::dependency> const & deps);
+
 class module_mgr {
     bool m_server_mode = false;
     bool m_save_olean = false;

@@ -20,15 +20,17 @@ format_concat
 
 namespace format_cpp
 
-meta def replace (c : char) (replacement : string) : string -> string
+def one_of (c : char) (s : string) : bool := bool.ff
+
+def replace (c : char) (replacement : string) : string -> string
 | [] := []
 | (s :: ss) :=
   if c = s
   then replacement ++ replace ss
-  else c :: replace ss
+  else s :: replace ss
 
 meta def mangle_name (n : name) : format :=
-  to_fmt $ replace #"c" "_$single_quote$_" $ name.to_string_with_sep "_" n
+  to_fmt $ replace #"'" "_$single_quote$_" $ name.to_string_with_sep "_" n
 
 private meta def mk_constructor_args : list name → list format
 | [] := []
@@ -136,7 +138,7 @@ meta def stmt : ir.stmt → format
 | ir.stmt.nop := format.of_string ";"
 | (ir.stmt.ite cond tbranch fbranch) :=
   "if (" ++ mangle_name cond ++ ") " ++
-    block (stmt tbranch) ++
+    block (stmt tbranch) ++ " else " ++
     block (stmt fbranch) ++ format.line
 | (ir.stmt.seq cs) :=
   format_concat (list.map (fun c, stmt c ++ format.line) cs)

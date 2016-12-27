@@ -41,7 +41,7 @@ Author: Jared Roesch and Leonardo de Moura
 #include "util/lean_path.h"
 #include "util/path.h"
 #include "util/path_var.h"
-// #include "util/executable.h"
+#include "library/module_mgr.h"
 
 static lean::path * g_lean_install_path = nullptr;
 
@@ -269,10 +269,14 @@ std::string get_code_path() {
 }
 
 environment load_native_compiler(environment const & env) {
+    std::vector<module_info::dependency> deps;
+    // deps.push_back(module_info::dependency {}
+    auto loader = mk_loader("native_compiler_id", deps);
     std::vector<module_name> imports;
     imports.push_back({{"tools", "native"}, optional<unsigned>()});
     std::cout << "trying to import tools.native" << std::endl;
-    return import_modules(env, "", imports, mk_olean_loader());
+    //return import_modules(env, "", imports, loader);
+    return env;
 }
 
 void native_compile(environment const & env_without,

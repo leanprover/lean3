@@ -537,6 +537,9 @@ meta def emit_main (procs : list (name × expr)) : ir_compiler ir.defn := do
     call_main
 ]))
 
+meta def emit_package_initialize (procs : list (name × expr)) : ir_compiler ir.defn :=
+  ir.defn.mk `initialize [] ir.ty.int <$> (ir.stmt.e <$> panic "initialization started")
+
 meta def apply_pre_ir_passes
   (procs : list procedure)
   (conf : config)
@@ -555,7 +558,9 @@ meta def driver
   then do
     main ← emit_main procs',
     return (ir.item.defn main :: defns ++ decls, errs)
-  else return (defns ++ decls, errs)
+  else do
+    init <- emit_package_initialize procs',
+    return (ir.item.defn init :: defns ++ decls, errs)
 
 meta def make_list (type : expr) : list expr → tactic expr
 | [] := mk_mapp `list.nil [some type]

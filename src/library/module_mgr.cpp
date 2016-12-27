@@ -54,7 +54,7 @@ void module_mgr::mark_out_of_date(module_id const & id) {
     }
 }
 
-static module_loader mk_loader(module_id const & cur_mod, std::vector<module_info::dependency> const & deps) {
+module_loader mk_loader(module_id const & cur_mod, std::vector<module_info::dependency> const & deps) {
     auto deps_per_mod_ptr = std::make_shared<std::unordered_map<module_id, std::vector<module_info::dependency>>>();
     auto & deps_per_mod = *deps_per_mod_ptr;
 
