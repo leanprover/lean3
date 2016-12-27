@@ -59,10 +59,12 @@ private meta def let_bind (n : name) (ty : expr) (e : expr) : anf_monad unit := 
   | (arity, (s :: ss), count) := state.write $ (arity, ((n, ty, e) :: s) :: ss, count)
   end
 
-private meta def mk_let : list binding → expr → expr
-| [] body := body
-| ((n, ty, val) :: es) body :=
-  mk_let es (expr.elet n ty val (expr.abstract body (mk_local n)))
+private meta def mk_let (bindings : list binding) (body : expr): expr :=
+  list.foldr
+    (fun elem rest,
+      expr.elet (prod.fst elem) (prod.fst $ prod.snd elem) (prod.snd $ prod.snd elem) rest)
+    (expr.abstract_locals body (list.map prod.fst bindings))
+    (list.reverse bindings)
 
 private meta def mk_let_in_current_scope (body : expr) : anf_monad expr := do
   (_, scopes, _) ← state.read,

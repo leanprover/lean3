@@ -353,6 +353,10 @@ meta def compile_nat_cases_on_to_ir_expr
     )
   end
 
+-- inductive head_symbol_class
+-- | return
+-- |
+
 meta def compile_expr_app_to_ir_stmt
   (head : expr)
   (args : list expr)
@@ -468,8 +472,7 @@ meta def has_ir_refinement (n : name) : ir_compiler (option ir.item) := do
   ctxt <- get_context,
   pure $ ir.lookup_item n ctxt
 
-meta def compile_defn (decl_name : name) (e : expr) : ir_compiler ir.defn :=
-  trace ("compiling: " ++ to_string decl_name) (fun u, do
+meta def compile_defn (decl_name : name) (e : expr) : ir_compiler ir.defn := do
   refinement <- has_ir_refinement decl_name,
   match refinement with
   | some item :=
@@ -480,7 +483,7 @@ meta def compile_defn (decl_name : name) (e : expr) : ir_compiler ir.defn :=
   | none :=
     let arity := native.get_arity e in do (args, body) ← take_arguments e,
     compile_defn_to_ir (replace_main decl_name) args body
-  end)
+  end
 
 meta def compile_defns : list procedure → list (ir_compiler ir.item) :=
   fun ps, list.map (fun p, ir.item.defn <$> compile_defn (prod.fst p) (prod.snd p)) ps
@@ -552,15 +555,16 @@ meta def driver
   conf <- configuration,
   map <- arities,
   procs' ← apply_pre_ir_passes procs <$> configuration <*> pure map,
-  (defns, errs) ← sequence_err (compile_defns procs'),
-  (decls, errs) ← sequence_err (compile_decls externs),
+  (defns, defn_errs) ← sequence_err (compile_defns procs'),
+  (decls, decl_errs) ← sequence_err (compile_decls externs),
+  trace (to_string $ list.length defns) (fun u,
   if is_executable conf
   then do
     main ← emit_main procs',
-    return (ir.item.defn main :: defns ++ decls, errs)
+    return (ir.item.defn main :: defns ++ decls, defn_errs ++ decl_errs)
   else do
     init <- emit_package_initialize procs',
-    return (ir.item.defn init :: defns ++ decls, errs)
+  return (ir.item.defn init :: defns ++ decls, defn_errs ++ decl_errs))
 
 meta def make_list (type : expr) : list expr → tactic expr
 | [] := mk_mapp `list.nil [some type]
@@ -597,27 +601,30 @@ meta def compile'
   (conf : config)
   (extern_fns : list extern_fn)
   (procs : list procedure)
-  (ctxt : ir.context) : format := do
+  (ctxt : ir.context) : result error format := do
     let arity := mk_arity_map procs in
     let action : ir_compiler _ := driver extern_fns procs in
     match (run_ir action (ctxt, conf, arity, 0)) with
-    | result.err e := error.to_string e
+    | result.err e := result.err e
     | result.ok (items, errs) :=
-      trace "formatting" (fun u, if list.length errs = 0
-      then (format_cpp.program items)
-      else (format_error (error.many errs)))
-    end
+      if list.length errs = 0
+      then pure (format_cpp.program items)
+      else result.err (error.many errs)
+  end
 
 meta def compile
   (conf : config)
   (extern_fns : list extern_fn)
   (procs : list procedure) : tactic format := do
-    tactic.trace "starting to execute the Lean compiler",
+    -- tactic.trace "starting to execute the Lean compiler",
     decls_list_expr <- get_ir_decls,
     defns_list_expr <- get_ir_defns,
     decls <- eval_expr (list ir.decl) decls_list_expr,
     defns <- eval_expr (list ir.defn) defns_list_expr,
     let ctxt := ir.new_context decls defns in
-    pure $ compile' conf extern_fns procs ctxt
+    match compile' conf extern_fns procs ctxt with
+    | result.err e := tactic.fail $ error.to_string e
+    | result.ok format := pure format
+    end
 
 end native

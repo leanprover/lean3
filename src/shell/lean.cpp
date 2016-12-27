@@ -657,11 +657,17 @@ int main(int argc, char ** argv) {
         };
         std::vector<input_mod> mods;
         for (auto & mod : module_args) {
+            std::cout << "module : " << mod << std::endl;
             auto mod_info = mod_mgr.get_module(mod);
             mods.push_back({mod, mod_info});
+        if (compile || shared_library) {
         }
 
-        taskq().wait_for_finish(lt.get_root().wait_for_finish());
+            auto mod_info = mod_mgr.get_module("/Users/jroesch/Git/lean/library/tools/native/default.lean");
+            mods.push_back({mod_info->m_mod, mod_info});
+        }
+
+        tq->join();
 
         for (auto & mod : mods) {
             if (test_suite) {
@@ -682,10 +688,19 @@ int main(int argc, char ** argv) {
                 ok = mod_ok = false;
                 // exception has already been reported
             }
-            if (test_suite) {
+  if (test_suite) {
                 std::ofstream status(mod.m_id + ".status");
                 status << (mod_ok && !get(has_errors(mod.m_mod_info->m_lt)) ? 0 : 1);
             }
+
+        auto native_env = mods.front().second->get_produced_env();
+
+        if (compile || shared_library) {
+            auto mod_info = mods.back().first;
+            auto loader = mk_loader(mod_info->m_mod, mod_info->m_deps);
+            std::vector<module_name> imports;
+            imports.push_back({{"tools", "native"}, optional<unsigned>()});
+            native_env = import_modules(native_env, mod_info->m_mod, imports, loader);
         }
 
         if (compile && !mods.empty()) {

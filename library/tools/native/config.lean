@@ -21,16 +21,16 @@ inductive compilation_mode : Type
 -- code in library/native_compiler/native_compiler.cpp
 structure config :=
 (debug : bool)
-  (compiler_backend : option backend)
   -- this flag is invisble I don't understand why
   (mode : compilation_mode)
+  (compiler_backend : option backend)
 
 def is_executable : config -> bool
-| (| _, _, compilation_mode.executable |) := bool.tt
+| (| _, compilation_mode.executable, _ |) := bool.tt
 | _ := bool.ff
 
 def is_module : config -> bool
-| (| _, _, compilation_mode.module |) := bool.tt
+| (| _, compilation_mode.module, _ |) := bool.tt
 | _ := bool.ff
 
 end native

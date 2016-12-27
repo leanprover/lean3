@@ -47,7 +47,12 @@ meta def inner_loop (conf : config) (arity : arity_map) (p : pass) (es : list pr
   then inner_loop_debug conf arity p es
   else list.map (fun proc, pass.transform p conf arity proc) es
 
+meta def fuse_passes (passes : list pass) : config → arity_map → procedure → procedure :=
+  fun config arity,
+    let transforms := list.map (fun pass, pass.transform pass config arity) passes in
+        list.foldl (fun (f kont : procedure → procedure), fun proc, kont (f proc)) id transforms
+
 meta def run_passes (conf : config) (arity : arity_map) (passes : list pass) (procs : list procedure) : list procedure :=
-  list.foldl (fun pass procs, inner_loop conf arity procs pass) procs passes
+  list.map (fuse_passes passes conf arity) procs
 
 end native

@@ -4,3 +4,6 @@ Released under Apache 2.0 license as described in the file LICENSE.
 Authors: Leonardo de Moura, Jeremy Avigad
 -/
 import system.io
+-- import tools.native
+
+-- set_option native.dump "foo"

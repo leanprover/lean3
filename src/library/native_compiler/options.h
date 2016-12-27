@@ -20,6 +20,7 @@ struct config {
     char const * m_native_cc;
     char const * m_native_binary;
     char const * m_native_store_code;
+    bool         m_native_profile;
 
     config(options const & o);
 
