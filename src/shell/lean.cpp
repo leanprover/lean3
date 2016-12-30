@@ -330,8 +330,7 @@ public:
     }
 };
 
-// Imports the library 
-lean::environment auto_import(
+lean::environment auto_import_tools(
     lean::environment const & env, 
     std::shared_ptr<const lean::module_info> current_mod, 
     std::shared_ptr<const lean::module_info> mod_to_import,
@@ -677,10 +676,8 @@ int main(int argc, char ** argv) {
         };
         std::vector<input_mod> mods;
         for (auto & mod : module_args) {
-            std::cout << "module : " << mod << std::endl;
             auto mod_info = mod_mgr.get_module(mod);
             mods.push_back({mod, mod_info});
-        if (compile || shared_library) {
         }
 
             auto mod_info = mod_mgr.get_module("/Users/jroesch/Git/lean/library/tools/native/default.lean");
@@ -714,11 +711,11 @@ int main(int argc, char ** argv) {
             }
 
         if ((compile || shared_library) && !mods.empty()) {
-            auto mod_to_import = mod_mgr.get_module("/Users/jroesch/Git/lean/library/tools/native/default.lean");
-
             lean::name native_tools = name({"tools", "native"});
-            
-            auto native_env = auto_import(
+
+            auto mod_to_import = mod_mgr.resolve_and_get_module(native_tools);
+
+            auto native_env = auto_import_tools(
                 mods.front().second->get_produced_env(), 
                 mods.front().second, 
                 mod_to_import, 

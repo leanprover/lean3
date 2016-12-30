@@ -38,6 +38,7 @@ struct module_info {
         module_name m_import_name;
         std::shared_ptr<module_info const> m_mod_info;
     };
+    
     std::vector<dependency> m_deps;
 
     optional<std::string> m_lean_contents;
@@ -110,6 +111,7 @@ public:
     void invalidate(module_id const & id);
 
     std::shared_ptr<module_info const> get_module(module_id const &);
+    std::shared_ptr<module_info const> resolve_and_get_module(name const & absolute_module_name);
 
     std::vector<std::shared_ptr<module_info const>> get_all_modules();
 

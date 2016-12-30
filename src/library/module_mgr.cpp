@@ -226,7 +226,11 @@ module_mgr::build_lean(module_id const & id, std::string const & contents, time_
     auto end_pos = find_end_pos(contents);
     scope_log_tree lt2(lt.mk_child({}, {}, { id, {{1, 0}, end_pos} }));
 
+ std::shared_ptr<module_info const> module_mgr::resolve_and_get_module(name const & absolute_module_name) {
+     module_name to_import_mod_name = { absolute_module_name, optional<unsigned>() };
     auto imports = get_direct_imports(id, contents);
+     return get_module(mod);
+ }
 
     auto mod = std::make_shared<module_info>();
     mod->m_lt = logtree();
