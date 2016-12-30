@@ -76,6 +76,7 @@ meta def take_arguments (e : expr) : ir_compiler (list name × expr) :=
 
 meta def mk_error {T} : string → ir_compiler T :=
   fun s, do
+  trace_ir "MAKE ERROR",
   lift_result (native.result.err $ error.string s)
 
 meta def lookup_arity (n : name) : ir_compiler nat := do
@@ -195,7 +196,7 @@ meta def bind_case_fields' (scrut : name) : list (nat × name) → ir.stmt → i
 | [] body := return body
 | ((n, f) :: fs) body := do
   loc ← compile_local f,
-  ir.stmt.letb f (ir.ty.object none) (ir.expr.project scrut n) <$> (bind_case_fields' fs body)
+  ir.stmt.letb loc (ir.ty.object none) (ir.expr.project scrut n) <$> (bind_case_fields' fs body)
 
 meta def bind_case_fields (scrut : name) (fs : list name) (body : ir.stmt) : ir_compiler ir.stmt :=
   bind_case_fields' scrut (label fs) body
@@ -357,40 +358,52 @@ meta def compile_nat_cases_on_to_ir_expr
 -- | return
 -- |
 
+meta def compile_const_head_expr_app_to_ir_stmt
+  (head : expr)
+  (args : list expr)
+  (action : expr → ir_compiler ir.stmt) : ir_compiler ir.stmt :=
+  match app_kind head with
+  | application_kind.return := do
+    rexp ← one_or_error args,
+    ir.stmt.return <$> ((action rexp) >>= assert_expr)
+  | application_kind.nat_cases :=
+    compile_nat_cases_on_to_ir_expr (expr.const_name head) args action
+  | application_kind.projection n := do
+      obj <- one_or_error args,
+      ir_obj <- action obj,
+      e <- assert_expr ir_obj,
+      nm <- assert_name e,
+      pure $ ir.stmt.e $ ir.expr.project nm n
+  | application_kind.constructor n := do
+    args' ← monad.sequence $ list.map (fun x, action x >>= assert_expr) args,
+    ir.stmt.e <$> mk_object (unsigned.of_nat n) args'
+  | application_kind.cases :=
+    compile_cases_on_to_ir_stmt (expr.const_name head) args action
+  | _ :=
+    match get_builtin (expr.const_name head) with
+    | option.some builtin :=
+      match builtin with
+      | builtin.vm n := mk_error "vm"
+      | builtin.cfun n arity := do
+        args' ← monad.sequence $ list.map (fun x, action x >>= assert_expr) args,
+        compile_call n arity args'
+      | builtin.cases n arity :=
+        compile_builtin_cases_on_to_ir_expr (expr.const_name head) args action
+      end
+    | option.none := do
+      args' ← monad.sequence $ list.map (fun x, action x >>= assert_expr) args,
+      arity ← lookup_arity (expr.const_name head),
+      compile_call (expr.const_name head) arity args'
+  end
+end
+
 meta def compile_expr_app_to_ir_stmt
   (head : expr)
   (args : list expr)
   (action : expr → ir_compiler ir.stmt) : ir_compiler ir.stmt := do
-    -- trace_ir (to_string head  ++ to_string args),
+    trace_ir (to_string head  ++ to_string args),
     if expr.is_constant head = bool.tt
-    then (if is_return (expr.const_name head)
-    then do
-      rexp ← one_or_error args,
-      ir.stmt.return <$> ((action rexp) >>= assert_expr)
-    else if is_nat_cases_on (expr.const_name head)
-    then compile_nat_cases_on_to_ir_expr (expr.const_name head) args action
-    else match is_internal_cnstr head with
-    | option.some n := do
-      args' ← monad.sequence $ list.map (fun x, action x >>= assert_expr) args,
-      ir.stmt.e <$> mk_object n args'
-    | option.none := match is_internal_cases head with
-    | option.some n := compile_cases_on_to_ir_stmt (expr.const_name head) args action
-    | option.none := match get_builtin (expr.const_name head) with
-      | option.some b :=
-        match b with
-        | builtin.vm n := mk_error "vm"
-        | builtin.cfun n arity := do
-          args' ← monad.sequence $ list.map (fun x, action x >>= assert_expr) args,
-          compile_call n arity args'
-        | builtin.cases n arity :=
-          compile_builtin_cases_on_to_ir_expr (expr.const_name head) args action
-        end
-      | option.none := do
-        args' ← monad.sequence $ list.map (fun x, action x >>= assert_expr) args,
-        arity ← lookup_arity (expr.const_name head),
-        compile_call (expr.const_name head) arity args'
-      end
-    end end)
+    then compile_const_head_expr_app_to_ir_stmt head args action
     else if expr.is_local_constant head
     then do
       args' ← monad.sequence $ list.map (fun x, action x >>= assert_expr) args,
@@ -416,8 +429,10 @@ meta def assign_stmt (n : name) (stmt : ir.stmt) : ir_compiler ir.stmt := do
     st
   ]
 
+-- open application_kk
 meta def compile_expr_to_ir_stmt : expr → ir_compiler ir.stmt
-| (expr.const n ls) :=
+| (expr.const n ls) := do
+  trace_ir ("const: " ++ to_string n),
   match native.is_internal_cnstr (expr.const n ls) with
   | option.none :=
     -- TODO, do I need to case on arity here? I should probably always emit a call
@@ -448,10 +463,11 @@ meta def compile_expr_to_ir_stmt : expr → ir_compiler ir.stmt
   n' ← compile_local n,
   v' ← compile_expr_to_ir_stmt v,
   assign <- assign_stmt n v',
-  body' ← compile_expr_to_ir_stmt (expr.instantiate_vars body [mk_local n]),
+  body' ← compile_expr_to_ir_stmt (expr.instantiate_var body (mk_local n)),
   return $ ir.stmt.seq [assign, body']
 
 meta def compile_defn_to_ir (decl_name : name) (args : list name) (body : expr) : ir_compiler ir.defn := do
+  trace_ir (to_string body),
   body' ← compile_expr_to_ir_stmt body,
   let params := (list.zip args (list.repeat (ir.ty.ref (ir.ty.object none)) (list.length args))) in
   pure (ir.defn.mk decl_name params (ir.ty.object none) body')

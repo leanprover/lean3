@@ -42,6 +42,11 @@ meta def mk_arity_map : list (name × expr) → arity_map
 @[reducible] meta def ir_compiler (A : Type) :=
   resultT (state ir_compiler_state) error A
 
+-- print alternative
+
+-- meta instance : alternative ir_compiler :=
+-- (| _, _ |)
+
 meta def lift {A} (action : state ir_compiler_state A) : ir_compiler A :=
   ⟨fmap (fun (a : A), native.result.ok a) action⟩
 

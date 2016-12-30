@@ -59,12 +59,12 @@ private meta def let_bind (n : name) (ty : expr) (e : expr) : anf_monad unit := 
   | (arity, (s :: ss), count) := state.write $ (arity, ((n, ty, e) :: s) :: ss, count)
   end
 
-private meta def mk_let (bindings : list binding) (body : expr): expr :=
-  list.foldr
-    (fun elem rest,
+private meta def mk_let (bindings : list binding) (body : expr) : expr :=
+  list.foldl
+    (fun rest elem,
       expr.elet (prod.fst elem) (prod.fst $ prod.snd elem) (prod.snd $ prod.snd elem) rest)
-    (expr.abstract_locals body (list.map prod.fst bindings))
-    (list.reverse bindings)
+    (expr.abstract_locals body (list.map prod.fst (list.reverse bindings)))
+    bindings
 
 private meta def mk_let_in_current_scope (body : expr) : anf_monad expr := do
   (_, scopes, _) ← state.read,
@@ -100,8 +100,8 @@ meta def hoist
        if expr.is_local_constant value
        then return (expr.local_uniq_name value)
        else do
-         fresh ← fresh_name,
-         let_bind fresh mk_neutral_expr value,
+        fresh ← fresh_name,
+        let_bind fresh mk_neutral_expr value,
          return fresh),
      kont ns
 
@@ -120,17 +120,22 @@ private meta def anf_call' (head : expr) (args : list expr) (anf : expr → anf_
 private meta def direct_call (head : expr) (args : list expr) (anf : expr → anf_monad expr) : anf_monad expr :=
   hoist anf (fun args', return $ mk_call head (list.map mk_local args')) args
 
+-- private meta def saturated_call (head : expr) (args : list expr) (anf : expr → anf_monad expr) : anf_monad expr :=
+--   if (expr.is_constant head)
+--   then direct_call head args anf
+--   else
+
 private meta def anf_call (head : expr) (args : list expr) (anf : expr → anf_monad expr) : anf_monad expr := do
-  -- trace_anf (to_string head),
+  trace_anf ("anf_call: " ++ to_string head ++ to_string args),
   if expr.is_constant head
   then do
     type <- get_call_type (expr.const_name head) (list.length args),
     match type with
     | call_type.saturated := do
-      -- trace_anf "sat",
+      trace_anf "sat",
       direct_call head args anf
     | call_type.over_sat arity := do
-      -- trace_anf "oversat",
+      trace_anf "oversat",
       let pre_args := list.taken arity args,
           post_args := list.dropn arity args
       in do
@@ -138,7 +143,7 @@ private meta def anf_call (head : expr) (args : list expr) (anf : expr → anf_m
         let_bind sat_call mk_neutral_expr <$> (direct_call head pre_args anf),
         anf_call' (expr.const sat_call []) post_args anf
     | call_type.under_sat := do
-      -- trace_anf "unsat",
+      trace_anf "unsat",
       anf_call' head args anf
     end
   else
@@ -161,18 +166,21 @@ open native.application_kind
 
 private meta def anf' : expr → anf_monad expr
 | (expr.elet n ty val body) := do
+  trace_anf ("elet: " ++ (to_string $ (expr.elet n ty val body))),
   fresh ← fresh_name,
   val' ← anf' val,
   let_bind fresh ty val',
-  anf' (expr.instantiate_vars body [mk_local fresh])
+  anf' (expr.instantiate_var body (mk_local fresh))
 | (expr.app f arg) := do
   let fn   := expr.get_app_fn (expr.app f arg),
   let args := expr.get_app_args (expr.app f arg),
   match app_kind fn with
-  | cases := anf_cases_on fn args anf'
-  | constructor := anf_constructor fn args anf'
-  | other := anf_call fn args anf'
-  end
+   | cases := anf_cases_on fn args anf'
+   | nat_cases := anf_cases_on fn args anf'
+   | constructor _ := anf_constructor fn args anf'
+   | projection _ := anf_constructor fn args anf'
+   | _ := anf_call fn args anf'
+   end
 | e := return e
 
 private meta def init_state : arity_map -> anf_state :=

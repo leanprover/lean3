@@ -61,7 +61,7 @@ format.bracket "{" "}" (format.nest 4 (format.line ++ body) ++ format.line)
 meta def expr' (action : ir.stmt → format) : ir.expr → format
 | (ir.expr.call f xs) := mk_call f xs
 | (ir.expr.mk_object n fs) :=
-  if n = 0
+  if (list.length fs) = 0 /\ n = 0
   -- Over time I should remove these special case functions,
   -- and just use the def language of the IR.
   then to_fmt "lean::mk_vm_simple(0)"
