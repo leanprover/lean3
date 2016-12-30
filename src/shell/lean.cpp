@@ -330,6 +330,26 @@ public:
     }
 };
 
+// Imports the library 
+lean::environment auto_import(
+    lean::environment const & env, 
+    std::shared_ptr<const lean::module_info> current_mod, 
+    std::shared_ptr<const lean::module_info> mod_to_import,
+    lean::name & import_name) 
+{
+    // Copy the set of dependencies and add the module to import to the list.
+    auto deps = current_mod->m_deps;
+    deps.push_back(module_info::dependency { mod_to_import->m_mod, { import_name , optional<unsigned>()}, mod_to_import });
+
+    // Build a loader from the current module.
+    auto loader = mk_loader(current_mod->m_mod, deps);
+    // Finally add the module name we want to import, and then import into the environment, and return it.
+
+    std::vector<module_name> imports;
+    imports.push_back({ import_name, optional<unsigned>()});
+    return import_modules(env, current_mod->m_mod, imports, loader);
+}
+
 int main(int argc, char ** argv) {
 #if defined(LEAN_EMSCRIPTEN)
     EM_ASM(
@@ -693,35 +713,32 @@ int main(int argc, char ** argv) {
                 status << (mod_ok && !get(has_errors(mod.m_mod_info->m_lt)) ? 0 : 1);
             }
 
-        auto native_env = mods.front().second->get_produced_env();
+        if ((compile || shared_library) && !mods.empty()) {
+            auto mod_to_import = mod_mgr.get_module("/Users/jroesch/Git/lean/library/tools/native/default.lean");
 
-        if (compile || shared_library) {
-            auto mod_info = mods.back().first;
-            auto loader = mk_loader(mod_info->m_mod, mod_info->m_deps);
-            std::vector<module_name> imports;
-            imports.push_back({{"tools", "native"}, optional<unsigned>()});
-            native_env = import_modules(native_env, mod_info->m_mod, imports, loader);
-        }
+            lean::name native_tools = name({"tools", "native"});
+            
+            auto native_env = auto_import(
+                mods.front().second->get_produced_env(), 
+                mods.front().second, 
+                mod_to_import, 
+                native_tools);
 
-        if (compile && !mods.empty()) {
             auto final_env = mods.front().m_mod_info->get_produced_env();
             auto final_opts = get(mods.front().m_mod_info->m_result).m_opts;
-            type_context tc(final_env, final_opts);
-            lean::scope_trace_env scope2(final_env, final_opts, tc);
+            type_context tc(native_env, final_opts);
+            lean::scope_trace_env scope2(native_env, final_opts, tc);
             lean::native::scope_config scoped_native_config(
                 final_opts);
-            native_compile_binary(final_env, final_env.get(lean::name("main")));
-        }
 
-        if (shared_library && !mods.empty()) {
-            auto final_env = mods.front().second->get_produced_env();
-            auto final_opts = mods.front().second->m_result.get().m_opts;
-            type_context tc(final_env, final_opts);
-            lean::scope_trace_env scope2(final_env, final_opts, tc);
-            lean::native::scope_config scoped_native_config(
-                final_opts);
-            auto cwd = lean::path("."); // make this work later
-            native_compile_package(final_env, cwd);
+            if (compile) {
+                native_compile_binary(native_env, native_env.get(lean::name("main")));
+            }
+            
+            if (shared_library) {
+                auto cwd = lean::path("."); // make this work later
+                native_compile_package(native_env, cwd);
+            }
         }
 
         if (export_txt && !mods.empty()) {
