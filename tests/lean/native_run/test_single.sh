@@ -8,8 +8,8 @@ LEAN=$1
 
 export LEAN_PATH=../../../library:.
 # this needs to be fixed, not sure what to do
-export LIBRARY=../../../build/release
-export INCLUDE=../../../src
+export LIBRARY=$(../readlinkf.sh "../../../build/release")
+export INCLUDE=$(../readlinkf.sh "../../../src")
 
 if [ $# -ne 3 ]; then
     INTERACTIVE=no
