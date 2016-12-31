@@ -56,7 +56,7 @@ meta def string_lit (s : string) : format :=
   format.bracket "\"" "\"" (to_fmt s)
 
 meta def block (body : format) : format :=
-format.bracket "{" "}" (format.nest 4 (format.line ++ body) ++ format.line)
+  "{" ++ (format.nest 4 (format.line ++ body)) ++ format.line ++ "}"
 
 meta def expr' (action : ir.stmt → format) : ir.expr → format
 | (ir.expr.call f xs) := mk_call f xs
@@ -94,19 +94,24 @@ meta def expr' (action : ir.stmt → format) : ir.expr → format
 meta def default_case (body : format) : format :=
   to_fmt "default:" ++ block body
 
-meta def case (action : ir.stmt → format) : (nat × ir.stmt) → format
-| (n, s) := "case " ++ to_fmt n ++ ":" ++ block (action s ++ format.line ++ "break;" ++ format.line)
+meta def insert_newlines (newlines : nat) : list format → format :=
+  fun fs, format_concat $ list.intersperse (format_concat $ list.repeat format.line newlines) fs
 
-meta def cases (action : ir.stmt → format) : list (nat × ir.stmt) → format
-| [] := format.nil
-| (c :: cs) := case action c ++ cases cs
+meta def format_lines (fs : list format) : format :=
+  insert_newlines 1 fs
+
+meta def case (action : ir.stmt → format) : (nat × ir.stmt) → format
+| (n, s) := "case " ++ to_fmt n ++ ":" ++ block (action s ++ format.line ++ "break;")
+
+meta def cases (action : ir.stmt → format) (cs : list (nat × ir.stmt)) : format :=
+  format_lines (list.map (case action) cs)
 
 meta def ty : ir.ty → format
-| (ir.ty.object _) := format.of_string "lean::vm_obj "
-| (ir.ty.ref T) := ty T ++ format.of_string " const & "
+| (ir.ty.object _) := format.of_string "lean::vm_obj"
+| (ir.ty.ref T) := ty T ++ format.of_string " const &"
 | (ir.ty.mut_ref T) := ty T ++ format.of_string " &"
-| (ir.ty.int) := "int "
-| (ir.ty.object_buffer) := "lean::buffer<lean::vm_obj> "
+| (ir.ty.int) := "int"
+| (ir.ty.object_buffer) := "lean::buffer<lean::vm_obj>"
 | (ir.ty.name n) := to_fmt n ++ format.space
 | (ir.ty.base _) := "NYI"
 
@@ -119,29 +124,35 @@ meta def stmt : ir.stmt → format
   format.of_string "return"  ++
   format.space ++
   expr' stmt e ++ format.of_string ";"
-| (ir.stmt.letb n t ir.expr.uninitialized nop) :=
-  ty t ++ (mangle_name n) ++ to_fmt ";" ++ format.line
+-- TODO: clean up this function
+| (ir.stmt.letb n t ir.expr.uninitialized (ir.stmt.assign n' body)) :=
+  if n = n'
+  then ty t ++ format.space ++ (mangle_name n) ++ (to_fmt " = ") ++ (expr' stmt body) ++ to_fmt ";"
+  else (ty t ++ format.space ++ (mangle_name n) ++ (to_fmt " = ") ++ to_fmt ";" ++
+       format.line ++ stmt (ir.stmt.assign n' body))
+| (ir.stmt.letb n t ir.expr.uninitialized ir.stmt.nop) :=
+  ty t ++ format.space ++ (mangle_name n) ++ to_fmt ";"
   -- type checking should establish that these two types are equal
-| (ir.stmt.letb n t (ir.expr.constructor ty_name args) nop) :=
+| (ir.stmt.letb n t (ir.expr.constructor ty_name args) ir.stmt.nop) :=
   -- temporary hack, need to think about how to model this better
   if ty_name = "lean::name"
   then let ctor_args := comma_sep (list.map (string_lit ∘ to_string) args) in
-    ty t ++ (mangle_name n) ++ " = lean::name({" ++ ctor_args ++ "})" ++ to_fmt ";" ++ format.line
+    ty t ++ format.space ++ (mangle_name n) ++ " = lean::name({" ++ ctor_args ++ "})" ++ to_fmt ";"
   else let ctor_args := parens $ comma_sep (list.map mangle_name args) in
-       ty t ++ (mangle_name n) ++ ctor_args ++ to_fmt ";" ++ format.line
+       ty t ++ (mangle_name n) ++ ctor_args ++ to_fmt ";"
 | (ir.stmt.letb n t v body) :=
-  ty t ++ (mangle_name n) ++ (to_fmt " = ") ++ (expr' stmt v) ++ to_fmt ";" ++
+  ty t ++ format.space ++ (mangle_name n) ++ (to_fmt " = ") ++ (expr' stmt v) ++ to_fmt ";" ++
   format.line ++ stmt body
 | (ir.stmt.switch scrut cs default) :=
   (to_fmt "switch (") ++ (mangle_name scrut) ++ (to_fmt ")") ++
-  (block (format.line ++ cases stmt cs ++ default_case (stmt default)))
-| ir.stmt.nop := format.of_string ";"
+  (block (cases stmt cs ++ format.line ++ default_case (stmt default)))
+| ir.stmt.nop := format.nil
 | (ir.stmt.ite cond tbranch fbranch) :=
   "if (" ++ mangle_name cond ++ ") " ++
     block (stmt tbranch) ++ " else " ++
-    block (stmt fbranch) ++ format.line
+    block (stmt fbranch)
 | (ir.stmt.seq cs) :=
-  format_concat (list.map (fun c, stmt c ++ format.line) cs)
+  format_lines (list.map (fun c, stmt c) cs)
 | (ir.stmt.assign n val) := mangle_name n ++ " = " ++ expr' stmt val ++ ";"
 
 meta def expr := expr' stmt
@@ -158,14 +169,11 @@ meta def format_argument_list (tys : list (name × ir.ty)) : format :=
 meta def defn (d : ir.defn) : format :=
   match d with
   | ir.defn.mk n arg_tys ret_ty body :=
-    let body := stmt body in
+    let body' := stmt body in
     (ty ret_ty) ++ format.space ++ (mangle_name n) ++
     (format_argument_list arg_tys) ++ format.space ++
-    (format.bracket "{" "}" $ format.nest 4 (format.line ++ body) ++ format.line)
+    block body'
   end
-
-meta def format_lines : list format → format :=
-  fun fs, format_concat $ list.intersperse format.line fs
 
 meta def headers : format :=
   format_lines [
@@ -197,13 +205,13 @@ meta def split_items : list ir.item → (list ir.defn × list ir.decl)
 
 meta def declaration : ir.decl → format
 | (ir.decl.mk n params ret_ty) :=
-  ty ret_ty ++ " " ++ mangle_name n ++ format_argument_list params ++ ";" ++ format.line
+  ty ret_ty ++ " " ++ mangle_name n ++ format_argument_list params ++ ";"
 
 meta def declarations (decls : list ir.decl) : format :=
-  "namespace lean {\n" ++ format_concat (list.map declaration decls) ++ "}"
+  "namespace lean" ++ format.space ++ block (format_lines (list.map declaration decls))
 
 meta def definitions (defs : list ir.defn) : format :=
-  format_lines $ list.map defn defs
+  insert_newlines 2 $ list.map defn defs
 
 meta def program (items : list ir.item) : format :=
   timeit "format.program" (fun u,
