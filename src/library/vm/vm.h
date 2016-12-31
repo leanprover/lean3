@@ -202,6 +202,8 @@ class vm_native_closure : public vm_obj_cell {
     void dealloc(buffer<vm_obj_cell*> & todelete);
 public:
     vm_native_closure(vm_cfunction fn, unsigned arity, unsigned num_args, vm_obj const * args);
+    // vm_native_closure(vm_cfunction fn, unsigned arity, std::initializer_list<vm_obj const> args)
+    //     : vm_native_closure(fn, arity, args.size(), args.begin()) {}
     vm_cfunction get_fn() const { return m_fn; }
     unsigned get_arity() const { return m_arity; }
     unsigned get_num_args() const { return m_num_args; }

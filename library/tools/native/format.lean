@@ -77,8 +77,8 @@ meta def expr' (action : ir.stmt → format) : ir.expr → format
   "cfield(" ++ (mangle_name obj) ++ ", " ++ (to_fmt n) ++ ")"
 | (ir.expr.panic err_msg) :=
   to_fmt "throw std::runtime_error(" ++ string_lit err_msg ++ ");"
-| (ir.expr.mk_native_closure n args) :=
-"lean::mk_native_closure(*g_env, lean::name({\"" ++ name.to_string_with_sep "\", \"" n ++ "\"})" ++ "," ++
+| (ir.expr.mk_native_closure n arity args) :=
+  "lean::mk_native_closure(" ++ mangle_name n ++ ", " ++
    format.bracket "{" "}" (comma_sep (list.map format_local args)) ++ ")"
  | (ir.expr.invoke n args) :=
  "lean::invoke(" ++ name.to_string_with_sep "_" n ++ ", " ++

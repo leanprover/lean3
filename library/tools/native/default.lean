@@ -57,6 +57,9 @@ meta def sequence_err : list (ir_compiler ir.item) → ir_compiler (list ir.item
 meta def lift_result {A} (action : ir.result A) : ir_compiler A :=
   ⟨fun s, (action, s)⟩
 
+meta def in_lean_ns (n : name) : name :=
+  mk_simple_name ("lean::" ++ name.to_string_with_sep "_" n)
+
 -- TODO: fix naming here
 private meta def take_arguments' : expr → list name → (list name × expr)
 | (expr.lam n _ _ body) ns := take_arguments' body (n :: ns)
@@ -129,10 +132,10 @@ meta def mk_ir_call (head : name) (args : list ir.expr) : ir_compiler ir.expr :=
     args' ← monad.sequence args'',
     return (ir.expr.call head args')
 
-meta def mk_under_sat_call (head : name) (args : list ir.expr) : ir_compiler ir.expr :=
+meta def mk_under_sat_call (head : name) (arity : nat) (args : list ir.expr) : ir_compiler ir.expr :=
 let args'' := list.map assert_name args in do
     args' ← monad.sequence args'',
-    return $ ir.expr.mk_native_closure head args'
+    return $ ir.expr.mk_native_closure head arity args'
 
 meta def bind_value_with_ty (val : ir.expr) (ty : ir.ty) (body : name → ir_compiler ir.stmt) : ir_compiler ir.stmt := do
   fresh ← fresh_name,
@@ -169,11 +172,11 @@ meta def is_return (n : name) : bool :=
 `native_compiler.return = n
 
 meta def compile_call (head : name) (arity : nat) (args : list ir.expr) : ir_compiler ir.stmt := do
-  -- trace_ir $ "compile_call: " ++ (to_string head),
+  trace_ir $ "compile_call: " ++ (to_string head),
   if list.length args = arity
   then ir.stmt.e <$> mk_ir_call head args
   else if list.length args < arity
-  then ir.stmt.e <$> mk_under_sat_call head args
+  then ir.stmt.e <$> mk_under_sat_call head arity args
   else mk_over_sat_call head (list.take arity args) (list.drop arity args)
 
 meta def mk_object (arity : unsigned) (args : list ir.expr) : ir_compiler ir.expr :=
@@ -249,9 +252,6 @@ meta def compile_builtin_cases (action : expr → ir_compiler ir.stmt) (scrut : 
   cs' ← compile_builtin_cases cs,
   case ← bind_builtin_case_fields scrut fs body'',
   return $ (n, case) :: cs'
-
-meta def in_lean_ns (n : name) : name :=
-  mk_simple_name ("lean::" ++ name.to_string_with_sep "_" n)
 
 meta def mk_builtin_cases_on (case_name scrut : name) (cases : list (nat × ir.stmt)) (default : ir.stmt) : ir.stmt :=
 -- replace `ctor_index with a generated name
@@ -386,7 +386,7 @@ meta def compile_const_head_expr_app_to_ir_stmt
       | builtin.vm n := mk_error "vm"
       | builtin.cfun n arity := do
         args' ← monad.sequence $ list.map (fun x, action x >>= assert_expr) args,
-        compile_call n arity args'
+        compile_call (in_lean_ns n) arity args'
       | builtin.cases n arity :=
         compile_builtin_cases_on_to_ir_expr (expr.const_name head) args action
       end
@@ -438,7 +438,7 @@ meta def compile_expr_to_ir_stmt : expr → ir_compiler ir.stmt
     -- TODO, do I need to case on arity here? I should probably always emit a call
     match get_builtin n with
     | option.some (builtin.cfun n' arity) :=
-      compile_call n arity []
+      compile_call (in_lean_ns n) arity []
     | _ :=
       if n = "_neutral_"
       then (pure $ ir.stmt.e $ ir.expr.mk_object 0 [])
@@ -509,11 +509,21 @@ meta def mk_builtin_cases_on_proto (n : name) : ir_compiler ir.decl := do
   data <- fresh_name,
   return $ ir.decl.mk n [(o, ir.ty.ref (ir.ty.object none)), (data, ir.ty.mut_ref ir.ty.object_buffer)] (ir.ty.name `unsigned)
 
+meta def n_fresh : nat -> ir_compiler (list name)
+| 0 := return []
+| (nat.succ n) := do
+   fs <- n_fresh n,
+   f <- fresh_name,
+   return (f :: fs)
+
 meta def compile_decl : extern_fn → ir_compiler ir.item
 | (in_lean_ns, n, arity) :=
   if is_cases_on (expr.const n [])
   then ir.item.decl <$> mk_builtin_cases_on_proto n
-  else (return $ ir.item.decl $ ir.decl.mk n (list.repeat ("", (ir.ty.object none)) (unsigned.to_nat arity)) (ir.ty.object none))
+  else do
+    args <- n_fresh (unsigned.to_nat arity),
+    types <- pure $ list.repeat (ir.ty.ref $ ir.ty.object none) (unsigned.to_nat arity),
+    return $ ir.item.decl $ ir.decl.mk n (list.zip args types) (ir.ty.object none)
 
 meta def compile_decls : list extern_fn → list (ir_compiler ir.item) :=
   fun xs, list.map compile_decl xs
@@ -567,7 +577,8 @@ meta def apply_pre_ir_passes
 
 meta def driver
   (externs : list extern_fn)
-  (procs : list procedure) : ir_compiler (list ir.item × list error) := do
+  (procs : list procedure) : ir_compiler (list ir.item × list error) :=
+  trace ("EXTERNs: " ++ to_string externs) (fun u, do
   conf <- configuration,
   map <- arities,
   procs' ← apply_pre_ir_passes procs <$> configuration <*> pure map,
@@ -580,7 +591,7 @@ meta def driver
     return (ir.item.defn main :: defns ++ decls, defn_errs ++ decl_errs)
   else do
     init <- emit_package_initialize procs',
-  return (ir.item.defn init :: defns ++ decls, defn_errs ++ decl_errs))
+  return (ir.item.defn init :: defns ++ decls, defn_errs ++ decl_errs)))
 
 meta def make_list (type : expr) : list expr → tactic expr
 | [] := mk_mapp `list.nil [some type]
@@ -613,12 +624,21 @@ meta def get_ir_defns : tactic expr := do
 meta def run_ir {A : Type} (action : ir_compiler A) (inital : ir_compiler_state): result error A :=
   prod.fst $ run action inital
 
+meta def merge {K V : Type} (map map' : rb_map K V) : rb_map K V :=
+   rb_map.fold map' map (fun key data m, rb_map.insert m key data)
+
+meta def extend_with_list {K V : Type} [has_ordering K] (map : rb_map K V) (es : list (prod K V)) : rb_map K V :=
+   merge map (rb_map.of_list es)
+
+meta def extern_to_arities : extern_fn -> prod name nat
+| (_, n, arity) := (n, unsigned.to_nat arity)
+
 meta def compile'
   (conf : config)
   (extern_fns : list extern_fn)
   (procs : list procedure)
   (ctxt : ir.context) : result error format := do
-    let arity := mk_arity_map procs in
+    let arity := extend_with_list (mk_arity_map procs) (list.map extern_to_arities extern_fns) in
     let action : ir_compiler _ := driver extern_fns procs in
     match (run_ir action (ctxt, conf, arity, 0)) with
     | result.err e := result.err e

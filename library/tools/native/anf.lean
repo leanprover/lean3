@@ -34,11 +34,15 @@ inductive call_type
 | under_sat
 | over_sat : nat -> call_type
 
+meta def trace_anf (s : string) : anf_monad unit :=
+  trace s (fun u, return u)
+
 meta def get_call_type (n : name) (no_args : nat) : anf_monad call_type := do
   (map, _, _) <- state.read,
   match rb_map.find map n with
   | none := pure call_type.under_sat
-  | some arity :=
+  | some arity := do
+    trace_anf ("get_call_type: " ++ to_string arity ++ "|" ++ to_string no_args),
     if arity = no_args
     then
       pure call_type.saturated
@@ -48,9 +52,6 @@ meta def get_call_type (n : name) (no_args : nat) : anf_monad call_type := do
     else
       pure (call_type.over_sat arity)
   end
-
-meta def trace_anf (s : string) : anf_monad unit :=
-  trace s (return ())
 
 private meta def let_bind (n : name) (ty : expr) (e : expr) : anf_monad unit := do
   scopes ← state.read,
@@ -139,9 +140,8 @@ private meta def anf_call (head : expr) (args : list expr) (anf : expr → anf_m
       let pre_args := list.taken arity args,
           post_args := list.dropn arity args
       in do
-        sat_call <- fresh_name,
-        let_bind sat_call mk_neutral_expr <$> (direct_call head pre_args anf),
-        anf_call' (expr.const sat_call []) post_args anf
+        call_expr <- (direct_call head pre_args anf),
+        anf_call' call_expr post_args anf
     | call_type.under_sat := do
       trace_anf "unsat",
       anf_call' head args anf

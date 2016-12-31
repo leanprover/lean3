@@ -59,7 +59,7 @@ inductive expr : Type
 | locl : name → expr
 | project : name → nat → expr
 | panic : string → expr
-| mk_native_closure : name → list name → expr
+| mk_native_closure : name → nat → list name → expr
 | invoke : name → list name → expr
 | uninitialized : expr
 | constructor : name → list name → expr

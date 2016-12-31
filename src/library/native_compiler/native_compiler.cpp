@@ -200,7 +200,10 @@ lean::vm_obj to_lean_extern_fns(buffer<extern_fn> & extern_fns) {
     vm_obj externs_list = mk_vm_simple(0);
     // procs_list = tuple :: procs_list
     for (auto & e : extern_fns) {
-        auto inner_tuple = mk_vm_constructor(0, { to_obj(e.m_name), to_obj(e.m_arity) });
+        std::cout << "Extern" << std::endl;
+        std::cout << e.m_name << std::endl;
+        std::cout << e.m_arity << std::endl;
+        auto inner_tuple = mk_vm_constructor(0, { to_obj(e.m_name), mk_vm_simple(e.m_arity) });
         auto tuple = mk_vm_constructor(0, { mk_vm_simple(e.m_in_lean_namespace), inner_tuple });
         externs_list = mk_vm_constructor(1, { tuple, externs_list });
     }
