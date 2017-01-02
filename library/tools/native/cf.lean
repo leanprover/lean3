@@ -68,6 +68,13 @@ meta def cf' : expr → cf_monad expr
       args := expr.get_app_args (expr.app f arg)
    in if is_cases_on fn
    then cf_cases_on fn args cf'
+   else if `native_compiler.assign = expr.const_name fn
+   then match args with
+   | (n :: v :: body :: []) := do
+     body' <- cf' body,
+     return $ mk_call fn [n, v, body']
+   | _ := return $ (expr.app f arg)
+   end
    else return (mk_call (expr.const `native_compiler.return []) [(expr.app f arg)])
 | e := return $ expr.app (expr.const `native_compiler.return []) e
 

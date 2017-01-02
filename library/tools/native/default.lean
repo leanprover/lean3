@@ -16,6 +16,7 @@ import tools.native.format
 import tools.native.internal
 import tools.native.anf
 import tools.native.cf
+import tools.native.lift_switch
 import tools.native.pass
 import tools.native.util
 import tools.native.config
@@ -77,10 +78,8 @@ meta def take_arguments (e : expr) : ir_compiler (list name × expr) :=
   let locals := list.map mk_local fresh_names,
   return $ (fresh_names, expr.instantiate_vars body (list.reverse locals))
 
-meta def mk_error {T} : string → ir_compiler T :=
-  fun s, do
-  trace_ir "MAKE ERROR",
-  lift_result (native.result.err $ error.string s)
+meta def mk_error {T} (msg : string) : ir_compiler T :=
+  trace ("MAKE_ERROR") (fun u, lift_result (native.result.err $ error.string msg))
 
 meta def lookup_arity (n : name) : ir_compiler nat := do
   map ← arities,
@@ -354,9 +353,52 @@ meta def compile_nat_cases_on_to_ir_expr
     )
   end
 
--- inductive head_symbol_class
--- | return
--- |
+def last {A : Type} : list A -> option A
+| [] := none
+| (x :: []) := some x
+| (_ :: xs) := last xs
+
+-- I had to manually transform this code due to issues with the equation compiler
+-- set_option trace.eqn_compiler.elim_match true
+-- why doesn't matching on the option work here
+meta def assign_last_expr_list
+  (n : name)
+  (rec : ir.stmt -> ir_compiler ir.stmt)
+  (ss : list ir.stmt) : ir_compiler ir.stmt :=
+  option.cases_on (last ss)
+    (mk_error "internal invariant")
+   (fun s, do
+    s' <- rec s,
+    pure $ ir.stmt.seq $ list.append (list.taken (list.length ss - 1) ss) [s'])
+
+meta def assign_last_expr_cases (action : ir.stmt -> ir_compiler ir.stmt) :
+  list (prod nat ir.stmt) -> ir_compiler (list (prod nat ir.stmt))
+| [] := pure []
+| ((n, c) :: cs) := do
+  c' <- action c,
+  cs' <- assign_last_expr_cases cs,
+  pure $ (n, c') :: cs'
+
+meta def assign_last_expr (n : name) : ir.stmt -> ir_compiler ir.stmt
+| (ir.stmt.seq ss) := assign_last_expr_list n assign_last_expr ss
+| (ir.stmt.ite c tb fb) := ir.stmt.ite c <$> assign_last_expr tb <*> assign_last_expr fb
+| (ir.stmt.switch scrut cases default) :=
+  ir.stmt.switch scrut <$> assign_last_expr_cases assign_last_expr cases <*> pure default
+| (ir.stmt.letb n ty val body) := ir.stmt.letb n ty val <$> assign_last_expr body
+| (ir.stmt.e e) := pure $ ir.stmt.assign n e
+| (ir.stmt.assign _ _) := mk_error "UNSUUPORTED assign"
+| (ir.stmt.return _) := mk_error "UNSUUPORTED return"
+| (ir.stmt.nop) := pure $ ir.stmt.nop
+
+-- meta def assert_is_switch : ir_compiler
+meta def compile_native_assign (n v body : expr) (action : expr -> ir_compiler ir.stmt) : ir_compiler ir.stmt := do
+  n' <- action n,
+  e <- assert_expr n',
+  nm <- assert_name e,
+  v' <- action v,
+  v'' <- assign_last_expr nm v',
+  body' <- action body,
+  return $ ir.stmt.letb nm (ir.ty.object none) ir.expr.uninitialized (ir.stmt.seq [v'', body'])
 
 meta def compile_const_head_expr_app_to_ir_stmt
   (head : expr)
@@ -377,8 +419,13 @@ meta def compile_const_head_expr_app_to_ir_stmt
   | application_kind.constructor n := do
     args' ← monad.sequence $ list.map (fun x, action x >>= assert_expr) args,
     ir.stmt.e <$> mk_object (unsigned.of_nat n) args'
-  | application_kind.cases :=
+  | application_kind.cases := do
     compile_cases_on_to_ir_stmt (expr.const_name head) args action
+  | application_kind.assign := do
+    match args with
+    | (n :: v :: body :: []) := compile_native_assign n v body action
+    | _ := mk_error "ERROR"
+    end
   | _ :=
     match get_builtin (expr.const_name head) with
     | option.some builtin :=
@@ -498,7 +545,7 @@ meta def compile_defn (decl_name : name) (e : expr) : ir_compiler ir.defn := do
     end
   | none :=
     let arity := native.get_arity e in do (args, body) ← take_arguments e,
-    compile_defn_to_ir (replace_main decl_name) args body
+    trace (to_string e) (fun u, compile_defn_to_ir (replace_main decl_name) args body)
   end
 
 meta def compile_defns : list procedure → list (ir_compiler ir.item) :=
@@ -573,25 +620,23 @@ meta def apply_pre_ir_passes
   (procs : list procedure)
   (conf : config)
   (arity : arity_map) : list procedure :=
-  run_passes conf arity [anf, cf] procs
+  run_passes conf arity [anf, lift_switch, cf] procs
 
 meta def driver
   (externs : list extern_fn)
-  (procs : list procedure) : ir_compiler (list ir.item × list error) :=
-  trace ("EXTERNs: " ++ to_string externs) (fun u, do
+  (procs : list procedure) : ir_compiler (list ir.item × list error) := do
   conf <- configuration,
   map <- arities,
   procs' ← apply_pre_ir_passes procs <$> configuration <*> pure map,
   (defns, defn_errs) ← sequence_err (compile_defns procs'),
   (decls, decl_errs) ← sequence_err (compile_decls externs),
-  trace (to_string $ list.length defns) (fun u,
   if is_executable conf
   then do
     main ← emit_main procs',
     return (ir.item.defn main :: defns ++ decls, defn_errs ++ decl_errs)
   else do
     init <- emit_package_initialize procs',
-  return (ir.item.defn init :: defns ++ decls, defn_errs ++ decl_errs)))
+  return (ir.item.defn init :: defns ++ decls, defn_errs ++ decl_errs)
 
 meta def make_list (type : expr) : list expr → tactic expr
 | [] := mk_mapp `list.nil [some type]

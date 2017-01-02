@@ -200,9 +200,6 @@ lean::vm_obj to_lean_extern_fns(buffer<extern_fn> & extern_fns) {
     vm_obj externs_list = mk_vm_simple(0);
     // procs_list = tuple :: procs_list
     for (auto & e : extern_fns) {
-        std::cout << "Extern" << std::endl;
-        std::cout << e.m_name << std::endl;
-        std::cout << e.m_arity << std::endl;
         auto inner_tuple = mk_vm_constructor(0, { to_obj(e.m_name), mk_vm_simple(e.m_arity) });
         auto tuple = mk_vm_constructor(0, { mk_vm_simple(e.m_in_lean_namespace), inner_tuple });
         externs_list = mk_vm_constructor(1, { tuple, externs_list });
@@ -217,7 +214,6 @@ format invoke_native_compiler(
     buffer<procedure> & procs,
     native_compiler_mode mode)
 {
-    std::cout << "at the top of the native compiler" << std::endl;
     auto list_of_procs = to_lean_procs(procs);
     auto list_of_extern_fns = to_lean_extern_fns(extern_fns);
     auto conf_obj = mk_lean_native_config(mode);
@@ -290,24 +286,11 @@ std::string get_code_path() {
     }
 }
 
-environment load_native_compiler(environment const & env) {
-    // std::vector<module_info::dependency> deps;
-    // // deps.push_back(module_info::dependency {}
-    // auto loader = mk_loader("native_compiler_id", deps);
-    // std::vector<module_name> imports;
-    // imports.push_back({{"tools", "native"}, optional<unsigned>()});
-    // std::cout << "trying to import tools.native" << std::endl;
-    // //return import_modules(env, "", imports, mk_olean_loader());
-    return env;
-}
-
-void native_compile(environment const & env_without,
+void native_compile(environment const & env,
                     buffer<extern_fn> & extern_fns,
                     buffer<procedure> & procs,
                     native_compiler_mode mode) {
     // Ensure we have loaded tools.native.
-    auto env = load_native_compiler(env_without);
-    std::cout << "import succeded" << std::endl;
     auto output_path = get_code_path();
     std::fstream out(output_path, std::ios_base::out);
 

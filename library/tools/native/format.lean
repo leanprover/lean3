@@ -65,7 +65,8 @@ meta def expr' (action : ir.stmt → format) : ir.expr → format
   -- Over time I should remove these special case functions,
   -- and just use the def language of the IR.
   then to_fmt "lean::mk_vm_simple(0)"
-  else mk_constructor n fs
+  else
+  mk_constructor n fs
 | (ir.expr.global n) :=
   mk_call n []
 | (ir.expr.locl n) :=
@@ -83,7 +84,7 @@ meta def expr' (action : ir.stmt → format) : ir.expr → format
  | (ir.expr.invoke n args) :=
  "lean::invoke(" ++ name.to_string_with_sep "_" n ++ ", " ++
  (comma_sep (list.map format_local args)) ++ ")"
- | (ir.expr.uninitialized) := ";"
+ | (ir.expr.uninitialized) := format.nil
  | (ir.expr.constructor _ _) := "NYI"
  | (ir.expr.address_of e) := "& " ++ mangle_name e ++ ";"
  | (ir.expr.equals e1 e2) := expr' e1 ++ " == " ++ expr' e2
@@ -130,8 +131,8 @@ meta def stmt : ir.stmt → format
   then ty t ++ format.space ++ (mangle_name n) ++ (to_fmt " = ") ++ (expr' stmt body) ++ to_fmt ";"
   else (ty t ++ format.space ++ (mangle_name n) ++ (to_fmt " = ") ++ to_fmt ";" ++
        format.line ++ stmt (ir.stmt.assign n' body))
-| (ir.stmt.letb n t ir.expr.uninitialized ir.stmt.nop) :=
-  ty t ++ format.space ++ (mangle_name n) ++ to_fmt ";"
+| (ir.stmt.letb n t ir.expr.uninitialized body) :=
+  ty t ++ format.space ++ (mangle_name n) ++ to_fmt ";" ++ format.line ++ stmt body
   -- type checking should establish that these two types are equal
 | (ir.stmt.letb n t (ir.expr.constructor ty_name args) ir.stmt.nop) :=
   -- temporary hack, need to think about how to model this better

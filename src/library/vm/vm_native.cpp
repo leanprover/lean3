@@ -22,7 +22,7 @@ namespace lean {
 vm_obj native_is_internal_cnstr(vm_obj const & e) {
     auto opt_unsigned = is_internal_cnstr(to_expr(e));
     if (opt_unsigned) {
-        vm_obj u = to_obj(*opt_unsigned);
+        vm_obj u = mk_vm_simple(*opt_unsigned);
         return mk_vm_constructor(1, { u });
     } else {
         return mk_vm_constructor(0, {});
@@ -32,7 +32,7 @@ vm_obj native_is_internal_cnstr(vm_obj const & e) {
 vm_obj native_is_internal_cases(vm_obj const & e) {
     auto opt_unsigned = is_internal_cases(to_expr(e));
     if (opt_unsigned) {
-        vm_obj u = to_obj(*opt_unsigned);
+        vm_obj u = mk_vm_simple(*opt_unsigned);
         return mk_vm_constructor(1, { u });
     } else {
         return mk_vm_constructor(0, {});
@@ -42,7 +42,7 @@ vm_obj native_is_internal_cases(vm_obj const & e) {
 vm_obj native_is_internal_proj(vm_obj const & e) {
     auto opt_unsigned = is_internal_proj(to_expr(e));
     if (opt_unsigned) {
-        vm_obj u = to_obj(*opt_unsigned);
+        vm_obj u = mk_vm_simple(*opt_unsigned);
         return mk_vm_constructor(1, { u });
     } else {
         return mk_vm_constructor(0, {});

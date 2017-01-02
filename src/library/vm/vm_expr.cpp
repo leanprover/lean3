@@ -342,56 +342,6 @@ vm_obj expr_copy_pos_info(vm_obj const & src, vm_obj const & tgt) {
     return to_obj(copy_tag(to_expr(src), copy(to_expr(tgt))));
 }
 
-vm_obj expr_is_internal_cnstr(vm_obj const & e) {
-    auto opt_unsigned = is_internal_cnstr(to_expr(e));
-    if (opt_unsigned) {
-        std::cout << *opt_unsigned << std::endl;
-        vm_obj u = to_obj(*opt_unsigned);
-        return mk_vm_constructor(1, { u });
-    } else {
-        return mk_vm_constructor(0, {});
-    }
-}
-
-vm_obj expr_is_internal_proj(vm_obj const & e) {
-    auto opt_unsigned = is_internal_proj(to_expr(e));
-    if (opt_unsigned) {
-        std::cout << *opt_unsigned << std::endl;
-        vm_obj u = to_obj(*opt_unsigned);
-        return mk_vm_constructor(1, { u });
-    } else {
-        return mk_vm_constructor(0, {});
-    }
-}
-
-vm_obj expr_is_internal_cases(vm_obj const & e) {
-    auto opt_unsigned = is_internal_cases(to_expr(e));
-    if (opt_unsigned) {
-        std::cout << *opt_unsigned << std::endl;
-        vm_obj u = to_obj(*opt_unsigned);
-        return mk_vm_constructor(1, { u });
-    } else {
-        return mk_vm_constructor(0, {});
-    }
-}
-
-vm_obj expr_get_nat_value(vm_obj const & o) {
-    expr e = to_expr(o);
-    if (is_nat_value(e)) {
-        auto n = mk_vm_nat(get_nat_value_value(e));
-        return mk_vm_constructor(1, { n });
-    } else {
-        return mk_vm_simple(0);
-    }
-}
-
-vm_obj expr_collect_univ_params(vm_obj const & o) {
-    list<name> param_list;
-    collect_univ_params(to_expr(o), name_set()).for_each(
-            [&] (name const & n) { param_list = cons(n, param_list); });
-    return to_obj(param_list);
-}
-
 // TODO(Leo): move to a different file
 vm_obj vm_mk_nat_val_ne_proof(vm_obj const & a, vm_obj const & b) {
     return to_obj(mk_nat_val_ne_proof(to_expr(a), to_expr(b)));
@@ -529,10 +479,6 @@ void initialize_vm_expr() {
 
     DECLARE_VM_BUILTIN(name("expr", "mk_sorry"), expr_mk_sorry);
     DECLARE_VM_BUILTIN(name("expr", "is_sorry"), expr_is_sorry);
-
-    // Not sure if we should expose these or what?
-    DECLARE_VM_BUILTIN(name({"expr", "is_internal_cnstr"}), expr_is_internal_cnstr);
-    DECLARE_VM_BUILTIN(name({"expr", "get_nat_value"}), expr_get_nat_value);
 }
 
 void finalize_vm_expr() {

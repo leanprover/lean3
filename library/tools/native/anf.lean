@@ -79,6 +79,8 @@ private meta def enter_scope (action : anf_monad expr) : anf_monad expr := do
   state.write (arity, [] :: scopes, count),
   result ← action,
   bound_result ← mk_let_in_current_scope result,
+  -- this is bug prone, need lenses?
+  (arity, _, count) ← state.read,
   state.write (arity, scopes, count),
   return bound_result
 
@@ -187,7 +189,7 @@ private meta def init_state : arity_map -> anf_state :=
   fun arity, (arity, [], 0)
 
 private meta def anf_transform (conf : config) (arity : arity_map) (e : expr) : expr :=
-  prod.fst $ (under_lambda fresh_name (enter_scope ∘ anf') e) (init_state arity)
+  trace ("to_anf: " ++ to_string e) (fun u, prod.fst $ (under_lambda fresh_name (enter_scope ∘ anf') e) (init_state arity))
 
 meta def anf : pass := {
   name := "anf",

@@ -60,15 +60,19 @@ meta def under_lambda' {M} [monad M] (fresh_name : M name) (action : expr -> M e
   return $ expr.lam n bi ty (expr.abstract_local body' fresh)
 | e := action e
 
-meta def under_lambda {M} [monad M] (fresh_name : M name) (action : expr -> M expr) : expr → M expr :=
-  fun e, trace ("under_lamba:" ++ to_string e) (fun u, under_lambda' fresh_name action e)
+meta def under_lambda {M} [monad M] (fresh_name : M name) (action : expr -> M expr) (e : expr) : M expr :=
+  under_lambda' fresh_name action e
 
 meta def is_return (n : name) : bool :=
   decidable.to_bool $ `native_compiler.return = n
 
+meta def is_assign (n : name) : bool :=
+  decidable.to_bool $ `native_compiler.assign = n
+
 inductive application_kind
 | cases
 | nat_cases
+| assign
 | constructor : nat -> application_kind
 | projection : nat -> application_kind
 | return
@@ -83,6 +87,8 @@ meta def app_kind (head : expr) : application_kind :=
   then application_kind.return
   else if (expr.is_constant head) && (is_nat_cases_on (expr.const_name head))
   then application_kind.nat_cases
+  else if (expr.is_constant head) && (is_assign (expr.const_name head))
+  then application_kind.assign
   else if is_cases_on head
   then application_kind.cases
   else match native.is_internal_cnstr head with
