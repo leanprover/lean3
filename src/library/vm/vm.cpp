@@ -2271,10 +2271,7 @@ vm_obj native_invoke(vm_obj const & fn, vm_obj const & a1) {
     vm_obj const * args = c->get_args();
     unsigned arity      = c->get_arity();
     unsigned new_nargs  = nargs + 1;
-    std::cout << arity << std::endl;
-    std::cout << new_nargs << std::endl;
     if (new_nargs < arity) {
-        std::cout << "in the right branch" << std::endl;
         buffer<vm_obj> new_args;
         new_args.push_back(a1);
         new_args.append(nargs, args);

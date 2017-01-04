@@ -26,6 +26,7 @@ class cpp_compiler {
     bool                m_debug;
     bool                m_shared;
     bool                m_pic;
+    buffer<std::string> m_warnings;
 
 public:
     cpp_compiler & link(std::string lib);
@@ -36,6 +37,7 @@ public:
     cpp_compiler & pic(bool on);
     cpp_compiler & file(std::string file_path);
     cpp_compiler & output(std::string out);
+    cpp_compiler & W(std::string opt);
     cpp_compiler(std::string cc);
     void run();
 };

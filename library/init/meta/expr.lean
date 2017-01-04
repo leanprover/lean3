@@ -333,6 +333,10 @@ meta def is_let : expr → bool
 | (elet _ _ _ _) := tt
 | e              := ff
 
+meta def is_macro : expr → bool
+| (macro mdef i args) := tt
+| e                   := ff
+
 meta def binding_name : expr → name
 | (pi n _ _ _)  := n
 | (lam n _ _ _) := n

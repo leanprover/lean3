@@ -37,6 +37,7 @@ inductive ty
 | int : ty
 | object_buffer : ty
 | name : name → ty
+| array : ty -> ty
 
 instance : has_coe base_type ty :=
  ⟨ fun bt, ty.base bt ⟩
@@ -68,6 +69,7 @@ inductive expr : Type
 | equals : expr → expr → expr
 | sub : expr → expr → expr
 | raw_int : nat → expr
+| unreachable : expr
 -- | value : value → expr
 
 inductive stmt : Type

@@ -79,7 +79,7 @@ meta def take_arguments (e : expr) : ir_compiler (list name × expr) :=
   return $ (fresh_names, expr.instantiate_vars body (list.reverse locals))
 
 meta def mk_error {T} (msg : string) : ir_compiler T :=
-  trace ("MAKE_ERROR") (fun u, lift_result (native.result.err $ error.string msg))
+  trace ("ERROR: " ++ msg) (fun u, lift_result (native.result.err $ error.string msg))
 
 meta def lookup_arity (n : name) : ir_compiler nat := do
   map ← arities,
@@ -187,6 +187,12 @@ meta def one_or_error (args : list expr) : ir_compiler expr :=
 match args with
 | ((h : expr) :: []) := lift_result $ native.result.ok h
 | _ := mk_error "internal invariant violated, should only have one argument"
+end
+
+meta def one_or_error_message (msg : string) (args : list expr) : ir_compiler expr :=
+match args with
+| ((h : expr) :: []) := lift_result $ native.result.ok h
+| _ := mk_error $ "internal invariant violated: " ++ msg ++ " should only have one argument"
 end
 
 meta def panic (msg : string) : ir_compiler ir.expr :=
@@ -400,6 +406,10 @@ meta def compile_native_assign (n v body : expr) (action : expr -> ir_compiler i
   body' <- action body,
   return $ ir.stmt.letb nm (ir.ty.object none) ir.expr.uninitialized (ir.stmt.seq [v'', body'])
 
+meta def macro_get_name : expr -> name
+| (expr.macro mdef _ _) := expr.macro_def_name mdef
+| _ := name.anonymous
+
 meta def compile_const_head_expr_app_to_ir_stmt
   (head : expr)
   (args : list expr)
@@ -411,7 +421,7 @@ meta def compile_const_head_expr_app_to_ir_stmt
   | application_kind.nat_cases :=
     compile_nat_cases_on_to_ir_expr (expr.const_name head) args action
   | application_kind.projection n := do
-      obj <- one_or_error args,
+      obj <- one_or_error_message "projection" args,
       ir_obj <- action obj,
       e <- assert_expr ir_obj,
       nm <- assert_name e,
@@ -423,7 +433,23 @@ meta def compile_const_head_expr_app_to_ir_stmt
     compile_cases_on_to_ir_stmt (expr.const_name head) args action
   | application_kind.assign := do
     match args with
-    | (n :: v :: body :: []) := compile_native_assign n v body action
+    | (n :: v :: body :: []) :=
+      match v with
+      | (expr.macro mdef arg_count args) :=
+        match native.get_quote_expr (expr.macro mdef arg_count args) with
+        | option.some _ := do
+          fresh <- fresh_name,
+          st <- action n,
+          e <- assert_expr st,
+          nm <- assert_name e,
+          body' <- action body,
+          pure $ (ir.stmt.letb fresh ir.base_type.str (ir.expr.lit $ ir.literal.string (native.serialize_quote_macro v)) $
+                  ir.stmt.letb nm (ir.ty.object none) (ir.expr.call (in_lean_ns `deserialize_quoted_expr) [fresh]) body')
+
+        | option.none := mk_error $ "unsupported macro: " ++ to_string (macro_get_name v)
+        end
+      | _ := compile_native_assign n v body action
+      end
     | _ := mk_error "ERROR"
     end
   | _ :=
@@ -448,7 +474,7 @@ meta def compile_expr_app_to_ir_stmt
   (head : expr)
   (args : list expr)
   (action : expr → ir_compiler ir.stmt) : ir_compiler ir.stmt := do
-    trace_ir (to_string head  ++ to_string args),
+    -- trace_ir (to_string head  ++ to_string args),
     if expr.is_constant head = bool.tt
     then compile_const_head_expr_app_to_ir_stmt head args action
     else if expr.is_local_constant head
@@ -457,10 +483,16 @@ meta def compile_expr_app_to_ir_stmt
       ir.stmt.e <$> mk_invoke (expr.local_uniq_name head) args'
     else (mk_error ("unsupported call position" ++ (to_string head)))
 
-meta def compile_expr_macro_to_ir_expr (e : expr) : ir_compiler ir.expr :=
+meta def compile_expr_macro_to_ir_expr (e : expr) (action : expr -> ir_compiler ir.stmt) : ir_compiler ir.stmt :=
   match native.get_nat_value e with
-  | option.none := mk_error "unsupported macro"
-  | option.some n := mk_nat_literal n
+  | option.some n := ir.stmt.e <$> mk_nat_literal n
+  | option.none :=
+    match native.get_quote_expr e with
+    | option.some _ := do
+      fresh <- fresh_name,
+      pure $ ir.stmt.letb fresh ir.base_type.str (ir.expr.lit $ ir.literal.string (native.serialize_quote_macro e)) ir.stmt.nop
+    | option.none := mk_error $ "unsupported macro: " ++ to_string (macro_get_name e)
+    end
   end
 
 meta def assign_stmt' (n : name) : ir.stmt → ir_compiler ir.stmt
@@ -479,7 +511,7 @@ meta def assign_stmt (n : name) (stmt : ir.stmt) : ir_compiler ir.stmt := do
 -- open application_kk
 meta def compile_expr_to_ir_stmt : expr → ir_compiler ir.stmt
 | (expr.const n ls) := do
-  trace_ir ("const: " ++ to_string n),
+  -- trace_ir ("const: " ++ to_string n),
   match native.is_internal_cnstr (expr.const n ls) with
   | option.none :=
     -- TODO, do I need to case on arity here? I should probably always emit a call
@@ -489,9 +521,11 @@ meta def compile_expr_to_ir_stmt : expr → ir_compiler ir.stmt
     | _ :=
       if n = "_neutral_"
       then (pure $ ir.stmt.e $ ir.expr.mk_object 0 [])
+      else (if is_unreachable n
+      then (pure $ ir.stmt.e $ ir.expr.unreachable)
       else do
         arity ← lookup_arity n,
-        compile_call n arity []
+        compile_call n arity [])
     end
   | option.some arity := pure $ ir.stmt.e $ ir.expr.mk_object (unsigned.to_nat arity) []
   end
@@ -505,7 +539,7 @@ meta def compile_expr_to_ir_stmt : expr → ir_compiler ir.stmt
   in compile_expr_app_to_ir_stmt head args compile_expr_to_ir_stmt
 | (expr.lam _ _ _ _) := mk_error "found lam"
 | (expr.pi _ _ _ _) := mk_error "found pi, should not be translating a Pi for any reason (yet ...)"
-| (expr.macro d sz args) := ir.stmt.e <$> compile_expr_macro_to_ir_expr (expr.macro d sz args)
+| (expr.macro d sz args) := compile_expr_macro_to_ir_expr (expr.macro d sz args) compile_expr_to_ir_stmt
 | (expr.elet n _ v body) := do
   n' ← compile_local n,
   v' ← compile_expr_to_ir_stmt v,
@@ -514,7 +548,6 @@ meta def compile_expr_to_ir_stmt : expr → ir_compiler ir.stmt
   return $ ir.stmt.seq [assign, body']
 
 meta def compile_defn_to_ir (decl_name : name) (args : list name) (body : expr) : ir_compiler ir.defn := do
-  trace_ir (to_string body),
   body' ← compile_expr_to_ir_stmt body,
   let params := (list.zip args (list.repeat (ir.ty.ref (ir.ty.object none)) (list.length args))) in
   pure (ir.defn.mk decl_name params (ir.ty.object none) body')
@@ -535,18 +568,19 @@ meta def has_ir_refinement (n : name) : ir_compiler (option ir.item) := do
   ctxt <- get_context,
   pure $ ir.lookup_item n ctxt
 
-meta def compile_defn (decl_name : name) (e : expr) : ir_compiler ir.defn := do
+meta def compile_defn (decl_name : name) (e : expr) : ir_compiler ir.defn :=
+  trace ("compiling: " ++ to_string decl_name) (fun u, do
   refinement <- has_ir_refinement decl_name,
   match refinement with
   | some item :=
     match item with
-    | ir.item.defn d := (do trace_ir "here", pure d)
+    | ir.item.defn d := pure d
     | _ := mk_error "not sure what to do here yet"
     end
   | none :=
     let arity := native.get_arity e in do (args, body) ← take_arguments e,
-    trace (to_string e) (fun u, compile_defn_to_ir (replace_main decl_name) args body)
-  end
+    compile_defn_to_ir (replace_main decl_name) args body
+  end)
 
 meta def compile_defns : list procedure → list (ir_compiler ir.item) :=
   fun ps, list.map (fun p, ir.item.defn <$> compile_defn (prod.fst p) (prod.snd p)) ps
@@ -697,7 +731,7 @@ meta def compile
   (conf : config)
   (extern_fns : list extern_fn)
   (procs : list procedure) : tactic format := do
-    -- tactic.trace "starting to execute the Lean compiler",
+    tactic.trace "starting to execute the Lean compiler",
     decls_list_expr <- get_ir_decls,
     defns_list_expr <- get_ir_defns,
     decls <- eval_expr (list ir.decl) decls_list_expr,

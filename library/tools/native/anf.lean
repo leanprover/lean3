@@ -20,9 +20,6 @@ import tools.native.ir.compiler
 
 open native
 
-@[reducible] meta def binding :=
-  (name × expr × expr)
-
 @[reducible] meta def anf_state :=
   (arity_map × list (list binding) × nat)
 
@@ -42,7 +39,7 @@ meta def get_call_type (n : name) (no_args : nat) : anf_monad call_type := do
   match rb_map.find map n with
   | none := pure call_type.under_sat
   | some arity := do
-    trace_anf ("get_call_type: " ++ to_string arity ++ "|" ++ to_string no_args),
+    -- trace_anf ("get_call_type: " ++ to_string arity ++ "|" ++ to_string no_args),
     if arity = no_args
     then
       pure call_type.saturated
@@ -59,13 +56,6 @@ private meta def let_bind (n : name) (ty : expr) (e : expr) : anf_monad unit := 
   | (arity, [], _) := return ()
   | (arity, (s :: ss), count) := state.write $ (arity, ((n, ty, e) :: s) :: ss, count)
   end
-
-private meta def mk_let (bindings : list binding) (body : expr) : expr :=
-  list.foldl
-    (fun rest elem,
-      expr.elet (prod.fst elem) (prod.fst $ prod.snd elem) (prod.snd $ prod.snd elem) rest)
-    (expr.abstract_locals body (list.map prod.fst (list.reverse bindings)))
-    bindings
 
 private meta def mk_let_in_current_scope (body : expr) : anf_monad expr := do
   (_, scopes, _) ← state.read,
@@ -129,23 +119,23 @@ private meta def direct_call (head : expr) (args : list expr) (anf : expr → an
 --   else
 
 private meta def anf_call (head : expr) (args : list expr) (anf : expr → anf_monad expr) : anf_monad expr := do
-  trace_anf ("anf_call: " ++ to_string head ++ to_string args),
+  -- trace_anf ("anf_call: " ++ to_string head ++ to_string args),
   if expr.is_constant head
   then do
     type <- get_call_type (expr.const_name head) (list.length args),
     match type with
     | call_type.saturated := do
-      trace_anf "sat",
+      -- trace_anf "sat",
       direct_call head args anf
     | call_type.over_sat arity := do
-      trace_anf "oversat",
+      -- trace_anf "oversat",
       let pre_args := list.taken arity args,
           post_args := list.dropn arity args
       in do
         call_expr <- (direct_call head pre_args anf),
         anf_call' call_expr post_args anf
     | call_type.under_sat := do
-      trace_anf "unsat",
+      -- trace_anf "unsat",
       anf_call' head args anf
     end
   else
@@ -163,12 +153,23 @@ private meta def anf_cases_on (head : expr) (args : list expr) (anf : expr → a
     return $ mk_call head (scrut' :: cases')
   end
 
+private meta def anf_projection (head : expr) (args : list expr) (anf : expr → anf_monad expr) : anf_monad expr :=
+  match args with
+  | (struct :: remaining) := do
+      proj_name <- fresh_name,
+      proj <- anf_constructor head [struct] anf,
+      let_bind proj_name mk_neutral_expr proj,
+      hoist anf (fun args', return $ mk_call (mk_local proj_name) (list.map mk_local args')) remaining
+  -- this really should be an error TODO(jroesch), make this a result monad too
+  | _ := anf_constructor head args anf
+  end
+
 -- stop deleting this, not sure why I keep removing this line of code
 open native.application_kind
 
 private meta def anf' : expr → anf_monad expr
 | (expr.elet n ty val body) := do
-  trace_anf ("elet: " ++ (to_string $ (expr.elet n ty val body))),
+  -- trace_anf ("elet: " ++ (to_string $ (expr.elet n ty val body))),
   fresh ← fresh_name,
   val' ← anf' val,
   let_bind fresh ty val',
@@ -180,7 +181,7 @@ private meta def anf' : expr → anf_monad expr
    | cases := anf_cases_on fn args anf'
    | nat_cases := anf_cases_on fn args anf'
    | constructor _ := anf_constructor fn args anf'
-   | projection _ := anf_constructor fn args anf'
+   | projection _ := anf_projection fn args anf'
    | _ := anf_call fn args anf'
    end
 | e := return e
@@ -189,7 +190,7 @@ private meta def init_state : arity_map -> anf_state :=
   fun arity, (arity, [], 0)
 
 private meta def anf_transform (conf : config) (arity : arity_map) (e : expr) : expr :=
-  trace ("to_anf: " ++ to_string e) (fun u, prod.fst $ (under_lambda fresh_name (enter_scope ∘ anf') e) (init_state arity))
+  prod.fst $ (under_lambda fresh_name (enter_scope ∘ anf') e) (init_state arity)
 
 meta def anf : pass := {
   name := "anf",

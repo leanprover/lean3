@@ -84,7 +84,7 @@ def render (e : env) : template -> string
 | (template.string s t) := s ++ " " ++ render t
 | (template.interpolate var t) :=
     match lookup var e with
-    | none := "" ++ render  t
+    | none := "error unknown variable: " ++ var
     | some val := val ++ " " ++ render t
     end
 
@@ -92,4 +92,6 @@ def to_template (s : string) : template :=
     parse (lex s)
 
 def main : io unit :=
-    put_str $ template.to_string (parse $ lex "hello $x")
+    put_str $ render [("name", "World"), ("year", "2017")] (to_template "Hello $name , see you next $year")
+
+vm_eval main

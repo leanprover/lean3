@@ -46,6 +46,19 @@ private meta def lift_cases_on (head : expr) (args : list expr) (lift_switch : e
     return $ mk_call head (scrut :: cases')
   end
 
+meta def collect_bindings : expr -> (list (name × expr × expr) × expr)
+| (expr.elet n ty v body) :=
+  let (bs, body') := collect_bindings body
+  in ((n, ty, v) :: bs, body')
+| e := ([], e)
+
+-- TODO: (jroesch) fix ordering issues with binder primitives
+meta def under_let (e : expr) (action : expr -> lift_switch_monad expr) : lift_switch_monad expr :=
+  let (bs, body) := collect_bindings e,
+      rev_bindings := list.reverse bs,
+      instantiated_body := expr.instantiate_vars body (list.map (fun p, mk_local $ prod.fst p) rev_bindings)
+  in mk_let rev_bindings <$> action instantiated_body
+
 meta def lift_switch' : expr -> lift_switch_monad expr
 | (expr.elet n ty (expr.app f arg) body) :=
     let fn := expr.get_app_fn (expr.app f arg),
@@ -61,9 +74,15 @@ meta def lift_switch' : expr -> lift_switch_monad expr
     body' <- lift_switch' (expr.instantiate_var body (mk_local n)),
     return $ expr.elet n ty (expr.app f arg) (expr.abstract_local body' n)
    end
-| (expr.elet n ty e body) := do
+| (expr.elet n ty (expr.macro mdef i args) body) :=
+  match native.get_quote_expr (expr.macro mdef i args) with
+  | some _ := do
     body' <- lift_switch' (expr.instantiate_var body (mk_local n)),
-    return $ expr.elet n ty e (expr.abstract_local body' n)
+    return $ mk_call (expr.const `native_compiler.assign []) [mk_local n, (expr.macro mdef i args), body']
+  | none := under_let (expr.elet n ty (expr.macro mdef i args) body) lift_switch'
+  end
+| (expr.elet n ty e body) :=
+    under_let (expr.elet n ty e body) lift_switch'
 | (expr.app f arg) := do
   let fn := expr.get_app_fn (expr.app f arg),
       args := expr.get_app_args (expr.app f arg)
@@ -75,7 +94,7 @@ meta def lift_switch' : expr -> lift_switch_monad expr
 private meta def init_state : lift_switch_state := 0
 
 meta def transform (conf : config) (arity : arity_map) (e : expr) : expr :=
-    trace ("LIFT: " ++ to_string e) (fun u, prod.fst $ (under_lambda fresh_name lift_switch' e) init_state)
+  prod.fst $ (under_lambda fresh_name lift_switch' e) init_state
 
 end lift_switch
 

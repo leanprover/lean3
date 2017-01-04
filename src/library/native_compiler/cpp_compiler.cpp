@@ -60,9 +60,14 @@ namespace lean {
       return * this;
   }
 
+   cpp_compiler & cpp_compiler::W(std::string opt) {
+       m_warnings.push_back(opt);
+      return * this;
+   }
+
   void cpp_compiler::run() {
       process p(m_cc);
-      p.arg("-std=c++11");
+      p.arg("-std=c++14");
 
       if (m_pic) {
           p.arg("-fPIC");
@@ -112,6 +117,12 @@ namespace lean {
       if (m_output.size()) {
          p.arg("-o");
          p.arg(m_output);
+      }
+
+      // Add warning flags.
+      for (auto warning : m_warnings) {
+          auto dash_W = std::string("-W");
+          p.arg(dash_W + warning);
       }
 
       p.run();

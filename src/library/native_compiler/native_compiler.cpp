@@ -151,6 +151,10 @@ cpp_compiler compiler_with_native_config(native_compiler_mode mode) {
         gpp.output(binary);
     }
 
+    // Silence warning about embedded null characters,
+    // this is due to the way we deal with `quote_macro`.
+    gpp.W("no-null-character");
+
     return gpp;
 }
 
@@ -295,9 +299,7 @@ void native_compile(environment const & env,
     std::fstream out(output_path, std::ios_base::out);
 
     auto fmt = invoke_native_compiler(env, extern_fns, procs, mode);
-    std::cout << "about to print the output" << std::endl;
     out << fmt << "\n\n";
-    std::cout << "done with output" << std::endl;
 
     // For now just close this, then exit.
     out.close();

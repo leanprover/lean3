@@ -47,7 +47,7 @@ private meta def mk_call (symbol : name) (args : list name) : format :=
 
 meta def literal : ir.literal → format
 | (ir.literal.nat n) := to_fmt "lean::mk_vm_nat(" ++ to_fmt n ++ ")"
-| (ir.literal.string s) := to_fmt "NYI"
+| (ir.literal.string s) := to_string s ++ "s"
 
 meta def format_local (n : name) : format :=
   to_fmt (name.to_string_with_sep "_" n)
@@ -91,9 +91,10 @@ meta def expr' (action : ir.stmt → format) : ir.expr → format
  | (ir.expr.raw_int n) := repr n
  | (ir.expr.sub e1 e2) :=
    expr' e1 ++ " - " ++ expr' e2
+| ir.expr.unreachable := ""
 
 meta def default_case (body : format) : format :=
-  to_fmt "default:" ++ block body
+  to_fmt "default: " ++ block body
 
 meta def insert_newlines (newlines : nat) : list format → format :=
   fun fs, format_concat $ list.intersperse (format_concat $ list.repeat format.line newlines) fs
@@ -102,10 +103,14 @@ meta def format_lines (fs : list format) : format :=
   insert_newlines 1 fs
 
 meta def case (action : ir.stmt → format) : (nat × ir.stmt) → format
-| (n, s) := "case " ++ to_fmt n ++ ":" ++ block (action s ++ format.line ++ "break;")
+| (n, s) := "case " ++ to_fmt n ++ ": " ++ block (action s ++ format.line ++ "break;")
 
 meta def cases (action : ir.stmt → format) (cs : list (nat × ir.stmt)) : format :=
   format_lines (list.map (case action) cs)
+
+meta def base_type : ir.base_type -> format
+| ir.base_type.str := "std::string"
+| _ := "NYI"
 
 meta def ty : ir.ty → format
 | (ir.ty.object _) := format.of_string "lean::vm_obj"
@@ -114,7 +119,8 @@ meta def ty : ir.ty → format
 | (ir.ty.int) := "int"
 | (ir.ty.object_buffer) := "lean::buffer<lean::vm_obj>"
 | (ir.ty.name n) := to_fmt n ++ format.space
-| (ir.ty.base _) := "NYI"
+| (ir.ty.base bt) := base_type bt
+| (ir.ty.array T) := ty T ++ "[]"
 
 meta def parens (inner : format) : format :=
   format.bracket "(" ")" inner
@@ -179,11 +185,14 @@ meta def defn (d : ir.defn) : format :=
 meta def headers : format :=
   format_lines [
     "#include <iostream>",
+    "#include <string>",
     "#include \"util/numerics/mpz.h\"",
     "#include \"library/vm/vm_io.h\"",
     "#include \"library/vm/vm.h\"",
     "#include \"library/io_state.h\"",
     "#include \"init/init.h\"",
+    "#include \"library/vm/vm_native.h\"",
+    "using namespace std::string_literals;",
     -- pretty sure I can remove this
     "static lean::environment * g_env = nullptr;"
   ]

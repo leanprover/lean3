@@ -69,12 +69,16 @@ meta def is_return (n : name) : bool :=
 meta def is_assign (n : name) : bool :=
   decidable.to_bool $ `native_compiler.assign = n
 
+meta def is_unreachable (n : name) : bool :=
+  decidable.to_bool $ `_unreachable_ = n
+
 inductive application_kind
 | cases
 | nat_cases
 | assign
 | constructor : nat -> application_kind
 | projection : nat -> application_kind
+| unreachable
 | return
 | other
 
@@ -87,6 +91,8 @@ meta def app_kind (head : expr) : application_kind :=
   then application_kind.return
   else if (expr.is_constant head) && (is_nat_cases_on (expr.const_name head))
   then application_kind.nat_cases
+  else if (expr.is_constant head) && (is_unreachable (expr.const_name head))
+  then application_kind.unreachable
   else if (expr.is_constant head) && (is_assign (expr.const_name head))
   then application_kind.assign
   else if is_cases_on head
@@ -98,5 +104,15 @@ meta def app_kind (head : expr) : application_kind :=
       | none := application_kind.other
     end
   end
+
+@[reducible] meta def binding :=
+  (name × expr × expr)
+
+meta def mk_let (bindings : list binding) (body : expr) : expr :=
+  list.foldl
+    (fun rest elem,
+      expr.elet (prod.fst elem) (prod.fst $ prod.snd elem) (prod.snd $ prod.snd elem) rest)
+    (expr.abstract_locals body (list.map prod.fst (list.reverse bindings)))
+    bindings
 
 end native

@@ -13,3 +13,6 @@ meta constant native.is_internal_cases : expr → option unsigned
 meta constant native.is_internal_proj : expr → option unsigned
 meta constant native.get_nat_value : expr → option nat
 meta constant native.dump_format : string → format → nat
+meta constant native.get_quote_expr : expr -> option expr
+meta constant native.serialize_quote_macro : expr -> string
+
