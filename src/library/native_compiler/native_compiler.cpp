@@ -154,6 +154,7 @@ cpp_compiler compiler_with_native_config(native_compiler_mode mode) {
     // Silence warning about embedded null characters,
     // this is due to the way we deal with `quote_macro`.
     gpp.W("no-null-character");
+    gpp.W("no-invalid-source-encoding");
 
     return gpp;
 }
@@ -328,6 +329,7 @@ bool is_internal_decl(declaration const & d) {
             is_internal_proj(mk_constant(n)));
 }
 
+// unify with the code in vm_native.cpp
 optional<extern_fn> get_builtin(name const & n) {
     auto internal_name = get_vm_builtin_internal_name(n);
     if (internal_name) {
@@ -377,12 +379,20 @@ void populate_extern_fns(
 // generate shared libraries from the deepest module outwards.
 //
 // We may need to revist this strategy in the future.
-void decls_to_native_compile(environment const & env, buffer<declaration> & decls) {
+void decls_to_native_compile(environment const & env, buffer<declaration> & decls, buffer<extern_fn> & extern_fns) {
     env.for_each_declaration([&] (declaration const & d) {
         auto decl_name = d.get_name();
-        auto vdecl = get_vm_decl(env, d.get_name());
-        if (/* is_prefix_of("list", decl_name) && */ vdecl && vdecl->is_bytecode()) {
+        auto vdecl = get_vm_decl(env, decl_name);
+        if (vdecl && vdecl->is_bytecode()) {
             decls.push_back(d);
+        } else if (vdecl) {
+            auto builtin = get_builtin(decl_name);
+            // We currently assume they are in the Lean ns, I don't think this is a good assumption if we allow C++ extensions to be loaded
+            if (builtin) {
+                // std::cout << decl_name << std::endl;
+                // std::cout <<  builtin.value().m_name << std::endl;
+                extern_fns.push_back(*builtin);
+            }
         }
     });
 }
@@ -392,7 +402,7 @@ void native_compile_package(environment const & env, path root) {
     buffer<declaration> decls;
     buffer<procedure> all_procs;
 
-    decls_to_native_compile(env, decls);
+    decls_to_native_compile(env, decls, extern_fns);
 
     for (auto decl : decls) {
         // std::cout << decl.get_name() << std::endl;

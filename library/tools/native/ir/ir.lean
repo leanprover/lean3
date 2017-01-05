@@ -7,8 +7,31 @@ prelude
 
 import init.meta.name
 import init.meta.rb_map
+import init.meta.mk_dec_eq_instance
 
 namespace ir
+
+inductive symbol
+-- A normal hierarchial name.
+| name : name -> symbol
+-- An external name potentially in a namespace.
+| external : option name -> name -> symbol
+
+meta instance : decidable_eq symbol :=
+  by tactic.mk_dec_eq_instance
+
+instance : has_coe string symbol :=
+(| fun n, symbol.name n |)
+
+instance has_coe_name_symbol : has_coe name symbol :=
+(| fun n, symbol.name n |)
+
+def symbol.to_string : symbol -> string
+| (symbol.name n) := to_string n
+| (symbol.external _ _) := "NYI"
+
+instance : has_to_string symbol :=
+(| symbol.to_string |)
 
 inductive base_type
 -- primitive unsigned integer types
@@ -36,10 +59,12 @@ inductive ty
 -- these are temporary
 | int : ty
 | object_buffer : ty
+| symbol : symbol -> ty
 | name : name → ty
 | array : ty -> ty
 
-instance : has_coe base_type ty :=
+-- bug here if you omit name
+instance has_coe_basetype_ty : has_coe base_type ty :=
  ⟨ fun bt, ty.base bt ⟩
 
 inductive literal
@@ -53,18 +78,18 @@ inductive literal
 -- TODO: eventually m
 -- odel ty.object, mk_object, project, etc in the IR itself
 inductive expr : Type
-| call : name → list name → expr
-| global : name → expr
+| call : symbol → list symbol → expr
+| global : symbol → expr
 | lit : literal → expr
-| mk_object : nat → list name → expr
-| locl : name → expr
-| project : name → nat → expr
+| mk_object : nat → list symbol → expr
+| sym : symbol → expr
+| project : symbol → nat → expr
 | panic : string → expr
-| mk_native_closure : name → nat → list name → expr
-| invoke : name → list name → expr
+| mk_native_closure : symbol → nat → list symbol → expr
+| invoke : symbol → list symbol → expr
 | uninitialized : expr
-| constructor : name → list name → expr
-| address_of : name → expr
+| constructor : symbol → list symbol → expr
+| address_of : symbol → expr
 -- hack for now, do in secon pass clean up
 | equals : expr → expr → expr
 | sub : expr → expr → expr
@@ -73,12 +98,12 @@ inductive expr : Type
 -- | value : value → expr
 
 inductive stmt : Type
-| ite : name → stmt → stmt → stmt
-| switch : name → list (nat × stmt) → stmt → stmt
-| letb : name → ty → expr → stmt → stmt
+| ite : symbol → stmt → stmt → stmt
+| switch : symbol → list (nat × stmt) → stmt → stmt
+| letb : symbol → ty → expr → stmt → stmt
 | e : expr → stmt
 | seq : list stmt → stmt
-| assign : name → expr → stmt
+| assign : symbol → expr → stmt
 | return : expr → stmt
 | nop : stmt
 
@@ -86,7 +111,7 @@ inductive defn
 | mk : name → list (name × ty) → ty → stmt → defn
 
 def defn.to_string : defn → string
-| _ := "defn"
+| (defn.mk n ps ret body) := "def " ++ to_string n ++ "..."
 
 instance defn_has_to_string : has_to_string defn :=
   ⟨ defn.to_string ⟩
@@ -111,7 +136,7 @@ def item.get_name : item → name
 def item.to_string : item → string
 | _ := "an item"
 
-instance : has_to_string item :=
+instance item_has_to_string : has_to_string item :=
  ⟨ item.to_string ⟩
 
 meta record context :=
@@ -126,37 +151,3 @@ meta def lookup_item (n : name) (ctxt : context) : option ir.item :=
   none
 
 end ir
-
--- def map (K V : Type) : Type :=
---   list (K × V)
-
--- def lookup {K V} (key : K) (map : map K V) : option V :=
---   sorry
-
--- def context :=
---   map name ir_decl
-
--- inductive value
--- | int : nat → value
-
--- def local_context :=
---   map name ir_expr
-
--- def call_fn (ctxt : context) (local_cx : local_context) (fn_name : name) (args : list name) : option ir_expr :=
---   sorry
-
--- -- We fix the global context during evaluation.
--- inductive step_expr (ctxt : context) : local_context → ir_expr → value → Prop
--- | call :
---   forall n args local_cx retval,
---    call_fn ctxt local_cx n args = option.some retval →
---    step_expr local_cx (ir_expr.call n args) retval
--- | local_name :
---   forall n e local_cx retval,
---     lookup n local_cx = option.some e →
---     step_expr local_cx n e
-
--- inductive step_stmt : context → local_context → ir_stmt → ir_stmt → Prop
--- | nop : forall ctxt local_ctxt,
---   step_stmt ctxt local_ctxt nop nop
--- |

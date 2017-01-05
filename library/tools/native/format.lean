@@ -29,28 +29,36 @@ def replace (c : char) (replacement : string) : string -> string
   then replacement ++ replace ss
   else s :: replace ss
 
-meta def mangle_name (n : name) : format :=
-  to_fmt $ replace #"'" "_$single_quote$_" $ name.to_string_with_sep "_" n
+meta def mangle_name (n : name) : string :=
+  (replace #"'" "_$single_quote$_" $ name.to_string_with_sep "_" n)
 
-private meta def mk_constructor_args : list name → list format
+meta def mangle_symbol : ir.symbol -> format
+| (ir.symbol.name n) := to_fmt $ "_$lean$_" ++ (replace #"'" "_$single_quote$_" $ name.to_string_with_sep "_" n)
+| (ir.symbol.external opt_ns n) :=
+  match opt_ns with
+  | some ns := to_string ns ++ "::" ++ mangle_name n
+  | none := mangle_name n
+  end
+
+private meta def mk_constructor_args : list ir.symbol → list format
 | [] := []
-| (n :: ns) := mangle_name n :: mk_constructor_args ns
+| (n :: ns) := mangle_symbol n :: mk_constructor_args ns
 
 private meta def mk_constructor
   (arity : nat)
-  (fs : list name) : format :=
+  (fs : list ir.symbol) : format :=
   "lean::mk_vm_constructor(" ++ to_fmt arity ++ "," ++
   (format.bracket "{" "}" (comma_sep $ mk_constructor_args fs)) ++ ")"
 
-private meta def mk_call (symbol : name) (args : list name) : format :=
-  mangle_name symbol ++ (format.bracket "(" ")" (comma_sep $ list.map mangle_name args))
+private meta def mk_call (symbol : ir.symbol) (args : list ir.symbol) : format :=
+  mangle_symbol symbol ++ (format.bracket "(" ")" (comma_sep $ list.map mangle_symbol args))
 
 meta def literal : ir.literal → format
 | (ir.literal.nat n) := to_fmt "lean::mk_vm_nat(" ++ to_fmt n ++ ")"
 | (ir.literal.string s) := to_string s ++ "s"
 
-meta def format_local (n : name) : format :=
-  to_fmt (name.to_string_with_sep "_" n)
+meta def format_local (s : ir.symbol) : format :=
+  mangle_symbol s
 
 meta def string_lit (s : string) : format :=
   format.bracket "\"" "\"" (to_fmt s)
@@ -69,24 +77,24 @@ meta def expr' (action : ir.stmt → format) : ir.expr → format
   mk_constructor n fs
 | (ir.expr.global n) :=
   mk_call n []
-| (ir.expr.locl n) :=
-  mangle_name n
+| (ir.expr.sym s) :=
+  mangle_symbol s
 | (ir.expr.lit l) :=
    literal l
 -- project really should only work for like fields/primtive arrays, this is a temporary hack
 | (ir.expr.project obj n) :=
-  "cfield(" ++ (mangle_name obj) ++ ", " ++ (to_fmt n) ++ ")"
+  "cfield(" ++ (mangle_symbol obj) ++ ", " ++ (to_fmt n) ++ ")"
 | (ir.expr.panic err_msg) :=
   to_fmt "throw std::runtime_error(" ++ string_lit err_msg ++ ");"
 | (ir.expr.mk_native_closure n arity args) :=
-  "lean::mk_native_closure(" ++ mangle_name n ++ ", " ++
+  "lean::mk_native_closure(" ++ mangle_symbol n ++ ", " ++
    format.bracket "{" "}" (comma_sep (list.map format_local args)) ++ ")"
- | (ir.expr.invoke n args) :=
- "lean::invoke(" ++ name.to_string_with_sep "_" n ++ ", " ++
+ | (ir.expr.invoke s args) :=
+ "lean::invoke(" ++ mangle_symbol s ++ ", " ++
  (comma_sep (list.map format_local args)) ++ ")"
  | (ir.expr.uninitialized) := format.nil
  | (ir.expr.constructor _ _) := "NYI"
- | (ir.expr.address_of e) := "& " ++ mangle_name e ++ ";"
+ | (ir.expr.address_of e) := "& " ++ mangle_symbol e ++ ";"
  | (ir.expr.equals e1 e2) := expr' e1 ++ " == " ++ expr' e2
  | (ir.expr.raw_int n) := repr n
  | (ir.expr.sub e1 e2) :=
@@ -110,7 +118,17 @@ meta def cases (action : ir.stmt → format) (cs : list (nat × ir.stmt)) : form
 
 meta def base_type : ir.base_type -> format
 | ir.base_type.str := "std::string"
-| _ := "NYI"
+| ir.base_type.u8 := "NYI"
+| ir.base_type.u16 := "NYI"
+| ir.base_type.u32 := "NYI"
+| ir.base_type.u64 := "NYI"
+| ir.base_type.unsigned := "unsigned"
+| ir.base_type.i8 := "NYI"
+| ir.base_type.i16 := "NYI"
+| ir.base_type.i32 := "NYI"
+| ir.base_type.i64 := "NYI"
+| ir.base_type.int := "int"
+| integer := "lean::mpz"
 
 meta def ty : ir.ty → format
 | (ir.ty.object _) := format.of_string "lean::vm_obj"
@@ -121,6 +139,7 @@ meta def ty : ir.ty → format
 | (ir.ty.name n) := to_fmt n ++ format.space
 | (ir.ty.base bt) := base_type bt
 | (ir.ty.array T) := ty T ++ "[]"
+| (ir.ty.symbol s) := mangle_symbol s
 
 meta def parens (inner : format) : format :=
   format.bracket "(" ")" inner
@@ -134,40 +153,38 @@ meta def stmt : ir.stmt → format
 -- TODO: clean up this function
 | (ir.stmt.letb n t ir.expr.uninitialized (ir.stmt.assign n' body)) :=
   if n = n'
-  then ty t ++ format.space ++ (mangle_name n) ++ (to_fmt " = ") ++ (expr' stmt body) ++ to_fmt ";"
-  else (ty t ++ format.space ++ (mangle_name n) ++ (to_fmt " = ") ++ to_fmt ";" ++
+  then ty t ++ format.space ++ (mangle_symbol n) ++ (to_fmt " = ") ++ (expr' stmt body) ++ to_fmt ";"
+  else (ty t ++ format.space ++ (mangle_symbol n) ++ (to_fmt " = ") ++ to_fmt ";" ++
        format.line ++ stmt (ir.stmt.assign n' body))
 | (ir.stmt.letb n t ir.expr.uninitialized body) :=
-  ty t ++ format.space ++ (mangle_name n) ++ to_fmt ";" ++ format.line ++ stmt body
+  ty t ++ format.space ++ (mangle_symbol n) ++ to_fmt ";" ++ format.line ++ stmt body
   -- type checking should establish that these two types are equal
 | (ir.stmt.letb n t (ir.expr.constructor ty_name args) ir.stmt.nop) :=
   -- temporary hack, need to think about how to model this better
-  if ty_name = "lean::name"
+  if ty_name = ir.symbol.external (some `lean) `name
   then let ctor_args := comma_sep (list.map (string_lit ∘ to_string) args) in
-    ty t ++ format.space ++ (mangle_name n) ++ " = lean::name({" ++ ctor_args ++ "})" ++ to_fmt ";"
-  else let ctor_args := parens $ comma_sep (list.map mangle_name args) in
-       ty t ++ (mangle_name n) ++ ctor_args ++ to_fmt ";"
+    ty t ++ format.space ++ (mangle_symbol n) ++ " = lean::name({" ++ ctor_args ++ "})" ++ to_fmt ";"
+  else let ctor_args := parens $ comma_sep (list.map mangle_symbol args) in
+       ty t ++ format.space ++ (mangle_symbol n) ++ ctor_args ++ to_fmt ";"
 | (ir.stmt.letb n t v body) :=
-  ty t ++ format.space ++ (mangle_name n) ++ (to_fmt " = ") ++ (expr' stmt v) ++ to_fmt ";" ++
+  ty t ++ format.space ++ (mangle_symbol n) ++ (to_fmt " = ") ++ (expr' stmt v) ++ to_fmt ";" ++
   format.line ++ stmt body
 | (ir.stmt.switch scrut cs default) :=
-  (to_fmt "switch (") ++ (mangle_name scrut) ++ (to_fmt ")") ++
+  (to_fmt "switch (") ++ (mangle_symbol scrut) ++ (to_fmt ")") ++
   (block (cases stmt cs ++ format.line ++ default_case (stmt default)))
 | ir.stmt.nop := format.nil
 | (ir.stmt.ite cond tbranch fbranch) :=
-  "if (" ++ mangle_name cond ++ ") " ++
+  "if (" ++ mangle_symbol cond ++ ") " ++
     block (stmt tbranch) ++ " else " ++
     block (stmt fbranch)
 | (ir.stmt.seq cs) :=
   format_lines (list.map (fun c, stmt c) cs)
-| (ir.stmt.assign n val) := mangle_name n ++ " = " ++ expr' stmt val ++ ";"
+| (ir.stmt.assign n val) := mangle_symbol n ++ " = " ++ expr' stmt val ++ ";"
 
 meta def expr := expr' stmt
 
 meta def format_param (param : name × ir.ty) :=
-ty (prod.snd param) ++
-format.space ++
-to_fmt (name.to_string_with_sep "_" (mk_str_name "_$local$_" (name.to_string_with_sep "_" (prod.fst param))))
+ty (prod.snd param) ++ format.space ++ mangle_symbol (ir.symbol.name $ prod.fst param)
 
 meta def format_argument_list (tys : list (name × ir.ty)) : format :=
   format.bracket "(" ")" (comma_sep (list.map format_param tys))
@@ -176,8 +193,10 @@ meta def format_argument_list (tys : list (name × ir.ty)) : format :=
 meta def defn (d : ir.defn) : format :=
   match d with
   | ir.defn.mk n arg_tys ret_ty body :=
-    let body' := stmt body in
-    (ty ret_ty) ++ format.space ++ (mangle_name n) ++
+    let body' := stmt body,
+        nm := if n = "main" then to_fmt (mangle_name n) else (mangle_symbol (ir.symbol.name n))
+    in
+    (ty ret_ty) ++ format.space ++ nm ++
     (format_argument_list arg_tys) ++ format.space ++
     block body'
   end
@@ -194,12 +213,12 @@ meta def headers : format :=
     "#include \"library/vm/vm_native.h\"",
     "using namespace std::string_literals;",
     -- pretty sure I can remove this
-    "static lean::environment * g_env = nullptr;"
+    "static lean::environment * _$lean$_g_env = nullptr;"
   ]
 
 meta def prototype : ir.defn → format
 | (ir.defn.mk n params ret_ty _) :=
-  ty ret_ty ++ " " ++ mangle_name n ++ format_argument_list params ++ ";" ++ format.line
+  ty ret_ty ++ " " ++ mangle_symbol (ir.symbol.name n) ++ format_argument_list params ++ ";" ++ format.line
 
 meta def defn_prototypes (defs : list ir.defn) : format :=
   format_concat $ list.map prototype defs
@@ -215,7 +234,8 @@ meta def split_items : list ir.item → (list ir.defn × list ir.decl)
 
 meta def declaration : ir.decl → format
 | (ir.decl.mk n params ret_ty) :=
-  ty ret_ty ++ " " ++ mangle_name n ++ format_argument_list params ++ ";"
+-- fix the symbol/name situation for decls/defns
+  ty ret_ty ++ " " ++ name.to_string_with_sep "_" n ++ format_argument_list params ++ ";"
 
 meta def declarations (decls : list ir.decl) : format :=
   "namespace lean" ++ format.space ++ block (format_lines (list.map declaration decls))
