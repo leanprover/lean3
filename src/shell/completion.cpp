@@ -15,6 +15,7 @@ Authors: Gabriel Ebner, Leonardo de Moura, Sebastian Ullrich
 #include "library/protected.h"
 #include "library/scoped_ext.h"
 #include "frontends/lean/util.h"
+#include "util/lean_path.h"
 
 namespace lean {
 
@@ -152,5 +153,82 @@ std::vector<json> get_option_completions(std::string const & pattern, options co
     return completions;
 }
 
+std::vector<json> get_import_completions(std::string const & pattern, std::string const & curr_dir,
+                                         options const & opts) {
+    unsigned max_results = get_auto_completion_max_results(opts);
+    unsigned max_errors = get_fuzzy_match_max_errors(pattern.size());
+    std::vector<pair<std::string, name>> selected;
+    bitap_fuzzy_search matcher(pattern, max_errors);
+    std::vector<json> completions;
+
+    optional<unsigned> depth;
+    if (pattern.size() && pattern[0] == '.') {
+        unsigned i = 1;
+        while (i < pattern.size() && pattern[i] == '.')
+            i++;
+        depth = {i - 1};
+    }
+    std::vector<std::string> imports;
+    find_imports(curr_dir, depth, imports);
+
+    for (auto const & candidate : imports) {
+        if (matcher.match(candidate))
+            selected.emplace_back(candidate, candidate);
+    }
+    filter_completions(pattern, selected, completions, max_results, [&](name const & n) {
+        json completion;
+        completion["text"] = n.to_string();
+        return completion;
+    });
+    return completions;
+}
+
+std::vector<json> get_interactive_tactic_completions(std::string const & pattern, name const & tac_class,
+                                                     environment const & env, options const & opts) {
+    std::vector<json> completions;
+
+    unsigned max_results = get_auto_completion_max_results(opts);
+    unsigned max_errors = get_fuzzy_match_max_errors(pattern.size());
+    std::vector<pair<std::string, name>> selected;
+    bitap_fuzzy_search matcher(pattern, max_errors);
+    name namespc = tac_class + name("interactive");
+    env.for_each_declaration([&](declaration const & d) {
+        auto const & n = d.get_name();
+        if (n.get_prefix() == namespc && n.is_string() && matcher.match(n.get_string())) {
+            selected.emplace_back(n.get_string(), n);
+        }
+    });
+    filter_completions(pattern, selected, completions, max_results, [&](name const & n) {
+        return serialize_decl(n.get_string(), n, env, opts);
+    });
+    // append regular completions
+    for (auto candidate : get_decl_completions(pattern, env, opts))
+        completions.push_back(candidate);
+    return completions;
+}
+
+std::vector<json> get_attribute_completions(std::string const & pattern, environment const & env,
+                                            options const & opts) {
+    unsigned max_results = get_auto_completion_max_results(opts);
+    unsigned max_errors = get_fuzzy_match_max_errors(pattern.size());
+    std::vector<pair<std::string, name>> selected;
+    bitap_fuzzy_search matcher(pattern, max_errors);
+    std::vector<json> completions;
+
+    buffer<attribute const *> attrs;
+    get_attributes(env, attrs);
+    for (auto const & attr : attrs) {
+        auto s = attr->get_name().to_string();
+        if (matcher.match(s))
+            selected.emplace_back(s, attr->get_name());
+    }
+    filter_completions(pattern, selected, completions, max_results, [&](name const & n) {
+        json completion;
+        completion["text"] = n.to_string();
+        completion["type"] = get_attribute(env, n).get_description();
+        return completion;
+    });
+    return completions;
+}
 }
 #endif

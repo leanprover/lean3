@@ -79,19 +79,21 @@ typedef std::vector<std::shared_ptr<snapshot const>> snapshot_vector;
 
 class break_at_pos_exception : public std::exception {
 public:
-    enum class token_context { ident, notation, option };
+    enum class token_context { ident, notation, option, import, interactive_tactic, attribute };
     struct token_info {
         pos_info      m_pos;
-        token_context m_context;
         name          m_token;
+
+        token_context m_context;
+        name          m_tac_class;
     };
 
     optional<token_info> m_token_info;
     optional<pos_info>   m_goal_pos;
 
     break_at_pos_exception() {}
-    break_at_pos_exception(pos_info const & token_pos, name const & token, token_context ctxt):
-            m_token_info(token_info {token_pos, ctxt, token}) {}
+    break_at_pos_exception(pos_info const & token_pos, name const & token, token_context ctxt, name tac_class = {}):
+            m_token_info(token_info {token_pos, token, ctxt, tac_class}) {}
 
     void report_goal_pos(pos_info goal_pos);
 };
@@ -190,7 +192,6 @@ class parser : public abstract_parser {
     void check_no_doc_string();
     void reset_doc_string();
 
-    std::vector<module_name> parse_imports(unsigned & fingerprint);
     void process_imports();
     void parse_command();
     bool parse_commands();
@@ -233,7 +234,8 @@ class parser : public abstract_parser {
     void push_local_scope(bool save_options = true);
     void pop_local_scope();
 
-    void save_snapshot(scope_message_context &);
+    void save_snapshot(scope_message_context &, pos_info);
+    void save_snapshot(scope_message_context & smc) { save_snapshot(smc, m_scanner.get_pos_info()); }
 
 public:
     parser(environment const & env, io_state const & ios,
@@ -325,6 +327,9 @@ public:
     /** \brief Check if the current token is an identifier, if it is return it and move to next token,
         otherwise throw an exception. */
     name check_id_next(char const * msg, optional<break_at_pos_exception::token_context> ctxt = {});
+    name check_id_next(char const * msg, break_at_pos_exception::token_context ctxt) {
+        return check_id_next(msg, some(std::move(ctxt)));
+    }
     /** \brief Similar to check_id_next, but also ensures the identifier is *not* an internal/reserved name. */
     name check_decl_id_next(char const * msg);
     /** \brief Check if the current token is an atomic identifier, if it is, return it and move to next token,
@@ -420,6 +425,8 @@ public:
     expr parse_expr_with_env(local_environment const & lenv, unsigned rbp = 0);
 
     expr parse_tactic(unsigned rbp = 0);
+
+    std::vector<module_name> parse_imports(unsigned & fingerprint);
 
     struct local_scope {
         parser & m_p; environment m_env;
