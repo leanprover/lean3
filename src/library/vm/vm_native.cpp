@@ -88,13 +88,12 @@ vm_obj native_get_builtin(vm_obj const & o) {
         }
         case vm_builtin_kind::CFun: {
             auto efn = *get_builtin(n);
-            name internal_name = name(get_vm_builtin_internal_name(n));
-            auto pair = mk_vm_constructor(0, { to_obj(internal_name), mk_vm_simple(efn.m_arity) });
+            auto pair = mk_vm_constructor(0, { to_obj(name(efn.m_native_name)), mk_vm_simple(efn.m_arity) });
             return mk_vm_some(pair);
         }
         case vm_builtin_kind::Cases: {
             auto efn = *get_builtin(n);
-            auto pair = mk_vm_constructor(1, { to_obj(efn.m_name), mk_vm_simple(efn.m_arity) });
+            auto pair = mk_vm_constructor(1, { to_obj(name(efn.m_native_name)), mk_vm_simple(efn.m_arity) });
             return mk_vm_some(pair);
         }
         default:

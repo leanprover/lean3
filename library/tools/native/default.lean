@@ -16,7 +16,7 @@ import tools.native.format
 import tools.native.internal
 import tools.native.anf
 import tools.native.cf
-import tools.native.lift_switch
+-- import tools.native.lift_switch
 import tools.native.pass
 import tools.native.util
 import tools.native.config
@@ -176,7 +176,7 @@ meta def is_return (n : name) : bool :=
 `native_compiler.return = n
 
 meta def compile_call (head : ir.symbol) (arity : nat) (args : list ir.expr) : ir_compiler ir.stmt := do
-  trace_ir $ "compile_call: " ++ (to_string head),
+  -- trace_ir $ "compile_call: " ++ (to_string head),
   if list.length args = arity
   then ir.stmt.e <$> mk_ir_call head args
   else if list.length args < arity
@@ -374,7 +374,7 @@ def last {A : Type} : list A -> option A
 -- set_option trace.eqn_compiler.elim_match true
 -- why doesn't matching on the option work here
 meta def assign_last_expr_list
-  (n : ir.symbol)
+  (result_var : ir.symbol)
   (rec : ir.stmt -> ir_compiler ir.stmt)
   (ss : list ir.stmt) : ir_compiler ir.stmt :=
   option.cases_on (last ss)
@@ -383,7 +383,7 @@ meta def assign_last_expr_list
     s' <- rec s,
     pure $ ir.stmt.seq $ list.append (list.taken (list.length ss - 1) ss) [s'])
 
-meta def assign_last_expr_cases (action : ir.stmt -> ir_compiler ir.stmt) :
+meta def assign_last_expr_cases (result_var : ir.symbol) (action : ir.stmt -> ir_compiler ir.stmt) :
   list (prod nat ir.stmt) -> ir_compiler (list (prod nat ir.stmt))
 | [] := pure []
 | ((n, c) :: cs) := do
@@ -391,26 +391,27 @@ meta def assign_last_expr_cases (action : ir.stmt -> ir_compiler ir.stmt) :
   cs' <- assign_last_expr_cases cs,
   pure $ (n, c') :: cs'
 
-meta def assign_last_expr (n : ir.symbol) : ir.stmt -> ir_compiler ir.stmt
-| (ir.stmt.seq ss) := assign_last_expr_list n assign_last_expr ss
+meta def assign_last_expr (result_var : ir.symbol) : ir.stmt -> ir_compiler ir.stmt
+| (ir.stmt.seq ss) := assign_last_expr_list result_var assign_last_expr ss
 | (ir.stmt.ite c tb fb) := ir.stmt.ite c <$> assign_last_expr tb <*> assign_last_expr fb
 | (ir.stmt.switch scrut cases default) :=
-  ir.stmt.switch scrut <$> assign_last_expr_cases assign_last_expr cases <*> pure default
+  ir.stmt.switch scrut <$> assign_last_expr_cases result_var assign_last_expr cases <*> pure default
 | (ir.stmt.letb n ty val body) := ir.stmt.letb n ty val <$> assign_last_expr body
-| (ir.stmt.e e) := pure $ ir.stmt.assign n e
+| (ir.stmt.e e) := pure $ ir.stmt.assign result_var e
 | (ir.stmt.assign _ _) := mk_error "UNSUUPORTED assign"
 | (ir.stmt.return _) := mk_error "UNSUUPORTED return"
 | (ir.stmt.nop) := pure $ ir.stmt.nop
 
 -- meta def assert_is_switch : ir_compiler
-meta def compile_native_assign (n v body : expr) (action : expr -> ir_compiler ir.stmt) : ir_compiler ir.stmt := do
+meta def compile_native_assign (n v body : expr) (action : expr -> ir_compiler ir.stmt) : ir_compiler ir.stmt :=
+  trace (to_string n ++ "|" ++ to_string v ++ "|" ++ to_string body) (fun u, do
   n' <- action n,
   e <- assert_expr n',
   nm <- assert_name e,
   v' <- action v,
   v'' <- assign_last_expr nm v',
   body' <- action body,
-  return $ ir.stmt.letb nm (ir.ty.object none) ir.expr.uninitialized (ir.stmt.seq [v'', body'])
+  return $ ir.stmt.letb nm (ir.ty.object none) ir.expr.uninitialized (ir.stmt.seq [v'', body']))
 
 meta def macro_get_name : expr -> name
 | (expr.macro mdef _ _) := expr.macro_def_name mdef
@@ -419,7 +420,8 @@ meta def macro_get_name : expr -> name
 meta def compile_const_head_expr_app_to_ir_stmt
   (head : expr)
   (args : list expr)
-  (action : expr → ir_compiler ir.stmt) : ir_compiler ir.stmt :=
+  (action : expr → ir_compiler ir.stmt) : ir_compiler ir.stmt := do
+  -- trace_ir ("HEAD:" ++ to_string head),
   match app_kind head with
   | application_kind.return := do
     rexp ← one_or_error args,
@@ -438,6 +440,7 @@ meta def compile_const_head_expr_app_to_ir_stmt
   | application_kind.cases := do
     compile_cases_on_to_ir_stmt (expr.const_name head) args action
   | application_kind.assign := do
+    trace_ir "IN ASSIGN",
     match args with
     | (n :: v :: body :: []) :=
       match v with
@@ -523,7 +526,7 @@ meta def compile_expr_to_ir_stmt : expr → ir_compiler ir.stmt
     -- TODO, do I need to case on arity here? I should probably always emit a call
     match get_builtin n with
     | option.some (builtin.cfun n' arity) :=
-      compile_call (in_lean_ns n) arity []
+      compile_call (in_lean_ns n') arity []
     | _ :=
       if n = "_neutral_"
       then (pure $ ir.stmt.e $ ir.expr.mk_object 0 [])
@@ -574,8 +577,8 @@ meta def has_ir_refinement (n : name) : ir_compiler (option ir.item) := do
   ctxt <- get_context,
   pure $ ir.lookup_item n ctxt
 
-meta def compile_defn (decl_name : name) (e : expr) : ir_compiler ir.defn :=
-  trace ("compiling: " ++ to_string decl_name) (fun u, do
+meta def compile_defn (decl_name : name) (e : expr) : ir_compiler ir.defn := do
+  -- trace ("compiling: " ++ to_string decl_name) (fun u, do
   refinement <- has_ir_refinement decl_name,
   match refinement with
   | some item :=
@@ -585,8 +588,9 @@ meta def compile_defn (decl_name : name) (e : expr) : ir_compiler ir.defn :=
     end
   | none :=
     let arity := native.get_arity e in do (args, body) ← take_arguments e,
+    do trace_ir (to_string e),
     compile_defn_to_ir (replace_main decl_name) args body
-  end)
+  end
 
 meta def compile_defns : list procedure → list (ir_compiler ir.item) :=
   fun ps, list.map (fun p, ir.item.defn <$> compile_defn (prod.fst p) (prod.snd p)) ps
@@ -604,14 +608,14 @@ meta def n_fresh : nat -> ir_compiler (list name)
    return (f :: fs)
 
 meta def compile_decl : extern_fn → ir_compiler ir.item
-| (in_lean_ns, n, arity) :=
-  if is_cases_on (expr.const n [])
-  then ir.item.decl <$> mk_builtin_cases_on_proto n
+| (| in_lean_ns, lean_name, native_name, arity |) :=
+  if is_cases_on (expr.const lean_name [])
+  then ir.item.decl <$> mk_builtin_cases_on_proto native_name
   else do
     args <- n_fresh (unsigned.to_nat arity),
     types <- pure $ list.repeat (ir.ty.ref $ ir.ty.object none) (unsigned.to_nat arity),
     -- this is a temp. hack
-    return $ ir.item.decl $ ir.decl.mk n (list.zip args types) (ir.ty.object none)
+    return $ ir.item.decl $ ir.decl.mk native_name (list.zip args types) (ir.ty.object none)
 
 meta def compile_decls : list extern_fn → list (ir_compiler ir.item) :=
   fun xs, list.map compile_decl xs
@@ -665,7 +669,7 @@ meta def apply_pre_ir_passes
   (procs : list procedure)
   (conf : config)
   (arity : arity_map) : list procedure :=
-  run_passes conf arity [anf, lift_switch, cf] procs
+  run_passes conf arity [anf, cf] procs
 
 meta def driver
   (externs : list extern_fn)
@@ -721,7 +725,7 @@ meta def extend_with_list {K V : Type} [has_ordering K] (map : rb_map K V) (es :
    merge map (rb_map.of_list es)
 
 meta def extern_to_arities : extern_fn -> prod name nat
-| (_, n, arity) := (n, unsigned.to_nat arity)
+| (| _, lean_name, _, arity |) := (lean_name, unsigned.to_nat arity)
 
 meta def compile'
   (conf : config)

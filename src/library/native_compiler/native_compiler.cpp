@@ -66,16 +66,21 @@ path get_install_path() {
     return *g_lean_install_path;
 }
 
-extern_fn mk_lean_extern(name n, unsigned arity) {
-    return extern_fn(true, n, arity);
+extern_fn mk_lean_extern(name n, std::string native_name, unsigned arity) {
+    return extern_fn(true, n, native_name, arity);
 }
 
-extern_fn mk_extern(name n, unsigned arity) {
-    return extern_fn(false, n, arity);
+extern_fn mk_extern(name n, std::string native_name, unsigned arity) {
+    return extern_fn(false, n, native_name, arity);
 }
 
+// Please modify me if you change the code in tools/native/procedure.lean.
 vm_obj extern_fn::to_obj() {
-    throw "a";
+    auto field_1 = mk_vm_simple(this->m_in_lean_namespace);
+    auto field_2 = lean::to_obj(this->m_lean_name);
+    auto field_3 = lean::to_obj(name(this->m_native_name));
+    auto field_4 = mk_vm_nat(this->m_arity);
+    return mk_vm_constructor(1, { field_1, field_2, field_3, field_4 });
 }
 
 // Returns the path to the Lean library based on the standard search path,
@@ -205,9 +210,9 @@ lean::vm_obj to_lean_extern_fns(buffer<extern_fn> & extern_fns) {
     vm_obj externs_list = mk_vm_simple(0);
     // procs_list = tuple :: procs_list
     for (auto & e : extern_fns) {
-        auto inner_tuple = mk_vm_constructor(0, { to_obj(e.m_name), mk_vm_simple(e.m_arity) });
+        auto inner_tuple = mk_vm_constructor(0, { to_obj(e.m_lean_name), mk_vm_simple(e.m_arity) });
         auto tuple = mk_vm_constructor(0, { mk_vm_simple(e.m_in_lean_namespace), inner_tuple });
-        externs_list = mk_vm_constructor(1, { tuple, externs_list });
+        externs_list = mk_vm_constructor(1, { e.to_obj(), externs_list });
     }
 
     return externs_list;
@@ -330,24 +335,26 @@ bool is_internal_decl(declaration const & d) {
 }
 
 // unify with the code in vm_native.cpp
-optional<extern_fn> get_builtin(name const & n) {
-    auto internal_name = get_vm_builtin_internal_name(n);
-    if (internal_name) {
-        switch (get_vm_builtin_kind(n)) {
+optional<extern_fn> get_builtin(name const & lean_name) {
+    auto internal_name_ptr = get_vm_builtin_internal_name(lean_name);
+    if (internal_name_ptr) {
+        std::string internal_name = internal_name_ptr;
+        switch (get_vm_builtin_kind(lean_name)) {
             case vm_builtin_kind::VMFun: {
                 return optional<extern_fn>();
             }
             case vm_builtin_kind::CFun: {
-                auto arity = get_vm_builtin_arity(n);
+                auto arity = get_vm_builtin_arity(lean_name);
                 return optional<extern_fn>(
-                    mk_lean_extern(internal_name, arity));
+                    mk_lean_extern(lean_name, internal_name, arity));
             }
             case vm_builtin_kind::Cases: {
                 return optional<extern_fn>(
-                    mk_lean_extern(internal_name, 2u));
+                    mk_lean_extern(lean_name, internal_name, 2u));
             }
+            default:
+                lean_unreachable();
         }
-        lean_unreachable();
     } else {
         return optional<extern_fn>();
     }
@@ -360,11 +367,11 @@ void populate_extern_fns(
     used.m_used_names.for_each([&] (name const & n) {
         if (auto builtin = get_builtin(n)) {
              // std::cout << "extern fn: " << n << std::endl;
-             extern_fns.push_back(mk_lean_extern(n, builtin.value().m_arity));
+             extern_fns.push_back(*builtin);
         } else if (has_extern_attribute(env, n)) {
-            extern_fns.push_back(mk_extern(n, 0));
+            extern_fns.push_back(mk_extern(n, "", 0));
         } else if (is_library) {
-            extern_fns.push_back(mk_extern(n, 0));
+            extern_fns.push_back(mk_extern(n, "", 0));
         }
     });
 }

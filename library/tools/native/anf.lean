@@ -50,6 +50,13 @@ meta def get_call_type (n : name) (no_args : nat) : anf_monad call_type := do
       pure (call_type.over_sat arity)
   end
 
+private meta def fresh_name : anf_monad name := do
+  (arity, ss, count) ← state.read,
+  -- need to replace this with unique prefix as per our earlier conversation
+  n ← pure $ name.mk_numeral (unsigned.of_nat count) `_anf_,
+  state.write (arity, ss, count + 1),
+  return n
+
 private meta def let_bind (n : name) (ty : expr) (e : expr) : anf_monad unit := do
   scopes ← state.read,
   match scopes with
@@ -57,11 +64,76 @@ private meta def let_bind (n : name) (ty : expr) (e : expr) : anf_monad unit := 
   | (arity, (s :: ss), count) := state.write $ (arity, ((n, ty, e) :: s) :: ss, count)
   end
 
+private meta def anf_let (nm : name) (ty val body : expr) (anf : expr -> anf_monad expr) : anf_monad expr := do
+    fresh ← fresh_name,
+    val' ← anf val,
+    let_bind fresh ty val',
+    anf (expr.instantiate_var body (mk_local fresh))
+
+-- private meta def transform_let_recursor (nm : name) (ty body : expr) (anf : expr → anf_monad expr) : expr -> anf_monad expr
+-- | (expr.app f arg) :=
+--   let fn := expr.get_app_fn (expr.app f arg),
+--       args := expr.get_app_args (expr.app f arg)
+--    in match app_kind fn with
+--    | application_kind.cases := do
+--         trace_anf ("INSIDE OF CASES" ++ to_string fn),
+--         val' <- anf (expr.app f arg),
+--         body' <- anf (expr.instantiate_var body (mk_local nm)),
+--         pure $ mk_call (expr.const `native_compiler.assign []) [mk_local nm, val', body']
+--    | application_kind.nat_cases := return $ mk_call (expr.const `native.assign []) []
+--    | _ := anf_let nm ty (expr.app f arg) body anf
+--    end
+-- | val := anf_let nm ty val body anf
+
+-- | (expr.macro mdef i args) :=
+--   match native.get_quote_expr (expr.macro mdef i args) with
+--   | some _ := do
+--     body' <- action (expr.instantiate_var body (mk_local nm)),
+--     return $ mk_call (expr.const `native_compiler.assign []) [mk_local nm, (expr.macro mdef i args), body']
+--   | none := under_let (expr.elet nm ty (expr.macro mdef i args) body) action
+--   end
+-- | e := under_let (expr.elet nm ty e body) action
+
+-- private meta def transform_let_recursor (body : expr) : binding -> anf_monad expr
+-- | (n, ty, (expr.app f arg)) :=
+--   let fn := expr.get_app_fn (expr.app f arg),
+--       args := expr.get_app_args (expr.app f arg)
+--    in match app_kind fn with
+--    | application_kind.cases := do
+--         let body' := expr.instantiate_var body (mk_local n)
+--         in pure $ mk_call (expr.const `native_compiler.assign []) [mk_local n, (expr.app f arg), body']
+--    | application_kind.nat_cases := return $ mk_call (expr.const `native.assign []) []
+--    | _ := (n, ty, (expr.instantiate_var body (mk_local n))
+--    end
+-- | (n, ty, e) := (n, ty, e)
+
+meta def mk_single_let (body : expr) (b : binding) : expr :=
+  let (n, ty, val) := b in
+  match val with
+   | (expr.app f arg) :=
+    let fn := expr.get_app_fn (expr.app f arg),
+      args := expr.get_app_args (expr.app f arg)
+   in match app_kind fn with
+   | application_kind.cases :=
+        let body' := expr.instantiate_var body (mk_local n) in
+        mk_call (expr.const `native_compiler.assign []) [mk_local n, (expr.app f arg), body']
+   | application_kind.nat_cases := mk_call (expr.const `native.assign []) []
+   | _ := expr.elet n ty val body
+   end
+   | _ := expr.elet n ty val body
+   end
+
+meta def mk_let' (bindings : list binding) (body : expr) : expr :=
+  list.foldl
+    mk_single_let
+    (expr.abstract_locals body (list.map prod.fst (list.reverse bindings)))
+    bindings
+
 private meta def mk_let_in_current_scope (body : expr) : anf_monad expr := do
   (_, scopes, _) ← state.read,
   match scopes with
   | [] := pure $ body
-  | (top :: _) := return $ mk_let top body
+  | (top :: _) := return $ mk_let' top body
   end
 
 private meta def enter_scope (action : anf_monad expr) : anf_monad expr := do
@@ -73,13 +145,6 @@ private meta def enter_scope (action : anf_monad expr) : anf_monad expr := do
   (arity, _, count) ← state.read,
   state.write (arity, scopes, count),
   return bound_result
-
-private meta def fresh_name : anf_monad name := do
-  (arity, ss, count) ← state.read,
-  -- need to replace this with unique prefix as per our earlier conversation
-  n ← pure $ name.mk_numeral (unsigned.of_nat count) `_anf_,
-  state.write (arity, ss, count + 1),
-  return n
 
 -- Hoist a set of expressions above the result of the callback
 -- function.
@@ -169,15 +234,11 @@ open native.application_kind
 
 private meta def anf' : expr → anf_monad expr
 | (expr.elet n ty val body) := do
-  -- trace_anf ("elet: " ++ (to_string $ (expr.elet n ty val body))),
-  fresh ← fresh_name,
-  val' ← anf' val,
-  let_bind fresh ty val',
-  anf' (expr.instantiate_var body (mk_local fresh))
+  anf_let n ty val body anf'
 | (expr.app f arg) := do
-  let fn   := expr.get_app_fn (expr.app f arg),
-  let args := expr.get_app_args (expr.app f arg),
-  match app_kind fn with
+  let fn := expr.get_app_fn (expr.app f arg),
+      args := expr.get_app_args (expr.app f arg)
+   in do trace_anf ("APPPPP: " ++ to_string fn), match app_kind fn with
    | cases := anf_cases_on fn args anf'
    | nat_cases := anf_cases_on fn args anf'
    | constructor _ := anf_constructor fn args anf'

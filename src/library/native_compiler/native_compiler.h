@@ -15,11 +15,16 @@ void initialize_install_path();
 path get_install_path();
 
 struct extern_fn {
-    bool m_in_lean_namespace;
-    name m_name;
+    bool        m_in_lean_namespace;
+    name        m_lean_name;
+    std::string m_native_name;
+
     unsigned m_arity;
-    extern_fn(bool in_lean_namespace, name n, unsigned arity) :
-        m_in_lean_namespace(in_lean_namespace), m_name(n), m_arity(arity) {}
+    extern_fn(bool in_lean_namespace, name lean_name, std::string native_name, unsigned arity) :
+        m_in_lean_namespace(in_lean_namespace),
+        m_lean_name(lean_name),
+        m_native_name(native_name),
+        m_arity(arity) {}
 
     vm_obj to_obj();
 };

@@ -99,7 +99,7 @@ meta def expr' (action : ir.stmt → format) : ir.expr → format
  | (ir.expr.raw_int n) := repr n
  | (ir.expr.sub e1 e2) :=
    expr' e1 ++ " - " ++ expr' e2
-| ir.expr.unreachable := ""
+| ir.expr.unreachable := "lean_unreachable()"
 
 meta def default_case (body : format) : format :=
   to_fmt "default: " ++ block body
@@ -147,9 +147,13 @@ meta def parens (inner : format) : format :=
 meta def stmt : ir.stmt → format
 | (ir.stmt.e e) := expr' stmt e ++ ";"
 | (ir.stmt.return e) :=
-  format.of_string "return"  ++
-  format.space ++
-  expr' stmt e ++ format.of_string ";"
+  match e with
+  | (ir.expr.unreachable) := expr' stmt e
+  | _ :=
+    format.of_string "return"  ++
+    format.space ++
+    expr' stmt e ++ format.of_string ";"
+  end
 -- TODO: clean up this function
 | (ir.stmt.letb n t ir.expr.uninitialized (ir.stmt.assign n' body)) :=
   if n = n'

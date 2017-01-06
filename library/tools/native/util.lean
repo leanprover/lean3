@@ -35,6 +35,8 @@ meta def is_cases_on (head : expr) : bool :=
     end
   end
 
+-- vm_eval (is_cases_on (expr.const `name.cases_on []))
+
 meta def get_arity : expr → nat
 | (expr.lam _ _ _ body) := 1 + get_arity body
 | _ := 0
