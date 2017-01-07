@@ -67,6 +67,8 @@ meta def block (body : format) : format :=
   "{" ++ (format.nest 4 (format.line ++ body)) ++ format.line ++ "}"
 
 meta def expr' (action : ir.stmt → format) : ir.expr → format
+| (ir.expr.call `index (buf :: index :: _)) :=
+  mangle_symbol buf ++ "[" ++ mangle_symbol index ++ "]"
 | (ir.expr.call f xs) := mk_call f xs
 | (ir.expr.mk_object n fs) :=
   if (list.length fs) = 0 /\ n = 0
@@ -93,7 +95,7 @@ meta def expr' (action : ir.stmt → format) : ir.expr → format
  "lean::invoke(" ++ mangle_symbol s ++ ", " ++
  (comma_sep (list.map format_local args)) ++ ")"
  | (ir.expr.uninitialized) := format.nil
- | (ir.expr.constructor _ _) := "NYI"
+ | (ir.expr.constructor _ _) := "NYIctor"
  | (ir.expr.address_of e) := "& " ++ mangle_symbol e ++ ";"
  | (ir.expr.equals e1 e2) := expr' e1 ++ " == " ++ expr' e2
  | (ir.expr.raw_int n) := repr n
@@ -144,6 +146,25 @@ meta def ty : ir.ty → format
 meta def parens (inner : format) : format :=
   format.bracket "(" ")" inner
 
+meta def stmt_fuse_list : list ir.stmt -> list ir.stmt
+| [] := []
+| (ir.stmt.letb n ty val ir.stmt.nop :: ir.stmt.assign n' exp :: rest) :=
+  if n = n'
+  then ir.stmt.letb n ty val (ir.stmt.e exp) :: stmt_fuse_list rest
+  else ir.stmt.letb n ty val ir.stmt.nop :: ir.stmt.assign n' exp :: stmt_fuse_list rest
+| (s :: ss) := s :: stmt_fuse_list ss
+
+-- wild card doesn't work here for some reason
+meta def stmt_fuse : ir.stmt -> ir.stmt
+| (ir.stmt.seq ss) := ir.stmt.seq $ stmt_fuse_list ss
+| (ir.stmt.return e) := (ir.stmt.return e)
+| (ir.stmt.letb n ty val body) := ir.stmt.letb n ty val body
+| (ir.stmt.nop) := ir.stmt.nop
+| (ir.stmt.ite c t f) := ir.stmt.ite c t f
+| (ir.stmt.assign n v) := ir.stmt.assign n v
+| (ir.stmt.e e) := ir.stmt.e e
+| (ir.stmt.switch s cs d) := ir.stmt.switch s cs d
+
 meta def stmt : ir.stmt → format
 | (ir.stmt.e e) := expr' stmt e ++ ";"
 | (ir.stmt.return e) :=
@@ -155,21 +176,21 @@ meta def stmt : ir.stmt → format
     expr' stmt e ++ format.of_string ";"
   end
 -- TODO: clean up this function
-| (ir.stmt.letb n t ir.expr.uninitialized (ir.stmt.assign n' body)) :=
-  if n = n'
-  then ty t ++ format.space ++ (mangle_symbol n) ++ (to_fmt " = ") ++ (expr' stmt body) ++ to_fmt ";"
-  else (ty t ++ format.space ++ (mangle_symbol n) ++ (to_fmt " = ") ++ to_fmt ";" ++
-       format.line ++ stmt (ir.stmt.assign n' body))
+-- | (ir.stmt.letb n t ir.expr.uninitialized (ir.stmt.assign n' body)) :=
+--   if n = n'
+--   then ty t ++ format.space ++ (mangle_symbol n) ++ (to_fmt " = ") ++ (expr' stmt body) ++ to_fmt ";"
+--   else (ty t ++ format.space ++ (mangle_symbol n) ++ (to_fmt " = ") ++ to_fmt ";" ++
+--        format.line ++ stmt (ir.stmt.assign n' body))
 | (ir.stmt.letb n t ir.expr.uninitialized body) :=
   ty t ++ format.space ++ (mangle_symbol n) ++ to_fmt ";" ++ format.line ++ stmt body
   -- type checking should establish that these two types are equal
-| (ir.stmt.letb n t (ir.expr.constructor ty_name args) ir.stmt.nop) :=
+| (ir.stmt.letb n t (ir.expr.constructor ty_name args) s) :=
   -- temporary hack, need to think about how to model this better
   if ty_name = ir.symbol.external (some `lean) `name
   then let ctor_args := comma_sep (list.map (string_lit ∘ to_string) args) in
-    ty t ++ format.space ++ (mangle_symbol n) ++ " = lean::name({" ++ ctor_args ++ "})" ++ to_fmt ";"
+    ty t ++ format.space ++ (mangle_symbol n) ++ " = lean::name({" ++ ctor_args ++ "})" ++ to_fmt ";" ++ format.line ++ stmt s
   else let ctor_args := parens $ comma_sep (list.map mangle_symbol args) in
-       ty t ++ format.space ++ (mangle_symbol n) ++ ctor_args ++ to_fmt ";"
+       ty t ++ format.space ++ (mangle_symbol n) ++ ctor_args ++ to_fmt ";" ++ format.line ++ stmt s
 | (ir.stmt.letb n t v body) :=
   ty t ++ format.space ++ (mangle_symbol n) ++ (to_fmt " = ") ++ (expr' stmt v) ++ to_fmt ";" ++
   format.line ++ stmt body

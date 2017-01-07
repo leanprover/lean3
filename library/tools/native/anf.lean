@@ -108,6 +108,7 @@ private meta def anf_let (nm : name) (ty val body : expr) (anf : expr -> anf_mon
 -- | (n, ty, e) := (n, ty, e)
 
 meta def mk_single_let (body : expr) (b : binding) : expr :=
+  trace ("BODY" ++ to_string body) (fun _,
   let (n, ty, val) := b in
   match val with
    | (expr.app f arg) :=
@@ -115,25 +116,29 @@ meta def mk_single_let (body : expr) (b : binding) : expr :=
       args := expr.get_app_args (expr.app f arg)
    in match app_kind fn with
    | application_kind.cases :=
-        let body' := expr.instantiate_var body (mk_local n) in
-        mk_call (expr.const `native_compiler.assign []) [mk_local n, (expr.app f arg), body']
+      mk_call (expr.const `native_compiler.assign []) [mk_local n, (expr.app f arg), body]
    | application_kind.nat_cases := mk_call (expr.const `native.assign []) []
-   | _ := expr.elet n ty val body
+   | _ := expr.elet n ty val (expr.abstract_local body n)
    end
-   | _ := expr.elet n ty val body
-   end
+   | (expr.macro mdef i args) :=
+      match native.get_quote_expr (expr.macro mdef i args) with
+      | some _ := mk_call (expr.const `native_compiler.assign []) [mk_local n, (expr.macro mdef i args), body]
+      | _ := expr.elet n ty val (expr.abstract_local body n)
+      end
+   | _ := expr.elet n ty val (expr.abstract_local body n)
+  end)
 
 meta def mk_let' (bindings : list binding) (body : expr) : expr :=
-  list.foldl
-    mk_single_let
-    (expr.abstract_locals body (list.map prod.fst (list.reverse bindings)))
-    bindings
+  list.foldr
+    (fun rest elem, mk_single_let elem rest)
+    body -- (expr.abstract_locals body (list.map prod.fst (list.reverse bindings)))
+    (list.reverse bindings)
 
 private meta def mk_let_in_current_scope (body : expr) : anf_monad expr := do
   (_, scopes, _) ← state.read,
   match scopes with
   | [] := pure $ body
-  | (top :: _) := return $ mk_let' top body
+  | (top :: _) := return $ let res := mk_let' top body in trace ("LAST LET" ++ to_string res) (fun u, res)
   end
 
 private meta def enter_scope (action : anf_monad expr) : anf_monad expr := do

@@ -258,10 +258,13 @@ meta def bind_builtin_case_fields' (scrut : ir.symbol) : list (nat × ir.symbol)
 | [] body := return body
 | ((n, f) :: fs) body := do
   loc ← compile_local f,
-  ir.stmt.letb loc (ir.ty.object none) (ir.expr.project scrut n) <$> (bind_builtin_case_fields' fs body)
+  idx <- fresh_name,
+  kont <- bind_builtin_case_fields' fs body,
+  pure $ ir.stmt.letb idx ir.ty.int (ir.expr.raw_int n) (
+  ir.stmt.letb loc (ir.ty.object none) (ir.expr.call `index [scrut, idx]) kont)
 
 meta def bind_builtin_case_fields (scrut : ir.symbol) (fs : list ir.symbol) (body : ir.stmt) : ir_compiler ir.stmt :=
-bind_builtin_case_fields' scrut (label fs) body
+  bind_builtin_case_fields' scrut (label fs) body
 
 meta def compile_builtin_cases (action : expr → ir_compiler ir.stmt) (scrut : ir.symbol)
   : list (nat × expr) → ir_compiler (list (nat × ir.stmt))
@@ -270,7 +273,8 @@ meta def compile_builtin_cases (action : expr → ir_compiler ir.stmt) (scrut : 
   (fs, body') ← take_arguments body,
   body'' ← action body',
   cs' ← compile_builtin_cases cs,
-  case ← bind_builtin_case_fields scrut (list.map ir.symbol.name fs) body'',
+  -- TODO: remove hardwired name here
+  case ← bind_builtin_case_fields `buffer (list.map ir.symbol.name fs) body'',
   return $ (n, case) :: cs'
 
 meta def mk_builtin_cases_on (case_name : name) (scrut : ir.symbol) (cases : list (nat × ir.stmt)) (default : ir.stmt) : ir.stmt :=
@@ -404,7 +408,7 @@ meta def assign_last_expr (result_var : ir.symbol) : ir.stmt -> ir_compiler ir.s
 
 -- meta def assert_is_switch : ir_compiler
 meta def compile_native_assign (n v body : expr) (action : expr -> ir_compiler ir.stmt) : ir_compiler ir.stmt :=
-  trace (to_string n ++ "|" ++ to_string v ++ "|" ++ to_string body) (fun u, do
+  trace (to_string n ++ "|\n" ++ to_string v ++ "|\n" ++ to_string body) (fun u, do
   n' <- action n,
   e <- assert_expr n',
   nm <- assert_name e,
@@ -416,6 +420,8 @@ meta def compile_native_assign (n v body : expr) (action : expr -> ir_compiler i
 meta def macro_get_name : expr -> name
 | (expr.macro mdef _ _) := expr.macro_def_name mdef
 | _ := name.anonymous
+
+vm_eval (get_builtin `name.cases_on)
 
 meta def compile_const_head_expr_app_to_ir_stmt
   (head : expr)
@@ -437,10 +443,14 @@ meta def compile_const_head_expr_app_to_ir_stmt
   | application_kind.constructor n := do
     args' ← monad.sequence $ list.map (fun x, action x >>= assert_expr) args,
     ir.stmt.e <$> mk_object (unsigned.of_nat n) args'
-  | application_kind.cases := do
-    compile_cases_on_to_ir_stmt (expr.const_name head) args action
+  | application_kind.cases :=
+    -- hack, clean this up
+    match get_builtin (expr.const_name head) with
+    | option.some (builtin.cases _ _) :=
+      compile_builtin_cases_on_to_ir_expr (expr.const_name head) args action
+    | _ := compile_cases_on_to_ir_stmt (expr.const_name head) args action
+    end
   | application_kind.assign := do
-    trace_ir "IN ASSIGN",
     match args with
     | (n :: v :: body :: []) :=
       match v with
@@ -452,6 +462,7 @@ meta def compile_const_head_expr_app_to_ir_stmt
           e <- assert_expr st,
           nm <- assert_name e,
           body' <- action body,
+          trace_ir "HEEEEEEEEEEEEEEEEEEEEEEEEEEEERE",
           pure $ (ir.stmt.letb fresh ir.base_type.str (ir.expr.lit $ ir.literal.string (native.serialize_quote_macro v)) $
                   ir.stmt.letb nm (ir.ty.object none) (ir.expr.call (in_lean_ns `deserialize_quoted_expr) [fresh]) body')
 
@@ -512,10 +523,7 @@ meta def assign_stmt' (n : ir.symbol) : ir.stmt → ir_compiler ir.stmt
 meta def assign_stmt (n : ir.symbol) (stmt : ir.stmt) : ir_compiler ir.stmt := do
   n' <- compile_local n,
   st <- assign_stmt' n' stmt,
-  pure $ ir.stmt.seq [
-    ir.stmt.letb n' (ir.ty.object none) ir.expr.uninitialized ir.stmt.nop,
-    st
-  ]
+  pure $ ir.stmt.letb n' (ir.ty.object none) ir.expr.uninitialized st
 
 -- open application_kk
 meta def compile_expr_to_ir_stmt : expr → ir_compiler ir.stmt
@@ -638,11 +646,10 @@ meta def emit_declare_vm_builtins : list (name × expr) → ir_compiler (list ir
   tail ← emit_declare_vm_builtins es,
   fresh ← fresh_name,
   let cpp_name := in_lean_ns `name,
-    single_binding := ir.stmt.seq [
-    ir.stmt.letb fresh (ir.ty.symbol cpp_name) vm_name ir.stmt.nop,
-    ir.stmt.assign `env (ir.expr.call (in_lean_ns `add_native) [`env, fresh, replace_main n])
- ],
-  return $ single_binding :: tail
+    single_binding :=
+    ir.stmt.letb fresh (ir.ty.symbol cpp_name) vm_name (
+    ir.stmt.assign `env (ir.expr.call (in_lean_ns `add_native) [`env, fresh, replace_main n]))
+  in return $ single_binding :: tail
 
 meta def emit_main (procs : list (name × expr)) : ir_compiler ir.defn := do
   builtins ← emit_declare_vm_builtins procs,
