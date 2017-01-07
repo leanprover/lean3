@@ -62,6 +62,7 @@ inductive ty
 | symbol : symbol -> ty
 | name : name → ty
 | array : ty -> ty
+| raw_ptr : ty -> ty
 
 -- bug here if you omit name
 instance has_coe_basetype_ty : has_coe base_type ty :=
@@ -95,6 +96,7 @@ inductive expr : Type
 | sub : expr → expr → expr
 | raw_int : nat → expr
 | unreachable : expr
+| array : list symbol -> expr
 -- | value : value → expr
 
 inductive stmt : Type

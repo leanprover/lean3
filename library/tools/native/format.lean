@@ -89,8 +89,9 @@ meta def expr' (action : ir.stmt → format) : ir.expr → format
 | (ir.expr.panic err_msg) :=
   to_fmt "throw std::runtime_error(" ++ string_lit err_msg ++ ");"
 | (ir.expr.mk_native_closure n arity args) :=
-  "lean::mk_native_closure(" ++ mangle_symbol n ++ ", " ++
-   format.bracket "{" "}" (comma_sep (list.map format_local args)) ++ ")"
+   if arity < 9
+   then "lean::mk_native_closure(" ++ mangle_symbol n ++ ", " ++ format.bracket "{" "}" (comma_sep (list.map format_local args)) ++ ")"
+   else "lean::mk_native_closure(" ++ mangle_symbol n ++ ", " ++ arity ++ ", " ++ format.bracket "{" "}" (comma_sep (list.map format_local args)) ++ ")"
  | (ir.expr.invoke s args) :=
  "lean::invoke(" ++ mangle_symbol s ++ ", " ++
  (comma_sep (list.map format_local args)) ++ ")"
@@ -101,6 +102,8 @@ meta def expr' (action : ir.stmt → format) : ir.expr → format
  | (ir.expr.raw_int n) := repr n
  | (ir.expr.sub e1 e2) :=
    expr' e1 ++ " - " ++ expr' e2
+| (ir.expr.array ns) :=
+  format.bracket "{" "}" (comma_sep (list.map format_local ns))
 | ir.expr.unreachable := "lean_unreachable()"
 
 meta def default_case (body : format) : format :=
@@ -142,6 +145,7 @@ meta def ty : ir.ty → format
 | (ir.ty.base bt) := base_type bt
 | (ir.ty.array T) := ty T ++ "[]"
 | (ir.ty.symbol s) := mangle_symbol s
+| (ir.ty.raw_ptr T) := "const " ++ ty T ++ "*"
 
 meta def parens (inner : format) : format :=
   format.bracket "(" ")" inner
@@ -175,12 +179,6 @@ meta def stmt : ir.stmt → format
     format.space ++
     expr' stmt e ++ format.of_string ";"
   end
--- TODO: clean up this function
--- | (ir.stmt.letb n t ir.expr.uninitialized (ir.stmt.assign n' body)) :=
---   if n = n'
---   then ty t ++ format.space ++ (mangle_symbol n) ++ (to_fmt " = ") ++ (expr' stmt body) ++ to_fmt ";"
---   else (ty t ++ format.space ++ (mangle_symbol n) ++ (to_fmt " = ") ++ to_fmt ";" ++
---        format.line ++ stmt (ir.stmt.assign n' body))
 | (ir.stmt.letb n t ir.expr.uninitialized body) :=
   ty t ++ format.space ++ (mangle_symbol n) ++ to_fmt ";" ++ format.line ++ stmt body
   -- type checking should establish that these two types are equal
@@ -192,8 +190,13 @@ meta def stmt : ir.stmt → format
   else let ctor_args := parens $ comma_sep (list.map mangle_symbol args) in
        ty t ++ format.space ++ (mangle_symbol n) ++ ctor_args ++ to_fmt ";" ++ format.line ++ stmt s
 | (ir.stmt.letb n t v body) :=
-  ty t ++ format.space ++ (mangle_symbol n) ++ (to_fmt " = ") ++ (expr' stmt v) ++ to_fmt ";" ++
-  format.line ++ stmt body
+  match t with
+  | (ir.ty.array t) :=
+    ty t ++ format.space ++ (mangle_symbol n) ++ "[]" ++ (to_fmt " = ") ++ (expr' stmt v) ++ to_fmt ";" ++
+    format.line ++ stmt body
+  | _ := ty t ++ format.space ++ (mangle_symbol n) ++ (to_fmt " = ") ++ (expr' stmt v) ++ to_fmt ";" ++
+    format.line ++ stmt body
+  end
 | (ir.stmt.switch scrut cs default) :=
   (to_fmt "switch (") ++ (mangle_symbol scrut) ++ (to_fmt ")") ++
   (block (cases stmt cs ++ format.line ++ default_case (stmt default)))

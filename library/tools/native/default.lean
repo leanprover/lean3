@@ -135,10 +135,30 @@ meta def mk_ir_call (head : ir.symbol) (args : list ir.expr) : ir_compiler ir.ex
     args' ← monad.sequence args'',
     return (ir.expr.call head args')
 
+meta def mk_direct_call (head : ir.symbol) (args : list ir.expr) : ir_compiler ir.stmt := do
+  if list.length args < 9
+  then ir.stmt.e <$> (mk_ir_call head args)
+  else match head with
+       | (ir.symbol.name n) := ir.stmt.e <$> mk_ir_call head args
+       | (ir.symbol.external ns n) := do
+          array <- fresh_name,
+          idx <- fresh_name,
+          args' <- monad.mapm assert_name args,
+          pure $ ir.stmt.letb array (ir.ty.array (ir.ty.symbol (in_lean_ns `vm_obj))) (ir.expr.array args')
+          (ir.stmt.letb idx ir.base_type.unsigned (ir.expr.raw_int $ list.length args)
+          (ir.stmt.e (ir.expr.call head [idx, array])))
+       end
+
+meta def mk_nargs_symbol : ir.symbol -> ir.symbol
+| (ir.symbol.name n) := ir.symbol.name (n ++ "nargs")
+| o := o
+
 meta def mk_under_sat_call (head : ir.symbol) (arity : nat) (args : list ir.expr) : ir_compiler ir.expr :=
 let args'' := list.map assert_name args in do
     args' ← monad.sequence args'',
-    return $ ir.expr.mk_native_closure head arity args'
+    if arity < 9
+    then return (ir.expr.mk_native_closure head arity args')
+    else return (ir.expr.mk_native_closure (mk_nargs_symbol head) arity args')
 
 meta def bind_value_with_ty (val : ir.expr) (ty : ir.ty) (body : ir.symbol → ir_compiler ir.stmt) : ir_compiler ir.stmt := do
   fresh ← fresh_symbol,
@@ -178,7 +198,7 @@ meta def is_return (n : name) : bool :=
 meta def compile_call (head : ir.symbol) (arity : nat) (args : list ir.expr) : ir_compiler ir.stmt := do
   -- trace_ir $ "compile_call: " ++ (to_string head),
   if list.length args = arity
-  then ir.stmt.e <$> mk_ir_call head args
+  then mk_direct_call head args
   else if list.length args < arity
   then ir.stmt.e <$> mk_under_sat_call head arity args
   else mk_over_sat_call head (list.take arity args) (list.drop arity args)
@@ -407,21 +427,25 @@ meta def assign_last_expr (result_var : ir.symbol) : ir.stmt -> ir_compiler ir.s
 | (ir.stmt.nop) := pure $ ir.stmt.nop
 
 -- meta def assert_is_switch : ir_compiler
-meta def compile_native_assign (n v body : expr) (action : expr -> ir_compiler ir.stmt) : ir_compiler ir.stmt :=
-  trace (to_string n ++ "|\n" ++ to_string v ++ "|\n" ++ to_string body) (fun u, do
+meta def compile_native_assign (n v body : expr) (action : expr -> ir_compiler ir.stmt) : ir_compiler ir.stmt := do
   n' <- action n,
   e <- assert_expr n',
   nm <- assert_name e,
   v' <- action v,
   v'' <- assign_last_expr nm v',
   body' <- action body,
-  return $ ir.stmt.letb nm (ir.ty.object none) ir.expr.uninitialized (ir.stmt.seq [v'', body']))
+  return $ ir.stmt.letb nm (ir.ty.object none) ir.expr.uninitialized (ir.stmt.seq [v'', body'])
 
 meta def macro_get_name : expr -> name
 | (expr.macro mdef _ _) := expr.macro_def_name mdef
 | _ := name.anonymous
 
-vm_eval (get_builtin `name.cases_on)
+meta def compile_return : ir.stmt -> ir_compiler ir.stmt
+| (ir.stmt.letb nm ty val body) :=
+  ir.stmt.letb nm ty val <$> compile_return body
+| s := do
+  e <- assert_expr s,
+  pure $ ir.stmt.return e
 
 meta def compile_const_head_expr_app_to_ir_stmt
   (head : expr)
@@ -431,7 +455,8 @@ meta def compile_const_head_expr_app_to_ir_stmt
   match app_kind head with
   | application_kind.return := do
     rexp ← one_or_error args,
-    ir.stmt.return <$> ((action rexp) >>= assert_expr)
+    rexp' <- action rexp,
+    compile_return rexp'
   | application_kind.nat_cases :=
     compile_nat_cases_on_to_ir_expr (expr.const_name head) args action
   | application_kind.projection n := do
@@ -462,7 +487,6 @@ meta def compile_const_head_expr_app_to_ir_stmt
           e <- assert_expr st,
           nm <- assert_name e,
           body' <- action body,
-          trace_ir "HEEEEEEEEEEEEEEEEEEEEEEEEEEEERE",
           pure $ (ir.stmt.letb fresh ir.base_type.str (ir.expr.lit $ ir.literal.string (native.serialize_quote_macro v)) $
                   ir.stmt.letb nm (ir.ty.object none) (ir.expr.call (in_lean_ns `deserialize_quoted_expr) [fresh]) body')
 
@@ -600,8 +624,46 @@ meta def compile_defn (decl_name : name) (e : expr) : ir_compiler ir.defn := do
     compile_defn_to_ir (replace_main decl_name) args body
   end
 
+meta def bind_args (array : ir.symbol) (n : nat) : ir_compiler (list ir.symbol × ir.stmt) :=
+  nat.repeat (fun n r, do
+    (ns, body) <- r,
+    fresh <- fresh_name,
+    fresh2 <- fresh_name,
+    pure $ (fresh2 :: ns, ir.stmt.letb fresh ir.ty.int (ir.expr.raw_int n) (
+    ir.stmt.letb fresh2 (ir.ty.object none) (ir.expr.call `index [array, fresh]) body))) n (pure ([], ir.stmt.nop))
+
+meta def compile_nargs_body (decl_name array : name) (arity : nat) : ir_compiler ir.stmt := do
+  (ns, s) <- bind_args array arity,
+  pure $ ir.stmt.seq [s, ir.stmt.return $ ir.expr.call decl_name (list.reverse ns)]
+
+meta def compile_defn_nargs (decl_name : name) (e : expr) : ir_compiler ir.defn := do
+  fresh1 <- fresh_name,
+  fresh2 <- fresh_name,
+  ir.defn.mk
+    (name.mk_string "nargs" decl_name)
+    [(fresh1, ir.base_type.unsigned), (fresh2, ir.ty.raw_ptr $ ir.ty.symbol (in_lean_ns `vm_obj))] (ir.ty.object none)
+    <$> (compile_nargs_body decl_name fresh2 (native.get_arity e))
+  -- refinement <- has_ir_refinement decl_name,
+  -- match refinement with
+  -- | some item :=
+  --   match item with
+  --   | ir.item.defn d := pure d
+  --   | _ := mk_error "not sure what to do here yet"
+  --   end
+  -- | none :=
+  --   let arity := native.get_arity e in do (args, body) ← take_arguments e,
+  --   do trace_ir (to_string e),
+  --   compile_defn_to_ir (replace_main decl_name) args body
+  -- end
+
+meta def compile_defn_to_items (decl_name : name) (e : expr) : list (ir_compiler ir.item) :=
+  let default := [ir.item.defn <$> compile_defn decl_name e]
+  in if native.get_arity e < 9
+     then default
+     else default ++ [ir.item.defn <$> compile_defn_nargs decl_name e]
+
 meta def compile_defns : list procedure → list (ir_compiler ir.item) :=
-  fun ps, list.map (fun p, ir.item.defn <$> compile_defn (prod.fst p) (prod.snd p)) ps
+  fun ps, list.bind ps (fun p, compile_defn_to_items (prod.fst p) (prod.snd p))
 
 meta def mk_builtin_cases_on_proto (n : name) : ir_compiler ir.decl := do
   o <- fresh_name,
@@ -616,14 +678,19 @@ meta def n_fresh : nat -> ir_compiler (list name)
    return (f :: fs)
 
 meta def compile_decl : extern_fn → ir_compiler ir.item
-| (| in_lean_ns, lean_name, native_name, arity |) :=
+| (| _, lean_name, native_name, arity |) :=
   if is_cases_on (expr.const lean_name [])
   then ir.item.decl <$> mk_builtin_cases_on_proto native_name
-  else do
+  else
+  if (unsigned.to_nat arity) < 9
+  then do
     args <- n_fresh (unsigned.to_nat arity),
     types <- pure $ list.repeat (ir.ty.ref $ ir.ty.object none) (unsigned.to_nat arity),
     -- this is a temp. hack
     return $ ir.item.decl $ ir.decl.mk native_name (list.zip args types) (ir.ty.object none)
+  else do
+    args <- n_fresh 2,
+    return $ ir.item.decl $ ir.decl.mk native_name (list.zip args [ir.base_type.unsigned, ir.ty.raw_ptr $ ir.ty.symbol (in_lean_ns `vm_obj)]) (ir.ty.object none)
 
 meta def compile_decls : list extern_fn → list (ir_compiler ir.item) :=
   fun xs, list.map compile_decl xs

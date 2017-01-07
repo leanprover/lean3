@@ -70,45 +70,26 @@ private meta def anf_let (nm : name) (ty val body : expr) (anf : expr -> anf_mon
     let_bind fresh ty val',
     anf (expr.instantiate_var body (mk_local fresh))
 
--- private meta def transform_let_recursor (nm : name) (ty body : expr) (anf : expr → anf_monad expr) : expr -> anf_monad expr
--- | (expr.app f arg) :=
---   let fn := expr.get_app_fn (expr.app f arg),
---       args := expr.get_app_args (expr.app f arg)
---    in match app_kind fn with
---    | application_kind.cases := do
---         trace_anf ("INSIDE OF CASES" ++ to_string fn),
---         val' <- anf (expr.app f arg),
---         body' <- anf (expr.instantiate_var body (mk_local nm)),
---         pure $ mk_call (expr.const `native_compiler.assign []) [mk_local nm, val', body']
---    | application_kind.nat_cases := return $ mk_call (expr.const `native.assign []) []
---    | _ := anf_let nm ty (expr.app f arg) body anf
---    end
--- | val := anf_let nm ty val body anf
-
--- | (expr.macro mdef i args) :=
---   match native.get_quote_expr (expr.macro mdef i args) with
---   | some _ := do
---     body' <- action (expr.instantiate_var body (mk_local nm)),
---     return $ mk_call (expr.const `native_compiler.assign []) [mk_local nm, (expr.macro mdef i args), body']
---   | none := under_let (expr.elet nm ty (expr.macro mdef i args) body) action
---   end
--- | e := under_let (expr.elet nm ty e body) action
-
--- private meta def transform_let_recursor (body : expr) : binding -> anf_monad expr
--- | (n, ty, (expr.app f arg)) :=
---   let fn := expr.get_app_fn (expr.app f arg),
---       args := expr.get_app_args (expr.app f arg)
---    in match app_kind fn with
---    | application_kind.cases := do
---         let body' := expr.instantiate_var body (mk_local n)
---         in pure $ mk_call (expr.const `native_compiler.assign []) [mk_local n, (expr.app f arg), body']
---    | application_kind.nat_cases := return $ mk_call (expr.const `native.assign []) []
---    | _ := (n, ty, (expr.instantiate_var body (mk_local n))
---    end
--- | (n, ty, e) := (n, ty, e)
+meta def should_abstract : binding -> bool
+| (n, ty, val) :=
+  match val with
+   | (expr.app f arg) :=
+    let fn := expr.get_app_fn (expr.app f arg),
+      args := expr.get_app_args (expr.app f arg)
+   in match app_kind fn with
+   | application_kind.cases := ff
+   | application_kind.nat_cases := ff
+   | _ := tt
+   end
+   | (expr.macro mdef i args) :=
+      match native.get_quote_expr (expr.macro mdef i args) with
+      | some _ := ff
+      | _ := tt
+      end
+   | _ := tt
+   end
 
 meta def mk_single_let (body : expr) (b : binding) : expr :=
-  trace ("BODY" ++ to_string body) (fun _,
   let (n, ty, val) := b in
   match val with
    | (expr.app f arg) :=
@@ -118,27 +99,27 @@ meta def mk_single_let (body : expr) (b : binding) : expr :=
    | application_kind.cases :=
       mk_call (expr.const `native_compiler.assign []) [mk_local n, (expr.app f arg), body]
    | application_kind.nat_cases := mk_call (expr.const `native.assign []) []
-   | _ := expr.elet n ty val (expr.abstract_local body n)
+   | _ := expr.elet n ty val body
    end
    | (expr.macro mdef i args) :=
       match native.get_quote_expr (expr.macro mdef i args) with
       | some _ := mk_call (expr.const `native_compiler.assign []) [mk_local n, (expr.macro mdef i args), body]
-      | _ := expr.elet n ty val (expr.abstract_local body n)
+      | _ := expr.elet n ty val body
       end
-   | _ := expr.elet n ty val (expr.abstract_local body n)
-  end)
+   | _ := expr.elet n ty val body
+  end
 
 meta def mk_let' (bindings : list binding) (body : expr) : expr :=
   list.foldr
     (fun rest elem, mk_single_let elem rest)
-    body -- (expr.abstract_locals body (list.map prod.fst (list.reverse bindings)))
+    (expr.abstract_locals body (list.map prod.fst (list.reverse (list.filter (fun b, should_abstract b = tt) bindings))))
     (list.reverse bindings)
 
 private meta def mk_let_in_current_scope (body : expr) : anf_monad expr := do
   (_, scopes, _) ← state.read,
   match scopes with
   | [] := pure $ body
-  | (top :: _) := return $ let res := mk_let' top body in trace ("LAST LET" ++ to_string res) (fun u, res)
+  | (top :: _) := return $ mk_let' top body
   end
 
 private meta def enter_scope (action : anf_monad expr) : anf_monad expr := do
@@ -243,7 +224,7 @@ private meta def anf' : expr → anf_monad expr
 | (expr.app f arg) := do
   let fn := expr.get_app_fn (expr.app f arg),
       args := expr.get_app_args (expr.app f arg)
-   in do trace_anf ("APPPPP: " ++ to_string fn), match app_kind fn with
+   in match app_kind fn with
    | cases := anf_cases_on fn args anf'
    | nat_cases := anf_cases_on fn args anf'
    | constructor _ := anf_constructor fn args anf'

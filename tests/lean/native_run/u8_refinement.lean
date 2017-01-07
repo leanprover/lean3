@@ -1,8 +1,7 @@
-import init.native.ir
 import data.bitvec
 import data.list
 import system.io
-import init.debugger.cli
+import tools.native
 
 set_option debugger true
 
@@ -24,6 +23,3 @@ def u8.put : u8 → io unit :=
 
 @[breakpoint] def main : io unit :=
   u8.put $ (u8.add 0 1)
-
-local attribute [breakpoint] native.compile
--- vm_eval main

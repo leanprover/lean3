@@ -392,10 +392,12 @@ void decls_to_native_compile(environment const & env, buffer<declaration> & decl
         auto vdecl = get_vm_decl(env, decl_name);
         if (vdecl && vdecl->is_bytecode()) {
             decls.push_back(d);
-        } else if (vdecl) {
+        } else {
             auto builtin = get_builtin(decl_name);
+            // std::cout << decl_name << std::endl;
             // We currently assume they are in the Lean ns, I don't think this is a good assumption if we allow C++ extensions to be loaded
             if (builtin) {
+                // std::cout << "FOUNDED" << std::endl;
                 // std::cout << decl_name << std::endl;
                 // std::cout <<  builtin.value().m_name << std::endl;
                 extern_fns.push_back(*builtin);
