@@ -820,7 +820,11 @@ expr type_context::infer(expr const & e) {
 expr type_context::infer_core(expr const & e) {
     lean_assert(!is_var(e));
     lean_assert(closed(e));
-
+    if (is_var(e)) {
+      throw generic_exception(e, [=](formatter const & fmt) {
+	  return format("type checker does not support free variables") + pp_indent_expr(fmt, e);
+	});
+    }
     auto & cache = m_cache->m_infer_cache;
     unsigned postponed_sz = m_postponed.size();
     auto it = cache.find(e);
