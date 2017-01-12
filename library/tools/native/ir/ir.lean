@@ -48,6 +48,7 @@ inductive base_type
 | int -- should we have these?
 -- primitive string literals aka `const * char`
 | str
+| binary
 -- an unbounded integer
 | integer
 
@@ -71,6 +72,7 @@ instance has_coe_basetype_ty : has_coe base_type ty :=
 inductive literal
 | nat : nat → literal
 | string : string → literal
+| binary : string → literal
 
 -- inductive value : Type
 -- | name : name → value
@@ -109,11 +111,13 @@ inductive stmt : Type
 | return : expr → stmt
 | nop : stmt
 
+def is_extern := bool
+
 inductive defn
-| mk : name → list (name × ty) → ty → stmt → defn
+| mk : is_extern -> name → list (name × ty) → ty → stmt → defn
 
 def defn.to_string : defn → string
-| (defn.mk n ps ret body) := "def " ++ to_string n ++ "..."
+| (defn.mk _ n ps ret body) := "def " ++ to_string n ++ "..."
 
 instance defn_has_to_string : has_to_string defn :=
   ⟨ defn.to_string ⟩
@@ -132,7 +136,7 @@ inductive item
 | decl : decl → item
 
 def item.get_name : item → name
-| (item.defn (defn.mk n _ _ _)) := n
+| (item.defn (defn.mk _ n _ _ _)) := n
 | (item.decl (decl.mk n _ _)) := n
 
 def item.to_string : item → string

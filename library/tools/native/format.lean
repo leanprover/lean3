@@ -53,9 +53,14 @@ private meta def mk_constructor
 private meta def mk_call (symbol : ir.symbol) (args : list ir.symbol) : format :=
   mangle_symbol symbol ++ (format.bracket "(" ")" (comma_sep $ list.map mangle_symbol args))
 
+meta def real_concat : list string -> string
+| [] := ""
+| (s :: ss) := s ++ real_concat ss
+
 meta def literal : ir.literal → format
 | (ir.literal.nat n) := to_fmt "lean::mk_vm_nat(" ++ to_fmt n ++ ")"
 | (ir.literal.string s) := to_string s ++ "s"
+| (ir.literal.binary b) := format.bracket "{" "}" (real_concat $ (list.intersperse ", " (list.map (fun c, "static_cast<char>(" ++ to_string (char.to_nat c) ++ ")") b)))
 
 meta def format_local (s : ir.symbol) : format :=
   mangle_symbol s
@@ -123,6 +128,7 @@ meta def cases (action : ir.stmt → format) (cs : list (nat × ir.stmt)) : form
 
 meta def base_type : ir.base_type -> format
 | ir.base_type.str := "std::string"
+| ir.base_type.binary := "char[] "
 | ir.base_type.u8 := "NYI"
 | ir.base_type.u16 := "NYI"
 | ir.base_type.u32 := "NYI"
@@ -133,7 +139,7 @@ meta def base_type : ir.base_type -> format
 | ir.base_type.i32 := "NYI"
 | ir.base_type.i64 := "NYI"
 | ir.base_type.int := "int"
-| integer := "lean::mpz"
+| ir.base_type.integer := "lean::mpz"
 
 meta def ty : ir.ty → format
 | (ir.ty.object _) := format.of_string "lean::vm_obj"
@@ -217,13 +223,18 @@ ty (prod.snd param) ++ format.space ++ mangle_symbol (ir.symbol.name $ prod.fst 
 meta def format_argument_list (tys : list (name × ir.ty)) : format :=
   format.bracket "(" ")" (comma_sep (list.map format_param tys))
 
+meta def external : bool -> format
+| bool.tt := "extern \"C\" "
+| bool.ff := format.nil
+
 -- meta_def format_prototypes ()
 meta def defn (d : ir.defn) : format :=
   match d with
-  | ir.defn.mk n arg_tys ret_ty body :=
+  | ir.defn.mk extern n arg_tys ret_ty body :=
     let body' := stmt body,
         nm := if n = "main" then to_fmt (mangle_name n) else (mangle_symbol (ir.symbol.name n))
     in
+    external extern ++
     (ty ret_ty) ++ format.space ++ nm ++
     (format_argument_list arg_tys) ++ format.space ++
     block body'
@@ -245,8 +256,8 @@ meta def headers : format :=
   ]
 
 meta def prototype : ir.defn → format
-| (ir.defn.mk n params ret_ty _) :=
-  ty ret_ty ++ " " ++ mangle_symbol (ir.symbol.name n) ++ format_argument_list params ++ ";" ++ format.line
+| (ir.defn.mk extern n params ret_ty _) :=
+  external extern ++ ty ret_ty ++ " " ++ mangle_symbol (ir.symbol.name n) ++ format_argument_list params ++ ";" ++ format.line
 
 meta def defn_prototypes (defs : list ir.defn) : format :=
   format_concat $ list.map prototype defs

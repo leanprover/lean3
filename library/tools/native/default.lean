@@ -172,12 +172,18 @@ meta def compile_local (n : ir.symbol) : ir_compiler ir.symbol :=
   return n
 -- return $ (mk_str_name "_$local$_" (name.to_string_with_sep "_" n))
 
-meta def mk_invoke (loc : ir.symbol) (args : list ir.expr) : ir_compiler ir.expr :=
-let args'' := list.map assert_name args
-in do
-  args' ← monad.sequence args'',
+meta def mk_invoke (loc : ir.symbol) (args : list ir.expr) : ir_compiler ir.stmt := do
+  args' <- monad.mapm assert_name args,
   loc' ← compile_local loc,
-  lift_result (native.result.ok $ ir.expr.invoke loc' args')
+  if args'^.length < 9
+  then return (ir.stmt.e $ ir.expr.invoke loc' args')
+  else do
+    array <- fresh_name,
+    idx <- fresh_name,
+    args' <- monad.mapm assert_name args,
+    pure $ ir.stmt.letb array (ir.ty.array (ir.ty.symbol (in_lean_ns `vm_obj))) (ir.expr.array args')
+      (ir.stmt.letb idx ir.base_type.unsigned (ir.expr.raw_int $ list.length args)
+        (ir.stmt.e (ir.expr.invoke loc [idx, array])))
 
 meta def mk_over_sat_call (head : ir.symbol) (fst snd : list ir.expr) : ir_compiler ir.stmt :=
 let fst' := list.map assert_name fst,
@@ -186,7 +192,7 @@ let fst' := list.map assert_name fst,
   args'' ← monad.sequence snd',
   fresh ← fresh_symbol,
   locl ← compile_local fresh,
-  invoke ← ir.stmt.e <$> (mk_invoke fresh (ir.expr.sym <$> args'')),
+  invoke ← mk_invoke fresh (ir.expr.sym <$> args''),
   return $ (ir.stmt.seq [
     ir.stmt.letb locl (ir.ty.object none) (ir.expr.call head args') ir.stmt.nop,
     invoke
@@ -487,7 +493,7 @@ meta def compile_const_head_expr_app_to_ir_stmt
           e <- assert_expr st,
           nm <- assert_name e,
           body' <- action body,
-          pure $ (ir.stmt.letb fresh ir.base_type.str (ir.expr.lit $ ir.literal.string (native.serialize_quote_macro v)) $
+          pure $ (ir.stmt.letb fresh ir.base_type.str (ir.expr.lit $ ir.literal.binary (native.serialize_quote_macro v)) $
                   ir.stmt.letb nm (ir.ty.object none) (ir.expr.call (in_lean_ns `deserialize_quoted_expr) [fresh]) body')
 
         | option.none := mk_error $ "unsupported macro: " ++ to_string (macro_get_name v)
@@ -523,8 +529,8 @@ meta def compile_expr_app_to_ir_stmt
     then compile_const_head_expr_app_to_ir_stmt head args action
     else if expr.is_local_constant head
     then do
-      args' ← monad.sequence $ list.map (fun x, action x >>= assert_expr) args,
-      ir.stmt.e <$> mk_invoke (expr.local_uniq_name head) args'
+      args' ← monad.mapm (fun x, action x >>= assert_expr) args,
+      mk_invoke (expr.local_uniq_name head) args'
     else (mk_error ("unsupported call position" ++ (to_string head)))
 
 meta def compile_expr_macro_to_ir_expr (e : expr) (action : expr -> ir_compiler ir.stmt) : ir_compiler ir.stmt :=
@@ -591,7 +597,7 @@ meta def compile_expr_to_ir_stmt : expr → ir_compiler ir.stmt
 meta def compile_defn_to_ir (decl_name : name) (args : list name) (body : expr) : ir_compiler ir.defn := do
   body' ← compile_expr_to_ir_stmt body,
   let params := (list.zip args (list.repeat (ir.ty.ref (ir.ty.object none)) (list.length args))) in
-  pure (ir.defn.mk decl_name params (ir.ty.object none) body')
+  pure (ir.defn.mk bool.ff decl_name params (ir.ty.object none) body')
 
 def unwrap_or_else {T R : Type} : ir.result T → (T → R) → (error → R) → R
 | (native.result.err e) f err := err e
@@ -639,7 +645,7 @@ meta def compile_nargs_body (decl_name array : name) (arity : nat) : ir_compiler
 meta def compile_defn_nargs (decl_name : name) (e : expr) : ir_compiler ir.defn := do
   fresh1 <- fresh_name,
   fresh2 <- fresh_name,
-  ir.defn.mk
+  ir.defn.mk bool.ff
     (name.mk_string "nargs" decl_name)
     [(fresh1, ir.base_type.unsigned), (fresh2, ir.ty.raw_ptr $ ir.ty.symbol (in_lean_ns `vm_obj))] (ir.ty.object none)
     <$> (compile_nargs_body decl_name fresh2 (native.get_arity e))
@@ -723,7 +729,7 @@ meta def emit_main (procs : list (name × expr)) : ir_compiler ir.defn := do
   arity ← lookup_arity `main,
   vm_simple_obj ← fresh_name,
   call_main ← compile_call "___lean__main" arity [ir.expr.sym vm_simple_obj],
-  return (ir.defn.mk `main [] ir.ty.int $ ir.stmt.seq ([
+  return (ir.defn.mk bool.ff `main [] ir.ty.int $ ir.stmt.seq ([
     ir.stmt.e $ ir.expr.call (in_lean_ns `initialize) [],
     ir.stmt.letb `env (ir.ty.symbol (in_lean_ns `environment)) ir.expr.uninitialized ir.stmt.nop
   ] ++ builtins ++ [
@@ -737,7 +743,7 @@ meta def emit_main (procs : list (name × expr)) : ir_compiler ir.defn := do
 ]))
 
 meta def emit_package_initialize (procs : list (name × expr)) : ir_compiler ir.defn :=
-  ir.defn.mk `initialize [] ir.ty.int <$> (ir.stmt.e <$> panic "initialization started")
+  ir.defn.mk bool.tt `initialize [] ir.ty.int <$> (ir.stmt.e <$> panic "initialization started")
 
 meta def apply_pre_ir_passes
   (procs : list procedure)
