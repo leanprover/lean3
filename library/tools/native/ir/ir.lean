@@ -72,7 +72,9 @@ instance has_coe_basetype_ty : has_coe base_type ty :=
 inductive literal
 | nat : nat → literal
 | string : string → literal
+-- I think these two can be unified
 | binary : string → literal
+| array : list literal -> literal
 
 -- inductive value : Type
 -- | name : name → value

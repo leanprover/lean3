@@ -160,6 +160,8 @@ cpp_compiler compiler_with_native_config(native_compiler_mode mode) {
     // this is due to the way we deal with `quote_macro`.
     gpp.W("no-null-character");
     gpp.W("no-invalid-source-encoding");
+    // TODO(@jroesch) resolve this issue post POPL
+    gpp.W("no-return-type-c-linkage");
 
     return gpp;
 }

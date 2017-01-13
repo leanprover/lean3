@@ -61,6 +61,7 @@ meta def literal : ir.literal → format
 | (ir.literal.nat n) := to_fmt "lean::mk_vm_nat(" ++ to_fmt n ++ ")"
 | (ir.literal.string s) := to_string s ++ "s"
 | (ir.literal.binary b) := format.bracket "{" "}" (real_concat $ (list.intersperse ", " (list.map (fun c, "static_cast<char>(" ++ to_string (char.to_nat c) ++ ")") b)))
+| (ir.literal.array ls) := format.bracket "{" "}" (comma_sep (list.map literal ls))
 
 meta def format_local (s : ir.symbol) : format :=
   mangle_symbol s
@@ -255,6 +256,7 @@ meta def headers : format :=
     "static lean::environment * _$lean$_g_env = nullptr;"
   ]
 
+-- todo external symbols should have *no* mangling applied
 meta def prototype : ir.defn → format
 | (ir.defn.mk extern n params ret_ty _) :=
   external extern ++ ty ret_ty ++ " " ++ mangle_symbol (ir.symbol.name n) ++ format_argument_list params ++ ";" ++ format.line

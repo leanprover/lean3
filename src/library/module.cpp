@@ -30,6 +30,7 @@ Author: Leonardo de Moura
 #include "library/unfold_macros.h"
 #include "library/module_mgr.h"
 #include "library/library_task_builder.h"
+#include "library/vm/vm_native.h"
 #include "version.h"
 
 namespace lean {
@@ -635,15 +636,19 @@ modification_list parse_olean_modifications(std::string const & olean_code, std:
 //     return infile.good();
 // }
 
-typedef void (*initialize_native_library)();
-
+// TODO(@jroesch): We need check the Hash of the Lean or OLean file when doing this.
 void native_import_module(std::string const & file_name, environment & env) {
     auto base = std::string(file_name).erase(file_name.size() - 4, 4);
     auto shared_library = base + "so";
     if (std::ifstream(shared_library)) {
         std::cout << file_name << std::endl;
         dynamic_library lib(shared_library);
-        ((initialize_native_library)(lib.symbol("_$lean$_initialize")))();
+        auto symbols = ((native_library_initializer)(lib.symbol("_$lean$_initialize")))();
+        for (auto pair : symbols) {
+            auto olean_name = std::get<0>(pair);
+            auto symbol_name = std::get<1>(pair);
+            std::cout << "Found " << symbol_name << " in " << olean_name << std::endl;
+        }
     }
 }
 

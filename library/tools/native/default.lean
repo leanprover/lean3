@@ -597,7 +597,7 @@ meta def compile_expr_to_ir_stmt : expr → ir_compiler ir.stmt
 meta def compile_defn_to_ir (decl_name : name) (args : list name) (body : expr) : ir_compiler ir.defn := do
   body' ← compile_expr_to_ir_stmt body,
   let params := (list.zip args (list.repeat (ir.ty.ref (ir.ty.object none)) (list.length args))) in
-  pure (ir.defn.mk bool.ff decl_name params (ir.ty.object none) body')
+  pure (ir.defn.mk bool.tt decl_name params (ir.ty.object none) body')
 
 def unwrap_or_else {T R : Type} : ir.result T → (T → R) → (error → R) → R
 | (native.result.err e) f err := err e
@@ -645,7 +645,7 @@ meta def compile_nargs_body (decl_name array : name) (arity : nat) : ir_compiler
 meta def compile_defn_nargs (decl_name : name) (e : expr) : ir_compiler ir.defn := do
   fresh1 <- fresh_name,
   fresh2 <- fresh_name,
-  ir.defn.mk bool.ff
+  ir.defn.mk bool.tt
     (name.mk_string "nargs" decl_name)
     [(fresh1, ir.base_type.unsigned), (fresh2, ir.ty.raw_ptr $ ir.ty.symbol (in_lean_ns `vm_obj))] (ir.ty.object none)
     <$> (compile_nargs_body decl_name fresh2 (native.get_arity e))
@@ -729,7 +729,7 @@ meta def emit_main (procs : list (name × expr)) : ir_compiler ir.defn := do
   arity ← lookup_arity `main,
   vm_simple_obj ← fresh_name,
   call_main ← compile_call "___lean__main" arity [ir.expr.sym vm_simple_obj],
-  return (ir.defn.mk bool.ff `main [] ir.ty.int $ ir.stmt.seq ([
+  return (ir.defn.mk bool.tt `main [] ir.ty.int $ ir.stmt.seq ([
     ir.stmt.e $ ir.expr.call (in_lean_ns `initialize) [],
     ir.stmt.letb `env (ir.ty.symbol (in_lean_ns `environment)) ir.expr.uninitialized ir.stmt.nop
   ] ++ builtins ++ [
@@ -742,8 +742,16 @@ meta def emit_main (procs : list (name × expr)) : ir_compiler ir.defn := do
     call_main
 ]))
 
+meta def emit_native_symbol_pairs (procs : list (name × expr)) : ir_compiler ir.literal :=
+  let ns := list.map prod.fst procs,
+      oleans := (list.repeat (ir.literal.string "") (list.length ns)),
+      syms := list.map (fun n, ir.literal.string $ format_cpp.mangle_name n) ns,
+      both := (list.zip oleans syms)
+  in pure $ ir.literal.array (list.map (fun p, ir.literal.array [prod.fst p, prod.snd p]) both)
+
 meta def emit_package_initialize (procs : list (name × expr)) : ir_compiler ir.defn :=
-  ir.defn.mk bool.tt `initialize [] ir.ty.int <$> (ir.stmt.e <$> panic "initialization started")
+  ir.defn.mk bool.tt `initialize [] (ir.ty.symbol (in_lean_ns `native_symbol_seq)) <$>
+    (ir.stmt.return <$> ir.expr.lit <$> emit_native_symbol_pairs procs)
 
 meta def apply_pre_ir_passes
   (procs : list procedure)
