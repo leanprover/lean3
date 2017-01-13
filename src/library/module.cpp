@@ -638,16 +638,62 @@ modification_list parse_olean_modifications(std::string const & olean_code, std:
 
 // TODO(@jroesch): We need check the Hash of the Lean or OLean file when doing this.
 void native_import_module(std::string const & file_name, environment & env) {
+    std::cout << "at the top of native import" << file_name << std::endl;
     auto base = std::string(file_name).erase(file_name.size() - 4, 4);
     auto shared_library = base + "so";
+
     if (std::ifstream(shared_library)) {
-        std::cout << file_name << std::endl;
+        std::cout << "about to open" << shared_library << std::endl;
         dynamic_library lib(shared_library);
-        auto symbols = ((native_library_initializer)(lib.symbol("_$lean$_initialize")))();
-        for (auto pair : symbols) {
-            auto olean_name = std::get<0>(pair);
-            auto symbol_name = std::get<1>(pair);
+        std::cout << "past it" << std::endl;
+
+        native_library_initializer a_cool_init_proc = (native_library_initializer)lib.symbol("_$lean$_initialize");
+        std::cout << "past symbol it" << std::endl;
+        auto symbols = a_cool_init_proc();
+        std::cout << "past symbols it" << std::endl;
+
+        for (auto tup : symbols.m_vector) {
+            std::string olean_name = std::get<0>(tup);
+            name lean_name = std::get<1>(tup);
+            std::string symbol_name = std::get<2>(tup);
+            unsigned arity = std::get<3>(tup);
+
             std::cout << "Found " << symbol_name << " in " << olean_name << std::endl;
+
+            void * symbol = lib.symbol(symbol_name);
+
+            switch (arity) {
+                case 0:
+                    env = add_native(env, lean_name, (vm_cfunction_0)symbol);
+                    break;
+                case 1:
+                    env = add_native(env, lean_name, (vm_cfunction_1)symbol);
+                    break;
+                case 2:
+                    env = add_native(env, lean_name, (vm_cfunction_2)symbol);
+                    break;
+                case 3:
+                    env = add_native(env, lean_name, (vm_cfunction_3)symbol);
+                    break;
+                case 4:
+                    env = add_native(env, lean_name, (vm_cfunction_4)symbol);
+                    break;
+                case 5:
+                    env = add_native(env, lean_name, (vm_cfunction_5)symbol);
+                    break;
+                case 6:
+                    env = add_native(env, lean_name, (vm_cfunction_6)symbol);
+                    break;
+                case 7:
+                    env = add_native(env, lean_name, (vm_cfunction_7)symbol);
+                    break;
+                case 8:
+                    env = add_native(env, symbol_name, (vm_cfunction_8)symbol);
+                    break;
+                default:
+                    env = add_native(env, symbol_name, arity, (vm_cfunction_N)symbol);
+                    break;
+            }
         }
     }
 }

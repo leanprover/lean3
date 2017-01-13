@@ -29,15 +29,18 @@ def replace (c : char) (replacement : string) : string -> string
   then replacement ++ replace ss
   else s :: replace ss
 
-meta def mangle_name (n : name) : string :=
-  (replace #"'" "_$single_quote$_" $ name.to_string_with_sep "_" n)
+meta def mangle_external_name (n : name) : string :=
+  name.to_string_with_sep "_" n
 
-meta def mangle_symbol : ir.symbol -> format
-| (ir.symbol.name n) := to_fmt $ "_$lean$_" ++ (replace #"'" "_$single_quote$_" $ name.to_string_with_sep "_" n)
+meta def mangle_name (n : name) : string :=
+  (replace #"'" "_$single_quote$_" $ name.to_string_with_sep "$dot$_" n)
+
+meta def mangle_symbol : ir.symbol → string
+| (ir.symbol.name n) := "_$lean$_" ++ mangle_name n
 | (ir.symbol.external opt_ns n) :=
   match opt_ns with
-  | some ns := to_string ns ++ "::" ++ mangle_name n
-  | none := mangle_name n
+  | some ns := to_string ns ++ "::" ++ mangle_external_name n
+  | none := mangle_external_name n
   end
 
 private meta def mk_constructor_args : list ir.symbol → list format
@@ -51,7 +54,7 @@ private meta def mk_constructor
   (format.bracket "{" "}" (comma_sep $ mk_constructor_args fs)) ++ ")"
 
 private meta def mk_call (symbol : ir.symbol) (args : list ir.symbol) : format :=
-  mangle_symbol symbol ++ (format.bracket "(" ")" (comma_sep $ list.map mangle_symbol args))
+  mangle_symbol symbol ++ (format.bracket "(" ")" (comma_sep $ list.map (fun arg, mangle_symbol arg) args))
 
 meta def real_concat : list string -> string
 | [] := ""
@@ -59,9 +62,11 @@ meta def real_concat : list string -> string
 
 meta def literal : ir.literal → format
 | (ir.literal.nat n) := to_fmt "lean::mk_vm_nat(" ++ to_fmt n ++ ")"
+| (ir.literal.integer z) := to_string z
 | (ir.literal.string s) := to_string s ++ "s"
 | (ir.literal.binary b) := format.bracket "{" "}" (real_concat $ (list.intersperse ", " (list.map (fun c, "static_cast<char>(" ++ to_string (char.to_nat c) ++ ")") b)))
 | (ir.literal.array ls) := format.bracket "{" "}" (comma_sep (list.map literal ls))
+| (ir.literal.symbol n) := mangle_symbol n
 
 meta def format_local (s : ir.symbol) : format :=
   mangle_symbol s
@@ -194,7 +199,7 @@ meta def stmt : ir.stmt → format
   if ty_name = ir.symbol.external (some `lean) `name
   then let ctor_args := comma_sep (list.map (string_lit ∘ to_string) args) in
     ty t ++ format.space ++ (mangle_symbol n) ++ " = lean::name({" ++ ctor_args ++ "})" ++ to_fmt ";" ++ format.line ++ stmt s
-  else let ctor_args := parens $ comma_sep (list.map mangle_symbol args) in
+  else let ctor_args := parens $ comma_sep (list.map (fun arg, mangle_symbol arg) args) in
        ty t ++ format.space ++ (mangle_symbol n) ++ ctor_args ++ to_fmt ";" ++ format.line ++ stmt s
 | (ir.stmt.letb n t v body) :=
   match t with

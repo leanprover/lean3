@@ -10,9 +10,13 @@ Author: Jared Roesch
 
 namespace lean {
 
-typedef std::tuple<std::string, std::string> native_symbol;
+/* .olean, name, symbol_name, arity */
+typedef std::tuple<std::string, name, std::string, unsigned int> native_symbol;
 
-typedef std::vector<native_symbol> native_symbol_seq;
+struct native_symbol_seq {
+    std::vector<native_symbol> m_vector;
+    native_symbol_seq(std::initializer_list<native_symbol> is) : m_vector(is) {}
+};
 
 // The type signature of a native library initializer.
 typedef native_symbol_seq (*native_library_initializer)();

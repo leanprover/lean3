@@ -8,6 +8,7 @@ prelude
 import init.meta.name
 import init.meta.rb_map
 import init.meta.mk_dec_eq_instance
+import init.data.int
 
 namespace ir
 
@@ -69,11 +70,19 @@ inductive ty
 instance has_coe_basetype_ty : has_coe base_type ty :=
  ⟨ fun bt, ty.base bt ⟩
 
+inductive either (A B : Type) : Type
+| left : A -> either
+| right : B -> either
+
 inductive literal
 | nat : nat → literal
+| integer : int → literal
 | string : string → literal
 -- I think these two can be unified
 | binary : string → literal
+-- This constructor is a hack, there is a bug with
+-- the nested inductive compiler.
+| symbol : symbol → literal
 | array : list literal -> literal
 
 -- inductive value : Type

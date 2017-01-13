@@ -79,6 +79,7 @@ public:
        name <tt>foo::bla::tst</tt>.
     */
     name(std::initializer_list<char const *> const & l);
+    name(std::initializer_list<std::string> l);
     ~name() { if (m_ptr) m_ptr->dec_ref(); }
     static name const & anonymous();
     /**

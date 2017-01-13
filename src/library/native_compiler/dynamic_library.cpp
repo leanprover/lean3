@@ -44,7 +44,7 @@ dynamic_library::dynamic_library(std::string library_path):
 }
 
 dynamic_library::~dynamic_library() {
-    dlclose(m_handle);
+    // dlclose(m_handle);
 }
 
 dynamic_symbol dynamic_library::symbol(std::string name) {
