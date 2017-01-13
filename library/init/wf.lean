@@ -153,8 +153,8 @@ section
 
   -- Lexicographical order based on ra and rb
   inductive lex : α × β → α × β → Prop
-  | left  : ∀ {a₁ b₁} a₂ b₂, ra a₁ a₂ → lex (a₁, b₁) (a₂, b₂)
-  | right : ∀ a {b₁ b₂},     rb b₁ b₂ → lex (a, b₁)  (a, b₂)
+  | left  : ∀ {a₁} b₁ {a₂} b₂, ra a₁ a₂ → lex (a₁, b₁) (a₂, b₂)
+  | right : ∀ a {b₁ b₂},       rb b₁ b₂ → lex (a, b₁)  (a, b₂)
 
   -- relational product based on ra and rb
   inductive rprod : α × β → α × β → Prop
