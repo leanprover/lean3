@@ -594,10 +594,13 @@ meta def compile_expr_to_ir_stmt : expr → ir_compiler ir.stmt
   body' ← compile_expr_to_ir_stmt (expr.instantiate_var body (mk_local n)),
   return $ ir.stmt.seq [assign, body']
 
-meta def compile_defn_to_ir (decl_name : name) (args : list name) (body : expr) : ir_compiler ir.defn := do
+meta def compile_defn_to_ir (decl_name : name) (params : list name) (body : expr) : ir_compiler ir.defn := do
   body' ← compile_expr_to_ir_stmt body,
-  let params := (list.zip args (list.repeat (ir.ty.ref (ir.ty.object none)) (list.length args))) in
-  pure (ir.defn.mk bool.tt decl_name params (ir.ty.object none) body')
+  let no_params := list.length params,
+      const_obj_ref := ir.ty.ref (ir.ty.object none),
+      param_tys := list.repeat const_obj_ref no_params,
+      params := (list.zip params param_tys)
+  in pure (ir.defn.mk bool.tt decl_name params (ir.ty.object none) body')
 
 def unwrap_or_else {T R : Type} : ir.result T → (T → R) → (error → R) → R
 | (native.result.err e) f err := err e
