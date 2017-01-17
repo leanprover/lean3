@@ -8,6 +8,7 @@ Author: Gabriel Ebner
 #include <string>
 #include <vector>
 #include <algorithm>
+#include "util/utf8.h"
 #include "util/lean_path.h"
 #include "util/file_lock.h"
 #include "library/module_mgr.h"
@@ -65,17 +66,23 @@ static module_loader mk_loader(module_id const & cur_mod, std::vector<module_inf
                 }
             }
         } catch (std::out_of_range) {
-            /* The following line of code is reachable.
-               Repro: create a file containing an "open" comment block.
-               Example:
-
-                 /-
-                   def x := 10
-            */
-            // lean_unreachable();
+            // In files with syntax errors, it can happen that the
+            // initial dependency scan does not find all dependencies.
         }
         throw exception(sstream() << "could not resolve import: " << import.m_name);
     };
+}
+
+static pos_info find_end_pos(std::string const & src) {
+    std::istringstream in(src);
+
+    unsigned line_no = 0;
+    std::string line;
+    while (!in.eof()) {
+        line_no++;
+        std::getline(in, line);
+    }
+    return {line_no, static_cast<unsigned>(utf8_strlen(line.c_str()))};
 }
 
 class parse_lean_task : public task<module_info::parse_result> {
@@ -84,6 +91,7 @@ class parse_lean_task : public task<module_info::parse_result> {
     snapshot_vector m_snapshots;
     bool m_use_snapshots;
     std::vector<module_info::dependency> m_deps;
+    pos_info m_end_pos;
 
 public:
     parse_lean_task(std::string const & contents, environment const & initial_env,
@@ -91,8 +99,10 @@ public:
                     std::vector<module_info::dependency> const & deps) :
         m_initial_env(initial_env), m_contents(contents),
         m_snapshots(snapshots), m_use_snapshots(use_snapshots),
-        m_deps(deps) {}
+        m_deps(deps), m_end_pos(find_end_pos(contents)) {}
     task_kind get_kind() const override { return task_kind::parse; }
+
+    pos_info get_end_pos() const override { return m_end_pos; }
 
     void description(std::ostream & out) const override {
         out << "parsing " << get_module_id();
