@@ -584,7 +584,7 @@ static expr inline_new_defs(environment const & old_env, environment const & new
 class proof_elaboration_task : public task<expr> {
     environment m_decl_env;
     options m_opts;
-    pos_info m_header_pos;
+    pos_info m_header_pos, m_end_pos;
     bool m_use_info_manager;
 
     std::vector<expr> m_params;
@@ -598,14 +598,15 @@ class proof_elaboration_task : public task<expr> {
     parser_pos_provider m_pos_provider;
 
 public:
-    proof_elaboration_task(environment const & decl_env,
-                           options const & opts, pos_info const & header_pos,
+    proof_elaboration_task(environment const & decl_env, options const & opts,
+                           pos_info const & header_pos, pos_info const & end_pos,
                            buffer<expr> const & params,
                            expr const & fn, expr const & val, elaborator::theorem_finalization_info const & finfo,
                            bool is_rfl_lemma, expr const & final_type,
                            metavar_context const & mctx, local_context const & lctx,
                            parser_pos_provider const & prov) :
-        m_decl_env(decl_env), m_opts(opts), m_header_pos(header_pos), m_use_info_manager(get_global_info_manager() != nullptr),
+        m_decl_env(decl_env), m_opts(opts), m_header_pos(header_pos), m_end_pos(end_pos),
+        m_use_info_manager(get_global_info_manager() != nullptr),
         m_params(params.begin(), params.end()), m_fn(fn), m_val(val), m_finfo(finfo),
         m_is_rfl_lemma(is_rfl_lemma), m_final_type(final_type),
         m_mctx(mctx), m_lctx(lctx), m_pos_provider(prov) {}
@@ -613,6 +614,8 @@ public:
     void description(std::ostream & out) const override {
         out << "proving " << local_pp_name(m_fn) << " (" << get_module_id() << ")";
     }
+
+    pos_info get_end_pos() const override { return m_end_pos; }
 
     expr_pair elaborate_proof_core(elaborator & elab) {
         expr type = mlocal_type(m_fn);
@@ -667,6 +670,7 @@ public:
 class example_checking_task : public task<unit> {
     environment m_decl_env;
     options m_opts;
+    pos_info m_end_pos;
     bool m_use_info_manager;
 
     decl_modifiers m_modifiers;
@@ -681,13 +685,16 @@ class example_checking_task : public task<unit> {
 
 public:
     example_checking_task(environment const & decl_env, options const & opts,
+                          pos_info const & end_pos,
                           decl_modifiers modifiers,
                           level_param_names const & univ_params,
                           buffer<expr> const & params,
                           expr const & fn, expr const & val,
                           metavar_context const & mctx, local_context const & lctx,
                           parser_pos_provider const & prov) :
-        m_decl_env(decl_env), m_opts(opts), m_use_info_manager(get_global_info_manager() != nullptr),
+        m_decl_env(decl_env), m_opts(opts),
+        m_end_pos(end_pos),
+        m_use_info_manager(get_global_info_manager() != nullptr),
         m_modifiers(modifiers),
         m_univ_params(univ_params), m_params(params.begin(), params.end()), m_fn(fn), m_val(val),
         m_mctx(mctx), m_lctx(lctx), m_pos_provider(prov) {
@@ -698,6 +705,8 @@ public:
     void description(std::ostream & out) const override {
         out << "checking example on line " << m_pos_provider.get_some_pos().first << " (" << get_module_id() << ")";
     }
+
+    pos_info get_end_pos() const override { return m_end_pos; }
 
     unit execute() override {
         scoped_expr_caching disable(false);  // FIXME: otherwise sigma.eq fails to elaborate
@@ -785,13 +794,14 @@ environment single_definition_cmd_core(parser & p, def_cmd_kind kind, decl_modif
             finalize_theorem_type(elab, new_params, type, lp_names, thm_finfo);
             auto decl_env = elab.env();
             auto elab_task = get_global_task_queue()->submit<proof_elaboration_task>(
-                decl_env, p.get_options(), header_pos, new_params, new_fn, val, thm_finfo, is_rfl, type,
+                decl_env, p.get_options(), header_pos, p.pos(),
+                new_params, new_fn, val, thm_finfo, is_rfl, type,
                 elab.mctx(), elab.lctx(), p.get_parser_pos_provider(header_pos));
             env_n = declare_definition(p, elab.env(), kind, lp_names, c_name, type, opt_val, elab_task, modifiers, attrs,
                                        doc_string, header_pos);
         } else if (kind == Example) {
             get_global_task_queue()->submit<example_checking_task>(
-                    p.env(), p.get_options(),
+                    p.env(), p.get_options(), p.pos(),
                     modifiers, to_list(lp_names),
                     new_params, fn, val,
                     elab.mctx(), elab.lctx(),
