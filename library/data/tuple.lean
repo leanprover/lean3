@@ -8,10 +8,12 @@ It is implemented as a subtype.
 -/
 import data.list
 
-def tuple (α : Type) (n : ℕ) := {l : list α // list.length l = n}
+universe variables u v w
+
+def tuple (α : Type u) (n : ℕ) := {l : list α // list.length l = n}
 
 namespace tuple
-variables {α β φ : Type}
+variables {α : Type u} {β : Type v} {φ : Type w}
 variable {n : ℕ}
 
 instance [decidable_eq α] : decidable_eq (tuple α n) :=
@@ -105,9 +107,9 @@ section accum
     let p := eq.trans (list.length_map_accumr f x c) px in
     (prod.fst z, ⟨ prod.snd z, p ⟩)
 
-  definition map_accumr₂
-  : (α → β → σ → σ × φ) → tuple α n → tuple β n → σ → σ × tuple φ n
-  | f ⟨ x, px ⟩ ⟨ y, py ⟩ c :=
+  definition map_accumr₂ {α β σ φ : Type} (f : α → β → σ → σ × φ)
+   : tuple α n → tuple β n → σ → σ × tuple φ n
+  | ⟨ x, px ⟩ ⟨ y, py ⟩ c :=
     let z := list.map_accumr₂ f x y c in
     let pxx : list.length x = n := px in
     let pyy : list.length y = n := py in

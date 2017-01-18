@@ -28,6 +28,9 @@ local infix `++ₜ`:65 := tuple.append
 protected def cong {a b : ℕ} (h : a = b) : bitvec a → bitvec b
 | ⟨x, p⟩ := ⟨x, h ▸ p⟩
 
+-- bitvec specific version of tuple.append
+def append {m n} : bitvec m → bitvec n → bitvec (m + n) := tuple.append
+
 section shift
   variable {n : ℕ}
 
@@ -175,3 +178,6 @@ private def to_string {n : nat} : bitvec n → string
 instance (n : nat) : has_to_string (bitvec n) :=
 ⟨to_string⟩
 end bitvec
+
+instance {n} {x y : bitvec n} : decidable (bitvec.ult x y) := bool.decidable_eq _ _
+instance {n} {x y : bitvec n} : decidable (bitvec.ugt x y) := bool.decidable_eq _ _

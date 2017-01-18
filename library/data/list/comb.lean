@@ -1,11 +1,12 @@
 /-
-Copyright (c) 2014 Microsoft Corporation. All rights reserved.
+Copyright (c) 2015 Leonardo de Moura. All rights reserved.
 Released under Apache 2.0 license as described in the file LICENSE.
-Author: Jeremy Avigad
+Authors: Leonardo de Moura, Haitao Zhang, Floris van Doorn
 
-This is a minimal port of functions from the lean2 list library.
+List combinators.
 -/
 import init.data.list.basic
+import data.nat.order
 
 universe variables u v w
 
@@ -14,48 +15,6 @@ namespace list
 open nat
 
 variables {α : Type u} {β : Type v} {φ : Type w}
-
-/- length theorems -/
-
-theorem length_append : ∀ (x y : list α), length (x ++ y) = length x + length y
-  | [] l := eq.symm (nat.zero_add (length l))
-  | (a::s) l :=
-     calc nat.succ (length (s ++ l))
-            = nat.succ (length s + length l) : congr_arg nat.succ (length_append s l)
-        ... = nat.succ (length s) + length l : eq.symm (nat.succ_add (length s) (length l))
-
-theorem length_repeat (a : α) : ∀ (n : ℕ), length (repeat a n) = n
-  | 0 := eq.refl 0
-  | (succ i) := congr_arg succ (length_repeat i)
-
-theorem length_map (f : α → β) : ∀ (a : list α), length (map f a) = length a
-| [] := rfl
-| (a :: l) := congr_arg succ (length_map l)
-
-theorem length_dropn
-: ∀ (i : ℕ) (l : list α), length (dropn i l) = length l - i
-| 0 l := rfl
-| (succ i) [] := eq.symm (nat.zero_sub_eq_zero (succ i))
-| (succ i) (x::l) := calc
-  length (dropn (succ i) (x::l))
-          = length l - i             : length_dropn i l
-      ... = succ (length l) - succ i : nat.sub_eq_succ_sub_succ (length l) i
-
-/- firstn -/
-
-def firstn : ℕ → list α → list α
-| 0 l             := []
-| (succ n) []     := []
-| (succ n) (a::l) := a :: firstn n l
-
-theorem length_firstn
-: ∀ (i : ℕ) (l : list α), length (firstn i l) = min i (length l)
-| 0        l      := eq.symm (nat.min_zero_left (length l))
-| (succ n) []     := eq.symm (nat.min_zero_right (succ n))
-| (succ n) (a::l) :=
-  calc succ (length (firstn n l)) = succ (min n (length l)) : congr_arg succ (length_firstn n l)
-                              ... = min (succ n) (succ (length l))
-                                     : eq.symm (nat.min_succ_succ  n (length l))
 
 /- map₂ -/
 
@@ -69,19 +28,19 @@ theorem map₂_nil_1 {α : Type u} {β : Type v} {φ : Type w} (f : α → β �
 | [] := eq.refl nil
 | (b::t) := eq.refl nil
 
-theorem map₂_nil_2 {α β φ : Type} (f : α → β → φ)
+theorem map₂_nil_2 {α : Type u} {β : Type v} {φ : Type w} (f : α → β → φ)
    : Π (x : list α), map₂ f x nil = nil
 | [] := eq.refl nil
 | (b::t) := eq.refl nil
 
-theorem length_map₂ {α β φ : Type} (f : α → β → φ)
+theorem length_map₂ {α : Type u} {β : Type v} {φ : Type w} (f : α → β → φ)
   : Π x y, length (map₂ f x y) = min (length x) (length y)
 | [] y :=
    calc length (map₂ f nil y) = 0 : congr_arg length (map₂_nil_1 f y)
-           ... = min 0 (length y) : eq.symm (nat.min_zero_left (length y))
+           ... = min 0 (length y) : eq.symm (nat.zero_min (length y))
 | x [] :=
    calc length (map₂ f x nil) = 0 : congr_arg length (map₂_nil_2 f x)
-           ... = min (length x) 0 : eq.symm (nat.min_zero_right (length x))
+           ... = min (length x) 0 : eq.symm (nat.min_zero (length x))
 | (a::x) (b::y) :=
    calc succ (length (map₂ f x y))
              = succ (min (length x) (length y))
