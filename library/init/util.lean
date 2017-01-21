@@ -17,3 +17,7 @@ f ()
 /- This function has a native implementation that shows the VM call stack. -/
 def trace_call_stack {α : Type} (f : unit → α) : α :=
 f ()
+
+meta constant {u} undefined_core {α : Type u} (message : string) : α
+
+meta def {u} undefined {α : Type u} : α := undefined_core "undefined"
