@@ -84,7 +84,15 @@ meta def string_lit (s : string) : format :=
 meta def block (body : format) : format :=
   "{" ++ (format.nest 4 (format.line ++ body)) ++ format.line ++ "}"
 
-meta def expr' (action : ir.stmt → format) : ir.expr → format
+meta def binary_op : ir.op → format
+| ir.op.equals := " == "
+| ir.op.not_equals := " != "
+| ir.op.add := " + "
+| ir.op.sub := " + "
+| ir.op.mul := " + "
+| ir.op.div := " + "
+
+meta def expr' : ir.expr → format
 | (ir.expr.call (ir.symbol.name `index) (buf :: index :: _)) :=
   mangle_symbol buf ++ "[" ++ mangle_symbol index ++ "]"
 | (ir.expr.call f xs) := mk_call f xs
@@ -110,18 +118,15 @@ meta def expr' (action : ir.stmt → format) : ir.expr → format
    if arity < 9
    then "lean::mk_native_closure(" ++ mangle_symbol n ++ ", " ++ format.bracket "{" "}" (comma_sep (list.map format_local args)) ++ ")"
    else "lean::mk_native_closure(" ++ mangle_symbol n ++ ", " ++ arity ++ ", " ++ format.bracket "{" "}" (comma_sep (list.map format_local args)) ++ ")"
- | (ir.expr.invoke s args) :=
+| (ir.expr.invoke s args) :=
  "lean::invoke(" ++ mangle_symbol s ++ ", " ++
  (comma_sep (list.map format_local args)) ++ ")"
- | (ir.expr.uninitialized) := format.nil
- | (ir.expr.constructor _ _) := "NYIctor"
- | (ir.expr.address_of e) := "& " ++ mangle_symbol e ++ ";"
- | (ir.expr.equals e1 e2) := expr' e1 ++ " == " ++ expr' e2
- | (ir.expr.raw_int n) := repr n
- | (ir.expr.sub e1 e2) :=
-   expr' e1 ++ " - " ++ expr' e2
+| (ir.expr.uninitialized) := format.nil
+| (ir.expr.constructor _ _) := "NYIctor"
+| (ir.expr.address_of e) := "& " ++ mangle_symbol e ++ ";"
+| (ir.expr.binary_operator op e1 e2) := expr' e1 ++ binary_op op ++ expr' e2
 | (ir.expr.array ns) :=
-  format.bracket "{" "}" (comma_sep (list.map format_local ns))
+    format.bracket "{" "}" (comma_sep (list.map format_local ns))
 | ir.expr.unreachable := "lean_unreachable()"
 
 meta def default_case (body : format) : format :=
@@ -189,14 +194,14 @@ meta def stmt_fuse : ir.stmt -> ir.stmt
 | (ir.stmt.switch s cs d) := ir.stmt.switch s cs d
 
 meta def stmt : ir.stmt → format
-| (ir.stmt.e e) := expr' stmt e ++ ";"
+| (ir.stmt.e e) := expr' e ++ ";"
 | (ir.stmt.return e) :=
   match e with
-  | (ir.expr.unreachable) := expr' stmt e
+  | (ir.expr.unreachable) := expr' e
   | _ :=
     format.of_string "return"  ++
     format.space ++
-    expr' stmt e ++ format.of_string ";"
+    expr' e ++ format.of_string ";"
   end
 | (ir.stmt.letb n t ir.expr.uninitialized body) :=
   ty t ++ format.space ++ (mangle_symbol n) ++ to_fmt ";" ++ format.line ++ stmt body
@@ -211,9 +216,9 @@ meta def stmt : ir.stmt → format
 | (ir.stmt.letb n t v body) :=
   match t with
   | (ir.ty.array t) :=
-    ty t ++ format.space ++ (mangle_symbol n) ++ "[]" ++ (to_fmt " = ") ++ (expr' stmt v) ++ to_fmt ";" ++
+    ty t ++ format.space ++ (mangle_symbol n) ++ "[]" ++ (to_fmt " = ") ++ (expr' v) ++ to_fmt ";" ++
     format.line ++ stmt body
-  | _ := ty t ++ format.space ++ (mangle_symbol n) ++ (to_fmt " = ") ++ (expr' stmt v) ++ to_fmt ";" ++
+  | _ := ty t ++ format.space ++ (mangle_symbol n) ++ (to_fmt " = ") ++ (expr' v) ++ to_fmt ";" ++
     format.line ++ stmt body
   end
 | (ir.stmt.switch scrut cs default) :=
@@ -226,9 +231,9 @@ meta def stmt : ir.stmt → format
     block (stmt fbranch)
 | (ir.stmt.seq cs) :=
   format_lines (list.map (fun c, stmt c) cs)
-| (ir.stmt.assign n val) := mangle_symbol n ++ " = " ++ expr' stmt val ++ ";"
+| (ir.stmt.assign n val) := mangle_symbol n ++ " = " ++ expr' val ++ ";"
 
-meta def expr := expr' stmt
+meta def expr := expr'
 
 meta def format_param (param : name × ir.ty) :=
 ty (prod.snd param) ++ format.space ++ mangle_symbol (ir.symbol.name $ prod.fst param)
@@ -276,13 +281,14 @@ meta def prototype : ir.defn → format
 meta def defn_prototypes (defs : list ir.defn) : format :=
   format_concat $ list.map prototype defs
 
-meta def split_items : list ir.item → (list ir.defn × list ir.decl)
-| [] := ([], [])
+meta def split_items : list ir.item → (list ir.defn × list ir.decl × list ir.type_decl)
+| [] := ([], [], [])
 | (i :: is) :=
-  let (defs, decls) := split_items is in
+  let (defs, decls, types) := split_items is in
   match i with
-  | ir.item.defn d := (d :: defs, decls)
-  | ir.item.decl d := (defs, d :: decls)
+  | ir.item.defn d := (d :: defs, decls, types)
+  | ir.item.decl d := (defs, d :: decls, types)
+  | ir.item.type td := (defs, decls, td :: types)
   end
 
 meta def declaration : ir.decl → format
@@ -297,7 +303,7 @@ meta def definitions (defs : list ir.defn) : format :=
   insert_newlines 2 $ list.map defn defs
 
 meta def program (items : list ir.item) : format :=
-  let (defs, decls) := split_items items in
+  let (defs, decls, types) := split_items items in
   format_lines [
     headers,
     defn_prototypes defs,

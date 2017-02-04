@@ -11,6 +11,7 @@ import init.data.string
 import init.data.list.instances
 
 import tools.native.ir
+import tools.native.ir.builder
 import tools.native.ir.compiler
 import tools.native.format
 import tools.native.internal
@@ -145,7 +146,7 @@ meta def mk_direct_call (head : ir.symbol) (args : list ir.expr) : ir_compiler i
           idx <- fresh_name,
           args' <- monad.mapm assert_name args,
           pure $ ir.stmt.letb array (ir.ty.array (ir.ty.symbol (in_lean_ns `vm_obj))) (ir.expr.array args')
-          (ir.stmt.letb idx ir.base_type.unsigned (ir.expr.raw_int $ list.length args)
+          (ir.stmt.letb idx ir.base_type.unsigned (mk_int $ list.length args)
           (ir.stmt.e (ir.expr.call head [idx, array])))
        end
 
@@ -182,7 +183,7 @@ meta def mk_invoke (loc : ir.symbol) (args : list ir.expr) : ir_compiler ir.stmt
     idx <- fresh_name,
     args' <- monad.mapm assert_name args,
     pure $ ir.stmt.letb array (ir.ty.array (ir.ty.symbol (in_lean_ns `vm_obj))) (ir.expr.array args')
-      (ir.stmt.letb idx ir.base_type.unsigned (ir.expr.raw_int $ list.length args)
+      (ir.stmt.letb idx ir.base_type.unsigned (mk_int $ list.length args)
         (ir.stmt.e (ir.expr.invoke loc [idx, array])))
 
 meta def mk_over_sat_call (head : ir.symbol) (fst snd : list ir.expr) : ir_compiler ir.stmt :=
@@ -244,7 +245,7 @@ meta def mk_is_simple (scrut : ir.symbol) : ir.expr :=
   ir.expr.call (ir.symbol.external none `is_simple) [scrut]
 
 meta def mk_is_zero (n : ir.symbol) : ir.expr :=
-  ir.expr.equals (ir.expr.raw_int 0) (ir.expr.sym n)
+  mk_equals (mk_int 0) (ir.expr.sym n)
 
 meta def mk_cidx (obj : ir.symbol) : ir.expr :=
   ir.expr.call (ir.symbol.external none `cidx) [obj]
@@ -286,7 +287,7 @@ meta def bind_builtin_case_fields' (scrut : ir.symbol) : list (nat × ir.symbol)
   loc ← compile_local f,
   idx <- fresh_name,
   kont <- bind_builtin_case_fields' fs body,
-  pure $ ir.stmt.letb idx ir.ty.int (ir.expr.raw_int n) (
+  pure $ ir.stmt.letb idx ir.ty.int (mk_int n) (
   ir.stmt.letb loc (ir.ty.object none) (ir.expr.call `index [scrut, idx]) kont)
 
 meta def bind_builtin_case_fields (scrut : ir.symbol) (fs : list ir.symbol) (body : ir.stmt) : ir_compiler ir.stmt :=
@@ -332,21 +333,9 @@ meta def mk_simple_nat_cases_on (scrut : ir.symbol) (zero_case succ_case : ir.st
     pure $ ir.stmt.ite is_zero zero_case succ_case))
 
 meta def mk_mpz_nat_cases_on (scrut : ir.symbol) (zero_case succ_case : ir.stmt) : ir_compiler ir.stmt :=
-  ir.stmt.e <$> panic "mpz"
-  -- this→emit_string("else ");
-  -- this→emit_block([&] () {
-
-  --     action(scrutinee);
-  --     this→emit_string(") == 0) ");
-  --     this→emit_block([&] () {
-  --         action(zero_case);
-  --         *this→m_output_stream << ";\n";
-  --     });
-  --     this→emit_string("else ");
-  --     this→emit_block([&] () {
-  --         action(succ_case);
-  --     });
-  -- });
+  bind_value_with_ty (mk_cidx scrut) (ir.ty.name `mpz) (fun mpz,
+    bind_value_with_ty (mk_is_zero mpz) (ir.ty.name `bool) (fun is_zero,
+    pure $ ir.stmt.ite is_zero zero_case succ_case))
 
 meta def mk_nat_cases_on (scrut : ir.symbol) (zero_case succ_case : ir.stmt) : ir_compiler ir.stmt :=
   bind_value_with_ty (mk_is_simple scrut) (ir.ty.name `bool) (fun is_simple,
@@ -371,7 +360,7 @@ meta def compile_succ_case (action : expr → ir_compiler ir.stmt) (scrut : ir.s
     loc ← compile_local pred,
     fresh ← fresh_name,
     bind_value_with_ty (mk_cidx scrut) (ir.ty.name `int) (fun cidx,
-      bind_value_with_ty (ir.expr.sub (ir.expr.sym cidx) (ir.expr.raw_int 1)) (ir.ty.name `int) (fun sub,
+      bind_value_with_ty (mk_sub (ir.expr.sym cidx) (mk_int 1)) (ir.ty.name `int) (fun sub,
       pure $ ir.stmt.letb loc (ir.ty.object none) (mk_vm_nat sub) body''
     ))
   | _ := mk_error "compile_succ_case too many fields"
@@ -638,7 +627,7 @@ meta def bind_args (array : ir.symbol) (n : nat) : ir_compiler (list ir.symbol �
     (ns, body) <- r,
     fresh <- fresh_name,
     fresh2 <- fresh_name,
-    pure $ (fresh2 :: ns, ir.stmt.letb fresh ir.ty.int (ir.expr.raw_int n) (
+    pure $ (fresh2 :: ns, ir.stmt.letb fresh ir.ty.int (mk_int n) (
     ir.stmt.letb fresh2 (ir.ty.object none) (ir.expr.call `index [array, fresh]) body))) n (pure ([], ir.stmt.nop))
 
 meta def compile_nargs_body (decl_name array : name) (arity : nat) : ir_compiler ir.stmt := do
@@ -652,18 +641,6 @@ meta def compile_defn_nargs (decl_name : name) (e : expr) : ir_compiler ir.defn 
     (name.mk_string "nargs" decl_name)
     [(fresh1, ir.base_type.unsigned), (fresh2, ir.ty.raw_ptr $ ir.ty.symbol (in_lean_ns `vm_obj))] (ir.ty.object none)
     <$> (compile_nargs_body decl_name fresh2 (native.get_arity e))
-  -- refinement <- has_ir_refinement decl_name,
-  -- match refinement with
-  -- | some item :=
-  --   match item with
-  --   | ir.item.defn d := pure d
-  --   | _ := mk_error "not sure what to do here yet"
-  --   end
-  -- | none :=
-  --   let arity := native.get_arity e in do (args, body) ← take_arguments e,
-  --   do trace_ir (to_string e),
-  --   compile_defn_to_ir (replace_main decl_name) args body
-  -- end
 
 meta def compile_defn_to_items (decl_name : name) (e : expr) : list (ir_compiler ir.item) :=
   let default := [ir.item.defn <$> compile_defn decl_name e]
@@ -835,6 +812,10 @@ meta def get_ir_defns : tactic expr := do
   ty <- mk_const `ir.defn,
   get_attribute_bodies `ir_def ty
 
+meta def get_ir_types : tactic expr := do
+  ty ← mk_const `ir.type_decl,
+  get_attribute_bodies `ir_type ty
+
 meta def run_ir {A : Type} (action : ir_compiler A) (inital : ir_compiler_state): result error A :=
   prod.fst $ run action inital
 
@@ -869,9 +850,11 @@ meta def compile
     tactic.trace "starting to execute the Lean compiler",
     decls_list_expr <- get_ir_decls,
     defns_list_expr <- get_ir_defns,
+    types_list_expr <- get_ir_types,
     decls <- eval_expr (list ir.decl) decls_list_expr,
     defns <- eval_expr (list ir.defn) defns_list_expr,
-    let ctxt := ir.new_context decls defns in
+    types <- eval_expr (list ir.type_decl) types_list_expr,
+    let ctxt := ir.new_context decls defns types in
     match compile' conf extern_fns procs ctxt with
     | result.err e := tactic.fail $ error.to_string e
     | result.ok format := pure format

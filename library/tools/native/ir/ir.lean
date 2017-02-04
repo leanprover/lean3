@@ -75,6 +75,7 @@ inductive either (A B : Type) : Type
 | right : B -> either
 
 inductive literal : Type
+-- this case should be removed, nat literals should be elaborated to `mk_vm_nat : { Z | + } -> vm_obj`
 | nat : nat → literal
 | integer : int → literal
 | string : string → literal
@@ -85,9 +86,13 @@ inductive literal : Type
 | symbol : symbol → literal
 | array : list literal -> literal
 
--- inductive value : Type
--- | name : name → value
--- | lit : literal → value
+inductive op
+| equals
+| not_equals
+| add
+| sub
+| mul
+| div
 
 -- TODO: eventually m
 -- odel ty.object, mk_object, project, etc in the IR itself
@@ -104,13 +109,14 @@ inductive expr : Type
 | uninitialized : expr
 | constructor : symbol → list symbol → expr
 | address_of : symbol → expr
--- hack for now, do in secon pass clean up
-| equals : expr → expr → expr
-| sub : expr → expr → expr
-| raw_int : nat → expr
+-- these need to be literal/values/etc
+| binary_operator : op → expr → expr → expr
 | unreachable : expr
 | array : list symbol -> expr
 -- | value : value → expr
+
+instance literal_to_expr : has_coe literal expr :=
+    ⟨ expr.lit ⟩
 
 inductive stmt : Type
 | ite : symbol → stmt → stmt → stmt
@@ -121,6 +127,9 @@ inductive stmt : Type
 | assign : symbol → expr → stmt
 | return : expr → stmt
 | nop : stmt
+
+instance expr_to_stmt : has_coe expr stmt :=
+  ⟨ ir.stmt.e ⟩
 
 def is_extern := bool
 
@@ -142,13 +151,22 @@ def decl.to_string : decl → string
 instance decl_has_to_string : has_to_string decl :=
  ⟨ decl.to_string ⟩
 
+inductive type_decl_body
+| struct : list (name × ty) → type_decl_body
+| for : list name → type_decl_body
+
+inductive type_decl
+| mk : name → type_decl_body → type_decl
+
 inductive item
 | defn : defn → item
 | decl : decl → item
+| type : type_decl → item
 
 def item.get_name : item → name
 | (item.defn (defn.mk _ n _ _ _)) := n
 | (item.decl (decl.mk n _ _)) := n
+| (item.type (type_decl.mk n _)) := n
 
 def item.to_string : item → string
 | _ := "an item"
@@ -159,8 +177,11 @@ instance item_has_to_string : has_to_string item :=
 meta record context :=
   (items : rb_map name ir.item)
 
-meta def new_context (decls : list ir.decl) (defns : list ir.defn) : context := do
-  let items := list.map (ir.item.defn) defns ++ list.map (ir.item.decl) decls,
+meta def new_context
+  (decls : list ir.decl)
+  (defns : list ir.defn)
+  (types : list ir.type_decl) : context := do
+  let items := list.map (ir.item.defn) defns ++ list.map (ir.item.decl) decls ++ list.map (ir.item.type) types,
   named_items := list.map (fun i, (ir.item.get_name i, i)) $ items in
   context.mk $ rb_map.of_list named_items
 

@@ -28,6 +28,7 @@ namespace cf
 @[reducible] meta def cf_monad :=
   state cf_state
 
+/-- hello world -/
 meta def when_debug (action : cf_monad unit) : cf_monad unit := do
   (config, _) ← state.read,
   if config.debug
