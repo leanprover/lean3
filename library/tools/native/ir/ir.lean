@@ -53,7 +53,7 @@ inductive base_type
 -- an unbounded integer
 | integer
 
-inductive ty
+inductive ty : Type
 | base : base_type -> ty
 | object : option ty -> ty
 | ref : ty → ty
@@ -74,7 +74,7 @@ inductive either (A B : Type) : Type
 | left : A -> either
 | right : B -> either
 
-inductive literal
+inductive literal : Type
 | nat : nat → literal
 | integer : int → literal
 | string : string → literal

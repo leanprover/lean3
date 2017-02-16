@@ -330,7 +330,7 @@ public:
     exporter(std::ostream & out, environment const & env) : m_out(out), m_env(env) {}
 
     void operator()() {
-        m_name2idx[{}] = 0;
+        m_name2idx[name({})] = 0;
         m_level2idx[{}] = 0;
         if (has_quotient(m_env))
             export_quotient();

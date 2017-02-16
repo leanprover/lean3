@@ -250,7 +250,7 @@ format invoke_native_compiler(
     // exposed by the tactic monad. Ideally a majority of the compiler
     // will be pure Lean and thus verifiable.
     local_context lctx;
-    tactic_state s = mk_tactic_state_for(env, opts, lctx, mk_constant("true"));
+    tactic_state s = mk_tactic_state_for(env, opts, {"_NATIVE_COMPILER"}, lctx, mk_constant("true"));
 
     auto compiler_name = name({"native", "compile"});
     auto cc = mk_native_closure(env, compiler_name, {});

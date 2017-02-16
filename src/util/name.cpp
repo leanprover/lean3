@@ -168,17 +168,17 @@ name::name(std::initializer_list<char const *> const & l):name() {
     }
 }
 
-name::name(std::initializer_list<std::string> l):name() {
-    if (l.size() == 0) {
-        return;
-    } else {
-        auto it = l.begin();
-        *this = name(it->c_str());
-        ++it;
-        for (; it != l.end(); ++it)
-            *this = name(*this, it->c_str());
-    }
-}
+// name::name(std::initializer_list<std::string> l):name() {
+//     if (l.size() == 0) {
+//         return;
+//     } else {
+//         auto it = l.begin();
+//         *this = name(it->c_str());
+//         ++it;
+//         for (; it != l.end(); ++it)
+//             *this = name(*this, it->c_str());
+//     }
+// }
 
 static name * g_anonymous = nullptr;
 

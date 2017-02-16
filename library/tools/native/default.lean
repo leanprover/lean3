@@ -79,7 +79,7 @@ meta def take_arguments (e : expr) : ir_compiler (list name × expr) :=
   return $ (fresh_names, expr.instantiate_vars body (list.reverse locals))
 
 meta def mk_error {T} (msg : string) : ir_compiler T :=
-  trace ("ERROR: " ++ msg) (fun u, lift_result (native.result.err $ error.string msg))
+  trace ("ERROR: " ++ msg) (lift_result (native.result.err $ error.string msg))
 
 meta def lookup_arity (n : name) : ir_compiler nat := do
   map ← arities,
@@ -198,8 +198,8 @@ let fst' := list.map assert_name fst,
     invoke
   ])
 
-meta def is_return (n : name) : bool :=
-`native_compiler.return = n
+-- meta def is_return (n : name) : bool :=
+-- `native_compiler.return = n
 
 meta def compile_call (head : ir.symbol) (arity : nat) (args : list ir.expr) : ir_compiler ir.stmt := do
   -- trace_ir $ "compile_call: " ++ (to_string head),
@@ -758,7 +758,8 @@ meta def emit_native_symbol_pairs (procs : list (name × expr)) : ir_compiler ir
       syms := list.map (fun n, ir.literal.string $ format_cpp.mangle_symbol n) ns,
       arities := list.map (fun p , ir.literal.integer $ get_arity (prod.snd p)) procs
   in do
-    (names, lets) <- list.unzip <$> monad.mapm mk_let_native_symbol_name ns,
+    -- not sure why this unification problem fails
+    (names, lets) <- list.unzip <$> (@monad.mapm ir_compiler _ _ _ mk_let_native_symbol_name ns),
     let both := (list.zip oleans (list.zip names (list.zip syms arities))) in
     pure (ir.stmt.seq
     (lets ++ [(ir.stmt.return $ ir.expr.lit $ ir.literal.array ((flip list.map both) (fun (| o, n, s, a |), ir.literal.array [o, ir.literal.symbol n, s, a])))]))

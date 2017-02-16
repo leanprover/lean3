@@ -18,7 +18,7 @@ import tools.native.ir.context
 
 namespace native
 
-inductive error
+inductive error : Type
 | string : string → error
 | many : list error → error
 

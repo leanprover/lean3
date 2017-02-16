@@ -342,6 +342,23 @@ vm_obj expr_copy_pos_info(vm_obj const & src, vm_obj const & tgt) {
     return to_obj(copy_tag(to_expr(src), copy(to_expr(tgt))));
 }
 
+vm_obj expr_get_nat_value(vm_obj const & o) {
+    expr e = to_expr(o);
+    if (is_nat_value(e)) {
+        auto n = mk_vm_nat(get_nat_value_value(e));
+        return mk_vm_constructor(1, { n });
+    } else {
+        return mk_vm_simple(0);
+    }
+}
+
+vm_obj expr_collect_univ_params(vm_obj const & o) {
+    list<name> param_list;
+    collect_univ_params(to_expr(o), name_set()).for_each(
+            [&] (name const & n) { param_list = cons(n, param_list); });
+    return to_obj(param_list);
+}
+
 // TODO(Leo): move to a different file
 vm_obj vm_mk_nat_val_ne_proof(vm_obj const & a, vm_obj const & b) {
     return to_obj(mk_nat_val_ne_proof(to_expr(a), to_expr(b)));

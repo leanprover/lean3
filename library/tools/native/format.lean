@@ -10,6 +10,13 @@ import init.function
 
 import tools.native.ir
 
+-- inductive contains_name : Type
+-- | mk : name -> contains_name
+
+-- def match_contains : contains_name -> unit
+-- | (contains_name.mk `foo) := ()
+-- | _ := ()
+
 meta def format_concat : list format → format
 | [] := format.nil
 | (f :: fs) := f ++ format_concat fs
@@ -78,7 +85,7 @@ meta def block (body : format) : format :=
   "{" ++ (format.nest 4 (format.line ++ body)) ++ format.line ++ "}"
 
 meta def expr' (action : ir.stmt → format) : ir.expr → format
-| (ir.expr.call `index (buf :: index :: _)) :=
+| (ir.expr.call (ir.symbol.name `index) (buf :: index :: _)) :=
   mangle_symbol buf ++ "[" ++ mangle_symbol index ++ "]"
 | (ir.expr.call f xs) := mk_call f xs
 | (ir.expr.mk_object n fs) :=
@@ -290,13 +297,12 @@ meta def definitions (defs : list ir.defn) : format :=
   insert_newlines 2 $ list.map defn defs
 
 meta def program (items : list ir.item) : format :=
-  timeit "format.program" (fun u,
   let (defs, decls) := split_items items in
   format_lines [
     headers,
     defn_prototypes defs,
     declarations decls,
     definitions defs
-  ])
+  ]
 
 end format_cpp

@@ -32,7 +32,7 @@ inductive call_type
 | over_sat : nat -> call_type
 
 meta def trace_anf (s : string) : anf_monad unit :=
-  trace s (fun u, return u)
+  trace s (return ())
 
 meta def get_call_type (n : name) (no_args : nat) : anf_monad call_type := do
   (map, _, _) <- state.read,
