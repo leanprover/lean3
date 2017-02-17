@@ -715,17 +715,34 @@ meta instance has_coe_lift_list (A B : Type) [elem_coe : has_coe A B] : has_coe 
 meta def mk_lean_name (n : name) : ir.expr :=
   ir.expr.constructor (in_lean_ns `name) (name.components n)
 
-meta def emit_declare_vm_builtins : list (name × expr) → ir_compiler (list ir.stmt)
-| [] := return []
-| ((n, body) :: es) := do
+meta def emit_declare_vm_builtin_nargs (n : name) (body : expr) : ir_compiler ir.stmt := do
+  vm_name ←  pure $ (mk_lean_name n),
+  fresh ← fresh_name,
+  arityName ← fresh_name,
+  arity ← pure $ (ir.expr.lit $ ir.literal.integer (get_arity body)),
+  let cpp_name := in_lean_ns `name,
+    single_binding :=
+      (ir.stmt.letb fresh (ir.ty.symbol cpp_name) vm_name (
+       ir.stmt.letb arityName (ir.base_type.unsigned) arity (
+        ir.stmt.assign `env (ir.expr.call (in_lean_ns `add_native) [`env, fresh, arityName, replace_main (n ++ "nargs")]))))
+  in return single_binding
+
+meta def emit_declare_vm_builtin (n : name) (body : expr) : ir_compiler ir.stmt := do
   vm_name ← pure $ (mk_lean_name n),
-  tail ← emit_declare_vm_builtins es,
   fresh ← fresh_name,
   let cpp_name := in_lean_ns `name,
     single_binding :=
-    ir.stmt.letb fresh (ir.ty.symbol cpp_name) vm_name (
-    ir.stmt.assign `env (ir.expr.call (in_lean_ns `add_native) [`env, fresh, replace_main n]))
-  in return $ single_binding :: tail
+    (ir.stmt.letb fresh (ir.ty.symbol cpp_name) vm_name (
+      ir.stmt.assign `env (ir.expr.call (in_lean_ns `add_native) [`env, fresh, replace_main n])))
+  in return $ single_binding
+
+meta def emit_declare_vm_builtins : list (name × expr) → ir_compiler (list ir.stmt)
+| [] := return []
+| ((n, body) :: es) := do
+  tail ← emit_declare_vm_builtins es,
+  if get_arity body < 9
+  then do b <- emit_declare_vm_builtin n body, return (b :: tail)
+  else do b <- emit_declare_vm_builtin_nargs n body, return (b :: tail)
 
 meta def emit_main (procs : list (name × expr)) : ir_compiler ir.defn := do
   builtins ← emit_declare_vm_builtins procs,
