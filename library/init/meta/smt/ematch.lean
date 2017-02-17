@@ -78,10 +78,10 @@ meta def to_hinst_lemmas_core (m : transparency) : bool → list name → hinst_
   end
 
 meta def mk_hinst_lemma_attr_core (attr_name : name) (as_simp : bool) : command :=
-do t ← to_expr `(caching_user_attribute hinst_lemmas),
+do t ← to_expr ``(caching_user_attribute hinst_lemmas),
    a ← attr_name^.to_expr,
-   b ← if as_simp then to_expr `(tt) else to_expr `(ff),
-   v ← to_expr `({ name     := %%a,
+   b ← if as_simp then to_expr ``(tt) else to_expr ``(ff),
+   v ← to_expr ``({name     := %%a,
                    descr    := "hinst_lemma attribute",
                    mk_cache := λ ns, to_hinst_lemmas_core reducible %%b ns hinst_lemmas.mk,
                    dependencies := [`reducibility] } : caching_user_attribute hinst_lemmas),
@@ -94,7 +94,7 @@ meta def mk_hinst_lemma_attrs_core (as_simp : bool) : list name → command
   (mk_hinst_lemma_attr_core n as_simp >> mk_hinst_lemma_attrs_core ns)
   <|>
   (do type ← infer_type (expr.const n []),
-      expected ← to_expr `(caching_user_attribute hinst_lemmas),
+      expected ← to_expr ``(caching_user_attribute hinst_lemmas),
       (is_def_eq type expected
        <|> fail ("failed to create hinst_lemma attribute '" ++ n^.to_string ++ "', declaration already exists and has different type.")),
       mk_hinst_lemma_attrs_core ns)
@@ -116,11 +116,11 @@ For the ones in simp_attr_names, we use the left-hand-side of the conclusion as 
 meta def mk_hinst_lemma_attr_set (attr_name : name) (attr_names : list name) (simp_attr_names : list name) : command :=
 do mk_hinst_lemma_attrs_core ff attr_names,
    mk_hinst_lemma_attrs_core tt simp_attr_names,
-   t  ← to_expr `(caching_user_attribute hinst_lemmas),
+   t  ← to_expr ``(caching_user_attribute hinst_lemmas),
    a  ← attr_name^.to_expr,
    l1 : expr ← list_name.to_expr attr_names,
    l2 : expr ← list_name.to_expr simp_attr_names,
-   v ← to_expr `({ name     := %%a,
+   v ← to_expr ``({name     := %%a,
                    descr    := "hinst_lemma attribute set",
                    mk_cache := λ ns,
                       let aux1 : list name := %%l1,
