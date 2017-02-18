@@ -10,13 +10,6 @@ import init.function
 
 import tools.native.ir
 
--- inductive contains_name : Type
--- | mk : name -> contains_name
-
--- def match_contains : contains_name -> unit
--- | (contains_name.mk `foo) := ()
--- | _ := ()
-
 meta def format_concat : list format → format
 | [] := format.nil
 | (f :: fs) := f ++ format_concat fs

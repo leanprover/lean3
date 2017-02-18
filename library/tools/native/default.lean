@@ -876,11 +876,11 @@ meta def compile
   (procs : list procedure) : tactic format := do
     ctxt <- new_context,
     backends <- load_backends,
-    ctxt <- match compile_and_add_to_context conf extern_fns procs ctxt with
+    ctxt' <- match compile_and_add_to_context conf extern_fns procs ctxt with
     | result.err e := tactic.fail $ error.to_string e
-    | result.ok format := pure ctxt
+    | result.ok ctxt' := pure ctxt'
     end,
-    execute_backends backends ctxt,
-    return (format_cpp.program $ ctxt^.to_items)
+    execute_backends backends ctxt',
+    return (format_cpp.program $ ctxt'^.to_items)
 
 end native
