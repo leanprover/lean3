@@ -174,18 +174,4 @@ def item.to_string : item → string
 instance item_has_to_string : has_to_string item :=
  ⟨ item.to_string ⟩
 
-meta record context :=
-  (items : rb_map name ir.item)
-
-meta def new_context
-  (decls : list ir.decl)
-  (defns : list ir.defn)
-  (types : list ir.type_decl) : context := do
-  let items := list.map (ir.item.defn) defns ++ list.map (ir.item.decl) decls ++ list.map (ir.item.type) types,
-  named_items := list.map (fun i, (ir.item.get_name i, i)) $ items in
-  context.mk $ rb_map.of_list named_items
-
-meta def lookup_item (n : name) (ctxt : context) : option ir.item :=
-  none
-
 end ir

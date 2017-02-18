@@ -279,7 +279,7 @@ format invoke_native_compiler(
 
     if (is_constructor(tactic_obj) && cidx(tactic_obj) == 0) {
         return to_format(cfield(tactic_obj , 0));
-    } else if (auto except = is_tactic_exception(S, tactic_obj)) {
+    } else if (auto except = tactic::is_exception(S, tactic_obj)) {
         auto msg = std::get<0>(*except);
         throw lean::exception((sstream() << msg).str());
     } else {

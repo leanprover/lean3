@@ -22,7 +22,13 @@ definition compiler_plugin : user_attribute := {
   descr := "registers the compiler plugin for use in the native compiler"
 }
 
+def backend : user_attribute := {
+  name := `backend,
+  descr := "registers the backend with the native compiler"
+}
+
 run_command attribute.register `ir_def
 run_command attribute.register `ir_decl
 run_command attribute.register `ir_type
 run_command attribute.register `compiler_plugin
+run_command attribute.register `backend

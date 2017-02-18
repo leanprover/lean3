@@ -17,6 +17,8 @@ import tools.native.format
 import tools.native.internal
 import tools.native.anf
 import tools.native.cf
+import tools.native.backend
+
 -- import tools.native.lift_switch
 import tools.native.pass
 import tools.native.util
@@ -796,7 +798,7 @@ meta def get_attribute_body (attr : name) (type : expr) : tactic expr := do
   -- add type checking in here ...
   match decl with
   | (declaration.defn _ _ _ body _ _) := pure body
-  | _ := fail "NYI"
+  | _ := fail "get_attribute_body expected a definition"
   end
 
 meta def get_attribute_bodies (attr : name) (type : expr) : tactic expr := do
@@ -816,6 +818,10 @@ meta def get_ir_types : tactic expr := do
   ty ← mk_const `ir.type_decl,
   get_attribute_bodies `ir_type ty
 
+meta def get_backends : tactic expr := do
+  ty <- mk_const `ir.backend,
+  get_attribute_bodies `backend ty
+
 meta def run_ir {A : Type} (action : ir_compiler A) (inital : ir_compiler_state): result error A :=
   prod.fst $ run action inital
 
@@ -828,36 +834,53 @@ meta def extend_with_list {K V : Type} [has_ordering K] (map : rb_map K V) (es :
 meta def extern_to_arities : extern_fn -> prod name nat
 | (| _, lean_name, _, arity |) := (lean_name, unsigned.to_nat arity)
 
-meta def compile'
+meta def compile_and_add_to_context
   (conf : config)
   (extern_fns : list extern_fn)
   (procs : list procedure)
-  (ctxt : ir.context) : result error format := do
+  (ctxt : ir.context)
+  : result error ir.context := do
     let arity := extend_with_list (mk_arity_map procs) (list.map extern_to_arities extern_fns) in
     let action : ir_compiler _ := driver extern_fns procs in
     match (run_ir action (ctxt, conf, arity, 0)) with
     | result.err e := result.err e
     | result.ok (items, errs) :=
       if list.length errs = 0
-      then pure (format_cpp.program items)
+      then pure (ctxt^.extend (list.map (fun (i : ir.item), (i^.get_name, i)) items))
       else result.err (error.many errs)
   end
+
+meta def new_context : tactic ir.context := do
+  decls_list_expr <- get_ir_decls,
+  defns_list_expr <- get_ir_defns,
+  types_list_expr <- get_ir_types,
+  decls <- eval_expr (list ir.decl) decls_list_expr,
+  defns <- eval_expr (list ir.defn) defns_list_expr,
+  types <- eval_expr (list ir.type_decl) types_list_expr,
+  return $ ir.new_context decls defns types
+
+meta def load_backends : tactic (list ir.backend) := do
+  backends_list_expr ← get_backends,
+  eval_expr (list ir.backend) backends_list_expr
+
+meta def execute_backend (ctxt : ir.context) (backend : ir.backend) : tactic unit := do
+  tactic.trace "about to execute backend",
+  tactic.lift_io (backend^.compiler ctxt)
+
+meta def execute_backends (backends : list ir.backend) (ctxt : ir.context) : tactic unit :=
+  monad.mapm (execute_backend ctxt) backends >> return ()
 
 meta def compile
   (conf : config)
   (extern_fns : list extern_fn)
   (procs : list procedure) : tactic format := do
-    tactic.trace "starting to execute the Lean compiler",
-    decls_list_expr <- get_ir_decls,
-    defns_list_expr <- get_ir_defns,
-    types_list_expr <- get_ir_types,
-    decls <- eval_expr (list ir.decl) decls_list_expr,
-    defns <- eval_expr (list ir.defn) defns_list_expr,
-    types <- eval_expr (list ir.type_decl) types_list_expr,
-    let ctxt := ir.new_context decls defns types in
-    match compile' conf extern_fns procs ctxt with
+    ctxt <- new_context,
+    backends <- load_backends,
+    ctxt <- match compile_and_add_to_context conf extern_fns procs ctxt with
     | result.err e := tactic.fail $ error.to_string e
-    | result.ok format := pure format
-    end
+    | result.ok format := pure ctxt
+    end,
+    execute_backends backends ctxt,
+    return (format_cpp.program $ ctxt^.to_items)
 
 end native
