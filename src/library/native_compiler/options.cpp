@@ -37,6 +37,9 @@ Author: Jared Roesch, and Leonardo de Moura
 #ifndef LEAN_DEFAULT_NATIVE_PROFILE
 #define LEAN_DEFAULT_NATIVE_PROFILE false
 #endif
+#ifndef LEAN_DEFAULT_NATIVE_BACKEND
+#define LEAN_DEFAULT_NATIVE_BACKEND ""
+#endif
 
 namespace lean {
 namespace native {
@@ -52,6 +55,7 @@ static name * g_native_cc              = nullptr;
 static name * g_native_binary          = nullptr;
 static name * g_native_store_code      = nullptr;
 static name * g_native_profile         = nullptr;
+static name * g_native_backend         = nullptr;
 
 char const * get_native_library_path(options const & o) {
     return o.get_string(*g_native_library_path, LEAN_DEFAULT_NATIVE_LIBRARY_PATH);
@@ -93,6 +97,10 @@ bool get_native_profile(options const & o) {
     return o.get_bool(*g_native_profile, LEAN_DEFAULT_NATIVE_PROFILE);
 }
 
+char const * get_native_backend(options const & o) {
+    return o.get_string(*g_native_backend, LEAN_DEFAULT_NATIVE_BACKEND);
+}
+
 config::config(options const & o) {
     m_native_library_path = get_native_library_path(o);
     m_native_main_fn      = get_native_main_fn(o);
@@ -104,6 +112,7 @@ config::config(options const & o) {
     m_native_binary       = get_native_binary(o);
     m_native_store_code   = get_native_store_code(o);
     m_native_profile      = get_native_profile(o);
+    m_native_backend      = get_native_backend(o);
 }
 
 void config::display(std::ostream & os) {
@@ -138,6 +147,7 @@ void initialize_options() {
     g_native_binary       = new name{"native", "binary"};
     g_native_store_code   = new name{"native", "store_code"};
     g_native_profile      = new name{"native", "profile"};
+    g_native_backend      = new name{"native", "backend"};
 
     register_string_option(*native::g_native_library_path, LEAN_DEFAULT_NATIVE_LIBRARY_PATH,
                          "(native_compiler) path used to search for native libraries, including liblean");
@@ -168,6 +178,9 @@ void initialize_options() {
 
     register_bool_option(*native::g_native_profile, LEAN_DEFAULT_NATIVE_PROFILE,
         "(native_compiler) flag controls whether to profile the native compiler");
+
+    register_string_option(*native::g_native_backend, LEAN_DEFAULT_NATIVE_BACKEND,
+        "(native_compiler) flag controls which backend to use for generating code");
 }
 
 void finalize_options() {
@@ -181,5 +194,6 @@ void finalize_options() {
     delete g_native_binary;
     delete g_native_store_code;
     delete g_native_profile;
+    delete g_native_backend;
 }
 }}

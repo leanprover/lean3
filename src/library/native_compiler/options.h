@@ -21,6 +21,7 @@ struct config {
     char const * m_native_binary;
     char const * m_native_store_code;
     bool         m_native_profile;
+    char const * m_native_backend;
 
     config(options const & o);
 

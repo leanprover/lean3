@@ -302,6 +302,7 @@ void native_compile(environment const & env,
                     buffer<extern_fn> & extern_fns,
                     buffer<procedure> & procs,
                     native_compiler_mode mode) {
+    auto conf = native::get_config();
     // Ensure we have loaded tools.native.
     auto output_path = get_code_path();
     std::fstream out(output_path, std::ios_base::out);
@@ -309,17 +310,21 @@ void native_compile(environment const & env,
     auto fmt = invoke_native_compiler(env, extern_fns, procs, mode);
     out << fmt << "\n\n";
 
-    // For now just close this, then exit.
-    out.close();
+    if (conf.m_native_backend == std::string("")) {
+        // For now just close this, then exit.
+        out.close();
 
-    // Get a compiler with the config specified by native options, placed
-    // in the correct mode.
-    auto gpp = compiler_with_native_config(mode);
+        // Get a compiler with the config specified by native options, placed
+        // in the correct mode.
+        auto gpp = compiler_with_native_config(mode);
 
-    // Add all the shared link dependencies.
-    add_shared_dependencies(gpp);
+        // Add all the shared link dependencies.
+        add_shared_dependencies(gpp);
 
-    gpp.file(output_path).run();
+        gpp.file(output_path).run();
+    } else {
+        // other backend do nothing?
+    }
 }
 
 void native_preprocess(environment const & env, declaration const & d, buffer<procedure> & procs) {
@@ -479,6 +484,7 @@ void initialize_native_compiler() {
     register_trace_class({"compiler", "native"});
     register_trace_class({"compiler", "native", "preprocess"});
     register_trace_class({"compiler", "native", "cpp_compiler"});
+    // register_trace_class({"sys_process"});
 }
 
 void finalize_native_compiler() {
