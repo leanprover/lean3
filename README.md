@@ -16,6 +16,8 @@
 About
 -----
 
+[![Join the chat at https://gitter.im/leanprover_public/Lobby](https://badges.gitter.im/leanprover_public/Lobby.svg)](https://gitter.im/leanprover_public/Lobby?utm_source=badge&utm_medium=badge&utm_campaign=pr-badge&utm_content=badge)
+
 - [Homepage](http://leanprover.github.io)
 - [Theorem Proving in Lean](https://leanprover.github.io/theorem_proving_in_lean/index.html)
 - [Standard Library](library/library.md)
