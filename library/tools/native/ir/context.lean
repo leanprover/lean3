@@ -13,7 +13,7 @@ meta def new_context
 (defns : list ir.defn)
 (types : list ir.type_decl) : context := do
   let items := list.map (ir.item.defn) defns ++ list.map (ir.item.decl) decls,
-  named_items := list.map (fun i, (ir.item.get_name i, i)) $ items in
+  let named_items := list.map (fun i, (ir.item.get_name i, i)) $ items,
   context.mk $ rb_map.of_list named_items
 
 meta def lookup_item (n : name) (ctxt : context) : option ir.item :=

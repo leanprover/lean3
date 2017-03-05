@@ -71,12 +71,12 @@ private meta def take_arguments' : expr → list name → (list name × expr)
 
 meta def fresh_name : ir_compiler name := do
   (ctxt, conf, map, counter) ← lift state.read,
-  let fresh := name.mk_numeral (unsigned.of_nat counter) `native._ir_compiler_
-    lift $ state.write (ctxt, conf, map, counter + 1),
-    return fresh
+  let fresh := name.mk_numeral (unsigned.of_nat counter) `native._ir_compiler_,
+  lift $ state.write (ctxt, conf, map, counter + 1),
+  return fresh
 
-meta def take_arguments (e : expr) : ir_compiler (list name × expr) :=
-  let (arg_names, body) := take_arguments' e [] in do
+meta def take_arguments (e : expr) : ir_compiler (list name × expr) := do
+  let (arg_names, body) := take_arguments' e [],
   fresh_names ← monad.mapm (fun x, fresh_name) arg_names,
   let locals := list.map mk_local fresh_names,
   return $ (fresh_names, expr.instantiate_vars body (list.reverse locals))
@@ -588,10 +588,10 @@ meta def compile_expr_to_ir_stmt : expr → ir_compiler ir.stmt
 meta def compile_defn_to_ir (decl_name : name) (params : list name) (body : expr) : ir_compiler ir.defn := do
   body' ← compile_expr_to_ir_stmt body,
   let no_params := list.length params,
-      const_obj_ref := ir.ty.ref (ir.ty.object none),
-      param_tys := list.repeat const_obj_ref no_params,
-      params := (list.zip params param_tys)
-  in pure (ir.defn.mk bool.tt decl_name params (ir.ty.object none) body')
+  let const_obj_ref := ir.ty.ref (ir.ty.object none),
+  let param_tys := list.repeat const_obj_ref no_params,
+  let params := (list.zip params param_tys),
+  pure (ir.defn.mk bool.tt decl_name params (ir.ty.object none) body')
 
 def unwrap_or_else {T R : Type} : ir.result T → (T → R) → (error → R) → R
 | (native.result.err e) f err := err e
@@ -700,20 +700,20 @@ meta def emit_declare_vm_builtin_nargs (n : name) (body : expr) : ir_compiler ir
   arityName ← fresh_name,
   arity ← pure $ (ir.expr.lit $ ir.literal.integer (get_arity body)),
   let cpp_name := in_lean_ns `name,
-    single_binding :=
+  let single_binding :=
       (ir.stmt.letb fresh (ir.ty.symbol cpp_name) vm_name (
        ir.stmt.letb arityName (ir.base_type.unsigned) arity (
-        ir.stmt.assign `env (ir.expr.call (in_lean_ns `add_native) [`env, fresh, arityName, replace_main (n ++ "nargs")]))))
-  in return single_binding
+        ir.stmt.assign `env (ir.expr.call (in_lean_ns `add_native) [`env, fresh, arityName, replace_main (n ++ "nargs")])))),
+  return single_binding
 
 meta def emit_declare_vm_builtin (n : name) (body : expr) : ir_compiler ir.stmt := do
   vm_name ← pure $ (mk_lean_name n),
   fresh ← fresh_name,
   let cpp_name := in_lean_ns `name,
-    single_binding :=
+  let single_binding :=
     (ir.stmt.letb fresh (ir.ty.symbol cpp_name) vm_name (
-      ir.stmt.assign `env (ir.expr.call (in_lean_ns `add_native) [`env, fresh, replace_main n])))
-  in return $ single_binding
+      ir.stmt.assign `env (ir.expr.call (in_lean_ns `add_native) [`env, fresh, replace_main n]))),
+  return $ single_binding
 
 meta def emit_declare_vm_builtins : list (name × expr) → ir_compiler (list ir.stmt)
 | [] := return []

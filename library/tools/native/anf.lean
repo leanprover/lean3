@@ -181,10 +181,9 @@ private meta def anf_call (head : expr) (args : list expr) (anf : expr → anf_m
     | call_type.over_sat arity := do
       -- trace_anf "oversat",
       let pre_args := list.taken arity args,
-          post_args := list.dropn arity args
-      in do
-        call_expr <- (direct_call head pre_args anf),
-        anf_call' call_expr post_args anf
+      let post_args := list.dropn arity args,
+      call_expr <- (direct_call head pre_args anf),
+      anf_call' call_expr post_args anf
     | call_type.under_sat := do
       -- trace_anf "unsat",
       anf_call' head args anf
@@ -223,14 +222,14 @@ private meta def anf' : expr → anf_monad expr
   anf_let n ty val body anf'
 | (expr.app f arg) := do
   let fn := expr.get_app_fn (expr.app f arg),
-      args := expr.get_app_args (expr.app f arg)
-   in match app_kind fn with
-   | cases := anf_cases_on fn args anf'
-   | nat_cases := anf_cases_on fn args anf'
-   | constructor _ := anf_constructor fn args anf'
-   | projection _ := anf_projection fn args anf'
-   | _ := anf_call fn args anf'
-   end
+  let args := expr.get_app_args (expr.app f arg),
+  match app_kind fn with
+  | cases := anf_cases_on fn args anf'
+  | nat_cases := anf_cases_on fn args anf'
+  | constructor _ := anf_constructor fn args anf'
+  | projection _ := anf_projection fn args anf'
+  | _ := anf_call fn args anf'
+  end
 | e := return e
 
 private meta def init_state : arity_map -> anf_state :=

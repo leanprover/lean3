@@ -66,8 +66,8 @@ meta def cf' : expr → cf_monad expr
 | (expr.app f arg) := do
   -- trace_cf "processing app",
   let fn := expr.get_app_fn (expr.app f arg),
-      args := expr.get_app_args (expr.app f arg)
-   in if is_cases_on fn
+  let args := expr.get_app_args (expr.app f arg),
+  if is_cases_on fn
    then cf_cases_on fn args cf'
    else if `native_compiler.assign = expr.const_name fn
    then match args with
