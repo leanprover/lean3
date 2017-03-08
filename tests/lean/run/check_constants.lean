@@ -16,6 +16,7 @@ run_command script_check_id `and.elim_left
 run_command script_check_id `and.elim_right
 run_command script_check_id `and.intro
 run_command script_check_id `andthen
+run_command script_check_id `applicative.pure
 run_command script_check_id `auto_param
 run_command script_check_id `bit0
 run_command script_check_id `bit1
@@ -176,7 +177,6 @@ run_command script_check_id `match_failed
 run_command script_check_id `mod
 run_command script_check_id `monad
 run_command script_check_id `monad.bind
-run_command script_check_id `monad.ret
 run_command script_check_id `monad_fail
 run_command script_check_id `monoid
 run_command script_check_id `mul
