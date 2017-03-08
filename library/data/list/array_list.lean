@@ -72,8 +72,11 @@ let ⟨n, h⟩ := x in l^.data^.read ⟨n, l^.lt_capacity h⟩ h
 def to_array {α} (l : array_list α) : array α l^.length :=
 {data := l^.read}
 
-def write {α} (l : array_list α) : fin l^.length → α → array_list α :=
-λ ⟨n, h⟩ v, { l with data := l^.data^.write ⟨n, l^.lt_capacity h⟩ h v }
+def write {α} (l : array_list α) : fin l^.length → α → array_list α
+| ⟨n, h⟩ v :=
+  match l^.capacity, l^.length, h, l^.data, l^.len_le with
+  cap, len, h, data, hle := ⟨cap, len, data^.write ⟨n, nat.lt_of_lt_of_le h hle⟩ h v, hle⟩
+  end
 
 def trim {α} (l : array_list α) : array_list α :=
 l^.to_array^.to_array_list
@@ -81,7 +84,7 @@ l^.to_array^.to_array_list
 def truncate {α} (l : array_list α) (n) (nsz : n ≤ l^.length) : array_list α :=
 { capacity := l^.capacity,
   length := n,
-  data := l^.data^.lift_on _ (λa, ⟦a⟧) (λa b H, quot.sound (λ⟨x, h⟩ (hn : x < n), H ⟨x, h⟩ (lt_of_lt_of_le hn nsz))),
+  data := l^.data^.lift_on _ (λa, ⟦a⟧) (λa b H, quot.sound (λ ⟨x, h⟩ (hn : x < n), H ⟨x, h⟩ (lt_of_lt_of_le hn nsz))),
   len_le := le_trans nsz l^.len_le }
 
 def ensure_capacity {α} [inhabited α] (l : array_list α) (cap : nat) : array_list α :=
@@ -99,35 +102,36 @@ if H : l^.capacity ≥ cap
 then begin delta ensure_capacity, rwa dif_pos H end
 else begin delta ensure_capacity, rw dif_neg H, exact le_max_left _ _ end
 
-def append {α} (l : array_list α) (v : α) : array_list α :=
-let L := @ensure_capacity _ ⟨v⟩ l (l^.length + 1) in
-have llen : L^.length = l^.length, from @ensure_capacity_len _ ⟨v⟩ l (l^.length + 1),
-have lc : l^.length < L^.capacity, from @array_list.ensure_capacity_ge _ ⟨v⟩ l (l^.length + 1),
-{ capacity := L^.capacity,
-  length := l^.length + 1,
-  data := L^.data^.lift_on _
-    (λa, ⟦a^.write ⟨l^.length, lc⟩ v⟧)
-    (λa b H, quot.sound $ λ ⟨y, yl⟩ hi,
-      let lf := fin.mk l^.length lc in
-      show (if lf = ⟨y, yl⟩ then v else a^.read ⟨y, yl⟩) = (if lf = ⟨y, yl⟩ then v else b^.read ⟨y, yl⟩), from
-      if h : lf = ⟨y, yl⟩ then by repeat {rw if_pos h} else
-      have y < L^.length, from eq.symm llen ▸ lt_of_le_of_ne (nat.le_of_succ_le_succ hi)
-        (λe : (fin.mk y yl)^.val = (fin.mk l^.length lc)^.val, h $ fin.eq_of_veq $ eq.symm e),
-      by repeat {rw if_neg h}; exact H ⟨y, yl⟩ this),
-  len_le := lc }
+def append {α} [inhabited α] (l : array_list α) (v : α) : array_list α :=
+let L := ensure_capacity l (l^.length + 1) in
+have lc : L^.length < L^.capacity, from eq.symm (ensure_capacity_len l (l^.length + 1)) ▸ array_list.ensure_capacity_ge l (l^.length + 1),
+match L^.capacity, L^.length, L^.data, L^.len_le, lc with
+| cap, len, data, hle, lc :=
+  { capacity := cap,
+    length := len + 1,
+    data := data^.lift_on _
+      (λa, ⟦a^.write ⟨len, lc⟩ v⟧)
+      (λa b H, quot.sound $ λ ⟨y, yl⟩ hi,
+        let lf := fin.mk len lc in
+        show (if lf = ⟨y, yl⟩ then v else a^.read ⟨y, yl⟩) = (if lf = ⟨y, yl⟩ then v else b^.read ⟨y, yl⟩), from
+        if h : lf = ⟨y, yl⟩ then by repeat {rw if_pos h} else
+        have y < len, from lt_of_le_of_ne (nat.le_of_succ_le_succ hi)
+          (λe : (fin.mk y yl)^.val = (fin.mk len lc)^.val, h $ fin.eq_of_veq $ eq.symm e),
+        by repeat {rw if_neg h}; exact H ⟨y, yl⟩ this),
+    len_le := lc }
+end
 
 def append_list {α} [inhabited α] : array_list α → list α → array_list α
 | l [] := l
 | l (x :: xs) := append_list (l^.append x) xs
 
--- make sure this is compiled with overwrite optimization
-def insert_aux {α} : Π n (l : array_list α) (h : n ≤ l^.length), α → array_list α
+def insert_aux {α} [inhabited α] : Π n (l : array_list α) (h : n ≤ l^.length), α → array_list α
 | 0 l h v := append l v
 | (n+1) l h v :=
   let pos := fin.mk (l^.length - 1 - n) (array.lt_aux_3 h) in
   let u := l^.read pos in insert_aux n (l^.write pos v) (le_of_lt h) u
 
-def insert {α} (l : array_list α) (v : α) (n : ℕ) (h : n ≤ l^.length) : array_list α :=
+def insert {α} [inhabited α] (l : array_list α) (v : α) (n : ℕ) (h : n ≤ l^.length) : array_list α :=
 insert_aux (l^.length - n) l (nat.sub_le _ _) v
 
 -- TODO (Mario): add operations for adding and removing several elements at a time
