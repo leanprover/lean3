@@ -93,6 +93,10 @@ def remove_nth : list α → ℕ → list α
 | (x::xs) 0     := xs
 | (x::xs) (i+1) := x :: remove_nth xs i
 
+def remove_all [decidable_eq α] : list α → list α → list α
+| (x :: xs) ys := (if x ∈ ys then remove_all xs ys else x :: remove_all xs ys)
+| [] ys := []
+
 def head [inhabited α] : list α → α
 | []       := default α
 | (a :: l) := a
@@ -167,6 +171,10 @@ def zip_with (f : α → β → γ) : list α → list β → list γ
 def zip : list α → list β → list (prod α β) :=
 zip_with prod.mk
 
+def unzip : list (α × β) → list α × list β
+| []            := ([], [])
+| ((a, b) :: t) := match unzip t with (al, bl) := (a::al, b::bl) end
+
 def repeat (a : α) : ℕ → list α
 | 0 := []
 | (succ n) := a :: repeat n
@@ -184,6 +192,12 @@ def iota_core : ℕ → list ℕ → list ℕ
 
 def iota : ℕ → list ℕ :=
 λ n, iota_core n []
+
+def enum_from : ℕ → list α → list (ℕ × α)
+| n [] := nil
+| n (x :: xs) := (n, x) :: enum_from (n + 1) xs
+
+def enum : list α → list (ℕ × α) := enum_from 0
 
 def sum [has_add α] [has_zero α] : list α → α :=
 foldl add zero
