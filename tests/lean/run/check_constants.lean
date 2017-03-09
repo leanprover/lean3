@@ -16,6 +16,7 @@ run_command script_check_id `and.elim_left
 run_command script_check_id `and.elim_right
 run_command script_check_id `and.intro
 run_command script_check_id `andthen
+run_command script_check_id `applicative.pure
 run_command script_check_id `auto_param
 run_command script_check_id `bit0
 run_command script_check_id `bit1
@@ -81,6 +82,9 @@ run_command script_check_id `funext
 run_command script_check_id `ge
 run_command script_check_id `gt
 run_command script_check_id `has_add
+run_command script_check_id `has_bind.bind
+run_command script_check_id `has_bind.and_then
+run_command script_check_id `has_bind.seq
 run_command script_check_id `has_div
 run_command script_check_id `has_mul
 run_command script_check_id `has_inv
@@ -176,7 +180,6 @@ run_command script_check_id `match_failed
 run_command script_check_id `mod
 run_command script_check_id `monad
 run_command script_check_id `monad.bind
-run_command script_check_id `monad.ret
 run_command script_check_id `monad_fail
 run_command script_check_id `monoid
 run_command script_check_id `mul
@@ -296,9 +299,6 @@ run_command script_check_id `pprod.snd
 run_command script_check_id `propext
 run_command script_check_id `pexpr
 run_command script_check_id `pexpr.subst
-run_command script_check_id `pre_monad.bind
-run_command script_check_id `pre_monad.and_then
-run_command script_check_id `pre_monad.seq
 run_command script_check_id `to_pexpr
 run_command script_check_id `quot.mk
 run_command script_check_id `quot.lift

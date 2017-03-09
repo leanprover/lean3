@@ -16,6 +16,7 @@ name const * g_and_elim_left = nullptr;
 name const * g_and_elim_right = nullptr;
 name const * g_and_intro = nullptr;
 name const * g_andthen = nullptr;
+name const * g_applicative_pure = nullptr;
 name const * g_auto_param = nullptr;
 name const * g_bit0 = nullptr;
 name const * g_bit1 = nullptr;
@@ -81,6 +82,9 @@ name const * g_funext = nullptr;
 name const * g_ge = nullptr;
 name const * g_gt = nullptr;
 name const * g_has_add = nullptr;
+name const * g_has_bind_bind = nullptr;
+name const * g_has_bind_and_then = nullptr;
+name const * g_has_bind_seq = nullptr;
 name const * g_has_div = nullptr;
 name const * g_has_mul = nullptr;
 name const * g_has_inv = nullptr;
@@ -176,7 +180,6 @@ name const * g_match_failed = nullptr;
 name const * g_mod = nullptr;
 name const * g_monad = nullptr;
 name const * g_monad_bind = nullptr;
-name const * g_monad_ret = nullptr;
 name const * g_monad_fail = nullptr;
 name const * g_monoid = nullptr;
 name const * g_mul = nullptr;
@@ -296,9 +299,6 @@ name const * g_pprod_snd = nullptr;
 name const * g_propext = nullptr;
 name const * g_pexpr = nullptr;
 name const * g_pexpr_subst = nullptr;
-name const * g_pre_monad_bind = nullptr;
-name const * g_pre_monad_and_then = nullptr;
-name const * g_pre_monad_seq = nullptr;
 name const * g_to_pexpr = nullptr;
 name const * g_quot_mk = nullptr;
 name const * g_quot_lift = nullptr;
@@ -391,6 +391,7 @@ void initialize_constants() {
     g_and_elim_right = new name{"and", "elim_right"};
     g_and_intro = new name{"and", "intro"};
     g_andthen = new name{"andthen"};
+    g_applicative_pure = new name{"applicative", "pure"};
     g_auto_param = new name{"auto_param"};
     g_bit0 = new name{"bit0"};
     g_bit1 = new name{"bit1"};
@@ -456,6 +457,9 @@ void initialize_constants() {
     g_ge = new name{"ge"};
     g_gt = new name{"gt"};
     g_has_add = new name{"has_add"};
+    g_has_bind_bind = new name{"has_bind", "bind"};
+    g_has_bind_and_then = new name{"has_bind", "and_then"};
+    g_has_bind_seq = new name{"has_bind", "seq"};
     g_has_div = new name{"has_div"};
     g_has_mul = new name{"has_mul"};
     g_has_inv = new name{"has_inv"};
@@ -551,7 +555,6 @@ void initialize_constants() {
     g_mod = new name{"mod"};
     g_monad = new name{"monad"};
     g_monad_bind = new name{"monad", "bind"};
-    g_monad_ret = new name{"monad", "ret"};
     g_monad_fail = new name{"monad_fail"};
     g_monoid = new name{"monoid"};
     g_mul = new name{"mul"};
@@ -671,9 +674,6 @@ void initialize_constants() {
     g_propext = new name{"propext"};
     g_pexpr = new name{"pexpr"};
     g_pexpr_subst = new name{"pexpr", "subst"};
-    g_pre_monad_bind = new name{"pre_monad", "bind"};
-    g_pre_monad_and_then = new name{"pre_monad", "and_then"};
-    g_pre_monad_seq = new name{"pre_monad", "seq"};
     g_to_pexpr = new name{"to_pexpr"};
     g_quot_mk = new name{"quot", "mk"};
     g_quot_lift = new name{"quot", "lift"};
@@ -767,6 +767,7 @@ void finalize_constants() {
     delete g_and_elim_right;
     delete g_and_intro;
     delete g_andthen;
+    delete g_applicative_pure;
     delete g_auto_param;
     delete g_bit0;
     delete g_bit1;
@@ -832,6 +833,9 @@ void finalize_constants() {
     delete g_ge;
     delete g_gt;
     delete g_has_add;
+    delete g_has_bind_bind;
+    delete g_has_bind_and_then;
+    delete g_has_bind_seq;
     delete g_has_div;
     delete g_has_mul;
     delete g_has_inv;
@@ -927,7 +931,6 @@ void finalize_constants() {
     delete g_mod;
     delete g_monad;
     delete g_monad_bind;
-    delete g_monad_ret;
     delete g_monad_fail;
     delete g_monoid;
     delete g_mul;
@@ -1047,9 +1050,6 @@ void finalize_constants() {
     delete g_propext;
     delete g_pexpr;
     delete g_pexpr_subst;
-    delete g_pre_monad_bind;
-    delete g_pre_monad_and_then;
-    delete g_pre_monad_seq;
     delete g_to_pexpr;
     delete g_quot_mk;
     delete g_quot_lift;
@@ -1142,6 +1142,7 @@ name const & get_and_elim_left_name() { return *g_and_elim_left; }
 name const & get_and_elim_right_name() { return *g_and_elim_right; }
 name const & get_and_intro_name() { return *g_and_intro; }
 name const & get_andthen_name() { return *g_andthen; }
+name const & get_applicative_pure_name() { return *g_applicative_pure; }
 name const & get_auto_param_name() { return *g_auto_param; }
 name const & get_bit0_name() { return *g_bit0; }
 name const & get_bit1_name() { return *g_bit1; }
@@ -1207,6 +1208,9 @@ name const & get_funext_name() { return *g_funext; }
 name const & get_ge_name() { return *g_ge; }
 name const & get_gt_name() { return *g_gt; }
 name const & get_has_add_name() { return *g_has_add; }
+name const & get_has_bind_bind_name() { return *g_has_bind_bind; }
+name const & get_has_bind_and_then_name() { return *g_has_bind_and_then; }
+name const & get_has_bind_seq_name() { return *g_has_bind_seq; }
 name const & get_has_div_name() { return *g_has_div; }
 name const & get_has_mul_name() { return *g_has_mul; }
 name const & get_has_inv_name() { return *g_has_inv; }
@@ -1302,7 +1306,6 @@ name const & get_match_failed_name() { return *g_match_failed; }
 name const & get_mod_name() { return *g_mod; }
 name const & get_monad_name() { return *g_monad; }
 name const & get_monad_bind_name() { return *g_monad_bind; }
-name const & get_monad_ret_name() { return *g_monad_ret; }
 name const & get_monad_fail_name() { return *g_monad_fail; }
 name const & get_monoid_name() { return *g_monoid; }
 name const & get_mul_name() { return *g_mul; }
@@ -1422,9 +1425,6 @@ name const & get_pprod_snd_name() { return *g_pprod_snd; }
 name const & get_propext_name() { return *g_propext; }
 name const & get_pexpr_name() { return *g_pexpr; }
 name const & get_pexpr_subst_name() { return *g_pexpr_subst; }
-name const & get_pre_monad_bind_name() { return *g_pre_monad_bind; }
-name const & get_pre_monad_and_then_name() { return *g_pre_monad_and_then; }
-name const & get_pre_monad_seq_name() { return *g_pre_monad_seq; }
 name const & get_to_pexpr_name() { return *g_to_pexpr; }
 name const & get_quot_mk_name() { return *g_quot_mk; }
 name const & get_quot_lift_name() { return *g_quot_lift; }
