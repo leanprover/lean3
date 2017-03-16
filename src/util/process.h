@@ -16,6 +16,7 @@ class process {
     std::string m_proc_name;
     buffer<std::string> m_args;
 public:
+    process(process const & proc) : m_proc_name(proc.m_proc_name), m_args(proc.m_args) {}
     process(std::string exe_name);
     process & arg(std::string arg_str);
     void run();

@@ -40,7 +40,7 @@ void process::run() {
     if (pid == 0) {
         buffer<char*> pargs;
 
-        for (auto arg : m_args) {
+        for (auto arg : this->m_args) {
             auto str = new char[arg.size() + 1];
             arg.copy(str, arg.size());
             str[arg.size()] = '\0';

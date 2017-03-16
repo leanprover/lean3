@@ -137,4 +137,6 @@ format.print_using (to_fmt a) o
 meta definition pp {α : Type} [has_to_format α] (a : α) : io unit :=
 format.print (to_fmt a)
 
+-- Note: I put this here to due to namespacing issues.
+/-- Lift a monadic `io` action into the `tactic` monad. -/
 meta constant tactic.run_io {α : Type} : (Π ioi : io.interface, @io ioi α) → tactic α
