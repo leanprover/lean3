@@ -1,9 +1,10 @@
 /-
-Copyright (c) 2016 Microsoft Corporation. All rights reserved.
+Copyright (c) 2017 Microsoft Corporation. All rights reserved.
 Released under Apache 2.0 license as described in the file LICENSE.
 Authors: Luke Nelson, Jared Roesch and Leonardo de Moura
 -/
 import data.buffer
+import init.category.result
 
 inductive io.error
 | other     : string → io.error
@@ -79,13 +80,18 @@ interface.fs^.handle
 def mk_file_handle (s : string) (m : mode) (bin : bool := ff) : io handle :=
 interface.fs^.mk_file_handle s m bin
 
+-- Not sure about best path forward here
 def stdin : io handle :=
+
 interface.fs^.stdin
 
 def stderr : io handle :=
 interface.fs^.stderr
 
+-- Why do I need this?
+instance io_result_monad : monad io.result :=
 def stdout : io handle :=
+
 interface.fs^.stdout
 
 namespace fs
