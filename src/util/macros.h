@@ -8,3 +8,13 @@ Author: Leonardo de Moura
 
 #define LEAN_XSTR(x) #x
 #define LEAN_STR(x) LEAN_XSTR(x)
+
+#if (__cplusplus > 201402L)
+#define UNUSED [[maybe_unused]]
+#else
+#if __GNUC__
+#define UNUSED __attribute__((unused))
+#else
+#define UNUSED
+#endif
+#endif

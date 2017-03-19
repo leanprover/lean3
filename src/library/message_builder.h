@@ -7,6 +7,7 @@ Author: Gabriel Ebner
 #pragma once
 #include <string>
 #include "util/exception.h"
+#include "util/macros.h"
 #include "library/io_state_stream.h"
 #include "library/messages.h"
 
@@ -14,7 +15,7 @@ namespace lean {
 
 /** Buider for a message object.  Automatically reports the message on destruction. */
 class message_builder {
-    pos_info_provider const *              m_pos_info_provider;
+    pos_info_provider const *              m_pos_info_provider UNUSED;
     std::shared_ptr<abstract_type_context> m_tc;
     std::string                            m_file_name;
     pos_info                               m_pos;

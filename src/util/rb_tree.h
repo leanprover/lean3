@@ -11,6 +11,7 @@ Author: Leonardo de Moura
 #include "util/debug.h"
 #include "util/buffer.h"
 #include "util/optional.h"
+#include "util/macros.h"
 #include "util/memory_pool.h"
 
 namespace lean {
@@ -71,8 +72,8 @@ class rb_tree : private CMP {
     }
 
     bool check_cmp_result(T const & v1, T const & v2) const {
-        int n1 = CMP::operator()(v1, v2);
-        int n2 = CMP::operator()(v2, v1);
+        int n1 UNUSED = CMP::operator()(v1, v2);
+        int n2 UNUSED = CMP::operator()(v2, v1);
         lean_assert((n1 < 0  && n2 > 0) || (n1 == 0 && n2 == 0) || (n1 > 0  && n2 < 0));
         return true;
     }
