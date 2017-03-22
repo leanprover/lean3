@@ -2537,7 +2537,10 @@ def CheckSpacing(filename, clean_lines, linenum, nesting_state, error):
 
   # You shouldn't have spaces before your brackets, except maybe after
   # 'delete []' or 'new char * []'.
-  if Search(r'\w\s+\[', line) and not Search(r'delete\s+\[', line):
+
+  # Modified by cmr, 2017-03-19
+  # Don't warn about whitespace around attributes, eg, [[maybe_unused]]
+  if Search(r'\w\s+\[[^[]', line) and not Search(r'delete\s+\[', line):
     error(filename, linenum, 'whitespace/braces', 5,
           'Extra space before [')
 
