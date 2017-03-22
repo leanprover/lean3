@@ -33,7 +33,8 @@ meta constant pipe : pipe.mode → Type
 open pipe.mode
 
 meta constant pipe.write {n : nat} : pipe write → array char n → io unit
-meta constant pipe.read {n : nat} : pipe read → array char n → io nat
+-- Read takes a buffer which it will try to reuse for perf.
+meta constant pipe.read {n : nat} : pipe read → array char n → io (nat × array char n)
 
 /-- A representation of an external running or completed child process. -/
 meta inductive child : Type

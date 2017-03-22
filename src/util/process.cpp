@@ -79,11 +79,9 @@ child process::spawn() {
         case stdio::INHERIT:
             break;
         case stdio::PIPED: {
-            std::cout << "redirecting STDIN" << std::endl;
             if (pipe(stdin_pipe) == -1) {
                 throw exception("unable to create pipe between child process");
             }
-            std::cout << stdin_pipe[0] << " " << stdin_pipe[1] << std::endl;
             /* We should setup a new pipe */
             break;
         }
@@ -100,11 +98,9 @@ child process::spawn() {
         case stdio::INHERIT:
             break;
         case stdio::PIPED: {
-            std::cout << "about to pipe output here" << std::endl;
             if (pipe(stdout_pipe) == -1) {
                 throw exception("unable to create pipe between child process");
             }
-            std::cout << stdout_pipe[0] << " " << stdout_pipe[1] << std::endl;
             /* We should setup a new pipe */
             break;
         }
@@ -146,7 +142,6 @@ child process::spawn() {
 
     close(stdin_pipe[0]);
     close(stdout_pipe[1]);
-    std::cout << stdin_pipe[1] << " " << stdout_pipe[0] << std::endl;
     return child(pid, stdin_pipe[1], stdout_pipe[0], STDERR_FILENO);
 }
 

@@ -206,7 +206,6 @@ vm_obj process_child_stderr(vm_obj const & child_obj, vm_obj const &) {
 
 vm_obj process_pipe_write(vm_obj const &, vm_obj const & pipe_obj, vm_obj const & array_obj, vm_obj const &) {
     auto pipe_fd = to_pipe(pipe_obj);
-    std::cout << "in pipe write " << pipe_fd << std::endl;
     auto arr = to_array(array_obj);
 
     /* Fix this code, perf is bad, but crashed for some reason */
@@ -222,7 +221,6 @@ vm_obj process_pipe_write(vm_obj const &, vm_obj const & pipe_obj, vm_obj const 
 
 vm_obj process_pipe_read(vm_obj const &, vm_obj const & pipe_obj, vm_obj const & array_obj, vm_obj const &) {
     auto pipe_fd = to_pipe(pipe_obj);
-    std::cout << "in pipe read" << pipe_fd << std::endl;
     auto arr = to_array(array_obj);
 
     buffer<char> buf;
@@ -235,7 +233,11 @@ vm_obj process_pipe_read(vm_obj const &, vm_obj const & pipe_obj, vm_obj const &
         throw exception("pipe read failed");
     }
 
-    return mk_io_result(mk_vm_nat(bytes_read));
+    for (size_t i = 0; i < buf.size(); i++) {
+       arr.set(i, mk_vm_nat(buf[i]));
+    }
+
+    return mk_io_result(mk_vm_pair(mk_vm_nat(bytes_read), to_obj(arr)));
 }
 
 void initialize_vm_process() {

@@ -14,23 +14,18 @@ meta def z3_instance.start : io z3_instance := do
 
 meta def read_to_string'
     {n : nat}
-    (buffer : array char n)
     (pipe : process.pipe process.pipe.mode.read)
-    : string → io string := fun output, do
-    io.put_str "about to read",
-    bytes_read <- pipe^.read buffer,
-    io.put_str "after read",
-    io.put_ln bytes_read,
+    :  array char n → string → io string := fun buffer output, do
+    (bytes_read, buffer') <- pipe^.read buffer,
     if bytes_read = 0
     then return output
     else do
-        let new_output : string := output ++ (list.taken bytes_read buffer^.to_list),
-        io.put_ln new_output,
-        read_to_string' new_output
+        let new_output : string := output ++ (list.taken bytes_read buffer'^.to_list),
+        read_to_string' buffer' new_output
 
 meta def read_to_string (pipe : process.pipe process.pipe.mode.read) : io string := do
-    let buf := mk_array 256 #"C",
-    read_to_string' buf pipe ""
+    str <- read_to_string' pipe (mk_array 256 #"C") "",
+    return str^.reverse
 
 meta def z3_instance.raw (z3 : z3_instance) (cmd : string) : io.result string := do
     stdin <- z3^.process^.stdin,
