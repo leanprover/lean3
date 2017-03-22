@@ -216,6 +216,7 @@ vm_obj process_pipe_write(vm_obj const &, vm_obj const & pipe_obj, vm_obj const 
     }
 
     write(pipe_fd, buf.c_str(), buf.size());
+    close(pipe_fd);
     return mk_io_result(mk_vm_unit());
 }
 
