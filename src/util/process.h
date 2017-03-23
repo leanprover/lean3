@@ -9,6 +9,7 @@ Author: Jared Roesch
 #include <iostream>
 #include <string>
 #include "util/buffer.h"
+#include "pipe.h"
 
 namespace lean  {
 

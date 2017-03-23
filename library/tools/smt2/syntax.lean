@@ -67,7 +67,7 @@ meta def string_lit (s : string) : format :=
   format.bracket "\"" "\"" (to_fmt s)
 
 meta def cmd.to_format : cmd → format
-| (echo msg) := "(echo " ++ string_lit msg ++ ")"
+| (echo msg) := "(echo " ++ string_lit msg ++ ")\n"
 | _ := "NYI"
 
 meta instance : has_to_format cmd :=

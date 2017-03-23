@@ -7,4 +7,4 @@ add_library(util OBJECT debug.cpp name.cpp name_set.cpp fresh_name.cpp
   timer.cpp task.cpp task_builder.cpp cancellable.cpp
   log_tree.cpp
   small_object_allocator.cpp subscripted_name_set.cpp process.cpp
-  parser_exception.cpp)
+  parser_exception.cpp pipe.cpp)

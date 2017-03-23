@@ -17,6 +17,7 @@ Author: Jared Roesch
 #endif
 #include "util/process.h"
 #include "util/buffer.h"
+#include "util/pipe.h"
 
 namespace lean {
 // TODO(jroesch): make this cross platform
@@ -49,77 +50,52 @@ void process::run() {
     throw exception("process::run not supported on Windows");
 }
 #else
-int setup_stdio(int file_descriptor, stdio cfg) {
-    switch (cfg) {
+
+optional<pipe> setup_stdio(optional<stdio> cfg) {
+    /* Setup stdio based on process configuration. */
+    if (cfg) {
+        switch (*cfg) {
         /* We should need to do nothing in this case */
         case stdio::INHERIT:
-            return file_descriptor;
-        case stdio::PIPED:
-            int pipe_fds[2];
-            if (pipe(pipe_fds) == -1) {
-                throw exception("unable to create pipe between child process");
-            }
-            /* We should setup a new pipe */
-            break;
-        case stdio::NUL:
+            return optional<pipe>();
+        case stdio::PIPED: {
+            return optional<pipe>(lean::pipe());
+        }
+        case stdio::NUL: {
             /* We should map /dev/null. */
-            break;
+            return optional<pipe>();
+        }
+        default:
+           lean_unreachable();
+        }
+    } else {
+        return optional<pipe>();
     }
 }
 
 child process::spawn() {
-    int child_stdin = STDIN_FILENO;
-    int stdin_pipe[2];
-    int stdout_pipe[2];
-
     /* Setup stdio based on process configuration. */
-    if (m_stdin) {
-        switch (*m_stdin) {
-        /* We should need to do nothing in this case */
-        case stdio::INHERIT:
-            break;
-        case stdio::PIPED: {
-            if (pipe(stdin_pipe) == -1) {
-                throw exception("unable to create pipe between child process");
-            }
-            /* We should setup a new pipe */
-            break;
-        }
-        case stdio::NUL:
-            /* We should map /dev/null. */
-            break;
-        }
-    }
-
-     /* Setup stdio based on process configuration. */
-    if (m_stdout) {
-        switch (*m_stdout) {
-        /* We should need to do nothing in this case */
-        case stdio::INHERIT:
-            break;
-        case stdio::PIPED: {
-            if (pipe(stdout_pipe) == -1) {
-                throw exception("unable to create pipe between child process");
-            }
-            /* We should setup a new pipe */
-            break;
-        }
-        case stdio::NUL:
-            /* We should map /dev/null. */
-            break;
-        }
-    }
+    auto stdin_pipe = setup_stdio(m_stdin);
+    auto stdout_pipe = setup_stdio(m_stdout);
+    auto stderr_pipe = setup_stdio(m_stderr);
 
     int pid = fork();
 
     if (pid == 0) {
-        // if (stdin_pipes[0] != -1) {
-            dup2(stdin_pipe[0], STDIN_FILENO);
-            dup2(stdout_pipe[1], STDOUT_FILENO);
+        if (stdin_pipe) {
+            dup2(stdin_pipe->m_read_fd, STDIN_FILENO);
+            close(stdin_pipe->m_write_fd);
+        }
 
-            close(stdin_pipe[1]);
-            close(stdout_pipe[0]);
-        // }
+        if (stdout_pipe) {
+            dup2(stdout_pipe->m_write_fd, STDOUT_FILENO);
+            close(stdout_pipe->m_read_fd);
+        }
+
+        if (stderr_pipe) {
+            dup2(stderr_pipe->m_write_fd, STDERR_FILENO);
+            close(stderr_pipe->m_read_fd);
+        }
 
         buffer<char*> pargs;
 
@@ -140,9 +116,27 @@ child process::spawn() {
         throw std::runtime_error("forking process failed: ...");
     }
 
-    close(stdin_pipe[0]);
-    close(stdout_pipe[1]);
-    return child(pid, stdin_pipe[1], stdout_pipe[0], STDERR_FILENO);
+    /* We want to setup the parent's view of the file descriptors. */
+    int parent_stdin = STDIN_FILENO;
+    int parent_stdout = STDOUT_FILENO;
+    int parent_stderr = STDERR_FILENO;
+
+    if (stdin_pipe) {
+        close(stdin_pipe->m_read_fd);
+        parent_stdin = stdin_pipe->m_write_fd;
+    }
+
+    if (stdout_pipe) {
+        close(stdout_pipe->m_write_fd);
+        parent_stdout = stdout_pipe->m_read_fd;
+    }
+
+    if (stderr_pipe) {
+        close(stderr_pipe->m_write_fd);
+        parent_stderr = stderr_pipe->m_read_fd;
+    }
+
+    return child(pid, parent_stdin, parent_stdout, parent_stderr);
 }
 
 void process::run() {
