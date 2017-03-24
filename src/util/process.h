@@ -11,6 +11,10 @@ Author: Jared Roesch
 #include "util/buffer.h"
 #include "pipe.h"
 
+#if defined(LEAN_WINDOWS) && !defined(LEAN_CYGWIN)
+#include "windows.h"
+#endif
+
 namespace lean  {
 
 enum stdio {
@@ -19,11 +23,18 @@ enum stdio {
     NUL,
 };
 
+// todo replace this with new io.handle
+#if defined(LEAN_WINDOWS) && !defined(LEAN_CYGWIN)
+typedef file_handle HANDLE
+#else
+typedef file_handle int
+#endif
+
 struct child {
-    int m_stdin;
-    int m_stdout;
-    int m_stderr;
-    int m_pid;
+    file_handle m_stdin;
+    file_handle m_stdout;
+    file_handle m_stderr;
+    file_handle m_pid;
 
     child(child const & ch) :
         m_stdin(ch.m_stdin),
@@ -31,11 +42,13 @@ struct child {
         m_stderr(ch.m_stderr),
         m_pid(ch.m_pid) {}
 
-    child(int pid, int stdin, int stdout, int stderr) :
+    child(int pid, file_handle stdin, file_handle stdout, file_handle stderr) :
         m_stdin(stdin),
         m_stdout(stdout),
         m_stderr(stderr),
         m_pid(pid) {}
+    
+    void wait();
 };
 
 class process {
