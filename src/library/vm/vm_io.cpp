@@ -8,11 +8,14 @@ Author: Leonardo de Moura
 #include <cstdio>
 #include <iostream>
 #include "util/sstream.h"
+#include "library/handle.h"
 #include "library/io_state.h"
 #include "library/tactic/tactic_state.h"
 #include "library/vm/vm.h"
 #include "library/vm/vm_array.h"
 #include "library/vm/vm_string.h"
+#include "library/vm/vm_io.h"
+#include "library/process.h"
 
 namespace lean {
 vm_obj mk_io_result(vm_obj const & r) {
@@ -56,14 +59,6 @@ static vm_obj mk_terminal() {
     };
     return mk_vm_constructor(0, 2, fields);
 }
-
-struct handle {
-    FILE * m_handle;
-    handle(FILE * h):m_handle(h) {}
-    ~handle() { if (m_handle && m_handle != stdin && m_handle != stderr && m_handle != stdout) fclose(m_handle); }
-};
-
-typedef std::shared_ptr<handle> handle_ref;
 
 struct vm_handle : public vm_external {
     handle_ref m_handle;
@@ -281,6 +276,74 @@ static vm_obj mk_fs() {
     return mk_vm_constructor(0, 11, fields);
 }
 
+stdio to_stdio(vm_obj const & o) {
+    switch(cidx(o)) {
+        case 0:
+            return stdio::PIPED;
+        case 1:
+            return stdio::INHERIT;
+        case 2:
+            return stdio::NUL;
+        default:
+            lean_unreachable()
+    }
+}
+
+/*
+structure process :=
+  (cmd : string)
+  /- Add an argument to pass to the process. -/
+  (args : list string)
+  /- Configuration for the process's stdin handle. -/
+  (stdin := stdio.inherit)
+  /- Configuration for the process's stdout handle. -/
+  (stdout := stdio.inherit)
+  /- Configuration for the process's stderr handle. -/
+  (stderr := stdio.inherit)
+*/
+static vm_obj io_process_spawn(vm_obj const & process_obj, vm_obj const &) {
+    std::string cmd = to_string(cfield(process_obj, 0));
+
+    list<std::string> args = to_list<std::string>(cfield(process_obj, 1), [&] (vm_obj const & o) -> std::string {
+        return to_string(o);
+    });
+    auto stdin_stdio = to_stdio(cfield(process_obj, 2));
+    auto stdout_stdio = to_stdio(cfield(process_obj, 3));
+    auto stderr_stdio = to_stdio(cfield(process_obj, 4));
+
+    lean::process proc(cmd);
+
+    for (auto arg : args) {
+        proc.arg(arg);
+    }
+
+    proc.stdin(stdin_stdio);
+    proc.stdout(stdout_stdio);
+    proc.stderr(stderr_stdio);
+
+    child ch = proc.spawn();
+
+    auto child_obj = mk_vm_constructor(0, {
+        to_obj(ch.m_stdin),
+        to_obj(ch.m_stdout),
+        to_obj(ch.m_stderr)
+    });
+
+    // Should add helper functions for building real io.result
+    return mk_io_result(child_obj);
+}
+
+/*
+structure io.process (Err : Type) (handle : Type) (m : Type → Type → Type) :=
+  (spawn        : process → m Err child)
+*/
+static vm_obj mk_process() {
+    vm_obj fields[1] = {
+        mk_native_closure(io_process_spawn),
+    };
+    return mk_vm_constructor(0, 1, fields);
+}
+
 static vm_obj io_return(vm_obj const &, vm_obj const & a, vm_obj const &) {
     return mk_io_result(a);
 }
@@ -319,25 +382,35 @@ static vm_obj io_m(vm_obj const &, vm_obj const &) {
     return mk_vm_simple(0);
 }
 
+static vm_obj io_handle(vm_obj const &, vm_obj const &) {
+    return mk_vm_simple(0);
+}
+
 /*
-structure io.interface :=
+class io.interface :=
 (m        : Type → Type → Type)
 (monad    : Π e, monad (m e))
 (catch    : ∀ e₁ e₂ α, m e₁ α → (e₁ → m e₂ α) → m e₂ α)
 (fail     : ∀ e α, e → m e α)
+-- Primitive Types
+(handle   : Type)
+-- Interface Extensions
 (term     : io.terminal m)
-(fs       : io.file_system m)
+(fs       : io.file_system handle m)
+(process  : io.process io.error handle m)
 */
 vm_obj mk_io_interface() {
-    vm_obj fields[6] = {
+    vm_obj fields[9] = {
         mk_native_closure(io_m), /* TODO(Leo): delete after we improve code generator */
         mk_native_closure(io_monad),
         mk_native_closure(io_catch),
         mk_native_closure(io_fail),
+        mk_native_closure(io_handle), /* TODO(Leo): delete after we improve code generator */
         mk_terminal(),
-        mk_fs()
+        mk_fs(),
+        mk_process()
     };
-    return mk_vm_constructor(0, 6, fields);
+    return mk_vm_constructor(0, 9, fields);
 }
 
 optional<vm_obj> is_io_result(vm_obj const & o) {

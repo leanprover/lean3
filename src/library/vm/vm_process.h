@@ -10,6 +10,7 @@ Author: Jared Roesch
 
 namespace lean {
 
+
 void initialize_vm_process();
 void finalize_vm_process();
 

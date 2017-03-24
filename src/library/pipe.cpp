@@ -5,7 +5,7 @@ Released under Apache 2.0 license as described in the file LICENSE.
 Author: Jared Roesch
 */
 
-#include "util/pipe.h"
+#include "library/pipe.h"
 #include "util/exception.h"
 #include <unistd.h>
 

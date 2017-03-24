@@ -5,6 +5,7 @@ Authors: Luke Nelson, Jared Roesch and Leonardo de Moura
 -/
 import data.buffer
 import init.category.result
+import system.process
 
 inductive io.error
 | other     : string → io.error
@@ -17,28 +18,31 @@ structure io.terminal (m : Type → Type → Type) :=
 inductive io.mode
 | read | write | read_write | append
 
-structure io.file_system (m : Type → Type → Type) :=
+structure io.file_system (Handle : Type) (m : Type → Type → Type) :=
 /- Remark: in Haskell, they also provide  (Maybe TextEncoding) and  NewlineMode -/
-(handle         : Type)
 (read_file      : string → bool → m io.error char_buffer)
-(mk_file_handle : string → io.mode → bool → m io.error handle)
-(is_eof         : handle → m io.error bool)
-(flush          : handle → m io.error unit)
-(close          : handle → m io.error unit)
-(read           : handle → nat → m io.error char_buffer)
-(write          : handle → char_buffer → m io.error unit)
-(get_line       : handle → m io.error char_buffer)
-(stdin          : m io.error handle)
-(stdout         : m io.error handle)
-(stderr         : m io.error handle)
+(mk_file_handle : string → io.mode → bool → m io.error Handle)
+(is_eof         : Handle → m io.error bool)
+(flush          : Handle → m io.error unit)
+(close          : Handle → m io.error unit)
+(read           : Handle → nat → m io.error char_buffer)
+(write          : Handle → char_buffer → m io.error unit)
+(get_line       : Handle → m io.error char_buffer)
+(stdin          : m io.error Handle)
+(stdout         : m io.error Handle)
+(stderr         : m io.error Handle)
 
 class io.interface :=
 (m        : Type → Type → Type)
 (monad    : Π e, monad (m e))
 (catch    : Π e₁ e₂ α, m e₁ α → (e₁ → m e₂ α) → m e₂ α)
 (fail     : Π e α, e → m e α)
+-- Primitive Types
+(handle   : Type)
+-- Interface Extensions
 (term     : io.terminal m)
-(fs       : io.file_system m)
+(fs       : io.file_system handle m)
+(process  : io.process io.error handle m)
 
 variable [io.interface]
 
@@ -60,39 +64,34 @@ instance : monad_fail io :=
 
 namespace io
 def put_str : string → io unit :=
-interface.term^.put_str
+  interface.term^.put_str
 
 def put_str_ln (s : string) : io unit :=
-put_str s >> put_str "\n"
+  put_str s >> put_str "\n"
 
 def get_line : io string :=
-interface.term^.get_line
+  interface.term^.get_line
 
 def print {α} [has_to_string α] (s : α) : io unit :=
-put_str ∘ to_string $ s
+  put_str ∘ to_string $ s
 
 def print_ln {α} [has_to_string α] (s : α) : io unit :=
 print s >> put_str "\n"
 
 def handle : Type :=
-interface.fs^.handle
+  interface.handle
 
 def mk_file_handle (s : string) (m : mode) (bin : bool := ff) : io handle :=
-interface.fs^.mk_file_handle s m bin
+  interface.fs^.mk_file_handle s m bin
 
--- Not sure about best path forward here
 def stdin : io handle :=
-
-interface.fs^.stdin
+  interface.fs^.stdin
 
 def stderr : io handle :=
-interface.fs^.stderr
+  interface.fs^.stderr
 
--- Why do I need this?
-instance io_result_monad : monad io.result :=
 def stdout : io handle :=
-
-interface.fs^.stdout
+  interface.fs^.stdout
 
 namespace fs
 def is_eof : handle → io bool :=

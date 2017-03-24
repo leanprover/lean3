@@ -1,5 +1,5 @@
 /*
-Copyright (c) 2016 Microsoft Corporation. All rights reserved.
+Copyright (c) 2017 Microsoft Corporation. All rights reserved.
 Released under Apache 2.0 license as described in the file LICENSE.
 
 Author: Jared Roesch
@@ -8,12 +8,13 @@ Author: Jared Roesch
 
 #include <iostream>
 #include <string>
+#include "library/handle.h"
 #include "util/buffer.h"
 #include "pipe.h"
 
-#if defined(LEAN_WINDOWS) && !defined(LEAN_CYGWIN)
-#include "windows.h"
-#endif
+// #if defined(LEAN_WINDOWS) && !defined(LEAN_CYGWIN)
+// #include "windows.h"
+// #endif
 
 namespace lean  {
 
@@ -23,18 +24,11 @@ enum stdio {
     NUL,
 };
 
-// todo replace this with new io.handle
-#if defined(LEAN_WINDOWS) && !defined(LEAN_CYGWIN)
-typedef file_handle HANDLE
-#else
-typedef file_handle int
-#endif
-
 struct child {
-    file_handle m_stdin;
-    file_handle m_stdout;
-    file_handle m_stderr;
-    file_handle m_pid;
+    handle_ref m_stdin;
+    handle_ref m_stdout;
+    handle_ref m_stderr;
+    int m_pid;
 
     child(child const & ch) :
         m_stdin(ch.m_stdin),
@@ -42,12 +36,12 @@ struct child {
         m_stderr(ch.m_stderr),
         m_pid(ch.m_pid) {}
 
-    child(int pid, file_handle stdin, file_handle stdout, file_handle stderr) :
+    child(int pid, handle_ref stdin, handle_ref stdout, handle_ref stderr) :
         m_stdin(stdin),
         m_stdout(stdout),
         m_stderr(stderr),
         m_pid(pid) {}
-    
+
     void wait();
 };
 
