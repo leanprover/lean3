@@ -19,6 +19,30 @@ def add_command (c : cmd) : builder unit := do
 def echo (msg : string) : builder unit :=
     add_command (cmd.echo msg)
 
+def check_sat : builder unit :=
+    add_command cmd.check_sat
+
+def pop (n : nat) : builder unit :=
+    add_command $ cmd.pop n
+
+def push (n : nat) : builder unit :=
+    add_command $ cmd.push n
+
+def scope {A} (level : nat) (action : builder A) : builder A := do
+    push level,
+    res ← action,
+    pop level,
+    return res
+
+def reset : builder unit :=
+    add_command cmd.reset
+
+def exit' : builder unit :=
+    add_command cmd.exit_cmd
+
+def declare_const (sym : string) (s : sort) : builder unit :=
+    add_command $ cmd.declare_const sym s
+
 end builder
 
 end smt2

@@ -246,7 +246,6 @@ static vm_obj fs_stderr(vm_obj const &) {
 }
 
 /*
-(handle         : Type)
 (read_file      : string → bool → m io.error char_buffer)
 (mk_file_handle : string → io.mode → bool → m io.error handle)
 (is_eof         : handle → m io.error bool)
@@ -338,10 +337,7 @@ structure io.process (Err : Type) (handle : Type) (m : Type → Type → Type) :
   (spawn        : process → m Err child)
 */
 static vm_obj mk_process() {
-    vm_obj fields[1] = {
-        mk_native_closure(io_process_spawn),
-    };
-    return mk_vm_constructor(0, 1, fields);
+    return mk_native_closure(io_process_spawn);
 }
 
 static vm_obj io_return(vm_obj const &, vm_obj const & a, vm_obj const &) {
@@ -382,10 +378,6 @@ static vm_obj io_m(vm_obj const &, vm_obj const &) {
     return mk_vm_simple(0);
 }
 
-static vm_obj io_handle(vm_obj const &, vm_obj const &) {
-    return mk_vm_simple(0);
-}
-
 /*
 class io.interface :=
 (m        : Type → Type → Type)
@@ -400,17 +392,16 @@ class io.interface :=
 (process  : io.process io.error handle m)
 */
 vm_obj mk_io_interface() {
-    vm_obj fields[9] = {
+    vm_obj fields[8] = {
         mk_native_closure(io_m), /* TODO(Leo): delete after we improve code generator */
         mk_native_closure(io_monad),
         mk_native_closure(io_catch),
         mk_native_closure(io_fail),
-        mk_native_closure(io_handle), /* TODO(Leo): delete after we improve code generator */
         mk_terminal(),
         mk_fs(),
         mk_process()
     };
-    return mk_vm_constructor(0, 9, fields);
+    return mk_vm_constructor(0, 8, fields);
 }
 
 optional<vm_obj> is_io_result(vm_obj const & o) {

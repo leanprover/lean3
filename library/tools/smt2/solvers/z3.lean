@@ -8,19 +8,20 @@ open process
 structure z3_instance [io.interface] : Type :=
     (process : child io.handle)
 
-meta def spawn [ioi : io.interface] : process → io (child io.handle) :=
+def spawn [ioi : io.interface] : process → io (child io.handle) :=
     io.interface.process^.spawn
 
-meta def z3_instance.start  [io.interface] : io z3_instance := do
+def z3_instance.start  [io.interface] : io z3_instance := do
     let proc : process := {
        cmd := "z3",
        args := ["-smt2", "-in"],
        stdin := stdio.piped,
        stdout := stdio.piped
     },
+    io.put_str "above mk instance",
     z3_instance.mk <$> spawn proc
 
-meta def z3_instance.raw [io.interface] (z3 : z3_instance) (cmd : string) : io string := do
+def z3_instance.raw [io.interface] (z3 : z3_instance) (cmd : string) : io string := do
     let z3_stdin := z3^.process^.stdin,
     let z3_stdout := z3^.process^.stdout,
     -- do we buffer the writes here?

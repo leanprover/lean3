@@ -1,7 +1,8 @@
 namespace smt2
 
-inductive symbol : Type
-inductive identifier : Type
+-- not sure about this one
+@[reducible] def symbol : Type := string
+@[reducible] def identifier : Type := string
 
 inductive special_constant : Type
 | number : int → special_constant
@@ -10,6 +11,13 @@ inductive special_constant : Type
 inductive sort : Type
 | id : identifier → sort
 | apply : identifier → list sort → sort
+
+meta def sort.to_format : sort → format
+| (sort.id i) := to_fmt i
+| (sort.apply _ _) := "NYI"
+
+meta instance sort_has_to_fmt : has_to_format sort :=
+  ⟨ sort.to_format ⟩
 
 inductive attr : Type
 
@@ -33,8 +41,8 @@ inductive option : Type
 
 inductive cmd : Type
 | assert_cmd : term → cmd
-| check_sat : term → cmd
-| check_sat_assuming : cmd -- not complete
+| check_sat : cmd
+| check_sat_assuming : term → cmd -- not complete
 | declare_const : symbol → sort → cmd
 | declare_fun : symbol → list sort → cmd
 | declare_sort : symbol → nat → cmd
@@ -68,6 +76,7 @@ meta def string_lit (s : string) : format :=
 
 meta def cmd.to_format : cmd → format
 | (echo msg) := "(echo " ++ string_lit msg ++ ")\n"
+| (declare_const sym srt) := "(declare-const " ++ sym ++ " " ++ to_fmt srt ++ ")"
 | _ := "NYI"
 
 meta instance : has_to_format cmd :=
