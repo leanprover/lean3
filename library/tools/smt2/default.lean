@@ -5,10 +5,8 @@ import .syntax
 import .builder
 
 meta def smt2 [io.interface] (build : smt2.builder unit) : io string := do
-    io.put_str "here",
     z3 <- z3_instance.start,
     io.put_str (to_string $ to_fmt build),
     res <- z3^.raw (to_string $ to_fmt build),
-    io.put_str "done",
     io.put_str res,
     return res
