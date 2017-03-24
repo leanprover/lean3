@@ -317,9 +317,9 @@ child process::spawn() {
     }
 
     return child(pid,
-         std::make_shared<handle>(handle(fdopen(parent_stdin, "w"))),
-         std::make_shared<handle>(handle(fdopen(parent_stdout, "r"))),
-         std::make_shared<handle>(handle(fdopen(parent_stderr, "r"))));
+         std::make_shared<handle>(fdopen(parent_stdin, "w")),
+         std::make_shared<handle>(fdopen(parent_stdout, "r")),
+         std::make_shared<handle>(fdopen(parent_stderr, "r")));
 }
 
 void process::run() {
