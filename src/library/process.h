@@ -36,10 +36,10 @@ struct child {
         m_stderr(ch.m_stderr),
         m_pid(ch.m_pid) {}
 
-    child(int pid, handle_ref stdin, handle_ref stdout, handle_ref stderr) :
-        m_stdin(stdin),
-        m_stdout(stdout),
-        m_stderr(stderr),
+    child(int pid, handle_ref hstdin, handle_ref hstdout, handle_ref hstderr) :
+        m_stdin(hstdin),
+        m_stdout(hstdout),
+        m_stderr(hstderr),
         m_pid(pid) {}
 
     void wait();
@@ -60,9 +60,9 @@ public:
         m_stderr(proc.m_stderr) {}
     process(std::string exe_name);
     process & arg(std::string arg_str);
-    process & stdin(stdio cfg);
-    process & stdout(stdio cfg);
-    process & stderr(stdio cfg);
+    process & set_stdin(stdio cfg);
+    process & set_stdout(stdio cfg);
+    process & set_stderr(stdio cfg);
     child spawn();
     void run();
 };

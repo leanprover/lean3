@@ -330,9 +330,9 @@ static vm_obj io_process_spawn(vm_obj const & process_obj, vm_obj const &) {
         proc.arg(arg);
     }
 
-    proc.stdin(stdin_stdio);
-    proc.stdout(stdout_stdio);
-    proc.stderr(stderr_stdio);
+    proc.set_stdin(stdin_stdio);
+    proc.set_stdout(stdout_stdio);
+    proc.set_stderr(stderr_stdio);
 
     child ch = proc.spawn();
 
