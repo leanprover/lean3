@@ -10,11 +10,34 @@ Author:  Leonardo de Moura & Jared Roesch
 #include <string>
 #include "util/buffer.h"
 #include "pipe.h"
+#include "unistd.h"
 
-struct handle {
-    FILE * m_handle;
-    handle(FILE * h):m_handle(h) {}
-    ~handle() { if (m_handle && m_handle != stdin && m_handle != stderr && m_handle != stdout) fclose(m_handle); }
+namespace lean {
+
+class handle_exception : exception {
+public:
+    handle_exception(std::string msg) : exception(msg) {}
+};
+
+class handle {
+public:
+    FILE * m_file;
+    handle(FILE * file_desc):m_file(file_desc) {}
+
+    void close();
+
+    ~handle();
+
+    void write(buffer<char> & data);
+    void read(buffer<char> & data);
+    void flush();
+
+    bool is_stdin();
+    bool is_stdout();
+    bool is_stderr();
+    bool is_closed();
 };
 
 typedef std::shared_ptr<handle> handle_ref;
+
+}

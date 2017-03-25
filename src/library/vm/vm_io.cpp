@@ -111,42 +111,46 @@ static vm_obj mk_handle_has_been_closed_error() {
     return mk_io_failure("invalid io action, handle has been closed");
 }
 
-static bool has_been_closed(handle_ref const & href) {
-    return href->m_handle == nullptr;
-}
-
 static vm_obj fs_is_eof(vm_obj const & h, vm_obj const &) {
     handle_ref const & href = to_handle(h);
-    if (has_been_closed(href)) return mk_handle_has_been_closed_error();
-    bool r = feof(href->m_handle) != 0;
+    if (href->is_closed()) return mk_handle_has_been_closed_error();
+    bool r = feof(href->m_file) != 0;
     return mk_io_result(mk_vm_bool(r));
 }
 
 static vm_obj fs_flush(vm_obj const & h, vm_obj const &) {
     handle_ref const & href = to_handle(h);
-    if (has_been_closed(href)) return mk_handle_has_been_closed_error();
-    if (fflush(href->m_handle) == 0) {
+
+    if (href->is_closed()) {
+        return mk_handle_has_been_closed_error();
+    }
+
+    try {
+        href->flush();
         return mk_io_result(mk_vm_unit());
-    } else {
-        clearerr(href->m_handle);
+    } catch (handle_exception e) {
         return mk_io_failure("flush failed");
     }
 }
 
 static vm_obj fs_close(vm_obj const & h, vm_obj const &) {
     handle_ref const & href = to_handle(h);
-    if (has_been_closed(href)) return mk_handle_has_been_closed_error();
-    if (href->m_handle == stdin)
+
+    if (href->is_closed()) {
+        return mk_handle_has_been_closed_error();
+    }
+
+    if (href->is_stdin())
         return mk_io_failure("close failed, stdin cannot be closed");
-    if (href->m_handle == stdout)
+    if (href->is_stdout())
         return mk_io_failure("close failed, stdout cannot be closed");
-    if (href->m_handle == stderr)
+    if (href->is_stderr())
         return mk_io_failure("close failed, stderr cannot be closed");
-    if (fclose(href->m_handle) == 0) {
-        href->m_handle = nullptr;
+
+    try {
+        href->close();
         return mk_io_result(mk_vm_unit());
-    } else {
-        clearerr(href->m_handle);
+    } catch (handle_exception e) {
         return mk_io_failure("close failed");
     }
 }
@@ -157,13 +161,13 @@ static vm_obj mk_buffer(parray<vm_obj> const & a) {
 
 static vm_obj fs_read(vm_obj const & h, vm_obj const & n, vm_obj const &) {
     handle_ref const & href = to_handle(h);
-    if (has_been_closed(href)) return mk_handle_has_been_closed_error();
+    if (href->is_closed()) return mk_handle_has_been_closed_error();
     buffer<char> tmp;
     unsigned num = force_to_unsigned(n); /* TODO(Leo): handle size_t */
     tmp.resize(num, 0);
-    size_t sz = fread(tmp.data(), 1, num, href->m_handle);
-    if (ferror(href->m_handle)) {
-        clearerr(href->m_handle);
+    size_t sz = fread(tmp.data(), 1, num, href->m_file);
+    if (ferror(href->m_file)) {
+        clearerr(href->m_file);
         return mk_io_failure("read failed");
     }
     parray<vm_obj> r;
@@ -175,28 +179,38 @@ static vm_obj fs_read(vm_obj const & h, vm_obj const & n, vm_obj const &) {
 
 static vm_obj fs_write(vm_obj const & h, vm_obj const & b, vm_obj const &) {
     handle_ref const & href = to_handle(h);
-    if (has_been_closed(href)) return mk_handle_has_been_closed_error();
+
+    if (href->is_closed()) {
+        return mk_handle_has_been_closed_error();
+    }
+
     buffer<char> tmp;
     parray<vm_obj> const & a = to_array(cfield(b, 1));
     unsigned sz = a.size();
     for (unsigned i = 0; i < sz; i++) {
         tmp.push_back(static_cast<unsigned char>(cidx(a[i])));
     }
-    if (fwrite(tmp.data(), 1, sz, href->m_handle) != sz) {
-        clearerr(href->m_handle);
+
+    try {
+        href->write(tmp);
+        return mk_io_result(mk_vm_unit());
+    } catch (handle_exception e) {
         return mk_io_failure("write failed");
     }
-    return mk_io_result(mk_vm_unit());
 }
 
 static vm_obj fs_get_line(vm_obj const & h, vm_obj const &) {
     handle_ref const & href = to_handle(h);
-    if (has_been_closed(href)) return mk_handle_has_been_closed_error();
+
+    if (href->is_closed()) {
+        return mk_handle_has_been_closed_error();
+    }
+
     parray<vm_obj> r;
     while (true) {
-        int c = fgetc(href->m_handle);
-        if (ferror(href->m_handle)) {
-            clearerr(href->m_handle);
+        int c = fgetc(href->m_file);
+        if (ferror(href->m_file)) {
+            clearerr(href->m_file);
             return mk_io_failure("get_line failed");
         }
         if (c == EOF)
