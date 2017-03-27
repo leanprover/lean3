@@ -94,6 +94,11 @@ def remove_all [decidable_eq α] : list α → list α → list α
 | (x :: xs) ys := (if x ∈ ys then remove_all xs ys else x :: remove_all xs ys)
 | [] ys := []
 
+def nth_le : Π (l : list α) (n), n < l^.length → α
+| []       n     h := absurd h (not_lt_zero n)
+| (a :: l) 0     h := a
+| (a :: l) (n+1) h := nth_le l n (le_of_succ_le_succ h)
+
 def head [inhabited α] : list α → α
 | []       := default α
 | (a :: l) := a
