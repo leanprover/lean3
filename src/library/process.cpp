@@ -97,6 +97,9 @@ child process::spawn() {
     HANDLE child_stdin = stdin;
     HANDLE child_stdout = stdout;
     HANDLE child_stderr = stderr;
+    HANDLE parent_stdin = stdin;
+    HANDLE parent_stdout = stdout;
+    HANDLE parent_stderr = stderr;
 
     SECURITY_ATTRIBUTES saAttr;
 
@@ -109,26 +112,26 @@ child process::spawn() {
     auto stdout_pipe = setup_stdio(&saAttr, m_stdout);
     auto stderr_pipe = setup_stdio(&saAttr, m_stderr);
 
+    if (stdin_pipe) {
+        // Ensure the write handle to the pipe for STDIN is not inherited.
+        if (!SetHandleInformation(stdin_pipe->m_write_fd, HANDLE_FLAG_INHERIT, 0))
+            throw new exception("unable to configure stdin pipe");
+        child_stdin = stdin_pipe->m_read_fd;
+    }
+
     // Create a pipe for the child process's STDOUT.
     if (stdout_pipe) {
         // Ensure the read handle to the pipe for STDOUT is not inherited.
         if (!SetHandleInformation(stdout_pipe->m_read_fd, HANDLE_FLAG_INHERIT, 0))
             throw new exception("unable to configure stdout pipe");
-        child_stdin = stdin_pipe->m_write_fd;
+        child_stdout = stdout_pipe->m_write_fd;
     }
 
     if (stderr_pipe) {
         // Ensure the read handle to the pipe for STDOUT is not inherited.
         if (!SetHandleInformation(stderr_pipe->m_read_fd, HANDLE_FLAG_INHERIT, 0))
             throw new exception("unable to configure stdout pipe");
-        child_stdout = stdout_pipe->m_read_fd;
-    }
-
-    if (stdin_pipe) {
-        // Ensure the write handle to the pipe for STDIN is not inherited.
-        if (!SetHandleInformation(stdin_pipe->m_write_fd, HANDLE_FLAG_INHERIT, 0))
-            throw new exception("unable to configure stdin pipe");
-        child_stderr = stderr_pipe->m_read_fd;
+        child_stderr = stderr_pipe->m_write_fd;
     }
 
     std::string command;
@@ -150,26 +153,31 @@ child process::spawn() {
         once_through = true;
     }
 
+    // std::cout << command << std::endl;
+
     // Create the child process.
-    create_child_process(command, child_stdin, child_stdout, child_stdout);
+    create_child_process(command, child_stdin, child_stdout, child_stderr);
 
     if (stdin_pipe) {
         CloseHandle(stdin_pipe->m_read_fd);
+        parent_stdin = stdin_pipe->m_write_fd;
     }
 
     if (stdout_pipe) {
         CloseHandle(stdout_pipe->m_write_fd);
+        parent_stdout = stdout_pipe->m_read_fd;
     }
 
     if (stderr_pipe) {
         CloseHandle(stderr_pipe->m_write_fd);
+        parent_stderr = stderr_pipe->m_read_fd;
     }
 
     return child(
         0,
-        std::make_shared<handle>(from_win_handle(child_stdin, "w")),
-        std::make_shared<handle>(from_win_handle(child_stdout, "r")),
-        std::make_shared<handle>(from_win_handle(child_stderr, "r")));
+        std::make_shared<handle>(from_win_handle(parent_stdin, "w")),
+        std::make_shared<handle>(from_win_handle(parent_stdout, "r")),
+        std::make_shared<handle>(from_win_handle(parent_stderr, "r")));
 }
 
 // Create a child process that uses the previously created pipes for STDIN and STDOUT.
