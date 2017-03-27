@@ -16,13 +16,13 @@ structure process :=
   /- Configuration for the process's stderr handle. -/
   (stderr := stdio.inherit)
 
-structure process.child (Handle : Type) :=
-  (stdin : Handle)
-  (stdout : Handle)
-  (stderr : Handle)
+structure process.child (handle : Type) :=
+  (stdin : handle)
+  (stdout : handle)
+  (stderr : handle)
 
-structure io.process (Err : Type) (handle : Type) (m : Type → Type → Type) :=
-  (spawn : process → m Err (process.child handle))
+structure io.process (err : Type) (handle : Type) (m : Type → Type → Type) :=
+  (spawn : process → m err (process.child handle))
 
 -- meta instance : has_read (pipe mode.read) :=
 --   ⟨ @pipe.read ⟩

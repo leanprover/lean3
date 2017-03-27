@@ -388,7 +388,7 @@ void server::run() {
        We added this hack because the json library code used for ensuring this property
        was crashing when compiling Lean on Windows with mingw. */
 #if !defined(LEAN_EMSCRIPTEN)
-    setlocale(LC_NUMERIC, "C");
+    std::setlocale(LC_NUMERIC, "C");
 #endif
 
     while (true) {
