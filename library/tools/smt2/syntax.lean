@@ -1,6 +1,5 @@
 namespace smt2
 
--- not sure about this one
 @[reducible] def symbol : Type := string
 @[reducible] def identifier : Type := string
 
@@ -11,6 +10,9 @@ inductive special_constant : Type
 inductive sort : Type
 | id : identifier → sort
 | apply : identifier → list sort → sort
+
+instance : has_coe string sort :=
+⟨ fun str, sort.id str ⟩
 
 meta def sort.to_format : sort → format
 | (sort.id i) := to_fmt i

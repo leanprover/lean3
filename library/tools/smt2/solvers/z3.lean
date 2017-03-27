@@ -27,5 +27,5 @@ def z3_instance.raw [io.interface] (z3 : z3_instance) (cmd : string) : io string
     io.fs.write z3_stdin cs,
     io.fs.close z3_stdin,
     -- need read all
-    res <- io.fs.read z3_stdout 1024,
+    res ← io.fs.read z3_stdout 1024,
     return res^.to_string
