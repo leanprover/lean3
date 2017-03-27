@@ -4,7 +4,6 @@ Released under Apache 2.0 license as described in the file LICENSE.
 Authors: Luke Nelson, Jared Roesch and Leonardo de Moura
 -/
 import data.buffer
-import init.category.result
 import system.process
 
 inductive io.error

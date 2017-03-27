@@ -406,7 +406,7 @@ class io.interface :=
 (process  : io.process io.error handle m)
 */
 vm_obj mk_io_interface() {
-    vm_obj fields[8] = {
+    vm_obj fields[7] = {
         mk_native_closure(io_m), /* TODO(Leo): delete after we improve code generator */
         mk_native_closure(io_monad),
         mk_native_closure(io_catch),
@@ -415,7 +415,7 @@ vm_obj mk_io_interface() {
         mk_fs(),
         mk_process()
     };
-    return mk_vm_constructor(0, 8, fields);
+    return mk_vm_constructor(0, 7, fields);
 }
 
 optional<vm_obj> is_io_result(vm_obj const & o) {
