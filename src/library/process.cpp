@@ -153,8 +153,6 @@ child process::spawn() {
         once_through = true;
     }
 
-    // std::cout << command << std::endl;
-
     // Create the child process.
     create_child_process(command, child_stdin, child_stdout, child_stderr);
 

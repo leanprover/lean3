@@ -19,7 +19,7 @@ meta def sort.to_format : sort → format
 | (sort.apply _ _) := "NYI"
 
 meta instance sort_has_to_fmt : has_to_format sort :=
-  ⟨ sort.to_format ⟩
+⟨ sort.to_format ⟩
 
 inductive attr : Type
 
@@ -74,7 +74,7 @@ inductive cmd : Type
 open cmd
 
 meta def string_lit (s : string) : format :=
-  format.bracket "\"" "\"" (to_fmt s)
+format.bracket "\"" "\"" (to_fmt s)
 
 meta def cmd.to_format : cmd → format
 | (echo msg) := "(echo " ++ string_lit msg ++ ")\n"
@@ -82,6 +82,6 @@ meta def cmd.to_format : cmd → format
 | _ := "NYI"
 
 meta instance : has_to_format cmd :=
-    ⟨ cmd.to_format ⟩
+⟨ cmd.to_format ⟩
 
 end smt2

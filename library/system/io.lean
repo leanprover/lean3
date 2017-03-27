@@ -142,8 +142,13 @@ format.print_using (to_fmt a) o
 meta definition pp {α : Type} [has_to_format α] (a : α) : io unit :=
 format.print (to_fmt a)
 
-def io.cmd [io.interface] (cmd : string) (args : list string) : io string := do
-  let proc : process := {
+/-- Run the external process named by `cmd`, supplied with the arguments `args`.
+
+    The process will run to completion with its output captured by a pipe, and
+    read into `string` which is then returned.
+-/
+def io.cmd [io.interface] (cmd : string) (args : list string) : io string :=
+do let proc : process := {
     cmd := cmd,
     args := args,
     stdout := process.stdio.piped
@@ -155,6 +160,5 @@ def io.cmd [io.interface] (cmd : string) (args : list string) : io string := do
   buf ← io.fs.read outh 1024,
   return buf^.to_string
 
--- Note: I put this here to due to namespacing issues.
 /-- Lift a monadic `io` action into the `tactic` monad. -/
 meta constant tactic.run_io {α : Type} : (Π ioi : io.interface, @io ioi α) → tactic α
