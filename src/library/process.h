@@ -10,11 +10,7 @@ Author: Jared Roesch
 #include <string>
 #include "library/handle.h"
 #include "util/buffer.h"
-#include "pipe.h"
-
-// #if defined(LEAN_WINDOWS) && !defined(LEAN_CYGWIN)
-// #include "windows.h"
-// #endif
+#include "library/pipe.h"
 
 namespace lean  {
 

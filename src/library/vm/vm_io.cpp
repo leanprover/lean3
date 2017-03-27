@@ -290,15 +290,15 @@ static vm_obj mk_fs() {
 }
 
 stdio to_stdio(vm_obj const & o) {
-    switch(cidx(o)) {
-        case 0:
-            return stdio::PIPED;
-        case 1:
-            return stdio::INHERIT;
-        case 2:
-            return stdio::NUL;
-        default:
-            lean_unreachable()
+    switch (cidx(o)) {
+    case 0:
+        return stdio::PIPED;
+    case 1:
+        return stdio::INHERIT;
+    case 2:
+        return stdio::NUL;
+    default:
+        lean_unreachable()
     }
 }
 

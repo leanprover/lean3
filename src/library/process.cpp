@@ -9,7 +9,7 @@ Author: Jared Roesch
 #include <iostream>
 #include <iomanip>
 #include <utility>
-#include <unistd.h>
+
 #if defined(LEAN_WINDOWS) && !defined(LEAN_CYGWIN)
 #include <windows.h>
 #include <Fcntl.h>
@@ -17,11 +17,10 @@ Author: Jared Roesch
 #include <tchar.h>
 #include <stdio.h>
 #include <strsafe.h>
-
-#define BUFSIZE 4096
 #else
 #include <sys/wait.h>
 #endif
+
 #include "library/process.h"
 #include "util/buffer.h"
 #include "library/pipe.h"
@@ -95,130 +94,128 @@ static optional<pipe> setup_stdio(SECURITY_ATTRIBUTES * saAttr, optional<stdio> 
 
 // This code is adapted from: https://msdn.microsoft.com/en-us/library/windows/desktop/ms682499(v=vs.85).aspx
 child process::spawn() {
-   HANDLE child_stdin = stdin;
-   HANDLE child_stdout = stdout;
-   HANDLE child_stderr = stderr;
-   
-   SECURITY_ATTRIBUTES saAttr;
-   
-   // Set the bInheritHandle flag so pipe handles are inherited.
-   saAttr.nLength = sizeof(SECURITY_ATTRIBUTES);
-   saAttr.bInheritHandle = TRUE;
-   saAttr.lpSecurityDescriptor = NULL;
+    HANDLE child_stdin = stdin;
+    HANDLE child_stdout = stdout;
+    HANDLE child_stderr = stderr;
 
-   auto stdin_pipe = setup_stdio(&saAttr, m_stdin);
-   auto stdout_pipe = setup_stdio(&saAttr, m_stdout);
-   auto stderr_pipe = setup_stdio(&saAttr, m_stderr);
+    SECURITY_ATTRIBUTES saAttr;
 
-   // Create a pipe for the child process's STDOUT.
-   if (stdout_pipe) {
-       // Ensure the read handle to the pipe for STDOUT is not inherited.
-       if (!SetHandleInformation(stdout_pipe->m_read_fd, HANDLE_FLAG_INHERIT, 0))
-           throw new exception("unable to configure stdout pipe");
-       child_stdin = stdin_pipe->m_write_fd;
-   }
+    // Set the bInheritHandle flag so pipe handles are inherited.
+    saAttr.nLength = sizeof(SECURITY_ATTRIBUTES);
+    saAttr.bInheritHandle = TRUE;
+    saAttr.lpSecurityDescriptor = NULL;
 
-   if (stderr_pipe) {
-       // Ensure the read handle to the pipe for STDOUT is not inherited.
-       if (!SetHandleInformation(stderr_pipe->m_read_fd, HANDLE_FLAG_INHERIT, 0))
-           throw new exception("unable to configure stdout pipe");
-       child_stdout = stdout_pipe->m_read_fd;
-   }
+    auto stdin_pipe = setup_stdio(&saAttr, m_stdin);
+    auto stdout_pipe = setup_stdio(&saAttr, m_stdout);
+    auto stderr_pipe = setup_stdio(&saAttr, m_stderr);
 
-   if (stdin_pipe) {
-       // Ensure the write handle to the pipe for STDIN is not inherited.
-       if (!SetHandleInformation(stdin_pipe->m_write_fd, HANDLE_FLAG_INHERIT, 0))
-           throw new exception("unable to configure stdin pipe");
-       child_stderr = stderr_pipe->m_read_fd;
-   }
+    // Create a pipe for the child process's STDOUT.
+    if (stdout_pipe) {
+        // Ensure the read handle to the pipe for STDOUT is not inherited.
+        if (!SetHandleInformation(stdout_pipe->m_read_fd, HANDLE_FLAG_INHERIT, 0))
+            throw new exception("unable to configure stdout pipe");
+        child_stdin = stdin_pipe->m_write_fd;
+    }
 
-   std::string command;
+    if (stderr_pipe) {
+        // Ensure the read handle to the pipe for STDOUT is not inherited.
+        if (!SetHandleInformation(stderr_pipe->m_read_fd, HANDLE_FLAG_INHERIT, 0))
+            throw new exception("unable to configure stdout pipe");
+        child_stdout = stdout_pipe->m_read_fd;
+    }
 
-   // This needs some thought, on Windows we must pass a command string
-   // which is a valid command, that is a fully assembled command to be executed.
-   //
-   // We must escape the arguments to preseving spacing and other characters,
-   // we might need to revisit escaping here.
-   bool once_through = false;
-   for (auto arg : m_args) {
-       if (once_through) {
-           command += " \"";
-       }
-       command += arg;
-       if (once_through) {
-           command += "\"";
-       }
-       once_through = true;
-   }
+    if (stdin_pipe) {
+        // Ensure the write handle to the pipe for STDIN is not inherited.
+        if (!SetHandleInformation(stdin_pipe->m_write_fd, HANDLE_FLAG_INHERIT, 0))
+            throw new exception("unable to configure stdin pipe");
+        child_stderr = stderr_pipe->m_read_fd;
+    }
 
-   // Create the child process.
-   create_child_process(command, child_stdin, child_stdout, child_stdout);
+    std::string command;
 
-   if (stdin_pipe) {
-       CloseHandle(stdin_pipe->m_read_fd);
-   }
+    // This needs some thought, on Windows we must pass a command string
+    // which is a valid command, that is a fully assembled command to be executed.
+    //
+    // We must escape the arguments to preseving spacing and other characters,
+    // we might need to revisit escaping here.
+    bool once_through = false;
+    for (auto arg : m_args) {
+        if (once_through) {
+            command += " \"";
+        }
+        command += arg;
+        if (once_through) {
+            command += "\"";
+        }
+        once_through = true;
+    }
 
-   if (stdout_pipe) {
-       CloseHandle(stdout_pipe->m_write_fd);
-   }
+    // Create the child process.
+    create_child_process(command, child_stdin, child_stdout, child_stdout);
 
-   if (stderr_pipe) {
-       CloseHandle(stderr_pipe->m_write_fd);
-   }
+    if (stdin_pipe) {
+        CloseHandle(stdin_pipe->m_read_fd);
+    }
 
-   return child(
-       0,
-       std::make_shared<handle>(from_win_handle(child_stdin, "w")),
-       std::make_shared<handle>(from_win_handle(child_stdout, "r")),
-       std::make_shared<handle>(from_win_handle(child_stderr, "r")));
+    if (stdout_pipe) {
+        CloseHandle(stdout_pipe->m_write_fd);
+    }
+
+    if (stderr_pipe) {
+        CloseHandle(stderr_pipe->m_write_fd);
+    }
+
+    return child(
+        0,
+        std::make_shared<handle>(from_win_handle(child_stdin, "w")),
+        std::make_shared<handle>(from_win_handle(child_stdout, "r")),
+        std::make_shared<handle>(from_win_handle(child_stderr, "r")));
 }
 
-void create_child_process(std::string command, HANDLE hstdin, HANDLE hstdout, HANDLE hstderr)
 // Create a child process that uses the previously created pipes for STDIN and STDOUT.
-{
-   // TCHAR szCmdline[] =TEXT("echo \"Hello\"");
-   PROCESS_INFORMATION piProcInfo;
-   STARTUPINFO siStartInfo;
-   BOOL bSuccess = FALSE;
+void create_child_process(std::string command, HANDLE hstdin, HANDLE hstdout, HANDLE hstderr) {
+    PROCESS_INFORMATION piProcInfo;
+    STARTUPINFO siStartInfo;
+    BOOL bSuccess = FALSE;
 
-   // Set up members of the PROCESS_INFORMATION structure.
-   ZeroMemory( &piProcInfo, sizeof(PROCESS_INFORMATION) );
+    // Set up members of the PROCESS_INFORMATION structure.
+    ZeroMemory(&piProcInfo, sizeof(PROCESS_INFORMATION));
 
-   // Set up members of the STARTUPINFO structure.
-   // This structure specifies the STDIN and STDOUT handles for redirection.
+    // Set up members of the STARTUPINFO structure.
+    // This structure specifies the STDIN and STDOUT handles for redirection.
 
-   ZeroMemory( &siStartInfo, sizeof(STARTUPINFO) );
-   siStartInfo.cb = sizeof(STARTUPINFO);
-   siStartInfo.hStdError = hstderr;
-   siStartInfo.hStdOutput = hstdout;
-   siStartInfo.hStdInput = hstdin;
-   siStartInfo.dwFlags |= STARTF_USESTDHANDLES;
+    ZeroMemory(&siStartInfo, sizeof(STARTUPINFO));
+    siStartInfo.cb = sizeof(STARTUPINFO);
+    siStartInfo.hStdError = hstderr;
+    siStartInfo.hStdOutput = hstdout;
+    siStartInfo.hStdInput = hstdin;
+    siStartInfo.dwFlags |= STARTF_USESTDHANDLES;
 
-   // Create the child process.
-   // std::cout << command << std::endl;
-   bSuccess = CreateProcess(
-       NULL,
-       const_cast<char *>(command.c_str()), // command line
-       NULL,                                // process security attributes
-       NULL,                                // primary thread security attributes
-       TRUE,                                // handles are inherited
-       0,                                   // creation flags
-       NULL,                                // use parent's environment
-       NULL,                                // use parent's current directory
-       &siStartInfo,                        // STARTUPINFO pointer
-       &piProcInfo);                        // receives PROCESS_INFORMATION
+    // Create the child process.
+    // std::cout << command << std::endl;
+    bSuccess = CreateProcess(
+        NULL,
+        const_cast<char *>(command.c_str()), // command line
+        NULL,                                // process security attributes
+        NULL,                                // primary thread security attributes
+        TRUE,                                // handles are inherited
+        0,                                   // creation flags
+        NULL,                                // use parent's environment
+        NULL,                                // use parent's current directory
+        &siStartInfo,                        // STARTUPINFO pointer
+        &piProcInfo);                        // receives PROCESS_INFORMATION
 
-   // If an error occurs, exit the application.
-   if (!bSuccess) {
-       throw exception("failed to start child process");
-   } else {
-      // Close handles to the child process and its primary thread.
-      // Some applications might keep these handles to monitor the status
-      // of the child process, for example.
+    // If an error occurs, exit the application.
+    if (!bSuccess) {
+        throw exception("failed to start child process");
+    } else {
+        // Close handles to the child process and its primary thread.
+        // Some applications might keep these handles to monitor the status
+        // of the child process, for example.
 
-      CloseHandle(piProcInfo.hProcess);
-      CloseHandle(piProcInfo.hThread);
-   }
+        CloseHandle(piProcInfo.hProcess);
+        CloseHandle(piProcInfo.hThread);
+    }
 }
 
 void process::run() {

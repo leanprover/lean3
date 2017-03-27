@@ -9,23 +9,22 @@ Author:  Leonardo de Moura & Jared Roesch
 #include <iostream>
 #include <iomanip>
 #include <utility>
-#include <unistd.h>
+#include <stdio.h>
+
 #if defined(LEAN_WINDOWS) && !defined(LEAN_CYGWIN)
 #include <windows.h>
 #include <tchar.h>
-#include <stdio.h>
 #include <strsafe.h>
-
-#define BUFSIZE 4096
 #else
 #include <sys/wait.h>
+#include <unistd.h>
 #endif
+
 #include "library/process.h"
 #include "library/handle.h"
 #include "util/buffer.h"
 #include "library/pipe.h"
-#include "unistd.h"
-#include "stdio.h"
+
 
 namespace lean {
 
@@ -47,8 +46,7 @@ void handle::flush() {
 
 handle::~handle() {
     if (m_file && m_file != stdin &&
-        m_file != stderr && m_file != stdout)
-    {
+        m_file != stderr && m_file != stdout) {
         fclose(m_file);
     }
 }
@@ -74,8 +72,6 @@ void handle::close() {
     }
 }
 
-bool handle::is_closed() {
-   return !m_file;
-}
+bool handle::is_closed() { return !m_file; }
 
 }

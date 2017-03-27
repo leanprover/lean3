@@ -8,9 +8,9 @@ Author:  Leonardo de Moura & Jared Roesch
 
 #include <iostream>
 #include <string>
+#include <unistd.h>
 #include "util/buffer.h"
-#include "pipe.h"
-#include "unistd.h"
+#include "library/pipe.h"
 
 namespace lean {
 
