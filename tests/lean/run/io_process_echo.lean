@@ -9,10 +9,8 @@ def spawn [ioi : io.interface] : process → io (child io.handle) :=
     io.interface.process^.spawn
 
 meta def main : io unit := do
-    let p : process := { cmd := "echo", args := ["Hello World"] },
-    child <- spawn p,
-    let outh := child^.stdout,
-     
-    return ()
+  out <- io.cmd "echo" ["Hello World!"],
+  io.put_str out,
+  return ()
 
 #eval main
