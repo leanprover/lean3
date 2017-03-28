@@ -572,6 +572,19 @@ meta def simph (hs : parse opt_qexpr_list) (attr_names : parse with_ident_list) 
                (cfg : simp_config := {}) : tactic unit :=
 simp_using_hs hs attr_names ids cfg
 
+/--
+The tactic `simp_only [h_1, ..., h_n]` simplifies the main goal target using only the given `h_i`s.
+
+The tactic `simp_only [h_1, ..., h_n] at h` simplifies the non dependent hypothesis `h : T`. The tactic fails if the target or another hypothesis depends on `h`.
+-/
+meta def simp_only (hs : parse qexpr_list) (loc : parse location) (cfg : simp_config := {}) : tactic unit :=
+do s ← simp_lemmas.append_pexprs simp_lemmas.mk hs,
+   match loc : _ → tactic unit with
+   | [] := simp_goal cfg s
+   | _  := simp_hyps cfg s loc
+   end,
+   try tactic.triv, try (tactic.reflexivity reducible)
+
 meta def simp_intros (ids : parse ident_*) (hs : parse opt_qexpr_list) (attr_names : parse with_ident_list)
                      (wo_ids : parse without_ident_list) (cfg : simp_config := {}) : tactic unit :=
 do s ← mk_simp_set attr_names hs wo_ids,

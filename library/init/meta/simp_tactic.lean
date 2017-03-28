@@ -257,6 +257,10 @@ do S ← simp_lemmas.mk_default,
    S ← S^.append hs,
 simplify_goal S cfg >> try triv
 
+meta def simp_only (hs : list expr) (cfg : simp_config := {}) : tactic unit :=
+do S ← (simp_lemmas.mk)^.append hs,
+simplify_goal S cfg >> try triv
+
 meta def dsimp_core (s : simp_lemmas) : tactic unit :=
 target >>= s^.dsimplify >>= change
 
@@ -351,15 +355,23 @@ step $
 do s ← collect_ctx_simps >>= s^.append,
    simp_intro_aux cfg tt s tt ns
 
-meta def simp_at (h : expr) (extra_lemmas : list expr := []) (cfg : simp_config := {}) : tactic unit :=
-do when (expr.is_local_constant h = ff) (fail "tactic simp_at failed, the given expression is not a hypothesis"),
-   htype ← infer_type h,
-   S     ← simp_lemmas.mk_default,
-   S     ← S^.append extra_lemmas,
+private meta def simp_at_core (h : expr) (S : simp_lemmas) (cfg : simp_config := {}) : tactic unit :=
+do htype ← infer_type h,
    (new_htype, heq) ← simplify S htype cfg,
    assert (expr.local_pp_name h) new_htype,
    mk_eq_mp heq h >>= exact,
    try $ clear h
+
+meta def simp_at (h : expr) (extra_lemmas : list expr := []) (cfg : simp_config := {}) : tactic unit :=
+do when (expr.is_local_constant h = ff) (fail "tactic simp_at failed, the given expression is not a hypothesis"),
+   S     ← simp_lemmas.mk_default,
+   S     ← S^.append extra_lemmas,
+   simp_at_core h S cfg
+
+meta def simp_only_at (h : expr) (lemmas : list expr) (cfg : simp_config := {}) : tactic unit :=
+do when (expr.is_local_constant h = ff) (fail "tactic simp_at failed, the given expression is not a hypothesis"),
+   S     ← (simp_lemmas.mk)^.append lemmas,
+   simp_at_core h S cfg
 
 meta def simp_at_using_hs (h : expr) (extra_lemmas : list expr := []) (cfg : simp_config := {}) : tactic unit :=
 do hs ← collect_ctx_simps,
