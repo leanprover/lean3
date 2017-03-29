@@ -248,7 +248,7 @@ protected lemma rel_add : (rel_int_nat_nat ⇒ (rel_int_nat_nat ⇒ rel_int_nat_
     by simp,
   show rel_int_nat_nat (sub_nat_nat p (n' + 1)) (m + p + m', m + (m' + n' + 1)),
     begin
-      rw [eq1, eq2, (sub_nat_nat_add_add _ _ (m + m')).symm],
+      rw [eq1, eq2, sub_nat_nat_add_add _ _ (m + m') .symm],
       apply int.rel_sub_nat_nat
     end
 | ._ ._ (@rel_int_nat_nat.neg m n) ._ ._ (@rel_int_nat_nat.pos m' p') :=
@@ -258,7 +258,7 @@ protected lemma rel_add : (rel_int_nat_nat ⇒ (rel_int_nat_nat ⇒ rel_int_nat_
     by simp,
   show rel_int_nat_nat (sub_nat_nat p' (n + 1)) (m + (m' + p'), (m + n + 1) + m'),
     begin
-      rw [eq1, eq2, (sub_nat_nat_add_add _ _ (m + m')).symm],
+      rw [eq1, eq2, sub_nat_nat_add_add _ _ (m + m') .symm],
       apply int.rel_sub_nat_nat
     end
 | ._ ._ (@rel_int_nat_nat.neg m n) ._ ._ (@rel_int_nat_nat.neg m' n') :=

@@ -11,7 +11,7 @@ namespace super
 meta def try_unify_eq_l (c : clause) (i : nat) : tactic clause := do
 guard $ clause.literal.is_neg (clause.get_lit c i),
 qf ← clause.open_metan c c.num_quants,
-match is_eq (qf.1.get_lit i).formula with
+match is_eq $ qf.1.get_lit i .formula with
 | none := failed
 | some (lhs, rhs) := do
 unify lhs rhs,

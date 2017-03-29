@@ -218,7 +218,7 @@ return { id := id, c := c, selected := [], assertions := ass, sc := sc }
 
 meta def add_inferred (c : derived_clause) : prover unit := do
 c' ← c.c.normalize, c' ← return { c with c := c' },
-register_consts_in_precedence (contained_funsyms c'.c.type).values,
+register_consts_in_precedence (contained_funsyms c'.c.type .values),
 state ← state_t.read,
 state_t.write { state with newly_derived := c' :: state.newly_derived }
 
@@ -331,7 +331,7 @@ do active ← get_active, for' active.values $ λac, do
 
 meta def move_passive_to_locked : prover unit :=
 do passive ← flip monad.lift state_t.read $ λst, st.passive, for' passive.to_list $ λpc, do
-  c_val ← sat_eval_assertions pc.2.assertions,
+  c_val ← sat_eval_assertions (pc.2.assertions),
   if ¬c_val then do
     state_t.modify $ λst, { st with
       passive := st.passive.erase pc.1,
@@ -422,7 +422,7 @@ meta def empty (local_false : expr) : prover_state :=
 
 meta def initial (local_false : expr) (clauses : list clause) : tactic prover_state := do
 after_setup ← for' clauses (λc,
-  let in_sos := ((contained_lconsts c.proof).erase local_false.local_uniq_name).size = 0 in
+  let in_sos := contained_lconsts c.proof .erase local_false.local_uniq_name .size = 0 in
   do mk_derived c { priority := score.prio.immediate, in_sos := in_sos,
                     age := 0, cost := 0 } >>= add_inferred
 ) $ empty local_false,

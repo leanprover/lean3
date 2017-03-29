@@ -101,7 +101,7 @@ meta def initial (local_false : expr) : state := {
 }
 
 meta def watches_for (st : state) (pl : prop_lit) : watch_map :=
-(st.watches.find pl).get_or_else (rb_map.mk _ _)
+st.watches.find pl .get_or_else (rb_map.mk _ _)
 
 end state
 

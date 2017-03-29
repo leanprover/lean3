@@ -192,7 +192,7 @@ do s ← read,
 
 meta def get_decl (n : name) : tactic declaration :=
 do s ← read,
-   (env s).get n
+   env s .get n
 
 meta def trace {α : Type u} [has_to_tactic_format α] (a : α) : tactic unit :=
 do fmt ← pp a,
@@ -461,7 +461,7 @@ meta def step {α : Type u} (t : tactic α) : tactic unit :=
 t >>[tactic] cleanup
 
 meta def istep {α : Type u} (line col : ℕ) (t : tactic α) : tactic unit :=
-λ s, (@scope_trace _ line col (step t s)).clamp_pos line col
+λ s, @scope_trace _ line col (step t s) .clamp_pos line col
 
 meta def is_prop (e : expr) : tactic bool :=
 do t ← infer_type e,

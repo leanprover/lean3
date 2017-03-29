@@ -175,7 +175,7 @@ pp (do l ← c.1.get_lits, [l.to_formula])
 meta instance : has_to_tactic_format clause := ⟨tactic_format⟩
 
 meta def is_maximal (gt : expr → expr → bool) (c : clause) (i : nat) : bool :=
-list.empty (list.filter (λj, gt (get_lit c j).formula (get_lit c i).formula) (range c.num_lits))
+list.empty (list.filter (λj, gt (get_lit c j .formula) (get_lit c i .formula)) (range c.num_lits))
 
 meta def normalize (c : clause) : tactic clause := do
 opened  ← open_constn c (num_binders c),
@@ -237,12 +237,12 @@ private meta def distinct' (local_false : expr) : list expr → expr → clause
       proof_wo_dups := foldl (λproof (h' : expr),
                               instantiate_var (abstract_local proof h'.local_uniq_name) h)
                          proof dups in
-    (distinct' rest proof_wo_dups).close_const h
+    distinct' rest proof_wo_dups .close_const h
 
 meta def distinct (c : clause) : tactic clause := do
 (qf, vs) ← c.open_constn c.num_quants,
 (fls, hs) ← qf.open_constn qf.num_lits,
-return $ (distinct' c.local_false hs fls.proof).close_constn vs
+return $ distinct' c.local_false hs fls.proof .close_constn vs
 
 end clause
 

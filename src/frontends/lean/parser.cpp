@@ -2015,9 +2015,9 @@ unsigned parser::curr_lbp() const {
         return 0;
     case token_kind::Identifier:     case token_kind::Numeral:
     case token_kind::Decimal:        case token_kind::String:
-    case token_kind::Char:
+    case token_kind::Char: case token_kind::FieldName:
         return get_max_prec();
-    case token_kind::FieldNum: case token_kind::FieldName:
+    case token_kind::FieldNum:
         return get_max_prec()+1;
     }
     lean_unreachable(); // LCOV_EXCL_LINE

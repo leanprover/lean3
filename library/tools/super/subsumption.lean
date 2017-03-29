@@ -21,7 +21,7 @@ meta def try_subsume (small large : clause) : tactic unit := do
 small_open ← clause.open_metan small (clause.num_quants small),
 large_open ← clause.open_constn large (clause.num_quants large),
 guard $ small.num_lits ≤ large.num_lits,
-try_subsume_core small_open.1.get_lits large_open.1.get_lits
+try_subsume_core (small_open.1.get_lits) (large_open.1.get_lits)
 
 meta def does_subsume (small large : clause) : tactic bool :=
 (try_subsume small large >> return tt) <|> return ff
