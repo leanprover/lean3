@@ -29,7 +29,7 @@ echo "-- testing $f"
 if [[ -f "$f.status" ]]; then
     echo "-- using result from test_all.sh"
 else
-    "$LEAN" --test-suite "$ff"
+    "$LEAN" -j0 --test-suite "$ff"
 fi
 sed 's|does\\not\\exist|does/not/exist|' "$f.test_suite.out" | sed "/warning: imported file uses 'sorry'/d" | sed "/warning: using 'sorry'/d" | sed "/failed to elaborate theorem/d" | sed "s|^$ff|$f|" > "$f.produced.out"
 rm "$f.test_suite.out" "$f.status"
