@@ -27,6 +27,13 @@ inductive qualified_name : Type
 | id : identifier → qualified_name
 | qual_id : identifier → sort → qualified_name
 
+meta def qualified_name.to_format : qualified_name → format
+| (qualified_name.id i) := i
+| (qualified_name.qual_id _ _) := "NYI"
+
+instance string_to_qual_name : has_coe string qualified_name :=
+    ⟨ fun str, qualified_name.id str ⟩
+
 inductive term : Type
 | qual_id : qualified_name → term
 | const : special_constant → term
@@ -35,6 +42,19 @@ inductive term : Type
 | forallq : list (symbol × sort) → term → term
 | existsq : list (symbol × sort) → term → term
 | annotate : term → list attr → term
+
+instance qual_name_to_term : has_coe qualified_name term :=
+    ⟨ term.qual_id ⟩
+
+meta def term.to_format : term → format
+| (term.qual_id id) := id.to_format
+| (term.const spec_const) := "NYI"
+| (term.apply qual_id ts) :=
+    let formatted_ts := format.join $ list.intersperse " "  $ ts.map term.to_format in
+    format.bracket "(" ")" (
+        qual_id.to_format ++ format.space ++ formatted_ts)
+| (term.letb ps ret) := "NYI"
+| _ := "NYI"
 
 inductive fun_def : Type
 inductive info_flag : Type
@@ -79,6 +99,8 @@ format.bracket "\"" "\"" (to_fmt s)
 meta def cmd.to_format : cmd → format
 | (echo msg) := "(echo " ++ string_lit msg ++ ")\n"
 | (declare_const sym srt) := "(declare-const " ++ sym ++ " " ++ to_fmt srt ++ ")"
+| (assert_cmd t) := "(assert " ++ t.to_format ++ ")"
+| (check_sat) := "(check-sat)"
 | _ := "NYI"
 
 meta instance : has_to_format cmd :=

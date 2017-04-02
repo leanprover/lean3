@@ -25,6 +25,5 @@ do let z3_stdin := z3.process.stdin,
    let cs := cmd.reverse.to_buffer,
    io.fs.write z3_stdin cs,
    io.fs.close z3_stdin,
-   -- need read all
-   res ← io.fs.read z3_stdout 1024,
+   res ← io.fs.read_to_end z3_stdout,
    return res.to_string
