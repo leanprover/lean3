@@ -18,6 +18,39 @@ term.apply "not" [t]
 def implies (t u : term) : term :=
 term.apply "implies" [t, u]
 
+def and (ts : list term) : term :=
+term.apply "and" ts
+
+def and2 (t u : term) : term :=
+and [t, u]
+
+def or (ts : list term) : term :=
+term.apply "or" ts
+
+def or2 (t u : term) : term :=
+or [t, u]
+
+def iff (t u : term) : term :=
+term.apply "iff" [t, u]
+
+def lt (t u : term) : term :=
+term.apply "<" [t, u]
+
+def add (t u : term) : term :=
+term.apply "+" [t, u]
+
+def sub (t u : term) : term :=
+term.apply "-" [t, u]
+
+def mul (t u : term) : term :=
+term.apply "*" [t, u]
+
+def div (t u : term) : term :=
+term.apply "div" [t, u]
+
+def int_const (i : int) : term :=
+term.const $ special_constant.number i
+
 def add_command (c : cmd) : builder unit := do
 cs ← state.read,
 state.write (c :: cs)
@@ -51,6 +84,9 @@ add_command cmd.exit_cmd
 
 def declare_const (sym : string) (s : sort) : builder unit :=
 add_command $ cmd.declare_const sym s
+
+def declare_sort (sym : string) (arity : nat) : builder unit :=
+add_command $ cmd.declare_sort sym arity
 
 end builder
 

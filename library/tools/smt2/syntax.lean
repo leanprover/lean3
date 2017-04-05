@@ -7,6 +7,10 @@ inductive special_constant : Type
 | number : int → special_constant
 | string : string → special_constant
 
+meta def special_constant.to_format : special_constant → format
+| (special_constant.number i) := to_fmt (to_string i)
+| (special_constant.string str) := to_fmt str
+
 inductive sort : Type
 | id : identifier → sort
 | apply : identifier → list sort → sort
@@ -48,7 +52,7 @@ instance qual_name_to_term : has_coe qualified_name term :=
 
 meta def term.to_format : term → format
 | (term.qual_id id) := id.to_format
-| (term.const spec_const) := "NYI"
+| (term.const spec_const) := spec_const.to_format
 | (term.apply qual_id ts) :=
     let formatted_ts := format.join $ list.intersperse " "  $ ts.map term.to_format in
     format.bracket "(" ")" (
