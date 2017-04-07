@@ -12,11 +12,17 @@ namespace smt2
 
 namespace builder
 
+def equals (t u : term) : term :=
+term.apply "=" [t, u]
+
 def not (t : term) : term :=
 term.apply "not" [t]
 
 def implies (t u : term) : term :=
 term.apply "implies" [t, u]
+
+def forallq (sym : symbol) (s : sort) (t : term) : term :=
+term.forallq [(sym, s)] t
 
 def and (ts : list term) : term :=
 term.apply "and" ts
@@ -84,6 +90,9 @@ add_command cmd.exit_cmd
 
 def declare_const (sym : string) (s : sort) : builder unit :=
 add_command $ cmd.declare_const sym s
+
+def declare_fun (sym : string) (ps : list sort) (ret : sort) : builder unit :=
+add_command $ cmd.declare_fun sym ps ret
 
 def declare_sort (sym : string) (arity : nat) : builder unit :=
 add_command $ cmd.declare_sort sym arity

@@ -58,7 +58,12 @@ meta def term.to_format : term → format
     format.bracket "(" ")" (
         qual_id.to_format ++ format.space ++ formatted_ts)
 | (term.letb ps ret) := "NYI"
-| _ := "NYI"
+| (term.forallq bs body) :=
+    "(forall (" ++
+    format.join (bs.map (fun ⟨sym, sort⟩, format.bracket "(" ")" $ to_fmt sym ++ " " ++ to_fmt sort)) ++ ") " ++
+    term.to_format body ++ ")"
+| (term.existsq ps ret) := "NYI existsq"
+| (term.annotate _ _) := "NYI annotate"
 
 inductive fun_def : Type
 inductive info_flag : Type
@@ -70,7 +75,7 @@ inductive cmd : Type
 | check_sat : cmd
 | check_sat_assuming : term → cmd -- not complete
 | declare_const : symbol → sort → cmd
-| declare_fun : symbol → list sort → cmd
+| declare_fun : symbol → list sort → sort → cmd
 | declare_sort : symbol → nat → cmd
 | define_fun : fun_def → cmd
 | define_fun_rec : fun_def → cmd
@@ -105,6 +110,8 @@ meta def cmd.to_format : cmd → format
 | (declare_const sym srt) := "(declare-const " ++ sym ++ " " ++ to_fmt srt ++ ")"
 | (assert_cmd t) := "(assert " ++ t.to_format ++ ")"
 | (check_sat) := "(check-sat)"
+| (declare_fun sym ps rs) := "(declare-fun " ++ sym ++
+    format.bracket " (" ")" (format.join $ list.intersperse " " $ list.map to_fmt ps) ++ " " ++ to_fmt rs ++ ")"
 | _ := "NYI"
 
 meta instance : has_to_format cmd :=
