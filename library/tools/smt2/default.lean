@@ -178,9 +178,7 @@ meta def reflect_prop_formula' : expr → smt2_m term
          else if e.is_arrow
          then (do tactic.trace "arrow" ,implies <$> (reflect_prop_formula' e.binding_domain) <*> (reflect_prop_formula' e.binding_body ))
          else if e.is_pi
-         then do tactic.trace "PIIIIIIIIIIIIIIIIIIII",
-                 tactic.trace $ to_string (e.binding_body),
-                 loc ← tactic.mk_local' e.binding_name e.binding_info e.binding_domain,
+         then do loc ← tactic.mk_local' e.binding_name e.binding_info e.binding_domain,
                  tactic.trace $ (expr.instantiate_var (e.binding_body) loc),
                  forallq (mangle_name $ loc.local_uniq_name) <$>
                       -- TODO: fix this
@@ -201,9 +199,7 @@ meta def reflect_prop_formula' : expr → smt2_m term
           else tactic.fail $ "unsupported propositional formula : " ++ to_string e)
 
 meta def reflect_prop_formula (e : expr) : smt2_m (builder unit) :=
-do tactic.trace $ "reflect_prop_formula: " ++ e.to_string,
-   ty ← infer_type e,
-   tactic.trace $ "reflect_prop_formula: " ++ ty.to_string,
+do ty ← infer_type e,
    form ← reflect_prop_formula' ty,
    return $ assert form
 
@@ -216,7 +212,8 @@ do ft ← classify_formula e,
      return $ declare_const (mangle_name n) "Int"
    | formula_type.fn n ps rs :=
      return $ declare_fun (mangle_name n) ps rs
-   | formula_type.prop_formula := do tactic.trace "propppppp", reflect_prop_formula e
+   | formula_type.prop_formula :=
+     reflect_prop_formula e
    | _ := return (return ())
    end
 
@@ -239,15 +236,14 @@ do decls ← attribute.get_instances `smt2,
 meta def reflect_goal : smt2_m (builder unit) :=
 do tgt ← target,
    ft ← classify_formula tgt,
-   tactic.trace ("target: " ++ tgt.to_string),
+   -- tactic.trace ("target: " ++ tgt.to_string),
    match ft with
    | formula_type.const n (sort.id "Bool") :=
-     do tactic.trace "variable case",
-        return $ assert (not $ mangle_name n)
+      return $ assert (not $ mangle_name n)
    | formula_type.prop_formula :=
-      do tactic.trace "prop case",
-      (do form ← reflect_prop_formula' tgt, return $ assert (not form))
-   | _ := tactic.fail "unknown goal"
+      do form ← reflect_prop_formula' tgt,
+         return $ assert (not form)
+   | _ := tactic.fail "unsupported goal"
    end
 
 meta def reflect : smt2_m (builder unit) :=
