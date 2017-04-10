@@ -42,6 +42,15 @@ term.apply "iff" [t, u]
 def lt (t u : term) : term :=
 term.apply "<" [t, u]
 
+def lte (t u : term) : term :=
+term.apply "<=" [t, u]
+
+def gt (t u : term) : term :=
+term.apply ">" [t, u]
+
+def gte (t u : term) : term :=
+term.apply ">=" [t, u]
+
 def add (t u : term) : term :=
 term.apply "+" [t, u]
 

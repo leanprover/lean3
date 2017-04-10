@@ -5,6 +5,7 @@ import .solvers.z3
 import .syntax
 import .builder
 import .tactic
+import .attributes
 
 open tactic
 open smt2
@@ -33,13 +34,9 @@ do st ← state_t.read,
      state_t.write (⟨ st.sort_map.insert sort () ⟩)
    end
 
-meta def reflect_prop (e : expr) : smt2_m (builder unit) :=
-return $ do let z3_name := mangle_name e.local_uniq_name,
-            declare_const  z3_name "Bool"
-
 inductive formula_type
-| const : smt2.sort → formula_type
-| fn : list smt2.sort → smt2.sort → formula_type
+| const : name → smt2.sort → formula_type
+| fn : name → list smt2.sort → smt2.sort → formula_type
 | prop_formula
 | unsupported
 
@@ -59,13 +56,14 @@ else if e.is_local_constant
 then return $ (mangle_name e.local_uniq_name)
 else tactic.fail "unsupported type"
 
-meta def formula_type_from_arrow (e : expr) : tactic formula_type :=
+meta def formula_type_from_arrow (n : name) (e : expr) : tactic formula_type :=
 do ty ← infer_type e,
    let (arg_tys, ret_ty) := fn_type ty
-   in formula_type.fn <$> (monad.mapm type_to_sort arg_tys) <*> (type_to_sort ret_ty)
+   in formula_type.fn n <$> (monad.mapm type_to_sort arg_tys) <*> (type_to_sort ret_ty)
 
 /-- The goal of this function is to categorize the set of formulas in the hypotheses,
-   and goal, the assumptions this code is written under follow:
+    and goal. We want to narrow down from the full term language of Lean to a fragment
+    of formula's we suppose. The below code makes some assumptions:
 
    A local constant of the form `(P : Prop)`, must be reflected as declaration
    in SMT2 that is `(declare-const P Bool)`.
@@ -79,20 +77,32 @@ do ty ← infer_type e,
    prop_sorted ← is_prop ty,
    if e.is_local_constant
    then if (ty = ```(Prop))
-        then return $ formula_type.const "Bool"
+        then return $ formula_type.const (e.local_uniq_name) "Bool"
         else if (ty = ```(int))
-        then return $ formula_type.const "Int"
+        then return $ formula_type.const (e.local_uniq_name) "Int"
         else if ty.is_arrow
-        then formula_type_from_arrow e
+        then formula_type_from_arrow (e.local_uniq_name) e
+        else if prop_sorted
+        then return formula_type.prop_formula
+        else return formula_type.unsupported
+   else if e.is_constant
+   then if (ty = ```(Prop))
+        then return $ formula_type.const (e.const_name) "Bool"
+        else if (ty = ```(int))
+        then return $ formula_type.const (e.const_name) "Int"
+        else if ty.is_arrow
+        then formula_type_from_arrow (e.const_name) e
         else if prop_sorted
         then return formula_type.prop_formula
         else return formula_type.unsupported
    else if (ty = ```(Prop))
-        then return formula_type.prop_formula
-        else return formula_type.unsupported
+   then return formula_type.prop_formula
+   else return formula_type.unsupported
 
 meta def reflect_application (fn : expr) (args : list expr) (callback : expr → smt2_m term) : smt2_m term :=
-    if fn.is_local_constant
+    if fn.is_constant
+    then term.apply (mangle_name fn.const_name) <$> monad.mapm callback args
+    else if fn.is_local_constant
     then term.apply (mangle_name fn.local_uniq_name) <$> monad.mapm callback args
     else tactic.fail "the z3 tactic only supports local constants as uninterpreted head symbols"
 
@@ -107,40 +117,59 @@ meta def reflect_arith_formula (reflect_base : expr → smt2_m term) : expr → 
 /- Constants -/
 | ```(zero) := smt2.builder.int_const <$> eval_expr int ```(zero : int)
 | ```(one) := smt2.builder.int_const <$> eval_expr int ```(one : int)
-| ```(bit0 %%Bits) := smt2.builder.int_const <$> eval_expr int ```(bit0 %%Bits : int)
-| ```(bit1 %%Bits) := smt2.builder.int_const <$> eval_expr int ```(bit1 %%Bits : int)
+| ```(bit0 %%Bits) :=
+  do ty ← infer_type Bits,
+     if (ty = ```(int))
+     then smt2.builder.int_const <$> eval_expr int ```(bit0 %%Bits : int)
+     else if (ty = ```(nat))
+     then smt2.builder.int_const <$> int.of_nat <$> eval_expr nat ```(bit0 %%Bits : nat)
+     else tactic.fail $ "unknown numeric literal: " ++ (to_string ```(bit0 %%Bits : int))
+| ```(bit1 %%Bits) :=
+  do ty ← infer_type Bits,
+     if (ty = ```(int))
+     then smt2.builder.int_const <$> eval_expr int ```(bit1 %%Bits : int)
+     else if (ty = ```(nat))
+     then smt2.builder.int_const <$> (int.of_nat <$> eval_expr nat ```(bit1 %%Bits : nat))
+     else tactic.fail $ "unknown numeric literal: " ++ (to_string ```(bit1 %%Bits : int))
 | a :=
     if a.is_local_constant
     then return $ term.qual_id (mangle_name a.local_uniq_name)
+    else if a.is_constant
+    then return $ term.qual_id (mangle_name a.const_name)
     else if a.is_app
     then reflect_application (a.get_app_fn) (a.get_app_args) reflect_base
     else tactic.fail $ "unsupported arithmetic formula: " ++ to_string a
 
--- meta def reflect_application (e : expr) : smt2_m term :=
--- do let fn := e.get_app_fn,
---    let args := e.get_app_args,
---    -- we should probably relax for top-level constants which have already been translated
---    if fn.is_local_constant && args.all expr.is_local_constant
---    then pure $ smt2.term.apply (mangle_name fn.local_uniq_name) (args.map (fun a, mangle_name a.local_uniq_name))
---    else tactic.fail "can only handle constants right now"
+/-- Check if the type is an `int` or logically a subtype of an `int` like nat. -/
+meta def is_int (e : expr) : tactic bool :=
+do ty ← infer_type e,
+   return $ (ty = ```(int)) || (ty = ```(nat))
 
-#check expr
+meta def unsupported_ordering_on {α : Type} (elem : expr) : tactic α :=
+do ty ← infer_type elem,
+   tactic.fail $ "unable to translate orderings for values of type: " ++ to_string ty
+
+-- I apologize for these crazy callbacks, we need a mutual keyword or section.
+meta def reflect_ordering (reflect_arith : expr → smt2_m term) (R : term → term → term) (P Q : expr) : smt2_m term :=
+do is ← is_int P, -- NB: P and Q should have the same type.
+   if is
+   then smt2.builder.lt <$> (reflect_arith P) <*> (reflect_arith Q)
+   else unsupported_ordering_on P
 
 meta def reflect_prop_formula' : expr → smt2_m term
 | ```(¬ %%P) := not <$> (reflect_prop_formula' P)
 | ```(%%P = %% Q) := smt2.builder.equals <$> (reflect_prop_formula' P) <*> (reflect_prop_formula' Q)
--- | ```(Pi (%%A : %%T), %%B) := sorry
--- | ```(%%P → %%Q) := implies <$> (reflect_prop_formula' P) <*> (reflect_prop_formula' Q)
 | ```(%%P ∧ %%Q) := smt2.builder.and2 <$> (reflect_prop_formula' P) <*> (reflect_prop_formula' Q)
 | ```(%%P ∨ %%Q) := smt2.builder.or2 <$> (reflect_prop_formula' P) <*> (reflect_prop_formula' Q)
 | ```(%%P ↔ %%Q) := smt2.builder.iff <$> (reflect_prop_formula' P) <*> (reflect_prop_formula' Q)
-| ```(%%P < %%Q) :=
-do ty ← infer_type P,
-   if (ty = ```(int))
-   then smt2.builder.lt <$> (reflect_arith_formula reflect_prop_formula' P) <*> (reflect_arith_formula reflect_prop_formula' Q)
-   else tactic.fail "unknown ordering"
+| ```(%%P < %%Q) := reflect_ordering (reflect_arith_formula reflect_prop_formula') smt2.builder.lt P Q
+| ```(%%P <= %%Q) := reflect_ordering (reflect_arith_formula reflect_prop_formula') smt2.builder.lte P Q
+| ```(%%P > %%Q) := reflect_ordering (reflect_arith_formula reflect_prop_formula') smt2.builder.gt P Q
+| ```(%%P >= %%Q) := reflect_ordering (reflect_arith_formula reflect_prop_formula') smt2.builder.gte P Q
 | e := if e.is_local_constant
        then return $ term.qual_id (mangle_name e.local_uniq_name)
+       else if e = ```(int)
+       then return "Int"
        else (do
          ty ← infer_type e,
          tactic.trace $ "expr: " ++ to_string e ++ ", inferred_type: " ++ to_string ty,
@@ -179,15 +208,14 @@ do tactic.trace $ "reflect_prop_formula: " ++ e.to_string,
    return $ assert form
 
 meta def reflect_local (e : expr) : smt2_m (builder unit) :=
-do ft ← classify_formula e, ty ← infer_type e, tactic.trace $ "local: " ++ e.to_string ++ "ty: " ++ ty.to_string,
+do ft ← classify_formula e,
    match ft with
-   | formula_type.const (sort.id "Bool") := reflect_prop e
-   | formula_type.const (sort.id "Int") :=
-    return $ do let z3_name := mangle_name e.local_uniq_name,
-            declare_const  z3_name "Int"
-   | formula_type.fn ps rs :=
-     return $ do let z3_name := mangle_name e.local_uniq_name,
-            declare_fun z3_name ps rs
+   | formula_type.const n (sort.id "Bool") :=
+     return $ declare_const (mangle_name n) "Bool"
+   | formula_type.const n (sort.id "Int") :=
+     return $ declare_const (mangle_name n) "Int"
+   | formula_type.fn n ps rs :=
+     return $ declare_fun (mangle_name n) ps rs
    | formula_type.prop_formula := do tactic.trace "propppppp", reflect_prop_formula e
    | _ := return (return ())
    end
@@ -197,14 +225,24 @@ do ls ← local_context,
    bs ← monad.mapm reflect_local ls,
    return $ list.foldl (λ (a b : builder unit), a >> b) (return ()) bs
 
+meta def reflect_attr_decl (n : name) : smt2_m (builder unit) :=
+do tactic.trace (to_string n),
+   exp ← mk_const n,
+   reflect_local exp
+
+/- Reflect the environment consisting of declarations with the `smt2` attribute. -/
+meta def reflect_environment : smt2_m (builder unit) :=
+do decls ← attribute.get_instances `smt2,
+   bs ← monad.mapm reflect_attr_decl decls.reverse,
+   return $ (monad.sequence bs >> return ())
+
 meta def reflect_goal : smt2_m (builder unit) :=
 do tgt ← target,
    ft ← classify_formula tgt,
    tactic.trace ("target: " ++ tgt.to_string),
    match ft with
-   | formula_type.const (sort.id "Bool") :=
+   | formula_type.const n (sort.id "Bool") :=
      do tactic.trace "variable case",
-        let n := tgt.local_uniq_name,
         return $ assert (not $ mangle_name n)
    | formula_type.prop_formula :=
       do tactic.trace "prop case",
@@ -213,9 +251,10 @@ do tgt ← target,
    end
 
 meta def reflect : smt2_m (builder unit) :=
-do goal_builder ← reflect_goal,
+do env_builder ← reflect_environment,
    ctxt_builder ← reflect_context,
-   return $ ctxt_builder >> goal_builder >> check_sat
+   goal_builder ← reflect_goal,
+   return $ env_builder >> ctxt_builder >> goal_builder >> check_sat
 
 meta def z3 (log_file : option string := none) : tactic unit :=
 do (builder, _) ← reflect smt2_state.initial,
