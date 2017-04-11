@@ -48,9 +48,9 @@ Author: Leonardo de Moura
 #include "library/native_compiler/native_compiler.h"
 #include "library/trace.h"
 #include "init/init.h"
-#include "unistd.h"
 #include "shell/simple_pos_info_provider.h"
 #include "shell/leandoc.h"
+#include "shell/auto_import.h"
 #if defined(LEAN_JSON)
 #include "shell/server.h"
 #endif
@@ -148,7 +148,6 @@ static struct option g_long_options[] = {
     {"compile",      optional_argument, 0, 'C'},
 #endif
     {"timeout",      optional_argument, 0, 'T'},
-    {"native",       no_argument,       0, 'N'},
 #if defined(LEAN_JSON)
     {"json",         no_argument,       0, 'J'},
     {"path",         no_argument,       0, 'p'},
@@ -165,7 +164,7 @@ static struct option g_long_options[] = {
 };
 
 static char const * g_opt_str =
-    "PdD:Nqpgvhet:012E:A:B:j:012rM:012T:012"
+    "PdD:qpgvhet:012E:A:B:j:012rM:012T:012"
 #if defined(LEAN_MULTI_THREAD)
     "s:012"
 #endif
@@ -330,25 +329,6 @@ public:
     }
 };
 
-lean::environment auto_import_tools(
-    lean::environment const & env,
-    std::shared_ptr<const lean::module_info> current_mod,
-    std::shared_ptr<const lean::module_info> mod_to_import,
-    lean::name & import_name)
-{
-    // Copy the set of dependencies and add the module to import to the list.
-    auto deps = current_mod->m_deps;
-    deps.push_back(module_info::dependency { mod_to_import->m_mod, { import_name , optional<unsigned>()}, mod_to_import });
-
-    // Build a loader from the current module.
-    auto loader = mk_loader(current_mod->m_mod, deps);
-    // Finally add the module name we want to import, and then import into the environment, and return it.
-
-    std::vector<module_name> imports;
-    imports.push_back({ import_name, optional<unsigned>()});
-    return import_modules(env, current_mod->m_mod, imports, loader);
-}
-
 int main(int argc, char ** argv) {
 #if defined(LEAN_EMSCRIPTEN)
     EM_ASM(
@@ -393,8 +373,6 @@ int main(int argc, char ** argv) {
     optional<std::string> server_in;
     optional<std::string> run_arg;
     std::string native_output;
-    bool shared_library = false;
-
     while (true) {
         int c = getopt_long(argc, argv, g_opt_str, g_long_options, NULL);
         if (c == -1)
@@ -500,9 +478,6 @@ int main(int argc, char ** argv) {
             lean::enable_debug(optarg);
             break;
 #endif
-        case 'N':
-            shared_library = true;
-            break;
         default:
             std::cerr << "Unknown command line option\n";
             display_help(std::cerr);
@@ -677,11 +652,7 @@ int main(int argc, char ** argv) {
             mods.push_back({mod, mod_info});
         }
 
-            auto mod_info = mod_mgr.get_module("/Users/jroesch/Git/lean/library/tools/native/default.lean");
-            mods.push_back({mod_info->m_mod, mod_info});
-        }
-
-        tq->join();
+        taskq().wait_for_finish(lt.get_root().wait_for_finish());
 
         for (auto & mod : mods) {
             if (test_suite) {
@@ -702,37 +673,30 @@ int main(int argc, char ** argv) {
                 ok = mod_ok = false;
                 // exception has already been reported
             }
-  if (test_suite) {
+            if (test_suite) {
                 std::ofstream status(mod.m_id + ".status");
                 status << (mod_ok && !get(has_errors(mod.m_mod_info->m_lt)) ? 0 : 1);
             }
+        }
 
-        if ((compile || shared_library) && !mods.empty()) {
-            lean::name native_tools = name({"tools", "native"});
+        // Options appear to be empty, pretty sure I'm making a mistake here.
+        if (compile && !mods.empty()) {
+            auto current_module = mods.front().m_mod_info;
 
-            auto mod_to_import = mod_mgr.resolve_and_get_module(native_tools);
+             lean::name native_tools = name({"tools", "native"});
 
-            auto native_env = auto_import_tools(
-                mods.front().second->get_produced_env(),
-                mods.front().second,
-                mod_to_import,
-                native_tools);
+             auto native_env = auto_import_tools(
+                 mod_mgr,
+                 current_module,
+                 native_tools);
 
-            auto final_env = mods.front().m_mod_info->get_produced_env();
-            auto final_opts = get(mods.front().m_mod_info->m_result).m_opts;
-            type_context tc(native_env, final_opts);
-            lean::scope_trace_env scope2(native_env, final_opts, tc);
-            lean::native::scope_config scoped_native_config(
-                final_opts);
+             auto final_opts = get(mods.front().m_mod_info->m_result).m_opts;
 
-            if (compile) {
-                native_compile_binary(native_env, native_env.get(lean::name("main")));
-            }
-
-            if (shared_library) {
-                auto cwd = lean::path("."); // make this work later
-                native_compile_package(native_env, cwd);
-            }
+             type_context tc(native_env, final_opts);
+             lean::scope_trace_env scope2(native_env, final_opts, tc);
+             lean::native::scope_config scoped_native_config(final_opts);
+             native_compile_binary(native_env,
+                                   native_env.get(lean::name("main")));
         }
 
         if (export_txt && !mods.empty()) {

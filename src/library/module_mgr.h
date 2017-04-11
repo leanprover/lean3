@@ -38,7 +38,7 @@ struct module_info {
         module_name m_import_name;
         std::shared_ptr<module_info const> m_mod_info;
     };
-    
+
     std::vector<dependency> m_deps;
 
     optional<std::string> m_lean_contents;
@@ -78,6 +78,7 @@ public:
 };
 
 module_loader mk_loader(module_id const & cur_mod, std::vector<module_info::dependency> const & deps);
+module_id resolve(module_id const & module_file_name, module_name const & ref);
 
 class module_mgr {
     bool m_server_mode = false;
