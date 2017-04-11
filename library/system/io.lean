@@ -241,4 +241,3 @@ do child ← io.proc.spawn { args with stdout := io.process.stdio.piped },
 omit ioi
 /-- Lift a monadic `io` action into the `tactic` monad. -/
 meta constant tactic.run_io {α : Type} : (Π ioi : io.interface, @io ioi α) → tactic α
-  write_file_core path (to_string contents)

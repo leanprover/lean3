@@ -42,6 +42,7 @@ vm_obj mk_io_failure(sstream const & s) {
 
 static vm_obj io_put_str(vm_obj const & str, vm_obj const &) {
     get_global_ios().get_regular_stream() << to_string(str);
+    std::cout << "here" << std::endl;
     return mk_io_result(mk_vm_unit());
 }
 

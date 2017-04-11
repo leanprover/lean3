@@ -23,7 +23,7 @@ def mk_div (e1 e2 : ir.expr) : ir.expr :=
 def mk_int (i : int) : ir.expr :=
   expr.lit $ ir.literal.integer i
 
-record builder_state :=
+structure builder_state :=
   (counter : nat)
   (bindings : list (symbol × ir.ty × ir.expr))
 

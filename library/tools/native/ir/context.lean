@@ -5,7 +5,7 @@ import tools.native.ir.ir
 
 namespace native.ir
 
-meta record context :=
+meta structure context :=
   (items : rb_map name ir.item)
 
 meta def new_context

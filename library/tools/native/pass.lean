@@ -49,7 +49,7 @@ meta def inner_loop (conf : config) (arity : arity_map) (p : pass) (es : list pr
 
 meta def fuse_passes (passes : list pass) : config → arity_map → procedure → procedure :=
   fun config arity,
-    let transforms := list.map (fun pass, pass.transform pass config arity) passes in
+    let transforms := list.map (fun p, pass.transform p config arity) passes in
         list.foldl (fun (f kont : procedure → procedure), fun proc, kont (f proc)) id transforms
 
 meta def run_passes (conf : config) (arity : arity_map) (passes : list pass) (procs : list procedure) : list procedure :=

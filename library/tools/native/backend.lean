@@ -8,10 +8,11 @@ import .ir
 
 namespace ir
 
-meta structure backend :=
+meta structure backend : Type :=
     -- TODO: we should unify context with the list of items to process
     -- this is just due to the poor design of the compiler
-    (compiler : native.ir.context → io unit)
+    -- forced into tactic because of universe constraints on io
+    (compiler : native.ir.context → tactic unit)
 
 end ir
 
