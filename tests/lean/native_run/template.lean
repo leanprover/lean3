@@ -91,7 +91,9 @@ def render (e : env) : template -> string
 def to_template (s : string) : template :=
     parse (lex s)
 
-def main : io unit :=
-    put_str $ render [("name", "World"), ("year", "2017")] (to_template "Hello $name , see you next $year")
+variable [io.interface]
 
-vm_eval main
+def main : io unit :=
+    io.put_str $ render [("name", "World"), ("year", "2017")] (to_template "Hello $name , see you next $year")
+
+#eval main

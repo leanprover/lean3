@@ -1,7 +1,7 @@
 import system.io
 
-meta def main : io unit :=
-  put_str $ to_string `(f x y)
+variable [io.interface]
 
-vm_eval main
+meta def main : io unit :=
+  io.print $ to_string `(f x y)
 

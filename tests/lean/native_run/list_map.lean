@@ -1,5 +1,8 @@
 import system.io
 
-def main :=
+variable [io.interface]
+
+def main : io unit :=
   let xs : list nat := [1,2,3] in
-  put_str_ln $ list.map (fun x, x + 1) xs
+  io.print $ list.map (fun x, x + 1) xs
+
