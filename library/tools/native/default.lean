@@ -723,7 +723,9 @@ meta def emit_main (procs : list (name × expr)) : ir_compiler ir.defn := do
   builtins ← emit_declare_vm_builtins procs,
   arity ← lookup_arity `main,
   vm_simple_obj ← fresh_name,
-  call_main ← compile_call "___lean__main" arity [ir.expr.sym vm_simple_obj],
+  io_interface ← fresh_name,
+  mk_io_interface ← mk_ir_call (in_lean_ns "mk_io_interface") [],
+  call_main ← compile_call "___lean__main" arity [ir.expr.sym io_interface, ir.expr.sym vm_simple_obj],
   return (ir.defn.mk bool.tt `main [] ir.ty.int $ ir.stmt.seq ([
     ir.stmt.e $ ir.expr.call (in_lean_ns `initialize) [],
     ir.stmt.letb `env (ir.ty.symbol (in_lean_ns `environment)) ir.expr.uninitialized ir.stmt.nop
@@ -734,6 +736,7 @@ meta def emit_main (procs : list (name × expr)) : ir_compiler ir.defn := do
     ir.stmt.letb `scoped (ir.ty.symbol (in_lean_ns `scope_vm_state)) (ir.expr.constructor (in_lean_ns `scope_vm_state) [`S]) ir.stmt.nop,
     ir.stmt.assign `g_env (ir.expr.address_of `env),
     ir.stmt.letb vm_simple_obj (ir.ty.object none) (ir.expr.mk_object 0 []) ir.stmt.nop,
+    ir.stmt.letb io_interface (ir.ty.object none) mk_io_interface ir.stmt.nop,
     call_main
 ]))
 
