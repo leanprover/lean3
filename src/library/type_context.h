@@ -177,16 +177,22 @@ class type_context : public abstract_type_context {
     typedef buffer<optional<level>> tmp_uassignment;
     typedef buffer<optional<expr>>  tmp_eassignment;
     typedef buffer<metavar_context> mctx_stack;
-    enum class tmp_trail_kind { Level, Expr };
-    typedef buffer<pair<tmp_trail_kind, unsigned>> tmp_trail;
+    template <class T>
+    struct tmp_trail_item {
+        unsigned m_idx;
+        optional<T> m_old_val;
+        tmp_trail_item(unsigned int idx, const optional<T> & old_val) : m_idx(idx), m_old_val(old_val) {}
+    };
     friend struct instance_synthesizer;
     struct scope_data {
         metavar_context m_mctx;
         unsigned        m_tmp_uassignment_sz;
         unsigned        m_tmp_eassignment_sz;
-        unsigned        m_tmp_trail_sz;
-        scope_data(metavar_context const & mctx, unsigned usz, unsigned esz, unsigned tsz):
-            m_mctx(mctx), m_tmp_uassignment_sz(usz), m_tmp_eassignment_sz(esz), m_tmp_trail_sz(tsz) {}
+        unsigned        m_tmp_utrail_sz;
+        unsigned        m_tmp_etrail_sz;
+        scope_data(metavar_context const & mctx, unsigned usz, unsigned esz, unsigned tusz, unsigned tesz):
+            m_mctx(mctx), m_tmp_uassignment_sz(usz), m_tmp_eassignment_sz(esz), m_tmp_utrail_sz(tusz),
+            m_tmp_etrail_sz(tesz) {}
     };
 public:
     /* This class supports temporary meta-variables "mode". In this "tmp" mode,
@@ -205,8 +211,9 @@ public:
         /* m_tmp_mvar_local_context contains m_lctx when tmp mode is activated.
            This is the context for all temporary meta-variables. */
         local_context     m_mvar_lctx;
-        /* undo/trail stack for m_tmp_uassignment/m_tmp_eassignment */
-        tmp_trail         m_trail;
+        /* undo/trail stacks for m_tmp_uassignment/m_tmp_eassignment */
+        buffer<tmp_trail_item<level>> m_utrail;
+        buffer<tmp_trail_item<expr>>  m_etrail;
         tmp_data(tmp_uassignment & uassignment, tmp_eassignment & eassignment, local_context const & lctx):
             m_uassignment(uassignment), m_eassignment(eassignment), m_mvar_lctx(lctx) {}
     };

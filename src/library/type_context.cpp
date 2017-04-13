@@ -1208,9 +1208,7 @@ void type_context::assign_tmp(level const & u, level const & l) {
     lean_assert(is_idx_metauniv(u));
     lean_assert(to_meta_idx(u) < m_tmp_data->m_uassignment.size());
     unsigned idx = to_meta_idx(u);
-    if (!m_scopes.empty() && !m_tmp_data->m_uassignment[idx]) {
-        m_tmp_data->m_trail.emplace_back(tmp_trail_kind::Level, idx);
-    }
+    m_tmp_data->m_utrail.emplace_back(idx, m_tmp_data->m_uassignment[idx]);
     m_tmp_data->m_uassignment[idx] = l;
 }
 
@@ -1221,8 +1219,8 @@ void type_context::assign_tmp(expr const & m, expr const & v) {
     unsigned idx = to_meta_idx(m);
     lean_trace(name({"type_context", "tmp_vars"}),
                tout() << "assign ?x_" << idx << " := " << v << "\n";);
-    if (!m_scopes.empty() && !m_tmp_data->m_eassignment[idx]) {
-        m_tmp_data->m_trail.emplace_back(tmp_trail_kind::Expr, idx);
+    if (!m_scopes.empty()) {
+        m_tmp_data->m_etrail.emplace_back(idx, m_tmp_data->m_eassignment[idx]);
     }
     m_tmp_data->m_eassignment[to_meta_idx(m)] = v;
 }
@@ -1340,9 +1338,10 @@ expr type_context::instantiate_mvars(expr const & e, bool postpone_push_delayed)
 
 void type_context::push_scope() {
     if (in_tmp_mode()) {
-        m_scopes.emplace_back(m_mctx, m_tmp_data->m_uassignment.size(), m_tmp_data->m_eassignment.size(), m_tmp_data->m_trail.size());
+        m_scopes.emplace_back(m_mctx, m_tmp_data->m_uassignment.size(), m_tmp_data->m_eassignment.size(),
+                              m_tmp_data->m_utrail.size(), m_tmp_data->m_etrail.size());
     } else {
-        m_scopes.emplace_back(m_mctx, 0, 0, 0);
+        m_scopes.emplace_back(m_mctx, 0, 0, 0, 0);
     }
 }
 
@@ -1351,20 +1350,24 @@ void type_context::pop_scope() {
     scope_data const & s = m_scopes.back();
     m_mctx = s.m_mctx;
     if (in_tmp_mode()) {
-        unsigned old_sz = s.m_tmp_trail_sz;
-        while (m_tmp_data->m_trail.size() > old_sz) {
-            auto const & t = m_tmp_data->m_trail.back();
-            if (t.first == tmp_trail_kind::Level) {
-                m_tmp_data->m_uassignment[t.second] = none_level();
-            } else {
-                lean_trace(name({"type_context", "tmp_vars"}),
-                           tout() << "unassign ?x_" << t.second << " := " << *(m_tmp_data->m_eassignment[t.second]) << "\n";);
-                m_tmp_data->m_eassignment[t.second] = none_expr();
-            }
-            m_tmp_data->m_trail.pop_back();
+        unsigned old_sz = s.m_tmp_utrail_sz;
+        while (m_tmp_data->m_utrail.size() > old_sz) {
+            auto const & t = m_tmp_data->m_utrail.back();
+            m_tmp_data->m_uassignment[t.m_idx] = t.m_old_val;
+            m_tmp_data->m_utrail.pop_back();
         }
-        lean_assert(old_sz == m_tmp_data->m_trail.size());
+        lean_assert(old_sz == m_tmp_data->m_utrail.size());
         m_tmp_data->m_uassignment.shrink(s.m_tmp_uassignment_sz);
+
+        old_sz = s.m_tmp_etrail_sz;
+        while (m_tmp_data->m_etrail.size() > old_sz) {
+            auto const & t = m_tmp_data->m_etrail.back();
+            lean_trace(name({"type_context", "tmp_vars"}),
+                       tout() << "unassign ?x_" << t.m_idx << " := " << *(m_tmp_data->m_eassignment[t.m_idx]) << "\n";);
+            m_tmp_data->m_eassignment[t.m_idx] = t.m_old_val;
+            m_tmp_data->m_etrail.pop_back();
+        }
+        lean_assert(old_sz == m_tmp_data->m_etrail.size());
         m_tmp_data->m_eassignment.shrink(s.m_tmp_eassignment_sz);
     }
     m_scopes.pop_back();
@@ -3185,12 +3188,18 @@ struct instance_synthesizer {
     environment const & env() const { return m_ctx.env(); }
 
     void push_scope() {
-        lean_trace(name({"type_context", "tmp_vars"}), tout() << "push_scope, trail_sz: " << m_ctx.m_tmp_data->m_trail.size() << "\n";);
+        lean_trace(name({"type_context", "tmp_vars"}), tout() << "push_scope, utrail_sz: "
+                                                              << m_ctx.m_tmp_data->m_utrail.size()
+                                                              << ", etrail_sz: " << m_ctx.m_tmp_data->m_etrail.size()
+                                                              << "\n";);
         m_ctx.push_scope();
     }
 
     void pop_scope() {
-        lean_trace(name({"type_context", "tmp_vars"}), tout() << "pop_scope, trail_sz: " << m_ctx.m_tmp_data->m_trail.size() << "\n";);
+        lean_trace(name({"type_context", "tmp_vars"}), tout() << "pop_scope, utrail_sz: "
+                                                              << m_ctx.m_tmp_data->m_utrail.size()
+                                                              << ", etrail_sz: " << m_ctx.m_tmp_data->m_etrail.size()
+                                                              << "\n";);
         m_ctx.pop_scope();
     }
 
