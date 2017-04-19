@@ -5,16 +5,10 @@ Authors: Jared Roesch
 -/
 prelude
 
-import init.meta.format
-import init.meta.expr
-import init.category.state
-import init.data.string
-import init.data.list.instances
-
 import tools.native.util
 import tools.native.config
-import tools.native.result
 import tools.native.ir.context
+import system.except
 
 namespace native
 
@@ -30,7 +24,7 @@ meta def error.to_string : error → string
   rb_map name nat
 
 @[reducible] def ir.result (A : Type) :=
-  result error A
+  except error A
 
 meta def mk_arity_map : list (name × expr) → arity_map
 | [] := rb_map.mk name nat
@@ -39,8 +33,9 @@ meta def mk_arity_map : list (name × expr) → arity_map
 @[reducible] meta def ir_compiler_state :=
   (ir.context × config × arity_map × nat)
 
-@[reducible] meta def ir_compiler (A : Type) :=
-  resultT (state ir_compiler_state) error A
+-- there is a strange bug here with eta-equiv
+@[reducible] meta def ir_compiler : Type → Type :=
+  except_t (state ir_compiler_state) error
 
 -- print alternative
 
@@ -48,7 +43,7 @@ meta def mk_arity_map : list (name × expr) → arity_map
 -- (| _, _ |)
 
 meta def lift {A} (action : state ir_compiler_state A) : ir_compiler A :=
-  ⟨fmap (fun (a : A), native.result.ok a) action⟩
+fun s, let (a, s') := action s in (except.ok a, s')
 
 meta def configuration : ir_compiler config := do
   (_, config, _, _) <- lift $ state.read,

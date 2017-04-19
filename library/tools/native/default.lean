@@ -1,14 +1,8 @@
 /-
-Copyright (c) 2016 Jared Roesch. All rights reserved.
+Copyright (c) 2017 Jared Roesch. All rights reserved.
 Released under Apache 2.0 license as described in the file LICENSE.
 Authors: Jared Roesch
 -/
-
-import init.meta.format
-import init.meta.expr
-import init.category.state
-import init.data.string
-import init.data.list.instances
 
 import tools.native.ir
 import tools.native.ir.builder
@@ -22,8 +16,8 @@ import tools.native.backend
 import tools.native.pass
 import tools.native.util
 import tools.native.config
-import tools.native.result
 import tools.native.attributes
+import system.except
 
 namespace native
 
@@ -33,28 +27,24 @@ meta def trace_ir (s : string) : ir_compiler unit := do
   then trace s (return ())
   else return ()
 
-meta def run {M E A} (res : native.resultT M E A) : M (native.result E A) :=
-  match res with
-  | ⟨action⟩ := action
-  end
+meta def run {M E A} (res : except_t M E A) : M (except E A) := res
 
 -- An `exotic` monad combinator that accumulates errors.
 meta def sequence_err : list (ir_compiler ir.item) → ir_compiler (list ir.item × list error)
 | [] := return ([], [])
 | (action :: remaining) :=
-    ⟨ fun s,
+    fun s,
        match (run (sequence_err remaining)) s with
-       | (native.result.err e, s') := (native.result.err e, s)
-       | (native.result.ok (res, errs), s') :=
+       | (except.error e, s') := (except.error e, s)
+       | (except.ok (res, errs), s') :=
          match (run action) s' with
-         | (native.result.err e, s'') := (native.result.ok (res, e :: errs), s'')
-         | (native.result.ok v, s'') := (native.result.ok (v :: res, errs), s'')
+         | (except.error e, s'') := (except.ok (res, e :: errs), s'')
+         | (except.ok v, s'') := (except.ok (v :: res, errs), s'')
          end
          end
-     ⟩
 
 meta def lift_result {A} (action : ir.result A) : ir_compiler A :=
-  ⟨fun s, (action, s)⟩
+  fun s, (action, s)
 
 meta def in_lean_ns (n : name) : ir.symbol :=
   ir.symbol.external (some `lean) n
@@ -77,7 +67,7 @@ meta def take_arguments (e : expr) : ir_compiler (list name × expr) := do
   return $ (fresh_names, expr.instantiate_vars body (list.reverse locals))
 
 meta def mk_error {T} (msg : string) : ir_compiler T :=
-  trace ("ERROR: " ++ msg) (lift_result (native.result.err $ error.string msg))
+  trace ("ERROR: " ++ msg) (lift_result (except.error $ error.string msg))
 
 meta def lookup_arity (n : name) : ir_compiler nat := do
   map ← arities,
@@ -122,7 +112,7 @@ open tactic
 
 -- HELPERS --
 meta def assert_name : ir.expr → ir_compiler ir.symbol
-| (ir.expr.sym s) := lift_result $ native.result.ok s
+| (ir.expr.sym s) := lift_result $ except.ok s
 | e := mk_error $ "expected name found: " ++ to_string (format_cpp.expr e)
 
 meta def assert_expr : ir.stmt → ir_compiler ir.expr
@@ -212,17 +202,17 @@ meta def compile_call (head : ir.symbol) (arity : nat) (args : list ir.expr) : i
 meta def mk_object (arity : unsigned) (args : list ir.expr) : ir_compiler ir.expr :=
   let args'' := list.map assert_name args
   in do args' ← monad.sequence args'',
-        lift_result (native.result.ok $ ir.expr.mk_object (unsigned.to_nat arity) args')
+        lift_result (except.ok $ ir.expr.mk_object (unsigned.to_nat arity) args')
 
 meta def one_or_error (args : list expr) : ir_compiler expr :=
 match args with
-| ((h : expr) :: []) := lift_result $ native.result.ok h
+| ((h : expr) :: []) := lift_result $ except.ok h
 | _ := mk_error "internal invariant violated, should only have one argument"
 end
 
 meta def one_or_error_message (msg : string) (args : list expr) : ir_compiler expr :=
 match args with
-| ((h : expr) :: []) := lift_result $ native.result.ok h
+| ((h : expr) :: []) := lift_result $ except.ok h
 | _ := mk_error $ "internal invariant violated: " ++ msg ++ " should only have one argument"
 end
 
@@ -591,8 +581,8 @@ meta def compile_defn_to_ir (decl_name : name) (params : list name) (body : expr
   pure (ir.defn.mk bool.tt decl_name params (ir.ty.object none) body')
 
 def unwrap_or_else {T R : Type} : ir.result T → (T → R) → (error → R) → R
-| (native.result.err e) f err := err e
-| (native.result.ok t) f err := f t
+| (except.error e) f err := err e
+| (except.ok t) f err := f t
 
 meta def replace_main (n : name) : name :=
      if n = `main
@@ -821,8 +811,8 @@ meta def get_backends : tactic expr := do
   ty ← mk_const `ir.backend,
   get_attribute_bodies `backend ty
 
-meta def run_ir {A : Type} (action : ir_compiler A) (inital : ir_compiler_state): result error A :=
-  prod.fst $ run action inital
+meta def run_ir {A : Type} (action : ir_compiler A) (inital : ir_compiler_state): except error A :=
+  prod.fst $ action inital
 
 meta def merge {K V : Type} (map map' : rb_map K V) : rb_map K V :=
    rb_map.fold map' map (fun key data m, rb_map.insert m key data)
@@ -838,15 +828,15 @@ meta def compile_and_add_to_context
   (extern_fns : list extern_fn)
   (procs : list procedure)
   (ctxt : ir.context)
-  : result error ir.context := do
+  : except error ir.context := do
     let arity := extend_with_list (mk_arity_map procs) (list.map extern_to_arities extern_fns) in
     let action : ir_compiler _ := driver extern_fns procs in
     match (run_ir action (ctxt, conf, arity, 0)) with
-    | result.err e := result.err e
-    | result.ok (items, errs) :=
+    | except.error e := except.error e
+    | except.ok (items, errs) :=
       if list.length errs = 0
       then pure (ctxt^.extend (list.map (fun (i : ir.item), (i^.get_name, i)) items))
-      else result.err (error.many errs)
+      else except.error (error.many errs)
   end
 
 meta def new_context : tactic ir.context := do
@@ -876,8 +866,8 @@ meta def compile
     ctxt ← new_context,
     backends ← load_backends,
     ctxt' ← match compile_and_add_to_context conf extern_fns procs ctxt with
-    | result.err e := tactic.fail $ error.to_string e
-    | result.ok ctxt' := pure ctxt'
+    | except.error e := tactic.fail $ error.to_string e
+    | except.ok ctxt' := pure ctxt'
     end,
     execute_backends backends ctxt',
     return (format_cpp.program $ ctxt'^.to_items)
