@@ -4,9 +4,10 @@ Released under Apache 2.0 license as described in the file LICENSE.
 Authors: Jared Roesch
 -/
 
-import tools.native.internal
-import tools.native.builtin
+import tools.native.ir.internal
+import tools.native.ir.builtin
 import system.except
+import init.data.nat.lemmas
 
 namespace native
 
@@ -30,8 +31,6 @@ meta def is_cases_on (head : expr) : bool :=
     end
   end
 
--- vm_eval (is_cases_on (expr.const `name.cases_on []))
-
 meta def get_arity : expr → nat
 | (expr.lam _ _ _ body) := 1 + get_arity body
 | _ := 0
@@ -46,7 +45,6 @@ meta def mk_call : expr → list expr → expr
 | head [] := head
 | head (e :: es) := mk_call (expr.app head e) es
 
--- really need to get out of the meta language so I can prove things, I should just have a unit test lemma
 meta def under_lambda' {M} [monad M] (fresh_name : M name) (action : expr -> M expr) : expr → M expr
 | (expr.lam n bi ty body) := do
   fresh ← fresh_name,
@@ -55,16 +53,16 @@ meta def under_lambda' {M} [monad M] (fresh_name : M name) (action : expr -> M e
 | e := action e
 
 meta def under_lambda {M} [monad M] (fresh_name : M name) (action : expr -> M expr) (e : expr) : M expr :=
-  under_lambda' fresh_name action e
+under_lambda' fresh_name action e
 
 meta def is_return (n : name) : bool :=
-  decidable.to_bool $ `native_compiler.return = n
+decidable.to_bool $ `native_compiler.return = n
 
 meta def is_assign (n : name) : bool :=
-  decidable.to_bool $ `native_compiler.assign = n
+decidable.to_bool $ `native_compiler.assign = n
 
 meta def is_unreachable (n : name) : bool :=
-  decidable.to_bool $ `_unreachable_ = n
+decidable.to_bool $ `_unreachable_ = n
 
 inductive application_kind
 | cases

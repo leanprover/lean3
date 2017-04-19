@@ -1,7 +1,3 @@
-import init.meta.tactic
-import init.meta.constructor_tactic
-import init.meta.attribute
-
 def ir_def : user_attribute := {
   name := `ir_def,
   descr := "makes the IR definition availible to the native compiler"

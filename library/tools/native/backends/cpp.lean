@@ -9,14 +9,10 @@ import init.meta.format
 import init.function
 
 import tools.native.ir
-
-meta def format_concat : list format → format
-| [] := format.nil
-| (f :: fs) := f ++ format_concat fs
+import tools.native.backend
 
 meta def comma_sep (items : list format) : format :=
-format_concat
-  (list.intersperse (format.of_string "," ++ format.space) items)
+format.sep_by (format.of_string "," ++ format.space) items
 
 namespace format_cpp
 
@@ -126,7 +122,7 @@ meta def default_case (body : format) : format :=
   to_fmt "default: " ++ block body
 
 meta def insert_newlines (newlines : nat) : list format → format :=
-  fun fs, format_concat $ list.intersperse (format_concat $ list.repeat format.line newlines) fs
+  fun fs, format.join $ list.intersperse (format.join $ list.repeat format.line newlines) fs
 
 meta def format_lines (fs : list format) : format :=
   insert_newlines 1 fs
@@ -261,6 +257,7 @@ meta def headers : format :=
     "#include \"library/io_state.h\"",
     "#include \"init/init.h\"",
     "#include \"library/vm/vm_native.h\"",
+    "#include \"library/vm/vm_string.h\"",
     "using namespace std::string_literals;",
     -- pretty sure I can remove this
     "static lean::environment * _$lean$_g_env = nullptr;"
@@ -272,7 +269,7 @@ meta def prototype : ir.defn → format
   external extern ++ ty ret_ty ++ " " ++ mangle_symbol (ir.symbol.name n) ++ format_argument_list params ++ ";" ++ format.line
 
 meta def defn_prototypes (defs : list ir.defn) : format :=
-  format_concat $ list.map prototype defs
+  format.join $ list.map prototype defs
 
 meta def split_items : list ir.item → (list ir.defn × list ir.decl × list ir.type_decl)
 | [] := ([], [], [])

@@ -5,7 +5,7 @@ Authors: Jared Roesch
 -/
 prelude
 
-import tools.native.util
+import tools.native.ir.util
 import tools.native.config
 import tools.native.ir.context
 import system.except
@@ -37,10 +37,25 @@ meta def mk_arity_map : list (name × expr) → arity_map
 @[reducible] meta def ir_compiler : Type → Type :=
   except_t (state ir_compiler_state) error
 
--- print alternative
+meta def ir_compiler.or_else (α : Type) : ir_compiler α → ir_compiler α → ir_compiler α :=
+fun a1 a2 s,
+  let (r, s') := a1 s in
+  match r with
+  | (except.error e) := a2 s
+  | (except.ok a) := (return a, s')
+  end
 
 -- meta instance : alternative ir_compiler :=
--- (| _, _ |)
+-- { failure := fun A s, (except.error $ error.string "reached a call to alternative.failure", s),
+--   orelse := ir_compiler.or_else,
+--   id_map := sorry,
+--   pure := sorry,
+--   seq := sorry,
+--   pure_seq_eq_map := sorry,
+--   map_pure := sorry,
+--   seq_pure := sorry,
+--   seq_assoc := sorry
+-- }
 
 meta def lift {A} (action : state ir_compiler_state A) : ir_compiler A :=
 fun s, let (a, s') := action s in (except.ok a, s')

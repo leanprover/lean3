@@ -9,12 +9,11 @@ import init.meta.expr
 import init.data.string
 import init.category.state
 
-import tools.native.internal
-import tools.native.ir
-import tools.native.format
-import tools.native.builtin
-import tools.native.util
-import tools.native.pass
+import tools.native.ir.internal
+import tools.native.ir.ir
+import tools.native.ir.builtin
+import tools.native.ir.util
+import tools.native.ir.pass
 import tools.native.config
 import tools.native.ir.compiler
 

@@ -7,16 +7,17 @@ Authors: Jared Roesch
 import tools.native.ir
 import tools.native.ir.builder
 import tools.native.ir.compiler
-import tools.native.format
-import tools.native.internal
-import tools.native.anf
-import tools.native.cf
-import tools.native.backend
+import tools.native.ir.internal
+import tools.native.ir.anf
+import tools.native.ir.cf
+import tools.native.ir.pass
+import tools.native.ir.util
 
-import tools.native.pass
-import tools.native.util
 import tools.native.config
+import tools.native.backend
+import tools.native.backends.cpp
 import tools.native.attributes
+
 import system.except
 
 namespace native
@@ -85,32 +86,14 @@ meta def mk_nat_literal (n : nat) : ir_compiler ir.expr :=
 meta def fresh_symbol : ir_compiler ir.symbol :=
   fmap ir.symbol.name fresh_name
 
-def upto' : ℕ → list ℕ
-| 0 := []
-| (n + 1) := n :: upto' n
-
 def upto (n : ℕ) : list ℕ :=
-  list.reverse $ upto' n
+  (nat.repeat (::) n []).reverse
 
 def label {A : Type} (xs : list A) : list (nat × A) :=
   list.zip (upto (list.length xs)) xs
 
 open tactic
 
--- lemma label_size_eq :
---     forall A (xs : list A),
---     list.length (label xs) = list.length xs :=
---  begin
---    intros,
---    induction xs,
---    unfold label,
---    rsimp,
---    rsimp,
---    rw -ih_1,
---    simp [label],
---  end
-
--- HELPERS --
 meta def assert_name : ir.expr → ir_compiler ir.symbol
 | (ir.expr.sym s) := lift_result $ except.ok s
 | e := mk_error $ "expected name found: " ++ to_string (format_cpp.expr e)
@@ -188,11 +171,7 @@ let fst' := list.map assert_name fst,
     invoke
   ])
 
--- meta def is_return (n : name) : bool :=
--- `native_compiler.return = n
-
 meta def compile_call (head : ir.symbol) (arity : nat) (args : list ir.expr) : ir_compiler ir.stmt := do
-  -- trace_ir $ "compile_call: " ++ (to_string head),
   if list.length args = arity
   then mk_direct_call head args
   else if list.length args < arity
@@ -218,8 +197,6 @@ end
 
 meta def panic (msg : string) : ir_compiler ir.expr :=
   return $ ir.expr.panic msg
-
--- END HELPERS --
 
 meta def bind_case_fields' (scrut : ir.symbol) : list (nat × ir.symbol) → ir.stmt → ir_compiler ir.stmt
 | [] body := return body
@@ -672,7 +649,7 @@ meta def compile_decls : list extern_fn → list (ir_compiler ir.item) :=
 
 meta def format_error : error → format
 | (error.string s) := to_fmt s
-| (error.many es) := format_concat (list.map format_error es)
+| (error.many es) := format.join (list.map format_error es)
 
 meta instance has_coe_lift_list (A B : Type) [elem_coe : has_coe A B] : has_coe (list A) (list B) :=
   (| list.map (@has_coe.coe A B elem_coe) |)

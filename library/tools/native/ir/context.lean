@@ -1,6 +1,3 @@
-prelude
-
-import init.meta.rb_map
 import tools.native.ir.ir
 
 namespace native.ir
