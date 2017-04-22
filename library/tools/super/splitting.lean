@@ -12,13 +12,13 @@ private meta def find_components : list expr → list (list (expr × ℕ)) → l
 | (e::es) comps :=
   let (contain_e, do_not_contain_e) :=
       partition (λc : list (expr × ℕ), c.exists_ $ λf,
-        (abstract_local f.1 e.local_uniq_name).has_var) comps in
+        abstract_local f.1 e.local_uniq_name .has_var) comps in
     find_components es $ list.join contain_e :: do_not_contain_e
 | _ comps := comps
 
 meta def get_components (hs : list expr) : list (list expr) :=
-(find_components hs (hs.zip_with_index.map $ λh, [h])).map $ λc,
-(sort_on (λh : expr × ℕ, h.2) c).map $ λh, h.1
+find_components hs (hs.zip_with_index.map $ λh, [h]) .map $ λc,
+sort_on (λh : expr × ℕ, h.2) c .map $ λh, h.1
 
 meta def extract_assertions : clause → prover (clause × list expr) | c :=
 if c.num_lits = 0 then return (c, [])
@@ -56,7 +56,7 @@ return $ { empty_clause with proof := p }.close_constn hs
 meta def splitting_inf : inf_decl := inf_decl.mk 30 $ take given, do
 lf ← flip monad.lift state_t.read $ λst, st.local_false,
 op ← given.c.open_constn given.c.num_binders,
-if list.bor (given.c.get_lits.map $ λl, (is_local_not lf l.formula).is_some) then return () else
+if list.bor (given.c.get_lits.map $ λl, is_local_not lf l.formula .is_some) then return () else
 let comps := get_components op.2 in
 if comps.length < 2 then return () else do
 splitting_clause ← mk_splitting_clause op.1 comps,

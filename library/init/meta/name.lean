@@ -61,7 +61,7 @@ private def name.components' : name -> list name
 | (mk_numeral v n)         := mk_numeral v anonymous :: name.components' n
 
 def name.components (n : name) : list name :=
-(name.components' n).reverse
+name.components' n .reverse
 
 def name.to_string : name → string :=
 name.to_string_with_sep "."

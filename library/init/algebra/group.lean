@@ -289,7 +289,7 @@ meta def transport_multiplicative_to_additive : command :=
 let dict := rb_map.of_list multiplicative_to_additive_pairs in
 multiplicative_to_additive_pairs.foldl (λ t ⟨src, tgt⟩, do
   env ← get_env,
-  if (env.get tgt).to_bool = ff
+  if env.get tgt .to_bool = ff
   then t >> transport_with_dict dict src tgt
   else t)
 skip

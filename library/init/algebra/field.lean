@@ -126,7 +126,7 @@ eq.symm (eq_one_div_of_mul_eq_one this)
 lemma division_ring.one_div_neg_eq_neg_one_div {a : α} (h : a ≠ 0) : 1 / (- a) = - (1 / a) :=
 have -1 ≠ (0:α), from
   (suppose -1 = 0, absurd (eq.symm (calc
-            1 = -(-1)  : (neg_neg (1:α)).symm
+            1 = -(-1)  : neg_neg (1:α) .symm
           ... = -0     : by rw this
           ... = (0:α)  : neg_zero)) zero_ne_one),
 calc

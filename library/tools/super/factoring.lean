@@ -23,7 +23,7 @@ unify_lit (qf.get_lit i) (qf.get_lit j),
 qfi ← qf.inst_mvars, guard $ clause.is_maximal gt qfi i,
 -- construct proof
 (at_j, cs) ← qf.open_constn j, hyp_i ← cs.nth i,
-let qf' := (at_j.inst hyp_i).close_constn cs,
+let qf' := at_j.inst hyp_i .close_constn cs,
 -- instantiate meta-variables and replace remaining meta-variables by quantifiers
 clause.meta_closure mvars qf'
 

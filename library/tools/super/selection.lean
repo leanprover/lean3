@@ -23,11 +23,11 @@ end
 meta def selection21 : selection_strategy :=
 simple_selection_strategy $ λgt c,
 let maximal_lits := list.filter_maximal (λi j,
-  gt (c.get_lit i).formula (c.get_lit j).formula) (list.range c.num_lits) in
+  gt (c.get_lit i .formula) (c.get_lit j .formula)) (list.range c.num_lits) in
 if list.length maximal_lits = 1 then maximal_lits else
-let neg_lits := list.filter (λi, (c.get_lit i).is_neg) (list.range c.num_lits),
+let neg_lits := list.filter (λi, c.get_lit i .is_neg) (list.range c.num_lits),
     maximal_neg_lits := list.filter_maximal (λi j,
-      gt (c.get_lit i).formula (c.get_lit j).formula) neg_lits in
+      gt (c.get_lit i .formula) (c.get_lit j .formula)) neg_lits in
 if ¬maximal_neg_lits.empty then
   list.taken 1 maximal_neg_lits
 else
@@ -36,15 +36,15 @@ else
 meta def selection22 : selection_strategy :=
 simple_selection_strategy $ λgt c,
 let maximal_lits := list.filter_maximal (λi j,
-  gt (c.get_lit i).formula (c.get_lit j).formula) (list.range c.num_lits),
-  maximal_lits_neg := list.filter (λi, (c.get_lit i).is_neg) maximal_lits in
+  gt (c.get_lit i .formula) (c.get_lit j .formula)) (list.range c.num_lits),
+  maximal_lits_neg := list.filter (λi, c.get_lit i .is_neg) maximal_lits in
 if ¬maximal_lits_neg.empty then
   list.taken 1 maximal_lits_neg
 else
   maximal_lits
 
 meta def clause_weight (c : derived_clause) : nat :=
-(c.c.get_lits.for (λl, expr_size l.formula + if l.is_pos then 10 else 1)).sum
+c.c.get_lits.for (λl, expr_size l.formula + if l.is_pos then 10 else 1) .sum
 
 meta def find_minimal_by (passive : rb_map clause_id derived_clause)
                          {A} [has_ordering A]

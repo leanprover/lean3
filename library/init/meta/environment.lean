@@ -98,7 +98,7 @@ end
 
 /-- Return true if 'n' has been declared in the current file -/
 meta def in_current_file (env : environment) (n : name) : bool :=
-(env.decl_olean n).is_none && env.contains n
+env.decl_olean n .is_none && env.contains n
 
 meta def is_definition (env : environment) (n : name) : bool :=
 match env.get n with

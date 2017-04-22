@@ -16,7 +16,7 @@ def split_core : string → string → list string
 | []      r  := [r.reverse]
 
 def split (s : string) : list string :=
-(split_core s []).reverse
+split_core s [] .reverse
 
 def to_qualified_name_core : string → string → name
 | []      r := if r = "" then name.anonymous else mk_simple_name r.reverse

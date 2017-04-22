@@ -1068,7 +1068,7 @@ begin
   cases lt_or_ge p (b^succ w) with h₁ h₁,
   -- base case: p < b^succ w
   { assert h₂ : p / b < b^w,
-    { apply (div_lt_iff_lt_mul p _ b_pos).mpr,
+    { apply div_lt_iff_lt_mul p _ b_pos .mpr,
       simp at h₁, simp [h₁] },
     rw [mod_eq_of_lt h₁,mod_eq_of_lt h₂], simp [mod_add_div], },
   -- step: p ≥ b^succ w
@@ -1081,7 +1081,7 @@ begin
     rw [mod_eq_sub_mod h₄ h₁,IH _ h₂,pow_succ],
     apply congr, apply congr_arg,
     { assert h₃ : p / b ≥ b^w,
-      { apply (le_div_iff_mul_le _ p b_pos).mpr, simp [h₅] },
+      { apply le_div_iff_mul_le _ p b_pos .mpr, simp [h₅] },
       simp [nat.sub_mul_div _ _ _ b_pos h₅,mod_eq_sub_mod h₄ h₃] },
     { simp [nat.sub_mul_mod p (b^w) _ b_pos h₅] } }
 end

@@ -512,9 +512,9 @@ iff.trans iff.comm (iff_false a)
 iff_true_intro iff.rfl
 
 @[congr] lemma iff_congr (h₁ : a ↔ c) (h₂ : b ↔ d) : (a ↔ b) ↔ (c ↔ d) :=
-(iff_iff_implies_and_implies a b).trans
-  ((and_congr (imp_congr h₁ h₂) (imp_congr h₂ h₁)).trans
-    (iff_iff_implies_and_implies c d).symm)
+iff_iff_implies_and_implies a b .trans
+  (and_congr (imp_congr h₁ h₂) (imp_congr h₂ h₁)) .trans
+    (iff_iff_implies_and_implies c d .symm)
 
 /- implies simp rule -/
 @[simp] lemma implies_true_iff (α : Sort u) : (α → true) ↔ true :=
@@ -671,7 +671,7 @@ section
   else is_true (assume h, absurd h hp)
 
   instance [decidable p] [decidable q] : decidable (p ↔ q) :=
-  decidable_of_decidable_of_iff and.decidable (iff_iff_implies_and_implies p q).symm
+  decidable_of_decidable_of_iff and.decidable (iff_iff_implies_and_implies p q .symm)
 end
 
 instance {α : Sort u} [decidable_eq α] (a b : α) : decidable (a ≠ b) :=
