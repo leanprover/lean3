@@ -53,6 +53,7 @@ Author: Leonardo de Moura
 #include "library/check.h"
 #include "library/parray.h"
 #include "library/profiling.h"
+#include "library/linter.h"
 
 namespace lean {
 void initialize_library_core_module() {
@@ -117,9 +118,11 @@ void initialize_library_module() {
     initialize_check();
     initialize_congr_lemma();
     initialize_parray();
+    initialize_linter();
 }
 
 void finalize_library_module() {
+    finalize_linter();
     finalize_parray();
     finalize_congr_lemma();
     finalize_check();

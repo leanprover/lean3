@@ -32,6 +32,7 @@ Author: Leonardo de Moura
 #include "library/compiler/vm_compiler.h"
 #include "library/compiler/rec_fn_macro.h"
 #include "library/tactic/eqn_lemmas.h"
+#include "library/linter.h"
 #include "frontends/lean/parser.h"
 #include "frontends/lean/tokens.h"
 #include "frontends/lean/elaborator.h"
@@ -308,9 +309,18 @@ static certified_declaration check(parser & p, environment const & env, name con
                 msg.get_text_stream().get_stream()
                     << "type checking time of " << c_name << " took " << display_profiling_time{duration} << "\n";
                 msg.report();
-            });
+        });
+
+        if (linting_enabled(p.get_options())) {
+            lint_declaration(env, d);
+        }
+
         return ::lean::check(env, d);
     } else {
+        if (linting_enabled(p.get_options())) {
+            lint_declaration(env, d);
+        }
+
         return ::lean::check(env, d);
     }
 }

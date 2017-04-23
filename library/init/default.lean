@@ -13,3 +13,10 @@ import init.native
 def debugger.attr : user_attribute :=
 { name  := `breakpoint,
   descr := "breakpoint for debugger" }
+
+meta structure linter :=
+(lint : declaration → tactic unit)
+
+@[linter] meta def my_lint : linter :=
+⟨ fun d, tactic.trace "foobar" ⟩
+
