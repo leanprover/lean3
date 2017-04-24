@@ -36,7 +36,15 @@ void lint_declaration(environment const & env, declaration const & decl) {\
     for (auto linter_name : linter_names) {
         // NB: because we currently have 1 field inductive, this requires no unboxing
         auto linter_fn = S.get_constant(linter_name);
-        vm_obj result = S.invoke(linter_fn, to_obj(decl), to_obj(tac_st));
+        vm_obj linter_result = S.invoke(linter_fn, to_obj(decl), to_obj(tac_st));
+        if (is_constructor(linter_result) && cidx(linter_result) == 0) {
+            return; // to_format(cfield(linter_result ,0));
+        } else if (auto except = tactic::is_exception(S, linter_result)) {
+            auto msg = std::get<0>(*except);
+            throw lean::exception((sstream() << msg).str());
+        } else {
+            lean_unreachable();
+        }
     }
 }
 

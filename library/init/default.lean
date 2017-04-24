@@ -16,7 +16,3 @@ def debugger.attr : user_attribute :=
 
 meta structure linter :=
 (lint : declaration → tactic unit)
-
-@[linter] meta def my_lint : linter :=
-⟨ fun d, tactic.trace "foobar" ⟩
-
