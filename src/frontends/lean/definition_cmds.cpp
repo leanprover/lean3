@@ -311,16 +311,8 @@ static certified_declaration check(parser & p, environment const & env, name con
                 msg.report();
         });
 
-        if (linting_enabled(p.get_options())) {
-            lint_declaration(env, d);
-        }
-
         return ::lean::check(env, d);
     } else {
-        if (linting_enabled(p.get_options())) {
-            lint_declaration(env, d);
-        }
-
         return ::lean::check(env, d);
     }
 }
@@ -399,6 +391,10 @@ declare_definition(parser & p, environment const & env, def_cmd_kind kind, buffe
 
     if (!modifiers.m_is_private) {
         new_env = ensure_decl_namespaces(new_env, c_real_name);
+    }
+
+    if (linting_enabled(p.get_options())) {
+        lint_declaration(env, def);
     }
 
     new_env = compile_decl(p, new_env, c_name, c_real_name, pos);
