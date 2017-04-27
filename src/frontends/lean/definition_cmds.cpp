@@ -394,7 +394,7 @@ declare_definition(parser & p, environment const & env, def_cmd_kind kind, buffe
     }
 
     if (linting_enabled(p.get_options())) {
-        lint_declaration(env, p, def);
+        lint_declaration(new_env, p, def);
     }
 
     new_env = compile_decl(p, new_env, c_name, c_real_name, pos);
