@@ -6,12 +6,10 @@ import init.meta.tactic
 import init.meta.attribute
 import init.category.monad
 
-meta constant pos_info_provider : Type
--- this returns none most of the time, how do we make this work?
-meta constant pos_info_provider.expr_pos : pos_info_provider → expr → option pos
+meta constant tactic.expr_pos : expr → tactic pos
 
 meta structure linter :=
-(lint : pos_info_provider → declaration → tactic unit)
+(lint : declaration → tactic unit)
 
 open tactic
 
@@ -34,7 +32,7 @@ private def name_is_accepted_style : name → bool
                             name_is_accepted_style n
 | (name.anonymous) := bool.tt
 
-private meta def warn_decl_name (pos_prov : pos_info_provider) (decl : declaration) : tactic unit :=
+private meta def warn_decl_name (decl : declaration) : tactic unit :=
 let name := decl.to_name in
 if name_is_accepted_style name
 then do pos ← linter.get_decl_pos decl, save_info_thunk pos (fun u, to_fmt $ "foooo bar")
@@ -46,28 +44,27 @@ else trace $ "warning: `" ++ to_string name ++ "` violates style guidelines"
 -- A lint for deprecated APIs.
 run_cmd mk_name_set_attr `deprecated
 
-meta def expr_contains_deprecated (pos_prov : pos_info_provider) (is_deprecated : name → bool) (e : expr) : option pos :=
+meta def expr_contains_deprecated (is_deprecated : name → bool) (e : expr) : tactic (option pos) :=
 match e with
 | (expr.const n ls) :=
 if is_deprecated n
-then pos_prov.expr_pos e
-else none
-| _ := none
+then some <$> tactic.expr_pos e
+else return none
+| _ := return none
 end
 
 meta def mk_is_deprecated : tactic (name → bool) :=
 do nset ← get_name_set_for_attr `deprecated,
    return $ name_set.contains nset
 
-private meta def warn_deprecated (pos_prov : pos_info_provider) : declaration → tactic unit
+private meta def warn_deprecated : declaration → tactic unit
 | (declaration.ax _ _ _) := return ()
 | (declaration.cnst _ _ _ _) := return ()
 | (declaration.defn _ _ ty body _ _) :=
 do is_dep ← mk_is_deprecated,
    set ← get_name_set_for_attr `deprecated,
-   let opt_pos := pos_prov.expr_pos body,
-   trace opt_pos,
-   match expr_contains_deprecated pos_prov is_dep body with
+   opt_pos ← expr_contains_deprecated is_dep body,
+   match opt_pos with
    | none := return ()
    | some pos := save_info_thunk pos (fun u, to_fmt "hereee")
    end

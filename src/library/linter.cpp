@@ -26,8 +26,7 @@ buffer<name> get_linters(environment const & env) {
     return ns;
 }
 
-void lint_declaration(environment const &env, pos_info_provider const &prov,
-                      declaration const &decl) {
+void lint_declaration(environment const &env, declaration const &decl) {
     auto opts = get_global_ios().get_options();
     vm_state S(env, opts);
     scope_vm_state scoped(S);
@@ -39,8 +38,8 @@ void lint_declaration(environment const &env, pos_info_provider const &prov,
     for (auto linter_name : linter_names) {
         // NB: because we currently have 1 field inductive, this requires no unboxing
         auto linter_fn = S.get_constant(linter_name);
-        vm_obj linter_result = S.invoke(linter_fn, to_obj(prov), to_obj(decl), to_obj(tac_st));
-        if (is_constructor(linter_result) && cidx(linter_result) == 0) {
+        vm_obj linter_result = S.invoke(linter_fn, to_obj(decl), to_obj(tac_st));
+        if (tactic::is_result_success(linter_result)) {
             return; // to_format(cfield(linter_result ,0));
         } else if (auto except = tactic::is_exception(S, linter_result)) {
             auto msg = std::get<0>(*except);
