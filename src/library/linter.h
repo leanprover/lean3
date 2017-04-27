@@ -11,7 +11,8 @@ Author: Jared Roesch
 
 namespace lean {
 
-void lint_declaration(environment const & env, declaration const & decl);
+
+void lint_declaration(environment const &, pos_info_provider const & prov, declaration const & decl);
 bool linting_enabled(options const & opts);
 void initialize_linter();
 void finalize_linter();
