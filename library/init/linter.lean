@@ -3,9 +3,11 @@ prelude
 import init.data.option.basic
 import init.meta.declaration
 import init.meta.tactic
+import init.meta.attribute
 
 meta constant pos_info_provider : Type
-meta constant pos_info_provider.expr_pos : pos_info_provider → option pos
+-- this returns none most of the time, how do we make this work?
+meta constant pos_info_provider.expr_pos : pos_info_provider → expr → option pos
 
 meta structure linter :=
 (lint : pos_info_provider → declaration → tactic unit)
@@ -39,3 +41,32 @@ else trace $ "warning: `" ++ to_string name ++ "` violates style guidelines"
 
 @[linter] private meta def warn_decl_names : linter :=
 ⟨ warn_decl_name ⟩
+
+-- A lint for deprecated APIs.
+run_cmd mk_name_set_attr `deprecated
+
+meta def expr_contains_deprecated (pos_prov : pos_info_provider) (is_deprecated : name → bool) : expr → option pos
+| (expr.const n ls) :=
+if is_deprecated n
+then trace "hellO" (pos_prov.expr_pos (expr.const n ls))
+else none
+| _ := none
+
+meta def mk_is_deprecated : tactic (name → bool) :=
+do nset ← get_name_set_for_attr `deprecated,
+   return $ name_set.contains nset
+
+private meta def warn_deprecated (pos_prov : pos_info_provider) : declaration → tactic unit
+| (declaration.ax _ _ _) := return ()
+| (declaration.cnst _ _ _ _) := return ()
+| (declaration.defn _ _ ty body _ _) :=
+do is_dep ← mk_is_deprecated,
+   set ← get_name_set_for_attr `deprecated,
+   match expr_contains_deprecated pos_prov is_dep body with
+   | none := return ()
+   | some pos := save_info_thunk pos (fun u, to_fmt "hereee")
+   end
+| (declaration.thm _ _ _ _) := return ()
+
+@[linter] private meta def deprecated_linter : linter :=
+⟨ warn_deprecated ⟩

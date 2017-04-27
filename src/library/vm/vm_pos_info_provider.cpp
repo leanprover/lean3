@@ -44,8 +44,10 @@ vm_obj vm_expr_pos(vm_obj const & provider_obj, vm_obj const & expr_obj) {
     pos_info_provider const & provider = to_pos_info_provider(provider_obj);
     auto opt_pos_info = provider.get_pos_info(to_expr(expr_obj));
     if (opt_pos_info) {
+        std::cout << opt_pos_info->first << opt_pos_info->second << std::endl;
         return mk_vm_some(to_obj(*opt_pos_info));
     } else {
+        std::cout << "none" << std::endl;
         return mk_vm_none();
     }
 }
