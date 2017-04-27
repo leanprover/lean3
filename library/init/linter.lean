@@ -4,6 +4,7 @@ import init.data.option.basic
 import init.meta.declaration
 import init.meta.tactic
 import init.meta.attribute
+import init.category.monad
 
 meta constant pos_info_provider : Type
 -- this returns none most of the time, how do we make this work?
@@ -45,12 +46,14 @@ else trace $ "warning: `" ++ to_string name ++ "` violates style guidelines"
 -- A lint for deprecated APIs.
 run_cmd mk_name_set_attr `deprecated
 
-meta def expr_contains_deprecated (pos_prov : pos_info_provider) (is_deprecated : name → bool) : expr → option pos
+meta def expr_contains_deprecated (pos_prov : pos_info_provider) (is_deprecated : name → bool) (e : expr) : option pos :=
+match e with
 | (expr.const n ls) :=
 if is_deprecated n
-then trace "hellO" (pos_prov.expr_pos (expr.const n ls))
+then pos_prov.expr_pos e
 else none
 | _ := none
+end
 
 meta def mk_is_deprecated : tactic (name → bool) :=
 do nset ← get_name_set_for_attr `deprecated,
@@ -62,6 +65,8 @@ private meta def warn_deprecated (pos_prov : pos_info_provider) : declaration �
 | (declaration.defn _ _ ty body _ _) :=
 do is_dep ← mk_is_deprecated,
    set ← get_name_set_for_attr `deprecated,
+   let opt_pos := pos_prov.expr_pos body,
+   trace opt_pos,
    match expr_contains_deprecated pos_prov is_dep body with
    | none := return ()
    | some pos := save_info_thunk pos (fun u, to_fmt "hereee")
