@@ -1,4 +1,4 @@
-import tools.native.ir.ir
+import tools.native.ir.syntax
 
 namespace native.ir
 

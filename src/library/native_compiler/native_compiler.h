@@ -33,7 +33,7 @@ optional<extern_fn> get_builtin(name const & n);
 
 enum native_compiler_mode { Module, Executable };
 void native_compile_binary(environment const & env, declaration const & d);
-void native_compile_package(environment const & env, path root);
+void compile_with_external_backend(environment const & env, declaration const & d);
 
 void initialize_native_compiler();
 void finalize_native_compiler();

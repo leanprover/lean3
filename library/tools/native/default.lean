@@ -750,43 +750,7 @@ meta def driver
     return (ir.item.defn main :: defns ++ decls, defn_errs ++ decl_errs)
   else do
     init ← emit_package_initialize procs',
-  return (ir.item.defn init :: defns ++ decls, defn_errs ++ decl_errs)
-
-meta def make_list (type : expr) : list expr → tactic expr
-| [] := mk_mapp `list.nil [some type]
-| (e :: es) := do
-  tail ← make_list es,
-  mk_mapp `list.cons [some type, some e, some tail]
-
-meta def get_attribute_body (attr : name) (type : expr) : tactic expr := do
-  -- tactic.trace attr,
-  decl ← get_decl attr,
-  -- add type checking in here ...
-  match decl with
-  | (declaration.defn _ _ _ body _ _) := pure body
-  | _ := fail "get_attribute_body expected a definition"
-  end
-
-meta def get_attribute_bodies (attr : name) (type : expr) : tactic expr := do
-  names ← attribute.get_instances attr,
-  bodies ← monad.for names (fun n, get_attribute_body n type),
-  make_list type bodies
-
-meta def get_ir_decls : tactic expr := do
-  ty ← mk_const `ir.decl,
-  get_attribute_bodies `ir_decl ty
-
-meta def get_ir_defns : tactic expr := do
-  ty ← mk_const `ir.defn,
-  get_attribute_bodies `ir_def ty
-
-meta def get_ir_types : tactic expr := do
-  ty ← mk_const `ir.type_decl,
-  get_attribute_bodies `ir_type ty
-
-meta def get_backends : tactic expr := do
-  ty ← mk_const `ir.backend,
-  get_attribute_bodies `backend ty
+    return (ir.item.defn init :: defns ++ decls, defn_errs ++ decl_errs)
 
 meta def run_ir {A : Type} (action : ir_compiler A) (inital : ir_compiler_state): except error A :=
   prod.fst $ action inital
@@ -825,15 +789,15 @@ meta def new_context : tactic ir.context := do
   types ← eval_expr (list ir.type_decl) types_list_expr,
   return $ ir.new_context decls defns types
 
-meta def load_backends : tactic (list ir.backend ) := do
+meta def load_backends : tactic (list native.backend) := do
   backends_list_expr ← get_backends,
-  tactic.eval_expr (list ir.backend) backends_list_expr
+  tactic.eval_expr (list native.backend) backends_list_expr
 
-meta def execute_backend (ctxt : ir.context) (backend : ir.backend) : tactic unit := do
+meta def execute_backend (ctxt : ir.context) (backend : native.backend) : tactic unit := do
   tactic.trace "about to execute backend",
   backend^.compiler ctxt
 
-meta def execute_backends (backends : list ir.backend) (ctxt : ir.context) : tactic unit :=
+meta def execute_backends (backends : list native.backend) (ctxt : ir.context) : tactic unit :=
   monad.mapm (execute_backend ctxt) backends >> return ()
 
 meta def compile

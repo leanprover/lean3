@@ -8,7 +8,7 @@ import init.data.bool.basic
 
 namespace native
 
-inductive backend
+inductive a_backend
 | CPP
 | JS
 
@@ -23,7 +23,7 @@ structure config :=
 (debug : bool)
   -- this flag is invisble I don't understand why
   (mode : compilation_mode)
-  (compiler_backend : option backend)
+  (compiler_backend : option a_backend)
 
 def is_executable : config -> bool
 | (| _, compilation_mode.executable, _ |) := bool.tt

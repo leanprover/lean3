@@ -303,27 +303,30 @@ void native_compile(environment const & env,
                     buffer<procedure> & procs,
                     native_compiler_mode mode) {
     auto conf = native::get_config();
-    // Ensure we have loaded tools.native.
     auto output_path = get_code_path();
     std::fstream out(output_path, std::ios_base::out);
-
+    // TODO: (jroesch): with the new fs interface doing things like this
+    // in C++ are uncessary, it will make the bridge to the native compiler
+    // much simpler to directly write to a file.
     auto fmt = invoke_native_compiler(env, extern_fns, procs, mode);
     out << fmt << "\n\n";
+    out.close();
 
+    // Get a compiler with the config specified by native options, placed
+    // in the correct mode.
+    auto gpp = compiler_with_native_config(mode);
+
+    // There is an assumption that the default mode is still compiling C++.
+    // This code path is temporary, in the long run I think we should move
+    // the suffix of the current C++ compiler to Lean, and then we can
+    // deprecate this backend and switch to using the LLVM one.
     if (conf.m_native_backend == std::string("")) {
-        // For now just close this, then exit.
-        out.close();
-
-        // Get a compiler with the config specified by native options, placed
-        // in the correct mode.
-        auto gpp = compiler_with_native_config(mode);
-
         // Add all the shared link dependencies.
         add_shared_dependencies(gpp);
-
+        // Run the instance of g++.
         gpp.file(output_path).run();
     } else {
-        // other backend do nothing?
+        // For other backends we do nothing.
     }
 }
 
@@ -413,23 +416,6 @@ void decls_to_native_compile(environment const & env, buffer<declaration> & decl
     });
 }
 
-void native_compile_package(environment const & env, path root) {
-    buffer<extern_fn> extern_fns;
-    buffer<declaration> decls;
-    buffer<procedure> all_procs;
-
-    decls_to_native_compile(env, decls, extern_fns);
-
-    for (auto decl : decls) {
-        // std::cout << decl.get_name() << std::endl;
-        buffer<procedure> procs;
-        native_preprocess(env, decl, procs);
-        all_procs.append(procs);
-    }
-
-    native_compile(env, extern_fns, all_procs, native_compiler_mode::Module);
-}
-
 void native_compile_binary(environment const & env, declaration const & d) {
     lean_trace(name("native_compile"),
         tout() << "main_fn: " << d.get_name() << "\n";);
@@ -477,6 +463,55 @@ void native_compile_binary(environment const & env, declaration const & d) {
 
     native_compile(env, extern_fns, all_procs, native_compiler_mode::Executable);
 }
+
+void compile_with_external_backend(environment const & env, declaration const & d) {
+    lean_trace(name("native_compile"),
+        tout() << "main_fn: " << d.get_name() << "\n";);
+
+    lean_trace(name("native_compiler"),
+        tout() << "main_body: " << d.get_value() << "\n";);
+
+    // Preprocess the main function.
+    buffer<procedure> all_procs;
+    buffer<procedure> main_procs;
+    buffer<extern_fn> extern_fns;
+    native_preprocess(env, d, main_procs);
+
+    // Compute the live set of names, we attach a callback that will be
+    // invoked for every declaration encountered.
+    used_defs used_names(env, [&] (declaration const & d) {
+        buffer<procedure> procs;
+        if (is_internal_decl(d)) {
+            return;
+        } else if (auto p = get_builtin(d.get_name())) {
+            return;
+            // extern_fns.push_back(p.value());
+        } else if (auto p =  get_vm_builtin_cases_idx(env, d.get_name())) {
+            return;
+        } else {
+            native_preprocess(env, d, procs);
+            for (auto pair : procs) {
+                used_names.names_in_expr(pair.m_code);
+                all_procs.push_back(pair);
+            }
+        }
+    });
+
+    // We then loop over the set of procs produced by preprocessing the
+    // main function, we transitively collect all names.
+    for (auto pair : main_procs) {
+        all_procs.push_back(pair);
+        used_names.names_in_preprocessed_body(pair.m_code);
+    }
+
+    populate_extern_fns(env, used_names, extern_fns, false);
+
+    // Finally we assert that there are no unprocessed declarations.
+    lean_assert(used_names.stack_is_empty());
+
+    native_compile(env, extern_fns, all_procs, native_compiler_mode::Executable);
+}
+
 
 void initialize_native_compiler() {
     native::initialize_options();

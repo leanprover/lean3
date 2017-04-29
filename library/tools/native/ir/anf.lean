@@ -10,7 +10,7 @@ import init.data.string
 import init.category.state
 
 import tools.native.ir.internal
-import tools.native.ir.ir
+import tools.native.ir.syntax
 import tools.native.ir.builtin
 import tools.native.ir.util
 import tools.native.ir.pass

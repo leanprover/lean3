@@ -1,4 +1,4 @@
-import .ir
+import .syntax
 
 open ir
 

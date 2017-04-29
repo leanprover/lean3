@@ -77,9 +77,9 @@ meta def binary_op : ir.op → format
 | ir.op.equals := " == "
 | ir.op.not_equals := " != "
 | ir.op.add := " + "
-| ir.op.sub := " + "
-| ir.op.mul := " + "
-| ir.op.div := " + "
+| ir.op.sub := " - "
+| ir.op.mul := " * "
+| ir.op.div := " / "
 
 meta def expr' : ir.expr → format
 | (ir.expr.call (ir.symbol.name `index) (buf :: index :: _)) :=
