@@ -82,9 +82,6 @@ meta def binary_op : ir.op → format
 | ir.op.div := " / "
 
 meta def expr' : ir.expr → format
-| (ir.expr.call (ir.symbol.name `index) (buf :: index :: _)) :=
-  mangle_symbol buf ++ "[" ++ mangle_symbol index ++ "]"
-| (ir.expr.call f xs) := mk_call f xs
 | (ir.expr.mk_object n fs) :=
   if (list.length fs) = 0 /\ n = 0
   -- Over time I should remove these special case functions,
@@ -101,8 +98,6 @@ meta def expr' : ir.expr → format
 -- project really should only work for like fields/primtive arrays, this is a temporary hack
 | (ir.expr.project obj n) :=
   "cfield(" ++ (mangle_symbol obj) ++ ", " ++ (to_fmt n) ++ ")"
-| (ir.expr.panic err_msg) :=
-  to_fmt "throw std::runtime_error(" ++ string_lit err_msg ++ ");"
 | (ir.expr.mk_native_closure n arity args) :=
    if arity < 9
    then "lean::mk_native_closure(" ++ mangle_symbol n ++ ", " ++ format.bracket "{" "}" (comma_sep (list.map format_local args)) ++ ")"
@@ -116,7 +111,6 @@ meta def expr' : ir.expr → format
 | (ir.expr.binary_operator op e1 e2) := expr' e1 ++ binary_op op ++ expr' e2
 | (ir.expr.array ns) :=
     format.bracket "{" "}" (comma_sep (list.map format_local ns))
-| ir.expr.unreachable := "lean_unreachable()"
 
 meta def default_case (body : format) : format :=
   to_fmt "default: " ++ block body
@@ -181,17 +175,17 @@ meta def stmt_fuse : ir.stmt -> ir.stmt
 | (ir.stmt.assign n v) := ir.stmt.assign n v
 | (ir.stmt.e e) := ir.stmt.e e
 | (ir.stmt.switch s cs d) := ir.stmt.switch s cs d
+| e := e
 
 meta def stmt : ir.stmt → format
+| (ir.stmt.call _ (ir.symbol.name `index) (buf :: index :: _)) :=
+  mangle_symbol buf ++ "[" ++ mangle_symbol index ++ "]"
+| (ir.stmt.call _ f xs) := mk_call f xs
 | (ir.stmt.e e) := expr' e ++ ";"
 | (ir.stmt.return e) :=
-  match e with
-  | (ir.expr.unreachable) := expr' e
-  | _ :=
     format.of_string "return"  ++
     format.space ++
     expr' e ++ format.of_string ";"
-  end
 | (ir.stmt.letb n t ir.expr.uninitialized body) :=
   ty t ++ format.space ++ (mangle_symbol n) ++ to_fmt ";" ++ format.line ++ stmt body
   -- type checking should establish that these two types are equal
@@ -221,6 +215,9 @@ meta def stmt : ir.stmt → format
 | (ir.stmt.seq cs) :=
   format_lines (list.map (fun c, stmt c) cs)
 | (ir.stmt.assign n val) := mangle_symbol n ++ " = " ++ expr' val ++ ";"
+| (ir.stmt.panic err_msg) :=
+  to_fmt "throw std::runtime_error(" ++ string_lit err_msg ++ ");"
+| ir.stmt.unreachable := "lean_unreachable()"
 
 meta def expr := expr'
 

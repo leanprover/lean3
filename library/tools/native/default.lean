@@ -106,7 +106,7 @@ meta def mk_ir_call (head : ir.symbol) (args : list ir.expr) : ir_compiler ir.ex
   let args'' := list.map assert_name args
   in do
     args' ← monad.sequence args'',
-    return (ir.expr.call head args')
+    return (ir.stmt.call head args')
 
 meta def mk_direct_call (head : ir.symbol) (args : list ir.expr) : ir_compiler ir.stmt := do
   if list.length args < 9
@@ -195,8 +195,8 @@ match args with
 | _ := mk_error $ "internal invariant violated: " ++ msg ++ " should only have one argument"
 end
 
-meta def panic (msg : string) : ir_compiler ir.expr :=
-  return $ ir.expr.panic msg
+meta def panic (msg : string) : ir_compiler ir.stmt :=
+  return $ ir.stmt.panic msg
 
 meta def bind_case_fields' (scrut : ir.symbol) : list (nat × ir.symbol) → ir.stmt → ir_compiler ir.stmt
 | [] body := return body
@@ -244,7 +244,7 @@ meta def compile_cases_on_to_ir_stmt
       ir_scrut ← action h >>= assert_expr,
       bind_value ir_scrut (fun scrut, do
         cs' ← compile_cases action scrut (label cs),
-        mk_cases_on case_name scrut cs' (ir.stmt.e default))
+        mk_cases_on case_name scrut cs' default)
     end
 
 meta def bind_builtin_case_fields' (scrut : ir.symbol) : list (nat × ir.symbol) → ir.stmt → ir_compiler ir.stmt
@@ -289,7 +289,7 @@ match cases with
   ir_scrut ← action h >>= assert_expr,
   bind_value ir_scrut (fun scrut, do
     cs' ← compile_builtin_cases action scrut (label cs),
-    return (mk_builtin_cases_on case_name scrut cs' (ir.stmt.e default)))
+    return (mk_builtin_cases_on case_name scrut cs' default))
 end
 
 -- we should add applicative brackets
@@ -385,6 +385,7 @@ meta def assign_last_expr (result_var : ir.symbol) : ir.stmt -> ir_compiler ir.s
 | (ir.stmt.e e) := pure $ ir.stmt.assign result_var e
 | (ir.stmt.assign _ _) := mk_error "UNSUUPORTED assign"
 | (ir.stmt.return _) := mk_error "UNSUUPORTED return"
+| (ir.stmt.panic _) := mk_error "UNSUUPORTED panic"
 | (ir.stmt.nop) := pure $ ir.stmt.nop
 
 -- meta def assert_is_switch : ir_compiler

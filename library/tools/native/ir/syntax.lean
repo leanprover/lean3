@@ -91,13 +91,11 @@ inductive op
 -- TODO: eventually m
 -- odel ty.object, mk_object, project, etc in the IR itself
 inductive expr : Type
-| call : symbol → list symbol → expr
 | global : symbol → expr
 | lit : literal → expr
 | mk_object : nat → list symbol → expr
 | sym : symbol → expr
 | project : symbol → nat → expr
-| panic : string → expr
 | mk_native_closure : symbol → nat → list symbol → expr
 | invoke : symbol → list symbol → expr
 | uninitialized : expr
@@ -105,7 +103,6 @@ inductive expr : Type
 | address_of : symbol → expr
 -- these need to be literal/values/etc
 | binary_operator : op → expr → expr → expr
-| unreachable : expr
 | array : list symbol → expr
 -- | value : value → expr
 
@@ -116,10 +113,13 @@ inductive stmt : Type
 | ite : symbol → stmt → stmt → stmt
 | switch : symbol → list (nat × stmt) → stmt → stmt
 | letb : symbol → ty → expr → stmt → stmt
+| call : option symbol → symbol → list symbol → stmt
 | e : expr → stmt
 | seq : list stmt → stmt
 | assign : symbol → expr → stmt
+| panic : string → stmt
 | return : expr → stmt
+| unreachable : stmt
 | nop : stmt
 
 instance expr_to_stmt : has_coe expr stmt :=
