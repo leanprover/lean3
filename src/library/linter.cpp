@@ -61,7 +61,6 @@ void initialize_linter() {
             "linter", "a declaration linter",
             [](environment const & env, name const & decl_name, bool) {
                 auto decl = env.find(decl_name);
-                std::cout << "in linter check" << decl->get_type() << std::endl;
                 // throw exception("invalid '[parsing_only]' attribute, can only be used in notation declarations");
             }));
 

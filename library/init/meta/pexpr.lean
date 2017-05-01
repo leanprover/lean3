@@ -4,11 +4,31 @@ Released under Apache 2.0 license as described in the file LICENSE.
 Authors: Leonardo de Moura
 -/
 prelude
+
 import init.meta.expr
+
 universe u
 
+-- meta inductive equations (f : () -> Type) : Type
+-- | empty {} : equations
+-- | equation : (f ())  → equations
+
 /- Quoted expressions. They can be converted into expressions by using a tactic. -/
-meta constant pexpr : Type
+meta inductive pexpr : Type
+| var         : nat → pexpr
+| sort        : level → pexpr
+| const       : name → list level → pexpr
+| mvar        : name → pexpr → pexpr
+| local_const : name → name → binder_info → pexpr → pexpr
+| app         : pexpr → pexpr → pexpr
+| lam         : name → binder_info → pexpr → pexpr → pexpr
+| pi          : name → binder_info → pexpr → pexpr → pexpr
+| elet        : name → pexpr → pexpr → pexpr → pexpr
+| macro       : macro_def → ∀ n, (fin n → pexpr) → pexpr
+-- | prenum      : int → pexpr
+| prenum      : nat → pexpr
+| equations   : list (pexpr × pexpr) → pexpr
+
 protected meta constant pexpr.of_expr  : expr → pexpr
 protected meta constant pexpr.subst    : pexpr → pexpr → pexpr
 
