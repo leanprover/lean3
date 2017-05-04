@@ -825,7 +825,7 @@ expr elaborator::visit_typed_expr(expr const & e) {
     expr new_val      = visit(val, some_expr(new_type));
     expr new_val_type = infer_type(new_val);
     if (auto r = ensure_has_type(new_val, new_val_type, new_type, ref))
-        return *r;
+        return mk_typed_expr(new_type, *r);
 
     auto pp_data = pp_until_different(new_val_type, new_type);
     auto pp_fn   = std::get<0>(pp_data);
@@ -3526,6 +3526,14 @@ struct sanitize_param_names_fn : public replace_visitor {
 
     virtual expr visit_sort(expr const & e) override {
         return update_sort(e, sanitize(sort_level(e)));
+    }
+
+    virtual expr visit_macro(expr const & e) override {
+        if (is_typed_expr(e)) {
+            return visit(get_typed_expr_expr(e));
+        } else {
+            return replace_visitor::visit_macro(e);
+        }
     }
 
     void collect_params(expr const & e) {

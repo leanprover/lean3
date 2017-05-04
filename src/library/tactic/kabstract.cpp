@@ -158,14 +158,13 @@ expr kabstract(type_context & ctx, expr const & e, expr const & t, occurrences c
     head_index idx1(t);
     key_equivalence_ext const & ext = get_extension(ctx.env());
     unsigned i = 1;
-    unsigned t_nargs = get_app_num_args(t);
     return replace(e, [&](expr const & s, unsigned offset) {
             if (closed(s)) {
                 head_index idx2(s);
                 if (idx1.kind() == idx2.kind() &&
                     ext.is_eqv(idx1.get_name(), idx2.get_name()) &&
                     /* fail if same function application and different number of arguments */
-                    (idx1.get_name() != idx2.get_name() || t_nargs == get_app_num_args(s)) &&
+                    (idx1.get_name() != idx2.get_name() || idx1.get_num_args() == idx2.get_num_args()) &&
                     ctx.is_def_eq(t, s)) {
                     if (occs.contains(i)) {
                         lean_trace("kabstract", scope_trace_env _(ctx.env(), ctx);
@@ -185,7 +184,6 @@ bool kdepends_on(type_context & ctx, expr const & e, expr const & t) {
     bool found = false;
     head_index idx1(t);
     key_equivalence_ext const & ext = get_extension(ctx.env());
-    unsigned t_nargs = get_app_num_args(t);
     for_each(e, [&](expr const & s, unsigned) {
             if (found) return false;
             if (closed(s)) {
@@ -193,7 +191,7 @@ bool kdepends_on(type_context & ctx, expr const & e, expr const & t) {
                 if (idx1.kind() == idx2.kind() &&
                     ext.is_eqv(idx1.get_name(), idx2.get_name()) &&
                     /* fail if same function application and different number of arguments */
-                    (idx1.get_name() != idx2.get_name() || t_nargs == get_app_num_args(s)) &&
+                    (idx1.get_name() != idx2.get_name() || idx1.get_num_args() == idx2.get_num_args()) &&
                     ctx.is_def_eq(t, s)) {
                     found = true; return false;
                 }

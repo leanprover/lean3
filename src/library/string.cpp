@@ -13,6 +13,7 @@ Author: Leonardo de Moura
 #include "library/constants.h"
 #include "library/num.h"
 #include "library/trace.h"
+#include "library/typed_expr.h"
 
 namespace lean {
 static name * g_string_macro         = nullptr;
@@ -142,6 +143,7 @@ void initialize_string() {
 }
 
 optional<expr> expand_string_macro(expr const & e) {
+    if (is_typed_expr(e)) return expand_string_macro(get_typed_expr_expr(e));
     if (!is_string_macro(e)) return none_expr();
     return some_expr(from_string_core(to_string_macro(e).get_value()));
 }

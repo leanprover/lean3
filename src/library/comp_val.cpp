@@ -11,12 +11,15 @@ Author: Leonardo de Moura
 #include "library/comp_val.h"
 #include "library/expr_pair.h"
 #include "library/trace.h"
+#include "library/typed_expr.h"
 
 /* Remark: we can improve performance by using Lean macros for delaying the
    proof construction. */
 
 namespace lean {
 optional<expr> mk_nat_val_ne_proof(expr const & a, expr const & b) {
+    if (is_typed_expr(a)) return mk_nat_val_ne_proof(get_typed_expr_expr(a), b);
+    if (is_typed_expr(b)) return mk_nat_val_ne_proof(a, get_typed_expr_expr(b));
     if (a == b) return none_expr();
     if (auto a1 = is_bit0(a)) {
         if (auto b1 = is_bit0(b)) {
@@ -67,6 +70,8 @@ optional<expr> mk_nat_val_ne_proof(expr const & a, expr const & b) {
 optional<expr> mk_nat_val_le_proof(expr const & a, expr const & b);
 
 optional<expr> mk_nat_val_lt_proof(expr const & a, expr const & b) {
+    if (is_typed_expr(a)) return mk_nat_val_lt_proof(get_typed_expr_expr(a), b);
+    if (is_typed_expr(b)) return mk_nat_val_lt_proof(a, get_typed_expr_expr(b));
     if (a == b) return none_expr();
     if (auto a1 = is_bit0(a)) {
         if (auto b1 = is_bit0(b)) {
@@ -106,6 +111,8 @@ optional<expr> mk_nat_val_lt_proof(expr const & a, expr const & b) {
 }
 
 optional<expr> mk_nat_val_le_proof(expr const & a, expr const & b) {
+    if (is_typed_expr(a)) return mk_nat_val_le_proof(get_typed_expr_expr(a), b);
+    if (is_typed_expr(b)) return mk_nat_val_le_proof(a, get_typed_expr_expr(b));
     if (a == b)
         return some_expr(mk_app(mk_constant(get_nat_le_refl_name()), a));
     if (auto pr = mk_nat_val_lt_proof(a, b))
@@ -114,6 +121,8 @@ optional<expr> mk_nat_val_le_proof(expr const & a, expr const & b) {
 }
 
 optional<expr> mk_fin_val_ne_proof(expr const & a, expr const & b) {
+    if (is_typed_expr(a)) return mk_fin_val_ne_proof(get_typed_expr_expr(a), b);
+    if (is_typed_expr(b)) return mk_fin_val_ne_proof(a, get_typed_expr_expr(b));
     if (!is_app_of(a, get_fin_mk_name(), 3) ||
         !is_app_of(b, get_fin_mk_name(), 3))
         return none_expr();
@@ -128,6 +137,8 @@ optional<expr> mk_fin_val_ne_proof(expr const & a, expr const & b) {
 static expr * g_char_sz = nullptr;
 
 optional<expr> mk_char_val_ne_proof(expr const & a, expr const & b) {
+    if (is_typed_expr(a)) return mk_char_val_ne_proof(get_typed_expr_expr(a), b);
+    if (is_typed_expr(b)) return mk_char_val_ne_proof(a, get_typed_expr_expr(b));
     if (is_app_of(a, get_char_of_nat_name(), 1) &&
         is_app_of(a, get_char_of_nat_name(), 1)) {
         expr const & v_a = app_arg(a);
@@ -185,6 +196,7 @@ optional<expr> mk_string_val_ne_proof(expr a, expr b) {
 }
 
 optional<expr> mk_int_val_nonneg_proof(expr const & a) {
+    if (is_typed_expr(a)) return mk_int_val_nonneg_proof(get_typed_expr_expr(a));
     if (auto a1 = is_bit0(a)) {
         if (auto pr = mk_int_val_nonneg_proof(*a1))
             return some_expr(mk_app(mk_constant(get_int_bit0_nonneg_name()), *a1, *pr));
@@ -200,6 +212,7 @@ optional<expr> mk_int_val_nonneg_proof(expr const & a) {
 }
 
 optional<expr> mk_int_val_pos_proof(expr const & a) {
+    if (is_typed_expr(a)) return mk_int_val_pos_proof(get_typed_expr_expr(a));
     if (auto a1 = is_bit0(a)) {
         if (auto pr = mk_int_val_pos_proof(*a1))
             return some_expr(mk_app(mk_constant(get_int_bit0_pos_name()), *a1, *pr));
@@ -215,6 +228,7 @@ optional<expr> mk_int_val_pos_proof(expr const & a) {
 /* Given a nonnegative int numeral a, return a pair (n, H)
    where n is a nat numeral, and (H : nat_abs a = n) */
 optional<expr_pair> mk_nat_abs_eq(expr const & a) {
+    if (is_typed_expr(a)) return mk_nat_abs_eq(get_typed_expr_expr(a));
     if (is_zero(a)) {
         return optional<expr_pair>(mk_pair(mk_nat_zero(), mk_constant(get_int_nat_abs_zero_name())));
     } else if (is_one(a)) {
@@ -236,6 +250,8 @@ optional<expr_pair> mk_nat_abs_eq(expr const & a) {
 
 /* Given nonneg int numerals a and b, create a proof for a != b IF they are not equal. */
 optional<expr> mk_int_nonneg_val_ne_proof(expr const & a, expr const & b) {
+    if (is_typed_expr(a)) return mk_int_nonneg_val_ne_proof(get_typed_expr_expr(a), b);
+    if (is_typed_expr(b)) return mk_int_nonneg_val_ne_proof(a, get_typed_expr_expr(b));
     auto p1 = mk_nat_abs_eq(a);
     if (!p1) return none_expr();
     auto p2 = mk_nat_abs_eq(b);
@@ -252,6 +268,8 @@ optional<expr> mk_int_nonneg_val_ne_proof(expr const & a, expr const & b) {
 }
 
 optional<expr> mk_int_val_ne_proof(expr const & a, expr const & b) {
+    if (is_typed_expr(a)) return mk_int_val_ne_proof(get_typed_expr_expr(a), b);
+    if (is_typed_expr(b)) return mk_int_val_ne_proof(a, get_typed_expr_expr(b));
     if (auto a1 = is_neg(a)) {
         if (auto b1 = is_neg(b)) {
             auto H = mk_int_nonneg_val_ne_proof(*a1, *b1);

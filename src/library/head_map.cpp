@@ -6,23 +6,27 @@ Author: Leonardo de Moura
 */
 #include "library/head_map.h"
 #include "library/explicit.h"
+#include "library/typed_expr.h"
 
 namespace lean {
-head_index::head_index(expr const & e) {
-    expr f = get_app_fn(e);
+head_index::head_index(expr e) {
     while (true) {
-        if (is_as_atomic(f))
-            f = get_app_fn(get_as_atomic_arg(f));
-        else if (is_explicit(f))
-            f = get_explicit_arg(f);
+        m_num_args += get_app_num_args(e);
+        e = get_app_fn(e);
+        if (is_as_atomic(e))
+            e = get_as_atomic_arg(e);
+        else if (is_explicit(e))
+            e = get_explicit_arg(e);
+        else if (is_typed_expr(e))
+            e = get_typed_expr_expr(e);
         else
             break;
     }
-    m_kind = f.kind();
-    if (is_constant(f))
-        m_name = const_name(f);
-    else if (is_local(f))
-        m_name = mlocal_name(f);
+    m_kind = e.kind();
+    if (is_constant(e))
+        m_name = const_name(e);
+    else if (is_local(e))
+        m_name = mlocal_name(e);
 }
 
 int head_index::cmp::operator()(head_index const & i1, head_index const & i2) const {
