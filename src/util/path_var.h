@@ -18,9 +18,9 @@ namespace lean {
 // be searched.
 class path_var {
 public:
-    std::vector<path> m_paths;
+    // TODO: path should really be a class
+    std::vector<std::string> m_paths;
     path_var(std::string pv);
-
     friend std::ostream & operator<<(std::ostream & out, path_var const & pv);
     // template<typename R>
     // iterate(std::function<R(path const &)> for_each) {

@@ -44,6 +44,7 @@ std::string get_exe_location() {
     return std::string(pathstr.begin(), pathstr.end());
 }
 bool is_path_sep(char c) { return c == g_path_sep; }
+char get_path_sep() { return g_path_sep; }
 #elif defined(__APPLE__)
 // OSX version
 #include <mach-o/dyld.h>
@@ -63,6 +64,7 @@ std::string get_exe_location() {
     return std::string(buf2);
 }
 bool is_path_sep(char c) { return c == g_path_sep; }
+char get_path_sep() { return g_path_sep; }
 #else
 // Linux version
 #include <unistd.h>
@@ -85,6 +87,7 @@ std::string get_exe_location() {
     }
 }
 bool is_path_sep(char c) { return c == g_path_sep; }
+char get_path_sep() { return g_path_sep; }
 #endif
 
 #if defined(LEAN_WINDOWS)

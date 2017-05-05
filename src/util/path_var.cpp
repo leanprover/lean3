@@ -15,20 +15,20 @@ Author: Jared Roesch
 #include "util/sstream.h"
 #include "util/name.h"
 #include "util/optional.h"
-#include "util/realpath.h"
+#include "util/path.h"
 #include "util/path_var.h"
 
 namespace lean {
 
 path_var::path_var(std::string p) {
-    auto normalized = normalize_path_string(p);
+    auto normalized = normalize_path(p);
 
     unsigned i  = 0;
     unsigned j  = 0;
 
     unsigned sz = normalized.size();
     for (; j < sz; j++) {
-        if (is_path_sep_dup(normalized[j])) {
+        if (is_path_sep(normalized[j])) {
             if (j > i) {
                 auto p = path(normalized.substr(i, j - i));
                 m_paths.push_back(p);
@@ -46,7 +46,7 @@ path_var::path_var(std::string p) {
 std::ostream & operator<<(std::ostream & os, path_var const & p) {
     os << p.m_paths[0];
     for (size_t i = 1; i < p.m_paths.size(); i++) {
-        os << path_sep() << p.m_paths[i];
+        os << get_path_sep() << p.m_paths[i];
     }
 
     return os;

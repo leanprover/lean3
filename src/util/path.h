@@ -18,6 +18,8 @@ public:
     file_not_found_exception(std::string const & fname);
 };
 
+typedef std::string path;
+
 #if !defined(LEAN_EMSCRIPTEN)
 std::string get_exe_location();
 #endif
@@ -25,6 +27,7 @@ std::string get_exe_location();
 char const * get_dir_sep();
 char get_dir_sep_ch();
 bool is_path_sep(char c);
+char get_path_sep();
 
 std::string normalize_path(std::string f);
 

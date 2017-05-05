@@ -8,6 +8,7 @@ Author: Jared Roesch
 #include "library/module.h"
 #include "library/module_mgr.h"
 #include "util/optional.h"
+#include "util/lean_path.h"
 
 // This function is intended to "auto-import" certain namespaces.
 //
@@ -24,7 +25,7 @@ lean::environment auto_import_tools(
 
     // Resolve the module to import.
     lean::module_name to_import_mod_name = { import_name , lean::optional<unsigned>() };
-    auto mod = lean::resolve("", to_import_mod_name);
+    lean::module_id mod = lean::resolve(*lean::get_lean_path_from_env(), "", to_import_mod_name);
     auto mod_to_import = mod_mgr.get_module(mod);
 
     // Copy the set of dependencies and add the module to import to the list.

@@ -138,11 +138,11 @@ cpp_compiler compiler_with_native_config(native_compiler_mode mode) {
 
     // Setup include paths
     for (auto path : include_paths) {
-        gpp.include_path(path.to_string());
+        gpp.include_path(path);
     }
 
     for (auto path : library_paths) {
-        gpp.library_path(path.to_string());
+        gpp.library_path(path);
     }
 
     // Have g++ emit debug information.

@@ -78,7 +78,7 @@ public:
 };
 
 module_loader mk_loader(module_id const & cur_mod, std::vector<module_info::dependency> const & deps);
-module_id resolve(module_id const & module_file_name, module_name const & ref);
+module_id resolve(search_path const & path, module_id const & module_file_name, module_name const & ref);
 
 class module_mgr {
     bool m_server_mode = false;
