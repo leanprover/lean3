@@ -1,5 +1,5 @@
 /*
-Copyright (c) 2016 Microsoft Corporation. All rights reserved.
+Copyright (c) 2017 Microsoft Corporation. All rights reserved.
 Released under Apache 2.0 license as described in the file LICENSE.
 
 Author: Leonardo de Moura
@@ -24,6 +24,7 @@ Author: Leonardo de Moura
 #include "library/vm/vm_task.h"
 #include "library/vm/vm_parser.h"
 #include "library/vm/vm_array.h"
+#include "library/vm/vm_pos_info_provider.h"
 
 namespace lean {
 void initialize_vm_core_module() {
@@ -47,9 +48,11 @@ void initialize_vm_core_module() {
     initialize_vm_environment();
     initialize_vm_parser();
     initialize_vm_array();
+    initialize_vm_pos_info_provider();
 }
 
 void finalize_vm_core_module() {
+    finalize_vm_pos_info_provider();
     finalize_vm_array();
     finalize_vm_parser();
     finalize_vm_environment();
