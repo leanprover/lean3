@@ -30,6 +30,10 @@ structure io.file_system (handle : Type) (m : Type → Type → Type) :=
 (stdout         : m io.error handle)
 (stderr         : m io.error handle)
 
+structure io.environment (m : Type → Type → Type) :=
+(get_env : string → m io.error (option string))
+-- we don't provide set_env as it is (thread-)unsafe (at least with glibc)
+
 inductive io.process.stdio
 | piped
 | inherit
@@ -48,6 +52,8 @@ structure io.process.spawn_args :=
 (stderr := stdio.inherit)
 /- Working directory for the process. -/
 (cwd : option string := none)
+/- Environment variables for the process. -/
+(env : list (string × option string) := [])
 
 structure io.process (handle : Type) (m : Type → Type → Type) :=
 (child : Type) (stdin : child → handle) (stdout : child → handle) (stderr : child → handle)
@@ -66,6 +72,7 @@ class io.interface :=
 (term     : io.terminal m)
 (fs       : io.file_system handle m)
 (process  : io.process handle m)
+(env      : io.environment m)
 
 variable [io.interface]
 
@@ -94,6 +101,14 @@ iterate () $ λ _, a >> return (some ())
 
 def catch {e₁ e₂ α} (a : io_core e₁ α) (b : e₁ → io_core e₂ α) : io_core e₂ α :=
 interface.catch e₁ e₂ α a b
+
+def finally {α e} (a : io_core e α) (cleanup : io_core e unit) : io_core e α := do
+res ← catch (sum.inr <$> a) (return ∘ sum.inl),
+cleanup,
+match res with
+| sum.inr res := return res
+| sum.inl error := io.interface.fail _ _ error
+end
 
 instance : alternative io :=
 { interface.monad _ with
@@ -132,6 +147,13 @@ interface.fs.stderr
 
 def stdout : io handle :=
 interface.fs.stdout
+
+namespace env
+
+def get (env_var : string) : io (option string) :=
+interface.env.get_env env_var
+
+end env
 
 namespace fs
 def is_eof : handle → io bool :=
@@ -203,19 +225,14 @@ format.print_using (to_fmt a) o
 meta definition pp {α : Type} [has_to_format α] (a : α) : io unit :=
 format.print (to_fmt a)
 
-/-- Run the external process named by `cmd`, supplied with the arguments `args`.
+/-- Run the external process specified by `args`.
 
     The process will run to completion with its output captured by a pipe, and
     read into `string` which is then returned.
 -/
-def io.cmd [io.interface] (cmd : string) (args : list string) (cwd : option string := none) : io string :=
-do child ← io.proc.spawn {
-    cmd := cmd,
-    cwd := cwd,
-    args := args,
-    stdout := io.process.stdio.piped
-  },
-  buf ← io.fs.read child.stdout 1024,
+def io.cmd (args : io.process.spawn_args) : io string :=
+do child ← io.proc.spawn { args with stdout := io.process.stdio.piped },
+  buf ← io.fs.read_to_end child.stdout,
   exitv ← io.proc.wait child,
   when (exitv ≠ 0) $ io.fail $ "process exited with status " ++ exitv.to_string,
   return buf.to_string

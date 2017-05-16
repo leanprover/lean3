@@ -135,8 +135,6 @@ run_cmd script_check_id `imp_congr_ctx_eq
 run_cmd script_check_id `implies
 run_cmd script_check_id `implies_of_if_neg
 run_cmd script_check_id `implies_of_if_pos
-run_cmd script_check_id `inductive_compiler.tactic.prove_nested_inj
-run_cmd script_check_id `inductive_compiler.tactic.prove_pack_inj
 run_cmd script_check_id `int
 run_cmd script_check_id `int.has_add
 run_cmd script_check_id `int.has_mul
@@ -313,6 +311,7 @@ run_cmd script_check_id `real.has_sub
 run_cmd script_check_id `real.has_lt
 run_cmd script_check_id `real.has_le
 run_cmd script_check_id `reflected
+run_cmd script_check_id `reflected.subst
 run_cmd script_check_id `rfl
 run_cmd script_check_id `right_distrib
 run_cmd script_check_id `ring

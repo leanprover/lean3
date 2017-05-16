@@ -253,6 +253,7 @@ private:
                            optional<expr> const & new_new_fval, expr const & new_fval, expr const & new_fval_type,
                            expr const & expected_type, expr const & ref);
     expr visit_structure_instance(expr const & e, optional<expr> const & expected_type);
+    expr visit_expr_quote(expr const & e, optional<expr> const & expected_type);
     expr visit(expr const & e, optional<expr> const & expected_type);
 
     tactic_state mk_tactic_state_for(expr const & mvar);
@@ -347,10 +348,6 @@ pair<expr, level_param_names> elaborate(environment & env, options const & opts,
     local constants provided by \c ctx.
     Throw exception is \c ctx does not contain the local constant. */
 expr resolve_names(environment const & env, local_context const & lctx, expr const & e);
-
-/** Elaborate the content of an quote macro. If \c in_pattern is true, return a reflected expression tree,
-    else return a new quote macro surrounded by \c expr.subst calls for antiquotations. */
-expr elaborate_quote(expr e, environment const &env, options const &opts, bool in_pattern);
 
 void initialize_elaborator();
 void finalize_elaborator();

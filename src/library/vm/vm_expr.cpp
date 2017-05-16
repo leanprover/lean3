@@ -20,6 +20,8 @@ Author: Leonardo de Moura
 #include "library/comp_val.h"
 #include "library/choice.h"
 #include "library/annotation.h"
+#include "library/quote.h"
+#include "library/string.h"
 #include "library/vm/vm.h"
 #include "library/vm/vm_nat.h"
 #include "library/vm/vm_name.h"
@@ -143,24 +145,15 @@ vm_obj expr_elet(vm_obj const & n, vm_obj const & t, vm_obj const & v, vm_obj co
     return to_obj(mk_let(to_name(n), to_expr(t), to_expr(v), to_expr(b)));
 }
 
-vm_obj expr_macro(vm_obj const & d, vm_obj const & n, vm_obj const & fn) {
-    unsigned sz = to_unsigned(n);
+vm_obj expr_macro(vm_obj const & d, vm_obj const & es) {
     buffer<expr> args;
-    for (unsigned i = 0; i < sz; i++) {
-        args.push_back(to_expr(invoke(fn, mk_vm_nat(i))));
-    }
+    to_buffer_expr(es, args);
     return to_obj(mk_macro(to_macro_definition(d), args.size(), args.data()));
-}
-
-vm_obj expr_macro_arg(vm_obj const & m, vm_obj const & i) {
-    return to_obj(macro_arg(to_expr(m), to_unsigned(i)));
 }
 
 vm_obj expr_macro_def_name(vm_obj const & d) {
     return to_obj(to_macro_definition(d).get_name());
 }
-
-static unsigned g_expr_macro_arg_fun_idx = -1;
 
 unsigned expr_cases_on(vm_obj const & o, buffer<vm_obj> & data) {
     expr const & e = to_expr(o);
@@ -204,17 +197,12 @@ unsigned expr_cases_on(vm_obj const & o, buffer<vm_obj> & data) {
         break;
     case expr_kind::Macro:
         data.push_back(to_obj(macro_def(e)));
-        data.push_back(mk_vm_nat(macro_num_args(e)));
-        data.push_back(mk_vm_closure(g_expr_macro_arg_fun_idx, 1, &o));
+        buffer<expr> args;
+        args.append(macro_num_args(e), macro_args(e));
+        data.push_back(to_obj(args));
         break;
     }
     return static_cast<unsigned>(e.kind());
-}
-
-vm_obj expr_mk_macro(vm_obj const & d, vm_obj const & es) {
-    buffer<expr> args;
-    to_buffer_expr(es, args);
-    return to_obj(mk_macro(to_macro_definition(d), args.size(), args.data()));
 }
 
 vm_obj expr_has_decidable_eq(vm_obj const & o1, vm_obj const & o2) {
@@ -463,8 +451,21 @@ vm_obj expr_is_annotation(vm_obj const & _e) {
     }
 }
 
-vm_obj reflect(vm_obj const &, vm_obj const &, vm_obj const & r) {
+vm_obj reflected_to_expr(vm_obj const &, vm_obj const &, vm_obj const & r) {
     return r;
+}
+
+vm_obj reflected_subst(vm_obj const &, vm_obj const &, vm_obj const &, vm_obj const &, vm_obj const & e1,
+                       vm_obj const & e2) {
+    return expr_subst(e1, e2);
+}
+
+vm_obj reflect_pexpr(vm_obj const & e) {
+    return to_obj(mk_pexpr_quote_and_substs(to_expr(e), /* is_strict */ false));
+}
+
+vm_obj reflect_string(vm_obj const & s) {
+    return to_obj(from_string(to_string(s)));
 }
 
 void initialize_vm_expr() {
@@ -477,9 +478,7 @@ void initialize_vm_expr() {
     DECLARE_VM_BUILTIN(name({"expr", "lam"}),              expr_lam);
     DECLARE_VM_BUILTIN(name({"expr", "pi"}),               expr_pi);
     DECLARE_VM_BUILTIN(name({"expr", "elet"}),             expr_elet);
-    DECLARE_VM_BUILTIN("_expr_macro_arg",                  expr_macro_arg);
     DECLARE_VM_BUILTIN(name({"expr", "macro"}),            expr_macro);
-    DECLARE_VM_BUILTIN(name({"expr", "mk_macro"}),         expr_mk_macro);
     DECLARE_VM_BUILTIN(name({"expr", "macro_def_name"}),   expr_macro_def_name);
     DECLARE_VM_BUILTIN(name({"expr", "has_decidable_eq"}), expr_has_decidable_eq);
     DECLARE_VM_BUILTIN(name({"expr", "alpha_eqv"}),        expr_alpha_eqv);
@@ -506,7 +505,10 @@ void initialize_vm_expr() {
     DECLARE_VM_BUILTIN(name({"expr", "collect_univ_params"}), expr_collect_univ_params);
     DECLARE_VM_CASES_BUILTIN(name({"expr", "cases_on"}),   expr_cases_on);
 
-    DECLARE_VM_BUILTIN("reflect",                          reflect);
+    DECLARE_VM_BUILTIN(name({"reflected", "to_expr"}),     reflected_to_expr);
+    DECLARE_VM_BUILTIN(name({"reflected", "subst"}),       reflected_subst);
+    DECLARE_VM_BUILTIN(name("string", "reflect"),          reflect_string);
+    DECLARE_VM_BUILTIN(name("pexpr", "reflect"),           reflect_pexpr);
 
     DECLARE_VM_BUILTIN(name("mk_nat_val_ne_proof"),        vm_mk_nat_val_ne_proof);
     DECLARE_VM_BUILTIN(name("mk_nat_val_lt_proof"),        vm_mk_nat_val_lt_proof);
@@ -531,6 +533,5 @@ void finalize_vm_expr() {
 }
 
 void initialize_vm_expr_builtin_idxs() {
-    g_expr_macro_arg_fun_idx = *get_vm_builtin_idx(name("_expr_macro_arg"));
 }
 }

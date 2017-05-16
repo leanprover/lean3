@@ -461,7 +461,7 @@ meta def istep {α : Type u} (line col : ℕ) (t : tactic α) : tactic unit :=
 
 meta def is_prop (e : expr) : tactic bool :=
 do t ← infer_type e,
-   return (t = ```(Prop))
+   return (t = `(Prop))
 
 /-- Return true iff n is the name of declaration that is a proposition. -/
 meta def is_prop_decl (n : name) : tactic bool :=
@@ -617,14 +617,14 @@ meta def definev (h : name) (t : expr) (v : expr) : tactic unit :=
 definev_core h t v >> intro h >> return ()
 
 /- Add (h : t := pr) to the current goal -/
-meta def pose (h : name) (pr : expr) : tactic unit :=
-do t ← infer_type pr,
-   definev h t pr
+meta def pose (h : name) (t : option expr := none) (pr : expr) : tactic unit :=
+let dv := λt, definev h t pr in
+option.cases_on t (infer_type pr >>= dv) dv
 
 /- Add (h : t) to the current goal, given a proof (pr : t) -/
-meta def note (n : name) (pr : expr) : tactic unit :=
-do t ← infer_type pr,
-   assertv n t pr
+meta def note (h : name) (t : option expr := none) (pr : expr) : tactic unit :=
+let dv := λt, assertv h t pr in
+option.cases_on t (infer_type pr >>= dv) dv
 
 /- Return the number of goals that need to be solved -/
 meta def num_goals     : tactic nat :=
@@ -961,11 +961,11 @@ meta def add_meta_definition (n : name) (lvls : list name) (type value : expr) :
 add_decl (declaration.defn n lvls type value reducibility_hints.abbrev ff)
 
 meta def apply_opt_param : tactic unit :=
-do ```(opt_param %%t %%v) ← target,
+do `(opt_param %%t %%v) ← target,
    exact v
 
 meta def apply_auto_param : tactic unit :=
-do ```(auto_param %%type %%tac_name_expr) ← target,
+do `(auto_param %%type %%tac_name_expr) ← target,
    change type,
    tac_name ← eval_expr name tac_name_expr,
    tac ← eval_expr (tactic unit) (expr.const tac_name []),

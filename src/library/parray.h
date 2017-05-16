@@ -244,11 +244,22 @@ class parray {
         if (r->m_kind == Set || r->m_kind == PushBack) {
             del_elem(r->m_elem);
         }
+        lean_assert(r != last);
+        lean_assert(last->m_kind != Root);
         r->m_kind   = Root;
         r->m_values = vs;
         r->m_size   = sz;
+        DEBUG_CODE({
+                cell * it = last;
+                while (it->m_kind != Root) {
+                    it = it->m_next;
+                }
+                lean_assert(it == r);
+            });
+        lean_assert(r->m_kind == Root);
         inc_ref(r);
         dec_ref(last);
+        lean_assert(r->m_kind == Root);
     }
 
     /* Given a path cs to c,
@@ -256,9 +267,12 @@ class parray {
     static cell * copy(unsigned from_idx, cell * c, cell_buffer const & cs) {
         lean_assert(from_idx <= cs.size());
         cell * r    = mk_cell();
+        lean_assert(r->m_kind == Root);
         r->m_rc     = 0;
         r->m_size   = c->m_size;
         r->m_values = allocate_raw_array(capacity(c->m_values));
+        if (ThreadSafe)
+            r->set_mutex(new mutex());
         std::uninitialized_copy(c->m_values, c->m_values + c->m_size, r->m_values);
         unsigned i  = cs.size();
         while (i > from_idx) {
@@ -286,6 +300,7 @@ class parray {
             }
             DEBUG_CODE(c = p;);
         }
+        lean_assert(r->m_kind == Root);
         return r;
     }
 
@@ -315,12 +330,19 @@ class parray {
         lean_assert(r->kind() != Root);
         cell_buffer cs;
         cell * c    = collect_cells(r, cs);
-        if (should_split(c->size(), cs.size()) &&
+        if (!ThreadSafe &&
+            /* Should we keep this optimization? */
+            should_split(c->size(), cs.size()) &&
             should_split(get_size(c, cs), cs.size())) {
             /* Split the path r -> ... -> m_1 -> m_2 -> ... -> c in two
 
                1) r <- ... <- m_1
                2) m_2 -> ... -> c
+
+               This operation is not safe when ThreadSafe == true.
+               In ThreadSafe mode, each cell contains a reference to
+               the mutex stored in the Root cell, but we don't know
+               all cells that point to a Root cell.
             */
             unsigned midx = cs.size() / 2;
             DEBUG_CODE(cell * m = cs[midx];);
@@ -335,6 +357,7 @@ class parray {
         } else {
             reroot(r, c, cs);
         }
+        lean_assert(r->kind() == Root);
     }
 
     static cell * ensure_unshared_aux(cell * c) {
@@ -347,14 +370,14 @@ class parray {
         if (get_rc(c) == 1 && c->kind() == Root)
             return c;
         if (ThreadSafe) {
-            unique_lock<mutex> lock(*c->get_mutex());
+            lock_guard<mutex> lock(*c->get_mutex());
             return ensure_unshared_aux(c);
         } else {
             return ensure_unshared_aux(c);
         }
     }
 
-    static T read_aux(cell * c, size_t i) {
+    static T const & read_aux(cell * c, size_t i) {
         if (c->kind() != Root)
             reroot(c);
         lean_assert(c->kind() == Root);
@@ -367,7 +390,7 @@ class parray {
             lean_assert(i < c->size());
             return c->m_values[i];
         } else if (ThreadSafe) {
-            unique_lock<mutex> lock(*c->get_mutex());
+            lock_guard<mutex> lock(*c->get_mutex());
             return read_aux(c, i);
         } else {
             return read_aux(c, i);
@@ -378,6 +401,7 @@ class parray {
         if (get_rc(c) == 1 && c->kind() == Root) {
             return c->size();
         } else if (ThreadSafe) {
+            lock_guard<mutex> lock(*c->get_mutex());
             if (c->kind() != Root)
                 reroot(c);
             return c->size();
@@ -423,7 +447,7 @@ class parray {
             c->m_values[i] = v;
             return c;
         } else if (ThreadSafe) {
-            unique_lock<mutex> lock(*c->get_mutex());
+            lock_guard<mutex> lock(*c->get_mutex());
             return write_aux(c, i, v);
         } else {
             return write_aux(c, i, v);
@@ -468,7 +492,7 @@ class parray {
             push_back_core(c, v);
             return c;
         } else if (ThreadSafe) {
-            unique_lock<mutex> lock(*c->get_mutex());
+            lock_guard<mutex> lock(*c->get_mutex());
             return push_back_aux(c, v);
         } else {
             return push_back_aux(c, v);
@@ -515,14 +539,26 @@ class parray {
             pop_back_core(c);
             return c;
         } else if (ThreadSafe) {
-            unique_lock<mutex> lock(*c->get_mutex());
+            lock_guard<mutex> lock(*c->get_mutex());
             return pop_back_aux(c);
         } else {
             return pop_back_aux(c);
         }
     }
 
+    template<typename F>
+    static void for_each(cell * c, F && fn) {
+        if (c->kind() != Root)
+            reroot(c);
+        lean_assert(c->kind() == Root);
+        size_t sz = c->m_size;
+        for (size_t i = 0; i < sz; i++) {
+            fn(c->m_values[i]);
+        }
+    }
+
     void init() {
+        lean_assert(m_cell->m_kind == Root);
         if (ThreadSafe)
             m_cell->set_mutex(new mutex());
     }
@@ -593,6 +629,63 @@ public:
     static unsigned sizeof_cell() {
         return get_allocator().obj_size();
     }
+
+    friend void swap(parray & a1, parray & a2) {
+        std::swap(a1.m_cell, a2.m_cell);
+    }
+
+    template<typename F>
+    void for_each(F && fn) const {
+        if (get_rc(m_cell) == 1 && m_cell->m_kind == Root) {
+            for_each(m_cell, fn);
+        } else if (ThreadSafe) {
+            lock_guard<mutex> lock(*m_cell->get_mutex());
+            for_each(m_cell, fn);
+        } else {
+            for_each(m_cell, fn);
+        }
+    }
+
+    class exclusive_access {
+        parray<T, ThreadSafe> & m_array;
+
+        bool check_invariant() const {
+            lean_assert(m_array.m_cell->m_kind == Root);
+            return true;
+        }
+
+    public:
+        exclusive_access(parray<T, ThreadSafe> & a):m_array(a) {
+            if (ThreadSafe)
+                m_array.m_cell->get_mutex()->lock();
+            if (m_array.m_cell->m_kind != Root)
+                reroot(m_array.m_cell);
+            lean_assert(m_array.m_cell->m_kind == Root);
+        }
+
+        ~exclusive_access() {
+            if (ThreadSafe)
+                m_array.m_cell->get_mutex()->unlock();
+        }
+
+        unsigned size() const {
+            lean_assert(check_invariant());
+            return m_array.m_cell->m_size;
+        }
+
+        T const & operator[](size_t i) const {
+            lean_assert(check_invariant());
+            lean_assert(i < size());
+            return m_array.m_cell->m_values[i];
+        }
+
+        void set(size_t i, T const & v) {
+            lean_assert(check_invariant());
+            lean_assert(i < size());
+            m_array.m_cell = write_aux(m_array.m_cell, i, v);
+            lean_assert(check_invariant());
+        }
+    };
 };
 void initialize_parray();
 void finalize_parray();

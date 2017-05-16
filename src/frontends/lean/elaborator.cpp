@@ -264,16 +264,6 @@ expr elaborator::mk_type_metavar(expr const & ref) {
 }
 
 expr elaborator::mk_instance_core(local_context const & lctx, expr const & C, expr const & ref) {
-    // synthesize `reflected e` by quoting e
-    if (is_app_of(C, get_reflected_name(), 2)) {
-        expr const & r = instantiate_mvars(app_arg(C));
-        if (closed(r) && !has_local(r)) {
-            expr r_ty = instantiate_mvars(app_arg(app_fn(C)));
-            level l = *::lean::dec_level(::lean::get_level(m_ctx, r_ty));
-            return mk_reflected(r, r_ty, l);
-        }
-    }
-
     scope_traces_as_messages traces_as_messages(get_pos_info_provider(), ref);
 
     // TODO(gabriel): cache failures so that we do not report errors twice
@@ -2777,17 +2767,19 @@ expr elaborator::visit_structure_instance(expr const & e, optional<expr> const &
                         expr fval = *new_new_fval;
                         buffer<expr> args;
                         expr fn = get_app_args(fval, args);
-                        declaration decl = m_env.get(const_name(fn));
-                        expr default_val = instantiate_value_univ_params(decl, const_levels(fn));
-                        // clean up 'id' application inserted by `structure_cmd::declare_defaults`
-                        default_val = replace(default_val, [](expr const & e) {
-                            if (is_app_of(e, get_id_name(), 2)) {
-                                return some_expr(app_arg(e));
-                            }
-                            return none_expr();
-                        });
-                        fval = mk_app(default_val, args);
-                        fval = head_beta_reduce(fval);
+                        if (is_constant(fn)) {
+                            declaration decl = m_env.get(const_name(fn));
+                            expr default_val = instantiate_value_univ_params(decl, const_levels(fn));
+                            // clean up 'id' application inserted by `structure_cmd::declare_defaults`
+                            default_val = replace(default_val, [](expr const &e) {
+                                if (is_app_of(e, get_id_name(), 2)) {
+                                    return some_expr(app_arg(e));
+                                }
+                                return none_expr();
+                            });
+                            fval = mk_app(default_val, args);
+                            fval = head_beta_reduce(fval);
+                        }
 
                         if (!reduce_and_check_deps(fval))
                             return;
@@ -2814,84 +2806,50 @@ expr elaborator::visit_structure_instance(expr const & e, optional<expr> const &
     return e2;
 }
 
-static expr quote(expr const & e) {
-    switch (e.kind()) {
-        case expr_kind::Var:
-        lean_unreachable();
-        case expr_kind::Sort:
-            return mk_app(mk_constant({"expr", "sort"}), mk_expr_placeholder());
-        case expr_kind::Constant:
-            return mk_app(mk_constant({"expr", "const"}), quote(const_name(e)), mk_expr_placeholder());
-        case expr_kind::Meta:
-            return mk_expr_placeholder();
-        case expr_kind::Local:
-            throw elaborator_exception(e, sstream() << "invalid quotation, unexpected local constant '"
-                                                    << local_pp_name(e) << "'");
-        case expr_kind::App:
-            return mk_app(mk_constant({"expr", "app"}), quote(app_fn(e)), quote(app_arg(e)));
-        case expr_kind::Lambda:
-            return mk_app(mk_constant({"expr", "lam"}), mk_expr_placeholder(), mk_expr_placeholder(),
-                          quote(binding_domain(e)), quote(binding_body(e)));
-        case expr_kind::Pi:
-            return mk_app(mk_constant({"expr", "pi"}), mk_expr_placeholder(), mk_expr_placeholder(),
-                          quote(binding_domain(e)), quote(binding_body(e)));
-        case expr_kind::Let:
-            return mk_app(mk_constant({"expr", "elet"}), mk_expr_placeholder(), quote(let_type(e)),
-                          quote(let_value(e)), quote(let_body(e)));
-        case expr_kind::Macro:
-            if (is_antiquote(e))
-                return get_antiquote_expr(e);
-            if (is_typed_expr(e))
-                return mk_typed_expr(quote(get_typed_expr_expr(e)), quote(get_typed_expr_type(e)));
-            if (is_inaccessible(e))
-                return mk_expr_placeholder();
-            throw elaborator_exception(e, sstream() << "invalid quotation, unsupported macro '"
-                                                    << macro_def(e).get_name() << "'");
-    }
-    lean_unreachable();
-}
-
-expr elaborate_quote(expr e, environment const &env, options const &opts, bool in_pattern) {
-    lean_assert(is_expr_quote(e));
-    e = get_quote_expr(e);
-
+expr elaborator::visit_expr_quote(expr const & e, optional<expr> const & expected_type) {
     name x("_x");
-    buffer<expr> locals;
-    buffer<expr> aqs;
-    e = replace(e, [&](expr const & t, unsigned) {
-        if (is_antiquote(t)) {
-            expr local = mk_local(mk_fresh_name(), x.append_after(locals.size() + 1),
-                                  mk_expr_placeholder(), binder_info());
-            locals.push_back(local);
-            aqs.push_back(t);
-            return some_expr(local);
-        }
-        return none_expr();
-    });
-    e = copy_tag(e, Fun(locals, e));
-
-    metavar_context ctx;
-    local_context lctx;
-    elaborator elab(env, opts, "_elab_quote", ctx, lctx, false, in_pattern, /* in_quote */ true);
-    e = elab.elaborate(e);
-    e = elab.finalize(e, true, true).first;
-
-    expr body = e;
-    for (unsigned i = 0; i < aqs.size(); i++)
-        body = binding_body(body);
-
-    if (in_pattern) {
-        e = instantiate_rev(body, aqs.size(), aqs.data());
-        e = quote(e);
-    } else {
-        if (has_param_univ(body))
+    expr s = get_expr_quote_value(e);
+    expr q;
+    if (find(s, [](expr const & t, unsigned) { return is_antiquote(t); })) {
+        // antiquotations ~> return `expr`
+        buffer<expr> locals;
+        buffer<expr> substs;
+        s = replace(s, [&](expr const & t, unsigned) {
+            if (is_antiquote(t)) {
+                expr local = mk_local(mk_fresh_name(), x.append_after(locals.size() + 1),
+                                      mk_expr_placeholder(), binder_info());
+                locals.push_back(local);
+                substs.push_back(get_antiquote_expr(t));
+                return some_expr(local);
+            }
+            return none_expr();
+        });
+        s = Fun(locals, s);
+        expr new_s = visit(s, none_expr());
+        if (has_param_univ(new_s))
             throw elaborator_exception(e, "invalid quotation, contains universe parameter");
-        e = mk_quote_core(e, true);
-        expr subst = mk_constant(get_expr_subst_name());
-        for (expr aq : aqs)
-            e = mk_app(subst, e, get_antiquote_expr(aq));
+        if (has_univ_metavar(new_s))
+            throw elaborator_exception(e, "invalid quotation, contains universe metavariable");
+        if (has_local(new_s))
+            throw elaborator_exception(e, "invalid quotation, contains local constant");
+        q = mk_expr_quote(new_s);
+        q = mk_as_is(q);
+        expr subst_fn = mk_constant(get_expr_subst_name());
+        for (expr const & subst : substs) {
+            q = mk_app(subst_fn, q, subst);
+        }
+    } else {
+        // no antiquotations ~> infer `reflected new_s`
+        expr new_s;
+        if (expected_type && is_app_of(*expected_type, get_reflected_name(), 2)) {
+            new_s = visit(s, some_expr(app_arg(app_fn(*expected_type))));
+        } else {
+            new_s = visit(s, none_expr());
+        }
+        expr cls = mk_app(m_ctx, get_reflected_name(), new_s);
+        return mk_instance(cls, e);
     }
-    return e;
+    return visit(q, expected_type);
 }
 
 expr elaborator::visit_macro(expr const & e, optional<expr> const & expected_type, bool is_app_fn) {
@@ -2917,6 +2875,8 @@ expr elaborator::visit_macro(expr const & e, optional<expr> const & expected_typ
         return visit_equation(e);
     } else if (is_field_notation(e)) {
         return visit_field(e, expected_type);
+    } else if (is_expr_quote(e)) {
+        return visit_expr_quote(e, expected_type);
     } else if (is_inaccessible(e)) {
         if (is_app_fn)
             throw elaborator_exception(e, "invalid inaccessible term, function expected");

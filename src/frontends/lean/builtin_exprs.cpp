@@ -651,7 +651,7 @@ static expr parse_lazy_quoted_pexpr(parser_state & p, unsigned, expr const *, po
         e = mk_typed_expr_distrib_choice(p, t, e, pos);
     }
     p.check_token_next(get_rparen_tk(), "invalid quoted expression, `)` expected");
-    return p.save_pos(mk_pexpr_quote(e), pos);
+    return p.save_pos(mk_pexpr_quote_and_substs(e, /* is_strict */ false), pos);
 }
 
 static expr parse_quoted_pexpr(parser_state & p, unsigned, expr const *, pos_info const & pos) {
@@ -665,7 +665,7 @@ static expr parse_quoted_pexpr(parser_state & p, unsigned, expr const *, pos_inf
         e = mk_typed_expr_distrib_choice(p, t, e, pos);
     }
     p.check_token_next(get_rparen_tk(), "invalid quoted expression, `)` expected");
-    return p.save_pos(mk_pexpr_quote(e), pos);
+    return p.save_pos(mk_pexpr_quote_and_substs(e, /* is_strict */ true), pos);
 }
 
 static expr parse_quoted_expr(parser_state & p, unsigned, expr const *, pos_info const & pos) {
@@ -682,12 +682,7 @@ static expr parse_quoted_expr(parser_state & p, unsigned, expr const *, pos_info
         }
         p.check_token_next(get_rparen_tk(), "invalid quoted expression, `)` expected");
     }
-    e = mk_quote_core(e, true);
-    if (!p.in_pattern()) {
-        e = elaborate_quote(e, p.env(), p.get_options(), /* in_pattern */ false);
-        // note: when `p.in_pattern()`, quote will be elaborated in `parser::patexpr_to_{pattern,expr}`
-    }
-    return p.save_pos(e, pos);
+    return p.save_pos(mk_expr_quote(e), pos);
 }
 
 static expr parse_antiquote_expr(parser_state & p, unsigned, expr const *, pos_info const & pos) {
@@ -991,9 +986,9 @@ parse_table init_nud_table() {
     r = r.add({transition("{", mk_ext_action(parse_curly_bracket))}, x0);
     r = r.add({transition(".(", mk_ext_action(parse_inaccessible))}, x0);
     r = r.add({transition("._", mk_ext_action(parse_atomic_inaccessible))}, x0);
-    r = r.add({transition("`(", mk_ext_action(parse_lazy_quoted_pexpr))}, x0);
+    r = r.add({transition("```(", mk_ext_action(parse_lazy_quoted_pexpr))}, x0);
     r = r.add({transition("``(", mk_ext_action(parse_quoted_pexpr))}, x0);
-    r = r.add({transition("```(", mk_ext_action(parse_quoted_expr))}, x0);
+    r = r.add({transition("`(", mk_ext_action(parse_quoted_expr))}, x0);
     r = r.add({transition("`[", mk_ext_action(parse_interactive_tactic_block))}, x0);
     r = r.add({transition("`", mk_ext_action(parse_quoted_name))}, x0);
     r = r.add({transition("%%", mk_ext_action(parse_antiquote_expr))}, x0);

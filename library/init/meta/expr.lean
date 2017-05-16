@@ -44,19 +44,33 @@ meta inductive expr
 | lam         : name → binder_info → expr → expr → expr
 | pi          : name → binder_info → expr → expr → expr
 | elet        : name → expr → expr → expr → expr
-| macro       : macro_def → ∀ n, (fin n → expr) → expr
+| macro       : macro_def → list expr → expr
 
-/-- (reflected a) is a special opaque container for an `expr` representing `a`.
+universes u v
+/-- (reflected a) is a special opaque container for a closed `expr` representing `a`.
     It can only be obtained via type class inference, which will use the representation
-    of `a` in the calling context. -/
-meta constant {u} reflected {α : Type u} : α → Type u
+    of `a` in the calling context. Local constants in the representation are replaced
+    by nested inference of `reflected` instances.
+
+    The quotation expression `(a) (outside of patterns) is equivalent to `reflect a`
+    and thus can be used as an explicit way of inferring an instance of `reflected a`. -/
+meta constant reflected {α : Type u} : α → Type u
+meta constant reflected.to_expr {α : Type u} {a : α} : reflected a → expr
+meta constant reflected.subst {α : Type u} {β : α → Type v} {f : Π a : α, β a} {a : α} :
+  reflected f → reflected a → reflected (f a)
+meta constant string.reflect (s : string) : reflected s
+
 attribute [class] reflected
-meta constant {u} reflect {α : Type u} (a : α) [reflected a] : expr
+attribute [instance] string.reflect
+
+meta instance {α : Type u} (a : α) : has_coe (reflected a) expr :=
+⟨reflected.to_expr⟩
+
+meta def reflect {α : Type u} (a : α) [h : reflected a] : reflected a := h
 
 meta instance : inhabited expr :=
 ⟨expr.sort level.zero⟩
 
-meta constant expr.mk_macro (d : macro_def) : list expr → expr
 meta constant expr.macro_def_name (d : macro_def) : name
 meta def expr.mk_var (n : nat) : expr :=
 expr.var n
@@ -242,29 +256,29 @@ meta def is_napp_of (e : expr) (c : name) (n : nat) : bool :=
 is_app_of e c ∧ get_app_num_args e = n
 
 meta def is_false : expr → bool
-| ```(false) := tt
+| `(false) := tt
 | _         := ff
 
 meta def is_not : expr → option expr
-| ```(not %%a)     := some a
-| ```(%%a → false) := some a
-| e                := none
+| `(not %%a)     := some a
+| `(%%a → false) := some a
+| e              := none
 
 meta def is_and : expr → option (expr × expr)
-| ```(and %%α %%β) := some (α, β)
-| _                 := none
+| `(and %%α %%β) := some (α, β)
+| _              := none
 
 meta def is_or : expr → option (expr × expr)
-| ```(or %%α %%β) := some (α, β)
-| _                 := none
+| `(or %%α %%β) := some (α, β)
+| _             := none
 
 meta def is_eq : expr → option (expr × expr)
-| ```((%%a : %%_) = %%b) := some (a, b)
-| _                     := none
+| `((%%a : %%_) = %%b) := some (a, b)
+| _                    := none
 
 meta def is_ne : expr → option (expr × expr)
-| ```((%%a : %%_) ≠ %%b) := some (a, b)
-| _                     := none
+| `((%%a : %%_) ≠ %%b) := some (a, b)
+| _                    := none
 
 meta def is_bin_arith_app (e : expr) (op : name) : option (expr × expr) :=
 if is_napp_of e op 4
@@ -284,8 +298,8 @@ meta def is_ge (e : expr) : option (expr × expr) :=
 is_bin_arith_app e ``ge
 
 meta def is_heq : expr → option (expr × expr × expr × expr)
-| ```(@heq %%α %%a %%β %%b) := some (α, a, β, b)
-| _                         := none
+| `(@heq %%α %%a %%β %%b) := some (α, a, β, b)
+| _                       := none
 
 meta def is_pi : expr → bool
 | (pi _ _ _ _) := tt
@@ -320,7 +334,7 @@ meta def binding_body : expr → expr
 | e             := e
 
 meta def imp (a b : expr) : expr :=
-```(%%a → %%b)
+pi `_ binder_info.default a b
 
 meta def lambdas : list expr → expr → expr
 | (local_const uniq pp info t :: es) f :=
@@ -336,13 +350,6 @@ open format
 
 private meta def p := λ xs, paren (format.join (list.intersperse " " xs))
 
-private meta def macro_args_to_list_aux (n : nat) (args : fin n → expr) : Π (i : nat), i ≤ n → list expr
-| 0     _ := []
-| (i+1) h := args ⟨i, h⟩ :: macro_args_to_list_aux i (nat.le_trans (nat.le_succ _) h)
-
-meta def macro_args_to_list (n : nat) (args : fin n → expr) : list expr :=
-(macro_args_to_list_aux n args n (nat.le_refl _)).reverse
-
 meta def to_raw_fmt : expr → format
 | (var n) := p ["var", to_fmt n]
 | (sort l) := p ["sort", to_fmt l]
@@ -353,7 +360,7 @@ meta def to_raw_fmt : expr → format
 | (lam n bi e t) := p ["lam", to_fmt n, to_string bi, to_raw_fmt e, to_raw_fmt t]
 | (pi n bi e t) := p ["pi", to_fmt n, to_string bi, to_raw_fmt e, to_raw_fmt t]
 | (elet n g e f) := p ["elet", to_fmt n, to_raw_fmt g, to_raw_fmt e, to_raw_fmt f]
-| (macro d n args) := sbracket (format.join (list.intersperse " " ("macro" :: to_fmt (macro_def_name d) :: list.map to_raw_fmt (macro_args_to_list n args))))
+| (macro d args) := sbracket (format.join (list.intersperse " " ("macro" :: to_fmt (macro_def_name d) :: args.map to_raw_fmt)))
 
 meta def mfold {α : Type} {m : Type → Type} [monad m] (e : expr) (a : α) (fn : expr → nat → α → m α) : m α :=
 fold e (return a) (λ e n a, a >>= fn e n)

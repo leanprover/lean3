@@ -20,8 +20,9 @@ def write_manifest (d : manifest) (fn := leanpkg_toml_fn) : io unit :=
 write_file fn (to_string d)
 
 -- TODO(gabriel): implement a cross-platform api
-def get_dot_lean_dir : io string :=
-io.cmd "bash" ["-c", "echo -n ~/.lean"]
+def get_dot_lean_dir : io string := do
+some home ← io.env.get "HOME" | io.fail "environment variable HOME is not set",
+return $ home ++ "/.lean"
 
 -- TODO(gabriel): file existence testing
 def exists_file (f : string) : io bool := do
@@ -31,7 +32,7 @@ return $ ev = 0
 
 -- TODO(gabriel): io.env.get_current_directory
 def get_current_directory : io string :=
-do cwd ← io.cmd "pwd" [], return (cwd.dropn 1) -- remove final newline
+do cwd ← io.cmd { cmd := "pwd" }, return (cwd.dropn 1) -- remove final newline
 
 def mk_path_file : ∀ (paths : list string), string
 | [] := "builtin_path\n"
@@ -45,7 +46,7 @@ path_file_cnts ← mk_path_file <$> construct_path assg,
 write_file "leanpkg.path" path_file_cnts
 
 def make : io unit :=
-exec_cmd "env" ["-u", "LEAN_PATH", "lean", "--make"]
+exec_cmd { cmd := "lean", args := ["--make"], env := [("LEAN_PATH", none)] }
 
 def build := configure >> make
 
@@ -59,7 +60,7 @@ def init_pkg (n : string) (dir : string) : io unit := do
 write_manifest { name := n, version := "0.1", path := none, dependencies := [] }
   (dir ++ "/" ++ leanpkg_toml_fn),
 write_file (dir ++ "/.gitignore") init_gitignore_contents io.mode.append,
-exec_cmd "leanpkg" ["configure"] dir
+exec_cmd {cmd := "leanpkg", args := ["configure"], cwd := dir}
 
 def init (n : string) := init_pkg n "."
 
@@ -91,7 +92,7 @@ else
   { name := basename dep, src := source.path dep }
 
 def git_head_revision (git_repo_dir : string) : io string := do
-rev ← io.cmd "git" ["rev-parse", "HEAD"] git_repo_dir,
+rev ← io.cmd {cmd := "git", args := ["rev-parse", "HEAD"], cwd := git_repo_dir},
 return (rev.dropn 1) -- remove newline at end
 
 def fixup_git_version (dir : string) : ∀ (src : source), io source
@@ -111,7 +112,7 @@ configure
 def new (dir : string) := do
 ex ← dir_exists dir,
 when ex $ io.fail $ "directory already exists: " ++ dir,
-exec_cmd "mkdir" ["-p", dir],
+exec_cmd {cmd := "mkdir", args := ["-p", dir]},
 init_pkg (basename dir) dir
 
 def usage := "
@@ -132,7 +133,6 @@ install <dir>   installs a user-wide package from a local directory
 dump            prints the parsed leanpkg.toml file (for debugging)
 "
 
-set_option eqn_compiler.lemmas false -- TODO(gabriel): just for performance
 def main : ∀ (args : list string), io unit
 | ["configure"] := configure
 | ["build"] := build
@@ -142,7 +142,7 @@ def main : ∀ (args : list string), io unit
 | ["install", dep] := do
   dep ← absolutize_add_dep dep,
   dot_lean_dir ← get_dot_lean_dir,
-  exec_cmd "mkdir" ["-p", dot_lean_dir],
+  exec_cmd {cmd := "mkdir", args := ["-p", dot_lean_dir]},
   let user_toml_fn := dot_lean_dir ++ "/" ++ leanpkg_toml_fn,
   ex ← exists_file user_toml_fn,
   when (¬ ex) $ write_manifest {
@@ -151,7 +151,7 @@ def main : ∀ (args : list string), io unit
       path := none,
       dependencies := []
     } user_toml_fn,
-  exec_cmd "leanpkg" ["add", dep] dot_lean_dir
+  exec_cmd {cmd := "leanpkg", args := ["add", dep], cwd := dot_lean_dir}
 | ["dump"] := read_manifest >>= io.print_ln
 | _ := io.fail usage
 

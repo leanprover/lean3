@@ -19,7 +19,7 @@ def pow (b : ℕ) : ℕ → ℕ
 
 infix `^` := pow
 
-@[simp] lemma pow_succ (b n : ℕ) : b^(succ n) = b^n * b := rfl
+lemma pow_succ (b n : ℕ) : b^(succ n) = b^n * b := rfl
 
 @[simp] lemma pow_zero (b : ℕ) : b^0 = 1 := rfl
 

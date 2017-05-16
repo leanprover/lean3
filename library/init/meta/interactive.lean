@@ -6,7 +6,7 @@ Authors: Leonardo de Moura
 prelude
 import init.meta.tactic init.meta.rewrite_tactic init.meta.simp_tactic
 import init.meta.smt.congruence_closure init.category.combinators
-import init.meta.lean.parser init.meta.quote
+import init.meta.lean.parser init.meta.has_reflect
 
 open lean
 open lean.parser
@@ -18,7 +18,7 @@ namespace interactive
 /-- (parse p) as the parameter type of an interactive tactic will instruct the Lean parser
     to run `p` when parsing the parameter and to pass the parsed value as an argument
     to the tactic. -/
-@[reducible] meta def parse {α : Type} [has_quote α] (p : parser α) : Type := α
+@[reducible] meta def parse {α : Type} [has_reflect α] (p : parser α) : Type := α
 
 namespace types
 variables {α β : Type}
@@ -63,45 +63,45 @@ private meta def concat (f₁ f₂ : list format) :=
 if f₁.empty then f₂ else if f₂.empty then f₁ else f₁ ++ [" "] ++ f₂
 
 private meta def parser_desc_aux : expr → tactic (list format)
-| ```(ident)  := return ["id"]
-| ```(ident_) := return ["id"]
-| ```(qexpr) := return ["expr"]
-| ```(tk %%c) := list.ret <$> to_fmt <$> eval_expr string c
-| ```(cur_pos) := return []
-| ```(return ._) := return []
-| ```(._ <$> %%p) := parser_desc_aux p
-| ```(skip_info %%p) := parser_desc_aux p
-| ```(set_goal_info_pos %%p) := parser_desc_aux p
-| ```(with_desc %%desc %%p) := list.ret <$> eval_expr format desc
-| ```(%%p₁ <*> %%p₂) := do
+| `(ident)  := return ["id"]
+| `(ident_) := return ["id"]
+| `(qexpr) := return ["expr"]
+| `(tk %%c) := list.ret <$> to_fmt <$> eval_expr string c
+| `(cur_pos) := return []
+| `(return ._) := return []
+| `(._ <$> %%p) := parser_desc_aux p
+| `(skip_info %%p) := parser_desc_aux p
+| `(set_goal_info_pos %%p) := parser_desc_aux p
+| `(with_desc %%desc %%p) := list.ret <$> eval_expr format desc
+| `(%%p₁ <*> %%p₂) := do
   f₁ ← parser_desc_aux p₁,
   f₂ ← parser_desc_aux p₂,
   return $ concat f₁ f₂
-| ```(%%p₁ <* %%p₂) := do
+| `(%%p₁ <* %%p₂) := do
   f₁ ← parser_desc_aux p₁,
   f₂ ← parser_desc_aux p₂,
   return $ concat f₁ f₂
-| ```(%%p₁ *> %%p₂) := do
+| `(%%p₁ *> %%p₂) := do
   f₁ ← parser_desc_aux p₁,
   f₂ ← parser_desc_aux p₂,
   return $ concat f₁ f₂
-| ```(many %%p) := do
+| `(many %%p) := do
   f ← parser_desc_aux p,
   return [maybe_paren f ++ "*"]
-| ```(optional %%p) := do
+| `(optional %%p) := do
   f ← parser_desc_aux p,
   return [maybe_paren f ++ "?"]
-| ```(sep_by %%sep %%p) := do
+| `(sep_by %%sep %%p) := do
   f₁ ← parser_desc_aux sep,
   f₂ ← parser_desc_aux p,
   return [maybe_paren f₂ ++ join f₁, " ..."]
-| ```(%%p₁ <|> %%p₂) := do
+| `(%%p₁ <|> %%p₂) := do
   f₁ ← parser_desc_aux p₁,
   f₂ ← parser_desc_aux p₂,
   return $ if f₁.empty then [maybe_paren f₂ ++ "?"] else
     if f₂.empty then [maybe_paren f₁ ++ "?"] else
     [paren $ join $ f₁ ++ [to_fmt " | "] ++ f₂]
-| ```(brackets %%l %%r %%p) := do
+| `(brackets %%l %%r %%p) := do
   f ← parser_desc_aux p,
   l ← eval_expr string l,
   r ← eval_expr string r,
@@ -116,8 +116,8 @@ private meta def parser_desc_aux : expr → tactic (list format)
   parser_desc_aux e'
 
 meta def param_desc : expr → tactic format
-| ```(parse %%p) := join <$> parser_desc_aux p
-| ```(opt_param %%t ._) := (++ "?") <$> pp t
+| `(parse %%p) := join <$> parser_desc_aux p
+| `(opt_param %%t ._) := (++ "?") <$> pp t
 | e := if is_constant e ∧ (const_name e).components.ilast = `itactic
   then return $ to_fmt "{ tactic }"
   else paren <$> pp e
@@ -282,8 +282,8 @@ meta structure rw_rule :=
 (symm : bool)
 (rule : pexpr)
 
-meta instance rw_rule_has_quote : has_quote rw_rule :=
-⟨λ ⟨p, s, r⟩, ``(rw_rule.mk %%(quote p) %%(quote s) %%(quote r))⟩
+meta instance rw_rule.reflect : has_reflect rw_rule :=
+λ ⟨p, s, r⟩, `(_)
 
 private meta def rw_goal (m : transparency) (rs : list rw_rule) : tactic unit :=
 rs.mfor' $ λ r, save_info r.pos >> to_expr' r.rule >>= rewrite_core m tt tt occurrences.all r.symm
@@ -305,8 +305,8 @@ meta structure rw_rules_t :=
 (rules   : list rw_rule)
 (end_pos : option pos)
 
-meta instance rw_rules_t_has_quote : has_quote rw_rules_t :=
-⟨λ ⟨rs, p⟩, ``(rw_rules_t.mk %%(quote rs) %%(quote p))⟩
+meta instance rw_rules_t.reflect : has_reflect rw_rules_t :=
+λ ⟨rs, p⟩, `(_)
 
 -- accepts the same content as `qexpr_list_or_texpr`, but with correct goal info pos annotations
 meta def rw_rules : parser rw_rules_t :=
@@ -376,7 +376,7 @@ private meta def find_case (goals : list expr) (ty : name) (idx : nat) (num_indi
       | _ := none
       end in
     match idx with
-    | none := list.foldl (<|>) none $ e.get_app_args.map (find_case case)
+    | none := list.foldl (<|>) (find_case case e.get_app_fn) $ e.get_app_args.map (find_case case)
     | some idx :=
       let args := e.get_app_args in
       do arg ← args.nth idx,
@@ -389,7 +389,7 @@ private meta def find_case (goals : list expr) (ty : name) (idx : nat) (num_indi
            (find_case (some arg) arg)
     end
   | (lam _ _ _ e) := find_case case e
-  | (macro _ n f) := list.foldl (<|>) none $ list.map (find_case case) $ macro_args_to_list n f
+  | (macro n args) := list.foldl (<|>) none $ args.map (find_case case)
   | _             := none
   end else none
 
@@ -408,7 +408,7 @@ do r   ← result,
        <|> fail ("'" ++ to_string ctor ++ "' is not a constructor"),
    let ctors := env.constructors_of ty,
    let idx   := env.inductive_num_params ty + /- motive -/ 1 +
-     list.find ctor ctors,
+     list.index_of ctor ctors,
    gs        ← get_goals,
    (case, g) ← (find_case gs ty idx (env.inductive_num_indices ty) none r ).to_monad
              <|> fail "could not find open goal of given case",
@@ -427,10 +427,10 @@ meta def generalize2 (p : parse qexpr) (x : parse ident) (h : parse ident) : tac
 do tgt ← target,
    e ← to_expr p,
    let e' := tgt^.replace $ λa _, if a = e then some (var 1) else none,
-   to_expr `(Π x, %%p = x → %%e') >>= assert h,
+   to_expr ``(Π x, %%p = x → %%e') >>= assert h,
    swap,
    t ← get_local h,
-   exact `(%%t %%p rfl),
+   exact ``(%%t %%p rfl),
    intro x,
    intro h
 
@@ -495,25 +495,29 @@ do e ← i_to_expr_strict q,
    tactic.define h e
 
 /--
-This tactic applies to any goal. `assertv h : T := p` adds a new hypothesis of name `h` and type `T` to the current goal if `p` a term of type `T`.
+This tactic applies to any goal. `note h : T := p` adds a new hypothesis of name `h` and type `T` to the current goal if `p` a term of type `T`.
 -/
-meta def assertv (h : parse ident) (q₁ : parse $ tk ":" *> texpr) (q₂ : parse $ tk ":=" *> texpr) : tactic unit :=
-do t ← i_to_expr_strict q₁,
-   v ← i_to_expr_strict ``(%%q₂ : %%t),
-   tactic.assertv h t v
+meta def note (h : parse ident?) (q₁ : parse (tk ":" *> texpr)?) (q₂ : parse $ tk ":=" *> texpr) : tactic unit :=
+match q₁ with
+| some e := do
+  t ← i_to_expr_strict e,
+  v ← i_to_expr_strict ``(%%q₂ : %%t),
+  tactic.assertv (h.get_or_else `this) t v
+| none := do
+  p ← i_to_expr_strict q₂,
+  tactic.note (h.get_or_else `this) none p
+end
 
-meta def definev (h : parse ident) (q₁ : parse $ tk ":" *> texpr) (q₂ : parse $ tk ":=" *> texpr) : tactic unit :=
-do t ← i_to_expr_strict q₁,
-   v ← i_to_expr_strict ``(%%q₂ : %%t),
-   tactic.definev h t v
-
-meta def note (h : parse ident) (q : parse $ tk ":=" *> texpr) : tactic unit :=
-do p ← i_to_expr_strict q,
-   tactic.note h p
-
-meta def pose (h : parse ident) (q : parse $ tk ":=" *> texpr) : tactic unit :=
-do p ← i_to_expr_strict q,
-   tactic.pose h p
+meta def pose (h : parse ident?) (q₁ : parse (tk ":" *> texpr)?) (q₂ : parse $ tk ":=" *> texpr) : tactic unit :=
+match q₁ with
+| some e := do
+  t ← i_to_expr_strict e,
+  v ← i_to_expr_strict ``(%%q₂ : %%t),
+  tactic.definev (h.get_or_else `this) t v
+| none := do
+  p ← i_to_expr_strict q₂,
+  tactic.pose (h.get_or_else `this) none p
+end
 
 /--
 This tactic displays the current state in the tracing buffer.
@@ -576,7 +580,9 @@ fail ("invalid simplification lemma '" ++ to_string n ++ "' (use command 'set_op
 private meta def simp_lemmas.resolve_and_add (s : simp_lemmas) (n : name) (ref : expr) : tactic simp_lemmas :=
 do
   p ← resolve_name n,
-  match p.to_raw_expr with
+  -- unpack local refs
+  let e := p.to_raw_expr.erase_annotations.get_app_fn.erase_annotations,
+  match e with
   | const n _           :=
     (do b ← is_valid_simp_lemma_cnst reducible n, guard b, save_const_type_info n ref, s.add_simp n)
     <|>
