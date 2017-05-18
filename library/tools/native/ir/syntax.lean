@@ -53,12 +53,12 @@ inductive ty : Type
 | ref : ty → ty
 | mut_ref : ty → ty
 -- these are temporary
-| int : ty
 | object_buffer : ty
 | symbol : symbol → ty
 | name : name → ty
 | array : ty → ty
 | raw_ptr : ty → ty
+-- | abs : list ty \r
 
 -- bug here if you omit name
 instance has_coe_basetype_ty : has_coe base_type ty :=
@@ -104,6 +104,7 @@ inductive expr : Type
 -- these need to be literal/values/etc
 | binary_operator : op → expr → expr → expr
 | array : list symbol → expr
+| call : symbol → list symbol → expr
 -- | value : value → expr
 
 instance literal_to_expr : has_coe literal expr :=

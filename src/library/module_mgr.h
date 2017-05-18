@@ -83,8 +83,9 @@ module_id resolve(search_path const & path, module_id const & module_file_name, 
 class module_mgr {
     bool m_server_mode = false;
     bool m_save_olean = false;
-
+    public:
     search_path m_path;
+    private:
     environment m_initial_env;
     io_state m_ios;
     module_vfs * m_vfs;

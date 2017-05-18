@@ -81,10 +81,10 @@ meta def lookup_arity (n : name) : ir_compiler nat := do
   end
 
 meta def mk_nat_literal (n : nat) : ir_compiler ir.expr :=
-  return (ir.expr.lit $ ir.literal.nat n)
+return (ir.expr.lit $ ir.literal.nat n)
 
 meta def fresh_symbol : ir_compiler ir.symbol :=
-  fmap ir.symbol.name fresh_name
+ir.symbol.name <$> fresh_name
 
 def upto (n : ℕ) : list ℕ :=
   (nat.repeat (::) n []).reverse
@@ -106,7 +106,7 @@ meta def mk_ir_call (head : ir.symbol) (args : list ir.expr) : ir_compiler ir.ex
   let args'' := list.map assert_name args
   in do
     args' ← monad.sequence args'',
-    return (ir.stmt.call head args')
+    return (ir.expr.call head args')
 
 meta def mk_direct_call (head : ir.symbol) (args : list ir.expr) : ir_compiler ir.stmt := do
   if list.length args < 9
@@ -253,7 +253,7 @@ meta def bind_builtin_case_fields' (scrut : ir.symbol) : list (nat × ir.symbol)
   loc ← compile_local f,
   idx ← fresh_name,
   kont ← bind_builtin_case_fields' fs body,
-  pure $ ir.stmt.letb idx ir.ty.int (mk_int n) (
+  pure $ ir.stmt.letb idx ir.base_type.int (mk_int n) (
   ir.stmt.letb loc (ir.ty.object none) (ir.expr.call `index [scrut, idx]) kont)
 
 meta def bind_builtin_case_fields (scrut : ir.symbol) (fs : list ir.symbol) (body : ir.stmt) : ir_compiler ir.stmt :=
@@ -386,6 +386,8 @@ meta def assign_last_expr (result_var : ir.symbol) : ir.stmt -> ir_compiler ir.s
 | (ir.stmt.assign _ _) := mk_error "UNSUUPORTED assign"
 | (ir.stmt.return _) := mk_error "UNSUUPORTED return"
 | (ir.stmt.panic _) := mk_error "UNSUUPORTED panic"
+| (ir.stmt.call _ _ _) := mk_error "unsupported call"
+| (ir.stmt.unreachable) := mk_error "foooo"
 | (ir.stmt.nop) := pure $ ir.stmt.nop
 
 -- meta def assert_is_switch : ir_compiler
@@ -525,7 +527,7 @@ meta def compile_expr_to_ir_stmt : expr → ir_compiler ir.stmt
       if n = "_neutral_"
       then (pure $ ir.stmt.e $ ir.expr.mk_object 0 [])
       else (if is_unreachable n
-      then (pure $ ir.stmt.e $ ir.expr.unreachable)
+      then (pure $ ir.stmt.unreachable)
       else do
         arity ← lookup_arity n,
         compile_call n arity [])
@@ -594,7 +596,7 @@ meta def bind_args (array : ir.symbol) (n : nat) : ir_compiler (list ir.symbol �
     (ns, body) ← r,
     fresh ← fresh_name,
     fresh2 ← fresh_name,
-    pure $ (fresh2 :: ns, ir.stmt.letb fresh ir.ty.int (mk_int n) (
+    pure $ (fresh2 :: ns, ir.stmt.letb fresh ir.base_type.int (mk_int n) (
     ir.stmt.letb fresh2 (ir.ty.object none) (ir.expr.call `index [array, fresh]) body))) n (pure ([], ir.stmt.nop))
 
 meta def compile_nargs_body (decl_name array : name) (arity : nat) : ir_compiler ir.stmt := do
@@ -694,7 +696,7 @@ meta def emit_main (procs : list (name × expr)) : ir_compiler ir.defn := do
   io_interface ← fresh_name,
   mk_io_interface ← mk_ir_call (in_lean_ns "mk_io_interface") [],
   call_main ← compile_call "___lean__main" arity [ir.expr.sym io_interface, ir.expr.sym vm_simple_obj],
-  return (ir.defn.mk bool.tt `main [] ir.ty.int $ ir.stmt.seq ([
+  return (ir.defn.mk bool.tt `main [] ir.base_type.int $ ir.stmt.seq ([
     ir.stmt.e $ ir.expr.call (in_lean_ns `initialize) [],
     ir.stmt.letb `env (ir.ty.symbol (in_lean_ns `environment)) ir.expr.uninitialized ir.stmt.nop
   ] ++ builtins ++ [

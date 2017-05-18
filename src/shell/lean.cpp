@@ -679,7 +679,6 @@ int main(int argc, char ** argv) {
             }
         }
 
-        // Options appear to be empty, pretty sure I'm making a mistake here.
         if (compile && !mods.empty()) {
             auto current_module = mods.front().m_mod_info;
 

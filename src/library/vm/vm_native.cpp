@@ -65,8 +65,8 @@ vm_obj native_get_nat_value(vm_obj const & o) {
 
 vm_obj native_get_quote_expr(vm_obj const & o) {
     expr e = to_expr(o);
-    if (is_quote(e)) {
-        auto exp = to_obj(get_quote_expr(e));
+    if (is_pexpr_quote(e)) {
+        auto exp = to_obj(get_pexpr_quote_value(e));
         return mk_vm_constructor(1, { exp });
     } else {
         return mk_vm_simple(0);
@@ -114,10 +114,12 @@ vm_obj native_dump_format(vm_obj const & string_obj, vm_obj const & format_obj) 
 }
 
 // Returns the serialized contents of `quote_macro`.
+// TODO: I think there are some issues with this in the new
+// quote style.
 vm_obj native_serialize_quote_macro(vm_obj const & pexpr_obj) {
     auto exp = to_expr(pexpr_obj);
-    lean_assert(is_quote(exp));
-    auto quoted_expr = get_quote_expr(exp);
+    lean_assert(is_pexpr_quote(exp));
+    auto quoted_expr = get_pexpr_quote_value(exp);
     std::ostringstream output_stream(std::ios_base::binary);
     serializer s(output_stream);
     s << quoted_expr;

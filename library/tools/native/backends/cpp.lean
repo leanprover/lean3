@@ -29,7 +29,8 @@ meta def mangle_external_name (n : name) : string :=
   name.to_string_with_sep "_" n
 
 meta def mangle_name (n : name) : string :=
-  (replace #"'" "_$single_quote$_" $ name.to_string_with_sep "$dot$_" n)
+  -- this is hack due to syntax highlighting, fix me
+  (replace (list.head ("\""))  "_$single_quote$_" $ name.to_string_with_sep "$dot$_" n)
 
 meta def mangle_symbol : ir.symbol → string
 | (ir.symbol.name n) := "_$lean$_" ++ mangle_name n
@@ -111,6 +112,9 @@ meta def expr' : ir.expr → format
 | (ir.expr.binary_operator op e1 e2) := expr' e1 ++ binary_op op ++ expr' e2
 | (ir.expr.array ns) :=
     format.bracket "{" "}" (comma_sep (list.map format_local ns))
+| (ir.expr.call (ir.symbol.name `index) (buf :: index :: _)) :=
+  mangle_symbol buf ++ "[" ++ mangle_symbol index ++ "]"
+| (ir.expr.call f xs) := mk_call f xs
 
 meta def default_case (body : format) : format :=
   to_fmt "default: " ++ block body
@@ -146,7 +150,6 @@ meta def ty : ir.ty → format
 | (ir.ty.object _) := format.of_string "lean::vm_obj"
 | (ir.ty.ref T) := ty T ++ format.of_string " const &"
 | (ir.ty.mut_ref T) := ty T ++ format.of_string " &"
-| (ir.ty.int) := "int"
 | (ir.ty.object_buffer) := "lean::buffer<lean::vm_obj>"
 | (ir.ty.name n) := to_fmt n ++ format.space
 | (ir.ty.base bt) := base_type bt

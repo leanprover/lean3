@@ -57,13 +57,21 @@ parameter [monad_m : monad m]
 parameter ε : Type u
 
 def except_t.return {α : Type u} (a : α) : except_t m ε α :=
-(@monad.pure m monad_m _) (except.ok a)
+@return m monad_m _ (except.ok a)
 
+-- WHy doesn't this work anymore, this seems super annoying ...
+-- Overall if we lost the ability for these types of projections working it seems like
+-- a massive lose compared to the old style.
+--
+-- def except_t.map {α β : Type u} (f : α → β) (ma : except_t m ε α) : except_t m ε β :=
+-- (@has_map.map m _ _ _) (except.map f) ma
+
+-- This is super annoying ...
 def except_t.map {α β : Type u} (f : α → β) (ma : except_t m ε α) : except_t m ε β :=
-(@monad.map m monad_m _ _) (except.map f) ma
+(@has_map.map m (monad_m.to_applicative.to_functor.to_has_map) _) _ (except.map f) ma
 
 def except_t.bind {α β : Type u} (ma : except_t m ε α) (f : α → except_t m ε β) : except_t m ε β :=
-(@monad.bind m monad_m _ _) ma $
+(@has_bind.bind m monad_m.to_has_bind _ _) ma $
 λ res, match res with
 | (except.error err) := return $ except.error err
 | (except.ok v) := f v
@@ -74,14 +82,13 @@ begin
   intros,
   unfold except_t at x,
   unfold except_t.map,
-  unfold monad.map,
   assert P : @except.map ε α α id = id,
   apply funext,
   intros,
   rewrite except.id_map,
   simp,
   rewrite P,
-  rewrite monad.id_map,
+  rw functor.id_map,
 end
 
 lemma except_t.pure_bind {α β : Type u} (x : α) (f : α → except_t m ε β) :
@@ -106,7 +113,7 @@ begin
   cases x_1; simp; unfold except_t.bind._match_1,
   unfold return pure,
   rewrite @monad.pure_bind,
-  unfold except_t.bind._match_1 applicative.pure,
+  unfold except_t.bind._match_1 has_pure.pure,
   dsimp,
   reflexivity,
   reflexivity,
@@ -125,7 +132,7 @@ begin
   unfold except_t.bind._match_1,
   unfold function.comp,
   simp [except.map],
-  simp [return, pure],
+  unfold return pure,
   unfold function.comp,
   unfold except_t.bind._match_1,
   simp [except.map],
