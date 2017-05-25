@@ -121,7 +121,7 @@ script:
   - cpack
   - yes "A" | ctest -j2 --output-on-failure
   - if [[ $PACKAGE == TRUE ]]; then make package; fi
-  - if [[ $TEST_LEANPKG_REGISTRY == ON ]]; then easy_install3 pip; pip install requests; python ../script/test_registry.py; fi
+  - if [[ $TEST_LEANPKG_REGISTRY == ON ]]; then sudo easy_install3 pip; pip install requests; python ../script/test_registry.py; fi
   - cd ..
 
 after_script:
