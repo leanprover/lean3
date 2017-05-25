@@ -121,7 +121,7 @@ script:
   - cpack
   - yes "A" | ctest -j2 --output-on-failure
   - if [[ $PACKAGE == TRUE ]]; then make package; fi
-  - if [[ $TEST_LEANPKG_REGISTRY == ON ]]; then pip install requests; python ../script/test_registry.py; fi
+  - if [[ $TEST_LEANPKG_REGISTRY == ON ]]; then pip3.5 install requests; python3.5 ../script/test_registry.py; fi
   - cd ..
 
 after_script:
