@@ -103,7 +103,7 @@ before_install:
     fi
 
 script:
-  - pip3.5 install requests
+  - sudo curl "https://bootstrap.pypa.io/get-pip.py" | python3.5
   - mkdir -p build
   - cd build
   - if [[ $TESTCOV != ON ]]; then TESTCOV=OFF; fi
@@ -122,7 +122,7 @@ script:
   - cpack
   - yes "A" | ctest -j2 --output-on-failure
   - if [[ $PACKAGE == TRUE ]]; then make package; fi
-  - if [[ $TEST_LEANPKG_REGISTRY == ON ]]; then pip3.5 install requests; python3.5 ../script/test_registry.py; fi
+  - if [[ $TEST_LEANPKG_REGISTRY == ON ]]; then pip3 install requests; python3.5 ../script/test_registry.py; fi
   - cd ..
 
 after_script:
