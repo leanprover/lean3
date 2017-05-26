@@ -103,6 +103,7 @@ before_install:
     fi
 
 script:
+  - pip3.5 install requests
   - mkdir -p build
   - cd build
   - if [[ $TESTCOV != ON ]]; then TESTCOV=OFF; fi
