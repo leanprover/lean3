@@ -103,7 +103,7 @@ before_install:
     fi
 
 script:
-  - sudo curl "https://bootstrap.pypa.io/get-pip.py" | python3.5
+  - sudo curl "https://bootstrap.pypa.io/get-pip.py" | sudo python3.5
   - mkdir -p build
   - cd build
   - if [[ $TESTCOV != ON ]]; then TESTCOV=OFF; fi
