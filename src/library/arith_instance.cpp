@@ -9,6 +9,7 @@ Author: Leonardo de Moura
 #include "library/constants.h"
 #include "library/arith_instance.h"
 #include "library/num.h"
+#include "library/typed_expr.h"
 
 namespace lean {
 // TODO(Leo): pre compute arith_instance_info for nat, int and real
@@ -129,7 +130,9 @@ bool arith_instance::is_nat() {
 optional<mpq> arith_instance::eval(expr const & e) {
     buffer<expr> args;
     expr f = get_app_args(e, args);
-    if (!is_constant(f)) {
+    if (is_typed_expr(f)) {
+        return eval(mk_app(get_typed_expr_expr(f), args));
+    } else if (!is_constant(f)) {
         throw exception("cannot find num of nonconstant");
     } else if (const_name(f) == get_has_add_add_name() && args.size() == 4) {
         if (auto r1 = eval(args[2]))

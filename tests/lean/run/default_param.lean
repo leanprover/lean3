@@ -56,7 +56,7 @@ open tactic
 set_option pp.all true
 
 meta def check_expr (p : pexpr) (t : expr) : tactic unit :=
-do e ← to_expr p, guard (t = e)
+do e ← to_expr p, is_def_eq t e
 
 run_cmd do
   e ← to_expr ``(boo 2),

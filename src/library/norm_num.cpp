@@ -8,6 +8,7 @@ Author: Robert Y. Lewis
 #include "library/util.h"
 #include "library/constants.h"
 #include "library/comp_val.h"
+#include "library/typed_expr.h"
 
 namespace lean {
 bool norm_num_context::is_numeral(expr const & e) const {
@@ -425,6 +426,7 @@ expr_pair norm_num_context::mk_norm_nat_sub(expr const & s_lhs, expr const & s_r
 }
 
 pair<expr, expr> norm_num_context::mk_norm(expr const & e) {
+    if (is_typed_expr(e)) return mk_norm(get_typed_expr_expr(e));
     buffer<expr> args;
     expr f = get_app_args(e, args);
     if (!is_constant(f) || args.size() == 0) {

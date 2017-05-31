@@ -14,11 +14,13 @@ namespace lean {
 struct head_index {
     expr_kind m_kind;
     name      m_name;
+    unsigned  m_num_args = 0;
     explicit head_index(expr_kind k = expr_kind::Var):m_kind(k) {}
     explicit head_index(name const & c):m_kind(expr_kind::Constant), m_name(c) {}
-    head_index(expr const & e);
+    head_index(expr e);
     expr_kind kind() const { return m_kind; }
     name const & get_name() const { return m_name; }
+    unsigned get_num_args() const { return m_num_args; }
 
     struct cmp {
         int operator()(head_index const & i1, head_index const & i2) const;
