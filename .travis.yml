@@ -9,82 +9,91 @@ addons:
       - sourceline: 'ppa:kalakris/cmake' # cmake 2.8 for precise
       - sourceline: 'ppa:adrozdoff/cmake' # cmake 3 for trusty
       - sourceline: 'ppa:h-rayflood/llvm'
+      - sourceline: 'ppa:fkrull/deadsnakes' # python 3
     packages: &default_packages
       - cmake
       - libgmp-dev
       - libgoogle-perftools-dev
       - g++-4.9
       - clang-3.4
+      - python3.5
 
 matrix:
   include:
+  #  - os: linux
+  #    dist: precise
+  #    env:
+  #      CMAKE_CXX_COMPILER=g++-4.9
+  #      CMAKE_BUILD_TYPE=Release
+  #      TARGET=build/lean-3.1.1-linux.tar.gz
+  #      UPLOAD=ON
+  #      STATIC=ON
+
+  #  - os: linux
+  #    env:
+  #      CMAKE_CXX_COMPILER=clang++-3.4
+  #      CMAKE_BUILD_TYPE=Release
+  #      TCMALLOC=ON
+
+  #  - os: linux
+  #    addons: &gcc6_addons
+  #      apt:
+  #        sources: *apt_sources
+  #        packages:
+  #          - *default_packages
+  #          - g++-6
+  #          - gcc-6
+  #    env:
+  #      CMAKE_CXX_COMPILER=g++-6
+  #      CMAKE_BUILD_TYPE=Release
+  #      TCMALLOC=ON
+
+  #  - os: linux
+  #    addons: *gcc6_addons
+  #    env:
+  #      CMAKE_CXX_COMPILER=g++-6
+  #      CMAKE_BUILD_TYPE=Release
+  #      TESTCOV=ON
+
+  #  - os: linux
+  #    addons: *gcc6_addons
+  #    env:
+  #      CMAKE_CXX_COMPILER=g++-6
+  #      CMAKE_BUILD_TYPE=Release
+  #      MULTI_THREAD=OFF
+
+  #  - os: linux
+  #    env:
+  #      CMAKE_CXX_COMPILER=clang++-3.4
+  #      CMAKE_BUILD_TYPE=Debug
+  #      LEAN_EXTRA_MAKE_OPTS=-t0
+  #      TCMALLOC=ON
+
+  #  - os: linux
+  #    dist: precise
+  #    env:
+  #      CMAKE_CXX_COMPILER=g++-4.9
+  #      CMAKE_BUILD_TYPE=Debug
+
    - os: linux
      dist: precise
      env:
        CMAKE_CXX_COMPILER=g++-4.9
-       CMAKE_BUILD_TYPE=Release
-       TARGET=build/lean-3.1.1-linux.tar.gz
-       UPLOAD=ON
-       STATIC=ON
-
-   - os: linux
-     env:
-       CMAKE_CXX_COMPILER=clang++-3.4
-       CMAKE_BUILD_TYPE=Release
-       TCMALLOC=ON
-
-   - os: linux
-     addons: &gcc6_addons
-       apt:
-         sources: *apt_sources
-         packages:
-           - *default_packages
-           - g++-6
-           - gcc-6
-     env:
-       CMAKE_CXX_COMPILER=g++-6
-       CMAKE_BUILD_TYPE=Release
-       TCMALLOC=ON
-
-   - os: linux
-     addons: *gcc6_addons
-     env:
-       CMAKE_CXX_COMPILER=g++-6
-       CMAKE_BUILD_TYPE=Release
-       TESTCOV=ON
-
-   - os: linux
-     addons: *gcc6_addons
-     env:
-       CMAKE_CXX_COMPILER=g++-6
-       CMAKE_BUILD_TYPE=Release
-       MULTI_THREAD=OFF
-
-   - os: linux
-     env:
-       CMAKE_CXX_COMPILER=clang++-3.4
        CMAKE_BUILD_TYPE=Debug
-       LEAN_EXTRA_MAKE_OPTS=-t0
-       TCMALLOC=ON
+       TEST_LEANPKG_REGISTRY=ON
 
-   - os: linux
-     dist: precise
-     env:
-       CMAKE_CXX_COMPILER=g++-4.9
-       CMAKE_BUILD_TYPE=Debug
+  #  - os: osx
+  #    env:
+  #      CMAKE_CXX_COMPILER=clang++
+  #      CMAKE_BUILD_TYPE=Release
+  #      TARGET=build/lean-3.1.1-darwin.zip
+  #      UPLOAD=ON
+  #      PACKAGE=TRUE
 
-   - os: osx
-     env:
-       CMAKE_CXX_COMPILER=clang++
-       CMAKE_BUILD_TYPE=Release
-       TARGET=build/lean-3.1.1-darwin.zip
-       UPLOAD=ON
-       PACKAGE=TRUE
-
-   - os: osx
-     env:
-       CMAKE_CXX_COMPILER=g++
-       CMAKE_BUILD_TYPE=Debug
+  #  - os: osx
+  #    env:
+  #      CMAKE_CXX_COMPILER=g++
+  #      CMAKE_BUILD_TYPE=Debug
 
 before_install:
   - if [[ $TRAVIS_OS_NAME == osx ]]; then
@@ -94,6 +103,7 @@ before_install:
     fi
 
 script:
+  - sudo curl "https://bootstrap.pypa.io/get-pip.py" | sudo python3.5
   - mkdir -p build
   - cd build
   - if [[ $TESTCOV != ON ]]; then TESTCOV=OFF; fi
@@ -112,6 +122,7 @@ script:
   - cpack
   - yes "A" | ctest -j2 --output-on-failure
   - if [[ $PACKAGE == TRUE ]]; then make package; fi
+  - if [[ $TEST_LEANPKG_REGISTRY == ON ]]; then pip3 install requests; python3.5 ../script/test_registry.py; fi
   - cd ..
 
 after_script:
