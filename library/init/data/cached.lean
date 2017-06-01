@@ -10,6 +10,7 @@ universes u v
 structure cached (α : Type u) [inhabited α] :=
 mk' :: (val : quot (λ x y : α, true))
 
+#print cached.val
 namespace cached
   variables {α : Type u} [inhabited α] {β : Type v}
 
@@ -30,6 +31,10 @@ namespace cached
 
   theorem cache_eq_empty : ∀ (c : cached α), c = empty
   | ⟨q⟩ := congr_arg mk' $ quot.ind (λx, quot.sound trivial) q
+
+  meta constant inspect : cached α → α
+
+  meta instance [has_to_string α] : has_to_string (cached α) := ⟨to_string ∘ inspect⟩
 
 end cached
 
