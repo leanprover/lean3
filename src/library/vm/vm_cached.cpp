@@ -59,7 +59,6 @@ void initialize_vm_cached() {
     DECLARE_VM_BUILTIN(name({"cached", "mk'"}),              cached_mk);
     DECLARE_VM_BUILTIN(name({"cached", "val"}),              cached_val);
     DECLARE_VM_BUILTIN(name({"cached", "update"}),           cached_update);
-    DECLARE_VM_BUILTIN(name({"cached", "inspect"}),          cached_val);
     DECLARE_VM_CASES_BUILTIN(name({"cached", "cases_on"}),   cached_cases_on);
 }
 
