@@ -5,7 +5,6 @@ Author: Leonardo de Moura
 -/
 prelude
 import init.data.list.lemmas
-import init.meta.mk_dec_eq_instance
 open list
 
 universes u v
@@ -49,12 +48,6 @@ instance : alternative list :=
 { list.monad with
   failure := @list.nil,
   orelse  := @list.append }
-
-instance {α : Type u} [decidable_eq α] : decidable_eq (list α) :=
-by tactic.mk_dec_eq_instance
-
-instance : decidable_eq string :=
-list.decidable_eq
 
 namespace list
 

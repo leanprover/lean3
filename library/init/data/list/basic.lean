@@ -318,4 +318,14 @@ infix ` <+: `:50 := is_prefix
 infix ` <:+ `:50 := is_suffix
 infix ` <:+: `:50 := is_infix
 
+instance {α : Type u} [decidable_eq α] : decidable_eq (list α)
+| []     []      := is_true rfl
+| (a::l) []      := is_false (λh, list.no_confusion h)
+| []     (b::l') := is_false (λh, list.no_confusion h)
+| (a::l) (b::l') := if ab : a = b then
+  @dite _ (decidable_eq l l') _
+    (λll, is_true $ congr (congr_arg cons ab) ll)
+    (λll, is_false $ λh, list.no_confusion h (λ_, ll))
+  else is_false $ λh, list.no_confusion h (λn _, ab n)
+
 end list

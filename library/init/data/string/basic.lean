@@ -25,6 +25,10 @@ list.append b a
 
 instance : has_append string :=
 ⟨string.concat⟩
+
+instance : decidable_eq string :=
+list.decidable_eq
+
 end string
 
 open list

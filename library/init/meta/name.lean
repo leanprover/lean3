@@ -69,31 +69,64 @@ name.to_string_with_sep "."
 instance : has_to_string name :=
 ⟨name.to_string⟩
 
-/- TODO(Leo): provide a definition in Lean. -/
-meta constant name.has_decidable_eq : decidable_eq name
-/- Both cmp and lex_cmp are total orders, but lex_cmp implements a lexicographical order. -/
-meta constant name.cmp : name → name → ordering
-meta constant name.lex_cmp : name → name → ordering
-meta constant name.append : name → name → name
-meta constant name.is_internal : name → bool
+instance name.has_decidable_eq : decidable_eq name
+| anonymous        anonymous          := is_true rfl
+| anonymous        (mk_string s' p')  := is_false (λh, name.no_confusion h)
+| anonymous        (mk_numeral s' p') := is_false (λh, name.no_confusion h)
+| (mk_string s p)  anonymous          := is_false (λh, name.no_confusion h)
+| (mk_string s p)  (mk_string s' p')  := if ss : s = s' then
+  @dite _ (name.has_decidable_eq p p') _
+    (λpp, is_true $ congr (congr_arg mk_string ss) pp)
+    (λpp, is_false $ λh, name.no_confusion h (λ_, pp))
+  else is_false $ λh, name.no_confusion h (λn _, ss n)
+| (mk_string s p)  (mk_numeral s' p') := is_false (λh, name.no_confusion h)
+| (mk_numeral s p) anonymous          := is_false (λh, name.no_confusion h)
+| (mk_numeral s p) (mk_string s' p')  := is_false (λh, name.no_confusion h)
+| (mk_numeral s p) (mk_numeral s' p') := if ss : s = s' then
+  @dite _ (name.has_decidable_eq p p') _
+    (λpp, is_true $ congr (congr_arg mk_numeral ss) pp)
+    (λpp, is_false $ λh, name.no_confusion h (λ_, pp))
+  else is_false $ λh, name.no_confusion h (λn _, ss n)
 
-attribute [instance] name.has_decidable_eq
+/- Both cmp and lex_cmp are total orders, but lex_cmp implements a lexicographical order. -/
+def name.lex_cmp : name → name → ordering
+| anonymous        anonymous          := ordering.eq
+| anonymous        _                  := ordering.lt
+| _                anonymous          := ordering.gt
+| (mk_string s p)  (mk_string s' p')  := (has_ordering.cmp s s').or_else (name.lex_cmp p p')
+| (mk_string s p)  (mk_numeral s' p') := ordering.gt
+| (mk_numeral s p) (mk_string s' p')  := ordering.lt
+| (mk_numeral s p) (mk_numeral s' p') := (has_ordering.cmp s s').or_else (name.lex_cmp p p')
+
+meta constant name.cmp : name → name → ordering
+
+def name.append (n1 : name) : name → name
+| anonymous          := n1
+| (mk_string s2 n2)  := mk_string s2 (name.append n2)
+| (mk_numeral s2 n2) := mk_numeral s2 (name.append n2)
+
+def name.is_internal : name → bool
+| anonymous        := ff
+| (mk_string s n)  := if list.head s = '_' then tt else name.is_internal n
+| (mk_numeral s n) := name.is_internal n
 
 meta instance : has_ordering name :=
 ⟨name.cmp⟩
 
-meta instance : has_append name :=
+instance : has_append name :=
 ⟨name.append⟩
 
-/- (name.append_after n i) return a name of the form n_i -/
-meta constant name.append_after : name → nat → name
+/- (name.append_after n i) returns a name of the form n_i -/
+def name.append_after : name → nat → name
+| (mk_string s n) i := n <.> (s ++ "_" ++ to_string i)
+| n               i := n <.> ("_" ++ to_string i)
 
-meta def name.is_prefix_of : name → name → bool
-| p name.anonymous := ff
-| p n              :=
-  if p = n then tt else name.is_prefix_of p n.get_prefix
+def name.is_prefix_of : name → name → bool
+| p name.anonymous   := ff
+| p (mk_string s n)  := if p = n then tt else name.is_prefix_of p n
+| p (mk_numeral v n) := if p = n then tt else name.is_prefix_of p n
 
-meta def name.replace_prefix : name → name → name → name
+def name.replace_prefix : name → name → name → name
 | anonymous        p p' := anonymous
 | (mk_string s c)  p p' := if c = p then mk_string s p' else mk_string s (name.replace_prefix c p p')
 | (mk_numeral v c) p p' := if c = p then mk_numeral v p' else mk_numeral v (name.replace_prefix c p p')

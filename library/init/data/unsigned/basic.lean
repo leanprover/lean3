@@ -7,7 +7,7 @@ prelude
 import init.data.fin.basic
 
 open nat
-def unsigned_sz : nat := succ 4294967295
+def unsigned_sz : nat := succ 0xFFFFFFFF
 
 def unsigned := fin unsigned_sz
 
