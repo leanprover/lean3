@@ -28,6 +28,11 @@ meta instance : has_reflect loc
 | loc.wildcard := `(_)
 | (loc.ns xs)  := `(_)
 
+meta def loc.include_goal : loc → bool
+| loc.wildcard := tt
+| (loc.ns [])  := tt
+| _            := ff
+
 meta def loc.get_locals : loc → tactic (list expr)
 | loc.wildcard := tactic.local_context
 | (loc.ns xs)  := mmap tactic.get_local xs 
@@ -292,10 +297,7 @@ meta def change (q : parse texpr) : parse (tk "with" *> texpr)? → parse locati
      ew ← i_to_expr_strict w,
      let repl := λe : expr, e.replace (λ a n, if a = eq then some ew else none),
      hs.mmap' (λh, do e ← infer_type h, change_core (repl e) (some h)),
-     match hs with
-     | [] := do g ← target, change_core (repl g) none
-     | _ := skip
-     end
+     if l.include_goal then do g ← target, change_core (repl g) none else skip
 
 /--
 This tactic applies to any goal. It gives directly the exact proof
