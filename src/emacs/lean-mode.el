@@ -30,6 +30,7 @@
 (require 'lean-flycheck)
 (require 'lean-info)
 (require 'lean-type)
+(require 'lean-message-boxes)
 
 (defun lean-compile-string (exe-name args file-name)
   "Concatenate exe-name, args, and file-name"
@@ -83,7 +84,7 @@
   (local-set-key lean-keybinding-auto-complete             'company-complete)
   (local-set-key lean-keybinding-lean-toggle-show-goal     'lean-toggle-show-goal)
   (local-set-key lean-keybinding-lean-toggle-next-error    'lean-toggle-next-error)
-  )
+  (local-set-key lean-keybinding-lean-message-boxes-toggle 'lean-message-boxes-toggle))
 
 (define-abbrev-table 'lean-abbrev-table
   '())
@@ -104,6 +105,7 @@
     ["Show type info"       lean-show-type                    (and lean-eldoc-use eldoc-mode)]
     ["Toggle goal display"  lean-toggle-show-goal             t]
     ["Toggle next error display" lean-toggle-next-error       t]
+    ["Toggle message boxes" lean-message-boxes-toggle         t]
     ["Highlight pending tasks"  lean-server-toggle-show-pending-tasks
      :active t :style toggle :selected lean-server-show-pending-tasks]
     ["Find definition at point" lean-find-definition          t]
