@@ -192,8 +192,8 @@ optional<info_data> find_hole(module_info const & m_mod_info,
     optional<info_data> r;
     for (auto & infom : info_managers) {
         if (infom.get_file_name() == m_mod_info.m_mod) {
-            line_info_data_set S = infom.get_line_info_set(pos.first);
-            S.for_each([&](unsigned, list<info_data> const & info_list) {
+            infom.get_line_info_sets().for_each([&](unsigned, line_info_data_set const & S) {
+                S.for_each([&](unsigned, list<info_data> const & info_list) {
                     if (r) return;
                     for (info_data const & info : info_list) {
                         if (hole_info_data const * hole = is_hole_info_data(info)) {
@@ -206,6 +206,7 @@ optional<info_data> find_hole(module_info const & m_mod_info,
                         }
                     }
                 });
+            });
             if (r) break;
         }
     }
