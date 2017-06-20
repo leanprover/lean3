@@ -143,11 +143,14 @@ meta def assumption : tactic unit :=
 tactic.assumption
 
 private meta def change_core (e : expr) : option expr → tactic unit
-| none := tactic.change e
+| none := do d ← target,
+             unify d e,
+             instantiate_mvars e >>= tactic.change
 | (some h) :=
   do num_reverted : ℕ ← revert h,
      expr.pi n bi d b ← target,
-     tactic.change $ expr.pi n bi e b,
+     unify d e,
+     instantiate_mvars (expr.pi n bi e b) >>= tactic.change,
      intron num_reverted
 
 /--
