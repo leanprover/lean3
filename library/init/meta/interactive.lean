@@ -143,11 +143,14 @@ meta def assumption : tactic unit :=
 tactic.assumption
 
 private meta def change_core (e : expr) : option expr → tactic unit
-| none := tactic.change e
+| none := do d ← target,
+             unify d e,
+             instantiate_mvars e >>= tactic.change
 | (some h) :=
   do num_reverted : ℕ ← revert h,
      expr.pi n bi d b ← target,
-     tactic.change $ expr.pi n bi e b,
+     unify d e,
+     instantiate_mvars (expr.pi n bi e b) >>= tactic.change,
      intron num_reverted
 
 /--
@@ -164,8 +167,10 @@ meta def change (q : parse texpr) : parse (tk "with" *> texpr)? → parse locati
 | none _ := fail "change-at does not support multiple locations"
 | (some w) l :=
   do hs ← l.get_locals,
-     eq ← i_to_expr_strict q,
-     ew ← i_to_expr_strict w,
+     u ← mk_meta_univ, 
+     ty ← mk_meta_var (sort u), 
+     eq ← i_to_expr ``(%%q : %%ty),
+     ew ← i_to_expr ``(%%w : %%ty),
      let repl := λe : expr, e.replace (λ a n, if a = eq then some ew else none),
      hs.mmap' (λh, do e ← infer_type h, change_core (repl e) (some h)),
      if l.include_goal then do g ← target, change_core (repl g) none else skip
