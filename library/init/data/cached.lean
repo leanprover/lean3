@@ -35,6 +35,8 @@ namespace cached
 
   meta instance [has_to_string α] : has_to_string (cached α) := ⟨to_string ∘ inspect⟩
 
+  meta instance [has_repr α] : has_repr (cached α) := ⟨repr ∘ inspect⟩
+
 end cached
 
 structure memoized (α : Type u) := mk' ::
