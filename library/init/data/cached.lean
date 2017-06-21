@@ -21,15 +21,21 @@ namespace cached
   def lift_on (c : cached α) (f : α → β) (h : ∀ x, f (default _) = f x) : β :=
   quot.lift f (λx y _, (h x).symm.trans (h y)) c.val
 
-  def lift_eq {f : α → β} {h} (x) : lift_on (mk x) f h = f x := rfl
-
   -- This function has a VM implementation to change the value of the cache `c` to `v`
   def update (c : cached α) (v : α) (f : thunk β) : β := f ()
 
+  @[simp] lemma update_def (c : cached α) (v : α) (f : thunk β) :
+    @update _ _ _ c v f = f () := rfl
+
   def reset (c : cached α) : thunk β → β := update c (default α)
+
+  @[simp] lemma reset_def (c : cached α) (f : thunk β) :
+    @reset _ _ _ c f = f () := rfl
 
   theorem cache_eq_empty : ∀ (c : cached α), c = empty
   | ⟨q⟩ := congr_arg mk' $ quot.ind (λx, quot.sound trivial) q
+
+  @[simp] lemma lift_mk {f : α → β} {h} (x) : lift_on (mk x) f h = f x := rfl
 
   meta def inspect (c : cached α) : α := unchecked_cast c.val
 
@@ -58,6 +64,11 @@ namespace memoized
       | none        := rfl
       | some ⟨x, h⟩ := h
       end)
+
+  @[simp] theorem mk_eval (f : unit → α) : (@mk _ f).eval = f () := rfl
+
+  @[simp] theorem eval_val : ∀ (f : memoized α), eval f = f.func ()
+  | ⟨f, c⟩ := congr_arg (λ c', eval ⟨f, c'⟩) c.cache_eq_empty
 
   instance : has_coe_to_fun (memoized α) := ⟨λ_, thunk α, λm _, m.eval⟩
 

@@ -49,4 +49,7 @@ namespace hashed_func
 
   instance : has_coe_to_fun (hashed_func α β) := ⟨_, hashed_func.eval⟩
 
+  @[simp] theorem eval_val : ∀ hf : hashed_func α β, eval hf = hf.func
+  | ⟨f, hash_fn, c⟩ := funext $ λ a, by rw [c.cache_eq_empty]; refl
+
 end hashed_func
