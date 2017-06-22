@@ -480,6 +480,15 @@ theorem contains_iff (m : hash_map α β) (a : α) (b : β a) :
   m.contains a ↔ a ∈ m.keys :=
 m.is_valid.contains_aux_iff _ _
 
+theorem entries_empty (hash_fn : α → nat) {n} : entries (@mk_hash_map α _ β hash_fn n) = [] :=
+mk_as_list hash_fn _
+
+theorem find_empty (hash_fn : α → nat) {n} (x) : find (@mk_hash_map α _ β hash_fn n) x = none :=
+by { ginduction find (@mk_hash_map α _ β hash_fn n) x with h y, refl,
+     note := (find_iff _ _ _).1 h,
+     rw entries_empty at this,
+     contradiction }
+
 lemma insert_lemma (hash_fn : α → nat) {n n'}
   {bkts : bucket_array α β n} {sz} (v : valid hash_fn bkts sz) :
   valid hash_fn (bkts.foldl (mk_array _ [] : bucket_array α β n') (reinsert_aux hash_fn)) sz :=
@@ -554,6 +563,15 @@ let n'        : ℕ+ := ⟨n.1 * 2, mul_pos n.2 dec_trivial⟩,
   nbuckets := n',
   buckets  := buckets'',
   is_valid := insert_lemma _ valid' }
+
+theorem insert_hash_fn (m : hash_map α β) (a : α) (b : β a) : (m.insert a b).hash_fn = m.hash_fn :=
+begin
+  cases m, unfold hash_map.insert, simp,
+  cases (by apply_instance : decidable
+    (↑(contains_aux a (bucket_array.read hash_fn buckets a)))) with hc hc; dsimp [dite],
+  cases (by apply_instance : decidable (size + 1 ≤ nbuckets.val)) with hsz hsz; dsimp [ite],
+  all_goals {refl}
+end
 
 theorem mem_insert : Π (m : hash_map α β) (a b a' b'),
   sigma.mk a' b' ∈ (m.insert a b).entries ↔
