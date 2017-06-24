@@ -13,8 +13,7 @@ private meta def collect_proofs_in :
   expr → list name × list expr → tactic (list name × list expr) | e (ns, hs) :=
 let go : tactic (list name × list expr) :=
 (do t ← infer_type e,
-    s ← infer_type t,
-    guard (s = expr.sort level.zero),
+    is_prop t >>= guardb,
     first (hs.map $ λ h, do
       t' ← infer_type h,
       is_def_eq t t',
@@ -47,10 +46,7 @@ end
 
 meta def generalize_proofs (ns : list name) : tactic unit :=
 do intros_dep,
-   hs ← local_context >>= mfilter (λh,
-   (do ty ← infer_type h,
-      expr.sort zero ← infer_type ty,
-      return tt) <|> return ff),
+   hs ← local_context >>= mfilter is_proof,
    t ← target,
    collect_proofs_in t (ns, hs) >> skip
 
