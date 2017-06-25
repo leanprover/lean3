@@ -40,12 +40,14 @@ private:
     name              m_decl_name;
     type_context      m_ctx;
     info_manager      m_info;
+    unsigned          m_aux_meta_idx = 1;
     bool              m_recover_from_errors;
     bool              m_has_errors = false;
 
     list<expr>        m_instances;
     list<expr>        m_numeral_types;
     list<expr_pair>   m_tactics;
+    list<expr_pair>   m_holes;
     list<expr_pair>   m_inaccessible_stack;
 
     /* m_depth is only used for tracing */
@@ -60,6 +62,7 @@ private:
         list<expr>             m_saved_instances;
         list<expr>             m_saved_numeral_types;
         list<expr_pair>        m_saved_tactics;
+        list<expr_pair>        m_saved_holes;
         list<expr_pair>        m_saved_inaccessible_stack;
 
         snapshot(elaborator const & elab);
@@ -152,11 +155,13 @@ private:
         return mk_coercion_to_fn_sort(false, e, e_type, ref);
     }
 
+    bool has_synth_sorry(expr const & e) { return has_synth_sorry({e}); }
+    bool has_synth_sorry(std::initializer_list<expr> && es);
     bool try_report(std::exception const & ex);
     bool try_report(std::exception const & ex, optional<expr> const & ref);
     void report_or_throw(elaborator_exception const & ex);
-    expr mk_sorry(expr const & type) { return ::lean::mk_sorry(type); }
-    expr mk_sorry(optional<expr> const & expected_type, expr const & ref);
+    expr mk_sorry(expr const & type, bool synthetic = true) { return ::lean::mk_sorry(type, synthetic); }
+    expr mk_sorry(optional<expr> const & expected_type, expr const & ref, bool synthetic = true);
     expr recoverable_error(optional<expr> const & expected_type, expr const & ref, elaborator_exception const & ex);
     template <class Fn> expr recover_expr_from_exception(optional<expr> const & expected_type, expr const & ref, Fn &&);
 
@@ -180,6 +185,7 @@ private:
     expr visit_have_expr(expr const & e, optional<expr> const & expected_type);
     expr visit_suffices_expr(expr const & e, optional<expr> const & expected_type);
     expr visit_by(expr const & e, optional<expr> const & expected_type);
+    expr visit_hole(expr const & e, optional<expr> const & expected_type);
     expr visit_anonymous_constructor(expr const & e, optional<expr> const & expected_type);
     expr visit_emptyc_or_emptys(expr const & e, optional<expr> const & expected_type);
 
@@ -253,12 +259,17 @@ private:
                            optional<expr> const & new_new_fval, expr const & new_fval, expr const & new_fval_type,
                            expr const & expected_type, expr const & ref);
     expr visit_structure_instance(expr const & e, optional<expr> const & expected_type);
+    expr visit_expr_quote(expr const & e, optional<expr> const & expected_type);
     expr visit(expr const & e, optional<expr> const & expected_type);
 
     tactic_state mk_tactic_state_for(expr const & mvar);
     void invoke_tactic(expr const & mvar, expr const & tac);
 
     bool ready_to_synthesize(expr inst_type);
+
+    void process_hole(expr const & mvar, expr const & arg);
+    void process_holes();
+
     bool synthesize_type_class_instance_core(expr const & mvar, expr const & inferred_inst, expr const & inst_type);
     bool try_synthesize_type_class_instance(expr const & mvar);
     void synthesize_numeral_types();
@@ -269,14 +280,13 @@ private:
     void synthesize();
     void check_inaccessible(list<expr_pair> const & old_stack);
 
-    void unassigned_uvars_to_params(level const & l);
-    void unassigned_uvars_to_params(expr const & e);
-
     void finalize_core(sanitize_param_names_fn & S, buffer<expr> & es,
                        bool check_unassigned, bool to_simple_metavar, bool collect_local_ctx);
 
     expr mk_auto_param(expr const & name_lit, expr const & expected_type, expr const & ref);
     optional<expr> process_optional_and_auto_params(expr type, expr const & ref, buffer<expr> & eta_args, buffer<expr> & new_args);
+
+    expr mk_aux_meta_def(expr const & e, expr const & ref);
 
 public:
     elaborator(environment const & env, options const & opts, name const & decl_name,
@@ -320,12 +330,6 @@ public:
        We use theorem_finalization_info to communicate information from the first step to the second. */
     struct theorem_finalization_info {
         name_set        m_L;
-        name_map<level> m_R;
-        name_map<level> m_U;
-        theorem_finalization_info() {}
-        theorem_finalization_info(name_set const & L, name_map<level> const & R,
-                                  name_map<level> const & U):
-            m_L(L), m_R(R), m_U(U) {}
     };
     pair<expr, theorem_finalization_info> finalize_theorem_type(expr const & type, buffer<name> & new_lp_names);
     expr finalize_theorem_proof(expr const & val, theorem_finalization_info const & info);
@@ -341,16 +345,12 @@ public:
 
 pair<expr, level_param_names> elaborate(environment & env, options const & opts, name const & decl_name,
                                         metavar_context & mctx, local_context const & lctx,
-                                        expr const & e, bool check_unassigend);
+                                        expr const & e, bool check_unassigned, bool recover_from_errors);
 
 /** \brief Translated local constants (and undefined constants) occurring in \c e into
     local constants provided by \c ctx.
     Throw exception is \c ctx does not contain the local constant. */
 expr resolve_names(environment const & env, local_context const & lctx, expr const & e);
-
-/** Elaborate the content of an quote macro. If \c in_pattern is true, return a reflected expression tree,
-    else return a new quote macro surrounded by \c expr.subst calls for antiquotations. */
-expr elaborate_quote(expr e, environment const &env, options const &opts, bool in_pattern);
 
 void initialize_elaborator();
 void finalize_elaborator();

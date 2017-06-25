@@ -45,3 +45,9 @@ begin
    { subst h1 },
             --^ error should be at `}`
 end
+
+example : true :=
+begin
+  { have h' := eq.refl _ },
+                       --^ error should be at `}`
+end

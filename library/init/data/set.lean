@@ -73,9 +73,9 @@ def powerset (s : set α) : set (set α) :=
 {t | t ⊆ s}
 prefix `𝒫`:100 := powerset
 
-def Union (s : set (set α)) : set α :=
-{t | ∃a ∈ s, t ∈ a}
-prefix `⋃`:100 := Union
+@[reducible]
+def sUnion (s : set (set α)) : set α := {t | ∃ a ∈ s, t ∈ a}
+prefix `⋃₀`:110 := sUnion
 
 def image (f : α → β) (s : set α) : set β :=
 {b | ∃ a, a ∈ s ∧ f a = b}

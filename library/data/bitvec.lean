@@ -42,11 +42,9 @@ section shift
   bitvec.cong
     begin
       by_cases (i ≤ n),
-      { intro h,
-        note h₁ := sub_le n i,
+      { have h₁ := sub_le n i,
         rw [min_eq_right h], rw [min_eq_left h₁, -nat.add_sub_assoc h, add_comm, nat.add_sub_cancel] },
-      { intro h,
-        note h₁ := le_of_not_ge h,
+      { have h₁ := le_of_not_ge h,
         rw [min_eq_left h₁, sub_eq_zero_of_le h₁, min_zero_left, add_zero] }
     end $
     repeat fill (min n i) ++ₜ taken (n-i) x
@@ -91,12 +89,9 @@ section arith
 
   protected def add (x y : bitvec n) : bitvec n := tail (adc x y ff)
 
-  protected def borrow (x y b : bool) :=
-  bnot x && y || bnot x && b || y && b
-
   -- Subtract with borrow
   def sbb (x y : bitvec n) (b : bool) : bool × bitvec n :=
-  let f := λ x y c, (bitvec.borrow x y c, bitvec.xor3 x y c) in
+  let f := λ x y c, (bitvec.carry (bnot x) y c, bitvec.xor3 x y c) in
   vector.map_accumr₂ f x y b
 
   protected def sub (x y : bitvec n) : bitvec n := prod.snd (sbb x y ff)
@@ -170,7 +165,7 @@ section conversion
     simp [bits_to_nat_to_list], clear P,
     unfold bits_to_nat list.foldl,
       -- the next 4 lines generalize the accumulator of foldl
-    pose x := 0,
+    let x := 0,
     change _ = add_lsb x b + _,
     generalize 0 y,
     revert x, simp,
@@ -197,7 +192,7 @@ section conversion
     revert n,
     induction k with k ; intro n,
     { unfold pow, simp [nat.mod_one], refl },
-    { assert h : 0 < 2, { apply le_succ },
+    { have h : 0 < 2, { apply le_succ },
       rw [ of_nat_succ
          , to_nat_append
          , ih_1
@@ -215,12 +210,12 @@ section conversion
 
 end conversion
 
-private def to_string {n : nat} : bitvec n → string
+private def repr {n : nat} : bitvec n → string
 | ⟨bs, p⟩ :=
-  "0b" ++ (bs.reverse.map (λ b, if b then '1' else '0'))
+  "0b" ++ (bs.map (λ b : bool, if b then '1' else '0')).as_string
 
-instance (n : nat) : has_to_string (bitvec n) :=
-⟨to_string⟩
+instance (n : nat) : has_repr (bitvec n) :=
+⟨repr⟩
 end bitvec
 
 instance {n} {x y : bitvec n} : decidable (bitvec.ult x y) := bool.decidable_eq _ _

@@ -4,7 +4,7 @@ Released under Apache 2.0 license as described in the file LICENSE.
 Authors: Leonardo de Moura
 -/
 prelude
-import init.meta.smt.smt_tactic init.meta.interactive
+import init.meta.smt.smt_tactic init.meta.interactive_base
 import init.meta.smt.rsimp
 
 namespace smt_tactic
@@ -21,8 +21,8 @@ repeat close
 meta def step {α : Type} (tac : smt_tactic α) : smt_tactic unit :=
 tac >> solve_goals
 
-meta def istep {α : Type} (line : nat) (col : nat) (tac : smt_tactic α) : smt_tactic unit :=
-λ ss ts, (@scope_trace _ line col ((tac >> solve_goals) ss ts)).clamp_pos line col
+meta def istep {α : Type} (line0 col0 line col : nat) (tac : smt_tactic α) : smt_tactic unit :=
+λ ss ts, (@scope_trace _ line col (λ _, (tac >> solve_goals) ss ts)).clamp_pos line0 line col
 
 meta def execute (tac : smt_tactic unit) : tactic unit :=
 using_smt tac
@@ -72,41 +72,49 @@ meta def apply_instance : smt_tactic unit :=
 tactic.apply_instance
 
 meta def change (q : parse texpr) : smt_tactic unit :=
-tactic.interactive.change q
+tactic.interactive.change q none (loc.ns [])
 
 meta def exact (q : parse texpr) : smt_tactic unit :=
 tactic.interactive.exact q
 
-meta def assert (h : parse ident) (q : parse $ tk ":" *> texpr) : smt_tactic unit :=
-do e ← tactic.to_expr_strict q,
-   smt_tactic.assert h e
+meta def have_tac (h : parse ident?) (q₁ : parse (tk ":" *> texpr)?) (q₂ : parse $ (tk ":=" *> texpr)?) : smt_tactic unit :=
+let h := h.get_or_else `this in
+match q₁, q₂ with
+| some e, some p := do
+  t ← tactic.to_expr e,
+  v ← tactic.to_expr ``(%%p : %%t),
+  smt_tactic.assertv h t v
+| none, some p := do
+  p ← tactic.to_expr p,
+  smt_tactic.note h none p
+| some e, none := tactic.to_expr e >>= smt_tactic.assert h
+| none, none := do
+  u ← tactic.mk_meta_univ,
+  e ← tactic.mk_meta_var (expr.sort u),
+  smt_tactic.assert h e
+end >> return ()
 
-meta def define (h : parse ident) (q : parse $ tk ":" *> texpr) : smt_tactic unit :=
-do e ← tactic.to_expr_strict q,
-   smt_tactic.define h e
-
-meta def assertv (h : parse ident) (q₁ : parse $ tk ":" *> texpr) (q₂ : parse $ tk ":=" *> texpr) : smt_tactic unit :=
-do t ← tactic.to_expr_strict q₁,
-   v ← tactic.to_expr_strict ``(%%q₂ : %%t),
-   smt_tactic.assertv h t v
-
-meta def definev (h : parse ident) (q₁ : parse $ tk ":" *> texpr) (q₂ : parse $ tk ":=" *> texpr) : smt_tactic unit :=
-do t ← tactic.to_expr_strict q₁,
-   v ← tactic.to_expr_strict ``(%%q₂ : %%t),
-   smt_tactic.definev h t v
-
-meta def note (h : parse ident) (q : parse $ tk ":=" *> texpr) : smt_tactic unit :=
-do p ← tactic.to_expr_strict q,
-   smt_tactic.note h p
-
-meta def pose (h : parse ident) (q : parse $ tk ":=" *> texpr) : smt_tactic unit :=
-do p ← tactic.to_expr_strict q,
-   smt_tactic.pose h p
+meta def let_tac (h : parse ident?) (q₁ : parse (tk ":" *> texpr)?) (q₂ : parse $ (tk ":=" *> texpr)?) : smt_tactic unit :=
+let h := h.get_or_else `this in
+match q₁, q₂ with
+| some e, some p := do
+  t ← tactic.to_expr e,
+  v ← tactic.to_expr ``(%%p : %%t),
+  smt_tactic.definev h t v
+| none, some p := do
+  p ← tactic.to_expr p,
+  smt_tactic.pose h none p
+| some e, none := tactic.to_expr e >>= smt_tactic.define h
+| none, none := do
+  u ← tactic.mk_meta_univ,
+  e ← tactic.mk_meta_var (expr.sort u),
+  smt_tactic.define h e
+end >> return ()
 
 meta def add_fact (q : parse texpr) : smt_tactic unit :=
 do h ← tactic.get_unused_name `h none,
    p ← tactic.to_expr_strict q,
-   smt_tactic.note h p
+   smt_tactic.note h none p
 
 meta def trace_state : smt_tactic unit :=
 smt_tactic.trace_state
@@ -131,22 +139,21 @@ smt_tactic.by_contradiction
 open tactic (resolve_name transparency to_expr)
 
 private meta def report_invalid_em_lemma {α : Type} (n : name) : smt_tactic α :=
-fail ("invalid ematch lemma '" ++ to_string n ++ "'")
+fail format!"invalid ematch lemma '{n}'"
 
-private meta def add_lemma_name (md : transparency) (lhs_lemma : bool) (n : name) (ref : expr) : smt_tactic unit :=
+private meta def add_lemma_name (md : transparency) (lhs_lemma : bool) (n : name) (ref : pexpr) : smt_tactic unit :=
 do
   p ← resolve_name n,
-  match p.to_raw_expr with
+  match p with
   | expr.const n _           := (add_ematch_lemma_from_decl_core md lhs_lemma n >> tactic.save_const_type_info n ref) <|> report_invalid_em_lemma n
   | _                        := (do e ← to_expr p, add_ematch_lemma_core md lhs_lemma e >> try (tactic.save_type_info e ref)) <|> report_invalid_em_lemma n
   end
 
 
 private meta def add_lemma_pexpr (md : transparency) (lhs_lemma : bool) (p : pexpr) : smt_tactic unit :=
-let e := pexpr.to_raw_expr p in
-match e with
-| (expr.const c [])          := add_lemma_name md lhs_lemma c e
-| (expr.local_const c _ _ _) := add_lemma_name md lhs_lemma c e
+match p with
+| (expr.const c [])          := add_lemma_name md lhs_lemma c p
+| (expr.local_const c _ _ _) := add_lemma_name md lhs_lemma c p
 | _                          := do new_e ← to_expr p, add_ematch_lemma_core md lhs_lemma new_e
 end
 
@@ -164,9 +171,9 @@ private meta def add_eqn_lemmas_for_core (md : transparency) : list name → smt
 | []      := return ()
 | (c::cs) := do
   p ← resolve_name c,
-  match p.to_raw_expr with
+  match p with
   | expr.const n _           := add_ematch_eqn_lemmas_for_core md n >> add_eqn_lemmas_for_core cs
-  | _                        := fail $ "'" ++ to_string c ++ "' is not a constant"
+  | _                        := fail format!"'{c}' is not a constant"
   end
 
 meta def add_eqn_lemmas_for (ids : parse ident*) : smt_tactic unit :=
@@ -175,10 +182,10 @@ add_eqn_lemmas_for_core reducible ids
 meta def add_eqn_lemmas (ids : parse ident*) : smt_tactic unit :=
 add_eqn_lemmas_for ids
 
-private meta def add_hinst_lemma_from_name (md : transparency) (lhs_lemma : bool) (n : name) (hs : hinst_lemmas) (ref : expr) : smt_tactic hinst_lemmas :=
+private meta def add_hinst_lemma_from_name (md : transparency) (lhs_lemma : bool) (n : name) (hs : hinst_lemmas) (ref : pexpr) : smt_tactic hinst_lemmas :=
 do
   p ← resolve_name n,
-  match p.to_raw_expr with
+  match p with
   | expr.const n _           :=
     (do h ← hinst_lemma.mk_from_decl_core md n lhs_lemma, tactic.save_const_type_info n ref, return $ hs.add h)
     <|>
@@ -192,10 +199,9 @@ do
   end
 
 private meta def add_hinst_lemma_from_pexpr (md : transparency) (lhs_lemma : bool) (p : pexpr) (hs : hinst_lemmas) : smt_tactic hinst_lemmas :=
-let e := pexpr.to_raw_expr p in
-match e with
-| (expr.const c [])          := add_hinst_lemma_from_name md lhs_lemma c hs e
-| (expr.local_const c _ _ _) := add_hinst_lemma_from_name md lhs_lemma c hs e
+match p with
+| (expr.const c [])          := add_hinst_lemma_from_name md lhs_lemma c hs p
+| (expr.local_const c _ _ _) := add_hinst_lemma_from_name md lhs_lemma c hs p
 | _                          := do new_e ← to_expr p, h ← hinst_lemma.mk_core md new_e lhs_lemma, return $ hs.add h
 end
 
@@ -226,18 +232,18 @@ slift (tactic.interactive.induction p rec_name ids revert)
 open tactic
 
 /-- Simplify the target type of the main goal. -/
-meta def simp (hs : parse opt_qexpr_list) (attr_names : parse with_ident_list) (ids : parse without_ident_list) (cfg : simp_config := {}) : smt_tactic unit :=
-tactic.interactive.simp hs attr_names ids [] cfg
+meta def simp (no_dflt : parse only_flag) (hs : parse opt_qexpr_list) (attr_names : parse with_ident_list) (ids : parse without_ident_list) (cfg : simp_config := {}) : smt_tactic unit :=
+tactic.interactive.simp no_dflt hs attr_names ids (loc.ns []) cfg
 
 /-- Simplify the target type of the main goal using simplification lemmas and the current set of hypotheses. -/
-meta def simp_using_hs (hs : parse opt_qexpr_list) (attr_names : parse with_ident_list) (ids : parse without_ident_list) (cfg : simp_config := {}) : smt_tactic unit :=
-tactic.interactive.simp_using_hs hs attr_names ids cfg
+meta def simp_using_hs (no_dflt : parse only_flag) (hs : parse opt_qexpr_list) (attr_names : parse with_ident_list) (ids : parse without_ident_list) (cfg : simp_config := {}) : smt_tactic unit :=
+tactic.interactive.simp_using_hs no_dflt hs attr_names ids cfg
 
-meta def simph (hs : parse opt_qexpr_list) (attr_names : parse with_ident_list) (ids : parse without_ident_list) (cfg : simp_config := {}) : smt_tactic unit :=
-simp_using_hs hs attr_names ids cfg
+meta def simph (no_dflt : parse only_flag) (hs : parse opt_qexpr_list) (attr_names : parse with_ident_list) (ids : parse without_ident_list) (cfg : simp_config := {}) : smt_tactic unit :=
+simp_using_hs no_dflt hs attr_names ids cfg
 
-meta def dsimp (es : parse opt_qexpr_list) (attr_names : parse with_ident_list) (ids : parse without_ident_list) : smt_tactic unit :=
-tactic.interactive.dsimp es attr_names ids []
+meta def dsimp (no_dflt : parse only_flag) (es : parse opt_qexpr_list) (attr_names : parse with_ident_list) (ids : parse without_ident_list) : smt_tactic unit :=
+tactic.interactive.dsimp no_dflt es attr_names ids (loc.ns [])
 
 meta def rsimp : smt_tactic unit :=
 do ccs ← to_cc_state, _root_.rsimp.rsimplify_goal ccs

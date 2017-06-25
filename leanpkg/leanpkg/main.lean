@@ -17,11 +17,12 @@ def read_manifest : io manifest :=
 manifest.from_file leanpkg_toml_fn
 
 def write_manifest (d : manifest) (fn := leanpkg_toml_fn) : io unit :=
-write_file fn (to_string d)
+write_file fn (repr d)
 
 -- TODO(gabriel): implement a cross-platform api
-def get_dot_lean_dir : io string :=
-io.cmd "bash" ["-c", "echo -n ~/.lean"]
+def get_dot_lean_dir : io string := do
+some home ← io.env.get "HOME" | io.fail "environment variable HOME is not set",
+return $ home ++ "/.lean"
 
 -- TODO(gabriel): file existence testing
 def exists_file (f : string) : io bool := do
@@ -31,7 +32,7 @@ return $ ev = 0
 
 -- TODO(gabriel): io.env.get_current_directory
 def get_current_directory : io string :=
-do cwd ← io.cmd "pwd" [], return (cwd.dropn 1) -- remove final newline
+do cwd ← io.cmd { cmd := "pwd" }, return cwd.pop_back -- remove final newline
 
 def mk_path_file : ∀ (paths : list string), string
 | [] := "builtin_path\n"
@@ -44,10 +45,22 @@ assg ← solve_deps d,
 path_file_cnts ← mk_path_file <$> construct_path assg,
 write_file "leanpkg.path" path_file_cnts
 
-def make : io unit :=
-exec_cmd "env" ["-u", "LEAN_PATH", "lean", "--make"]
+
+def make : io unit := do
+manifest ← read_manifest,
+exec_cmd {
+  cmd := "lean",
+  args := (match manifest.timeout with some t := ["-T", repr t] | none := [] end) ++
+    ["--make"] ++ manifest.effective_path,
+  env := [("LEAN_PATH", none)]
+}
 
 def build := configure >> make
+
+def make_test : io unit :=
+exec_cmd { cmd := "lean", args := ["--make", "test"], env := [("LEAN_PATH", none)] }
+
+def test := configure >> make_test
 
 def init_gitignore_contents :=
 "*.olean
@@ -56,18 +69,15 @@ def init_gitignore_contents :=
 "
 
 def init_pkg (n : string) (dir : string) : io unit := do
-write_manifest { name := n, version := "0.1", path := none, dependencies := [] }
-  (dir ++ "/" ++ leanpkg_toml_fn),
+write_manifest { name := n, version := "0.1" } (dir ++ "/" ++ leanpkg_toml_fn),
 write_file (dir ++ "/.gitignore") init_gitignore_contents io.mode.append,
-exec_cmd "leanpkg" ["configure"] dir
+exec_cmd {cmd := "leanpkg", args := ["configure"], cwd := dir}
 
 def init (n : string) := init_pkg n "."
 
 -- TODO(gabriel): windows
-def basename : ∀ (fn : string), string
-| []          := []
-| (c :: rest) :=
-  if c = '/' then [] else c :: basename rest
+def basename (s : string) : string :=
+s.fold "" $ λ s c, if c = '/' then "" else s.str c
 
 def add_dep_to_manifest (dep : dependency) : io unit := do
 d ← read_manifest,
@@ -75,10 +85,10 @@ let d' := { d with dependencies := d.dependencies.filter (λ old_dep, old_dep.na
 write_manifest d'
 
 def strip_dot_git (url : string) : string :=
-if url.taken 4 = ".git" then url.dropn 4 else url
+if url.backn 4 = ".git" then url.popn_back 4 else url
 
 def looks_like_git_url (dep : string) : bool :=
-':' ∈ show list char, from dep
+':' ∈ dep.to_list
 
 def absolutize_add_dep (dep : string) : io string :=
 if looks_like_git_url dep then return dep
@@ -91,8 +101,13 @@ else
   { name := basename dep, src := source.path dep }
 
 def git_head_revision (git_repo_dir : string) : io string := do
-rev ← io.cmd "git" ["rev-parse", "HEAD"] git_repo_dir,
-return (rev.dropn 1) -- remove newline at end
+rev ← io.cmd {cmd := "git", args := ["rev-parse", "HEAD"], cwd := git_repo_dir},
+return rev.pop_back -- remove newline at end
+
+def git_latest_origin_revision (git_repo_dir : string) : io string := do
+io.cmd {cmd := "git", args := ["fetch"], cwd := git_repo_dir},
+rev ← io.cmd {cmd := "git", args := ["rev-parse", "origin/master"], cwd := git_repo_dir},
+return rev.pop_back -- remove newline at end
 
 def fixup_git_version (dir : string) : ∀ (src : source), io source
 | (source.git url _) := source.git url <$> git_head_revision dir
@@ -111,20 +126,39 @@ configure
 def new (dir : string) := do
 ex ← dir_exists dir,
 when ex $ io.fail $ "directory already exists: " ++ dir,
-exec_cmd "mkdir" ["-p", dir],
+exec_cmd {cmd := "mkdir", args := ["-p", dir]},
 init_pkg (basename dir) dir
+
+def upgrade_dep (assg : assignment) (d : dependency) : io dependency :=
+match d.src with
+| (source.git url rev) := (do
+    some path ← return (assg.find d.name) | io.fail "unresolved dependency",
+    new_rev ← git_latest_origin_revision path,
+    return {d with src := source.git url new_rev})
+  <|> return d
+| _ := return d
+end
+
+def upgrade := do
+m ← read_manifest,
+assg ← solve_deps m,
+ds' ← mfor m.dependencies (upgrade_dep assg),
+write_manifest {m with dependencies := ds'},
+configure
 
 def usage := "
 Usage: leanpkg <command>
 
 configure       download dependencies
 build           download dependencies and build *.olean files
+test            download dependencies and run test files
 
 new <dir>       creates a lean package in the specified directory
 init <name>     adds a leanpkg.toml file to the current directory, and sets up .gitignore
 
 add <url>       adds a dependency from a git repository (uses current master revision)
 add <dir>       adds a local dependency
+upgrade         upgrades all git dependencies to the latest upstream version
 
 install <url>   installs a user-wide package from git
 install <dir>   installs a user-wide package from a local directory
@@ -132,27 +166,26 @@ install <dir>   installs a user-wide package from a local directory
 dump            prints the parsed leanpkg.toml file (for debugging)
 "
 
-set_option eqn_compiler.lemmas false -- TODO(gabriel): just for performance
 def main : ∀ (args : list string), io unit
 | ["configure"] := configure
 | ["build"] := build
+| ["test"] := test
 | ["new", dir] := new dir
 | ["init", name] := init name
 | ["add", dep] := add dep
+| ["upgrade"] := upgrade
 | ["install", dep] := do
   dep ← absolutize_add_dep dep,
   dot_lean_dir ← get_dot_lean_dir,
-  exec_cmd "mkdir" ["-p", dot_lean_dir],
+  exec_cmd {cmd := "mkdir", args := ["-p", dot_lean_dir]},
   let user_toml_fn := dot_lean_dir ++ "/" ++ leanpkg_toml_fn,
   ex ← exists_file user_toml_fn,
   when (¬ ex) $ write_manifest {
       name := "_user_local_packages",
-      version := "1",
-      path := none,
-      dependencies := []
+      version := "1"
     } user_toml_fn,
-  exec_cmd "leanpkg" ["add", dep] dot_lean_dir
-| ["dump"] := read_manifest >>= io.print_ln
+  exec_cmd {cmd := "leanpkg", args := ["add", dep], cwd := dot_lean_dir}
+| ["dump"] := read_manifest >>= io.print_ln ∘ repr
 | _ := io.fail usage
 
 end leanpkg

@@ -67,7 +67,8 @@ protected:
     void set_is_arrow(bool flag);
     friend bool is_arrow(expr const & e);
 
-     static void dec_ref(expr & c, buffer<expr_cell*> & todelete);
+    static void dec_ref(expr & c, buffer<expr_cell*> & todelete);
+    expr_cell(expr_cell const & src); // for hash_consing
 public:
     expr_cell(expr_kind k, unsigned h, bool has_expr_mv, bool has_univ_mv, bool has_local, bool has_param_univ, tag g);
     expr_kind kind() const { return static_cast<expr_kind>(m_kind); }
@@ -94,6 +95,7 @@ private:
     expr_cell * m_ptr;
     explicit expr(expr_cell * ptr):m_ptr(ptr) { if (m_ptr) m_ptr->inc_ref(); }
     friend class expr_cell;
+    friend struct cache_expr_insert_fn;
     expr_cell * steal_ptr() { expr_cell * r = m_ptr; m_ptr = nullptr; return r; }
     friend class optional<expr>;
 public:
@@ -172,6 +174,8 @@ class expr_const : public expr_cell {
     levels     m_levels;
     friend expr_cell;
     void dealloc();
+    friend struct cache_expr_insert_fn;
+    expr_const(expr_const const &, levels const & new_levels); // for hash_consing
 public:
     expr_const(name const & n, levels const & ls, tag g);
     name const & get_name() const { return m_name; }
@@ -182,9 +186,12 @@ public:
 class expr_composite : public expr_cell {
 protected:
     unsigned m_weight;
+    unsigned m_depth;
     unsigned m_free_var_range;
     friend unsigned get_weight(expr const & e);
+    friend unsigned get_depth(expr const & e);
     friend unsigned get_free_var_range(expr const & e);
+    expr_composite(expr_composite const & src); // for hash_consing
 public:
     expr_composite(expr_kind k, unsigned h, bool has_expr_mv, bool has_univ_mv, bool has_local,
                    bool has_param_univ, unsigned w, unsigned fv_range, tag g);
@@ -197,6 +204,8 @@ protected:
     expr   m_type;
     friend expr_cell;
     void dealloc(buffer<expr_cell*> & todelete);
+    friend struct cache_expr_insert_fn;
+    expr_mlocal(expr_mlocal const &, expr const & new_type); // for hash_consing
 public:
     expr_mlocal(bool is_meta, name const & n, expr const & t, tag g);
     name const & get_name() const { return m_name; }
@@ -214,7 +223,8 @@ class binder_info {
         inferred by class-instance resolution. */
     unsigned m_inst_implicit:1;
     /** \brief Auxiliary internal attribute used to mark local constants representing recursive functions
-        in recursive equations */
+        in recursive equations. TODO(Leo): rename to eqn_decl since we also mark non recursive equations
+        (e.g., `match ... with ... end`) with this flag. */
     unsigned m_rec:1;
 public:
     binder_info(bool implicit = false, bool strict_implicit = false, bool inst_implicit = false, bool rec = false):
@@ -251,6 +261,8 @@ class expr_local : public expr_mlocal {
     binder_info m_bi;
     friend expr_cell;
     void dealloc(buffer<expr_cell*> & todelete);
+    friend struct cache_expr_insert_fn;
+    expr_local(expr_local const &, expr const & new_type); // for hash_consing
 public:
     expr_local(name const & n, name const & pp_name, expr const & t, binder_info const & bi, tag g);
     name const & get_pp_name() const { return m_pp_name; }
@@ -263,6 +275,8 @@ class expr_app : public expr_composite {
     expr     m_arg;
     friend expr_cell;
     void dealloc(buffer<expr_cell*> & todelete);
+    friend struct cache_expr_insert_fn;
+    expr_app(expr_app const &, expr const & new_fn, expr const & new_arg); // for hash_consing
 public:
     expr_app(expr const & fn, expr const & arg, tag g);
     expr const & get_fn() const { return m_fn; }
@@ -274,6 +288,8 @@ class binder {
     name             m_name;
     expr             m_type;
     binder_info      m_info;
+    binder(binder const & src, expr const & new_type): // for hash_consing
+        m_name(src.m_name), m_type(new_type), m_info(src.m_info) {}
 public:
     binder(name const & n, expr const & t, binder_info const & bi):
         m_name(n), m_type(t), m_info(bi) {}
@@ -289,6 +305,8 @@ class expr_binding : public expr_composite {
     expr             m_body;
     friend class expr_cell;
     void dealloc(buffer<expr_cell*> & todelete);
+    friend struct cache_expr_insert_fn;
+    expr_binding(expr_binding const &, expr const & new_domain, expr const & new_body); // for hash_consing
 public:
     expr_binding(expr_kind k, name const & n, expr const & t, expr const & e,
                  binder_info const & i, tag g);
@@ -307,6 +325,8 @@ class expr_let : public expr_composite {
     expr m_body;
     friend class expr_cell;
     void dealloc(buffer<expr_cell*> & todelete);
+    friend struct cache_expr_insert_fn;
+    expr_let(expr_let const &, expr const & new_type, expr const & new_value, expr const & new_body); // for hash_consing
 public:
     expr_let(name const & n, expr const & t, expr const & v, expr const & b, tag g);
     name const & get_name() const { return m_name; }
@@ -320,6 +340,8 @@ class expr_sort : public expr_cell {
     level    m_level;
     friend expr_cell;
     void dealloc();
+    friend struct cache_expr_insert_fn;
+    expr_sort(expr_sort const &, level const & new_level); // for hash_consing
 public:
     expr_sort(level const & l, tag g);
     ~expr_sort();
@@ -347,8 +369,6 @@ public:
     virtual unsigned trust_level() const;
     virtual bool operator==(macro_definition_cell const & other) const;
     virtual void display(std::ostream & out) const;
-    virtual format pp(formatter const & fmt) const;
-    virtual bool is_atomic_pp(bool unicode, bool coercion) const;
     virtual unsigned hash() const;
     virtual void write(serializer & s) const = 0;
     typedef std::function<expr(deserializer&, unsigned, expr const *)> reader;
@@ -378,8 +398,6 @@ public:
     bool operator!=(macro_definition const & other) const { return !operator==(other); }
     bool operator<(macro_definition const & other) const;
     void display(std::ostream & out) const { return m_ptr->display(out); }
-    format pp(formatter const & fmt) const { return m_ptr->pp(fmt); }
-    bool is_atomic_pp(bool unicode, bool coercion) const { return m_ptr->is_atomic_pp(unicode, coercion); }
     unsigned hash() const { return m_ptr->hash(); }
     void write(serializer & s) const { return m_ptr->write(s); }
     macro_definition_cell const * raw() const { return m_ptr; }
@@ -403,6 +421,8 @@ class expr_macro : public expr_composite {
     expr const * get_args_ptr() const {
         return reinterpret_cast<expr const *>(reinterpret_cast<char const *>(this)+sizeof(expr_macro));
     }
+    friend struct cache_expr_insert_fn;
+    expr_macro(expr_macro const & src, expr const * new_args); // for hash_consing
 public:
     expr_macro(macro_definition const & v, unsigned num, expr const * args, tag g);
     ~expr_macro();
@@ -571,6 +591,7 @@ optional<expr> has_expr_metavar_strict(expr const & e);
 inline bool has_local(expr const & e) { return e.has_local(); }
 inline bool has_param_univ(expr const & e) { return e.has_param_univ(); }
 unsigned get_weight(expr const & e);
+unsigned get_depth(expr const & e);
 /**
    \brief Return \c R s.t. the de Bruijn index of all free variables
    occurring in \c e is in the interval <tt>[0, R)</tt>.

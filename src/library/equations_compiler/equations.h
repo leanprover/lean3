@@ -45,9 +45,13 @@ struct equations_header {
     equations_header(unsigned num_fns):m_num_fns(num_fns) {}
 };
 
-expr mk_equations(equations_header const & header, unsigned num_eqs, expr const * eqs, expr const & R, expr const & Hwf);
+bool operator==(equations_header const & h1, equations_header const & h2);
+inline bool operator!=(equations_header const & h1, equations_header const & h2) { return !(h1 == h2); }
+
+expr mk_equations(equations_header const & header, unsigned num_eqs, expr const * eqs, expr const & wf_tacs);
 expr mk_equations(equations_header const & header, unsigned num_eqs, expr const * eqs);
 expr update_equations(expr const & eqns, buffer<expr> const & new_eqs);
+expr update_equations(expr const & eqns, equations_header const & header);
 
 bool is_equations(expr const & e);
 bool is_wf_equations(expr const & e);
@@ -55,8 +59,7 @@ unsigned equations_size(expr const & e);
 equations_header const & get_equations_header(expr const & e);
 unsigned equations_num_fns(expr const & e);
 void to_equations(expr const & e, buffer<expr> & eqns);
-expr const & equations_wf_proof(expr const & e);
-expr const & equations_wf_rel(expr const & e);
+expr const & equations_wf_tactics(expr const & e);
 
 /** \brief Return true if \c e is an auxiliary macro used to store the result of mutually recursive declarations.
     For example, if a set of recursive equations is defining \c n mutually recursive functions, we wrap
@@ -69,9 +72,4 @@ expr const & get_equations_result(expr const & e, unsigned i);
 
 void initialize_equations();
 void finalize_equations();
-
-/* TODO(Leo): delete the following versions */
-expr mk_equations(unsigned num_fns, unsigned num_eqs, expr const * eqs);
-expr mk_equations(unsigned num_fns, unsigned num_eqs, expr const * eqs, expr const & R, expr const & Hwf);
-/* End of delete ------------- */
 }

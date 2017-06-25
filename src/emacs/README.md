@@ -20,9 +20,9 @@ Trying It Out
 If things are working correctly, you should see the word ``Lean`` in the
 Emacs mode line when you open a file with extension `.lean`. If you type
 ```lean
-check id
+#check id
 ```
-the word ``check`` will be underlined, and hovering over it will show
+the word ``#check`` will be underlined, and hovering over it will show
 you the type of ``id``. The mode line will show ``FlyC:0/1``, indicating
 that there are no errors and one piece of information displayed.
 
@@ -35,8 +35,10 @@ Key Bindings and Commands
 | <kbd>S-SPC</kbd>   | auto complete identifiers, options, imports, etc. (`company-complete`)          |
 | <kbd>C-c C-k</kbd> | shows the keystroke needed to input the symbol under the cursor                 |
 | <kbd>C-c C-x</kbd> | execute lean in stand-alone mode (`lean-std-exe`)                               |
+| <kbd>C-c SPC</kbd> | run a command on the hole at point (`lean-hole`)
 | <kbd>C-c C-g</kbd> | toggle showing current tactic proof goal (`lean-toggle-show-goal`)              |
 | <kbd>C-c C-n</kbd> | toggle showing next error in dedicated buffer (`lean-toggle-next-error`)        |
+| <kbd>C-c C-b</kbd> | toggle showing output in inline boxes (`lean-message-boxes-toggle`)             |
 | <kbd>C-c C-r</kbd> | restart the lean server (`lean-server-restart`)                                 |
 | <kbd>C-c ! n</kbd> | flycheck: go to next error                                                      |
 | <kbd>C-c ! p</kbd> | flycheck: go to previous error                                                  |
@@ -44,6 +46,17 @@ Key Bindings and Commands
 
 In the default configuration, the Flycheck annotation `FlyC:n/n` indicates the
 number of errors / responses from Lean; clicking on `FlyC` opens the Flycheck menu.
+
+
+Message Boxes
+================
+To view the output of commands such as `check` and `print` in boxes in the buffer, enable the feature using <kbd>C-c C-b</kbd>.
+If you then type
+```lean
+#check id
+```
+a box appears after the line showing the type of `id`. Customize `lean-message-boxes-enabled-captions` to choose categories of boxes.
+In particular, add `"trace output"` to the list to see proof states and other traces in the buffer.
 
 Requirements
 ============
@@ -123,10 +136,10 @@ You may also need to install [emacs-unicode-fonts](https://github.com/rolandwalk
  - Run `M-x package-refresh-contents`, `M-x package-install`, and type `unicode-fonts`.
  - Add the following lines in your emacs setup:
 
-   ```lisp
+```lisp
 (require 'unicode-fonts)
 (unicode-fonts-setup)
-   ```
+```
 
 "Variable binding depth exceeds max-specpdl-size" Error
 ---------------------------------------------------------

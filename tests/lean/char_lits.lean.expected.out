@@ -3,6 +3,7 @@
 '\n'
 '\\'
 aaa\
-
+'\n'
 
 aaa'
+['\x7f', '\x00', '\x11', '\xff'] : list char

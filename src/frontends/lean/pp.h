@@ -78,6 +78,7 @@ private:
     bool                    m_structure_instances;
     bool                    m_structure_instances_qualifier;
     bool                    m_structure_projections;
+    bool                    m_use_holes;
 
     name mk_metavar_name(name const & m, optional<name> const & prefix = optional<name>());
     name mk_metavar_name(name const & m, name const & prefix) {
@@ -87,6 +88,7 @@ private:
     level purify(level const & l);
     expr purify(expr const & e);
     bool is_implicit(expr const & f);
+    bool is_default_arg_app(expr const & e);
     optional<expr> is_proof(expr const & f);
     bool is_prop(expr const & e);
     bool has_implicit_args(expr const & f);

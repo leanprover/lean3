@@ -66,7 +66,7 @@ class trie : public KeyCMP {
                 } else {
                     trie n1(*c1);
                     new_t1->m_children.erase(k);
-                    new_t1->m_children.insert(k, merge(n1.steal(), c2));
+                    new_t1->m_children.insert(k, trie::merge(n1.steal(), c2));
                 }
             });
         return new_t1;
@@ -79,7 +79,7 @@ class trie : public KeyCMP {
         }
         n->m_children.for_each([&](Key const & k, trie const & c) {
                 prefix.push_back(k);
-                for_each(f, c, prefix);
+                trie::for_each(f, c, prefix);
                 prefix.pop_back();
             });
     }

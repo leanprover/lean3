@@ -11,15 +11,16 @@ Author: Leonardo de Moura
 #include "library/tactic/tactic_state.h"
 
 namespace lean {
-vm_obj change(expr const & e, tactic_state const & s) {
+vm_obj change_core(expr const & e, bool check, tactic_state const & s) {
     try {
         optional<metavar_decl> g = s.get_main_goal_decl();
         if (!g) return mk_no_goals_exception(s);
         if (e == g->get_type()) return tactic::mk_success(s);
         type_context ctx         = mk_type_context_for(s);
-        if (ctx.is_def_eq(e, g->get_type())) {
+        if (!check || ctx.is_def_eq(e, g->get_type())) {
             auto mctx    = ctx.mctx();
-            expr new_M   = mctx.mk_metavar_decl(g->get_context(), e);
+            expr new_e   = mctx.instantiate_mvars(e);
+            expr new_M   = mctx.mk_metavar_decl(g->get_context(), new_e);
             /*
                We use the proof term
 
@@ -41,13 +42,17 @@ vm_obj change(expr const & e, tactic_state const & s) {
             };
             return tactic::mk_exception(thunk, s);
         }
-    } catch (exception & e) {
-        return tactic::mk_exception(e, s);
+    } catch (exception & ex) {
+        return tactic::mk_exception(ex, s);
     }
 }
 
-vm_obj tactic_change(vm_obj const & e, vm_obj const & s) {
-    return change(to_expr(e), tactic::to_state(s));
+vm_obj change(expr const & e, tactic_state const & s) {
+    return change_core(e, true, s);
+}
+
+vm_obj tactic_change(vm_obj const & e, vm_obj const & check, vm_obj const & s) {
+    return change_core(to_expr(e), to_bool(check), tactic::to_state(s));
 }
 
 void initialize_change_tactic() {

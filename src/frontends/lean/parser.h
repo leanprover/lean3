@@ -26,6 +26,7 @@ Author: Leonardo de Moura
 #include "frontends/lean/local_level_decls.h"
 #include "frontends/lean/parser_config.h"
 #include "frontends/lean/local_context_adapter.h"
+#include "frontends/lean/decl_util.h"
 
 namespace lean {
 struct interrupt_parser {};
@@ -68,6 +69,11 @@ class parser : public abstract_parser {
     // auto completing
     bool                    m_complete{false};
 
+    // error recovery
+    bool                   m_error_recovery = true;
+    bool                   m_error_since_last_cmd = false;
+    pos_info               m_last_recovered_error_pos {0, 0};
+
     // curr command token
     name                   m_cmd_token;
 
@@ -77,11 +83,6 @@ class parser : public abstract_parser {
     // If the following flag is true we do not raise error messages
     // noncomputable definitions not tagged as noncomputable.
     bool                   m_ignore_noncomputable;
-
-    // Docgen
-    optional<std::string>  m_doc_string;
-
-    void throw_parser_exception(char const * msg, pos_info p);
 
     void sync_command();
 
@@ -93,13 +94,10 @@ class parser : public abstract_parser {
     level parse_level_nud();
     level parse_level_led(level left);
 
-    void parse_doc_block();
+    std::string parse_doc_block();
     void parse_mod_doc_block();
-    void check_no_doc_string();
-    void reset_doc_string();
 
     void process_imports();
-    void parse_command();
     bool parse_command_like();
     void process_postponed(buffer<expr> const & args, bool is_left, buffer<notation::action_kind> const & kinds,
                            buffer<list<expr>> const & nargs, buffer<expr> const & ps, buffer<pair<unsigned, pos_info>> const & scoped_info,
@@ -186,6 +184,14 @@ public:
         flet<optional<pos_info>> l(m_break_at_pos, {});
         return f();
     }
+    template <class T>
+    pair<T, pos_info> with_input(std::istream & input, std::function<T()> const & f) {
+        flet<token_kind> l(m_curr, token_kind::Eof);
+        flet<scanner> l1(m_scanner, scanner(input, m_scanner.get_stream_name().c_str()));
+        m_curr = m_scanner.scan(m_env);
+        T t = f();
+        return {t, pos()};
+    }
     bool get_complete() { return m_complete; }
     void set_complete(bool complete) { m_complete = complete; }
     /** \brief Throw \c break_at_pos_exception with given context if \c m_break_at_pos is inside current token. */
@@ -206,10 +212,12 @@ public:
     cmd_table const & cmds() const { return get_cmd_table(env()); }
 
     environment const & env() const { return m_env; }
+    void set_env(environment const & env) { m_env = env; }
     io_state const & ios() const { return m_ios; }
 
-    message_builder mk_message(pos_info const & p, message_severity severity);
-    message_builder mk_message(message_severity severity);
+    message_builder mk_message(pos_info const & p, message_severity severity) const;
+    message_builder mk_message(pos_info const & start_pos, pos_info const & end_pos, message_severity severity) const;
+    message_builder mk_message(message_severity severity) const;
 
     local_level_decls const & get_local_level_decls() const { return m_local_level_decls; }
     local_expr_decls const & get_local_expr_decls() const { return m_local_decls; }
@@ -229,8 +237,6 @@ public:
     pos_info pos_of(expr const & e) const { return pos_of(e, pos()); }
     pos_info cmd_pos() const { return m_last_cmd_pos; }
     name const & get_cmd_token() const { return m_cmd_token; }
-
-    optional<std::string> get_doc_string() const { return m_doc_string; }
 
     parser_pos_provider get_parser_pos_provider(pos_info const & some_pos) const {
         return parser_pos_provider(m_pos_table, m_file_name, some_pos, m_next_tag_idx);
@@ -271,13 +277,14 @@ public:
     virtual void next() override final { if (m_curr != token_kind::Eof) scan(); }
     /** \brief Return true iff the current token is a keyword (or command keyword) named \c tk */
     virtual bool curr_is_token(name const & tk) const override final;
-    /** \brief Check current token, and move to next characther, throw exception if current token is not \c tk. */
-    void check_token_next(name const & tk, char const * msg);
+    /** \brief Check current token, and move to next characther, throw exception if current token is not \c tk.  Returns true if succesful. */
+    bool check_token_next(name const & tk, char const * msg);
     void check_token_or_id_next(name const & tk, char const * msg);
     /** \brief Check if the current token is an identifier, if it is return it and move to next token,
         otherwise throw an exception. */
     name check_id_next(char const * msg, break_at_pos_exception::token_context ctxt =
             break_at_pos_exception::token_context::none);
+    void check_not_internal(name const & n, pos_info const & pos);
     /** \brief Similar to check_id_next, but also ensures the identifier is *not* an internal/reserved name. */
     name check_decl_id_next(char const * msg, break_at_pos_exception::token_context ctxt =
             break_at_pos_exception::token_context::none);
@@ -358,7 +365,10 @@ public:
     expr id_to_expr(name const & id, pos_info const & p, bool resolve_only = false, bool allow_field_notation = true,
                     list<name> const & extra_locals = list<name>());
 
+    /** Always parses an expression.  Returns a synthetic sorry even if no input is consumed. */
     expr parse_expr(unsigned rbp = 0);
+    /** Tries to parse an expression, or else consumes no input. */
+    optional<expr> maybe_parse_expr(unsigned rbp = 0);
     /** \brief Parse an (optionally) qualified expression.
         If the input is of the form <id> : <expr>, then return the pair (some(id), expr).
         Otherwise, parse the next expression and return (none, expr). */
@@ -386,6 +396,7 @@ public:
     expr parse_id(bool allow_field_notation = true);
 
     expr parse_led(expr left);
+    expr parse_led_loop(expr left, unsigned rbp);
     expr parse_scoped_expr(unsigned num_params, expr const * ps, local_environment const & lenv, unsigned rbp = 0);
     expr parse_scoped_expr(buffer<expr> const & ps, local_environment const & lenv, unsigned rbp = 0) {
         return parse_scoped_expr(ps.size(), ps.data(), lenv, rbp);
@@ -396,6 +407,7 @@ public:
     expr parse_scoped_expr(buffer<expr> const & ps, unsigned rbp = 0) { return parse_scoped_expr(ps.size(), ps.data(), rbp); }
     expr parse_expr_with_env(local_environment const & lenv, unsigned rbp = 0);
 
+    void parse_command(cmd_meta const & meta);
     void parse_imports(unsigned & fingerprint, std::vector<module_name> &);
 
     struct local_scope {
@@ -427,10 +439,16 @@ public:
     void add_parameter(name const & n, expr const & p);
     void add_local(expr const & p) { return add_local_expr(local_pp_name(p), p); }
     bool has_params() const { return m_has_params; }
-    bool is_local_decl(expr const & l) const { return is_local(l) && m_local_decls.contains(local_pp_name(l)); }
+    bool is_local_decl_user_name(expr const & l) const { return is_local(l) && m_local_decls.contains(local_pp_name(l)); }
+    bool is_local_decl(expr const & l);
     bool is_local_level_variable(name const & n) const { return m_level_variables.contains(n); }
-    bool is_local_variable(name const & n) const { return m_variables.contains(n); }
-    bool is_local_variable(expr const & e) const { return is_local_variable(local_pp_name(e)); }
+    bool is_local_variable(expr const & e) const { return m_variables.contains(mlocal_name(e)); }
+    bool is_local_variable_user_name(name const & n) const {
+        if (expr const * d = m_local_decls.find(n))
+            return is_local(*d) && m_variables.contains(mlocal_name(*d));
+        else
+            return false;
+    }
     /** \brief Update binder information for the section parameter n, return true if success, and false if n is not a section parameter. */
     bool update_local_binder_info(name const & n, binder_info const & bi);
     void include_variable(name const & n) { m_include_vars.insert(n); }
@@ -449,6 +467,20 @@ public:
     list<expr> locals_to_context() const;
     /** \brief Return all local declarations and aliases */
     list<pair<name, expr>> const & get_local_entries() const { return m_local_decls.get_entries(); }
+
+    void maybe_throw_error(parser_error && err);
+    level parser_error_or_level(parser_error && err);
+    expr parser_error_or_expr(parser_error && err);
+    void throw_invalid_open_binder(pos_info const & pos);
+
+    bool has_error_recovery() const { return m_error_recovery; }
+    flet<bool> error_recovery_scope(bool enable_recovery) {
+        return flet<bool>(m_error_recovery, enable_recovery);
+    }
+    flet<bool> no_error_recovery_scope() { return error_recovery_scope(false); }
+    flet<bool> no_error_recovery_scope_if(bool cond) {
+        return error_recovery_scope(m_error_recovery && !cond);
+    }
 
     /* This is the default mode. We also use it when converting a pre-term that can be a pattern_or_expression
        into an expression.
@@ -473,7 +505,7 @@ public:
     /* Elaborate \c e as a type using the given metavariable context, and using m_local_decls as the local context */
     pair<expr, level_param_names> elaborate_type(name const & decl_name, metavar_context & mctx, expr const & e);
 
-    expr mk_sorry(pos_info const & p);
+    expr mk_sorry(pos_info const & p, bool synthetic = false);
 
     /** return true iff profiling is enabled */
     bool profiling() const { return m_profile; }

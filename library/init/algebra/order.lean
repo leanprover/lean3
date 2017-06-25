@@ -53,6 +53,9 @@ weak_order.le_antisymm
 lemma le_of_eq [weak_order α] {a b : α} : a = b → a ≤ b :=
 λ h, h ▸ le_refl a
 
+lemma le_antisymm_iff [weak_order α] {a b : α} : a = b ↔ a ≤ b ∧ b ≤ a :=
+⟨λe, ⟨le_of_eq e, le_of_eq e.symm⟩, λ⟨h1, h2⟩, le_antisymm h1 h2⟩
+
 @[trans] lemma ge_trans [weak_order α] : ∀ {a b c : α}, a ≥ b → b ≥ c → a ≥ c :=
 λ a b c h₁ h₂, le_trans h₂ h₁
 
@@ -209,6 +212,9 @@ match lt_trichotomy a b with
 | or.inr (or.inl heq) := absurd heq h
 | or.inr (or.inr hgt) := or.inr hgt
 end
+
+lemma ne_iff_lt_or_gt [linear_strong_order_pair α] {a b : α} : a ≠ b ↔ a < b ∨ a > b :=
+⟨lt_or_gt_of_ne, λo, or.elim o ne_of_lt ne_of_gt⟩
 
 lemma lt_iff_not_ge [linear_strong_order_pair α] (x y : α) : x < y ↔ ¬ x ≥ y :=
 ⟨not_le_of_gt, lt_of_not_ge⟩

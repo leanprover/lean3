@@ -53,6 +53,8 @@ Author: Leonardo de Moura
 #include "frontends/lean/scanner.h"
 #include "frontends/lean/tokens.h"
 
+#include "library/trace.h"
+
 namespace lean {
 static format * g_ellipsis_n_fmt  = nullptr;
 static format * g_ellipsis_fmt    = nullptr;
@@ -77,16 +79,12 @@ static format * g_partial_explicit_fmt    = nullptr;
 static name   * g_tmp_prefix      = nullptr;
 
 class nat_numeral_pp {
-    expr m_num_type;
     name m_nat;
-    expr m_nat_of_num;
     expr m_nat_zero;
     expr m_nat_succ;
 public:
     nat_numeral_pp():
-        m_num_type(mk_constant(get_num_name())),
         m_nat(get_nat_name()),
-        m_nat_of_num(mk_constant(get_nat_of_num_name())),
         m_nat_zero(mk_constant(get_nat_zero_name())),
         m_nat_succ(mk_constant(get_nat_succ_name())) {
     }
@@ -349,6 +347,7 @@ void pretty_fn::set_options_core(options const & _o) {
     m_binder_types      = get_pp_binder_types(o);
     m_hide_comp_irrel   = get_pp_hide_comp_irrel(o);
     m_delayed_abstraction  = get_pp_delayed_abstraction(o);
+    m_use_holes         = get_pp_use_holes(o);
     m_hide_full_terms   = get_formatter_hide_full_terms(o);
     m_num_nat_coe       = m_numerals;
     m_structure_instances = get_pp_structure_instances(o);
@@ -445,6 +444,27 @@ bool pretty_fn::is_implicit(expr const & f) {
     } catch (exception &) {
         return false;
     }
+}
+
+bool pretty_fn::is_default_arg_app(expr const & e) {
+    if (m_implict || m_preterm)
+        return false; // showing default arguments
+    if (!closed(app_fn(e))) {
+        // the Lean type checker assumes expressions are closed.
+        return false;
+    }
+    try {
+        expr t = m_ctx.relaxed_whnf(m_ctx.infer(app_fn(e)));
+        if (is_pi(t)) {
+            expr arg_type = binding_domain(t);
+            t = binding_body(t);
+            if (!is_pi(t) && !is_var(t) && is_app_of(arg_type, get_opt_param_name(), 2)) {
+                expr defval = app_arg(arg_type);
+                return closed(defval) && defval == app_arg(e);
+            }
+        }
+    } catch (exception &) { }
+    return false;
 }
 
 bool pretty_fn::is_prop(expr const & e) {
@@ -601,7 +621,6 @@ auto pretty_fn::pp_child(expr const & e, unsigned bp, bool ignore_hide) -> resul
             return add_paren_if_needed(*r, bp);
         if (m_numerals) {
             if (auto n = to_num(e)) return pp_num(*n);
-            if (auto n = to_num_core(e)) return pp_num(*n);
         }
         if (m_strings) {
             if (auto r = to_string(e)) return pp_string_literal(*r);
@@ -665,10 +684,11 @@ auto pretty_fn::pp_const(expr const & e, optional<unsigned> const & num_ref_univ
     // Remark: if num_ref_univ_params is "some", then it contains the number of
     // universe levels that are fixed in a section. That is, \c e corresponds to
     // a constant in a section which has fixed levels.
+    auto short_n = n;
     if (!m_full_names) {
         if (auto it = is_aliased(n)) {
             if (!m_private_names || !hidden_to_user_name(m_env, n))
-                n = *it;
+                short_n = *it;
         } else {
             for (name const & ns : get_namespaces(m_env)) {
                 if (!ns.is_anonymous()) {
@@ -676,7 +696,7 @@ auto pretty_fn::pp_const(expr const & e, optional<unsigned> const & num_ref_univ
                     if (new_n != n &&
                         !new_n.is_anonymous() &&
                         (!new_n.is_atomic() || !is_protected(m_env, n))) {
-                        n = new_n;
+                        short_n = new_n;
                         break;
                     }
                 }
@@ -684,11 +704,16 @@ auto pretty_fn::pp_const(expr const & e, optional<unsigned> const & num_ref_univ
         }
     }
     if (!m_private_names) {
-        if (auto n1 = hidden_to_user_name(m_env, n))
-            n = *n1;
+        if (auto n1 = hidden_to_user_name(m_env, short_n))
+            short_n = *n1;
     }
-    if (m_ctx.has_local_pp_name(n.get_root()))
-        n = get_root_tk() + n;
+    if (m_ctx.has_local_pp_name(short_n.get_root())) {
+        if (m_ctx.has_local_pp_name(n.get_root())) {
+            n = get_root_tk() + n;
+        }
+    } else {
+        n = short_n;
+    }
     if (m_universes && !empty(const_levels(e))) {
         unsigned first_idx = 0;
         buffer<level> ls;
@@ -719,8 +744,12 @@ auto pretty_fn::pp_const(expr const & e, optional<unsigned> const & num_ref_univ
     }
 }
 
+static format pp_hole() { return format("{! !}"); }
+
 auto pretty_fn::pp_meta(expr const & e) -> result {
-    if (is_idx_metavar(e)) {
+    if (m_use_holes) {
+        return pp_hole();
+    } else if (is_idx_metavar(e)) {
         return result(format((sstream() << "?x_" << to_meta_idx(e)).str()));
     } else if (is_metavar_decl_ref(e) && !m_purify_metavars) {
         return result(format((sstream() << "?m_" << get_metavar_decl_ref_suffix(e)).str()));
@@ -839,6 +868,8 @@ auto pretty_fn::pp_field_notation(expr const & e) -> result {
 auto pretty_fn::pp_app(expr const & e) -> result {
     if (auto r = pp_local_ref(e))
         return *r;
+    if (is_default_arg_app(e))
+        return pp_child(app_fn(e), max_bp());
     expr const & fn = app_fn(e);
     if (m_structure_instances && is_structure_instance(m_env, e, m_implict))
         return pp_structure_instance(e);
@@ -1006,7 +1037,9 @@ auto pretty_fn::pp_explicit(expr const & e) -> result {
 }
 
 auto pretty_fn::pp_delayed_abstraction(expr const & e) -> result {
-    if (m_delayed_abstraction) {
+    if (m_use_holes) {
+        return pp_hole();
+    } else if (m_delayed_abstraction) {
         format r = format("delayed[");
         r += pp(get_delayed_abstraction_expr(e)).fmt();
         r += format("]");
@@ -1055,6 +1088,7 @@ auto pretty_fn::pp_equations(expr const & e) -> optional<result> {
     unsigned eqnidx = 0;
     for (unsigned fidx = 0; fidx < num_fns; fidx++) {
         if (num_fns > 1) {
+            if (fidx > 0) r += line();
             r += format("with") + space() + pp(fns[fidx]).fmt() + space() + colon() +
                 space() + pp(mlocal_type(fns[fidx])).fmt();
         }
@@ -1104,8 +1138,10 @@ auto pretty_fn::pp_macro_default(expr const & e) -> result {
 auto pretty_fn::pp_macro(expr const & e) -> result {
     if (is_explicit(e)) {
         return pp_explicit(e);
-    } else if (is_quote(e)) {
-        return result(format(is_expr_quote(e) ? "```(" : "`(") + nest(2, pp(get_quote_expr(e)).fmt()) + format(")"));
+    } else if (is_expr_quote(e)) {
+        return result(format("`(") + nest(4, pp(get_expr_quote_value(e)).fmt()) + format(")"));
+    } else if (is_pexpr_quote(e)) {
+        return result(format("``(") + nest(2, pp(get_pexpr_quote_value(e)).fmt()) + format(")"));
     } else if (is_delayed_abstraction(e)) {
         return pp_delayed_abstraction(e);
     } else if (is_inaccessible(e)) {
@@ -1130,8 +1166,16 @@ auto pretty_fn::pp_macro(expr const & e) -> result {
         return pp(get_annotation_arg(e));
     } else if (is_rec_fn_macro(e)) {
         return format("[") + format(get_rec_fn_name(e)) + format("]");
+    } else if (is_synthetic_sorry(e)) {
+        if (m_use_holes)
+            return pp_hole();
+        else
+            return m_unicode ? format("⁇") : format("??");
     } else if (is_sorry(e)) {
-        return format("sorry");
+        if (m_use_holes)
+            return pp_hole();
+        else
+            return format("sorry");
     } else {
         return pp_macro_default(e);
     }
@@ -1304,7 +1348,6 @@ auto pretty_fn::pp_notation_child(expr const & e, unsigned lbp, unsigned rbp) ->
     if (is_app(e)) {
         if (m_numerals) {
             if (auto n = to_num(e)) return pp_num(*n);
-            if (auto n = to_num_core(e)) return pp_num(*n);
         }
         if (m_strings) {
             if (auto r = to_string(e)) return pp_string_literal(*r);
@@ -1705,7 +1748,6 @@ auto pretty_fn::pp(expr const & e, bool ignore_hide) -> result {
 
     if (m_numerals) {
         if (auto n = to_num(e)) return pp_num(*n);
-        if (auto n = to_num_core(e)) return pp_num(*n);
     }
     if (m_strings) {
         if (auto r = to_string(e))      return pp_string_literal(*r);

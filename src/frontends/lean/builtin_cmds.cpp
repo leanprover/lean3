@@ -184,7 +184,11 @@ environment check_cmd(parser & p) {
     std::tie(e, ls) = parse_local_expr(p, "_check");
     type_checker tc(p.env(), true, false);
     expr type = tc.check(e, ls);
-    auto out              = p.mk_message(p.cmd_pos(), INFORMATION);
+    if (is_synthetic_sorry(e) && (is_synthetic_sorry(type) || is_metavar(type))) {
+        // do not show useless type-checking results such as ?? : ?M_1
+        return p.env();
+    }
+    auto out              = p.mk_message(p.cmd_pos(), p.pos(), INFORMATION);
     formatter fmt         = out.get_formatter();
     unsigned indent       = get_pp_indent(p.get_options());
     format e_fmt    = fmt(e);
@@ -212,7 +216,7 @@ environment reduce_cmd(parser & p) {
         bool eta = false;
         r = normalize(tc, e, eta);
     }
-    auto out = p.mk_message(p.cmd_pos(), INFORMATION);
+    auto out = p.mk_message(p.cmd_pos(), p.pos(), INFORMATION);
     out.set_caption("reduce result") << r;
     out.report();
     return p.env();
@@ -342,6 +346,7 @@ static environment help_cmd(parser & p) {
     auto rep = p.mk_message(p.cmd_pos(), INFORMATION);
     if (p.curr_is_token_or_id(get_options_tk())) {
         p.next();
+        rep.set_end_pos(p.pos());
         auto decls = get_option_declarations();
         decls.for_each([&](name const &, option_declaration const & opt) {
                 rep << "  " << opt.get_name() << " (" << opt.kind() << ") "
@@ -355,6 +360,7 @@ static environment help_cmd(parser & p) {
                 ns.push_back(n);
             });
         std::sort(ns.begin(), ns.end());
+        rep.set_end_pos(p.pos());
         for (name const & n : ns) {
             rep << "  " << n << ": " << cmds.find(n)->get_descr() << "\n";
         };
@@ -405,7 +411,7 @@ static environment unify_cmd(parser & p) {
     local_context   lctx;
     e1 = convert_metavars(mctx, e1);
     e2 = convert_metavars(mctx, e2);
-    auto rep = p.mk_message(p.cmd_pos(), INFORMATION);
+    auto rep = p.mk_message(p.cmd_pos(), p.pos(), INFORMATION);
     rep << e1 << " =?= " << e2 << "\n";
     type_context ctx(env, p.get_options(), mctx, lctx, transparency_mode::Semireducible);
     bool success = ctx.is_def_eq(e1, e2);
@@ -425,34 +431,23 @@ static environment compile_cmd(parser & p) {
     return vm_compile(p.env(), d);
 }
 
-static environment compile_expr(environment const & env, name const & n, level_param_names const & ls, expr const & type, expr const & e, pos_info const & pos) {
-    environment new_env = env;
-    bool use_conv_opt   = true;
-    bool is_trusted     = false;
-    auto cd = check(new_env, mk_definition(new_env, n, ls, type, e, use_conv_opt, is_trusted));
-    new_env = new_env.add(cd);
-    new_env = add_transient_decl_pos_info(new_env, n, pos);
-    return vm_compile(new_env, new_env.get(n));
-}
-
-
 static environment eval_cmd(parser & p) {
     auto pos = p.pos();
     expr e; level_param_names ls;
-    std::tie(e, ls) = parse_local_expr(p, "_eval");
-    if (has_metavar(e))
-        throw parser_error("invalid eval command, expression contains metavariables", pos);
+    std::tie(e, ls) = parse_local_expr(p, "_eval", /* relaxed */ false);
+    if (has_synthetic_sorry(e))
+        return p.env();
 
     type_context tc(p.env(), transparency_mode::All);
     auto type = tc.infer(e);
 
-    /* Check if resultant type has an instance of has_to_string */
+    /* Check if resultant type has an instance of has_repr */
     try {
-        expr has_to_string_type = mk_app(tc, get_has_to_string_name(), type);
-        optional<expr> to_string_instance = tc.mk_class_instance(has_to_string_type);
-        if (to_string_instance) {
-            /* Modify the 'program' to (to_string e) */
-            e         = mk_app(tc, get_to_string_name(), type, *to_string_instance, e);
+        expr has_repr_type = mk_app(tc, get_has_repr_name(), type);
+        optional<expr> repr_instance = tc.mk_class_instance(has_repr_type);
+        if (repr_instance) {
+            /* Modify the 'program' to (repr e) */
+            e         = mk_app(tc, get_repr_name(), type, *repr_instance, e);
             type      = tc.infer(e);
         }
     } catch (exception &) {}
@@ -468,7 +463,7 @@ static environment eval_cmd(parser & p) {
     name fn_name = "_main";
     auto new_env = compile_expr(p.env(), fn_name, ls, type, e, pos);
 
-    auto out = p.mk_message(p.cmd_pos(), INFORMATION);
+    auto out = p.mk_message(p.cmd_pos(), p.pos(), INFORMATION);
     scope_traces_as_messages scope_traces(p.get_stream_name(), p.cmd_pos());
     bool should_report = false;
 
@@ -551,7 +546,8 @@ static environment run_command_cmd(parser & p) {
     tactic               = mk_app(mk_constant(get_has_bind_and_then_name()), tactic, try_triv);
     expr val             = mk_typed_expr(mk_true(), mk_by(tactic));
     bool check_unassigned = false;
-    elaborate(env, opts, "_run_command", mctx, local_context(), val, check_unassigned);
+    bool recover_from_errors = true;
+    elaborate(env, opts, "_run_command", mctx, local_context(), val, check_unassigned, recover_from_errors);
     return env;
 }
 

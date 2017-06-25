@@ -31,9 +31,11 @@ bool parse_univ_params(parser & p, buffer<name> & lp_names) {
     if (p.curr_is_token(get_lcurly_tk())) {
         p.next();
         while (!p.curr_is_token(get_rcurly_tk())) {
+            auto pos0 = p.pos();
             name l = p.check_atomic_id_next("invalid declaration, identifier expected");
             lp_names.push_back(l);
             p.add_local_level(l, mk_param_univ(l));
+            if (p.pos() == pos0) break;
         }
         p.next();
         return true;
@@ -42,8 +44,8 @@ bool parse_univ_params(parser & p, buffer<name> & lp_names) {
     }
 }
 
-expr parse_single_header(parser & p, declaration_name_scope & scope, buffer<name> & lp_names, buffer<expr> & params,
-                         bool is_example, bool is_instance, bool allow_default) {
+expr parse_single_header(parser & p, declaration_name_scope & scope, buffer <name> & lp_names, buffer <expr> & params,
+                         bool is_example, bool is_instance) {
     auto c_pos  = p.pos();
     name c_name;
     if (is_example) {
@@ -57,7 +59,7 @@ expr parse_single_header(parser & p, declaration_name_scope & scope, buffer<name
             scope.set_name(c_name);
         }
     }
-    p.parse_optional_binders(params, allow_default);
+    p.parse_optional_binders(params, /* allow_default */ true);
     for (expr const & param : params)
         p.add_local(param);
     expr type;
@@ -82,15 +84,15 @@ expr parse_single_header(parser & p, declaration_name_scope & scope, buffer<name
             c_name = const_name(get_app_fn(app_arg(it))) + const_name(C);
             scope.set_name(c_name);
         } else {
-            throw parser_error("failed to synthesize instance name, name should be provided explicitly", c_pos);
+            p.maybe_throw_error({"failed to synthesize instance name, name should be provided explicitly", c_pos});
+            c_name = mk_tagged_fresh_name("_inst");
         }
     }
     lean_assert(!c_name.is_anonymous());
     return p.save_pos(mk_local(c_name, type), c_pos);
 }
 
-void parse_mutual_header(parser & p, buffer<name> & lp_names, buffer<expr> & cs, buffer<expr> & params,
-                         bool allow_default) {
+void parse_mutual_header(parser & p, buffer <name> & lp_names, buffer <expr> & cs, buffer <expr> & params) {
     parse_univ_params(p, lp_names);
     while (true) {
         auto c_pos  = p.pos();
@@ -103,7 +105,7 @@ void parse_mutual_header(parser & p, buffer<name> & lp_names, buffer<expr> & cs,
     if (cs.size() < 2) {
         throw parser_error("invalid mutual declaration, must provide more than one identifier (separated by commas)", p.pos());
     }
-    p.parse_optional_binders(params, allow_default);
+    p.parse_optional_binders(params, /* allow_default */ true);
     for (expr const & param : params)
         p.add_local(param);
     for (expr const & c : cs)
@@ -191,7 +193,7 @@ void sort_locals(buffer<expr> const & locals, parser const & p, buffer<expr> & p
     }
     for (expr const & l : locals) {
         // we only copy the locals that are in p's local context
-        if (p.is_local_decl(l) && !explicit_param_names.contains(mlocal_name(l)))
+        if (p.is_local_decl_user_name(l) && !explicit_param_names.contains(mlocal_name(l)))
             extra.push_back(l);
     }
     std::sort(extra.begin(), extra.end(), [&](expr const & p1, expr const & p2) {
@@ -273,8 +275,6 @@ void collect_implicit_locals(parser & p, buffer<name> & lp_names, buffer<expr> &
     for (expr const & e : all_exprs) {
         collect_locals_ignoring_tactics(e, locals);
         lp_found = collect_univ_params_ignoring_tactics(e, lp_found);
-        if (is_local(e))
-            given_params.insert(mlocal_name(e));
     }
     collect_annonymous_inst_implicit(p, locals);
     sort_locals(locals.get_collected(), p, params);

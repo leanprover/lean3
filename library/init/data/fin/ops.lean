@@ -10,6 +10,9 @@ namespace fin
 open nat
 variable {n : nat}
 
+protected def succ : fin n → fin (succ n)
+| ⟨a, h⟩ := ⟨nat.succ a, succ_lt_succ h⟩
+
 def of_nat {n : nat} (a : nat) : fin (succ n) :=
 ⟨a % succ n, nat.mod_lt _ (nat.zero_lt_succ _)⟩
 
@@ -35,7 +38,7 @@ private lemma modlt {a b n : nat} (h₁ : a < n) (h₂ : b < n) : a % b < n :=
 begin
   cases b with b,
   {simp [mod_zero], assumption},
-  {assert h : a % (succ b) < succ b,
+  {have h : a % (succ b) < succ b,
    apply nat.mod_lt _ (nat.zero_lt_succ _),
    exact lt.trans h h₂}
 end
@@ -55,7 +58,7 @@ protected def lt : fin n → fin n → Prop
 protected def le : fin n → fin n → Prop
 | ⟨a, _⟩ ⟨b, _⟩ := a ≤ b
 
-instance : has_zero (fin (succ n)) := ⟨of_nat 0⟩
+instance : has_zero (fin (succ n)) := ⟨⟨0, succ_pos n⟩⟩
 instance : has_one (fin (succ n))  := ⟨of_nat 1⟩
 instance : has_add (fin n)         := ⟨fin.add⟩
 instance : has_sub (fin n)         := ⟨fin.sub⟩
@@ -70,6 +73,9 @@ instance decidable_lt : ∀ (a b : fin n), decidable (a < b)
 
 instance decidable_le : ∀ (a b : fin n), decidable (a ≤ b)
 | ⟨a, _⟩ ⟨b, _⟩ := by apply nat.decidable_le
+
+lemma of_nat_zero : @of_nat n 0 = 0 :=
+fin.eq_of_veq $ zero_mod n.succ
 
 lemma add_def (a b : fin n) : (a + b).val = (a.val + b.val) % n :=
 show (fin.add a b).val = (a.val + b.val) % n, from
@@ -98,5 +104,16 @@ by cases a; cases b; simp [fin.lt]
 lemma le_def (a b : fin n) : (a ≤ b) = (a.val ≤ b.val) :=
 show (fin.le a b) = (a.val ≤ b.val), from
 by cases a; cases b; simp [fin.le]
+
+lemma val_zero : (0 : fin (succ n)).val = 0 := rfl
+
+def pred {n : nat} : ∀ i : fin (succ n), i ≠ 0 → fin n
+| ⟨a, h₁⟩ h₂ := ⟨a.pred,
+  begin
+    have this : a ≠ 0,
+    { have aux₁ := vne_of_ne h₂,
+      dsimp at aux₁, rw val_zero at aux₁, exact aux₁ },
+    exact nat.pred_lt_pred this (nat.succ_ne_zero n) h₁
+  end⟩
 
 end fin

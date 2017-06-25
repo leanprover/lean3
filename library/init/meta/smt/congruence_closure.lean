@@ -4,7 +4,7 @@ Released under Apache 2.0 license as described in the file LICENSE.
 Authors: Leonardo de Moura
 -/
 prelude
-import init.meta.tactic init.meta.set_get_option_tactics
+import init.meta.interactive_base init.meta.tactic init.meta.set_get_option_tactics
 
 structure cc_config :=
 /- If tt, congruence closure will treat implicit instance arguments as constants. -/
@@ -19,10 +19,10 @@ structure cc_config :=
 /- If true, then use excluded middle -/
 (em               : bool               := tt)
 
-/- Congruence closure state -/
+/-- Congruence closure state -/
 meta constant cc_state                  : Type
 meta constant cc_state.mk_core          : cc_config → cc_state
-/- Create a congruence closure state object using the hypotheses in the current goal. -/
+/-- Create a congruence closure state object using the hypotheses in the current goal. -/
 meta constant cc_state.mk_using_hs_core : cc_config → tactic cc_state
 meta constant cc_state.next             : cc_state → expr → expr
 meta constant cc_state.roots_core       : cc_state → bool → list expr
@@ -39,11 +39,11 @@ meta constant cc_state.is_eqv           : cc_state → expr → expr → tactic 
 meta constant cc_state.is_not_eqv       : cc_state → expr → expr → tactic bool
 meta constant cc_state.eqv_proof        : cc_state → expr → expr → tactic expr
 meta constant cc_state.inconsistent     : cc_state → bool
-/- (proof_for cc e) constructs a proof for e if it is equivalent to true in cc_state -/
+/-- `proof_for cc e` constructs a proof for e if it is equivalent to true in cc_state -/
 meta constant cc_state.proof_for        : cc_state → expr → tactic expr
-/- (refutation_for cc e) constructs a proof for (not e) if it is equivalent to false in cc_state -/
+/-- `refutation_for cc e` constructs a proof for `not e` if it is equivalent to false in cc_state -/
 meta constant cc_state.refutation_for   : cc_state → expr → tactic expr
-/- If the given state is inconsistent, return a proof for false. Otherwise fail. -/
+/-- If the given state is inconsistent, return a proof for false. Otherwise fail. -/
 meta constant cc_state.proof_for_false  : cc_state → tactic expr
 namespace cc_state
 
@@ -103,8 +103,7 @@ do intros, s ← cc_state.mk_using_hs_core cfg, t ← target, s ← s.internaliz
        dbg ← get_bool_option `trace.cc.failure ff,
        if dbg then do {
          ccf ← pp s,
-         msg ← return $ to_fmt "cc tactic failed, equivalence classes: " ++ format.line ++ ccf,
-         fail msg
+         fail format!"cc tactic failed, equivalence classes: \n{ccf}"
        } else do {
          fail "cc tactic failed"
        }

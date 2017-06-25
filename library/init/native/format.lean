@@ -86,7 +86,7 @@ meta def expr' (action : ir.stmt → format) : ir.expr → format
  | (ir.expr.constructor _ _) := "NYI"
  | (ir.expr.address_of e) := "& " ++ mangle_name e ++ ";"
  | (ir.expr.equals e1 e2) := expr' e1 ++ " == " ++ expr' e2
- | (ir.expr.raw_int n) := to_string n
+ | (ir.expr.raw_int n) := repr n
  | (ir.expr.sub e1 e2) :=
    expr' e1 ++ " - " ++ expr' e2
 

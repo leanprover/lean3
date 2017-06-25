@@ -6,10 +6,10 @@ example (a b c d : nat) (f : nat → nat → nat) : a = b → b = c → d + (if 
 by do intros,
       s ← cc_state.mk_using_hs,
       trace s,
-      t₁ ← to_expr `(f (b + b) b),
-      t₂ ← to_expr `(f (a + c) c),
-      b  ← to_expr `(b),
-      d  ← to_expr `(d),
+      t₁ ← to_expr ```(f (b + b) b),
+      t₂ ← to_expr ```(f (a + c) c),
+      b  ← to_expr ```(b),
+      d  ← to_expr ```(d),
       guard (s^.inconsistent),
       guard (s^.eqc_size b = 4),
       guard (not (s^.in_singlenton_eqc b)),
@@ -19,7 +19,7 @@ by do intros,
       trace ">>> b's equivalence class",
       trace (s^.eqc_of b),
       pr ← s^.eqv_proof t₁ t₂,
-      note `h pr,
+      note `h none pr,
       contradiction
 
 example (a b : nat) (f : nat → nat) : a = b → f a = f b :=

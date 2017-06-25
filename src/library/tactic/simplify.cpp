@@ -71,7 +71,8 @@ simp_config::simp_config():
     m_zeta(false),
     m_beta(false),
     m_eta(true),
-    m_proj(true) {
+    m_proj(true),
+    m_single_pass(false) {
 }
 
 simp_config::simp_config(vm_obj const & obj) {
@@ -85,6 +86,7 @@ simp_config::simp_config(vm_obj const & obj) {
     m_beta               = to_bool(cfield(obj, 7));
     m_eta                = to_bool(cfield(obj, 8));
     m_proj               = to_bool(cfield(obj, 9));
+    m_single_pass        = to_bool(cfield(obj, 10));
 }
 
 /* -----------------------------------
@@ -584,19 +586,15 @@ simp_result simplify_core_fn::rewrite_core(expr const & e, simp_lemma const & sl
     }
 
     if (sl.is_permutation()) {
-        if (!is_lt(new_rhs, new_lhs, false)) {
+        if (!is_lt(new_rhs, new_lhs, false, &m_ctx.lctx())) {
             lean_simp_trace(tmp_ctx, name({"simplify", "perm"}),
                             tout() << "perm rejected: " << new_rhs << " !< " << new_lhs << "\n";);
             return simp_result(e);
         }
     }
 
-    if (sl.is_refl()) {
-        return simp_result(new_rhs);
-    } else {
-        expr pf = tmp_ctx.instantiate_mvars(sl.get_proof());
-        return simp_result(new_rhs, pf);
-    }
+    expr pf = tmp_ctx.instantiate_mvars(sl.get_proof());
+    return simp_result(new_rhs, pf);
 }
 
 simp_result simplify_core_fn::rewrite(expr const & e, simp_lemma const & sl) {
@@ -666,10 +664,13 @@ simp_result simplify_core_fn::visit(expr const & e, optional<expr> const & paren
         simp_result new_result;
         switch (curr_result.get_new().kind()) {
         case expr_kind::Local:
-        case expr_kind::Meta:
         case expr_kind::Sort:
         case expr_kind::Constant:
             new_result = curr_result;
+            break;
+        case expr_kind::Meta:
+            new_result = curr_result;
+            new_result.update(m_ctx.instantiate_mvars(new_result.get_new()));
             break;
         case expr_kind::Macro:
             new_result = join(curr_result, visit_macro(curr_result.get_new()));
@@ -697,8 +698,10 @@ simp_result simplify_core_fn::visit(expr const & e, optional<expr> const & paren
             } else if (r2->first.get_new() == curr_result.get_new()) {
                 break;
             } else {
-                /* continue simplifying */
                 curr_result = join(new_result, r2->first);
+                if (m_cfg.m_single_pass)
+                    break;
+                /* continue simplifying */
             }
         } else {
             curr_result = new_result;

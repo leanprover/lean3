@@ -394,7 +394,7 @@ public:
 
     virtual void pop_local() override;
     virtual bool has_local_pp_name(name const & pp_name) override {
-        return static_cast<bool>(m_lctx.m_user_name2local_decls.find(pp_name));
+        return static_cast<bool>(m_lctx.m_user_name2idxs.find(pp_name));
     }
     virtual expr abstract_locals(expr const & e, unsigned num_locals, expr const * locals) override;
 
@@ -403,6 +403,7 @@ public:
         This method is useful when we want to normalize the expression until we get a particular symbol as the head symbol. */
     expr whnf_head_pred(expr const & e, std::function<bool(expr const &)> const & pred); // NOLINT
     optional<expr> reduce_aux_recursor(expr const & e);
+    optional<expr> reduce_large_elim_recursor(expr const & e);
     optional<expr> reduce_projection(expr const & e);
     optional<expr> norm_ext(expr const & e) { return env().norm_ext()(e, *this); }
 

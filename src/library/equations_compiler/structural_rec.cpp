@@ -339,24 +339,23 @@ struct structural_rec_fn {
         expr fn_type   = ctx.infer(fn);
         unsigned arity = ues.get_arity_of(0);
         expr rec_arg;
+        buffer<expr> args;
         buffer<expr> other_args;
-        buffer<expr> pre_idx_args;
         for (unsigned i = 0; i < arity; i++) {
             fn_type = ctx.whnf(fn_type);
             if (!is_pi(fn_type)) throw_ill_formed_eqns();
             expr arg = locals.push_local_from_binding(fn_type);
+            args.push_back(arg);
             if (i == m_arg_pos) {
                 rec_arg = arg;
-            } else if (std::find(m_indices_pos.begin(), m_indices_pos.end(), i) != m_indices_pos.end()) {
-                pre_idx_args.push_back(arg);
-            } else {
+            } else if (std::find(m_indices_pos.begin(), m_indices_pos.end(), i) == m_indices_pos.end()) {
                 other_args.push_back(arg);
             }
             fn_type  = instantiate(binding_body(fn_type), arg);
         }
         buffer<expr> idx_args;
         for (unsigned i : m_indices_pos)
-            idx_args.push_back(pre_idx_args[i]);
+            idx_args.push_back(args[i]);
         buffer<expr> I_params;
         expr I = get_app_args(ctx.relaxed_whnf(ctx.infer(rec_arg)), I_params);
         unsigned nindices = m_indices_pos.size();
@@ -587,7 +586,8 @@ struct structural_rec_fn {
                       Reason: the rhs should not contain recursive equations.
                       But, we need to update the locals. */
                    expr new_rhs = replace_locals(ue.rhs(), from, to);
-                   expr new_eqn = copy_tag(ue.get_nested_src(), mk_equation(new_lhs, new_rhs));
+                   expr new_eqn = copy_tag(ue.get_nested_src(),
+                                           mk_equation(new_lhs, new_rhs, ue.ignore_if_unused()));
                    new_eqns.push_back(copy_tag(eqn, ctx.mk_lambda(new_vars, new_eqn)));
                 });
             } else {

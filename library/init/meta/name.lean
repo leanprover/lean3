@@ -4,9 +4,9 @@ Released under Apache 2.0 license as described in the file LICENSE.
 Authors: Leonardo de Moura
 -/
 prelude
-import init.data.ordering init.coe
+import init.data.ordering init.coe init.data.to_string
 
-/- Reflect a C++ name object. The VM replaces it with the C++ implementation. -/
+/-- Reflect a C++ name object. The VM replaces it with the C++ implementation. -/
 inductive name
 | anonymous  : name
 | mk_string  : string → name → name
@@ -51,9 +51,9 @@ def name.update_prefix : name → name → name
 def name.to_string_with_sep (sep : string) : name → string
 | anonymous                := "[anonymous]"
 | (mk_string s anonymous)  := s
-| (mk_numeral v anonymous) := to_string v
+| (mk_numeral v anonymous) := repr v
 | (mk_string s n)          := name.to_string_with_sep n ++ sep ++ s
-| (mk_numeral v n)         := name.to_string_with_sep n ++ sep ++ to_string v
+| (mk_numeral v n)         := name.to_string_with_sep n ++ sep ++ repr v
 
 private def name.components' : name -> list name
 | anonymous                := []
@@ -63,7 +63,7 @@ private def name.components' : name -> list name
 def name.components (n : name) : list name :=
 (name.components' n).reverse
 
-def name.to_string : name → string :=
+protected def name.to_string : name → string :=
 name.to_string_with_sep "."
 
 instance : has_to_string name :=
@@ -85,7 +85,7 @@ meta instance : has_ordering name :=
 meta instance : has_append name :=
 ⟨name.append⟩
 
-/- (name.append_after n i) return a name of the form n_i -/
+/-- `name.append_after n i` return a name of the form n_i -/
 meta constant name.append_after : name → nat → name
 
 meta def name.is_prefix_of : name → name → bool

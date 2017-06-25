@@ -6,6 +6,7 @@ Author: Sebastian Ullrich
 */
 #pragma once
 #include <vector>
+#include <string>
 #include "library/module_mgr.h"
 #include "frontends/lean/parser.h"
 #include "frontends/lean/info_manager.h"
@@ -17,7 +18,15 @@ void report_info(environment const & env, options const & opts, io_state const &
                  search_path const &, module_info const & m_mod_info,
                  std::vector<info_manager> const & info_managers, pos_info const & pos,
                  break_at_pos_exception const & e, json & j);
-
+void get_hole_commands(module_info const & m_mod_info,
+                       std::vector<info_manager> const & info_managers,
+                       pos_info const & pos, json & j);
+void get_all_hole_commands(module_info const & m_mod_info,
+                           std::vector<info_manager> const & info_managers,
+                           json & j);
+void execute_hole_command(module_info const & m_mod_info,
+                          std::vector<info_manager> const & info_managers,
+                          pos_info const & pos, std::string const & action, json & j);
 void initialize_interactive();
 void finalize_interactive();
 }

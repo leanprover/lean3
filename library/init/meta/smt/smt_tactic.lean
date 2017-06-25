@@ -155,12 +155,12 @@ meta def try {α : Type} (t : smt_tactic α) : smt_tactic unit :=
  (λ ⟨a, new_ss⟩, result.success ((), new_ss))
  (λ e ref s', result.success ((), ss) ts)
 
-/- (repeat_at_most n t): repeat the given tactic at most n times or until t fails -/
+/-- `repeat_at_most n t`: repeat the given tactic at most n times or until t fails -/
 meta def repeat_at_most : nat → smt_tactic unit → smt_tactic unit
 | 0     t := return ()
 | (n+1) t := (do t, repeat_at_most n t) <|> return ()
 
-/-- (repeat_exactly n t) : execute t n times -/
+/-- `repeat_exactly n t` : execute t n times -/
 meta def repeat_exactly : nat → smt_tactic unit → smt_tactic unit
 | 0     t := return ()
 | (n+1) t := do t, repeat_exactly n t
@@ -242,12 +242,12 @@ private meta def all_goals_core (tac : smt_tactic unit) : list smt_goal → list
      (new_ss, new_ts) ← get_goals,
      all_goals_core ss ts (acs ++ new_ss) (act ++ new_ts)
 
-/- Apply the given tactic to all goals. -/
+/-- Apply the given tactic to all goals. -/
 meta def all_goals (tac : smt_tactic unit) : smt_tactic unit :=
 do (ss, ts) ← get_goals,
    all_goals_core tac ss ts [] []
 
-/- LCF-style AND_THEN tactic. It applies tac1, and if succeed applies tac2 to each subgoal produced by tac1 -/
+/-- LCF-style AND_THEN tactic. It applies tac1, and if succeed applies tac2 to each subgoal produced by tac1 -/
 meta def seq (tac1 : smt_tactic unit) (tac2 : smt_tactic unit) : smt_tactic unit :=
 do (s::ss, t::ts) ← get_goals,
    set_goals [s] [t],
@@ -255,7 +255,7 @@ do (s::ss, t::ts) ← get_goals,
    (new_ss, new_ts) ← get_goals,
    set_goals (new_ss ++ ss) (new_ts ++ ts)
 
-meta instance : has_andthen (smt_tactic unit) :=
+meta instance : has_andthen (smt_tactic unit) (smt_tactic unit) (smt_tactic unit) :=
 ⟨seq⟩
 
 meta def focus1 {α} (tac : smt_tactic α) : smt_tactic α :=
@@ -309,14 +309,18 @@ meta def definev (h : name) (t : expr) (v : expr) : smt_tactic unit :=
 tactic.definev_core h t v >> intros >> return ()
 
 /-- Add (h : t := pr) to the current goal -/
-meta def pose (h : name) (pr : expr) : smt_tactic unit :=
-do t ← tactic.infer_type pr,
-   definev h t pr
+meta def pose (h : name) (t : option expr := none) (pr : expr) : smt_tactic unit :=
+match t with
+| none   := do t ← infer_type pr, definev h t pr
+| some t := definev h t pr
+end
 
-/- Add (h : t) to the current goal, given a proof (pr : t) -/
-meta def note (n : name) (pr : expr) : smt_tactic unit :=
-do t ← tactic.infer_type pr,
-   assertv n t pr
+/-- Add (h : t) to the current goal, given a proof (pr : t) -/
+meta def note (h : name) (t : option expr := none) (pr : expr) : smt_tactic unit :=
+match t with
+| none   := do t ← infer_type pr, assertv h t pr
+| some t := assertv h t pr
+end
 
 meta def destruct (e : expr) : smt_tactic unit :=
 smt_tactic.seq (tactic.destruct e) smt_tactic.intros
@@ -345,11 +349,11 @@ do t ← target,
      apply a,
      intros
 
-/- Return a proof for e, if 'e' is a known fact in the main goal. -/
+/-- Return a proof for e, if 'e' is a known fact in the main goal. -/
 meta def proof_for (e : expr) : smt_tactic expr :=
 do cc ← to_cc_state, cc.proof_for e
 
-/- Return a refutation for e (i.e., a proof for (not e)), if 'e' has been refuted in the main goal. -/
+/-- Return a refutation for e (i.e., a proof for (not e)), if 'e' has been refuted in the main goal. -/
 meta def refutation_for (e : expr) : smt_tactic expr :=
 do cc ← to_cc_state, cc.refutation_for e
 

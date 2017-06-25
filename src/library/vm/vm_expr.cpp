@@ -20,6 +20,8 @@ Author: Leonardo de Moura
 #include "library/comp_val.h"
 #include "library/choice.h"
 #include "library/annotation.h"
+#include "library/quote.h"
+#include "library/string.h"
 #include "library/vm/vm.h"
 #include "library/vm/vm_nat.h"
 #include "library/vm/vm_name.h"
@@ -29,6 +31,7 @@ Author: Leonardo de Moura
 #include "library/vm/vm_level.h"
 #include "library/vm/vm_list.h"
 #include "library/vm/vm_string.h"
+#include "library/vm/vm_pos_info.h"
 #include "library/compiler/simp_inductive.h"
 #include "library/compiler/nat_value.h"
 
@@ -83,7 +86,7 @@ binder_info to_binder_info(vm_obj const & o) {
     lean_assert(is_simple(o));
     /*
       inductive binder_info :=
-      | default | implicit | strict_implicit | inst_implicit | other
+      | default | implicit | strict_implicit | inst_implicit | aux_decl
     */
     switch (cidx(o)) {
     case 0:  return binder_info();
@@ -107,60 +110,51 @@ vm_obj to_obj(binder_info const & bi) {
         return mk_vm_simple(0);
 }
 
-vm_obj expr_var(vm_obj const & n) {
+vm_obj expr_var(vm_obj const &, vm_obj const & n) {
     return to_obj(mk_var(to_unsigned(n)));
 }
 
-vm_obj expr_sort(vm_obj const & l) {
+vm_obj expr_sort(vm_obj const &, vm_obj const & l) {
     return to_obj(mk_sort(to_level(l)));
 }
 
-vm_obj expr_const(vm_obj const & n, vm_obj const & ls) {
+vm_obj expr_const(vm_obj const &, vm_obj const & n, vm_obj const & ls) {
     return to_obj(mk_constant(to_name(n), to_list_level(ls)));
 }
 
-vm_obj expr_mvar(vm_obj const & n, vm_obj const & t) {
+vm_obj expr_mvar(vm_obj const &, vm_obj const & n, vm_obj const & t) {
     return to_obj(mk_metavar(to_name(n), to_expr(t)));
 }
 
-vm_obj expr_local_const(vm_obj const & n, vm_obj const & ppn, vm_obj const & bi, vm_obj const & t) {
+vm_obj expr_local_const(vm_obj const &, vm_obj const & n, vm_obj const & ppn, vm_obj const & bi, vm_obj const & t) {
     return to_obj(mk_local(to_name(n), to_name(ppn), to_expr(t), to_binder_info(bi)));
 }
 
-vm_obj expr_app(vm_obj const & f, vm_obj const & a) {
+vm_obj expr_app(vm_obj const &, vm_obj const & f, vm_obj const & a) {
     return to_obj(mk_app(to_expr(f), to_expr(a)));
 }
 
-vm_obj expr_lam(vm_obj const & n, vm_obj const & bi, vm_obj const & t, vm_obj const & b) {
+vm_obj expr_lam(vm_obj const &, vm_obj const & n, vm_obj const & bi, vm_obj const & t, vm_obj const & b) {
     return to_obj(mk_lambda(to_name(n), to_expr(t), to_expr(b), to_binder_info(bi)));
 }
 
-vm_obj expr_pi(vm_obj const & n, vm_obj const & bi, vm_obj const & t, vm_obj const & b) {
+vm_obj expr_pi(vm_obj const &, vm_obj const & n, vm_obj const & bi, vm_obj const & t, vm_obj const & b) {
     return to_obj(mk_pi(to_name(n), to_expr(t), to_expr(b), to_binder_info(bi)));
 }
 
-vm_obj expr_elet(vm_obj const & n, vm_obj const & t, vm_obj const & v, vm_obj const & b) {
+vm_obj expr_elet(vm_obj const &, vm_obj const & n, vm_obj const & t, vm_obj const & v, vm_obj const & b) {
     return to_obj(mk_let(to_name(n), to_expr(t), to_expr(v), to_expr(b)));
 }
 
-vm_obj expr_macro(vm_obj const & d, vm_obj const & n, vm_obj const & fn) {
-    unsigned sz = to_unsigned(n);
+vm_obj expr_macro(vm_obj const &, vm_obj const & d, vm_obj const & es) {
     buffer<expr> args;
-    for (unsigned i = 0; i < sz; i++) {
-        args.push_back(to_expr(invoke(fn, mk_vm_nat(i))));
-    }
+    to_buffer_expr(es, args);
     return to_obj(mk_macro(to_macro_definition(d), args.size(), args.data()));
-}
-
-vm_obj expr_macro_arg(vm_obj const & m, vm_obj const & i) {
-    return to_obj(macro_arg(to_expr(m), to_unsigned(i)));
 }
 
 vm_obj expr_macro_def_name(vm_obj const & d) {
     return to_obj(to_macro_definition(d).get_name());
 }
-
-static unsigned g_expr_macro_arg_fun_idx = -1;
 
 unsigned expr_cases_on(vm_obj const & o, buffer<vm_obj> & data) {
     expr const & e = to_expr(o);
@@ -204,17 +198,12 @@ unsigned expr_cases_on(vm_obj const & o, buffer<vm_obj> & data) {
         break;
     case expr_kind::Macro:
         data.push_back(to_obj(macro_def(e)));
-        data.push_back(mk_vm_nat(macro_num_args(e)));
-        data.push_back(mk_vm_closure(g_expr_macro_arg_fun_idx, 1, &o));
+        buffer<expr> args;
+        args.append(macro_num_args(e), macro_args(e));
+        data.push_back(to_obj(args));
         break;
     }
     return static_cast<unsigned>(e.kind());
-}
-
-vm_obj expr_mk_macro(vm_obj const & d, vm_obj const & es) {
-    buffer<expr> args;
-    to_buffer_expr(es, args);
-    return to_obj(mk_macro(to_macro_definition(d), args.size(), args.data()));
 }
 
 vm_obj expr_has_decidable_eq(vm_obj const & o1, vm_obj const & o2) {
@@ -225,7 +214,7 @@ vm_obj expr_alpha_eqv(vm_obj const & o1, vm_obj const & o2) {
     return mk_vm_bool(to_expr(o1) == to_expr(o2));
 }
 
-vm_obj expr_to_string(vm_obj const & l) {
+vm_obj expr_to_string(vm_obj const &, vm_obj const & l) {
     std::ostringstream out;
     out << to_expr(l);
     return to_obj(out.str());
@@ -427,10 +416,6 @@ vm_obj vm_mk_int_val_ne_proof(vm_obj const & a, vm_obj const & b) {
     return to_obj(mk_int_val_ne_proof(to_expr(a), to_expr(b)));
 }
 
-vm_obj expr_is_choice_macro(vm_obj const & e) {
-    return mk_vm_bool(is_choice(to_expr(e)));
-}
-
 vm_obj expr_mk_sorry(vm_obj const & t) {
     return to_obj(mk_sorry(to_expr(t)));
 }
@@ -444,7 +429,7 @@ vm_obj expr_occurs(vm_obj const & e1, vm_obj const & e2) {
     return mk_vm_bool(occurs(to_expr(e1), to_expr(e2)));
 }
 
-vm_obj expr_subst(vm_obj const & _e1, vm_obj const & _e2) {
+vm_obj expr_subst(vm_obj const &, vm_obj const & _e1, vm_obj const & _e2) {
     expr const & e1 = to_expr(_e1);
     expr const & e2 = to_expr(_e2);
     if (is_lambda(e1)) {
@@ -454,7 +439,7 @@ vm_obj expr_subst(vm_obj const & _e1, vm_obj const & _e2) {
     }
 }
 
-vm_obj expr_is_annotation(vm_obj const & _e) {
+vm_obj expr_is_annotation(vm_obj const &, vm_obj const & _e) {
     expr const & e = to_expr(_e);
     if (is_annotation(e)) {
         return mk_vm_some(mk_vm_pair(to_obj(get_annotation_kind(e)), to_obj(get_annotation_arg(e))));
@@ -463,8 +448,21 @@ vm_obj expr_is_annotation(vm_obj const & _e) {
     }
 }
 
-vm_obj reflect(vm_obj const &, vm_obj const &, vm_obj const & r) {
-    return r;
+vm_obj reflect_expr(vm_obj const & elab, vm_obj const & e) {
+    if (to_bool(elab))
+        return to_obj(mk_elaborated_expr_quote(to_expr(e)));
+    else
+        return to_obj(mk_pexpr_quote_and_substs(to_expr(e), /* is_strict */ false));
+}
+
+vm_obj reflect_string(vm_obj const & s) {
+    return to_obj(from_string(to_string(s)));
+}
+
+vm_obj expr_pos(vm_obj const &, vm_obj const & e) {
+    if (auto p = get_pos_info(to_expr(e)))
+        return mk_vm_some(to_obj(*p));
+    return mk_vm_none();
 }
 
 void initialize_vm_expr() {
@@ -477,9 +475,7 @@ void initialize_vm_expr() {
     DECLARE_VM_BUILTIN(name({"expr", "lam"}),              expr_lam);
     DECLARE_VM_BUILTIN(name({"expr", "pi"}),               expr_pi);
     DECLARE_VM_BUILTIN(name({"expr", "elet"}),             expr_elet);
-    DECLARE_VM_BUILTIN("_expr_macro_arg",                  expr_macro_arg);
     DECLARE_VM_BUILTIN(name({"expr", "macro"}),            expr_macro);
-    DECLARE_VM_BUILTIN(name({"expr", "mk_macro"}),         expr_mk_macro);
     DECLARE_VM_BUILTIN(name({"expr", "macro_def_name"}),   expr_macro_def_name);
     DECLARE_VM_BUILTIN(name({"expr", "has_decidable_eq"}), expr_has_decidable_eq);
     DECLARE_VM_BUILTIN(name({"expr", "alpha_eqv"}),        expr_alpha_eqv);
@@ -501,12 +497,14 @@ void initialize_vm_expr() {
     DECLARE_VM_BUILTIN(name({"expr", "lift_vars"}),        expr_lift_vars);
     DECLARE_VM_BUILTIN(name({"expr", "lower_vars"}),       expr_lower_vars);
     DECLARE_VM_BUILTIN(name({"expr", "hash"}),             expr_hash);
+    DECLARE_VM_BUILTIN(name({"expr", "pos"}),              expr_pos);
     DECLARE_VM_BUILTIN(name({"expr", "copy_pos_info"}),    expr_copy_pos_info);
     DECLARE_VM_BUILTIN(name({"expr", "occurs"}),           expr_occurs);
     DECLARE_VM_BUILTIN(name({"expr", "collect_univ_params"}), expr_collect_univ_params);
     DECLARE_VM_CASES_BUILTIN(name({"expr", "cases_on"}),   expr_cases_on);
 
-    DECLARE_VM_BUILTIN("reflect",                          reflect);
+    DECLARE_VM_BUILTIN(name("string", "reflect"),           reflect_string);
+    DECLARE_VM_BUILTIN(name("expr", "reflect"),             reflect_expr);
 
     DECLARE_VM_BUILTIN(name("mk_nat_val_ne_proof"),        vm_mk_nat_val_ne_proof);
     DECLARE_VM_BUILTIN(name("mk_nat_val_lt_proof"),        vm_mk_nat_val_lt_proof);
@@ -516,7 +514,6 @@ void initialize_vm_expr() {
     DECLARE_VM_BUILTIN(name("mk_string_val_ne_proof"),     vm_mk_string_val_ne_proof);
     DECLARE_VM_BUILTIN(name("mk_int_val_ne_proof"),        vm_mk_int_val_ne_proof);
 
-    DECLARE_VM_BUILTIN(name("expr", "is_choice_macro"),    expr_is_choice_macro);
     DECLARE_VM_BUILTIN(name("expr", "is_annotation"),      expr_is_annotation);
 
     DECLARE_VM_BUILTIN(name("expr", "mk_sorry"), expr_mk_sorry);
@@ -531,6 +528,5 @@ void finalize_vm_expr() {
 }
 
 void initialize_vm_expr_builtin_idxs() {
-    g_expr_macro_arg_fun_idx = *get_vm_builtin_idx(name("_expr_macro_arg"));
 }
 }

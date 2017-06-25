@@ -17,6 +17,8 @@ ldcurly      ⦃
 rdcurly      ⦄
 lbracket     [
 rbracket     ]
+lcurlybang   {!
+rcurlybang   !}
 langle       ⟨
 rangle       ⟩
 triangle     ▸
@@ -113,6 +115,7 @@ root         _root_
 fields       fields
 trust        trust
 inductive    inductive
+coinductive  coinductive
 instance     instance
 this         this
 noncomputable noncomputable

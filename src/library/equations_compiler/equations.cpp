@@ -39,30 +39,49 @@ static std::string * g_equation_opcode         = nullptr;
 static std::string * g_no_equation_opcode      = nullptr;
 static std::string * g_equations_result_opcode = nullptr;
 
+bool operator==(equations_header const & h1, equations_header const & h2) {
+    return
+        h1.m_num_fns == h2.m_num_fns &&
+        h1.m_fn_names == h2.m_fn_names &&
+        h1.m_is_private == h2.m_is_private &&
+        h1.m_is_lemma == h2.m_is_lemma &&
+        h1.m_is_meta == h2.m_is_meta &&
+        h1.m_is_noncomputable == h2.m_is_noncomputable &&
+        h1.m_aux_lemmas == h2.m_aux_lemmas &&
+        h1.m_prev_errors == h2.m_prev_errors;
+}
+
 [[ noreturn ]] static void throw_eqs_ex() { throw exception("unexpected occurrence of 'equations' expression"); }
 
 class equations_macro_cell : public macro_definition_cell {
     equations_header m_header;
 public:
     equations_macro_cell(equations_header const & h):m_header(h) {}
-    virtual name get_name() const { return *g_equations_name; }
-    virtual expr check_type(expr const &, abstract_type_context &, bool) const { throw_eqs_ex(); }
-    virtual optional<expr> expand(expr const &, abstract_type_context &) const { throw_eqs_ex(); }
-    virtual void write(serializer & s) const {
+    virtual name get_name() const override { return *g_equations_name; }
+    virtual expr check_type(expr const &, abstract_type_context &, bool) const override { throw_eqs_ex(); }
+    virtual optional<expr> expand(expr const &, abstract_type_context &) const override { throw_eqs_ex(); }
+    virtual void write(serializer & s) const override {
         s << *g_equations_opcode << m_header.m_num_fns << m_header.m_is_private << m_header.m_is_meta
           << m_header.m_is_noncomputable << m_header.m_is_lemma << m_header.m_aux_lemmas;
         write_list(s, m_header.m_fn_names);
+    }
+    virtual bool operator==(macro_definition_cell const & other) const override {
+        if (auto other_ptr = dynamic_cast<equations_macro_cell const *>(&other)) {
+            return m_header == other_ptr->m_header;
+        } else {
+            return false;
+        }
     }
     equations_header const & get_header() const { return m_header; }
 };
 
 class equation_base_macro_cell : public macro_definition_cell {
 public:
-    virtual expr check_type(expr const &, abstract_type_context &, bool) const {
+    virtual expr check_type(expr const &, abstract_type_context &, bool) const override {
         expr dummy = mk_Prop();
         return dummy;
     }
-    virtual optional<expr> expand(expr const &, abstract_type_context &) const {
+    virtual optional<expr> expand(expr const &, abstract_type_context &) const override {
         expr dummy = mk_Type();
         return some_expr(dummy);
     }
@@ -72,10 +91,17 @@ class equation_macro_cell : public equation_base_macro_cell {
     bool m_ignore_if_unused;
 public:
     equation_macro_cell(bool ignore_if_unused):m_ignore_if_unused(ignore_if_unused) {}
-    virtual name get_name() const { return *g_equation_name; }
-    virtual void write(serializer & s) const {
+    virtual name get_name() const override { return *g_equation_name; }
+    virtual void write(serializer & s) const override {
         s.write_string(*g_equation_opcode);
         s.write_bool(m_ignore_if_unused);
+    }
+    virtual bool operator==(macro_definition_cell const & other) const override {
+        if (auto other_ptr = dynamic_cast<equation_macro_cell const *>(&other)) {
+            return m_ignore_if_unused == other_ptr->m_ignore_if_unused;
+        } else {
+            return false;
+        }
     }
     bool ignore_if_unused() const { return m_ignore_if_unused; }
 };
@@ -83,15 +109,17 @@ public:
 // This is just a placeholder to indicate no equations were provided
 class no_equation_macro_cell : public equation_base_macro_cell {
 public:
-    virtual name get_name() const { return *g_no_equation_name; }
-    virtual void write(serializer & s) const { s.write_string(*g_no_equation_opcode); }
+    virtual name get_name() const override { return *g_no_equation_name; }
+    virtual void write(serializer & s) const override { s.write_string(*g_no_equation_opcode); }
 };
 
 static macro_definition * g_equation                  = nullptr;
 static macro_definition * g_equation_ignore_if_unused = nullptr;
 static macro_definition * g_no_equation               = nullptr;
 
-bool is_equation(expr const & e) { return is_macro(e) && macro_def(e) == *g_equation; }
+bool is_equation(expr const & e) {
+    return is_macro(e) && dynamic_cast<equation_macro_cell const *>(macro_def(e).raw());
+}
 
 bool ignore_equation_if_unused(expr const & e) {
     lean_assert(is_equation(e));
@@ -130,13 +158,13 @@ bool is_inaccessible(expr const & e) { return is_annotation(e, *g_inaccessible_n
 bool is_equations(expr const & e) { return is_macro(e) && macro_def(e).get_name() == *g_equations_name; }
 bool is_wf_equations_core(expr const & e) {
     lean_assert(is_equations(e));
-    return macro_num_args(e) >= 3 && !is_lambda_equation(macro_arg(e, macro_num_args(e) - 1));
+    return macro_num_args(e) >= 2 && !is_lambda_equation(macro_arg(e, macro_num_args(e) - 1));
 }
 bool is_wf_equations(expr const & e) { return is_equations(e) && is_wf_equations_core(e); }
 unsigned equations_size(expr const & e) {
     lean_assert(is_equations(e));
     if (is_wf_equations_core(e))
-        return macro_num_args(e) - 2;
+        return macro_num_args(e) - 1;
     else
         return macro_num_args(e);
 }
@@ -147,14 +175,11 @@ equations_header const & get_equations_header(expr const & e) {
 unsigned equations_num_fns(expr const & e) {
     return get_equations_header(e).m_num_fns;
 }
-expr const & equations_wf_proof(expr const & e) {
+expr const & equations_wf_tactics(expr const & e) {
     lean_assert(is_wf_equations(e));
     return macro_arg(e, macro_num_args(e) - 1);
 }
-expr const & equations_wf_rel(expr const & e) {
-    lean_assert(is_wf_equations(e));
-    return macro_arg(e, macro_num_args(e) - 2);
-}
+
 void to_equations(expr const & e, buffer<expr> & eqns) {
     lean_assert(is_equations(e));
     unsigned sz = equations_size(e);
@@ -170,14 +195,13 @@ expr mk_equations(equations_header const & h, unsigned num_eqs, expr const * eqs
     macro_definition def(new equations_macro_cell(h));
     return mk_macro(def, num_eqs, eqs);
 }
-expr mk_equations(equations_header const & h, unsigned num_eqs, expr const * eqs, expr const & R, expr const & Hwf) {
+expr mk_equations(equations_header const & h, unsigned num_eqs, expr const * eqs, expr const & tacs) {
     lean_assert(h.m_num_fns > 0);
     lean_assert(num_eqs > 0);
     lean_assert(std::all_of(eqs, eqs+num_eqs, is_lambda_equation));
     buffer<expr> args;
     args.append(num_eqs, eqs);
-    args.push_back(R);
-    args.push_back(Hwf);
+    args.push_back(tacs);
     macro_definition def(new equations_macro_cell(h));
     return mk_macro(def, args.size(), args.data());
 }
@@ -186,19 +210,21 @@ expr update_equations(expr const & eqns, buffer<expr> const & new_eqs) {
     lean_assert(!new_eqs.empty());
     if (is_wf_equations(eqns)) {
         return copy_tag(eqns, mk_equations(get_equations_header(eqns), new_eqs.size(), new_eqs.data(),
-                                           equations_wf_rel(eqns), equations_wf_proof(eqns)));
+                                           equations_wf_tactics(eqns)));
     } else {
         return copy_tag(eqns, mk_equations(get_equations_header(eqns), new_eqs.size(), new_eqs.data()));
     }
 }
 
-// LEGACY
-expr mk_equations(unsigned num_fns, unsigned num_eqs, expr const * eqs) {
-    return mk_equations(equations_header(num_fns), num_eqs, eqs);
-}
-// LEGACY
-expr mk_equations(unsigned num_fns, unsigned num_eqs, expr const * eqs, expr const & R, expr const & Hwf) {
-    return mk_equations(equations_header(num_fns), num_eqs, eqs, R, Hwf);
+expr update_equations(expr const & eqns, equations_header const & header) {
+    buffer<expr> eqs;
+    to_equations(eqns, eqs);
+    if (is_wf_equations(eqns)) {
+        return copy_tag(eqns, mk_equations(header, eqs.size(), eqs.data(),
+                                           equations_wf_tactics(eqns)));
+    } else {
+        return copy_tag(eqns, mk_equations(header, eqs.size(), eqs.data()));
+    }
 }
 
 // Auxiliary macro used to store the result of a set of equations defining a mutually recursive
@@ -249,9 +275,9 @@ void initialize_equations() {
                                     if (num == 0 || h.m_num_fns == 0)
                                         throw corrupted_stream_exception();
                                     if (!is_lambda_equation(args[num-1]) && !is_lambda_no_equation(args[num-1])) {
-                                        if (num <= 2)
+                                        if (num <= 1)
                                             throw corrupted_stream_exception();
-                                        return mk_equations(h, num-2, args, args[num-2], args[num-1]);
+                                        return mk_equations(h, num-1, args, args[num-1]);
                                     } else {
                                         return mk_equations(h, num, args);
                                     }

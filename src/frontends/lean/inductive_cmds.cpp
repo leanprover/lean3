@@ -31,7 +31,12 @@ Authors: Daniel Selsam, Leonardo de Moura
 #include "library/app_builder.h"
 #include "library/type_context.h"
 #include "library/documentation.h"
+#include "library/constants.h"
+#include "library/normalize.h"
 #include "library/inductive_compiler/add_decl.h"
+#include "library/tactic/tactic_evaluator.h"
+#include "library/vm/vm_list.h"
+#include "library/vm/vm_expr.h"
 #include "frontends/lean/decl_cmds.h"
 #include "frontends/lean/decl_util.h"
 #include "frontends/lean/util.h"
@@ -85,8 +90,7 @@ static level subtract_from_max(level const & l, unsigned offset) {
 class inductive_cmd_fn {
     parser &                        m_p;
     environment                     m_env;
-    decl_attributes                 m_attrs;
-    bool                            m_is_trusted;
+    cmd_meta                        m_meta_info;
     buffer<decl_attributes>         m_mut_attrs;
     type_context                    m_ctx;
     buffer<name>                    m_lp_names;
@@ -98,7 +102,6 @@ class inductive_cmd_fn {
     unsigned                        m_u_param_offset;
 
     bool                            m_infer_result_universe{false};
-    optional<std::string>           m_doc_string;
 
     [[ noreturn ]] void throw_error(char const * error_msg) const { throw parser_error(error_msg, m_pos); }
     [[ noreturn ]] void throw_error(sstream const & strm) const { throw parser_error(strm, m_pos); }
@@ -125,7 +128,8 @@ class inductive_cmd_fn {
         unsigned j = 0;
         for (unsigned i = 0; i < params.size(); i++) {
             expr const & param = params[i];
-            if (m_p.is_local_decl(param) && !m_p.is_local_variable(param)) {
+            if (m_p.is_local_decl_user_name(param) &&
+                !m_p.is_local_variable_user_name(local_pp_name(param))) {
                 expr const * klocal = m_p.get_local(local_pp_name(param));
                 lean_assert(klocal);
                 params[j] = *klocal;
@@ -397,6 +401,12 @@ class inductive_cmd_fn {
         }
     }
 
+    /* Apply beta and zeta reduction */
+    expr normalize(expr const & e) {
+        type_context::transparency_scope scope(m_ctx, transparency_mode::None);
+        return ::lean::normalize(m_ctx, e);
+    }
+
     void elaborate_inductive_decls(buffer<expr> const & params, buffer<expr> const & inds, buffer<buffer<expr> > const & intro_rules,
                                    buffer<expr> & new_params, buffer<expr> & new_inds, buffer<buffer<expr> > & new_intro_rules) {
         options opts = m_p.get_options();
@@ -421,6 +431,7 @@ class inductive_cmd_fn {
             if (is_placeholder(new_ind_type))
                 new_ind_type = mk_sort(mk_level_placeholder());
             new_ind_type = elab.elaborate(replace_locals(new_ind_type, params_no_inds, new_params));
+            new_ind_type = normalize(new_ind_type);
             level l = get_datatype_result_level(new_ind_type);
             if (is_meta(l)) {
                 if (m_explicit_levels)
@@ -443,7 +454,9 @@ class inductive_cmd_fn {
             new_intro_rules.emplace_back();
             replace_params(params_no_inds, new_params, inds, new_inds, irs, new_intro_rules.back());
             for (expr & new_ir : new_intro_rules.back()) {
-                new_ir = update_mlocal(new_ir, elab.elaborate(mlocal_type(new_ir)));
+                expr new_ir_type = elab.elaborate(mlocal_type(new_ir));
+                new_ir_type      = normalize(new_ir_type);
+                new_ir = update_mlocal(new_ir, new_ir_type);
                 lean_trace(name({"inductive", "infer_resultant"}), tout() << "[elaborated ir]: " << mlocal_type(new_ir) << "\n";);
             }
         }
@@ -563,12 +576,10 @@ class inductive_cmd_fn {
         parser::local_scope scope(m_p);
         m_pos = m_p.pos();
 
-        m_attrs.parse(m_p);
-        check_attrs(m_attrs);
-
         declaration_name_scope nscope;
         expr ind = parse_single_header(m_p, nscope, m_lp_names, params);
         m_explicit_levels = !m_lp_names.empty();
+        m_mut_attrs.push_back({});
 
         ind = mk_local(get_namespace(m_p.env()) + mlocal_name(ind), mlocal_name(ind), mlocal_type(ind), local_info(ind));
 
@@ -596,9 +607,6 @@ class inductive_cmd_fn {
 
     void parse_mutual_inductive(buffer<expr> & params, buffer<expr> & inds, buffer<buffer<expr> > & intro_rules) {
         parser::local_scope scope(m_p);
-
-        m_attrs.parse(m_p);
-        check_attrs(m_attrs);
 
         buffer<expr> pre_inds;
         parse_mutual_header(m_p, m_lp_names, pre_inds, params);
@@ -636,34 +644,50 @@ class inductive_cmd_fn {
         if (!attrs.ok_for_inductive_type())
             throw_error("only attribute [class] accepted for inductive types");
     }
+
+    void check_modifiers() const {
+        if (m_meta_info.m_modifiers.m_is_noncomputable)
+            throw_error("invalid 'noncomputable' modifier for inductive type");
+        if (m_meta_info.m_modifiers.m_is_private)
+            throw_error("invalid 'private' modifier for inductive type");
+        if (m_meta_info.m_modifiers.m_is_protected)
+            throw_error("invalid 'protected' modifier for inductive type");
+    }
 public:
-    inductive_cmd_fn(parser & p, decl_attributes const & attrs, bool is_trusted):
-        m_p(p), m_env(p.env()), m_attrs(attrs),
-        m_is_trusted(is_trusted), m_ctx(p.env()) {
+    inductive_cmd_fn(parser & p, cmd_meta const & meta):
+        m_p(p), m_env(p.env()), m_meta_info(meta), m_ctx(p.env()) {
         m_u_meta = m_ctx.mk_univ_metavar_decl();
-        check_attrs(m_attrs);
-        m_doc_string = p.get_doc_string();
+        check_attrs(m_meta_info.m_attrs);
+        check_modifiers();
     }
 
     void post_process(buffer<expr> const & new_params, buffer<expr> const & new_inds, buffer<buffer<expr> > const & new_intro_rules) {
         add_aliases(new_params, new_inds, new_intro_rules);
         add_namespaces(new_inds);
         for (expr const & ind : new_inds) {
-            m_env = m_attrs.apply(m_env, m_p.ios(), mlocal_name(ind));
+            m_env = m_meta_info.m_attrs.apply(m_env, m_p.ios(), mlocal_name(ind));
             /* TODO(Leo): add support for doc-strings in mutual inductive definitions.
                We are currently using the same doc string for all elements.
             */
-            if (m_doc_string)
-                m_env = add_doc_string(m_env, mlocal_name(ind), *m_doc_string);
+            if (m_meta_info.m_doc_string)
+                m_env = add_doc_string(m_env, mlocal_name(ind), *m_meta_info.m_doc_string);
         }
-        if (!m_mut_attrs.empty()) {
-            lean_assert(new_inds.size() == m_mut_attrs.size());
-            for (unsigned i = 0; i < new_inds.size(); ++i)
-                m_env = m_mut_attrs[i].apply(m_env, m_p.ios(), mlocal_name(new_inds[i]));
-        }
+        lean_assert(new_inds.size() == m_mut_attrs.size());
+        for (unsigned i = 0; i < new_inds.size(); ++i)
+            m_env = m_mut_attrs[i].apply(m_env, m_p.ios(), mlocal_name(new_inds[i]));
     }
 
-    environment shared_inductive_cmd(buffer<expr> const & params, buffer<expr> const & inds, buffer<buffer<expr> > const & intro_rules) {
+    environment inductive_cmd() {
+        buffer<expr> params;
+        buffer<expr> inds;
+        buffer<buffer<expr> > intro_rules;
+        if (m_meta_info.m_modifiers.m_is_mutual) {
+            parse_mutual_inductive(params, inds, intro_rules);
+        } else {
+            intro_rules.emplace_back();
+            inds.push_back(parse_inductive(params, intro_rules.back()));
+        }
+
         buffer<expr> new_params;
         buffer<expr> new_inds;
         buffer<buffer<expr> > new_intro_rules;
@@ -672,45 +696,48 @@ public:
         }
         elaborate_inductive_decls(params, inds, intro_rules, new_params, new_inds, new_intro_rules);
         m_env = add_inductive_declaration(m_p.env(), m_p.get_options(), m_implicit_infer_map, m_lp_names, new_params,
-                                          new_inds, new_intro_rules, m_is_trusted);
+                                          new_inds, new_intro_rules, !m_meta_info.m_modifiers.m_is_meta);
         post_process(new_params, new_inds, new_intro_rules);
         return m_env;
     }
 
-    environment inductive_cmd() {
+    inductive_decl parse_and_elaborate() {
         buffer<expr> params;
         buffer<expr> inds;
         buffer<buffer<expr> > intro_rules;
-        intro_rules.emplace_back();
-        inds.push_back(parse_inductive(params, intro_rules.back()));
-        return shared_inductive_cmd(params, inds, intro_rules);
-    }
+        if (m_meta_info.m_modifiers.m_is_mutual) {
+            parse_mutual_inductive(params, inds, intro_rules);
+        } else {
+            intro_rules.emplace_back();
+            inds.push_back(parse_inductive(params, intro_rules.back()));
+        }
+        buffer<expr> new_params;
+        buffer<expr> new_inds;
+        buffer<buffer<expr> > new_intro_rules;
+        if (!m_explicit_levels) {
+            m_explicit_levels = has_explicit_level(intro_rules);
+        }
+        elaborate_inductive_decls(params, inds, intro_rules, new_params, new_inds, new_intro_rules);
 
-    environment mutual_inductive_cmd() {
-        buffer<expr> params;
-        buffer<expr> inds;
-        buffer<buffer<expr> > intro_rules;
-        parse_mutual_inductive(params, inds, intro_rules);
-        return shared_inductive_cmd(params, inds, intro_rules);
+        buffer<single_inductive_decl> decls;
+        for (unsigned i = 0; i < new_inds.size(); i++) {
+            decls.push_back({m_mut_attrs[i], new_inds[i], new_intro_rules[i]});
+        }
+        return { m_lp_names, new_params, decls };
     }
 };
 
-environment inductive_cmd_ex(parser & p, decl_attributes const & attrs, bool is_meta) {
+inductive_decl parse_inductive_decl(parser & p, cmd_meta const & meta) {
+    auto pos = p.pos();
+    module::scope_pos_info scope_pos(pos);
+    return inductive_cmd_fn(p, meta).parse_and_elaborate();
+}
+
+environment inductive_cmd(parser & p, cmd_meta const & meta) {
     p.next();
     auto pos = p.pos();
     module::scope_pos_info scope_pos(pos);
-    return inductive_cmd_fn(p, attrs, !is_meta).inductive_cmd();
-}
-
-environment mutual_inductive_cmd_ex(parser & p, decl_attributes const & attrs, bool is_meta) {
-    p.next();
-    auto pos = p.pos();
-    module::scope_pos_info scope_pos(pos);
-    return inductive_cmd_fn(p, attrs, !is_meta).mutual_inductive_cmd();
-}
-
-environment inductive_cmd(parser & p) {
-    return inductive_cmd_ex(p, {}, false);
+    return inductive_cmd_fn(p, meta).inductive_cmd();
 }
 
 void register_inductive_cmds(cmd_table & r) {

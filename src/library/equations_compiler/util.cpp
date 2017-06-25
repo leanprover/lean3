@@ -10,6 +10,7 @@ Author: Leonardo de Moura
 #include "kernel/find_fn.h"
 #include "kernel/inductive/inductive.h"
 #include "kernel/scope_pos_info_provider.h"
+#include "kernel/free_vars.h"
 #include "library/util.h"
 #include "library/trace.h"
 #include "library/app_builder.h"
@@ -84,7 +85,7 @@ unpack_eqns::unpack_eqns(type_context & ctx, expr const & e):
     unsigned num_fns = equations_num_fns(e);
     to_equations(e, eqs);
     /* Extract functions. */
-    lean_assert(eqs.size() > 0);
+    if (eqs.size() == 0) throw_ill_formed_eqns();
     expr eq = eqs[0];
     for (unsigned i = 0; i < num_fns; i++) {
         if (!is_lambda(eq)) throw_ill_formed_eqns();
@@ -137,7 +138,7 @@ unpack_eqns::unpack_eqns(type_context & ctx, expr const & e):
 }
 
 expr unpack_eqns::update_fn_type(unsigned fidx, expr const & type) {
-    expr new_fn = m_locals.push_local(local_pp_name(m_fns[fidx]), type);
+    expr new_fn = m_locals.push_local(local_pp_name(m_fns[fidx]), type, mk_rec_info(true));
     m_fns[fidx] = new_fn;
     return new_fn;
 }
@@ -165,6 +166,7 @@ unpack_eqn::unpack_eqn(type_context & ctx, expr const & eqn):
     m_nested_src = it;
     m_lhs = equation_lhs(it);
     m_rhs = equation_rhs(it);
+    m_ignore_if_unused = ignore_equation_if_unused(it);
 }
 
 expr unpack_eqn::add_var(name const & n, expr const & type) {
@@ -177,7 +179,7 @@ expr unpack_eqn::repack() {
     if (!m_modified_vars &&
         equation_lhs(m_nested_src) == m_lhs &&
         equation_rhs(m_nested_src) == m_rhs) return m_src;
-    expr new_eq = copy_tag(m_nested_src, mk_equation(m_lhs, m_rhs));
+    expr new_eq = copy_tag(m_nested_src, mk_equation(m_lhs, m_rhs, m_ignore_if_unused));
     return copy_tag(m_src, m_locals.ctx().mk_lambda(m_vars, new_eq));
 }
 
@@ -421,7 +423,7 @@ static optional<expr> find_if_neg_hypothesis(type_context & ctx, expr const & c_
 /*
   If `e` is of the form
 
-      (@eq.rec B (f (g (f a))) C (h (g (f a))) (f a) (f_g_eq (f a))
+      (@eq.rec B (f (g (f a))) C (h (g (f a))) (f a) (f_g_eq (f a)))
 
   such that
 
@@ -444,7 +446,7 @@ static optional<expr> find_if_neg_hypothesis(type_context & ctx, expr const & c_
      (eq.symm (g_f_eq a))
      (f_g_eq a)
 */
-static optional<expr_pair> prove_eq_rec_invertible(type_context & ctx, expr const & e) {
+static optional<expr_pair> prove_eq_rec_invertible_aux(type_context & ctx, expr const & e) {
     buffer<expr> rec_args;
     expr rec_fn = get_app_args(e, rec_args);
     if (!is_constant(rec_fn, get_eq_rec_name()) || rec_args.size() != 6) return optional<expr_pair>();
@@ -454,6 +456,12 @@ static optional<expr_pair> prove_eq_rec_invertible(type_context & ctx, expr cons
     expr minor  = rec_args[3]; /* (h (g (f a))) */
     expr to     = rec_args[4]; /* (f a) */
     expr major  = rec_args[5]; /* (f_g_eq (f a)) */
+    /* If minor is (@id A h (g (f a))), reduce it to (h (g (f a))) */
+    if (is_app_of(minor, get_id_name()) && get_app_num_args(minor) >= 2) {
+        buffer<expr> args;
+        get_app_args(minor, args);
+        minor = mk_app(args[1], args.size() - 2, args.data() + 2);
+    }
     if (!is_app(from) || !is_app(minor)) return optional<expr_pair>();
     if (!ctx.is_def_eq(app_arg(from), app_arg(minor))) return optional<expr_pair>();
     expr h     = app_fn(minor);
@@ -475,7 +483,6 @@ static optional<expr_pair> prove_eq_rec_invertible(type_context & ctx, expr cons
     expr f_g_eq = get_app_args(major, major_args);
     if (!is_constant(f_g_eq) || major_args.empty() || !ctx.is_def_eq(f_a, major_args.back())) return optional<expr_pair>();
     if (const_name(f_g_eq) != info_inv->m_lemma) return optional<expr_pair>();
-
     expr A          = ctx.infer(a);
     level A_lvl     = get_level(ctx, A);
     expr h_a        = mk_app(h, a);
@@ -505,6 +512,62 @@ static optional<expr_pair> prove_eq_rec_invertible(type_context & ctx, expr cons
                              {A, a, pr_motive, pr_minor, g_f_a, pr_major, major});
 
     return optional<expr_pair>(mk_pair(h_a, pr));
+}
+
+/* See prove_eq_rec_invertible_aux
+
+  If `e` is of the form
+
+      F b_1 ... b_n
+
+  where F is of the form
+
+     (@eq.rec B (f (g (f a))) C (h (g (f a))) (f a) (f_g_eq (f a)))
+
+  and n may be 0, and
+
+      f_g_eq : forall x, f (g x) = x
+
+  and there is a lemma
+
+      g_f_eq : forall x, g (f x) = x
+
+  Return (h a b_1 ... b_n) and a proof that (F b_1 ... b_n = h a b_1 ... b_n)
+
+  We build an auxiliary proof for (F = h a) using prove_eq_rec_invertible_aux.
+  Then, we use congr_fun to build the final proof if n > 0
+*/
+static optional<expr_pair> prove_eq_rec_invertible(type_context & ctx, expr const & e) {
+    buffer<expr> args;
+    expr const & fn = get_app_args(e, args);
+    if (args.size() == 6) {
+        return prove_eq_rec_invertible_aux(ctx, e);
+    } else if (args.size() < 6) {
+        return optional<expr_pair>();
+    } else {
+        expr f = mk_app(fn, 6, args.data());
+        if (optional<expr_pair> g_H = prove_eq_rec_invertible_aux(ctx, f)) {
+            expr g, H;
+            std::tie(g, H) = *g_H;
+            for (unsigned i = 6; i < args.size(); i++) {
+                // congr_fun : ∀ {α : Sort u_1} {β : α → Sort u_2} {f g : Π (x : α), β x}, f = g → ∀ (a : α), f a = g a
+                expr f_type = ctx.relaxed_whnf(ctx.infer(f));
+                lean_assert(is_pi(f_type));
+                expr alpha    = binding_domain(f_type);
+                level u_1     = get_level(ctx, alpha);
+                expr beta     = mk_lambda(binding_name(f_type), binding_domain(f_type), binding_body(f_type));
+                expr a        = args[i];
+                expr f_a      = mk_app(f, a);
+                level u_2     = get_level(ctx, ctx.infer(f_a));
+                H             = mk_app({mk_constant(get_congr_fun_name(), {u_1, u_2}), alpha, beta, f, g, H, a});
+                f             = f_a;
+                g             = mk_app(g, a);
+            }
+            return optional<expr_pair>(mk_pair(g, H));
+        } else {
+            return optional<expr_pair>();
+        }
+    }
 }
 
 static expr prove_eqn_lemma_core(type_context & ctx, buffer<expr> const & Hs, expr const & lhs, expr const & rhs, bool root) {
@@ -564,6 +627,20 @@ static expr prove_eqn_lemma_core(type_context & ctx, buffer<expr> const & Hs, ex
 }
 
 static expr prove_eqn_lemma(type_context & ctx, buffer<expr> const & Hs, expr const & lhs, expr const & rhs) {
+    if (auto new_lhs = unfold_app(ctx.env(), lhs)) {
+        buffer<expr> args;
+        expr fn = get_app_args(*new_lhs, args);
+        if (is_constant(fn, get_well_founded_fix_name()) &&
+            args.size() == 6) {
+            expr H1 = mk_app(mk_constant(get_well_founded_fix_eq_name(), const_levels(fn)), args.size(), args.data());
+            expr H1_type = ctx.relaxed_whnf(ctx.infer(H1));
+            expr lhs_dummy, new_lhs;
+            lean_verify(is_eq(H1_type, lhs_dummy, new_lhs));
+            expr H2 = prove_eqn_lemma_core(ctx, Hs, new_lhs, rhs, true);
+            expr body = mk_eq_trans(ctx, H1, H2);
+            return ctx.mk_lambda(Hs, body);
+        }
+    }
     expr body = prove_eqn_lemma_core(ctx, Hs, lhs, rhs, true);
     return ctx.mk_lambda(Hs, body);
 }
@@ -572,13 +649,60 @@ name mk_equation_name(name const & f_name, unsigned eqn_idx) {
     return name(name(f_name, "equations"), "_eqn").append_after(eqn_idx);
 }
 
+/*
+  Remove unnecessary auxiliary "have-decls".
+  When defining a function by well-founded recursion, we use local have-decls
+  to provide hints to the tactic that produces proofs that recursive calls are decreasing.
+
+  Convert dite into ite whenever possible. Again, when using well-founded recursion,
+  we often need to use dite to be able to "communicate" the condition to each branch.
+  This extra hypothesis is usually only used when providing hints to the decreasing tactic.
+*/
+struct cleanup_equation_rhs_fn : public replace_visitor {
+    virtual expr visit_app(expr const & e) override {
+        if (is_have_annotation(app_fn(e)) &&
+            is_lambda(get_annotation_arg(app_fn(e)))) {
+            expr body = binding_body(get_annotation_arg(app_fn(e)));
+            if (!has_free_var(body, 0)) {
+                return visit(lower_free_vars(body, 1));
+            }
+        }
+
+        if (is_app_of(e, get_dite_name())) {
+            buffer<expr> args;
+            expr const & dite = get_app_args(e, args);
+            for (expr & arg : args)
+                arg = visit(arg);
+            if (args.size() >= 5) {
+                expr & t = args[3];
+                expr & e = args[4];
+                if (is_lambda(t) && !has_free_var(binding_body(t), 0) &&
+                    is_lambda(e) && !has_free_var(binding_body(e), 0)) {
+                    t = lower_free_vars(binding_body(t), 1);
+                    e = lower_free_vars(binding_body(e), 1);
+                    expr new_ite = mk_app(mk_constant(get_ite_name(), const_levels(dite)), args.size(), args.data());
+                    return new_ite;
+                }
+            }
+            return mk_app(dite, args.size(), args.data());
+        }
+
+        return replace_visitor::visit_app(e);
+    }
+};
+
+static expr cleanup_equation_rhs(expr const & rhs) {
+    return cleanup_equation_rhs_fn()(rhs);
+}
+
 environment mk_equation_lemma(environment const & env, options const & opts, metavar_context const & mctx, local_context const & lctx,
                               name const & f_name, unsigned eqn_idx, bool is_private,
                               buffer<expr> const & Hs, expr const & lhs, expr const & rhs) {
     if (!get_eqn_compiler_lemmas(opts)) return env;
     type_context ctx(env, opts, mctx, lctx, transparency_mode::Semireducible);
-    expr type     = ctx.mk_pi(Hs, mk_eq(ctx, lhs, rhs));
     expr proof    = prove_eqn_lemma(ctx, Hs, lhs, rhs);
+    expr new_rhs  = cleanup_equation_rhs(rhs);
+    expr type     = ctx.mk_pi(Hs, mk_eq(ctx, lhs, new_rhs));
     name eqn_name = mk_equation_name(f_name, eqn_idx);
     return add_equation_lemma(env, opts, mctx, lctx, is_private, f_name, eqn_name, type, proof);
 }

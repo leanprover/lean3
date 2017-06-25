@@ -5,6 +5,12 @@ Released under Apache 2.0 license as described in the file LICENSE.
 Authors: Gabriel Ebner, Leonardo de Moura, Sebastian Ullrich
 */
 #if defined(LEAN_JSON)
+// Remark: gcc 7 produces a warning at json.hpp
+// We believe it is a spurious warning
+#if defined(__GNUC__) && !defined(__CLANG__)
+#pragma GCC diagnostic ignored "-Wuninitialized"
+#endif
+
 #include <list>
 #include <string>
 #include <vector>
@@ -22,10 +28,10 @@ Authors: Gabriel Ebner, Leonardo de Moura, Sebastian Ullrich
 #include "frontends/lean/parser.h"
 #include "frontends/lean/info_manager.h"
 #include "frontends/lean/interactive.h"
+#include "frontends/lean/completion.h"
 #include "shell/server.h"
 
 namespace lean {
-
 struct all_messages_msg {
     std::vector<message> m_msgs;
 
@@ -313,7 +319,7 @@ server::server(unsigned num_threads, search_path const & path, environment const
 
     set_task_queue(m_tq.get());
     m_mod_mgr.reset(new module_mgr(this, m_lt.get_root(), m_path, m_initial_env, m_ios));
-    m_mod_mgr->set_use_snapshots(true);
+    m_mod_mgr->set_server_mode(true);
     m_mod_mgr->set_save_olean(false);
 }
 
@@ -415,6 +421,10 @@ void server::handle_request(json const & jreq) {
         handle_request(req);
     } catch (std::exception & ex) {
         send_msg(cmd_res(req.m_seq_num, std::string(ex.what())));
+    } catch (interrupted) {
+        send_msg(cmd_res(req.m_seq_num, std::string("interrupted")));
+    } catch (...) {
+        send_msg(cmd_res(req.m_seq_num, std::string("unknown exception")));
     }
 }
 
@@ -424,9 +434,17 @@ void server::handle_request(server::cmd_req const & req) {
     if (command == "sync") {
         send_msg(handle_sync(req));
     } else if (command == "complete") {
-        handle_complete(req);
+        handle_async_response(req, handle_complete(req));
     } else if (command == "info") {
-        handle_info(req);
+        handle_async_response(req, handle_info(req));
+    } else if (command == "hole") {
+        handle_async_response(req, handle_hole(req));
+    } else if (command == "hole_commands") {
+        send_msg(handle_hole_commands(req));
+    } else if (command == "all_hole_commands") {
+        send_msg(handle_all_hole_commands(req));
+    } else if (command == "search") {
+        send_msg(handle_search(req));
     } else if (command == "roi") {
         send_msg(handle_roi(req));
     } else if (command == "sleep") {
@@ -438,6 +456,19 @@ void server::handle_request(server::cmd_req const & req) {
     } else {
         send_msg(cmd_res(req.m_seq_num, std::string("unknown command")));
     }
+}
+
+void server::handle_async_response(server::cmd_req const & req, task<cmd_res> const & res) {
+    taskq().submit(task_builder<unit>([this, req, res] {
+        try {
+            send_msg(get(res));
+        } catch (throwable & ex) {
+            send_msg(cmd_res(req.m_seq_num, std::string(ex.what())));
+        } catch (...) {
+            send_msg(cmd_res(req.m_seq_num, std::string("unknown exception")));
+        }
+        return unit{};
+    }).depends_on(res).build());
 }
 
 server::cmd_res server::handle_sync(server::cmd_req const & req) {
@@ -494,6 +525,7 @@ void parse_breaking_at_pos(module_id const & mod_id, std::shared_ptr<module_info
         scope_log_tree scope_lt(null.get_root());
         snap->m_lt = logtree();
         snap->m_cancel = global_cancellation_token();
+        snap->m_next = nullptr;
 
         auto p = std::make_shared<module_parser>(mod_id, *mod_info->m_lean_contents, environment(), mk_dummy_loader());
         p->save_info(false);
@@ -524,7 +556,7 @@ json server::autocomplete(std::shared_ptr<module_info const> const & mod_info, b
     return j;
 }
 
-void server::handle_complete(cmd_req const & req) {
+task<server::cmd_res> server::handle_complete(cmd_req const & req) {
     cancel(m_bg_task_ctok);
     m_bg_task_ctok = mk_cancellation_token();
 
@@ -536,20 +568,10 @@ void server::handle_complete(cmd_req const & req) {
 
     auto mod_info = m_mod_mgr->get_module(fn);
 
-    auto complete_gen_task =
-        task_builder<json>([=] { return autocomplete(mod_info, skip_completions, pos); })
+    return task_builder<cmd_res>([=] { return cmd_res(req.m_seq_num, autocomplete(mod_info, skip_completions, pos)); })
         .wrap(library_scopes(log_tree::node()))
         .set_cancellation_token(m_bg_task_ctok)
         .build();
-
-    taskq().submit(task_builder<unit>([this, req, complete_gen_task] {
-        try {
-            send_msg(cmd_res(req.m_seq_num, get(complete_gen_task)));
-        } catch (throwable & ex) {
-            send_msg(cmd_res(req.m_seq_num, std::string(ex.what())));
-        }
-        return unit{};
-    }).depends_on(complete_gen_task).build());
 }
 
 static void get_info_managers(log_tree::node const & n, std::vector<info_manager> & infoms) {
@@ -586,7 +608,7 @@ json server::info(std::shared_ptr<module_info const> const & mod_info, pos_info 
     return j;
 }
 
-void server::handle_info(server::cmd_req const & req) {
+task<server::cmd_res> server::handle_info(server::cmd_req const & req) {
     cancel(m_bg_task_ctok);
     m_bg_task_ctok = mk_cancellation_token();
 
@@ -595,19 +617,68 @@ void server::handle_info(server::cmd_req const & req) {
 
     auto mod_info = m_mod_mgr->get_module(fn);
 
-    auto info_gen_task = task_builder<json>([=] {
-        return info(mod_info, pos);
+    return task_builder<cmd_res>([=] {
+        return cmd_res(req.m_seq_num, info(mod_info, pos));
     }).wrap(library_scopes(log_tree::node()))
       .set_cancellation_token(m_bg_task_ctok).build();
+}
 
-    taskq().submit(task_builder<unit>([this, req, info_gen_task] {
-        try {
-            send_msg(cmd_res(req.m_seq_num, get(info_gen_task)));
-        } catch (throwable & ex) {
-            send_msg(cmd_res(req.m_seq_num, std::string(ex.what())));
-        }
-        return unit{};
-    }).depends_on(info_gen_task).build());
+json server::hole_command(std::shared_ptr<module_info const> const & mod_info, std::string const & action,
+                          pos_info const & pos) {
+    json j;
+    std::vector<info_manager> im = get_info_managers(m_lt);
+    execute_hole_command(*mod_info, im, pos, action, j);
+    return j;
+}
+
+task<server::cmd_res> server::handle_hole(cmd_req const & req) {
+    cancel(m_bg_task_ctok);
+    m_bg_task_ctok = mk_cancellation_token();
+    std::string action = req.m_payload.at("action");
+    std::string fn     = req.m_payload.at("file_name");
+    pos_info pos       = {req.m_payload.at("line"), req.m_payload.at("column")};
+    auto mod_info      = m_mod_mgr->get_module(fn);
+
+    return task_builder<cmd_res>([=] { return cmd_res(req.m_seq_num, hole_command(mod_info, action, pos)); })
+        .wrap(library_scopes(log_tree::node()))
+        .set_cancellation_token(m_bg_task_ctok)
+        .build();
+}
+
+server::cmd_res server::handle_hole_commands(server::cmd_req const & req) {
+    std::string fn     = req.m_payload.at("file_name");
+    pos_info pos       = {req.m_payload.at("line"), req.m_payload.at("column")};
+    auto mod_info      = m_mod_mgr->get_module(fn);
+    std::vector<info_manager> im = get_info_managers(m_lt);
+    json j;
+    get_hole_commands(*mod_info, im, pos, j);
+    return cmd_res(req.m_seq_num, j);
+}
+
+server::cmd_res server::handle_all_hole_commands(server::cmd_req const & req) {
+    std::string fn     = req.m_payload.at("file_name");
+    auto mod_info      = m_mod_mgr->get_module(fn);
+    std::vector<info_manager> im = get_info_managers(m_lt);
+    json j;
+    get_all_hole_commands(*mod_info, im, j);
+    return cmd_res(req.m_seq_num, j);
+}
+
+server::cmd_res server::handle_search(server::cmd_req const & req) {
+    std::string query = req.m_payload.at("query");
+
+    std::vector<pair<std::string, environment>> envs_to_search;
+    for (auto & mod : m_mod_mgr->get_all_modules()) {
+        envs_to_search.emplace_back(mod->m_mod, mod->get_latest_env());
+    }
+
+    std::vector<json> results;
+    search_decls(query, envs_to_search, m_ios.get_options(), results);
+
+    json j;
+    j["results"] = results;
+
+    return cmd_res(req.m_seq_num, j);
 }
 
 std::tuple<std::string, module_src, time_t> server::load_module(module_id const & id, bool can_use_olean) {

@@ -41,9 +41,24 @@ Author: Leonardo de Moura
 #define LEAN_DEFAULT_NAT_OFFSET_CNSTR_THRESHOLD 1024
 #endif
 
+#ifndef LEAN_DEFAULT_UNFOLD_LEMMAS
+#define LEAN_DEFAULT_UNFOLD_LEMMAS false
+#endif
+
+/* Comment the following line for disabling the thread local caches.
+   This is useful for debugging cache management bugs. */
+#define LEAN_TYPE_CONTEXT_CACHE_RESULTS
+
+#ifdef LEAN_TYPE_CONTEXT_CACHE_RESULTS
+#define CACHE_CODE(code) code
+#else
+#define CACHE_CODE(code)
+#endif
+
 namespace lean {
 static name * g_class_instance_max_depth = nullptr;
 static name * g_nat_offset_threshold     = nullptr;
+static name * g_unfold_lemmas            = nullptr;
 
 unsigned get_class_instance_max_depth(options const & o) {
     return o.get_unsigned(*g_class_instance_max_depth, LEAN_DEFAULT_CLASS_INSTANCE_MAX_DEPTH);
@@ -51,6 +66,10 @@ unsigned get_class_instance_max_depth(options const & o) {
 
 unsigned get_nat_offset_cnstr_threshold(options const & o) {
     return o.get_unsigned(*g_nat_offset_threshold, LEAN_DEFAULT_NAT_OFFSET_CNSTR_THRESHOLD);
+}
+
+bool get_unfold_lemmas(options const & o) {
+    return o.get_bool(*g_unfold_lemmas, LEAN_DEFAULT_UNFOLD_LEMMAS);
 }
 
 bool is_at_least_semireducible(transparency_mode m) {
@@ -91,7 +110,7 @@ bool type_context_cache::is_transparent(transparency_mode m, declaration const &
         return false;
     if (m == transparency_mode::All)
         return true;
-    if (d.is_theorem())
+    if (d.is_theorem() && !get_unfold_lemmas(get_options()))
         return false;
     if (m == transparency_mode::Instances && is_instance(m_env, d.get_name()))
         return true;
@@ -104,27 +123,29 @@ bool type_context_cache::is_transparent(transparency_mode m, declaration const &
 }
 
 optional<declaration> type_context_cache::is_transparent(transparency_mode m, name const & n) {
-    auto & cache = m_transparency_cache[static_cast<unsigned>(m)];
-    auto it = cache.find(n);
-    if (it != cache.end()) {
-        return it->second;
-    }
+    CACHE_CODE(
+        auto & cache = m_transparency_cache[static_cast<unsigned>(m)];
+        auto it = cache.find(n);
+        if (it != cache.end()) {
+            return it->second;
+        });
     optional<declaration> r;
     if (auto d = m_env.find(n)) {
         if (d->is_definition() && is_transparent(m, *d)) {
             r = d;
         }
     }
-    cache.insert(mk_pair(n, r));
+    CACHE_CODE(cache.insert(mk_pair(n, r)););
     return r;
 }
 
 bool type_context_cache::is_aux_recursor(name const & n) {
-    auto it = m_aux_recursor_cache.find(n);
-    if (it != m_aux_recursor_cache.end())
-        return it->second;
+    CACHE_CODE(
+        auto it = m_aux_recursor_cache.find(n);
+        if (it != m_aux_recursor_cache.end())
+            return it->second;);
     bool r = ::lean::is_aux_recursor(env(), n);
-    m_aux_recursor_cache.insert(mk_pair(n, r));
+    CACHE_CODE(m_aux_recursor_cache.insert(mk_pair(n, r)););
     return r;
 }
 
@@ -158,7 +179,11 @@ type_context_cache_ptr type_context_cache_manager::release() {
 }
 
 type_context_cache_ptr type_context_cache_manager::mk(environment const & env, options const & o) {
-    if (!m_cache_ptr || get_class_instance_max_depth(o) != m_max_depth) return mk_cache(env, o, m_use_bi);
+    if (!m_cache_ptr ||
+        get_class_instance_max_depth(o) != m_max_depth ||
+        get_unfold_lemmas(o) != get_unfold_lemmas(m_cache_ptr->m_options)) {
+        return mk_cache(env, o, m_use_bi);
+    }
     if (is_eqp(env, m_env)) {
         m_cache_ptr->m_options = o;
         return release();
@@ -217,25 +242,29 @@ bool type_context::tmp_locals::all_let_decls() const {
    ===================== */
 MK_THREAD_LOCAL_GET_DEF(type_context_cache_manager, get_tcm);
 
-void type_context::cache_failure(expr const & t, expr const & s) {
-    if (t.hash() <= s.hash())
-        get_failure_cache().insert(mk_pair(t, s));
-    else
-        get_failure_cache().insert(mk_pair(s, t));
+void type_context::cache_failure(expr const & CACHE_CODE(t), expr const & CACHE_CODE(s)) {
+    CACHE_CODE(
+        if (t.hash() <= s.hash())
+            get_failure_cache().insert(mk_pair(t, s));
+        else
+            get_failure_cache().insert(mk_pair(s, t));
+        )
 }
 
-bool type_context::is_cached_failure(expr const & t, expr const & s) {
-    if (has_expr_metavar(t) || has_expr_metavar(s)) return false;
-    type_context_cache::failure_cache const & fcache = get_failure_cache();
-    if (t.hash() < s.hash()) {
-        return fcache.find(mk_pair(t, s)) != fcache.end();
-    } else if (t.hash() > s.hash()) {
-        return fcache.find(mk_pair(s, t)) != fcache.end();
-    } else {
-        return
-            fcache.find(mk_pair(t, s)) != fcache.end() ||
-            fcache.find(mk_pair(s, t)) != fcache.end();
-    }
+bool type_context::is_cached_failure(expr const & CACHE_CODE(t), expr const & CACHE_CODE(s)) {
+    CACHE_CODE(
+        if (has_expr_metavar(t) || has_expr_metavar(s)) return false;
+        type_context_cache::failure_cache const & fcache = get_failure_cache();
+        if (t.hash() < s.hash()) {
+            return fcache.find(mk_pair(t, s)) != fcache.end();
+        } else if (t.hash() > s.hash()) {
+            return fcache.find(mk_pair(s, t)) != fcache.end();
+        } else {
+            return
+                fcache.find(mk_pair(t, s)) != fcache.end() ||
+                fcache.find(mk_pair(s, t)) != fcache.end();
+        });
+    return false;
 }
 
 void type_context::init_local_instances() {
@@ -727,6 +756,18 @@ optional<expr> type_context::reduce_aux_recursor(expr const & e) {
         return none_expr();
 }
 
+optional<expr> type_context::reduce_large_elim_recursor(expr const & e) {
+    expr const & f = get_app_fn(e);
+    if (!is_constant(f))
+        return none_expr();
+    auto & fn = const_name(f);
+    if (fn == get_acc_rec_name()) {
+        transparency_scope scope(*this, transparency_mode::All);
+        return norm_ext(e);
+    }
+    return none_expr();
+}
+
 bool type_context::should_unfold_macro(expr const & e) {
     /* If m_transparency_mode is set to ALL, then we unfold all
        macros. In this way, we make sure type inference does not fail.
@@ -764,8 +805,9 @@ bool type_context::use_zeta() const {
 
   Remark: if proj_reduce is false, then projection reduction is not performed.
 */
-expr type_context::whnf_core(expr const & e, bool proj_reduce) {
-    switch (e.kind()) {
+expr type_context::whnf_core(expr const & e0, bool proj_reduce) {
+    expr e = e0;
+    while (true) { switch (e.kind()) {
     case expr_kind::Var:      case expr_kind::Sort:
     case expr_kind::Pi:       case expr_kind::Lambda:
     case expr_kind::Constant:
@@ -776,7 +818,8 @@ expr type_context::whnf_core(expr const & e, bool proj_reduce) {
             if (auto d = m_lctx.find_local_decl(e)) {
                 if (auto v = d->get_value()) {
                     /* zeta-reduction */
-                    return whnf_core(*v, proj_reduce);
+                    e = *v;
+                    continue;
                 }
             }
         }
@@ -785,15 +828,17 @@ expr type_context::whnf_core(expr const & e, bool proj_reduce) {
         if (is_metavar_decl_ref(e)) {
             if (m_mctx.is_assigned(e)) {
                 m_used_assignment = true;
-                return whnf_core(m_mctx.instantiate_mvars(e), proj_reduce);
+                e = m_mctx.instantiate_mvars(e);
+                continue;
             }
-        } else if (is_idx_metavar(e)) {
+        } else if (m_tmp_data && is_idx_metavar(e)) {
             lean_assert(in_tmp_mode());
             unsigned idx = to_meta_idx(e);
             if (idx < m_tmp_data->m_eassignment.size()) {
                 if (auto v = m_tmp_data->m_eassignment[idx]) {
                     m_used_assignment = true;
-                    return whnf_core(*v, proj_reduce);
+                    e = *v;
+                    continue;
                 }
             }
         }
@@ -801,13 +846,19 @@ expr type_context::whnf_core(expr const & e, bool proj_reduce) {
     case expr_kind::Macro:
         if (auto m = expand_macro(e)) {
             check_system("whnf");
-            return whnf_core(*m, proj_reduce);
+            e = *m;
+            continue;
         } else {
             return e;
         }
     case expr_kind::Let:
         check_system("whnf");
-        return use_zeta() ? whnf_core(::lean::instantiate(let_body(e), let_value(e)), proj_reduce) : e;
+        if (use_zeta()) {
+            e = ::lean::instantiate(let_body(e), let_value(e));
+            continue;
+        } else {
+            return e;
+        }
     case expr_kind::App: {
         check_system("whnf");
         buffer<expr> args;
@@ -822,31 +873,39 @@ expr type_context::whnf_core(expr const & e, bool proj_reduce) {
                 m++;
             }
             lean_assert(m <= num_args);
-            return whnf_core(mk_rev_app(::lean::instantiate(binding_body(f), m, args.data() + (num_args - m)),
-                                        num_args - m, args.data()),
-                             proj_reduce);
+            e = mk_rev_app(::lean::instantiate(binding_body(f), m, args.data() + (num_args - m)),
+                    num_args - m, args.data());
+            continue;
         } else if (f == f0) {
             if (auto r = norm_ext(e)) {
                 /* mainly iota-reduction, it also applies HIT and quotient reduction rules */
-                return whnf_core(*r, proj_reduce);
+                e = *r;
+                continue;
             }
 
             if (proj_reduce) {
                 if (auto r = reduce_projection(e)) {
-                    return whnf_core(*r, proj_reduce);
+                    e = *r;
+                    continue;
                 }
             }
 
             if (auto r = reduce_aux_recursor(e)) {
-                return whnf_core(*r, proj_reduce);
-            } else {
-                return e;
+                e = *r;
+                continue;
             }
+
+            if (auto r = reduce_large_elim_recursor(e)) {
+                e = *r;
+                continue;
+            }
+
+            return e;
         } else {
-            return whnf_core(mk_rev_app(f, args.size(), args.data()), proj_reduce);
+            e = mk_rev_app(f, args.size(), args.data());
+            continue;
         }
-    }}
-    lean_unreachable();
+    }}}
 }
 
 expr type_context::whnf(expr const & e) {
@@ -857,12 +916,13 @@ expr type_context::whnf(expr const & e) {
     default:
         break;
     }
-    auto & cache = m_cache->m_whnf_cache[static_cast<unsigned>(m_transparency_mode)];
-    if (!m_transparency_pred && !m_unfold_pred) {
-        auto it = cache.find(e);
-        if (it != cache.end())
-            return it->second;
-    }
+    CACHE_CODE(
+        auto & cache = m_cache->m_whnf_cache[static_cast<unsigned>(m_transparency_mode)];
+        if (!m_transparency_pred && !m_unfold_pred) {
+            auto it = cache.find(e);
+            if (it != cache.end())
+                return it->second;
+        });
     reset_used_assignment reset(*this);
     unsigned postponed_sz = m_postponed.size();
     expr t = e;
@@ -874,7 +934,7 @@ expr type_context::whnf(expr const & e) {
             if ((!in_tmp_mode() || !has_expr_metavar(t1)) &&
                 !m_used_assignment && !is_stuck(t1) &&
                 postponed_sz == m_postponed.size() && !m_transparency_pred && !m_unfold_pred) {
-                cache.insert(mk_pair(e, t1));
+                CACHE_CODE(cache.insert(mk_pair(e, t1)););
             }
             return t1;
         }
@@ -953,11 +1013,12 @@ expr type_context::infer(expr const & e) {
 
 expr type_context::infer_core(expr const & e) {
 #ifndef LEAN_NO_TYPE_INFER_CACHE
-    auto & cache = m_cache->m_infer_cache;
-    unsigned postponed_sz = m_postponed.size();
-    auto it = cache.find(e);
-    if (it != cache.end())
-        return it->second;
+    CACHE_CODE(
+        auto & cache = m_cache->m_infer_cache;
+        unsigned postponed_sz = m_postponed.size();
+        auto it = cache.find(e);
+        if (it != cache.end())
+            return it->second;);
 #endif
 
     reset_used_assignment reset(*this);
@@ -996,8 +1057,9 @@ expr type_context::infer_core(expr const & e) {
     }
 
 #ifndef LEAN_NO_TYPE_INFER_CACHE
-    if (!m_used_assignment && postponed_sz == m_postponed.size())
-        cache.insert(mk_pair(e, r));
+    CACHE_CODE(
+        if (!m_used_assignment && postponed_sz == m_postponed.size())
+            cache.insert(mk_pair(e, r)););
 #endif
     return r;
 }
@@ -2696,6 +2758,7 @@ bool type_context::on_is_def_eq_failure(expr const & e1, expr const & e2) {
 
 /* If e is a numeral, then return it. Otherwise return none. */
 static optional<mpz> eval_num(expr const & e) {
+    check_system("eval_num");
     if (is_constant(e, get_nat_zero_name())) {
         return some(mpz(0));
     } else if (is_app_of(e, get_has_zero_zero_name(), 2)) {
@@ -3100,6 +3163,19 @@ bool type_context::is_def_eq_core_core(expr t, expr s) {
     r = is_def_eq_proj(t, s);
     if (r != l_undef) return r == l_true;
 
+    if (is_macro(t) && is_macro(s) && macro_def(t) == macro_def(s) && macro_num_args(t) == macro_num_args(s)) {
+        scope S(*this);
+        unsigned i = 0;
+        for (; i < macro_num_args(t); i++) {
+            if (!is_def_eq_core(macro_arg(t, i), macro_arg(s, i)))
+                break;
+        }
+        if (i == macro_num_args(t)) {
+            S.commit();
+            return true;
+        }
+    }
+
     if (is_app(t) && is_app(s)) {
         scope S(*this);
         if (is_def_eq_core(get_app_fn(t), get_app_fn(s)) &&
@@ -3194,12 +3270,19 @@ optional<name> type_context::constant_is_class(expr const & e) {
 }
 
 optional<name> type_context::is_full_class(expr type) {
-    type = whnf(type);
-    if (is_pi(type)) {
+    expr new_type = whnf(type);
+    if (is_pi(new_type)) {
+        type = new_type;
         tmp_locals locals(*this);
         return is_full_class(::lean::instantiate(binding_body(type), locals.push_local_from_binding(type)));
     } else {
+        // TODO(Leo): this can be improved using whnf_pred
         expr f = get_app_fn(type);
+        if (is_constant(f)) {
+            if (auto r = constant_is_class(f))
+                return r;
+        }
+        f = get_app_fn(new_type);
         if (!is_constant(f))
             return optional<name>();
         return constant_is_class(f);
@@ -3350,9 +3433,10 @@ struct instance_synthesizer {
             expr const & mvar = e.m_mvar;
             expr mvar_type    = m_ctx.infer(mvar);
             while (true) {
-                mvar_type = m_ctx.relaxed_whnf(mvar_type);
-                if (!is_pi(mvar_type))
+                expr new_mvar_type = m_ctx.relaxed_whnf(mvar_type);
+                if (!is_pi(new_mvar_type))
                     break;
+                mvar_type   = new_mvar_type;
                 expr local  = locals.push_local_from_binding(mvar_type);
                 mvar_type   = instantiate(binding_body(mvar_type), local);
             }
@@ -3360,9 +3444,10 @@ struct instance_synthesizer {
             expr r     = inst;
             buffer<expr> new_inst_mvars;
             while (true) {
-                type = m_ctx.relaxed_whnf(type);
-                if (!is_pi(type))
+                expr new_type = m_ctx.relaxed_whnf(type);
+                if (!is_pi(new_type))
                     break;
+                type          = new_type;
                 expr new_mvar = m_ctx.mk_tmp_mvar(locals.mk_pi(binding_domain(type)));
                 if (binding_info(type).is_inst_implicit()) {
                     new_inst_mvars.push_back(new_mvar);
@@ -3488,9 +3573,73 @@ struct instance_synthesizer {
         return false;
     }
 
+    bool process_special(stack_entry const & e) {
+        type_context::tmp_locals locals(m_ctx);
+        expr const & mvar = e.m_mvar;
+        expr mvar_type    = m_ctx.infer(mvar);
+        while (true) {
+            expr new_mvar_type = m_ctx.relaxed_whnf(mvar_type);
+            if (!is_pi(new_mvar_type))
+                break;
+            mvar_type   = new_mvar_type;
+            expr local  = locals.push_local_from_binding(mvar_type);
+            mvar_type   = instantiate(binding_body(mvar_type), local);
+        }
+        mvar_type = m_ctx.instantiate_mvars(mvar_type);
+        if (!has_metavar(mvar_type) && !has_param_univ(mvar_type) &&
+            is_app_of(mvar_type, get_reflected_name(), 2)) {
+            lean_trace_plain("class_instances",
+                             scope_trace_env scope(m_ctx.env(), m_ctx);
+                             tout() << "process special: " << mvar_type << "\n";);
+            expr r = app_arg(mvar_type);
+            // prevent infinite recursion
+            if (is_local(r))
+                return false;
+            // recursively look up reflected instances for locals in r and substitute them into the quotation of r
+            collected_locals r_locals;
+            collect_locals(r, r_locals);
+            r = m_ctx.mk_lambda(r_locals.get_collected(), r);
+            expr r_ty = m_ctx.infer(r);
+            expr q = mk_elaborated_expr_quote(r);
+            buffer<expr> new_inst_mvars;
+            for (expr const & local : r_locals.get_collected()) {
+                expr ty = m_ctx.infer(local);
+                expr cls = mk_app(mk_constant(get_reflected_name(), {get_level(m_ctx, ty)}), ty, local);
+                expr new_mvar = m_ctx.mk_tmp_mvar(cls);
+                new_inst_mvars.push_back(new_mvar);
+                expr local_ty = m_ctx.infer(local);
+                level u = get_level(m_ctx, local_ty);
+                level v = get_level(m_ctx, instantiate(binding_body(r_ty), local));
+                q = mk_app(mk_constant(get_reflected_subst_name(), {v, u}),
+                           {local_ty, mk_lambda("_x", binding_domain(r_ty), binding_body(r_ty)), r, local, q, new_mvar});
+                r = instantiate(binding_body(r), local);
+                r_ty = instantiate(binding_body(r_ty), local);
+            }
+            q = locals.mk_lambda(q);
+            lean_trace_plain("class_instances",
+                             scope_trace_env scope(m_ctx.env(), m_ctx);
+                             trace(e.m_depth, e.m_mvar, mvar_type, q););
+            if (!m_ctx.is_def_eq(mvar, q)) {
+                lean_trace_plain("class_instances", tout() << "failed is_def_eq\n";);
+                return false;
+            }
+            m_state.m_stack = tail(m_state.m_stack);
+            // copy new_inst_mvars to stack
+            unsigned i = new_inst_mvars.size();
+            while (i > 0) {
+                --i;
+                m_state.m_stack = cons(stack_entry(new_inst_mvars[i], e.m_depth+1), m_state.m_stack);
+            }
+            return true;
+        }
+        return false;
+    }
+
     bool process_next_mvar() {
         lean_assert(!is_done());
         stack_entry e = head(m_state.m_stack);
+        if (process_special(e))
+            return true;
         if (!mk_choice_point(e.m_mvar))
             return false;
         m_state.m_stack = tail(m_state.m_stack);
@@ -3540,10 +3689,11 @@ struct instance_synthesizer {
             return none_expr();
     }
 
-    void cache_result(expr const & type, optional<expr> const & inst) {
+    void cache_result(expr const & CACHE_CODE(type), optional<expr> const & CACHE_CODE(inst)) {
 #ifndef LEAN_NO_TYPE_CLASS_CACHE
-        if (!has_expr_metavar(type))
-            m_ctx.m_cache->m_instance_cache.insert(mk_pair(type, inst));
+        CACHE_CODE(
+            if (!has_expr_metavar(type))
+                m_ctx.m_cache->m_instance_cache.insert(mk_pair(type, inst)););
 #endif
     }
 
@@ -3576,17 +3726,18 @@ struct instance_synthesizer {
         /* We do not cache results when multiple instances have to be generated. */
         if (!has_expr_metavar(type)) {
 #ifndef LEAN_NO_TYPE_CLASS_CACHE
-            auto it = m_ctx.m_cache->m_instance_cache.find(type);
-            if (it != m_ctx.m_cache->m_instance_cache.end()) {
-                /* instance/failure is already cached */
-                lean_trace("class_instances",
-                           scope_trace_env scope(m_ctx.env(), m_ctx);
-                           if (it->second)
-                               tout() << "cached instance for " << type << "\n" << *(it->second) << "\n";
-                           else
-                               tout() << "cached failure for " << type << "\n";);
-                return it->second;
-            }
+            CACHE_CODE(
+                auto it = m_ctx.m_cache->m_instance_cache.find(type);
+                if (it != m_ctx.m_cache->m_instance_cache.end()) {
+                    /* instance/failure is already cached */
+                    lean_trace("class_instances",
+                               scope_trace_env scope(m_ctx.env(), m_ctx);
+                               if (it->second)
+                                   tout() << "cached instance for " << type << "\n" << *(it->second) << "\n";
+                               else
+                                   tout() << "cached failure for " << type << "\n";);
+                    return it->second;
+                });
 #endif
         }
         m_state          = state();
@@ -3741,9 +3892,10 @@ optional<expr> type_context::mk_class_instance(expr const & type) {
 }
 
 optional<expr> type_context::mk_subsingleton_instance(expr const & type) {
-    auto it = m_cache->m_subsingleton_cache.find(type);
-    if (it != m_cache->m_subsingleton_cache.end())
-        return it->second;
+    CACHE_CODE(
+        auto it = m_cache->m_subsingleton_cache.find(type);
+        if (it != m_cache->m_subsingleton_cache.end())
+            return it->second;);
     expr Type  = whnf(infer(type));
     if (!is_sort(Type)) {
         m_cache->m_subsingleton_cache.insert(mk_pair(type, none_expr()));
@@ -3752,7 +3904,7 @@ optional<expr> type_context::mk_subsingleton_instance(expr const & type) {
     level lvl    = sort_level(Type);
     expr subsingleton = mk_app(mk_constant(get_subsingleton_name(), {lvl}), type);
     auto r = mk_class_instance(subsingleton);
-    m_cache->m_subsingleton_cache.insert(mk_pair(type, r));
+    CACHE_CODE(m_cache->m_subsingleton_cache.insert(mk_pair(type, r)););
     return r;
 }
 
@@ -3916,6 +4068,9 @@ void initialize_type_context() {
                              "(t + k_1 =?= s + k_2), (t + k_1 =?= k_2) and (k_1 =?= k_2), "
                              "where k_1 and k_2 are numerals, t and s are arbitrary terms, and they all have type nat, "
                              "the offset constraint solver is used if k_1 and k_2 are smaller than the given threshold");
+    g_unfold_lemmas = new name{"type_context", "unfold_lemmas"};
+    register_bool_option(*g_unfold_lemmas, LEAN_DEFAULT_UNFOLD_LEMMAS,
+        "(type-context) whether to unfold lemmas (e.g., during elaboration)");
 }
 
 void finalize_type_context() {

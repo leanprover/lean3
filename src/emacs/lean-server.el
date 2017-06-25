@@ -11,6 +11,20 @@
 (require 'lean-pkg)
 (require 'dash)
 
+(defcustom lean-server-show-message-hook '(lean-message-boxes-display)
+  "Hook run on messages from Lean, allowing custom display.
+
+Each hook is a function that receives a list of message objects
+for the current buffer.  Each message object is a plist with at
+least the following keys:
+ - :pos_line  is the line number of the message, a number
+ - :pos_col is the column of the start of the message, a number
+ - :caption is a category of message, a string
+ - :text is the text to display, a string."
+  :group 'lean
+  :type 'hook
+  :options '(lean-message-boxes-display))
+
 (defstruct lean-server-session
   path-file        ; the leanpkg.path file of this lean server
   process          ; process object of lean --server
@@ -45,7 +59,7 @@
        (lean-server-notify-tasks-changed sess old-tasks)))
     ("error"
      (message "error: %s" (plist-get res :message))
-     ; TODO(gabriel): maybe even add the error as a message
+     ;; TODO(gabriel): maybe even add the error as a message
      (when (plist-get res :seq_num)
        (let ((cb (lean-server-session-pop-callback sess (plist-get res :seq_num))))
          (when (cdr cb) (funcall (cdr cb) res)))))
@@ -114,9 +128,13 @@
                              :name "lean-server stderr"
                              :buffer (format "*lean-server stderr (%s)*" path-file)
                              :noquery t))
-                 (apply #'start-file-process "lean-server"
-                        (format " *lean-server (%s)*" (buffer-name))
-                        cmd)))
+                 (progn
+                   ; emacs 24 loves directory separators, without it
+                   ; the server gets started in the parent directory....
+                   (setq default-directory (format "%s/" default-directory))
+                   (apply #'start-process "lean-server"
+                          (format " *lean-server (%s)*" (buffer-name))
+                          cmd))))
          (sess (make-lean-server-session
                 :path-file path-file
                 :process proc
@@ -279,7 +297,15 @@
                                  (when lean-server-flycheck-delayed-update
                                    (setq lean-server-flycheck-delayed-update nil)
                                    (flycheck-buffer))))
-                             (current-buffer))))))))
+                             (current-buffer))))))
+    (when lean-server-session
+      (let ((relevant-msgs
+             (remove-if-not (lambda (msg)
+                              (equal (buffer-file-name buf)
+                                     (plist-get msg :file_name)))
+                            (lean-server-session-messages lean-server-session))))
+        (dolist (hook lean-server-show-message-hook)
+          (funcall hook relevant-msgs))))))
 
 (defvar-local lean-server-show-tasks-delay-timer nil)
 
@@ -297,7 +323,8 @@
 (defun lean-server-notify-messages-changed (sess)
   (dolist (buf (buffer-list))
     (with-current-buffer buf
-      (when (eq sess lean-server-session)
+      (when (and lean-server-session
+                 (eq sess lean-server-session))
         (lean-server-show-messages)))))
 
 (defun lean-server-notify-tasks-changed (sess old-tasks)
@@ -343,13 +370,21 @@
   "Sends a command to the lean server for the current buffer, waiting for and returning the response"
   ;; inspired by company--force-sync
   (let ((res 'trash)
+        (ok t)
         (start (time-to-seconds)))
-    (lean-server-send-command cmd params (lambda (&rest result) (setq res result)))
+    (lean-server-send-command cmd params
+                              (lambda (&rest result) (setq res result))
+                              (cl-function
+                               (lambda (&key message)
+                                 (setq ok nil)
+                                 (setq res message))))
     (while (eq res 'trash)
       (if (> (- (time-to-seconds) start) company-async-timeout)
           (error "Lean server timed out")
         (sleep-for company-async-wait)))
-    res))
+    (if ok
+        res
+      (error res))))
 
 (defun lean-server-sync (&optional buf)
   "Synchronizes the state of BUF (or the current buffer, if nil) with the lean server"
@@ -369,6 +404,7 @@
           (run-at-time "50 milliseconds" nil #'lean-server-sync (current-buffer)))))
 
 (defun lean-server-compute-roi (sess)
+  "Compute the region of interest for the session SESS."
   (--mapcat (with-current-buffer it
               (when (eq lean-server-session sess)
                 (list (cons (buffer-file-name)

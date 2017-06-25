@@ -1,5 +1,0 @@
-o : N
-z : N
-eq a gz : Prop
-eq gz a : Prop
-eq b z : Prop

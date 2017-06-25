@@ -13,6 +13,7 @@ Author: Leonardo de Moura
 #include "kernel/replace_fn.h"
 #include "kernel/error_msgs.h"
 #include "kernel/for_each_fn.h"
+#include "kernel/type_checker.h"
 #include "library/kernel_serializer.h"
 #include "library/scoped_ext.h"
 #include "library/annotation.h"
@@ -30,6 +31,7 @@ Author: Leonardo de Moura
 #include "library/normalize.h"
 #include "library/metavar_context.h"
 #include "library/replace_visitor.h"
+#include "library/compiler/vm_compiler.h"
 #include "frontends/lean/parser.h"
 #include "frontends/lean/tokens.h"
 #include "frontends/lean/decl_util.h" // TODO(Leo): remove
@@ -438,13 +440,20 @@ class field_notation_macro_cell : public macro_definition_cell {
 public:
     field_notation_macro_cell(name const & f):m_field(f), m_field_idx(0) {}
     field_notation_macro_cell(unsigned fidx):m_field_idx(fidx) {}
-    virtual name get_name() const { return *g_field_notation_name; }
-    virtual expr check_type(expr const &, abstract_type_context &, bool) const { throw_pn_ex(); }
-    virtual optional<expr> expand(expr const &, abstract_type_context &) const { throw_pn_ex(); }
-    virtual void write(serializer & s) const { s << *g_field_notation_opcode << m_field << m_field_idx; }
+    virtual name get_name() const override { return *g_field_notation_name; }
+    virtual expr check_type(expr const &, abstract_type_context &, bool) const override { throw_pn_ex(); }
+    virtual optional<expr> expand(expr const &, abstract_type_context &) const override { throw_pn_ex(); }
+    virtual void write(serializer & s) const override { s << *g_field_notation_opcode << m_field << m_field_idx; }
     bool is_anonymous() const { return m_field.is_anonymous(); }
     name const & get_field_name() const { lean_assert(!is_anonymous()); return m_field; }
     unsigned get_field_idx() const { lean_assert(is_anonymous()); return m_field_idx; }
+    virtual bool operator==(macro_definition_cell const & other) const override {
+        if (auto other_ptr = dynamic_cast<field_notation_macro_cell const *>(&other)) {
+            return m_field == other_ptr->m_field && m_field_idx == other_ptr->m_field_idx;
+        } else {
+            return false;
+        }
+    }
 };
 
 expr mk_field_notation(expr const & e, name const & field) {
@@ -511,6 +520,47 @@ void initialize_frontend_lean_util() {
                                     else
                                         return mk_field_notation(args[0], fname);
                                 });
+}
+
+environment compile_expr(environment const & env, name const & n, level_param_names const & ls, expr const & type, expr const & e, pos_info const & pos) {
+    environment new_env = env;
+    bool use_conv_opt   = true;
+    bool is_trusted     = false;
+    auto cd = check(new_env, mk_definition(new_env, n, ls, type, e, use_conv_opt, is_trusted));
+    new_env = new_env.add(cd);
+    new_env = add_transient_decl_pos_info(new_env, n, pos);
+    return vm_compile(new_env, new_env.get(n));
+}
+
+vm_obj eval_closed_expr(environment const & env, name const & n, expr const & type, expr const & e, pos_info const & pos) {
+    environment new_env = compile_expr(env, n, {}, type, e, pos);
+    vm_state vm(new_env, {});
+    return vm.invoke(n, 0, nullptr);
+}
+
+static expr save_pos(parser * p, expr const & e, optional<pos_info> const & pos) {
+    if (pos)
+        return p->save_pos(e, *pos);
+    else
+        return e;
+}
+
+static expr mk_lean_list(parser * p, buffer<expr> const & es, optional<pos_info> const & pos) {
+    expr r = save_pos(p, mk_constant(get_list_nil_name()), pos);
+    unsigned i = es.size();
+    while (i > 0) {
+        --i;
+        r = save_pos(p, mk_app(save_pos(p, mk_constant(get_list_cons_name()), pos), es[i], r), pos);
+    }
+    return r;
+}
+
+expr mk_lean_list(parser & p, buffer<expr> const & es, pos_info const & pos) {
+    return mk_lean_list(&p, es, optional<pos_info>(pos));
+}
+
+expr mk_lean_list(buffer<expr> const & es) {
+    return mk_lean_list(nullptr, es, optional<pos_info>());
 }
 
 void finalize_frontend_lean_util() {

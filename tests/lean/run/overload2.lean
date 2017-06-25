@@ -22,39 +22,39 @@ open F2 nat
 
 example :  true :=
 begin
- assert H : (1 : nat) + (1 : nat) = 2,
+ have H : (1 : nat) + (1 : nat) = 2,
  reflexivity,
  constructor
 end
 
 example :  true :=
 begin
- assert H : 1 + 1 = 2,
+ have H : 1 + 1 = 2,
  reflexivity,
  constructor
 end
 
 example :  true :=
 begin
- assert H : (1:nat) + 1 = 2,
+ have H : (1:nat) + 1 = 2,
  reflexivity,
  constructor
 end
 
 example :  true :=
 begin
- assert H : I + O = I,
+ have H : I + O = I,
  reflexivity,
  constructor
 end
 
 example :  true :=
 begin
- assert H1 : I + O = I,
+ have H1 : I + O = I,
  reflexivity,
- assert H2 : 1 + 0 = 1,
+ have H2 : 1 + 0 = 1,
  reflexivity,
- assert H3 : (1:int) + 0 = 1,
+ have H3 : (1:int) + 0 = 1,
  reflexivity,
  constructor
 end

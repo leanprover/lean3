@@ -7,22 +7,22 @@ prelude
 import init.meta.format
 universes u
 
-/- This function has a native implementation that tracks time. -/
+/-- This function has a native implementation that tracks time. -/
 def timeit {α : Type u} (s : string) (f : thunk α) : α :=
 f ()
 
-/- This function has a native implementation that displays the given string in the regular output stream. -/
+/-- This function has a native implementation that displays the given string in the regular output stream. -/
 def trace {α : Type u} (s : string) (f : thunk α) : α :=
 f ()
 
 meta def trace_val {α : Type u} [has_to_format α] (f : α) : α :=
-trace (to_string (to_fmt f)) f
+trace (to_fmt f).to_string f
 
-/- This function has a native implementation that shows the VM call stack. -/
+/-- This function has a native implementation that shows the VM call stack. -/
 def trace_call_stack {α : Type u} (f : thunk α) : α :=
 f ()
 
-/- This function has a native implementation that displays in the given position all trace messages used in f.
+/-- This function has a native implementation that displays in the given position all trace messages used in f.
    The arguments line and col are filled by the elaborator. -/
 def scope_trace {α : Type u} {line col: nat} (f : thunk α) : α :=
 f ()
@@ -38,3 +38,6 @@ some (f ())
 meta constant undefined_core {α : Sort u} (message : string) : α
 
 meta def undefined {α : Sort u} : α := undefined_core "undefined"
+
+meta def unchecked_cast {α : Sort u} {β : Sort u} : α → β :=
+cast undefined

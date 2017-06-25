@@ -28,15 +28,11 @@ false.rec b (h₂ h₁)
 lemma not.intro {a : Prop} (h : a → false) : ¬ a :=
 h
 
-lemma mt {a b : Prop} (h₁ : a → b) (h₂ : ¬b) : ¬a :=
-assume ha : a, absurd (h₁ ha) h₂
-
-def implies.resolve {a b : Prop} (h : a → b) (nb : ¬ b) : ¬ a := assume ha, nb (h ha)
+lemma mt {a b : Prop} (h₁ : a → b) (h₂ : ¬b) : ¬a := assume ha : a, h₂ (h₁ ha)
 
 /- not -/
 
-lemma not_false : ¬false :=
-assume h : false, h
+lemma not_false : ¬false := id
 
 def non_contradictory (a : Prop) : Prop := ¬¬a
 
@@ -250,20 +246,20 @@ lemma iff.elim_right : (a ↔ b) → b → a := iff.mpr
 lemma iff_iff_implies_and_implies (a b : Prop) : (a ↔ b) ↔ (a → b) ∧ (b → a) :=
 iff.intro (λ h, and.intro h.mp h.mpr) (λ h, iff.intro h.left h.right)
 
-attribute [refl]
+@[refl]
 lemma iff.refl (a : Prop) : a ↔ a :=
 iff.intro (assume h, h) (assume h, h)
 
 lemma iff.rfl {a : Prop} : a ↔ a :=
 iff.refl a
 
-attribute [trans]
+@[trans]
 lemma iff.trans (h₁ : a ↔ b) (h₂ : b ↔ c) : a ↔ c :=
 iff.intro
   (assume ha, iff.mp h₂ (iff.mp h₁ ha))
   (assume hc, iff.mpr h₁ (iff.mpr h₂ hc))
 
-attribute [symm]
+@[symm]
 lemma iff.symm (h : a ↔ b) : b ↔ a :=
 iff.intro (iff.elim_right h) (iff.elim_left h)
 
@@ -461,6 +457,12 @@ or.assoc
 @[simp] lemma or.left_comm : a ∨ (b ∨ c) ↔ b ∨ (a ∨ c) :=
 iff.trans (iff.symm or.assoc) (iff.trans (or_congr or.comm (iff.refl c)) or.assoc)
 
+theorem or_iff_right_of_imp (ha : a → b) : (a ∨ b) ↔ b :=
+iff.intro (or.rec ha id) or.inr
+
+theorem or_iff_left_of_imp (hb : b → a) : (a ∨ b) ↔ a :=
+iff.intro (or.rec id hb) or.inl
+
 @[simp] lemma or_true (a : Prop) : a ∨ true ↔ true :=
 iff_true_intro (or.inr trivial)
 
@@ -547,7 +549,7 @@ def exists_unique {α : Sort u} (p : α → Prop) :=
 
 notation `∃!` binders `, ` r:(scoped P, exists_unique P) := r
 
-attribute [intro]
+@[intro]
 lemma exists_unique.intro {α : Sort u} {p : α → Prop} (w : α) (h₁ : p w) (h₂ : ∀ y, p y → y = w) :
   ∃! x, p x :=
 exists.intro w ⟨h₁, h₂⟩
@@ -671,7 +673,20 @@ section
   else is_true (assume h, absurd h hp)
 
   instance [decidable p] [decidable q] : decidable (p ↔ q) :=
-  decidable_of_decidable_of_iff and.decidable (iff_iff_implies_and_implies p q).symm
+  if hp : p then
+    if hq : q then is_true ⟨λ_, hq, λ_, hp⟩
+    else is_false $ λh, hq (h.1 hp)
+  else
+    if hq : q then is_false $ λh, hp (h.2 hq)
+    else is_true $ ⟨λh, absurd h hp, λh, absurd h hq⟩
+
+  instance [decidable p] [decidable q] : decidable (xor p q) :=
+  if hp : p then
+    if hq : q then is_false (or.rec (λ ⟨_, h⟩, h hq : ¬(p ∧ ¬ q)) (λ ⟨_, h⟩, h hp : ¬(q ∧ ¬ p)))
+    else is_true $ or.inl ⟨hp, hq⟩
+  else
+    if hq : q then is_true $ or.inr ⟨hq, hp⟩
+    else is_false (or.rec (λ ⟨h, _⟩, hp h : ¬(p ∧ ¬ q)) (λ ⟨h, _⟩, hq h : ¬(q ∧ ¬ p)))
 end
 
 instance {α : Sort u} [decidable_eq α] (a b : α) : decidable (a ≠ b) :=
@@ -730,12 +745,6 @@ instance pi.inhabited (α : Sort u) {β : α → Sort v} [Π x, inhabited (β x)
 
 instance : inhabited bool :=
 ⟨ff⟩
-
-instance : inhabited pos_num :=
-⟨pos_num.one⟩
-
-instance : inhabited num :=
-⟨num.zero⟩
 
 class inductive nonempty (α : Sort u) : Prop
 | intro : α → nonempty
@@ -798,7 +807,7 @@ match h with
 | (is_false hnc) := rfl
 end
 
-attribute [simp]
+@[simp]
 lemma if_t_t (c : Prop) [h : decidable c] {α : Sort u} (t : α) : (ite c t t) = t :=
 match h with
 | (is_true hc)   := rfl
@@ -939,7 +948,7 @@ match h₁, h₂ with
 | (is_false h_c), h₂ := false.elim h₂
 end
 
-/- Universe lifting operation -/
+/-- Universe lifting operation -/
 structure {r s} ulift (α : Type s) : Type (max s r) :=
 up :: (down : α)
 
@@ -952,12 +961,12 @@ lemma down_up {α : Type u} (a : α) : down (up.{v} a) = a :=
 rfl
 end ulift
 
-/- Universe lifting operation from Sort to Type -/
+/-- Universe lifting operation from Sort to Type -/
 structure plift (α : Sort u) : Type u :=
 up :: (down : α)
 
 namespace plift
-/- Bijection between α and slift α -/
+/- Bijection between α and plift α -/
 lemma up_down {α : Sort u} : ∀ (b : plift α), up (down b) = b
 | (up a) := rfl
 
@@ -1016,7 +1025,7 @@ lemma inv_image.trans (f : α → β) (h : transitive r) : transitive (inv_image
 lemma inv_image.irreflexive (f : α → β) (h : irreflexive r) : irreflexive (inv_image r f) :=
 λ (a : α) (h₁ : inv_image r f a a), h (f a) h₁
 
-inductive tc {α : Type u} (r : α → α → Prop) : α → α → Prop
+inductive tc {α : Sort u} (r : α → α → Prop) : α → α → Prop
 | base  : ∀ a b, r a b → tc a b
 | trans : ∀ a b c, tc a b → tc b c → tc a c
 end relation

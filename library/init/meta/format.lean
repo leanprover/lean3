@@ -4,7 +4,7 @@ Released under Apache 2.0 license as described in the file LICENSE.
 Authors: Leonardo de Moura
 -/
 prelude
-import init.meta.options init.function
+import init.meta.options init.function init.data.to_string
 
 universes u v
 
@@ -22,7 +22,7 @@ meta constant format.group           : format → format
 meta constant format.of_string       : string → format
 meta constant format.of_nat          : nat → format
 meta constant format.flatten         : format → format
-meta constant format.to_string       : format → options → string
+meta constant format.to_string  (f : format) (o : options := options.mk) : string
 meta constant format.of_options      : options → format
 meta constant format.is_nil          : format → bool
 meta constant trace_fmt {α : Type u} : format → (unit → α) → α
@@ -34,7 +34,7 @@ meta instance : has_append format :=
 ⟨format.compose⟩
 
 meta instance : has_to_string format :=
-⟨λ f, format.to_string f options.mk⟩
+⟨λ f, f.to_string options.mk⟩
 
 meta class has_to_format (α : Type u) :=
 (to_format : α → format)
@@ -82,7 +82,7 @@ meta instance : has_to_format unsigned :=
 ⟨λ n, to_fmt n.to_nat⟩
 
 meta instance : has_to_format char :=
-⟨λ c : char, format.of_string [c]⟩
+⟨λ c : char, format.of_string c.to_string⟩
 
 meta def list.to_format {α : Type u} [has_to_format α] : list α → format
 | [] := to_fmt "[]"
@@ -94,7 +94,7 @@ meta instance {α : Type u} [has_to_format α] : has_to_format (list α) :=
 attribute [instance] string.has_to_format
 
 meta instance : has_to_format name :=
-⟨λ n, to_fmt (to_string n)⟩
+⟨λ n, to_fmt n.to_string⟩
 
 meta instance : has_to_format unit :=
 ⟨λ u, to_fmt "()"⟩

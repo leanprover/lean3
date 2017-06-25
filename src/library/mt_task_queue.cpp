@@ -151,7 +151,8 @@ void mt_task_queue::handle_finished(gtask const & t) {
                     m_waiting.erase(rdep);
                     if (get_state(rdep).load() < task_state::Running) {
                         lean_always_assert(get_data(rdep));
-                        if (get_data(rdep)->m_flags.m_eager_execution) {
+                        // TODO(gabriel): we need to give up the lock on m_mutex for this
+                        if (false && get_data(rdep)->m_flags.m_eager_execution) {
                             get_state(rdep) = task_state::Running;
                             execute(rdep);
                             handle_finished(rdep);
@@ -188,7 +189,8 @@ void mt_task_queue::submit_core(gtask const & t, unsigned prio) {
             get_data(t)->m_sched_info.reset(new mt_sched_info(prio));
             if (check_deps(t)) {
                 if (get_state(t).load() < task_state::Running) {
-                    if (get_data(t)->m_flags.m_eager_execution) {
+                    // TODO(gabriel): we need to give up the lock on m_mutex for this
+                    if (false && get_data(t)->m_flags.m_eager_execution) {
                         get_state(t) = task_state::Running;
                         execute(t);
                         handle_finished(t);
@@ -303,6 +305,7 @@ void mt_task_queue::cancel_core(gtask const & t) {
     switch (get_state(t).load()) {
         case task_state::Waiting:
             m_waiting.erase(t);
+            /* fall-thru */
         case task_state::Created: case task_state::Queued:
             fail(t, std::make_exception_ptr(cancellation_exception()));
             handle_finished(t);

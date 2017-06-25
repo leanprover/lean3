@@ -14,10 +14,10 @@ Author: Leonardo de Moura
 #include "library/scoped_ext.h"
 #include "library/explicit.h"
 #include "library/num.h"
-#include "library/normalize.h"
 #include "library/aliases.h"
 #include "library/constants.h"
 #include "library/typed_expr.h"
+#include "library/vm/vm_nat.h"
 #include "frontends/lean/parser.h"
 #include "frontends/lean/tokens.h"
 #include "frontends/lean/util.h"
@@ -46,15 +46,14 @@ static unsigned parse_precedence_core(parser & p) {
         env = open_prec_aliases(env);
         parser::local_scope scope(p, env);
         expr pre_val = p.parse_expr(get_max_prec());
-        pre_val  = mk_typed_expr(mk_constant(get_num_name()), pre_val);
+        expr nat = mk_constant(get_nat_name());
+        pre_val  = mk_typed_expr(nat, pre_val);
         expr val = p.elaborate("notation", list<expr>(), pre_val).first;
-        val = normalize(p.env(), val);
-        if (optional<mpz> mpz_val = to_num_core(val)) {
-            if (!mpz_val->is_unsigned_int())
-                throw parser_error("invalid 'precedence', argument does not fit in a machine integer", pos);
-            return mpz_val->get_unsigned_int();
+        vm_obj p = eval_closed_expr(env, "_precedence", nat, val, pos);
+        if (optional<unsigned> _p = try_to_unsigned(p)) {
+            return *_p;
         } else {
-            throw parser_error("invalid 'precedence', argument does not evaluate to a numeral", pos);
+            throw parser_error("invalid 'precedence', argument does not evaluate to a small numeral", pos);
         }
     }
 }
@@ -319,7 +318,7 @@ static unsigned get_precedence(environment const & env, buffer<token_entry> cons
     std::string token_str = token.to_string();
     for (auto const & e : new_tokens) {
         if (e.m_token == token_str)
-            return e.m_prec;
+            return *e.m_prec;
     }
     auto prec = get_expr_precedence(get_token_table(env), token_str.c_str());
     if (prec)

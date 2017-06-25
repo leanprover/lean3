@@ -7,16 +7,18 @@ prelude
 import init.function init.data.option.basic init.util
 import init.category.combinators init.category.monad init.category.alternative init.category.monad_fail
 import init.data.nat.div init.meta.exceptional init.meta.format init.meta.environment
-import init.meta.pexpr init.data.to_string init.data.string.basic init.meta.interaction_monad
+import init.meta.pexpr init.data.repr init.data.string.basic init.meta.interaction_monad
 
 meta constant tactic_state : Type
 
 universes u v
 
 namespace tactic_state
+/-- Create a tactic state with an empty local context and a dummy goal. -/
+meta constant mk_empty    : environment → options → tactic_state
 meta constant env         : tactic_state → environment
 meta constant to_format   : tactic_state → format
-/- Format expression with respect to the main goal in the tactic state.
+/-- Format expression with respect to the main goal in the tactic state.
    If the tactic state does not contain any goals, then format expression
    using an empty local context. -/
 meta constant format_expr : tactic_state → expr → format
@@ -86,13 +88,20 @@ meta def fail_if_success {α : Type u} (t : tactic α) : tactic unit :=
  (λ a s, mk_exception "fail_if_success combinator failed, given tactic succeeded" none s)
  (λ e ref s', success () s)
 
+meta def success_if_fail {α : Type u} (t : tactic α) : tactic unit :=
+λ s, match t s with
+| (interaction_monad.result.exception _ _ s') := success () s
+| (interaction_monad.result.success a s) :=
+   mk_exception "success_if_fail combinator failed, given tactic succeeded" none s
+end
+
 open nat
-/- (repeat_at_most n t): repeat the given tactic at most n times or until t fails -/
+/-- (repeat_at_most n t): repeat the given tactic at most n times or until t fails -/
 meta def repeat_at_most : nat → tactic unit → tactic unit
 | 0        t := skip
 | (succ n) t := (do t, repeat_at_most n t) <|> skip
 
-/- (repeat_exactly n t) : execute t n times -/
+/-- (repeat_exactly n t) : execute t n times -/
 meta def repeat_exactly : nat → tactic unit → tactic unit
 | 0        t := skip
 | (succ n) t := do t, repeat_exactly n t
@@ -109,7 +118,7 @@ end
 meta instance opt_to_tac : has_coe (option α) (tactic α) :=
 ⟨returnopt⟩
 
-/- Decorate t's exceptions with msg -/
+/-- Decorate t's exceptions with msg -/
 meta def decorate_ex (msg : format) (t : tactic α) : tactic α :=
 λ s, result.cases_on (t s)
   success
@@ -180,6 +189,9 @@ meta def option_to_tactic_format {α : Type u} [has_to_tactic_format α] : optio
 meta instance {α : Type u} [has_to_tactic_format α] : has_to_tactic_format (option α) :=
 ⟨option_to_tactic_format⟩
 
+meta instance {α} (a : α) : has_to_tactic_format (reflected a) :=
+⟨λ h, pp h.to_expr⟩
+
 @[priority 10] meta instance has_to_format_to_has_to_tactic_format (α : Type) [has_to_format α] : has_to_tactic_format α :=
 ⟨(λ x, return x) ∘ to_fmt⟩
 
@@ -201,8 +213,8 @@ do fmt ← pp a,
 meta def trace_call_stack : tactic unit :=
 take state, _root_.trace_call_stack (success () state)
 
-meta def timetac {α : Type u} (desc : string) (t : tactic α) : tactic α :=
-λ s, timeit desc (t s)
+meta def timetac {α : Type u} (desc : string) (t : thunk (tactic α)) : tactic α :=
+λ s, timeit desc (t () s)
 
 meta def trace_state : tactic unit :=
 do s ← read,
@@ -213,49 +225,49 @@ inductive transparency
 
 export transparency (reducible semireducible)
 
-/- (eval_expr α e) evaluates 'e' IF 'e' has type 'α'. -/
+/-- (eval_expr α e) evaluates 'e' IF 'e' has type 'α'. -/
 meta constant eval_expr (α : Type u) [reflected α] : expr → tactic α
 
-/- Return the partial term/proof constructed so far. Note that the resultant expression
+/-- Return the partial term/proof constructed so far. Note that the resultant expression
    may contain variables that are not declarate in the current main goal. -/
 meta constant result        : tactic expr
-/- Display the partial term/proof constructed so far. This tactic is *not* equivalent to
-   do { r ← result, s ← read, return (format_expr s r) } because this one will format the result with respect
+/-- Display the partial term/proof constructed so far. This tactic is *not* equivalent to
+   `do { r ← result, s ← read, return (format_expr s r) }` because this one will format the result with respect
    to the current goal, and trace_result will do it with respect to the initial goal. -/
 meta constant format_result : tactic format
-/- Return target type of the main goal. Fail if tactic_state does not have any goal left. -/
+/-- Return target type of the main goal. Fail if tactic_state does not have any goal left. -/
 meta constant target        : tactic expr
 meta constant intro_core    : name → tactic expr
 meta constant intron        : nat → tactic unit
-/- Clear the given local constant. The tactic fails if the given expression is not a local constant. -/
+/-- Clear the given local constant. The tactic fails if the given expression is not a local constant. -/
 meta constant clear         : expr → tactic unit
 meta constant revert_lst    : list expr → tactic nat
 /-- Return `e` in weak head normal form with respect to the given transparency setting. -/
 meta constant whnf (e : expr) (md := semireducible) : tactic expr
-/- (head) eta expand the given expression -/
+/-- (head) eta expand the given expression -/
 meta constant head_eta_expand : expr → tactic expr
-/- (head) beta reduction -/
+/-- (head) beta reduction -/
 meta constant head_beta       : expr → tactic expr
-/- (head) zeta reduction -/
+/-- (head) zeta reduction -/
 meta constant head_zeta       : expr → tactic expr
-/- zeta reduction -/
+/-- zeta reduction -/
 meta constant zeta            : expr → tactic expr
-/- (head) eta reduction -/
+/-- (head) eta reduction -/
 meta constant head_eta        : expr → tactic expr
 /-- Succeeds if `t` and `s` can be unified using the given transparency setting. -/
 meta constant unify (t s : expr) (md := semireducible) : tactic unit
-/- Similar to `unify`, but it treats metavariables as constants. -/
+/-- Similar to `unify`, but it treats metavariables as constants. -/
 meta constant is_def_eq (t s : expr) (md := semireducible) : tactic unit
-/- Infer the type of the given expression.
+/-- Infer the type of the given expression.
    Remark: transparency does not affect type inference -/
 meta constant infer_type    : expr → tactic expr
 
 meta constant get_local     : name → tactic expr
-/- Resolve a name using the current local context, environment, aliases, etc. -/
+/-- Resolve a name using the current local context, environment, aliases, etc. -/
 meta constant resolve_name  : name → tactic pexpr
-/- Return the hypothesis in the main goal. Fail if tactic_state does not have any goal left. -/
+/-- Return the hypothesis in the main goal. Fail if tactic_state does not have any goal left. -/
 meta constant local_context : tactic (list expr)
-meta constant get_unused_name : name → option nat → tactic name
+meta constant get_unused_name (n : name) (i : option nat := none) : tactic name
 /--  Helper tactic for creating simple applications where some arguments are inferred using
     type inference.
 
@@ -306,7 +318,7 @@ meta constant mk_eq_trans   : expr → expr → tactic expr
 meta constant mk_eq_mp      : expr → expr → tactic expr
 /-- (mk_eq_mpr h₁ h₂) is a more efficient version of (mk_app `eq.mpr [h₁, h₂]) -/
 meta constant mk_eq_mpr      : expr → expr → tactic expr
-/- Given a local constant t, if t has type (lhs = rhs) apply susbstitution.
+/- Given a local constant t, if t has type (lhs = rhs) apply substitution.
    Otherwise, try to find a local constant that has type of the form (t = t') or (t' = t).
    The tactic fails if the given expression is not a local constant. -/
 meta constant subst         : expr → tactic unit
@@ -317,22 +329,25 @@ meta constant exact (e : expr) (md := semireducible) : tactic unit
     If `allow_mvars` is tt, then metavariables are tolerated and become new goals.
     If `report_errors` is ff, then errors are reported using position information from q. -/
 meta constant to_expr (q : pexpr) (allow_mvars := tt) : tactic expr
-/- Return true if the given expression is a type class. -/
+/-- Return true if the given expression is a type class. -/
 meta constant is_class      : expr → tactic bool
-/- Try to create an instance of the given type class. -/
+/-- Try to create an instance of the given type class. -/
 meta constant mk_instance   : expr → tactic expr
-/- Change the target of the main goal.
-   The input expression must be definitionally equal to the current target. -/
-meta constant change        : expr → tactic unit
-/- (assert_core H T), adds a new goal for T, and change target to (T -> target). -/
+/-- Change the target of the main goal.
+   The input expression must be definitionally equal to the current target.
+   If `check` is `ff`, then the tactic does not check whether `e`
+   is definitionally equal to the current target. If it is not,
+   then the error will only be detected by the kernel type checker. -/
+meta constant change (e : expr) (check : bool := tt): tactic unit
+/-- `assert_core H T`, adds a new goal for T, and change target to `T -> target`. -/
 meta constant assert_core   : name → expr → tactic unit
-/- (assertv_core H T P), change target to (T -> target) if P has type T. -/
+/-- `assertv_core H T P`, change target to (T -> target) if P has type T. -/
 meta constant assertv_core  : name → expr → expr → tactic unit
-/- (define_core H T), adds a new goal for T, and change target to  (let H : T := ?M in target) in the current goal. -/
+/-- `define_core H T`, adds a new goal for T, and change target to  `let H : T := ?M in target` in the current goal. -/
 meta constant define_core   : name → expr → tactic unit
-/- (definev_core H T P), change target to (Let H : T := P in target) if P has type T. -/
+/-- `definev_core H T P`, change target to `let H : T := P in target` if P has type T. -/
 meta constant definev_core  : name → expr → expr → tactic unit
-/- rotate goals to the left -/
+/-- rotate goals to the left -/
 meta constant rotate_left   : nat → tactic unit
 meta constant get_goals     : tactic (list expr)
 meta constant set_goals     : list expr → tactic unit
@@ -354,21 +369,21 @@ meta constant mk_meta_univ  : tactic level
 /- Create a fresh meta-variable with the given type.
    The scope of the new meta-variable is the local context of the main goal. -/
 meta constant mk_meta_var   : expr → tactic expr
-/- Return the value assigned to the given universe meta-variable.
+/-- Return the value assigned to the given universe meta-variable.
    Fail if argument is not an universe meta-variable or if it is not assigned. -/
 meta constant get_univ_assignment : level → tactic level
-/- Return the value assigned to the given meta-variable.
+/-- Return the value assigned to the given meta-variable.
    Fail if argument is not a meta-variable or if it is not assigned. -/
 meta constant get_assignment : expr → tactic expr
 meta constant mk_fresh_name : tactic name
-/- Return a hash code for expr that ignores inst_implicit arguments,
+/-- Return a hash code for expr that ignores inst_implicit arguments,
    and proofs. -/
 meta constant abstract_hash : expr → tactic nat
-/- Return the "weight" of the given expr while ignoring inst_implicit arguments,
+/-- Return the "weight" of the given expr while ignoring inst_implicit arguments,
    and proofs. -/
 meta constant abstract_weight : expr → tactic nat
 meta constant abstract_eq     : expr → expr → tactic bool
-/- Induction on `h` using recursor `rec`, names for the new hypotheses
+/-- Induction on `h` using recursor `rec`, names for the new hypotheses
    are retrieved from `ns`. If `ns` does not have sufficient names, then use the internal binder names
    in the recursor.
    It returns for each new goal a list of new hypotheses and a list of substitutions for hypotheses
@@ -378,7 +393,7 @@ meta constant abstract_eq     : expr → expr → tactic bool
 
    If `rec` is none, then the type of `h` is inferred, if it is of the form `C ...`, tactic uses `C.rec` -/
 meta constant induction (h : expr) (ns : list name := []) (rec : option name := none) (md := semireducible) : tactic (list (list expr × list (name × expr)))
-/- Apply `cases_on` recursor, names for the new hypotheses are retrieved from `ns`.
+/-- Apply `cases_on` recursor, names for the new hypotheses are retrieved from `ns`.
    `h` must be a local constant. It returns for each new goal the name of the constructor, a list of new hypotheses, and a list of
    substitutions for hypotheses depending on `h`. The number of new goals may be smaller than the
    number of constructors. Some goals may be discarded when the indices to not match.
@@ -386,15 +401,17 @@ meta constant induction (h : expr) (ns : list name := []) (rec : option name := 
 
    The `cases` tactic is implemented using this one, and it relaxes the restriction of `h`. -/
 meta constant cases_core (h : expr) (ns : list name := []) (md := semireducible) : tactic (list (name × list expr × list (name × expr)))
-/- Similar to cases tactic, but does not revert/intro/clear hypotheses. -/
+/-- Similar to cases tactic, but does not revert/intro/clear hypotheses. -/
 meta constant destruct (e : expr) (md := semireducible) : tactic unit
-/- Generalizes the target with respect to `e`.  -/
+/-- Generalizes the target with respect to `e`.  -/
 meta constant generalize (e : expr) (n : name := `_x) (md := semireducible) : tactic unit
-/- instantiate assigned metavariables in the given expression -/
+/-- instantiate assigned metavariables in the given expression -/
 meta constant instantiate_mvars : expr → tactic expr
-/- Add the given declaration to the environment -/
+/-- Add the given declaration to the environment -/
 meta constant add_decl : declaration → tactic unit
-/- (doc_string env d k) return the doc string for d (if available) -/
+/-- Changes the environment to the `new_env`. `new_env` needs to be a descendant from the current environment. -/
+meta constant set_env : environment → tactic unit
+/-- (doc_string env d k) return the doc string for d (if available) -/
 meta constant doc_string : name → tactic string
 meta constant add_doc_string : name → string → tactic unit
 /--
@@ -409,16 +426,16 @@ where l_i's and a_j's are the collected dependencies.
 -/
 meta constant add_aux_decl (c : name) (type : expr) (val : expr) (is_lemma : bool) : tactic expr
 meta constant module_doc_strings : tactic (list (option name × string))
-/- Set attribute `attr_name` for constant `c_name` with the given priority.
+/-- Set attribute `attr_name` for constant `c_name` with the given priority.
    If the priority is none, then use default -/
 meta constant set_basic_attribute (attr_name : name) (c_name : name) (persistent := ff) (prio : option nat := none) : tactic unit
-/- (unset_attribute attr_name c_name) -/
+/-- `unset_attribute attr_name c_name` -/
 meta constant unset_attribute : name → name → tactic unit
-/- (has_attribute attr_name c_name) succeeds if the declaration `decl_name`
+/-- `has_attribute attr_name c_name` succeeds if the declaration `decl_name`
    has the attribute `attr_name`. The result is the priority. -/
 meta constant has_attribute : name → name → tactic nat
 
-/- (copy_attribute attr_name c_name d_name) copy attribute `attr_name` from
+/-- `copy_attribute attr_name c_name d_name` copy attribute `attr_name` from
    `src` to `tgt` if it is defined for `src` -/
 meta def copy_attribute (attr_name : name) (src : name) (p : bool) (tgt : name) : tactic unit :=
 try $ do
@@ -428,8 +445,8 @@ try $ do
 /-- Name of the declaration currently being elaborated. -/
 meta constant decl_name : tactic name
 
-/- (save_type_info e ref) save (typeof e) at position associated with ref -/
-meta constant save_type_info : expr → expr → tactic unit
+/-- `save_type_info e ref` save (typeof e) at position associated with ref -/
+meta constant save_type_info {elab : bool} : expr → expr elab → tactic unit
 meta constant save_info_thunk : pos → (unit → format) → tactic unit
 /-- Return list of currently open namespaces -/
 meta constant open_namespaces : tactic (list name)
@@ -443,6 +460,9 @@ meta constant open_namespaces : tactic (list name)
     performed. -/
 meta constant kdepends_on (e t : expr) (md := reducible) : tactic bool
 
+/-- Blocks the execution of the current thread for at least `msecs` milliseconds.
+    This tactic is used mainly for debugging purposes. -/
+meta constant sleep (msecs : nat) : tactic unit
 open list nat
 
 meta def induction' (h : expr) (ns : list name := []) (rec : option name := none) (md := semireducible) : tactic unit :=
@@ -452,16 +472,16 @@ induction h ns rec md >> return ()
 meta def cleanup : tactic unit :=
 get_goals >>= set_goals
 
-/- Auxiliary definition used to implement begin ... end blocks -/
+/-- Auxiliary definition used to implement begin ... end blocks -/
 meta def step {α : Type u} (t : tactic α) : tactic unit :=
 t >>[tactic] cleanup
 
-meta def istep {α : Type u} (line col : ℕ) (t : tactic α) : tactic unit :=
-λ s, (@scope_trace _ line col (step t s)).clamp_pos line col
+meta def istep {α : Type u} (line0 col0 : ℕ) (line col : ℕ) (t : tactic α) : tactic unit :=
+λ s, (@scope_trace _ line col (λ _, step t s)).clamp_pos line0 line col
 
 meta def is_prop (e : expr) : tactic bool :=
 do t ← infer_type e,
-   return (t = ```(Prop))
+   return (t = `(Prop))
 
 /-- Return true iff n is the name of declaration that is a proposition. -/
 meta def is_prop_decl (n : name) : tactic bool :=
@@ -478,6 +498,9 @@ whnf e transparency.none
 
 meta def whnf_target : tactic unit :=
 target >>= whnf >>= change
+
+meta def unsafe_change (e : expr) : tactic unit :=
+change e ff
 
 meta def intro (n : name) : tactic expr :=
 do t ← target,
@@ -499,9 +522,28 @@ meta def intro_lst : list name → tactic (list expr)
 | []      := return []
 | (n::ns) := do H ← intro n, Hs ← intro_lst ns, return (H :: Hs)
 
+/-- Introduces new hypotheses with forward dependencies -/
+meta def intros_dep : tactic (list expr) :=
+do t ← target,
+   let proc (b : expr) :=
+      if b.has_var_idx 0 then
+        do h ← intro1, hs ← intros_dep, return (h::hs)
+      else
+        -- body doesn't depend on new hypothesis
+        return [],
+   match t with
+   | expr.pi _ _ _ b   := proc b
+   | expr.elet _ _ _ b := proc b
+   | _                 := return []
+   end
+
+meta def introv : list name → tactic (list expr)
+| []      := intros_dep
+| (n::ns) := do hs ← intros_dep, h ← intro n, hs' ← introv ns, return (hs ++ h :: hs')
+
 /-- Returns n fully qualified if it refers to a constant, or else fails. -/
 meta def resolve_constant (n : name) : tactic name :=
-do (expr.const n _) ← pexpr.to_raw_expr <$> resolve_name n,
+do (expr.const n _) ← resolve_name n,
    pure n
 
 meta def to_expr_strict (q : pexpr) : tactic expr :=
@@ -569,7 +611,7 @@ format_result >>= trace
 meta def rexact (e : expr) : tactic unit :=
 exact e reducible
 
-/- (find_same_type t es) tries to find in es an expression with type definitionally equal to t -/
+/-- `find_same_type t es` tries to find in es an expression with type definitionally equal to t -/
 meta def find_same_type : expr → list expr → tactic expr
 | e []         := failed
 | e (H :: Hs) :=
@@ -592,7 +634,7 @@ do s ← read,
 
 notation `‹` p `›` := show p, by assumption
 
-/- Swap first two goals, do nothing if tactic state does not have at least two goals. -/
+/-- Swap first two goals, do nothing if tactic state does not have at least two goals. -/
 meta def swap : tactic unit :=
 do gs ← get_goals,
    match gs with
@@ -600,38 +642,38 @@ do gs ← get_goals,
    | e                := skip
    end
 
-/- (assert h t), adds a new goal for t, and the hypothesis (h : t) in the current goal. -/
-meta def assert (h : name) (t : expr) : tactic unit :=
-assert_core h t >> swap >> intro h >> swap
+/-- `assert h t`, adds a new goal for t, and the hypothesis `h : t` in the current goal. -/
+meta def assert (h : name) (t : expr) : tactic expr :=
+do assert_core h t, swap, e ← intro h, swap, return e
 
-/- (assertv h t v), adds the hypothesis (h : t) in the current goal if v has type t. -/
-meta def assertv (h : name) (t : expr) (v : expr) : tactic unit :=
-assertv_core h t v >> intro h >> return ()
+/-- `assertv h t v`, adds the hypothesis `h : t` in the current goal if v has type t. -/
+meta def assertv (h : name) (t : expr) (v : expr) : tactic expr :=
+assertv_core h t v >> intro h
 
-/- (define h t), adds a new goal for t, and the hypothesis (h : t := ?M) in the current goal. -/
-meta def define  (h : name) (t : expr) : tactic unit :=
-define_core h t >> swap >> intro h >> swap
+/-- `define h t`, adds a new goal for t, and the hypothesis `h : t := ?M` in the current goal. -/
+meta def define  (h : name) (t : expr) : tactic expr :=
+do define_core h t, swap, e ← intro h, swap, return e
 
-/- (definev h t v), adds the hypothesis (h : t := v) in the current goal if v has type t. -/
-meta def definev (h : name) (t : expr) (v : expr) : tactic unit :=
-definev_core h t v >> intro h >> return ()
+/-- `definev h t v`, adds the hypothesis (h : t := v) in the current goal if v has type t. -/
+meta def definev (h : name) (t : expr) (v : expr) : tactic expr :=
+definev_core h t v >> intro h
 
-/- Add (h : t := pr) to the current goal -/
-meta def pose (h : name) (pr : expr) : tactic unit :=
-do t ← infer_type pr,
-   definev h t pr
+/-- Add `h : t := pr` to the current goal -/
+meta def pose (h : name) (t : option expr := none) (pr : expr) : tactic expr :=
+let dv := λt, definev h t pr in
+option.cases_on t (infer_type pr >>= dv) dv
 
-/- Add (h : t) to the current goal, given a proof (pr : t) -/
-meta def note (n : name) (pr : expr) : tactic unit :=
-do t ← infer_type pr,
-   assertv n t pr
+/-- Add `h : t` to the current goal, given a proof `pr : t` -/
+meta def note (h : name) (t : option expr := none) (pr : expr) : tactic expr :=
+let dv := λt, assertv h t pr in
+option.cases_on t (infer_type pr >>= dv) dv
 
-/- Return the number of goals that need to be solved -/
+/-- Return the number of goals that need to be solved -/
 meta def num_goals     : tactic nat :=
 do gs ← get_goals,
    return (length gs)
 
-/- We have to provide the instance argument `[has_mod nat]` because
+/-- We have to provide the instance argument `[has_mod nat]` because
    mod for nat was not defined yet -/
 meta def rotate_right (n : nat) [has_mod nat] : tactic unit :=
 do ng ← num_goals,
@@ -641,39 +683,40 @@ do ng ← num_goals,
 meta def rotate : nat → tactic unit :=
 rotate_left
 
-/- first [t_1, ..., t_n] applies the first tactic that doesn't fail.
+/-- `first [t_1, ..., t_n]` applies the first tactic that doesn't fail.
    The tactic fails if all t_i's fail. -/
 meta def first {α : Type u} : list (tactic α) → tactic α
 | []      := fail "first tactic failed, no more alternatives"
 | (t::ts) := t <|> first ts
 
-/- Applies the given tactic to the main goal and fails if it is not solved. -/
+/-- Applies the given tactic to the main goal and fails if it is not solved. -/
 meta def solve1 (tac : tactic unit) : tactic unit :=
 do gs ← get_goals,
    match gs with
-   | []      := fail "focus tactic failed, there isn't any goal left to focus"
+   | []      := fail "solve1 tactic failed, there isn't any goal left to focus"
    | (g::rs) :=
      do set_goals [g],
         tac,
         gs' ← get_goals,
         match gs' with
         | [] := set_goals rs
-        | gs := fail "focus tactic failed, focused goal has not been solved"
+        | gs := fail "solve1 tactic failed, focused goal has not been solved"
         end
    end
 
-/- solve [t_1, ... t_n] applies the first tactic that solves the main goal. -/
+/-- `solve [t_1, ... t_n]` applies the first tactic that solves the main goal. -/
 meta def solve (ts : list (tactic unit)) : tactic unit :=
 first $ map solve1 ts
 
  private meta def focus_aux : list (tactic unit) → list expr → list expr → tactic unit
-| []       gs      rs := set_goals $ rs ++ gs
+| []       []      rs := set_goals rs
+| []       gs      rs := fail "focus tactic failed, insufficient number of tactics"
 | (t::ts)  (g::gs) rs := do
   set_goals [g], t, rs' ← get_goals,
   focus_aux ts gs (rs ++ rs')
 | (t::ts)  []      rs := fail "focus tactic failed, insufficient number of goals"
 
-/- focus [t_1, ..., t_n] applies t_i to the i-th goal. Fails if there are less tha n goals. -/
+/-- `focus [t_1, ..., t_n]` applies t_i to the i-th goal. Fails if the number of goals is not n. -/
 meta def focus (ts : list (tactic unit)) : tactic unit :=
 do gs ← get_goals, focus_aux ts gs []
 
@@ -697,7 +740,7 @@ private meta def all_goals_core (tac : tactic unit) : list expr → list expr �
      new_gs ← get_goals,
      all_goals_core gs (ac ++ new_gs)
 
-/- Apply the given tactic to all goals. -/
+/-- Apply the given tactic to all goals. -/
 meta def all_goals (tac : tactic unit) : tactic unit :=
 do gs ← get_goals,
    all_goals_core tac gs []
@@ -710,13 +753,13 @@ private meta def any_goals_core (tac : tactic unit) : list expr → list expr �
      new_gs    ← get_goals,
      any_goals_core gs (ac ++ new_gs) (succeeded.is_some || progress)
 
-/- Apply the given tactic to any goal where it succeeds. The tactic succeeds only if
+/-- Apply the given tactic to any goal where it succeeds. The tactic succeeds only if
    tac succeeds for at least one goal. -/
 meta def any_goals (tac : tactic unit) : tactic unit :=
 do gs ← get_goals,
    any_goals_core tac gs [] ff
 
-/- LCF-style AND_THEN tactic. It applies tac1, and if succeed applies tac2 to each subgoal produced by tac1 -/
+/-- LCF-style AND_THEN tactic. It applies tac1, and if succeed applies tac2 to each subgoal produced by tac1 -/
 meta def seq (tac1 : tactic unit) (tac2 : tactic unit) : tactic unit :=
 do g::gs ← get_goals,
    set_goals [g],
@@ -724,21 +767,31 @@ do g::gs ← get_goals,
    gs' ← get_goals,
    set_goals (gs' ++ gs)
 
-meta instance : has_andthen (tactic unit) :=
+meta def seq_focus (tac1 : tactic unit) (tacs2 : list (tactic unit)) : tactic unit :=
+do g::gs ← get_goals,
+   set_goals [g],
+   tac1, focus tacs2,
+   gs' ← get_goals,
+   set_goals (gs' ++ gs)
+
+meta instance andthen_seq : has_andthen (tactic unit) (tactic unit) (tactic unit) :=
 ⟨seq⟩
+
+meta instance andthen_seq_focus : has_andthen (tactic unit) (list (tactic unit)) (tactic unit) :=
+⟨seq_focus⟩
 
 meta constant is_trace_enabled_for : name → bool
 
-/- Execute tac only if option trace.n is set to true. -/
+/-- Execute tac only if option trace.n is set to true. -/
 meta def when_tracing (n : name) (tac : tactic unit) : tactic unit :=
 when (is_trace_enabled_for n = tt) tac
 
-/- Fail if there are no remaining goals. -/
+/-- Fail if there are no remaining goals. -/
 meta def fail_if_no_goals : tactic unit :=
 do n ← num_goals,
    when (n = 0) (fail "tactic failed, there are no goals to be solved")
 
-/- Fail if there are unsolved goals. -/
+/-- Fail if there are unsolved goals. -/
 meta def done : tactic unit :=
 do n ← num_goals,
    when (n ≠ 0) (fail "done tactic failed, there are unsolved goals")
@@ -749,14 +802,14 @@ apply_core e >> return ()
 meta def fapply (e : expr) : tactic unit :=
 apply_core e {all := tt} >> return ()
 
-/- Try to solve the main goal using type class resolution. -/
+/-- Try to solve the main goal using type class resolution. -/
 meta def apply_instance : tactic unit :=
 do tgt ← target >>= instantiate_mvars,
    b   ← is_class tgt,
    if b then mk_instance tgt >>= exact
    else fail "apply_instance tactic fail, target is not a type class"
 
-/- Create a list of universe meta-variables of the given size. -/
+/-- Create a list of universe meta-variables of the given size. -/
 meta def mk_num_meta_univs : nat → tactic (list level)
 | 0        := return []
 | (succ n) := do
@@ -764,7 +817,7 @@ meta def mk_num_meta_univs : nat → tactic (list level)
   ls ← mk_num_meta_univs n,
   return (l::ls)
 
-/- Return (expr.const c [l_1, ..., l_n]) where l_i's are fresh universe meta-variables. -/
+/-- Return `expr.const c [l_1, ..., l_n]` where l_i's are fresh universe meta-variables. -/
 meta def mk_const (c : name) : tactic expr :=
 do env  ← get_env,
    decl ← env.get c,
@@ -776,11 +829,11 @@ do env  ← get_env,
 meta def applyc (c : name) : tactic unit :=
 mk_const c >>= apply
 
-meta def save_const_type_info (n : name) (ref : expr) : tactic unit :=
+meta def save_const_type_info (n : name) {elab : bool} (ref : expr elab) : tactic unit :=
 try (do c ← mk_const n, save_type_info c ref)
 
-/- Create a fresh universe ?u, a metavariable (?T : Type.{?u}),
-   and return metavariable (?M : ?T).
+/-- Create a fresh universe `?u`, a metavariable `?T : Type.{?u}`,
+   and return metavariable `?M : ?T`.
    This action can be used to create a meta-variable when
    we don't know its type at creation time -/
 meta def mk_mvar : tactic expr :=
@@ -821,11 +874,11 @@ private meta def get_pi_arity_aux : expr → tactic nat
      return (r + 1)
 | e                  := return 0
 
-/- Compute the arity of the given (Pi-)type -/
+/-- Compute the arity of the given (Pi-)type -/
 meta def get_pi_arity (type : expr) : tactic nat :=
 whnf type >>= get_pi_arity_aux
 
-/- Compute the arity of the given function -/
+/-- Compute the arity of the given function -/
 meta def get_arity (fn : expr) : tactic nat :=
 infer_type fn >>= get_pi_arity
 
@@ -844,12 +897,6 @@ do tgt : expr ← target,
    | some n := intro n
    | none   := intro1
    end
-
-meta def by_cases (e : expr) : tactic unit :=
-do dec_e ← (mk_app `decidable [e] <|> fail "by_cases tactic failed, type is not a proposition"),
-   inst  ← (mk_instance dec_e <|> fail "by_cases tactic failed, type of given expression is not decidable"),
-   em    ← mk_app `decidable.em [e, inst],
-   destruct em
 
 private meta def generalizes_aux (md : transparency) : list expr → tactic unit
 | []      := skip
@@ -902,8 +949,14 @@ meta def refine (e : pexpr) : tactic unit :=
 do tgt : expr ← target,
    to_expr ``(%%e : %%tgt) tt >>= exact
 
+meta def by_cases (e : expr) (h : name) : tactic unit :=
+do dec_e ← (mk_app `decidable [e] <|> fail "by_cases tactic failed, type is not a proposition"),
+   inst  ← (mk_instance dec_e <|> fail "by_cases tactic failed, type of given expression is not decidable"),
+   cases inst [h, h],
+   swap
+
 private meta def get_undeclared_const (env : environment) (base : name) : ℕ → name | i :=
-let n := base <.> ("_aux_" ++ to_string i) in
+let n := base <.> ("_aux_" ++ repr i) in
 if ¬env.contains n then n
 else get_undeclared_const (i+1)
 
@@ -932,7 +985,7 @@ do fail_if_no_goals,
    e   ← add_aux_decl c type val is_lemma,
    exact e
 
-/- (solve_aux type tac) synthesize an element of 'type' using tactic 'tac' -/
+/-- `solve_aux type tac` synthesize an element of 'type' using tactic 'tac' -/
 meta def solve_aux {α : Type} (type : expr) (tac : tactic α) : tactic (α × expr) :=
 do m ← mk_meta_var type,
    gs ← get_goals,
@@ -957,15 +1010,26 @@ match _root_.try_for max (tac s) with
 | none   := mk_exception "try_for tactic failed, timeout" none s
 end
 
+meta def updateex_env (f : environment → exceptional environment) : tactic unit :=
+do env ← get_env,
+   env ← returnex $ f env,
+   set_env env
+
+/- Add a new inductive datatype to the environment
+   name, universe parameters, number of parameters, type, constructors (name and type), is_meta -/
+meta def add_inductive (n : name) (ls : list name) (p : nat) (ty : expr) (is : list (name × expr))
+  (is_meta : bool := ff) : tactic unit :=
+updateex_env $ λe, e.add_inductive n ls p ty is is_meta
+
 meta def add_meta_definition (n : name) (lvls : list name) (type value : expr) : tactic unit :=
 add_decl (declaration.defn n lvls type value reducibility_hints.abbrev ff)
 
 meta def apply_opt_param : tactic unit :=
-do ```(opt_param %%t %%v) ← target,
+do `(opt_param %%t %%v) ← target,
    exact v
 
 meta def apply_auto_param : tactic unit :=
-do ```(auto_param %%type %%tac_name_expr) ← target,
+do `(auto_param %%type %%tac_name_expr) ← target,
    change type,
    tac_name ← eval_expr name tac_name_expr,
    tac ← eval_expr (tactic unit) (expr.const tac_name []),
@@ -1008,7 +1072,7 @@ end list
 -/
 run_cmd do
  let l  := level.param `l,
- let Ty := expr.sort l,
+ let Ty : pexpr := expr.sort l,
  type ← to_expr ``(Π (α : %%Ty), α → α),
  val  ← to_expr ``(λ (α : %%Ty) (a : α), a),
  add_decl (declaration.defn `id_locked [`l] type val reducibility_hints.opaque tt)

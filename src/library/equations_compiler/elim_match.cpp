@@ -221,7 +221,7 @@ struct elim_match_fn {
     format pp_problem(problem const & P) {
         format r;
         auto pp = mk_pp_ctx(P);
-        r += format("match") + space() + format(P.m_fn_name) + space();
+        r += format("match") + space() + format(P.m_fn_name) + space() + format(":") + space() + pp(P.m_goal);
         format v;
         bool first = true;
         for (expr const & x : P.m_var_stack) {
@@ -242,8 +242,15 @@ struct elim_match_fn {
         if (!is_constant(e)) return optional<name>();
         return is_constructor(const_name(e));
     }
-    optional<name> is_constructor_app(expr const & e) const {
-        return is_constructor(get_app_fn(e));
+    optional<name> is_constructor_app(type_context & ctx, expr const & e) const {
+        if (auto ind_type = is_constructor(get_app_fn(e))) {
+            // Check that e is not a partially applied constructor.
+            auto e_type = whnf_ginductive(ctx, ctx.infer(e));
+            if (is_app_of(e_type, *ind_type)){
+                return ind_type;
+            }
+        }
+        return optional<name>();
     }
 
     bool is_inductive(name const & n) const { return static_cast<bool>(is_ginductive(m_env, n)); }
@@ -324,9 +331,17 @@ struct elim_match_fn {
     expr whnf_pattern(type_context & ctx, expr const & e) {
         if (is_inaccessible(e)) {
             return e;
+        } else if (is_value(ctx, e)) {
+            return e;
         } else {
+            /* The case is_value(ctx, e) above is needed because whnf_head_pred does not check the given predicate
+               before unfolding projections. Moreover, some values are projections applications.
+               Example:
+                  (@has_zero.zero nat nat.has_zero)
+                  (@has_one.one nat nat.has_one)
+            */
             return ctx.whnf_head_pred(e, [&](expr const & e) {
-                    return !is_constructor_app(e) && !is_value(ctx, e) && !is_transport_app(e);
+                    return !is_constructor_app(ctx, e) && !is_value(ctx, e) && !is_transport_app(e);
                 });
         }
     }
@@ -334,7 +349,7 @@ struct elim_match_fn {
     /* Normalize until head is constructor */
     expr whnf_constructor(type_context & ctx, expr const & e) {
         return ctx.whnf_head_pred(e, [&](expr const & e) {
-                return !is_constructor_app(e);
+                return !is_constructor_app(ctx, e);
             });
     }
 
@@ -464,9 +479,9 @@ struct elim_match_fn {
     bool is_constructor_transition(problem const & P) {
         return all_equations(P, [&](equation const & eqn) {
                 expr const & p = head(eqn.m_patterns);
-                if (is_constructor_app(p))
-                    return true;
                 type_context ctx = mk_type_context(eqn.m_lctx);
+                if (is_constructor_app(ctx, p))
+                    return true;
                 return is_value(ctx, p);
             });
     }
@@ -498,10 +513,10 @@ struct elim_match_fn {
                 if (is_local(p)) {
                     has_variable = true; return true;
                 }
-                if (is_constructor_app(p)) {
+                type_context ctx = mk_type_context(eqn.m_lctx);
+                if (is_constructor_app(ctx, p)) {
                     has_constructor = true; return true;
                 }
-                type_context ctx = mk_type_context(eqn.m_lctx);
                 if (is_value(ctx, p)) {
                     has_constructor = true; return true;
                 }
@@ -534,8 +549,12 @@ struct elim_match_fn {
         type_context ctx  = mk_type_context(P);
         /* Check whether other variables on the variable stack depend on the head. */
         expr const & v   = head(P.m_var_stack);
+        if (depends_on(ctx.infer(P.m_goal), v)) {
+            trace_match(tout() << "variable transition is not used because the target depends on '" << v << "'\n";);
+            return false;
+        }
         for (expr const & w : tail(P.m_var_stack)) {
-            expr w_type = ctx.infer(w);
+            expr w_type = ctx.instantiate_mvars(ctx.infer(w));
             if (depends_on(w_type, v)) {
                 trace_match(tout() << "variable transition is not used because type of '" << w << "' depends on '" << v << "'\n";);
                 return false;
@@ -637,7 +656,7 @@ struct elim_match_fn {
             type_context ctx = mk_type_context(eqn.m_lctx);
             /* We use ctx.relaxed_whnf to make sure we expose the kernel constructor */
             expr pattern     = ctx.relaxed_whnf(head(eqn.m_patterns));
-            if (!is_constructor_app(pattern)) {
+            if (!is_constructor_app(ctx, pattern)) {
                 throw_error("equation compiler failed, pattern is not a constructor "
                             "(use 'set_option trace.eqn_compiler.elim_match true' for additional details)");
             }
@@ -958,7 +977,7 @@ struct elim_match_fn {
         } else {
             trace_match(tout() << "step: filter equations using constructor\n";);
             p      = whnf_constructor(ctx, p);
-            if (!is_constructor_app(p)) {
+            if (!is_constructor_app(ctx, p)) {
                 throw_error("dependent pattern matching result is not a constructor application "
                             "(use 'set_option trace.eqn_compiler.elim_match true' "
                             "for additional details)");

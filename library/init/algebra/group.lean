@@ -52,6 +52,9 @@ instance comm_semigroup_to_is_commutative [comm_semigroup α] : is_commutative �
 @[simp] lemma mul_left_comm [comm_semigroup α] : ∀ a b c : α, a * (b * c) = b * (a * c) :=
 left_comm has_mul.mul mul_comm mul_assoc
 
+lemma mul_right_comm [comm_semigroup α] : ∀ a b c : α, a * b * c = a * c * b :=
+right_comm has_mul.mul mul_comm mul_assoc
+
 lemma mul_left_cancel [left_cancel_semigroup α] {a b c : α} : a * b = a * c → b = c :=
 left_cancel_semigroup.mul_left_cancel a b c
 
@@ -252,6 +255,7 @@ meta def multiplicative_to_additive_pairs : list (name × name) :=
    (`mul_assoc, `add_assoc),
    (`mul_comm, `add_comm),
    (`mul_left_comm, `add_left_comm),
+   (`mul_right_comm, `add_right_comm),
    (`one_mul, `zero_add),
    (`mul_one, `add_zero),
    (`mul_left_inv, `add_left_neg),
@@ -337,6 +341,9 @@ by rwa [sub_eq_add_neg, neg_add_cancel_right] at this
 
 lemma sub_eq_zero_of_eq [add_group α] {a b : α} (h : a = b) : a - b = 0 :=
 by rw [h, sub_self]
+
+lemma sub_eq_zero_iff_eq [add_group α] {a b : α} : a - b = 0 ↔ a = b :=
+⟨eq_of_sub_eq_zero, sub_eq_zero_of_eq⟩
 
 lemma zero_sub [add_group α] (a : α) : 0 - a = -a :=
 zero_add (-a)

@@ -8,6 +8,7 @@ Author: Leonardo de Moura
 #include <string>
 #include <vector>
 #include "kernel/environment.h"
+#include "library/scoped_ext.h"
 #include "frontends/lean/token_table.h"
 #include "frontends/lean/parse_table.h"
 #include "frontends/lean/cmd_table.h"
@@ -16,8 +17,9 @@ Author: Leonardo de Moura
 namespace lean {
 struct token_entry {
     std::string m_token;
-    unsigned    m_prec;
+    optional<unsigned> m_prec; // if none: command token
     token_entry(std::string const & tk, unsigned prec): m_token(tk), m_prec(prec) {}
+    token_entry(std::string const & tk): m_token(tk) {}
     token_entry() : m_prec(0) {}
 };
 inline token_entry mk_token_entry(std::string const & tk, unsigned prec) { return token_entry(tk, prec); }
@@ -67,6 +69,7 @@ inline bool operator!=(notation_entry const & e1, notation_entry const & e2) {
 notation_entry replace(notation_entry const & e, std::function<expr(expr const &)> const & f);
 
 environment add_token(environment const & env, token_entry const & e, bool persistent = true);
+environment add_notation(environment const & env, notation_entry const & e, persistence persistent);
 environment add_notation(environment const & env, notation_entry const & e, bool persistent = true);
 environment add_token(environment const & env, char const * val, unsigned prec);
 token_table const & get_token_table(environment const & env);
@@ -75,6 +78,7 @@ parse_table const & get_led_table(environment const & env);
 parse_table const & get_reserved_nud_table(environment const & env);
 parse_table const & get_reserved_led_table(environment const & env);
 cmd_table const & get_cmd_table(environment const & env);
+environment add_command(environment const & env, name const & n, cmd_info const & info);
 
 /** \brief Add \c n as notation for \c e */
 environment add_mpz_notation(environment const & env, mpz const & n, expr const & e, bool overload = true, bool parse_only = false);
@@ -87,7 +91,7 @@ list<expr> get_mpz_notation(environment const & env, mpz const & n);
 /** \brief Return the notation declaration that start with a given head symbol.
 
     \remark Notation declarations that contain C++ and Lua actions are not indexed.
-    Thus, they are to included in the result.
+    Thus, they are not included in the result.
 */
 list<notation_entry> get_notation_entries(environment const & env, head_index const & idx);
 

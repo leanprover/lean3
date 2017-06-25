@@ -16,7 +16,7 @@ structure param_info :=
 open format list decidable
 
 private meta def ppfield {α : Type} [has_to_format α] (fname : string) (v : α) : format :=
-group $ to_fmt fname ++ space ++ to_fmt ":=" ++ space ++ nest (length fname + 4) (to_fmt v)
+group $ to_fmt fname ++ space ++ to_fmt ":=" ++ space ++ nest (fname.utf8_length + 4) (to_fmt v)
 
 private meta def concat_fields (f₁ f₂ : format) : format :=
 if       is_nil f₁ then f₂
@@ -50,7 +50,7 @@ group ∘ dcbrace $
 meta instance : has_to_format fun_info :=
 has_to_format.mk fun_info_to_format
 
-/-
+/--
   specialized is true if the result of fun_info has been specifialized
   using this argument.
   For example, consider the function
@@ -91,14 +91,15 @@ namespace tactic
 meta constant get_fun_info (f : expr) (nargs : option nat := none) (md := semireducible) : tactic fun_info
 meta constant get_subsingleton_info (f : expr) (nargs : option nat := none) (md := semireducible) : tactic (list subsingleton_info)
 
-/- (get_spec_subsingleton_info t) return subsingleton parameter
+/-- `get_spec_subsingleton_info t` return subsingleton parameter
    information for the function application t of the form
-      (f a_1 ... a_n).
-   This tactic is more precise than (get_subsingleton_info f) and (get_subsingleton_info_n f n)
+      `f a_1 ... a_n`.
 
-    Example: given (f : Pi (α : Type), α -> α), \c get_spec_subsingleton_info for
+    This tactic is more precise than `get_subsingleton_info f` and `get_subsingleton_info_n f n`
 
-    f unit b
+    Example: given `f : Pi (α : Type), α -> α`, `get_spec_subsingleton_info` for
+
+    `f unit b`
 
     returns a fun_info with two param_info
     1) specialized = tt

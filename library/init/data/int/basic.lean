@@ -24,12 +24,15 @@ notation `-[1+ ` n `]` := int.neg_succ_of_nat n
 instance : decidable_eq int :=
 by tactic.mk_dec_eq_instance
 
-protected def int.to_string : int → string
-| (int.of_nat n)          := to_string n
-| (int.neg_succ_of_nat n) := "-" ++ to_string (succ n)
+protected def int.repr : int → string
+| (int.of_nat n)          := repr n
+| (int.neg_succ_of_nat n) := "-" ++ repr (succ n)
+
+instance : has_repr int :=
+⟨int.repr⟩
 
 instance : has_to_string int :=
-⟨int.to_string⟩
+⟨int.repr⟩
 
 namespace int
 
@@ -122,19 +125,19 @@ lemma neg_succ_of_nat_eq (n : ℕ) : -[1+ n] = -(n + 1) := rfl
 
 /- basic properties of sub_nat_nat -/
 
-private lemma sub_nat_nat_elim (m n : ℕ) (P : ℕ → ℕ → ℤ → Prop)
+lemma sub_nat_nat_elim (m n : ℕ) (P : ℕ → ℕ → ℤ → Prop)
   (hp : ∀i n, P (n + i) n (of_nat i))
   (hn : ∀i m, P m (m + i + 1) (-[1+ i])) :
   P m n (sub_nat_nat m n) :=
 begin
-  assert H : ∀k, n - m = k → P m n (nat.cases_on k (of_nat (m - n)) (λa, -[1+ a])),
+  have H : ∀k, n - m = k → P m n (nat.cases_on k (of_nat (m - n)) (λa, -[1+ a])),
   { intro k, cases k,
     { intro e,
       cases (nat.le.dest (nat.le_of_sub_eq_zero e)) with k h,
       rw [h.symm, nat.add_sub_cancel_left],
       apply hp },
     { intro heq,
-      assert h : m ≤ n,
+      have h : m ≤ n,
       { exact nat.le_of_lt (nat.lt_of_sub_eq_succ heq) },
       rw [nat.sub_eq_iff_eq_add h] at heq,
       rw [heq, add_comm],
@@ -179,6 +182,19 @@ lemma eq_zero_of_nat_abs_eq_zero : Π {a : ℤ}, nat_abs a = 0 → a = 0
 lemma nat_abs_zero : nat_abs (0 : int) = (0 : nat) := rfl
 
 lemma nat_abs_one : nat_abs (1 : int) = (1 : nat) := rfl
+
+lemma nat_abs_mul_self : Π {a : ℤ}, ↑(nat_abs a * nat_abs a) = a * a
+| (of_nat m) := rfl
+| -[1+ m']   := rfl
+
+lemma nat_abs_neg (a : ℤ) : nat_abs (-a) = nat_abs a :=
+by {cases a with n n, cases n; refl, refl}
+
+lemma nat_abs_eq : Π (a : ℤ), a = nat_abs a ∨ a = -(nat_abs a)
+| (of_nat m) := or.inl rfl
+| -[1+ m']   := or.inr rfl
+
+lemma eq_coe_or_neg (a : ℤ) : ∃n : ℕ, a = n ∨ a = -n := ⟨_, nat_abs_eq a⟩
 
 /-- Relator between integers and pairs of natural numbers -/
 
@@ -343,5 +359,30 @@ instance : distrib int            := by apply_instance
 
 instance : zero_ne_one_class ℤ :=
 { zero := 0, one := 1, zero_ne_one := by int.transfer }
+
+lemma of_nat_sub {n m : ℕ} (h : m ≤ n) : of_nat (n - m) = of_nat n - of_nat m :=
+show of_nat (n - m) = of_nat n + neg_of_nat m, from match m, h with
+| 0, h := rfl
+| succ m, h := show of_nat (n - succ m) = sub_nat_nat n (succ m),
+  by delta sub_nat_nat; rw sub_eq_zero_of_le h; refl
+end
+
+protected lemma coe_nat_sub {n m : ℕ} : n ≤ m → (↑(m - n) : ℤ) = ↑m - ↑n := of_nat_sub
+
+protected lemma sub_nat_nat_eq_coe {m n : ℕ} : sub_nat_nat m n = ↑m - ↑n :=
+sub_nat_nat_elim m n (λm n i, i = ↑m - ↑n)
+  (λi n, by simp [int.coe_nat_add]; refl)
+  (λi n, by simp [int.coe_nat_add, int.coe_nat_one, int.neg_succ_of_nat_eq];
+            apply congr_arg; rw[add_left_comm]; simp)
+
+def to_nat : ℤ → ℕ
+| (n : ℕ) := n
+| -[1+ n] := 0
+
+theorem to_nat_sub (m n : ℕ) : to_nat (m - n) = m - n :=
+by rw -int.sub_nat_nat_eq_coe; exact sub_nat_nat_elim m n
+  (λm n i, to_nat i = m - n)
+  (λi n, by rw [nat.add_sub_cancel_left]; refl)
+  (λi n, by rw [add_assoc, nat.sub_eq_zero_of_le (nat.le_add_right _ _)]; refl)
 
 end int

@@ -7,7 +7,7 @@ prelude
 import init.function init.data.option.basic init.util
 import init.category.combinators init.category.monad init.category.alternative init.category.monad_fail
 import init.data.nat.div init.meta.exceptional init.meta.format init.meta.environment
-import init.meta.pexpr init.data.to_string init.data.string.basic
+import init.meta.pexpr init.data.repr init.data.string.basic init.data.to_string
 
 universes u v
 
@@ -30,9 +30,9 @@ meta instance interaction_monad.result_has_string : has_to_string (result state 
 ⟨interaction_monad.result_to_string⟩
 end
 
-meta def interaction_monad.result.clamp_pos {state : Type} {α : Type u} (line col : ℕ) : result state α → result state α
+meta def interaction_monad.result.clamp_pos {state : Type} {α : Type u} (line0 line col : ℕ) : result state α → result state α
 | (success a s)              := success a s
-| (exception msg (some p) s) := exception msg (some $ if p.line < line then ⟨line, col⟩ else p) s
+| (exception msg (some p) s) := exception msg (some $ if p.line < line0 then ⟨line, col⟩ else p) s
 | (exception msg none s)     := exception msg (some ⟨line, col⟩) s
 
 @[reducible] meta def interaction_monad (state : Type) (α : Type u) :=
@@ -84,6 +84,15 @@ meta def interaction_monad.silent_fail {α : Type u} : m α :=
 
 meta def interaction_monad.failed {α : Type u} : m α :=
 interaction_monad.fail "failed"
+
+/- Alternative orelse operator that allows to select which exception should be used.
+   The default is to use the first exception since the standard `orelse` uses the second. -/
+meta def interaction_monad.orelse' {α : Type u} (t₁ t₂ : m α) (use_first_ex := tt) : m α :=
+λ s, interaction_monad.result.cases_on (t₁ s)
+  success
+  (λ e₁ ref₁ s₁', interaction_monad.result.cases_on (t₂ s)
+     success
+     (λ e₂ ref₂ s₂', if use_first_ex then (exception e₁ ref₁ s₁') else (exception e₂ ref₂ s₂')))
 
 meta instance interaction_monad.monad_fail : monad_fail m :=
 { interaction_monad.monad with fail := λ α s, interaction_monad.fail (to_fmt s) }

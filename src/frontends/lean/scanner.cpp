@@ -15,21 +15,22 @@ Author: Leonardo de Moura
 #include "frontends/lean/parser_config.h"
 
 namespace lean {
-unsigned scanner::get_utf8_size(unsigned char c) {
+
+constexpr uchar Eof = 0xFF;
+
+unsigned scanner::get_utf8_size(uchar c) {
     unsigned r = ::lean::get_utf8_size(c);
     if (r == 0)
         throw_exception("invalid utf-8 head character");
     return r;
 }
 
-unsigned char to_uchar(char c) { return static_cast<unsigned char>(c); }
-
-unsigned utf8_to_unicode(char const * begin, char const * end) {
+static unsigned utf8_to_unicode(uchar const * begin, uchar const * end) {
     unsigned result = 0;
     if (begin == end)
         return result;
     auto it = begin;
-    unsigned c = to_uchar(*it);
+    unsigned c = *it;
     ++it;
     if (c < 128)
         return c;
@@ -70,32 +71,34 @@ bool is_sub_script_alnum_unicode(unsigned u) {
 
 void scanner::fetch_line() {
     m_curr_line.clear();
-    if (std::getline(m_stream, m_curr_line)) {
+    if (std::getline(*m_stream, m_curr_line)) {
         m_curr_line.push_back('\n');
         m_sline++;
         m_spos  = 0;
         m_upos  = 0;
         m_curr  = m_curr_line[m_spos];
+        if (m_curr == Eof) m_curr = 0;
         m_uskip = get_utf8_size(m_curr);
         m_uskip--;
     } else {
         m_last_line = true;
-        m_curr      = EOF;
+        m_curr      = Eof;
     }
 }
 
 void scanner::next() {
-    lean_assert(m_curr != EOF);
+    lean_assert(m_curr != Eof);
     m_spos++;
     while (m_spos >= static_cast<int>(m_curr_line.size())) {
         if (m_last_line) {
-            m_curr = EOF;
+            m_curr = Eof;
             return;
         } else {
             return fetch_line();
         }
     }
     m_curr = m_curr_line[m_spos];
+    if (m_curr == Eof) m_curr = 0;
     if (m_uskip > 0) {
         if (!is_utf8_next(m_curr))
             throw_exception("invalid utf-8 sequence character");
@@ -108,12 +111,12 @@ void scanner::next() {
 }
 
 void scanner::check_not_eof(char const * error_msg) {
-    if (curr() == EOF) throw_exception(error_msg);
+    if (curr() == Eof) throw_exception(error_msg);
 }
 
 [[ noreturn ]] void scanner::throw_exception(char const * msg) {
     pos_info pos = {m_sline, m_upos};
-    while (curr() != EOF && !std::isspace(curr()))
+    while (curr() != Eof && !std::isspace(curr()))
         next();
     throw parser_exception(msg, m_stream_name.c_str(), pos);
 }
@@ -121,7 +124,7 @@ void scanner::check_not_eof(char const * error_msg) {
 static char const * g_end_error_str_msg = "unexpected end of string";
 static char const * g_end_error_char_msg = "unexpected end of character";
 
-optional<unsigned> scanner::try_hex_to_unsigned(char c) {
+optional<unsigned> scanner::try_hex_to_unsigned(uchar c) {
     if ('0' <= c && c <= '9')
         return optional<unsigned>(c - '0');
     else if ('a' <= c && c <= 'f')
@@ -132,14 +135,14 @@ optional<unsigned> scanner::try_hex_to_unsigned(char c) {
         return optional<unsigned>();
 }
 
-unsigned scanner::hex_to_unsigned(char c) {
+unsigned scanner::hex_to_unsigned(uchar c) {
     if (auto r = try_hex_to_unsigned(c))
         return *r;
     else
         throw_exception("invalid hexadecimal digit");
 }
 
-char scanner::read_quoted_char(char const * error_msg) {
+uchar scanner::read_quoted_char(char const * error_msg) {
     lean_assert(curr() == '\\');
     next();
     check_not_eof(error_msg);
@@ -157,7 +160,7 @@ char scanner::read_quoted_char(char const * error_msg) {
         next();
         c = curr();
         v = 16*v + hex_to_unsigned(c);
-        return static_cast<char>(v);
+        return static_cast<uchar>(v);
     } else {
         return c;
     }
@@ -169,7 +172,7 @@ token_kind scanner::read_string() {
     m_buffer.clear();
     while (true) {
         check_not_eof(g_end_error_str_msg);
-        char c = curr();
+        uchar c = curr();
         if (c == '\"') {
             next();
             return token_kind::String;
@@ -231,7 +234,7 @@ auto scanner::read_quoted_symbol() -> token_kind {
 }
 
 bool scanner::is_next_digit() {
-    lean_assert(curr() != EOF);
+    lean_assert(curr() != Eof);
     if (m_spos + 1 < static_cast<int>(m_curr_line.size()))
         return std::isdigit(m_curr_line[m_spos+1]);
     else
@@ -258,7 +261,7 @@ auto scanner::read_hex_number() -> token_kind {
     return token_kind::Decimal;
 }
 
-optional<unsigned> scanner::try_digit_to_unsigned(int base, char c) {
+optional<unsigned> scanner::try_digit_to_unsigned(int base, uchar c) {
     lean_assert(base == 2 || base == 8 || base == 10 || base == 16);
     if ('0' <= c && c <= '9') {
         if (base == 2 && c >= '2')
@@ -345,7 +348,7 @@ void scanner::read_single_line_comment() {
         if (curr() == '\n') {
             next();
             return;
-        } else if (curr() == EOF) {
+        } else if (curr() == Eof) {
             return;
         } else {
             next();
@@ -403,7 +406,7 @@ void scanner::read_comment_block() {
 
 // Read until the end_str is found, store all characters (not including end_str) in m_buffer.
 // Throw a parser exception error_msg if end of file is found before end_str.
-void scanner::read_until(char const * end_str, char const * error_msg) {
+void scanner::read_until(uchar const * end_str, char const * error_msg) {
     lean_assert(end_str);
     lean_assert(end_str[0]);
     m_buffer.clear();
@@ -434,7 +437,7 @@ void scanner::read_until(char const * end_str, char const * error_msg) {
 void scanner::move_back(unsigned offset, unsigned u_offset) {
     lean_assert(m_uskip == 0);
     if (offset != 0) {
-        if (curr() == EOF) {
+        if (curr() == Eof) {
             m_curr = 0;
             m_spos--;
             m_upos--;
@@ -449,7 +452,7 @@ void scanner::move_back(unsigned offset, unsigned u_offset) {
     }
 }
 
-void scanner::next_utf_core(char c, buffer<char> & cs) {
+void scanner::next_utf_core(uchar c, buffer<uchar> & cs) {
     cs.push_back(c);
     while (m_uskip > 0) {
         next();
@@ -457,19 +460,19 @@ void scanner::next_utf_core(char c, buffer<char> & cs) {
     }
 }
 
-void scanner::next_utf(buffer<char> & cs) {
+void scanner::next_utf(buffer<uchar> & cs) {
     next();
     next_utf_core(curr(), cs);
 }
 
-static bool is_id_first(buffer<char> const & cs, unsigned i) {
+static bool is_id_first(buffer<uchar> const & cs, unsigned i) {
     if (std::isalpha(cs[i]) || cs[i] == '_')
         return true;
     unsigned u = utf8_to_unicode(cs.begin() + i, cs.end());
     return is_letter_like_unicode(u);
 }
 
-bool is_id_rest(char const * begin, char const * end) {
+bool is_id_rest(uchar const * begin, uchar const * end) {
     if (std::isalnum(*begin) || *begin == '_' || *begin == '\'')
         return true;
     unsigned u = utf8_to_unicode(begin, end);
@@ -496,7 +499,7 @@ void scanner::read_field_idx() {
 }
 
 auto scanner::read_key_cmd_id() -> token_kind {
-    buffer<char> cs;
+    buffer<uchar> cs;
     next_utf_core(curr(), cs);
     unsigned num_utfs  = 1;
     unsigned id_sz     = 0;
@@ -523,15 +526,14 @@ auto scanner::read_key_cmd_id() -> token_kind {
                         break;
                     }
                 }
-                move_back(cs.size() - id_sz, num_utfs - 1);
+                move_back(cs.size() - id_sz, 1);
                 cs.shrink(id_sz);
                 cs.push_back(0);
-                m_name_val = name(cs.data());
+                m_name_val = name(reinterpret_cast<const char *>(cs.data()));
                 return token_kind::FieldName;
             }
         }
     } else if (is_id_first(cs, 0)) {
-        id_sz = cs.size();
         while (true) {
             id_sz     = cs.size();
             id_utf_sz = num_utfs;
@@ -649,7 +651,7 @@ auto scanner::scan(environment const & env) -> token_kind {
             } else {
                 return read_key_cmd_id();
             }
-        case -1:
+        case Eof:
             return token_kind::Eof;
         default:
             if (std::isdigit(c)) {
@@ -680,7 +682,7 @@ auto scanner::scan(environment const & env) -> token_kind {
 }
 
 scanner::scanner(std::istream & strm, char const * strm_name):
-    m_tokens(nullptr), m_stream(strm) {
+    m_tokens(nullptr), m_stream(&strm) {
     m_stream_name = strm_name ? strm_name : "[unknown]";
     m_sline = 0;
     m_spos  = 0;
@@ -704,7 +706,7 @@ void scanner::skip_to_pos(pos_info const & pos) {
     for (unsigned line_no = 1; line_no < pos.first; line_no++)
         fetch_line();
     m_line = m_sline;
-    for (unsigned col_idx = 0; col_idx < pos.second; col_idx++)
+    while (static_cast<unsigned>(m_upos) < pos.second)
         next();
     m_pos = m_upos; // we assume that the argument is the start of a token
     lean_assert(pos == pos_info(get_line(), get_pos()));

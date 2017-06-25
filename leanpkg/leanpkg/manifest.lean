@@ -29,8 +29,9 @@ def to_toml : ∀ (s : source), toml.value
 | (git url rev) :=
   toml.value.table [("git", toml.value.str url), ("rev", toml.value.str rev)]
 
-instance : has_to_string source :=
-⟨λ s, s.to_toml.to_string⟩
+/- TODO(Leo): has_to_string -/
+instance : has_repr source :=
+⟨λ s, repr s.to_toml⟩
 
 end source
 
@@ -38,14 +39,16 @@ structure dependency :=
 (name : string) (src : source)
 
 namespace dependency
-instance : has_to_string dependency :=
-⟨λ d, d.name ++ " = " ++ to_string d.src⟩
+/- TODO(Leo): has_to_string -/
+instance : has_repr dependency :=
+⟨λ d, d.name ++ " = " ++ repr d.src⟩
 end dependency
 
 structure manifest :=
 (name : string) (version : string)
-(path : option string)
-(dependencies : list dependency)
+(timeout : option nat := none)
+(path : option string := none)
+(dependencies : list dependency := [])
 
 namespace manifest
 
@@ -56,6 +59,11 @@ def from_toml (t : toml.value) : option manifest := do
 pkg ← t.lookup "package",
 toml.value.str n ← pkg.lookup "name" | none,
 toml.value.str ver ← pkg.lookup "version" | none,
+tm ← match pkg.lookup "timeout" with
+     | some (toml.value.nat timeout) := some (some timeout)
+     | none := some none
+     | _ := none
+     end,
 path ← match pkg.lookup "path" with
        | some (toml.value.str path) := some (some path)
        | none := some none
@@ -64,16 +72,17 @@ path ← match pkg.lookup "path" with
 toml.value.table deps ← t.lookup "dependencies" <|> some (toml.value.table []) | none,
 deps ← monad.for deps (λ ⟨n, src⟩, do src ← source.from_toml src,
                                       return $ dependency.mk n src),
-return { name := n, version := ver, path := path, dependencies := deps }
+return { name := n, version := ver, path := path, dependencies := deps, timeout := tm }
 
 def to_toml (d : manifest) : toml.value :=
 let pkg := [("name", toml.value.str d.name), ("version", toml.value.str d.version)],
     pkg := match d.path with some p := pkg ++ [("path", toml.value.str p)] | none := pkg end,
+    pkg := match d.timeout with some t := pkg ++ [("timeout", toml.value.nat t)] | none := pkg end,
     deps := toml.value.table $ d.dependencies.for $ λ dep, (dep.name, dep.src.to_toml) in
 toml.value.table [("package", toml.value.table pkg), ("dependencies", deps)]
 
-instance : has_to_string manifest :=
-⟨λ d, d.to_toml.to_string⟩
+instance : has_repr manifest :=
+⟨λ d, repr d.to_toml⟩
 
 def from_string (s : string) : option manifest :=
 match parser.run_string toml.File s with
@@ -90,7 +99,7 @@ toml ←
   | sum.inr res := return res
   end),
 some manifest ← return (from_toml toml)
-  | io.fail ("cannot read manifest from " ++ fn ++ "\n\n" ++ toml.to_string),
+  | io.fail ("cannot read manifest from " ++ fn ++ "\n\n" ++ repr toml),
 return manifest
 
 end manifest

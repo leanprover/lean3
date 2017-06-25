@@ -10,7 +10,7 @@ namespace leanpkg
 
 def assignment := hash_map string (λ _, string)
 -- TODO(gabriel): hash function for strings
-def assignment.empty : assignment := mk_hash_map list.length
+def assignment.empty : assignment := mk_hash_map string.length
 
 @[reducible] def solver := state_t assignment io
 instance {α : Type} : has_coe (io α) (solver α) := ⟨state_t.lift⟩
@@ -32,7 +32,7 @@ return $ ev = 0
 
 -- TODO(gabriel): windows?
 def resolve_dir (abs_or_rel : string) (base : string) : string :=
-if abs_or_rel.reverse.head = '/' then
+if abs_or_rel.front = '/' then
   abs_or_rel -- absolute
 else
   base ++ "/" ++ abs_or_rel
@@ -46,18 +46,18 @@ match dep.src with
 | (source.git url rev) := do
   let depdir := "_target/deps/" ++ dep.name,
   already_there ← dir_exists depdir,
-  let checkout_action := exec_cmd "git" ["checkout", "--detach", rev] (some depdir),
+  let checkout_action := exec_cmd {cmd := "git", args := ["checkout", "--detach", rev], cwd := depdir},
   (do guard already_there,
       io.put_str_ln $ dep.name ++ ": trying to update " ++ depdir ++ " to revision " ++ rev,
       checkout_action) <|>
   (do guard already_there,
-      exec_cmd "git" ["fetch"] (some depdir),
+      exec_cmd {cmd := "git", args := ["fetch"], cwd := depdir},
       checkout_action) <|>
   (do io.put_str_ln $ dep.name ++ ": cloning " ++ url ++ " to " ++ depdir,
-      exec_cmd "rm" ["-rf", depdir],
-      exec_cmd "mkdir" ["-p", depdir],
-      exec_cmd "git" ["clone", url, depdir],
-      exec_cmd "git" ["checkout", "--detach", rev] (some depdir)),
+      exec_cmd {cmd := "rm", args := ["-rf", depdir]},
+      exec_cmd {cmd := "mkdir", args := ["-p", depdir]},
+      exec_cmd {cmd := "git", args := ["clone", url, depdir]},
+      exec_cmd {cmd := "git", args := ["checkout", "--detach", rev], cwd := depdir}),
   state_t.modify $ λ assg, assg.insert dep.name depdir
 end
 

@@ -7,31 +7,31 @@ namespace debugger
 def is_space (c : char) : bool :=
 if c = ' ' ∨ c = char.of_nat 11 ∨ c = '\n' then tt else ff
 
-def split_core : string → string → list string
-| (c::cs) [] :=
-  if is_space c then split_core cs [] else split_core cs [c]
-| (c::cs) r  :=
-  if is_space c then r.reverse :: split_core cs [] else split_core cs (c::r)
-| []      [] := []
-| []      r  := [r.reverse]
+private def split_core : list char → option string → list string
+| (c::cs) none     :=
+  if is_space c then split_core cs none else split_core cs (some $ string.singleton c)
+| (c::cs) (some s) :=
+  if is_space c then s :: split_core cs none else split_core cs (s.str c)
+| []      none     := []
+| []      (some s) := [s]
 
 def split (s : string) : list string :=
-(split_core s []).reverse
+split_core s.to_list none
 
-def to_qualified_name_core : string → string → name
-| []      r := if r = "" then name.anonymous else mk_simple_name r.reverse
-| (c::cs) r :=
-  if is_space c then to_qualified_name_core cs r
+def to_qualified_name_core : list char → name → string → name
+| []      r s := if s.is_empty then r else r <.> s
+| (c::cs) r s :=
+  if is_space c then to_qualified_name_core cs r s
   else if c = '.' then
-       if r = ""   then to_qualified_name_core cs []
-       else             name.mk_string r.reverse (to_qualified_name_core cs [])
-  else to_qualified_name_core cs (c::r)
+       if s.is_empty then to_qualified_name_core cs r ""
+       else               to_qualified_name_core cs (r <.> s) ""
+  else to_qualified_name_core cs r (s.str c)
 
 def to_qualified_name (s : string) : name :=
-to_qualified_name_core s []
+to_qualified_name_core s.to_list name.anonymous ""
 
 def olean_to_lean (s : string) :=
-list.dropn 5 s ++ "lean"
+s.popn_back 5 ++ "lean"
 
 meta def get_file (fn : name) : vm string :=
 do {
@@ -47,16 +47,16 @@ do {
   d      ← vm.get_decl fn,
   some p ← return (vm_decl.pos d) | failure,
   file   ← get_file fn,
-  return (file ++ ":" ++ p.line.to_string ++ ":" ++ p.column.to_string)
+  return sformat!"{file}:{p.line}:{p.column}"
 }
 <|>
 return "<position not available>"
 
 meta def show_fn (header : string) (fn : name) (frame : nat) : vm unit :=
 do pos ← pos_info fn,
-   vm.put_str ("[" ++ frame.to_string ++ "] " ++ header),
+   vm.put_str sformat!"[{frame}] {header}",
    if header = "" then return () else vm.put_str " ",
-   vm.put_str (fn.to_string ++ " at " ++ pos ++ "\n")
+   vm.put_str sformat!"{fn} at {pos}\n"
 
 meta def show_curr_fn (header : string) : vm unit :=
 do fn ← vm.curr_fn,
@@ -97,7 +97,7 @@ meta def type_to_string : option expr → nat → vm string
 | (some type) i := do
   fmt ← vm.pp_expr type,
   opts ← vm.get_options,
-  return (fmt.to_string opts)
+  return $ fmt.to_string opts
 
 meta def show_vars_core : nat → nat → nat → vm unit
 | c i e :=
@@ -105,7 +105,7 @@ meta def show_vars_core : nat → nat → nat → vm unit
   else do
     (n, type) ← vm.stack_obj_info i,
     type_str  ← type_to_string type i,
-    vm.put_str $ "#" ++ c.to_string ++ " " ++ n.to_string ++ " : " ++ type_str ++ "\n",
+    vm.put_str sformat!"#{c} {n} : {type_str}\n",
     show_vars_core (c+1) (i+1) e
 
 meta def show_vars (frame : nat) : vm unit :=

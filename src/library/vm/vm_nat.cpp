@@ -161,6 +161,73 @@ vm_obj nat_gcd(vm_obj const & a1, vm_obj const & a2) {
     return mk_vm_nat(r);
 }
 
+vm_obj nat_shiftl(vm_obj const & a1, vm_obj const & a2) {
+    if (LEAN_LIKELY(is_simple(a1) && is_simple(a2))) {
+        unsigned v1 = cidx(a1);
+        unsigned v2 = cidx(a2);
+        if (v1 >> (31 - v2) == 0) // LEAN_MAX_SMALL_NAT = 1 >> 31
+            return mk_vm_nat(v1 << v2);
+    }
+    mpz v1 = to_mpz1(a1);
+    mul2k(v1, v1, to_unsigned(a2));
+    return mk_vm_mpz(v1);
+}
+
+vm_obj nat_shiftr(vm_obj const & a1, vm_obj const & a2) {
+    if (LEAN_LIKELY(is_simple(a1) && is_simple(a2))) {
+        return mk_vm_nat(cidx(a1) >> cidx(a2));
+    } else {
+        mpz v1 = to_mpz1(a1);
+        div2k(v1, v1, to_unsigned(a2));
+        return mk_vm_mpz(v1);
+    }
+}
+
+vm_obj nat_land(vm_obj const & a1, vm_obj const & a2) {
+    if (LEAN_LIKELY(is_simple(a1) && is_simple(a2))) {
+        return mk_vm_nat(cidx(a1) & cidx(a2));
+    } else {
+        return mk_vm_mpz(to_mpz1(a1) & to_mpz2(a2));
+    }
+}
+
+vm_obj nat_lor(vm_obj const & a1, vm_obj const & a2) {
+    if (LEAN_LIKELY(is_simple(a1) && is_simple(a2))) {
+        return mk_vm_nat(cidx(a1) | cidx(a2));
+    } else {
+        return mk_vm_mpz(to_mpz1(a1) | to_mpz2(a2));
+    }
+}
+
+vm_obj nat_lxor(vm_obj const & a1, vm_obj const & a2) {
+    if (LEAN_LIKELY(is_simple(a1) && is_simple(a2))) {
+        return mk_vm_nat(cidx(a1) ^ cidx(a2));
+    } else {
+        return mk_vm_mpz(to_mpz1(a1) ^ to_mpz2(a2));
+    }
+}
+
+vm_obj nat_ldiff(vm_obj const & a1, vm_obj const & a2) {
+    if (LEAN_LIKELY(is_simple(a1) && is_simple(a2))) {
+        return mk_vm_nat(cidx(a1) & ~cidx(a2));
+    } else {
+        return mk_vm_mpz(to_mpz1(a1) & ~to_mpz2(a2));
+    }
+}
+
+vm_obj nat_test_bit(vm_obj const & a1, vm_obj const & a2) {
+    if (LEAN_LIKELY(is_simple(a1) && is_simple(a2))) {
+        return mk_vm_bool((cidx(a1) & (1u << cidx(a2))) != 0);
+    } else {
+        mpz const & v1 = to_mpz1(a1);
+        mpz const & v2 = to_mpz2(a2);
+        if (v2.is_unsigned_long_int())
+            return mk_vm_bool(v1.test_bit(v2.get_unsigned_long_int()));
+        else
+            return mk_vm_bool(false);
+    }
+}
+
 vm_obj nat_decidable_eq(vm_obj const & a1, vm_obj const & a2) {
     if (LEAN_LIKELY(is_simple(a1) && is_simple(a2))) {
         return mk_vm_bool(cidx(a1) == cidx(a2));
@@ -195,7 +262,7 @@ void nat_no_confusion(vm_state &) {
     lean_unreachable();
 }
 
-vm_obj nat_to_string(vm_obj const & a) {
+vm_obj nat_repr(vm_obj const & a) {
     std::ostringstream out;
     if (is_simple(a)) {
         out << cidx(a);
@@ -206,7 +273,7 @@ vm_obj nat_to_string(vm_obj const & a) {
 }
 
 vm_obj nat_repeat(vm_obj const &, vm_obj const & f, vm_obj const & n, vm_obj const & a) {
-    if (is_simple(n)) {
+    if (LEAN_LIKELY(is_simple(n))) {
         unsigned _n = cidx(n);
         vm_obj   r  = a;
         for (unsigned i = 0; i < _n ; i++) {
@@ -236,8 +303,15 @@ void initialize_vm_nat() {
     DECLARE_VM_BUILTIN(name({"nat", "decidable_eq"}),     nat_decidable_eq);
     DECLARE_VM_BUILTIN(name({"nat", "decidable_le"}),     nat_decidable_le);
     DECLARE_VM_BUILTIN(name({"nat", "decidable_lt"}),     nat_decidable_lt);
-    DECLARE_VM_BUILTIN(name({"nat", "to_string"}),        nat_to_string);
+    DECLARE_VM_BUILTIN(name({"nat", "repr"}),             nat_repr);
     DECLARE_VM_BUILTIN(name({"nat", "repeat"}),           nat_repeat);
+    DECLARE_VM_BUILTIN(name({"nat", "shiftl"}),           nat_shiftl);
+    DECLARE_VM_BUILTIN(name({"nat", "shiftr"}),           nat_shiftr);
+    DECLARE_VM_BUILTIN(name({"nat", "lor"}),              nat_lor);
+    DECLARE_VM_BUILTIN(name({"nat", "land"}),             nat_land);
+    DECLARE_VM_BUILTIN(name({"nat", "ldiff"}),            nat_ldiff);
+    DECLARE_VM_BUILTIN(name({"nat", "lxor"}),             nat_lxor);
+    DECLARE_VM_BUILTIN(name({"nat", "test_bit"}),         nat_test_bit);
 
     declare_vm_builtin(name({"nat", "cases_on"}),          "nat_rec",          4, nat_rec);
     declare_vm_builtin(name({"nat", "rec_on"}),            "nat_rec",          4, nat_rec);

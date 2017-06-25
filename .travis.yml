@@ -9,6 +9,7 @@ addons:
       - sourceline: 'ppa:kalakris/cmake' # cmake 2.8 for precise
       - sourceline: 'ppa:adrozdoff/cmake' # cmake 3 for trusty
       - sourceline: 'ppa:h-rayflood/llvm'
+      - sourceline: ppa:hvr/z3   # z3 for the smt interface package
     packages: &default_packages
       - cmake
       - libgmp-dev
@@ -23,7 +24,7 @@ matrix:
      env:
        CMAKE_CXX_COMPILER=g++-4.9
        CMAKE_BUILD_TYPE=Release
-       TARGET=build/lean-3.1.1-linux.tar.gz
+       TARGET=build/lean-3.2.1-linux.tar.gz
        UPLOAD=ON
        STATIC=ON
 
@@ -31,6 +32,7 @@ matrix:
      env:
        CMAKE_CXX_COMPILER=clang++-3.4
        CMAKE_BUILD_TYPE=Release
+       LEAN_EXTRA_MAKE_OPTS=-t0
        TCMALLOC=ON
 
    - os: linux
@@ -61,10 +63,22 @@ matrix:
        MULTI_THREAD=OFF
 
    - os: linux
+     addons:
+       apt:
+         sources: *apt_sources
+         packages:
+           - *default_packages
+           - z3
+     env:
+       CMAKE_CXX_COMPILER=g++-4.9
+       CMAKE_BUILD_TYPE=Release
+       TEST=OFF
+       TEST_LEANPKG_REGISTRY=ON
+
+   - os: linux
      env:
        CMAKE_CXX_COMPILER=clang++-3.4
        CMAKE_BUILD_TYPE=Debug
-       LEAN_EXTRA_MAKE_OPTS=-t0
        TCMALLOC=ON
 
    - os: linux
@@ -77,9 +91,8 @@ matrix:
      env:
        CMAKE_CXX_COMPILER=clang++
        CMAKE_BUILD_TYPE=Release
-       TARGET=build/lean-3.1.1-darwin.zip
+       TARGET=build/lean-3.2.1-darwin.zip
        UPLOAD=ON
-       PACKAGE=TRUE
 
    - os: osx
      env:
@@ -109,9 +122,9 @@ script:
           -DLEAN_EXTRA_MAKE_OPTS=$LEAN_EXTRA_MAKE_OPTS
           ../src || exit
   - make -j2 || exit
-  - cpack
-  - yes "A" | ctest -j2 --output-on-failure
-  - if [[ $PACKAGE == TRUE ]]; then make package; fi
+  - if [[ $TEST != OFF ]]; then yes "A" | ctest -j2 --output-on-failure; fi
+  - if [[ $UPLOAD == ON ]]; then cpack; make package; fi
+  - if [[ $TEST_LEANPKG_REGISTRY == ON ]]; then ../script/test_registry.py; fi
   - cd ..
 
 after_script:

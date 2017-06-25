@@ -14,6 +14,7 @@ Author: Leonardo de Moura
 #include "library/class.h"
 #include "library/projection.h"
 #include "library/util.h"
+#include "library/fingerprint.h"
 #include "library/relation_manager.h"
 #include "library/inductive_compiler/ginductive.h"
 #include "library/vm/vm_nat.h"
@@ -215,6 +216,10 @@ vm_obj environment_decl_pos(vm_obj const & env, vm_obj const & n) {
     }
 }
 
+vm_obj environment_add_namespace(vm_obj const & env, vm_obj const & n) {
+    return to_obj(add_namespace(to_env(env), to_name(n)));
+}
+
 vm_obj environment_is_namespace(vm_obj const & env, vm_obj const & n) {
     return mk_vm_bool(is_namespace(to_env(env), to_name(n)));
 }
@@ -251,6 +256,10 @@ vm_obj environment_get_class_attribute_symbols(vm_obj const & env, vm_obj const 
     return to_obj(get_class_attribute_symbols(to_env(env), to_name(n)));
 }
 
+vm_obj environment_fingerprint(vm_obj const & env) {
+    return mk_vm_nat(mpz(get_fingerprint(to_env(env))));
+}
+
 void initialize_vm_environment() {
     DECLARE_VM_BUILTIN(name({"environment", "mk_std"}),                environment_mk_std);
     DECLARE_VM_BUILTIN(name({"environment", "trust_lvl"}),             environment_trust_lvl);
@@ -268,6 +277,7 @@ void initialize_vm_environment() {
     DECLARE_VM_BUILTIN(name({"environment", "inductive_num_params"}),  environment_inductive_num_params);
     DECLARE_VM_BUILTIN(name({"environment", "inductive_num_indices"}), environment_inductive_num_indices);
     DECLARE_VM_BUILTIN(name({"environment", "inductive_dep_elim"}),    environment_inductive_dep_elim);
+    DECLARE_VM_BUILTIN(name({"environment", "add_namespace"}),         environment_add_namespace);
     DECLARE_VM_BUILTIN(name({"environment", "is_namespace"}),          environment_is_namespace);
     DECLARE_VM_BUILTIN(name({"environment", "is_ginductive"}),         environment_is_ginductive);
     DECLARE_VM_BUILTIN(name({"environment", "is_projection"}),         environment_is_projection);
@@ -280,6 +290,7 @@ void initialize_vm_environment() {
     DECLARE_VM_BUILTIN(name({"environment", "unfold_untrusted_macros"}), environment_unfold_untrusted_macros);
     DECLARE_VM_BUILTIN(name({"environment", "structure_fields"}),        environment_structure_fields);
     DECLARE_VM_BUILTIN(name({"environment", "get_class_attribute_symbols"}), environment_get_class_attribute_symbols);
+    DECLARE_VM_BUILTIN(name({"environment", "fingerprint"}),           environment_fingerprint);
 }
 
 void finalize_vm_environment() {

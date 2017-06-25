@@ -8,6 +8,7 @@ Author: Leonardo de Moura
 #include <utility>
 #include "util/flet.h"
 #include "util/thread.h"
+#include "util/sexpr/option_declarations.h"
 #include "kernel/find_fn.h"
 #include "kernel/error_msgs.h"
 #include "kernel/for_each_fn.h"
@@ -41,13 +42,16 @@ Author: Leonardo de Moura
 #include "library/message_builder.h"
 #include "library/aliases.h"
 #include "library/inverse.h"
+#include "library/aux_definition.h"
 #include "library/delayed_abstraction.h"
 #include "library/vm/vm_name.h"
 #include "library/vm/vm_expr.h"
+#include "library/compiler/vm_compiler.h"
 #include "library/tactic/kabstract.h"
 #include "library/tactic/unfold_tactic.h"
 #include "library/tactic/tactic_state.h"
 #include "library/tactic/elaborate.h"
+#include "library/tactic/tactic_evaluator.h"
 #include "library/equations_compiler/compiler.h"
 #include "library/equations_compiler/util.h"
 #include "library/inductive_compiler/ginductive.h"
@@ -55,7 +59,6 @@ Author: Leonardo de Moura
 #include "frontends/lean/brackets.h"
 #include "frontends/lean/util.h"
 #include "frontends/lean/prenum.h"
-#include "frontends/lean/tactic_evaluator.h"
 #include "frontends/lean/structure_cmd.h"
 #include "frontends/lean/structure_instance.h"
 #include "frontends/lean/equations_validator.h"
@@ -68,7 +71,6 @@ Author: Leonardo de Moura
 namespace lean {
 MK_THREAD_LOCAL_GET(type_context_cache_manager, get_tcm, true /* use binder information at infer_cache */);
 
-static name * g_level_prefix = nullptr;
 static name * g_elab_strategy = nullptr;
 static name * g_elaborator_coercions = nullptr;
 
@@ -201,6 +203,9 @@ bool elaborator::try_report(std::exception const & ex) {
 }
 
 bool elaborator::try_report(std::exception const & ex, optional<expr> const & ref) {
+    if (auto elab_ex = dynamic_cast<elaborator_exception const *>(&ex)) {
+        if (elab_ex->is_ignored()) return true;
+    }
     if (!m_recover_from_errors) return false;
 
     auto pip = get_pos_info_provider();
@@ -220,9 +225,18 @@ void elaborator::report_or_throw(elaborator_exception const & ex) {
         throw elaborator_exception(ex);
 }
 
-expr elaborator::mk_sorry(optional<expr> const & expected_type, expr const & ref) {
+bool elaborator::has_synth_sorry(std::initializer_list<expr> && es) {
+    for (auto & e : es) {
+        if (has_synthetic_sorry(instantiate_mvars(e))) {
+            return true;
+        }
+    }
+    return false;
+}
+
+expr elaborator::mk_sorry(optional<expr> const & expected_type, expr const & ref, bool synthetic) {
     auto sorry_type = expected_type ? *expected_type : mk_type_metavar(ref);
-    return copy_tag(ref, mk_sorry(sorry_type));
+    return copy_tag(ref, mk_sorry(sorry_type, synthetic));
 }
 
 expr elaborator::recoverable_error(optional<expr> const & expected_type, expr const & ref, elaborator_exception const & ex) {
@@ -264,16 +278,6 @@ expr elaborator::mk_type_metavar(expr const & ref) {
 }
 
 expr elaborator::mk_instance_core(local_context const & lctx, expr const & C, expr const & ref) {
-    // synthesize `reflected e` by quoting e
-    if (is_app_of(C, get_reflected_name(), 2)) {
-        expr const & r = instantiate_mvars(app_arg(C));
-        if (closed(r) && !has_local(r)) {
-            expr r_ty = instantiate_mvars(app_arg(app_fn(C)));
-            level l = *::lean::dec_level(::lean::get_level(m_ctx, r_ty));
-            return mk_reflected(r, r_ty, l);
-        }
-    }
-
     scope_traces_as_messages traces_as_messages(get_pos_info_provider(), ref);
 
     // TODO(gabriel): cache failures so that we do not report errors twice
@@ -284,7 +288,8 @@ expr elaborator::mk_instance_core(local_context const & lctx, expr const & C, ex
         new_lctx = erase_inaccessible_annotations(new_lctx);
         tactic_state s = ::lean::mk_tactic_state_for(m_env, m_opts, m_decl_name, mctx, new_lctx, C);
         return recoverable_error(some_expr(C), ref, elaborator_exception(
-                ref, format("failed to synthesize type class instance for") + line() + s.pp()));
+                ref, format("failed to synthesize type class instance for") + line() + s.pp())
+            .ignore_if(has_synth_sorry({C})));
     }
     return *inst;
 }
@@ -673,6 +678,7 @@ optional<expr> elaborator::try_monad_coercion(expr const & e, expr const & e_typ
 
 optional<expr> elaborator::mk_coercion(expr const & e, expr e_type, expr type, expr const & ref) {
     if (!m_coercions) return none_expr();
+    synthesize_type_class_instances();
     e_type = instantiate_mvars(e_type);
     type   = instantiate_mvars(type);
     if (!has_expr_metavar(e_type) && !has_expr_metavar(type)) {
@@ -1068,7 +1074,8 @@ expr elaborator::visit_elim_app(expr const & fn, elim_info const & info, buffer<
                 if (!is_def_eq(new_arg_type, d)) {
                     new_args.push_back(new_arg);
                     throw elaborator_exception(ref, mk_app_type_mismatch_error(mk_app(fn, new_args),
-                                                                               new_arg, new_arg_type, d));
+                                                                               new_arg, new_arg_type, d))
+                            .ignore_if(has_synth_sorry({new_arg_type, d}));
                 }
             } else if (is_explicit(bi)) {
                 expr arg_ref = args[j];
@@ -1356,7 +1363,8 @@ void elaborator::first_pass(expr const & fn, buffer<expr> const & args,
                     tmp_args.push_back(new_arg);
                     format msg = mk_app_type_mismatch_error(mk_app(fn, tmp_args),
                                                             new_arg, new_arg_type, arg_expected_type);
-                    throw elaborator_exception(ref, msg);
+                    throw elaborator_exception(ref, msg).
+                        ignore_if(has_synth_sorry({new_arg_type, arg_expected_type}));
                 }
                 new_arg = *new_new_arg;
             } else {
@@ -1392,7 +1400,8 @@ void elaborator::first_pass(expr const & fn, buffer<expr> const & args,
         throw elaborator_exception(ref, format("type mismatch") + pp_indent(pp_fn, e) +
                                    line() + format("has type") + std::get<1>(pp_data) +
                                    line() + format("but is expected to have type") +
-                                   std::get<2>(pp_data));
+                                   std::get<2>(pp_data))
+                .ignore_if(has_synth_sorry({type, expected_type, e}));
     }
 }
 
@@ -1432,7 +1441,8 @@ expr elaborator::second_pass(expr const & fn, buffer<expr> const & args,
                     tmp_args.push_back(new_arg);
                     format msg = mk_app_type_mismatch_error(mk_app(fn, tmp_args),
                                                             new_arg, new_arg_type, info.args_expected_types[i]);
-                    throw elaborator_exception(ref, msg);
+                    throw elaborator_exception(ref, msg).
+                        ignore_if(has_synth_sorry({new_arg_type, info.args_expected_types[i]}));
                 }
                 if (!is_def_eq(info.args_mvars[i], *new_new_arg)) {
                     buffer<expr> tmp_args;
@@ -1440,7 +1450,8 @@ expr elaborator::second_pass(expr const & fn, buffer<expr> const & args,
                     tmp_args.push_back(new_arg);
                     format msg = mk_app_arg_mismatch_error(mk_app(fn, tmp_args),
                                                            new_arg, info.args_mvars[i]);
-                    throw elaborator_exception(ref, msg);
+                    report_or_throw(elaborator_exception(ref, msg).
+                        ignore_if(has_synth_sorry({new_arg, instantiate_mvars(info.args_mvars[i])})));
                 }
                 return *new_new_arg;
             } else {
@@ -1505,7 +1516,7 @@ expr elaborator::visit_base_app_simple(expr const & _fn, arg_mask amask, buffer<
             } else if (i < args.size()) {
                 expr expected_type = d;
                 optional<expr> thunk_of;
-                if (!m_in_pattern) thunk_of = is_thunk(d);
+                if (!m_in_pattern && amask == arg_mask::Default) thunk_of = is_thunk(d);
                 if (thunk_of) expected_type = *thunk_of;
                 // explicit argument
                 expr ref_arg = get_ref_for_child(args[i], ref);
@@ -1527,7 +1538,7 @@ expr elaborator::visit_base_app_simple(expr const & _fn, arg_mask amask, buffer<
                     new_args.push_back(new_arg);
                     format msg = mk_app_type_mismatch_error(mk_app(fn, new_args.size(), new_args.data()),
                                                             new_arg, new_arg_type, d);
-                    throw elaborator_exception(ref, msg);
+                    throw elaborator_exception(ref, msg).ignore_if(has_synth_sorry({new_arg_type, d}));
                 }
                 i++;
             } else {
@@ -1875,6 +1886,9 @@ expr elaborator::visit_app_core(expr fn, buffer<expr> const & args, optional<exp
 
     bool has_args = !args.empty();
 
+    if (is_hole(fn))
+        throw elaborator_exception(ref, "holes {! ... !} cannot be used where a function is expected");
+
     while (is_annotation(fn))
         fn = get_annotation_arg(fn);
 
@@ -1910,7 +1924,7 @@ expr elaborator::visit_app_core(expr fn, buffer<expr> const & args, optional<exp
                     new_args.push_back(copy_tag(fn, std::move(coerced_s)));
                     for (; i < args.size(); i++)
                         new_args.push_back(args[i]);
-                    expr new_proj = visit(proj, none_expr());
+                    expr new_proj = visit_function(proj, has_args, ref);
                     return visit_base_app(new_proj, amask, new_args, expected_type, ref);
                 } else {
                     if (i >= args.size()) {
@@ -2001,14 +2015,53 @@ expr elaborator::visit_app(expr const & e, optional<expr> const & expected_type)
     }
 }
 
+static level ground_uvars(level const & l) {
+    return replace(l, [] (level const & l) {
+        if (is_meta(l)) {
+            return some_level(mk_level_zero());
+        } else {
+            return none_level();
+        }
+    });
+}
+
+static expr ground_uvars(expr const & e) {
+    return replace(e, [] (expr const & e, unsigned) {
+        if (!e.has_univ_metavar()) {
+            return some_expr(e);
+        } else if (is_sort(e)) {
+            return some_expr(mk_sort(ground_uvars(sort_level(e))));
+        } else if (is_constant(e)) {
+            return some_expr(mk_constant(const_name(e),
+                map(const_levels(e), [] (level const & l) { return ground_uvars(l); })));
+        } else {
+            return none_expr();
+        }
+    });
+}
+
 expr elaborator::visit_by(expr const & e, optional<expr> const & expected_type) {
     lean_assert(is_by(e));
     expr tac = strict_visit(get_by_arg(e), none_expr());
+    tac = ground_uvars(tac);
     expr const & ref = e;
     expr mvar        = mk_metavar(expected_type, ref);
     m_tactics = cons(mk_pair(mvar, tac), m_tactics);
     trace_elab(tout() << "tactic for ?m_" << get_metavar_decl_ref_suffix(mvar) << " at " <<
                pos_string_for(mvar) << "\n" << tac << "\n";);
+    return mvar;
+}
+
+expr elaborator::visit_hole(expr const & e, optional<expr> const & expected_type) {
+    lean_assert(is_hole(e));
+    expr const & ref = e;
+    expr args; optional<pos_info> begin_pos, end_pos;
+    std::tie(args, begin_pos, end_pos) = get_hole_info(e);
+    expr args_type   = mk_app(mk_constant(get_list_name(), {mk_level_zero()}),
+                              mk_app(mk_constant(get_expr_name()), mk_constant(get_bool_ff_name())));
+    expr new_args    = ground_uvars(strict_visit(args, some_expr(args_type)));
+    expr mvar        = mk_metavar(expected_type, ref);
+    m_holes          = cons(mk_pair(mvar, update_hole_args(e, new_args)), m_holes);
     return mvar;
 }
 
@@ -2023,7 +2076,7 @@ expr elaborator::visit_anonymous_constructor(expr const & e, optional<expr> cons
         throw elaborator_exception(e, format("invalid constructor ⟨...⟩, expected type is not an inductive type") +
                                    pp_indent(*expected_type));
     name I_name = const_name(I);
-    if (is_private(m_env, I_name))
+    if (is_private(m_env, I_name) && !is_expr_aliased(m_env, I_name))
         throw elaborator_exception(e, "invalid constructor ⟨...⟩, type is a private inductive datatype");
     if (!inductive::is_inductive_decl(m_env, I_name))
         throw elaborator_exception(e, sstream() << "invalid constructor ⟨...⟩, '" << I_name << "' is not an inductive type");
@@ -2238,12 +2291,28 @@ bool elaborator::keep_do_failure_eq(expr const & first_eq) {
     return is_app(type) && is_monad_fail(app_fn(type));
 }
 
+expr elaborator::mk_aux_meta_def(expr const & e, expr const & ref) {
+    name aux_name(m_decl_name, "_aux_meta");
+    aux_name = aux_name.append_after(m_aux_meta_idx);
+    m_aux_meta_idx++;
+    expr new_c;
+    metavar_context mctx = m_ctx.mctx();
+    std::tie(m_env, new_c) = mk_aux_definition(m_env, mctx, local_context(),
+                                               aux_name, e, optional<bool>(true));
+    if (!is_constant(new_c)) {
+        throw elaborator_exception(ref, "failed to create auxiliary definition");
+    }
+    m_env = vm_compile(m_env, m_env.get(const_name(new_c)));
+    m_ctx.set_env(m_env);
+    m_ctx.set_mctx(mctx);
+    return new_c;
+}
+
 expr elaborator::visit_equations(expr const & e) {
     expr const & ref = e;
     buffer<expr> eqs;
     buffer<expr> new_eqs;
-    optional<expr> new_R;
-    optional<expr> new_Rwf;
+    optional<expr> new_tacs;
     flet<list<expr_pair>> save_stack(m_inaccessible_stack, m_inaccessible_stack);
     list<expr_pair> saved_inaccessible_stack = m_inaccessible_stack;
     equations_header const & header = get_equations_header(e);
@@ -2252,10 +2321,12 @@ expr elaborator::visit_equations(expr const & e) {
     lean_assert(!eqs.empty());
 
     if (is_wf_equations(e)) {
-        new_R   = visit(equations_wf_rel(e), none_expr());
-        new_Rwf = visit(equations_wf_proof(e), none_expr());
-        expr wf = mk_app(m_ctx, get_well_founded_name(), *new_R);
-        new_Rwf = enforce_type(*new_Rwf, wf, "invalid well-founded relation proof", ref);
+        expr type = mk_constant(get_well_founded_tactics_name());
+        new_tacs  = visit(equations_wf_tactics(e), some_expr(type));
+        new_tacs  = enforce_type(*new_tacs, type, "well_founded_tactics object expected", ref);
+        if (!is_constant(*new_tacs)) {
+            new_tacs = mk_aux_meta_def(*new_tacs, ref);
+        }
     }
 
     optional<expr> first_eq;
@@ -2284,8 +2355,8 @@ expr elaborator::visit_equations(expr const & e) {
     synthesize();
     check_inaccessible(saved_inaccessible_stack);
     expr new_e;
-    if (new_R) {
-        new_e = copy_tag(e, mk_equations(header, new_eqs.size(), new_eqs.data(), *new_R, *new_Rwf));
+    if (new_tacs) {
+        new_e = copy_tag(e, mk_equations(header, new_eqs.size(), new_eqs.data(), *new_tacs));
     } else {
         new_e = copy_tag(e, mk_equations(header, new_eqs.size(), new_eqs.data()));
     }
@@ -2531,13 +2602,15 @@ expr elaborator::visit_structure_instance(expr const & e, optional<expr> const &
         expr src_S = get_app_fn(type);
         if (!is_constant(src_S) || !is_structure(m_env, const_name(src_S))) {
             auto pp_fn = mk_pp_ctx();
-            throw elaborator_exception(e,
+            report_or_throw(elaborator_exception(e,
                                        format("invalid structure update { src with ...}, source is not a structure") +
                                        pp_indent(pp_fn, *src) +
                                        line() + format("which has type") +
-                                       pp_indent(pp_fn, type));
+                                       pp_indent(pp_fn, type)));
+            src = none_expr();
+        } else {
+            src_S_name          = const_name(src_S);
         }
-        src_S_name          = const_name(src_S);
     }
     if (S_name.is_anonymous()) {
         if (expected_type) {
@@ -2557,6 +2630,8 @@ expr elaborator::visit_structure_instance(expr const & e, optional<expr> const &
                                        "(solution: use qualified structure instance { struct_id . ... }");
         }
     }
+    if (is_private(m_env, S_name) && !is_expr_aliased(m_env, S_name))
+        throw elaborator_exception(e, "invalid structure instance, type is a private structure");
     buffer<bool> used;
     used.resize(fnames.size(), false);
     if (src) src = copy_tag(*src, mk_as_is(*src));
@@ -2588,10 +2663,10 @@ expr elaborator::visit_structure_instance(expr const & e, optional<expr> const &
             expr d = binding_domain(c_type);
             if (i < nparams) {
                 if (is_explicit(binding_info(c_type))) {
-                    throw elaborator_exception(e, sstream() << "invalid structure value {...}, structure parameter '" <<
+                    report_or_throw(elaborator_exception(e, sstream() << "invalid structure value {...}, structure parameter '" <<
                                                             binding_name(c_type)
                                                             << "' is explicit in the structure constructor '" <<
-                                                            c_names[0] << "'");
+                                                            c_names[0] << "'"));
                 }
                 c_arg = mk_metavar(d, ref);
             } else {
@@ -2612,16 +2687,18 @@ expr elaborator::visit_structure_instance(expr const & e, optional<expr> const &
                         if (src && !is_subobject_field(m_env, nested_S_name, S_fname)) {
                             optional<name> opt_base_S_name = find_field(m_env, src_S_name, S_fname);
                             if (!opt_base_S_name) {
-                                throw elaborator_exception(ref,
+                                report_or_throw(elaborator_exception(ref,
                                                            sstream() << "invalid structure update { src with ... }, field '"
                                                                      << S_fname << "'"
                                                                      << " was not provided, nor was it found in the source of type '"
-                                                                     << src_S_name << "'.");
+                                                                     << src_S_name << "'."));
+                                c_arg = mk_sorry(some_expr(d), ref);
+                            } else {
+                                name base_S_name = *opt_base_S_name;
+                                expr base_src = *mk_base_projections(m_env, src_S_name, base_S_name, *src);
+                                expr f = mk_proj_app(m_env, base_S_name, S_fname, base_src);
+                                c_arg = visit(f, none_expr());
                             }
-                            name base_S_name = *opt_base_S_name;
-                            expr base_src = *mk_base_projections(m_env, src_S_name, base_S_name, *src);
-                            expr f = mk_proj_app(m_env, base_S_name, S_fname, base_src);
-                            c_arg = visit(f, none_expr());
                             expr c_arg_type = infer_type(c_arg);
                             if (!is_def_eq(c_arg_type, d)) {
                                 auto pp_data = pp_until_different(c_arg_type, d);
@@ -2633,7 +2710,8 @@ expr elaborator::visit_structure_instance(expr const & e, optional<expr> const &
                                 msg += std::get<1>(pp_data);
                                 msg += line() + format("but is expected to have type");
                                 msg += std::get<2>(pp_data);
-                                throw elaborator_exception(ref, msg);
+                                report_or_throw(elaborator_exception(ref, msg));
+                                c_arg = mk_sorry(some_expr(d), ref);
                             }
                             field2value.insert(S_fname, c_arg);
                         } else {
@@ -2650,16 +2728,20 @@ expr elaborator::visit_structure_instance(expr const & e, optional<expr> const &
                                     field2value.insert(S_fname, nested);
                                 }
                             } else {
-                                throw elaborator_exception(e, sstream() << "invalid structure value { ... }, field '" <<
-                                                                        S_fname << "' was not provided");
+                                report_or_throw(elaborator_exception(e, sstream() << "invalid structure value { ... }, field '" <<
+                                                                        S_fname << "' was not provided"));
+                                c_arg = mk_sorry(some_expr(d), ref);
+                                field2value.insert(S_fname, c_arg);
                             }
                         }
                     }
                 } else {
                     /* Implicit field */
-                    if (std::find(fnames.begin(), fnames.end(), S_fname) != fnames.end()) {
-                        throw elaborator_exception(e, sstream() << "invalid structure value {...}, field '"
-                                                                << S_fname << "' is implicit and must not be provided");
+                    auto i = std::find(fnames.begin(), fnames.end(), S_fname);
+                    if (i != fnames.end()) {
+                        used[i - fnames.begin()] = true;
+                        report_or_throw(elaborator_exception(e, sstream() << "invalid structure value {...}, field '"
+                                                                << S_fname << "' is implicit and must not be provided"));
                     }
                     c_arg = mk_metavar(d, ref);
                 }
@@ -2676,20 +2758,13 @@ expr elaborator::visit_structure_instance(expr const & e, optional<expr> const &
     /* Check if there are alien fields. */
     for (unsigned i = 0; i < fnames.size(); i++) {
         if (!used[i]) {
-            throw elaborator_exception(e, sstream() << "invalid structure value { ... }, '" << fnames[i] << "'" <<
-                                                    " is not a field of structure '" << S_name << "'");
+            report_or_throw(elaborator_exception(e, sstream() << "invalid structure value { ... }, '" << fnames[i] << "'" <<
+                                                    " is not a field of structure '" << S_name << "'"));
         }
     }
 
-    /* Check expected type */
-    if (expected_type && !is_def_eq(*expected_type, c_type)) {
-        auto pp_data = pp_until_different(c_type, *expected_type);
-        auto pp_fn = std::get<0>(pp_data);
-        throw elaborator_exception(ref, format("type mismatch as structure instance ") + pp_indent(pp_fn, e2) +
-                                        line() + format("has type") + std::get<1>(pp_data) +
-                                        line() + format("but is expected to have type") +
-                                        std::get<2>(pp_data));
-    }
+    /* Make sure to unify first to propagate the expected type, we'll report any errors later on. */
+    bool type_def_eq = !expected_type || is_def_eq(*expected_type, c_type);
 
     /* Now repeatedly try to elaborate fields whose dependencies have been elaborated.
      * If we have not made any progress in a round, do a last one collecting any errors. */
@@ -2766,7 +2841,13 @@ expr elaborator::visit_structure_instance(expr const & e, optional<expr> const &
                 } else if (optional<name> default_value_fn = has_default_value(m_env, S_name, S_fname)) {
                     expr fval = mk_field_default_value(m_env, full_S_fname, [&](name const & fname) {
                         // just insert mvars for now, we will check for remaining ones in `reduce_and_check_deps` later
-                        return some_expr(mk_as_is(instantiate_mvars(*field2mvar.find(fname))));
+                        if (auto mvar = field2mvar.find(fname)) {
+                            return some_expr(mk_as_is(instantiate_mvars(*mvar)));
+                        } else if (auto val = field2value.find(fname)) {
+                            return some_expr(mk_as_is(*val));
+                        } else {
+                            return none_expr();
+                        }
                     });
                     expr new_fval;
                     expr new_fval_type;
@@ -2777,17 +2858,19 @@ expr elaborator::visit_structure_instance(expr const & e, optional<expr> const &
                         expr fval = *new_new_fval;
                         buffer<expr> args;
                         expr fn = get_app_args(fval, args);
-                        declaration decl = m_env.get(const_name(fn));
-                        expr default_val = instantiate_value_univ_params(decl, const_levels(fn));
-                        // clean up 'id' application inserted by `structure_cmd::declare_defaults`
-                        default_val = replace(default_val, [](expr const & e) {
-                            if (is_app_of(e, get_id_name(), 2)) {
-                                return some_expr(app_arg(e));
-                            }
-                            return none_expr();
-                        });
-                        fval = mk_app(default_val, args);
-                        fval = head_beta_reduce(fval);
+                        if (is_constant(fn)) {
+                            declaration decl = m_env.get(const_name(fn));
+                            expr default_val = instantiate_value_univ_params(decl, const_levels(fn));
+                            // clean up 'id' application inserted by `structure_cmd::declare_defaults`
+                            default_val = replace(default_val, [](expr const &e) {
+                                if (is_app_of(e, get_id_name(), 2)) {
+                                    return some_expr(app_arg(e));
+                                }
+                                return none_expr();
+                            });
+                            fval = mk_app(default_val, args);
+                            fval = head_beta_reduce(fval);
+                        }
 
                         if (!reduce_and_check_deps(fval))
                             return;
@@ -2811,87 +2894,63 @@ expr elaborator::visit_structure_instance(expr const & e, optional<expr> const &
         last_progress = progress;
     }
 
+    /* Check expected type */
+    if (!type_def_eq) {
+        auto pp_data = pp_until_different(c_type, *expected_type);
+        auto pp_fn = std::get<0>(pp_data);
+        throw elaborator_exception(ref, format("type mismatch as structure instance ") + pp_indent(pp_fn, e2) +
+                                        line() + format("has type") + std::get<1>(pp_data) +
+                                        line() + format("but is expected to have type") +
+                                        std::get<2>(pp_data));
+    }
+
     return e2;
 }
 
-static expr quote(expr const & e) {
-    switch (e.kind()) {
-        case expr_kind::Var:
-        lean_unreachable();
-        case expr_kind::Sort:
-            return mk_app(mk_constant({"expr", "sort"}), mk_expr_placeholder());
-        case expr_kind::Constant:
-            return mk_app(mk_constant({"expr", "const"}), quote(const_name(e)), mk_expr_placeholder());
-        case expr_kind::Meta:
-            return mk_expr_placeholder();
-        case expr_kind::Local:
-            throw elaborator_exception(e, sstream() << "invalid quotation, unexpected local constant '"
-                                                    << local_pp_name(e) << "'");
-        case expr_kind::App:
-            return mk_app(mk_constant({"expr", "app"}), quote(app_fn(e)), quote(app_arg(e)));
-        case expr_kind::Lambda:
-            return mk_app(mk_constant({"expr", "lam"}), mk_expr_placeholder(), mk_expr_placeholder(),
-                          quote(binding_domain(e)), quote(binding_body(e)));
-        case expr_kind::Pi:
-            return mk_app(mk_constant({"expr", "pi"}), mk_expr_placeholder(), mk_expr_placeholder(),
-                          quote(binding_domain(e)), quote(binding_body(e)));
-        case expr_kind::Let:
-            return mk_app(mk_constant({"expr", "elet"}), mk_expr_placeholder(), quote(let_type(e)),
-                          quote(let_value(e)), quote(let_body(e)));
-        case expr_kind::Macro:
-            if (is_antiquote(e))
-                return get_antiquote_expr(e);
-            if (is_typed_expr(e))
-                return mk_typed_expr(quote(get_typed_expr_expr(e)), quote(get_typed_expr_type(e)));
-            if (is_inaccessible(e))
-                return mk_expr_placeholder();
-            throw elaborator_exception(e, sstream() << "invalid quotation, unsupported macro '"
-                                                    << macro_def(e).get_name() << "'");
-    }
-    lean_unreachable();
-}
-
-expr elaborate_quote(expr e, environment const &env, options const &opts, bool in_pattern) {
-    lean_assert(is_expr_quote(e));
-    e = get_quote_expr(e);
-
+expr elaborator::visit_expr_quote(expr const & e, optional<expr> const & expected_type) {
     name x("_x");
-    buffer<expr> locals;
-    buffer<expr> aqs;
-    e = replace(e, [&](expr const & t, unsigned) {
-        if (is_antiquote(t)) {
-            expr local = mk_local(mk_fresh_name(), x.append_after(locals.size() + 1),
-                                  mk_expr_placeholder(), binder_info());
-            locals.push_back(local);
-            aqs.push_back(t);
-            return some_expr(local);
-        }
-        return none_expr();
-    });
-    e = copy_tag(e, Fun(locals, e));
-
-    metavar_context ctx;
-    local_context lctx;
-    elaborator elab(env, opts, "_elab_quote", ctx, lctx, false, in_pattern, /* in_quote */ true);
-    e = elab.elaborate(e);
-    e = elab.finalize(e, true, true).first;
-
-    expr body = e;
-    for (unsigned i = 0; i < aqs.size(); i++)
-        body = binding_body(body);
-
-    if (in_pattern) {
-        e = instantiate_rev(body, aqs.size(), aqs.data());
-        e = quote(e);
-    } else {
-        if (has_param_univ(body))
+    expr s = get_expr_quote_value(e);
+    expr q;
+    if (find(s, [](expr const & t, unsigned) { return is_antiquote(t); })) {
+        // antiquotations ~> return `expr`
+        buffer<expr> locals;
+        buffer<expr> substs;
+        s = replace(s, [&](expr const & t, unsigned) {
+            if (is_antiquote(t)) {
+                expr local = mk_local(mk_fresh_name(), x.append_after(locals.size() + 1),
+                                      mk_expr_placeholder(), binder_info());
+                locals.push_back(local);
+                substs.push_back(get_antiquote_expr(t));
+                return some_expr(local);
+            }
+            return none_expr();
+        });
+        s = Fun(locals, s);
+        expr new_s = visit(s, none_expr());
+        if (has_param_univ(new_s))
             throw elaborator_exception(e, "invalid quotation, contains universe parameter");
-        e = mk_quote_core(e, true);
-        expr subst = mk_constant(get_expr_subst_name());
-        for (expr aq : aqs)
-            e = mk_app(subst, e, get_antiquote_expr(aq));
+        if (has_univ_metavar(new_s))
+            throw elaborator_exception(e, "invalid quotation, contains universe metavariable");
+        if (has_local(new_s))
+            throw elaborator_exception(e, "invalid quotation, contains local constant");
+        q = mk_elaborated_expr_quote(new_s);
+        q = mk_as_is(q);
+        expr subst_fn = mk_app(mk_explicit(mk_constant(get_expr_subst_name())), mk_bool_tt());
+        for (expr const & subst : substs) {
+            q = mk_app(subst_fn, q, subst);
+        }
+    } else {
+        // no antiquotations ~> infer `reflected new_s`
+        expr new_s;
+        if (expected_type && is_app_of(*expected_type, get_reflected_name(), 2)) {
+            new_s = visit(s, some_expr(app_arg(app_fn(*expected_type))));
+        } else {
+            new_s = visit(s, none_expr());
+        }
+        expr cls = mk_app(m_ctx, get_reflected_name(), new_s);
+        return mk_instance(cls, e);
     }
-    return e;
+    return visit(q, expected_type);
 }
 
 expr elaborator::visit_macro(expr const & e, optional<expr> const & expected_type, bool is_app_fn) {
@@ -2909,6 +2968,8 @@ expr elaborator::visit_macro(expr const & e, optional<expr> const & expected_typ
         return visit_app_core(e, buffer<expr>(), expected_type, e);
     } else if (is_by(e)) {
         return visit_by(e, expected_type);
+    } else if (is_hole(e)) {
+        return visit_hole(e, expected_type);
     } else if (is_equations(e)) {
         lean_assert(!is_app_fn); // visit_convoy is used in this case
         return visit_equations(e);
@@ -2917,6 +2978,8 @@ expr elaborator::visit_macro(expr const & e, optional<expr> const & expected_typ
         return visit_equation(e);
     } else if (is_field_notation(e)) {
         return visit_field(e, expected_type);
+    } else if (is_expr_quote(e)) {
+        return visit_expr_quote(e, expected_type);
     } else if (is_inaccessible(e)) {
         if (is_app_fn)
             throw elaborator_exception(e, "invalid inaccessible term, function expected");
@@ -2930,7 +2993,7 @@ expr elaborator::visit_macro(expr const & e, optional<expr> const & expected_typ
            implicit arguments. */
         return visit_base_app_core(new_e, arg_mask::Default, buffer<expr>(), true, expected_type, e);
     } else if (is_sorry(e)) {
-        return mk_sorry(expected_type, e);
+        return mk_sorry(expected_type, e, is_synthetic_sorry(e));
     } else if (is_structure_instance(e)) {
         return visit_structure_instance(e, expected_type);
     } else if (is_frozen_name(e)) {
@@ -3278,6 +3341,7 @@ void elaborator::invoke_tactic(expr const & mvar, expr const & tactic) {
     tactic_state s       = mk_tactic_state_for(mvar);
 
     try {
+        scoped_expr_caching scope(true);
         vm_obj r = tactic_evaluator(m_ctx, m_opts, ref)(tactic, s);
         if (auto new_s = tactic::is_success(r)) {
             metavar_context mctx = new_s->mctx();
@@ -3319,10 +3383,44 @@ void elaborator::synthesize_no_tactics() {
     synthesize_type_class_instances();
 }
 
+void elaborator::process_hole(expr const & mvar, expr const & hole) {
+    lean_assert(is_hole(hole));
+    expr val = instantiate_mvars(mvar);
+    if (!is_metavar(val)) {
+        auto pp_fn = mk_pp_ctx();
+        throw elaborator_exception(mvar,
+                                   format("invalid use of hole, type inference and elaboration rules force the hole to be")
+                                   + pp_indent(pp_fn, val));
+    }
+    expr ty = m_ctx.instantiate_mvars(m_ctx.infer(mvar));
+    if (m_uses_infom) {
+        expr args; optional<pos_info> begin_pos, end_pos;
+        std::tie(args, begin_pos, end_pos) = get_hole_info(hole);
+        if (begin_pos && end_pos) {
+            tactic_state s = elaborator::mk_tactic_state_for(val);
+            m_info.add_hole_info(*begin_pos, *end_pos, s, args);
+            /* The following command is a hack to make sure we see the hole's type in Emacs */
+            m_info.add_identifier_info(*begin_pos, "[goal]");
+        }
+    }
+    m_ctx.assign(mvar, copy_tag(hole, mk_sorry(ty)));
+}
+
+void elaborator::process_holes() {
+    buffer<expr_pair> to_process;
+    to_buffer(m_holes, to_process);
+    m_holes = list<expr_pair>();
+    for (expr_pair const & p : to_process) {
+        lean_assert(is_metavar(p.first));
+        process_hole(p.first, p.second);
+    }
+}
+
 void elaborator::synthesize() {
     synthesize_numeral_types();
     synthesize_type_class_instances();
     synthesize_using_tactics();
+    process_holes();
 }
 
 void elaborator::check_inaccessible(list<expr_pair> const & old_stack) {
@@ -3346,42 +3444,18 @@ void elaborator::check_inaccessible(list<expr_pair> const & old_stack) {
         if (has_expr_metavar(v)) {
             throw elaborator_exception(m, format("invalid use of inaccessible term, "
                                                  "it is not completely fixed by other arguments") +
-                                       pp_indent(v));
+                                       pp_indent(v))
+                .ignore_if(has_synth_sorry({v}));
         }
         if (!is_def_eq(v, p.second)) {
             auto pp_fn = mk_pp_ctx();
             throw elaborator_exception(m, format("invalid use of inaccessible term, the provided term is") +
                                        pp_indent(pp_fn, p.second) +
                                        line() + format("but is expected to be") +
-                                       pp_indent(pp_fn, v));
+                                       pp_indent(pp_fn, v))
+                .ignore_if(has_synth_sorry({v, p.second}));
         }
     }
-}
-
-void elaborator::unassigned_uvars_to_params(level const & l) {
-    if (!has_meta(l)) return;
-    for_each(l, [&](level const & l) {
-            if (!has_meta(l)) return false;
-            if (is_meta(l) && !m_ctx.is_assigned(l)) {
-                name r = mk_tagged_fresh_name(*g_level_prefix);
-                m_ctx.assign(l, mk_param_univ(r));
-            }
-            return true;
-        });
-}
-
-void elaborator::unassigned_uvars_to_params(expr const & e) {
-    if (!has_univ_metavar(e)) return;
-    for_each(e, [&](expr const & e, unsigned) {
-            if (!has_univ_metavar(e)) return false;
-            if (is_constant(e)) {
-                for (level const & l : const_levels(e))
-                    unassigned_uvars_to_params(l);
-            } else if (is_sort(e)) {
-                unassigned_uvars_to_params(sort_level(e));
-            }
-            return true;
-        });
 }
 
 void elaborator::report_error(tactic_state const & s, char const * state_header,
@@ -3404,8 +3478,9 @@ void elaborator::ensure_no_unassigned_metavars(expr & e) {
             if (is_metavar_decl_ref(e) && !m_ctx.is_assigned(e)) {
                 tactic_state s = mk_tactic_state_for(e);
                 if (m_recover_from_errors) {
-                    report_error(s, "context:", "don't know how to synthesize placeholder", e);
                     auto ty = m_ctx.mctx().get_metavar_decl(e).get_type();
+                    if (!has_synth_sorry(ty))
+                        report_error(s, "context:", "don't know how to synthesize placeholder", e);
                     m_ctx.assign(e, copy_tag(e, mk_sorry(ty)));
                     ensure_no_unassigned_metavars(ty);
 
@@ -3426,6 +3501,7 @@ elaborator::snapshot::snapshot(elaborator const & e) {
     m_saved_instances          = e.m_instances;
     m_saved_numeral_types      = e.m_numeral_types;
     m_saved_tactics            = e.m_tactics;
+    m_saved_holes              = e.m_holes;
     m_saved_inaccessible_stack = e.m_inaccessible_stack;
 }
 
@@ -3435,6 +3511,7 @@ void elaborator::snapshot::restore(elaborator & e) {
     e.m_instances          = m_saved_instances;
     e.m_numeral_types      = m_saved_numeral_types;
     e.m_tactics            = m_saved_tactics;
+    e.m_holes              = m_saved_holes;
     e.m_inaccessible_stack = m_saved_inaccessible_stack;
 }
 
@@ -3448,12 +3525,9 @@ struct sanitize_param_names_fn : public replace_visitor {
     type_context &  m_ctx;
     name            m_p{"u"};
     name_set        m_L; /* All parameter names in the input expression. */
-    name_map<level> m_R; /* map from tagged g_level_prefix to "clean" name not in L. */
-    name_map<level> m_U; /* map from universe metavariable name to "clean" name not in L. */
     unsigned        m_idx{1};
     buffer<name> &  m_new_param_names;
-    /* If m_fixed == true, then m_R, m_L and m_U are read only. We set m_fixed when elaborating
-       theorem proofs.
+    /* If m_fixed == true, then we do not introduce new parameters.
        Remark: we should be able to infer the set of universe variables using just the
        theorem type. */
     bool            m_fixed;
@@ -3463,7 +3537,7 @@ struct sanitize_param_names_fn : public replace_visitor {
 
     sanitize_param_names_fn(type_context & ctx, elaborator::theorem_finalization_info const & info,
                             buffer<name> & new_lp_names):
-        m_ctx(ctx), m_L(info.m_L), m_R(info.m_R), m_U(info.m_U),
+        m_ctx(ctx), m_L(info.m_L),
         m_new_param_names(new_lp_names), m_fixed(true) {}
 
     level mk_param() {
@@ -3471,9 +3545,6 @@ struct sanitize_param_names_fn : public replace_visitor {
             name new_n = m_p.append_after(m_idx);
             m_idx++;
             if (!m_L.contains(new_n)) {
-                if (m_fixed) {
-                    throw exception(sstream() << "theorem/lemma proof uses universe '" << new_n << "' which does not occur in its type");
-                }
                 m_new_param_names.push_back(new_n);
                 return mk_param_univ(new_n);
             }
@@ -3483,37 +3554,13 @@ struct sanitize_param_names_fn : public replace_visitor {
     level sanitize(level const & l) {
         name p("u");
         return replace(l, [&](level const & l) -> optional<level> {
-                if (is_param(l) && !is_placeholder(l)) {
-                    name const & n = param_id(l);
-                    if (is_tagged_by(n, *g_level_prefix)) {
-                        if (auto new_l = m_R.find(n)) {
-                            return some_level(*new_l);
-                        } else {
-                            if (m_fixed) {
-                                throw exception(sstream() << "theorem/lemma proof uses universe '" << n << "'"
-                                                << " which does not occur in its type (possible solution: use def instead of theorem)");
-                            }
-                            level r = mk_param();
-                            m_R.insert(n, r);
-                            return some_level(r);
-                        }
-                    }
-                } else if (is_meta(l)) {
+                if (is_meta(l)) {
                     if (is_metavar_decl_ref(l) && m_ctx.is_assigned(l)) {
                         return some_level(sanitize(*m_ctx.get_assignment(l)));
                     } else {
-                        name const & n = meta_id(l);
-                        if (auto new_l = m_U.find(n)) {
-                            return some_level(*new_l);
-                        } else {
-                            if (m_fixed) {
-                                throw exception(sstream() << "theorem/lemma proof contains an unassigned universe metavariable '" << n << "'"
-                                                << " (possible solution: use def instead of theorem)");
-                            }
-                            level r = mk_param();
-                            m_U.insert(n, r);
-                            return some_level(r);
-                        }
+                        auto p = m_fixed ? mk_level_zero() : mk_param();
+                        m_ctx.assign(l, p);
+                        return some_level(p);
                     }
                 }
                 return none_level();
@@ -3546,7 +3593,7 @@ struct sanitize_param_names_fn : public replace_visitor {
     }
 
     elaborator::theorem_finalization_info mk_info() {
-        return elaborator::theorem_finalization_info(m_L, m_R, m_U);
+        return {m_L};
     }
 };
 
@@ -3596,6 +3643,7 @@ static expr replace_with_simple_metavars(metavar_context mctx, name_map<expr> & 
 
 expr elaborator::elaborate(expr const & e) {
     scoped_info_manager scope_infom(&m_info);
+    scoped_expr_caching scope_no_caching(false);
     expr r = visit(e,  none_expr());
     trace_elab_detail(tout() << "result before final checkpoint\n" << r << "\n";);
     synthesize();
@@ -3637,6 +3685,8 @@ expr_pair elaborator::elaborate_with_type(expr const & e, expr const & e_type) {
 
 void elaborator::finalize_core(sanitize_param_names_fn & S, buffer<expr> & es,
                                bool check_unassigned, bool to_simple_metavar, bool collect_local_ctx) {
+    scoped_expr_caching scope(true);
+    flush_expr_cache();
     name_map<expr> to_simple_mvar_cache;
     for (expr & e : es) {
         e = instantiate_mvars(e);
@@ -3645,7 +3695,6 @@ void elaborator::finalize_core(sanitize_param_names_fn & S, buffer<expr> & es,
         if (!check_unassigned && to_simple_metavar) {
             e = replace_with_simple_metavars(m_ctx.mctx(), to_simple_mvar_cache, e);
         }
-        unassigned_uvars_to_params(e);
         e = instantiate_mvars(e);
         S.collect_params(e);
     }
@@ -3693,8 +3742,7 @@ expr elaborator::finalize_theorem_proof(expr const & val, theorem_finalization_i
 pair<expr, level_param_names>
 elaborate(environment & env, options const & opts, name const & decl_name,
           metavar_context & mctx, local_context const & lctx, expr const & e,
-          bool check_unassigned) {
-    bool recover_from_errors = false;
+          bool check_unassigned, bool recover_from_errors) {
     elaborator elab(env, opts, decl_name, mctx, lctx, recover_from_errors);
     expr r = elab.elaborate(e);
     auto p = elab.finalize(r, check_unassigned, true);
@@ -3886,7 +3934,7 @@ struct resolve_names_fn : public replace_visitor {
 
 
     virtual expr visit(expr const & e) override {
-        if (is_placeholder(e) || is_by(e) || is_as_is(e) || is_emptyc_or_emptys(e) || is_as_atomic(e)) {
+        if (is_placeholder(e) || is_by(e) || is_hole(e) || is_as_is(e) || is_emptyc_or_emptys(e) || is_as_atomic(e)) {
             return e;
         } else if (is_choice(e)) {
             return visit_choice(e);
@@ -3902,7 +3950,7 @@ expr resolve_names(environment const & env, local_context const & lctx, expr con
     return resolve_names_fn(env, lctx)(e);
 }
 
-static vm_obj tactic_save_type_info(vm_obj const & _e, vm_obj const & ref, vm_obj const & _s) {
+static vm_obj tactic_save_type_info(vm_obj const &, vm_obj const & _e, vm_obj const & ref, vm_obj const & _s) {
     expr const & e = to_expr(_e);
     tactic_state const & s = tactic::to_state(_s);
     if (!get_global_info_manager() || !get_pos_info_provider()) return tactic::mk_success(s);
@@ -3924,7 +3972,6 @@ static vm_obj tactic_save_type_info(vm_obj const & _e, vm_obj const & ref, vm_ob
 
 void initialize_elaborator() {
     g_elab_strategy = new name("elab_strategy");
-    g_level_prefix = new name("_elab_u");
     register_trace_class("elaborator");
     register_trace_class("elaborator_detail");
     register_trace_class("elaborator_debug");
@@ -3969,7 +4016,6 @@ void initialize_elaborator() {
 }
 
 void finalize_elaborator() {
-    delete g_level_prefix;
     delete g_elab_strategy;
     delete g_elaborator_coercions;
 }

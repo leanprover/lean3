@@ -9,13 +9,13 @@ import init.meta.name
 import init.meta.expr
 
 meta def procedure :=
-  name × expr
+name × expr
 
-meta def procedure.to_string : procedure → string
-| (n, e) := "def " ++ to_string n ++ " := \n" ++ to_string e
+meta def procedure.repr : procedure → string
+| (n, e) := "def " ++ to_string n ++ " := \n" ++ to_string e -- to_string for expr does not produce string that can be parsed by Lean
 
 meta def procedure.map_body (f : expr → expr) : procedure → procedure
 | (n, e) := (n, f e)
 
-meta instance : has_to_string procedure :=
-  ⟨ procedure.to_string ⟩
+meta instance : has_repr procedure :=
+⟨procedure.repr⟩

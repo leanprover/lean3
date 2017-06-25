@@ -48,7 +48,7 @@ meta instance has_to_tactic_format_rel_data : has_to_tactic_format rel_data :=
   R ← pp r.relation,
   α ← pp r.in_type,
   β ← pp r.out_type,
-  return $ to_fmt "(" ++ R ++ ": rel (" ++ α ++ ") (" ++ β ++ "))" ⟩
+  return format!"({R}: rel ({α}) ({β}))" ⟩
 
 private meta structure rule_data :=
 (pr      : expr)
@@ -68,7 +68,7 @@ meta instance has_to_tactic_format_rule_data : has_to_tactic_format rule_data :=
   ma ← pp r.args,
   pat ← pp r.pat.target,
   out ← pp r.out,
-  return $ to_fmt "{ ⟨" ++ pat ++ "⟩ pr: " ++ pr ++ " → " ++ out ++ ", " ++ up ++ " " ++ mp ++ " " ++ ua ++ " " ++ ma ++ " }" ⟩
+  return format!"{{ ⟨{pat}⟩ pr: {pr} → {out}, {up} {mp} {ua} {ma} }" ⟩
 
 private meta def get_lift_fun : expr → tactic (list rel_data × expr)
 | e :=
@@ -89,7 +89,7 @@ private meta def analyse_rule (u' : list name) (pr : expr) : tactic rule_data :=
   (params, app (app r f) g) ← mk_local_pis t,
   (arg_rels, R) ← get_lift_fun r,
   args    ← monad.for (enum arg_rels) (λ⟨n, a⟩,
-    prod.mk <$> mk_local_def (mk_simple_name ("a_" ++ to_string n)) a.in_type <*> pure a),
+    prod.mk <$> mk_local_def (mk_simple_name ("a_" ++ repr n)) a.in_type <*> pure a),
   a_vars  ← return $ prod.fst <$> args,
   p       ← head_beta (app_of_list f a_vars),
   p_data  ← return $ mark_occurences (app R p) params,
@@ -143,15 +143,16 @@ meta def compute_transfer : list rule_data → list expr → expr → tactic (ex
     inst_univ  ← return $ (λe, instantiate_univ_params e (level_map ++ zip rd.uargs l)),
     (ps, args) ← return $ split_params_args (list.map (prod.map inst_univ id) rd.params) m,
     (ps, ms)   ← param_substitutions ctxt ps, /- this checks type class parameters -/
-    return (instantiate_locals ps ∘ inst_univ, ps, args, ms, rd))),
+    return (instantiate_locals ps ∘ inst_univ, ps, args, ms, rd))) <|>
+  (do trace e, fail "no matching rule"),
 
   (bs, hs, mss) ← monad.for (zip rd.args args) (λ⟨⟨_, d⟩, e⟩, do
     -- Argument has function type
     (args, r) ← get_lift_fun (i d.relation),
     ((a_vars, b_vars), (R_vars, bnds)) ← monad.for (enum args) (λ⟨n, arg⟩, do
-      a ← mk_local_def (("a" ++ to_string n) : string) arg.in_type,
-      b ← mk_local_def (("b" ++ to_string n) : string) arg.out_type,
-      R ← mk_local_def (("R" ++ to_string n) : string) (arg.relation a b),
+      a ← mk_local_def sformat!"a{n}" arg.in_type,
+      b ← mk_local_def sformat!"b{n}" arg.out_type,
+      R ← mk_local_def sformat!"R{n}" (arg.relation a b),
       return ((a, b), (R, [a, b, R]))) >>= (return ∘ prod.map unzip unzip ∘ unzip),
     rds'      ← monad.for R_vars (analyse_rule []),
 
@@ -174,11 +175,11 @@ meta def transfer (ds : list name) : tactic unit := do
   (guard (¬ tgt.has_meta_var) <|>
     fail "Target contains (universe) meta variables. This is not supported by transfer."),
 
-  (new_tgt, pr, ms) ← compute_transfer rds [] (const `iff [] tgt),
+  (new_tgt, pr, ms) ← compute_transfer rds [] ((const `iff [] : expr) tgt),
   new_pr ← mk_meta_var new_tgt,
 
   /- Setup final tactic state -/
-  exact (const `iff.mpr [] tgt new_tgt pr new_pr),
+  exact ((const `iff.mpr [] : expr) tgt new_tgt pr new_pr),
   ms ← monad.for ms (λm, (get_assignment m >> return []) <|> return [m]),
   gs ← get_goals,
   set_goals (list.join ms ++ new_pr :: gs)

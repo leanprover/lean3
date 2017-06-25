@@ -12,9 +12,9 @@ Author: Leonardo de Moura
 #include "library/replace_visitor.h"
 #include "library/equations_compiler/compiler.h"
 #include "library/equations_compiler/util.h"
-#include "library/equations_compiler/pack_domain.h"
 #include "library/equations_compiler/structural_rec.h"
 #include "library/equations_compiler/unbounded_rec.h"
+#include "library/equations_compiler/wf_rec.h"
 #include "library/equations_compiler/elim_match.h"
 
 namespace lean {
@@ -31,12 +31,21 @@ static expr compile_equations_core(environment & env, options const & opts,
                                    expr const & eqns) {
     type_context ctx(env, opts, mctx, lctx, transparency_mode::Semireducible);
     trace_compiler(tout() << "compiling\n" << eqns << "\n";);
-    trace_compiler(tout() << "recursive: " << is_recursive_eqns(ctx, eqns) << "\n";);
-    trace_compiler(tout() << "nested recursion: " << has_nested_rec(eqns) << "\n";);
+    trace_compiler(tout() << "recursive:          " << is_recursive_eqns(ctx, eqns) << "\n";);
+    trace_compiler(tout() << "nested recursion:   " << has_nested_rec(eqns) << "\n";);
+    trace_compiler(tout() << "using_well_founded: " << is_wf_equations(eqns) << "\n";);
     equations_header const & header = get_equations_header(eqns);
     lean_assert(header.m_is_meta || !has_nested_rec(eqns));
+
     if (header.m_is_meta) {
+        if (is_wf_equations(eqns)) {
+            throw exception("invalid use of 'using_well_founded', we do not need to use well founded recursion for meta definitions, since they can use unbounded recursion");
+        }
         return mk_equations_result(unbounded_rec(env, opts, mctx, lctx, eqns));
+    }
+
+    if (is_wf_equations(eqns)) {
+        return wf_rec(env, opts, mctx, lctx, eqns);
     }
 
     if (header.m_num_fns == 1) {
@@ -47,10 +56,7 @@ static expr compile_equations_core(environment & env, options const & opts,
         }
     }
 
-    throw exception("support for well-founded recursion has not been implemented yet, "
-                    "use 'set_option trace.eqn_compiler true' for additional information");
-    // test pack_domain
-    // pack_domain(ctx, eqns);
+    return wf_rec(env, opts, mctx, lctx, eqns);
 }
 
 /** Auxiliary class for pulling nested recursive calls.
@@ -129,6 +135,32 @@ struct pull_nested_rec_fn : public replace_visitor {
         t = is_lam ? ctx.mk_lambda(locals, t) : ctx.mk_pi(locals, t);
         m_mctx = ctx.mctx();
         m_lctx_stack.pop_back();
+        /* We clear the cache whenever we visit a binder because of
+           collect_local_props.
+
+           When pulling a recursive call (f t), the resulting term
+           may contain local variables that do not occur in (f t).
+           Thus, the cached value for (f t) may not be valid
+           in other contexts.
+
+           By clearing the cache we conservatively fix this issue.
+
+           Here is an example:
+
+           def filter : list A → list A
+           | nil      := nil
+           | (a :: l) :=
+              match (H a) with
+              | (is_true h_1) := a :: filter l
+              | (is_false h_2) := filter l
+              end
+
+           The first (filter l) is replaced with a term
+           (_f_1 l h_1) where _f_1 is a new fresh local.
+           We cannot replace the second (filter l)
+           with (_f_1 l h_1), since h_1 is not in the scope.
+        */
+        m_cache.clear();
         return t;
     }
 
@@ -169,9 +201,31 @@ struct pull_nested_rec_fn : public replace_visitor {
             });
     }
 
+    /* Collect local propositions. This is needed when the nested recursive call will
+       be defined by well-founded recursion, and we don't know whether local propositions
+       are hints for helping the "decreasing tactic".
+       In the future, we should add a mechanism that will only include these propositions
+       if the recursive call will be defined using well founded recursion.
+    */
+    void collect_local_props(name_set & found, buffer<expr> & R) {
+        type_context ctx = mk_type_context(lctx());
+        lctx().for_each([&](local_decl const & d) {
+                if (!base_lctx().find_local_decl(d.get_name()) &&
+                    !found.contains(d.get_name()) &&
+                    !d.get_info().is_rec() &&
+                    ctx.is_prop(d.get_type())) {
+                    found.insert(d.get_name());
+                    R.push_back(d.mk_ref());
+                }
+            });
+    }
+
     void collect_locals(expr const & e, buffer<expr> & R) {
         name_set found;
+        /* Collect used local declarations. */
         collect_locals_core(e, found, R);
+        /* Collect local propositions. */
+        collect_local_props(found, R);
         for (unsigned i = 0; i < R.size(); i++) {
             expr const & x = R[i];
             collect_locals_core(lctx().get_local_decl(x).get_type(), found, R);

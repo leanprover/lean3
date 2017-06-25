@@ -58,6 +58,22 @@ public:
 };
 
 #ifdef LEAN_JSON
+void hole_info_data::report(io_state_stream const & ios, json & record) const {
+    type_context ctx = mk_type_context_for(m_state);
+    interactive_report_type(ios.get_environment(), ios.get_options(), ctx.infer(m_state.main()), record);
+}
+#endif
+
+hole_info_data const * is_hole_info_data(info_data const & d) {
+    return dynamic_cast<hole_info_data const *>(d.raw());
+}
+
+hole_info_data const & to_hole_info_data(info_data const & d) {
+    lean_assert(is_hole_info_data(d));
+    return *static_cast<hole_info_data const *>(d.raw());
+}
+
+#ifdef LEAN_JSON
 void vm_obj_format_info::report(io_state_stream const & ios, json & record) const {
     if (!m_cache) {
         vm_state S(m_env, ios.get_options());
@@ -74,6 +90,9 @@ void vm_obj_format_info::report(io_state_stream const & ios, json & record) cons
 info_data mk_type_info(expr const & e) { return info_data(new type_info_data(e)); }
 info_data mk_identifier_info(name const & full_id) { return info_data(new identifier_info_data(full_id)); }
 info_data mk_vm_obj_format_info(environment const & env, vm_obj const & thunk) { return info_data(new vm_obj_format_info(env, thunk)); }
+info_data mk_hole_info(tactic_state const & s, expr const & hole_args, pos_info const & begin, pos_info end) {
+    return info_data(new hole_info_data(s, hole_args, begin, end));
+}
 
 void info_manager::add_info(pos_info pos, info_data data) {
 #ifdef LEAN_NO_INFO
@@ -133,6 +152,14 @@ void info_manager::add_identifier_info(pos_info pos, name const & full_id) {
 void info_manager::add_const_info(environment const & env, pos_info pos, name const & full_id) {
     add_identifier_info(pos, full_id);
     add_type_info(pos, env.get(full_id).get_type());
+}
+
+void info_manager::add_hole_info(pos_info const & begin_pos, pos_info const & end_pos, tactic_state const & s, expr const & hole_args) {
+#ifdef LEAN_NO_INFO
+    return;
+#endif
+    info_data d = mk_hole_info(s, hole_args, begin_pos, end_pos);
+    add_info(begin_pos, d);
 }
 
 void info_manager::add_vm_obj_format_info(pos_info pos, environment const & env, vm_obj const & thunk) {

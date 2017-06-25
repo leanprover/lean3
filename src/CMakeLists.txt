@@ -1,7 +1,7 @@
 cmake_minimum_required(VERSION 2.8.7)
 project(LEAN CXX C)
 set(LEAN_VERSION_MAJOR 3)
-set(LEAN_VERSION_MINOR 1)
+set(LEAN_VERSION_MINOR 2)
 set(LEAN_VERSION_PATCH 1)
 
 set(LEAN_EXTRA_LINKER_FLAGS "")
@@ -182,7 +182,7 @@ set(CMAKE_CXX_FLAGS                "-Wall -Wextra -std=c++11 ${LEAN_EXTRA_CXX_FL
 set(CMAKE_CXX_FLAGS_DEBUG          "-g3 -DLEAN_DEBUG -DLEAN_TRACE")
 set(CMAKE_CXX_FLAGS_MINSIZEREL     "-Os -DNDEBUG")
 set(CMAKE_CXX_FLAGS_RELEASE        "-O3 -DNDEBUG")
-set(CMAKE_CXX_FLAGS_RELWITHDEBINFO "-O2 -g3")
+set(CMAKE_CXX_FLAGS_RELWITHDEBINFO "-O2 -g3 -DLEAN_DEBUG")
 set(CMAKE_CXX_FLAGS_GPROF          "-O2 -g -pg")
 
 # OSX .dmg generation (this is working in progress)
@@ -495,7 +495,14 @@ install(DIRECTORY "${CMAKE_SOURCE_DIR}/../library" DESTINATION "${LIBRARY_DIR}"
         FILES_MATCHING
         PATTERN "*.lean"
         PATTERN "*.olean"
-        PATTERN ".project"
+        PATTERN "leanpkg.toml"
+        PATTERN "*.md")
+
+install(DIRECTORY "${CMAKE_SOURCE_DIR}/../leanpkg" DESTINATION "${LIBRARY_DIR}"
+        FILES_MATCHING
+        PATTERN "*.lean"
+        PATTERN "*.olean"
+        PATTERN "leanpkg.toml"
         PATTERN "*.md")
 
 install(DIRECTORY "${CMAKE_SOURCE_DIR}/" DESTINATION "${LEAN_EXT_INCLUDE_DIR}"

@@ -22,6 +22,8 @@ static name const * g_ldcurly_tk = nullptr;
 static name const * g_rdcurly_tk = nullptr;
 static name const * g_lbracket_tk = nullptr;
 static name const * g_rbracket_tk = nullptr;
+static name const * g_lcurlybang_tk = nullptr;
+static name const * g_rcurlybang_tk = nullptr;
 static name const * g_langle_tk = nullptr;
 static name const * g_rangle_tk = nullptr;
 static name const * g_triangle_tk = nullptr;
@@ -118,6 +120,7 @@ static name const * g_root_tk = nullptr;
 static name const * g_fields_tk = nullptr;
 static name const * g_trust_tk = nullptr;
 static name const * g_inductive_tk = nullptr;
+static name const * g_coinductive_tk = nullptr;
 static name const * g_instance_tk = nullptr;
 static name const * g_this_tk = nullptr;
 static name const * g_noncomputable_tk = nullptr;
@@ -145,6 +148,8 @@ void initialize_tokens() {
     g_rdcurly_tk = new name{"⦄"};
     g_lbracket_tk = new name{"["};
     g_rbracket_tk = new name{"]"};
+    g_lcurlybang_tk = new name{"{!"};
+    g_rcurlybang_tk = new name{"!}"};
     g_langle_tk = new name{"⟨"};
     g_rangle_tk = new name{"⟩"};
     g_triangle_tk = new name{"▸"};
@@ -241,6 +246,7 @@ void initialize_tokens() {
     g_fields_tk = new name{"fields"};
     g_trust_tk = new name{"trust"};
     g_inductive_tk = new name{"inductive"};
+    g_coinductive_tk = new name{"coinductive"};
     g_instance_tk = new name{"instance"};
     g_this_tk = new name{"this"};
     g_noncomputable_tk = new name{"noncomputable"};
@@ -269,6 +275,8 @@ void finalize_tokens() {
     delete g_rdcurly_tk;
     delete g_lbracket_tk;
     delete g_rbracket_tk;
+    delete g_lcurlybang_tk;
+    delete g_rcurlybang_tk;
     delete g_langle_tk;
     delete g_rangle_tk;
     delete g_triangle_tk;
@@ -365,6 +373,7 @@ void finalize_tokens() {
     delete g_fields_tk;
     delete g_trust_tk;
     delete g_inductive_tk;
+    delete g_coinductive_tk;
     delete g_instance_tk;
     delete g_this_tk;
     delete g_noncomputable_tk;
@@ -392,6 +401,8 @@ name const & get_ldcurly_tk() { return *g_ldcurly_tk; }
 name const & get_rdcurly_tk() { return *g_rdcurly_tk; }
 name const & get_lbracket_tk() { return *g_lbracket_tk; }
 name const & get_rbracket_tk() { return *g_rbracket_tk; }
+name const & get_lcurlybang_tk() { return *g_lcurlybang_tk; }
+name const & get_rcurlybang_tk() { return *g_rcurlybang_tk; }
 name const & get_langle_tk() { return *g_langle_tk; }
 name const & get_rangle_tk() { return *g_rangle_tk; }
 name const & get_triangle_tk() { return *g_triangle_tk; }
@@ -488,6 +499,7 @@ name const & get_root_tk() { return *g_root_tk; }
 name const & get_fields_tk() { return *g_fields_tk; }
 name const & get_trust_tk() { return *g_trust_tk; }
 name const & get_inductive_tk() { return *g_inductive_tk; }
+name const & get_coinductive_tk() { return *g_coinductive_tk; }
 name const & get_instance_tk() { return *g_instance_tk; }
 name const & get_this_tk() { return *g_this_tk; }
 name const & get_noncomputable_tk() { return *g_noncomputable_tk; }

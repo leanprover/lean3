@@ -83,7 +83,11 @@ struct token_config {
     static name * g_class_name;
 
     static void add_entry(environment const &, io_state const &, state & s, entry const & e) {
-        s.m_table = add_token(s.m_table, e.m_token.c_str(), e.m_prec);
+        if (e.m_prec) {
+            s.m_table = add_token(s.m_table, e.m_token.c_str(), *e.m_prec);
+        } else {
+            s.m_table = add_command_token(s.m_table, e.m_token.c_str());
+        }
     }
     static name const & get_class_name() {
         return *g_class_name;
@@ -93,9 +97,9 @@ struct token_config {
         s << e.m_token.c_str() << e.m_prec;
     }
     static entry read_entry(deserializer & d) {
-        std::string tk = d.read_string();
-        unsigned prec  = d.read_unsigned();
-        return entry(tk, prec);
+        entry e;
+        d >> e.m_token >> e.m_prec;
+        return e;
     }
     static optional<unsigned> get_fingerprint(entry const &) {
         return optional<unsigned>();
@@ -319,6 +323,10 @@ name * notation_config::g_class_name = nullptr;
 template class scoped_ext<notation_config>;
 typedef scoped_ext<notation_config> notation_ext;
 
+environment add_notation(environment const & env, notation_entry const & e, persistence persistent) {
+    return notation_ext::add_entry(env, get_dummy_ios(), e, persistent);
+}
+
 environment add_notation(environment const & env, notation_entry const & e, bool persistent) {
     return notation_ext::add_entry(env, get_dummy_ios(), e, persistent);
 }
@@ -384,6 +392,13 @@ static cmd_ext const & get_extension(environment const & env) {
 }
 cmd_table const & get_cmd_table(environment const & env) {
     return get_extension(env).m_cmds;
+}
+
+environment add_command(environment const & env, name const & n, cmd_info const & info) {
+    auto env2 = token_ext::register_entry(env, get_dummy_ios(), token_entry(n.to_string()));
+    cmd_ext ext = get_extension(env2);
+    ext.m_cmds.insert(n, info);
+    return env2.update(g_ext->m_ext_id, std::make_shared<cmd_ext>(ext));
 }
 
 void initialize_parser_config() {

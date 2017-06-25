@@ -32,14 +32,14 @@ struct sigma_packer_fn {
         expr B, codomain;
         std::tie(B, codomain) = mk_sigma_domain(next_pi_type, out_locals, n-1);
         B = locals.mk_lambda(B);
-        return mk_pair(mk_app(m_ctx, get_sigma_name(), A, B), codomain);
+        return mk_pair(mk_app(m_ctx, get_psigma_name(), A, B), codomain);
     }
 
     expr mk_codomain(expr const & codomain, expr p, buffer<expr> const & locals, unsigned n) {
         buffer<expr> terms;
         for (unsigned i = 0; i < n - 1; i++) {
-            terms.push_back(mk_app(m_ctx, get_sigma_fst_name(), p));
-            p = mk_app(m_ctx, get_sigma_snd_name(), p);
+            terms.push_back(mk_app(m_ctx, get_psigma_fst_name(), p));
+            p = mk_app(m_ctx, get_psigma_snd_name(), p);
         }
         terms.push_back(p);
         return replace_locals(codomain, locals, terms);
@@ -73,7 +73,7 @@ struct sigma_packer_fn {
             if (i == arity - 1) {
                 return args[i];
             } else {
-                lean_assert(is_constant(get_app_fn(type), get_sigma_name()));
+                lean_assert(is_constant(get_app_fn(type), get_psigma_name()));
                 expr a        = args[i];
                 expr A        = app_arg(app_fn(type));
                 expr B        = app_arg(type);
@@ -82,13 +82,15 @@ struct sigma_packer_fn {
                 expr b        = pack(i+1, arity, args, new_type);
                 bool mask[2]  = {true, true};
                 expr AB[2]    = {A, B};
-                return mk_app(mk_app(m_ctx, get_sigma_mk_name(), 2, mask, AB), a, b);
+                return mk_app(mk_app(m_ctx, get_psigma_mk_name(), 2, mask, AB), a, b);
             }
         }
 
         virtual expr visit_app(expr const & e) override {
             buffer<expr> args;
             expr const & fn = get_app_args(e, args);
+            for (expr & arg : args)
+                arg = visit(arg);
             auto fnidx = get_fn_idx(fn);
             if (!fnidx) return replace_visitor_with_tc::visit_app(e);
             expr new_fn = m_ues.get_fn(*fnidx);
@@ -103,14 +105,14 @@ struct sigma_packer_fn {
             expr sigma_type  = binding_domain(new_fn_type);
             expr arg         = pack(0, arity, args, sigma_type);
             expr r           = mk_app(new_fn, arg);
-            return mk_app(r, args.size() - arity, args.data() + arity);
+            return copy_tag(e, mk_app(r, args.size() - arity, args.data() + arity));
         }
 
         virtual expr visit_local(expr const & e) override {
             auto fnidx = get_fn_idx(e);
             if (!fnidx) return replace_visitor_with_tc::visit_local(e);
             expr new_fn = m_ues.get_fn(*fnidx);
-            if (e == new_fn) return replace_visitor_with_tc::visit_app(e);
+            if (e == new_fn) return replace_visitor_with_tc::visit_local(e);
             unsigned arity = m_ues.get_arity_of(*fnidx);
             if (0 < arity) {
                 expr new_e = m_ctx.eta_expand(e);

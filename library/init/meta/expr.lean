@@ -5,6 +5,7 @@ Authors: Leonardo de Moura
 -/
 prelude
 import init.meta.level init.category.monad
+universes u v
 
 structure pos :=
 (line   : nat)
@@ -20,85 +21,75 @@ meta instance : has_to_format pos :=
 ⟨λ ⟨l, c⟩, "⟨" ++ l ++ ", " ++ c ++ "⟩"⟩
 
 inductive binder_info
-| default | implicit | strict_implicit | inst_implicit | other
+| default | implicit | strict_implicit | inst_implicit | aux_decl
 
-instance : has_to_string binder_info :=
+instance : has_repr binder_info :=
 ⟨λ bi, match bi with
 | binder_info.default := "default"
 | binder_info.implicit := "implicit"
 | binder_info.strict_implicit := "strict_implicit"
 | binder_info.inst_implicit := "inst_implicit"
-| binder_info.other := "other"
+| binder_info.aux_decl := "aux_decl"
 end⟩
 
 meta constant macro_def : Type
 
-/- Reflect a C++ expr object. The VM replaces it with the C++ implementation. -/
-meta inductive expr
-| var         : nat → expr
-| sort        : level → expr
-| const       : name → list level → expr
+/-- Reflect a C++ expr object. The VM replaces it with the C++ implementation. -/
+meta inductive expr (elaborated : bool := tt)
+| var      {} : nat → expr
+| sort     {} : level → expr
+| const    {} : name → list level → expr
 | mvar        : name → expr → expr
 | local_const : name → name → binder_info → expr → expr
 | app         : expr → expr → expr
 | lam         : name → binder_info → expr → expr → expr
 | pi          : name → binder_info → expr → expr → expr
 | elet        : name → expr → expr → expr → expr
-| macro       : macro_def → ∀ n, (fin n → expr) → expr
+| macro       : macro_def → list expr → expr
 
-/-- (reflected a) is a special opaque container for an `expr` representing `a`.
-    It can only be obtained via type class inference, which will use the representation
-    of `a` in the calling context. -/
-meta constant {u} reflected {α : Type u} : α → Type u
-attribute [class] reflected
-meta constant {u} reflect {α : Type u} (a : α) [reflected a] : expr
+variable {elab : bool}
 
 meta instance : inhabited expr :=
 ⟨expr.sort level.zero⟩
 
-meta constant expr.mk_macro (d : macro_def) : list expr → expr
 meta constant expr.macro_def_name (d : macro_def) : name
 meta def expr.mk_var (n : nat) : expr :=
 expr.var n
 
-/- Choice macros are used to implement overloading.
-   TODO(Leo): should we change it to pexpr? -/
-meta constant expr.is_choice_macro : expr → bool
-
 /- Expressions can be annotated using the annotation macro. -/
-meta constant expr.is_annotation : expr → option (name × expr)
+meta constant expr.is_annotation : expr elab → option (name × expr elab)
 
-meta def expr.erase_annotations : expr → expr
+meta def expr.erase_annotations : expr elab → expr elab
 | e :=
   match e.is_annotation with
   | some (_, a) := expr.erase_annotations a
   | none        := e
   end
 
--- Compares expressions, including binder names.
+/-- Compares expressions, including binder names. -/
 meta constant expr.has_decidable_eq : decidable_eq expr
 attribute [instance] expr.has_decidable_eq
 
--- Compares expressions while ignoring binder names.
+/-- Compares expressions while ignoring binder names. -/
 meta constant expr.alpha_eqv : expr → expr → bool
 notation a ` =ₐ `:50 b:50 := expr.alpha_eqv a b = bool.tt
 
-protected meta constant expr.to_string : expr → string
+protected meta constant expr.to_string : expr elab → string
 
-meta instance : has_to_string expr := ⟨expr.to_string⟩
-meta instance : has_to_format expr := ⟨λ e, e.to_string⟩
+meta instance : has_to_string (expr elab) := ⟨expr.to_string⟩
+meta instance : has_to_format (expr elab) := ⟨λ e, e.to_string⟩
 
 /- Coercion for letting users write (f a) instead of (expr.app f a) -/
-meta instance : has_coe_to_fun expr :=
-{ F := λ e, expr → expr, coe := λ e, expr.app e }
+meta instance : has_coe_to_fun (expr elab) :=
+{ F := λ e, expr elab → expr elab, coe := λ e, expr.app e }
 
 meta constant expr.hash : expr → nat
 
--- Compares expressions, ignoring binder names, and sorting by hash.
+/-- Compares expressions, ignoring binder names, and sorting by hash. -/
 meta constant expr.lt : expr → expr → bool
--- Compares expressions, ignoring binder names.
+/-- Compares expressions, ignoring binder names. -/
 meta constant expr.lex_lt : expr → expr → bool
--- Compares expressions, ignoring binder names, and sorting by hash.
+/-- Compares expressions, ignoring binder names, and sorting by hash. -/
 meta def expr.cmp (a b : expr) : ordering :=
 if expr.lt a b then ordering.lt
 else if a =ₐ b then ordering.eq
@@ -118,7 +109,7 @@ meta constant expr.instantiate_univ_params : expr → list (name × level) → e
 meta constant expr.instantiate_var         : expr → expr → expr
 meta constant expr.instantiate_vars        : expr → list expr → expr
 
-meta constant expr.subst                   : expr → expr → expr
+protected meta constant expr.subst : expr elab → expr elab → expr elab
 
 meta constant expr.has_var       : expr → bool
 meta constant expr.has_var_idx   : expr → nat → bool
@@ -126,7 +117,8 @@ meta constant expr.has_local     : expr → bool
 meta constant expr.has_meta_var  : expr → bool
 meta constant expr.lift_vars     : expr → nat → nat → expr
 meta constant expr.lower_vars    : expr → nat → nat → expr
-/- (copy_pos_info src tgt) copy position information from src to tgt. -/
+protected meta constant expr.pos : expr elab → option pos
+/-- `copy_pos_info src tgt` copies position information from `src` to `tgt`. -/
 meta constant expr.copy_pos_info : expr → expr → expr
 
 meta constant expr.is_internal_cnstr : expr → option unsigned
@@ -136,10 +128,42 @@ meta constant expr.collect_univ_params : expr → list name
 /-- `occurs e t` returns `tt` iff `e` occurs in `t` -/
 meta constant expr.occurs        : expr → expr → bool
 
+/-- (reflected a) is a special opaque container for a closed `expr` representing `a`.
+    It can only be obtained via type class inference, which will use the representation
+    of `a` in the calling context. Local constants in the representation are replaced
+    by nested inference of `reflected` instances.
+
+    The quotation expression `(a) (outside of patterns) is equivalent to `reflect a`
+    and thus can be used as an explicit way of inferring an instance of `reflected a`. -/
+meta def reflected {α : Sort u} : α → Type :=
+λ _, expr
+
+@[inline] meta def reflected.to_expr {α : Sort u} {a : α} : reflected a → expr :=
+id
+
+@[inline] meta def reflected.subst {α : Sort v} {β : α → Sort u} {f : Π a : α, β a} {a : α} :
+  reflected f → reflected a → reflected (f a) :=
+expr.subst
+
+meta constant expr.reflect (e : expr elab) : reflected e
+meta constant string.reflect (s : string) : reflected s
+
+attribute [class] reflected
+attribute [instance] expr.reflect string.reflect
+attribute [irreducible] reflected reflected.subst reflected.to_expr
+
+@[inline] meta instance {α : Sort u} (a : α) : has_coe (reflected a) expr :=
+⟨reflected.to_expr⟩
+
+meta def reflect {α : Sort u} (a : α) [h : reflected a] : reflected a := h
+
+meta instance {α} (a : α) : has_to_format (reflected a) :=
+⟨λ h, to_fmt h.to_expr⟩
+
 namespace expr
 open decidable
 
--- Compares expressions, ignoring binder names, and sorting by hash.
+/-- Compares expressions, ignoring binder names, and sorting by hash. -/
 meta instance : has_ordering expr :=
 ⟨ expr.cmp ⟩
 
@@ -180,7 +204,7 @@ meta def app_arg : expr → expr
 | (app f a) := a
 | a         := a
 
-meta def get_app_fn : expr → expr
+meta def get_app_fn : expr elab → expr elab
 | (app f a) := get_app_fn f
 | a         := a
 
@@ -231,6 +255,10 @@ meta def local_type : expr → expr
 | (local_const _ _ _ t) := t
 | e := e
 
+meta def is_aux_decl : expr → bool
+| (local_const _ _ binder_info.aux_decl _) := tt
+| _                                        := ff
+
 meta def is_constant_of : expr → name → bool
 | (const n₁ ls) n₂ := n₁ = n₂
 | e             n  := ff
@@ -242,29 +270,29 @@ meta def is_napp_of (e : expr) (c : name) (n : nat) : bool :=
 is_app_of e c ∧ get_app_num_args e = n
 
 meta def is_false : expr → bool
-| ```(false) := tt
+| `(false) := tt
 | _         := ff
 
 meta def is_not : expr → option expr
-| ```(not %%a)     := some a
-| ```(%%a → false) := some a
-| e                := none
+| `(not %%a)     := some a
+| `(%%a → false) := some a
+| e              := none
 
 meta def is_and : expr → option (expr × expr)
-| ```(and %%α %%β) := some (α, β)
-| _                 := none
+| `(and %%α %%β) := some (α, β)
+| _              := none
 
 meta def is_or : expr → option (expr × expr)
-| ```(or %%α %%β) := some (α, β)
-| _                 := none
+| `(or %%α %%β) := some (α, β)
+| _             := none
 
 meta def is_eq : expr → option (expr × expr)
-| ```((%%a : %%_) = %%b) := some (a, b)
-| _                     := none
+| `((%%a : %%_) = %%b) := some (a, b)
+| _                    := none
 
 meta def is_ne : expr → option (expr × expr)
-| ```((%%a : %%_) ≠ %%b) := some (a, b)
-| _                     := none
+| `((%%a : %%_) ≠ %%b) := some (a, b)
+| _                    := none
 
 meta def is_bin_arith_app (e : expr) (op : name) : option (expr × expr) :=
 if is_napp_of e op 4
@@ -284,8 +312,8 @@ meta def is_ge (e : expr) : option (expr × expr) :=
 is_bin_arith_app e ``ge
 
 meta def is_heq : expr → option (expr × expr × expr × expr)
-| ```(@heq %%α %%a %%β %%b) := some (α, a, β, b)
-| _                         := none
+| `(@heq %%α %%a %%β %%b) := some (α, a, β, b)
+| _                       := none
 
 meta def is_pi : expr → bool
 | (pi _ _ _ _) := tt
@@ -319,8 +347,15 @@ meta def binding_body : expr → expr
 | (lam _ _ _ b) := b
 | e             := e
 
+meta def is_numeral : expr → bool
+| `(@has_zero.zero %%α %%s)  := tt
+| `(@has_one.one %%α %%s)    := tt
+| `(@bit0 %%α %%s %%v)       := is_numeral v
+| `(@bit1 %%α %%s₁ %%s₂ %%v) := is_numeral v
+| _                          := ff
+
 meta def imp (a b : expr) : expr :=
-```(%%a → %%b)
+pi `_ binder_info.default a b
 
 meta def lambdas : list expr → expr → expr
 | (local_const uniq pp info t :: es) f :=
@@ -336,24 +371,17 @@ open format
 
 private meta def p := λ xs, paren (format.join (list.intersperse " " xs))
 
-private meta def macro_args_to_list_aux (n : nat) (args : fin n → expr) : Π (i : nat), i ≤ n → list expr
-| 0     _ := []
-| (i+1) h := args ⟨i, h⟩ :: macro_args_to_list_aux i (nat.le_trans (nat.le_succ _) h)
-
-meta def macro_args_to_list (n : nat) (args : fin n → expr) : list expr :=
-(macro_args_to_list_aux n args n (nat.le_refl _)).reverse
-
-meta def to_raw_fmt : expr → format
+meta def to_raw_fmt : expr elab → format
 | (var n) := p ["var", to_fmt n]
 | (sort l) := p ["sort", to_fmt l]
 | (const n ls) := p ["const", to_fmt n, to_fmt ls]
 | (mvar n t)   := p ["mvar", to_fmt n, to_raw_fmt t]
 | (local_const n m bi t) := p ["local_const", to_fmt n, to_fmt m, to_raw_fmt t]
 | (app e f) := p ["app", to_raw_fmt e, to_raw_fmt f]
-| (lam n bi e t) := p ["lam", to_fmt n, to_string bi, to_raw_fmt e, to_raw_fmt t]
-| (pi n bi e t) := p ["pi", to_fmt n, to_string bi, to_raw_fmt e, to_raw_fmt t]
+| (lam n bi e t) := p ["lam", to_fmt n, repr bi, to_raw_fmt e, to_raw_fmt t]
+| (pi n bi e t) := p ["pi", to_fmt n, repr bi, to_raw_fmt e, to_raw_fmt t]
 | (elet n g e f) := p ["elet", to_fmt n, to_raw_fmt g, to_raw_fmt e, to_raw_fmt f]
-| (macro d n args) := sbracket (format.join (list.intersperse " " ("macro" :: to_fmt (macro_def_name d) :: list.map to_raw_fmt (macro_args_to_list n args))))
+| (macro d args) := sbracket (format.join (list.intersperse " " ("macro" :: to_fmt (macro_def_name d) :: args.map to_raw_fmt)))
 
 meta def mfold {α : Type} {m : Type → Type} [monad m] (e : expr) (a : α) (fn : expr → nat → α → m α) : m α :=
 fold e (return a) (λ e n a, a >>= fn e n)

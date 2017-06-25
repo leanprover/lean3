@@ -41,3 +41,4 @@ has type
   bool
 but is expected to have type
   string
+⁇ : string

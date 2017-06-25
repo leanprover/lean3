@@ -19,7 +19,7 @@ private meta def try_constructors : list name → tactic unit
 | (c::cs) := (mk_const c >>= apply) <|> try_constructors cs
 
 meta def constructor : tactic unit :=
-target >>= get_constructors_for >>= try_constructors
+target >>= instantiate_mvars >>= get_constructors_for >>= try_constructors
 
 meta def left : tactic unit :=
 do tgt ← target,
@@ -58,6 +58,10 @@ do [c]     ← target >>= get_constructors_for | fail "existsi tactic failed, ta
    n       ← get_arity fn,
    when (n < 2) (fail "existsi tactic failed, constructor must have at least two arguments"),
    t       ← apply_num_metavars fn fn_type (n - 2),
-   apply (app t e)
+   apply (app t e),
+   t_type  ← infer_type t >>= whnf,
+   e_type  ← infer_type e,
+   (guard t_type.is_pi <|> fail "existsi tactic failed, failed to infer type"),
+   (unify t_type.binding_domain e_type <|> fail "existsi tactic failed, type mismatch between given term witness and expected type")
 
 end tactic

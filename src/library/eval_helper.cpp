@@ -4,6 +4,8 @@ Released under Apache 2.0 license as described in the file LICENSE.
 
 Author: Gabriel Ebner
 */
+#include "kernel/instantiate.h"
+#include "library/util.h"
 #include "library/eval_helper.h"
 #include "library/tactic/tactic_state.h"
 
@@ -45,6 +47,11 @@ void eval_helper::dependency_injection() {
 }
 
 vm_obj eval_helper::invoke_fn() {
+    unsigned arity = m_vms.get_decl(m_fn)->get_arity();
+    if (arity > m_args.size()) {
+        throw exception(sstream() << "cannot evaluate function: " << m_args.size()
+                                  << " arguments given but expected " << arity);
+    }
     std::reverse(m_args.begin(), m_args.end());
     return m_vms.invoke(m_fn, m_args.size(), m_args.data());
 }
@@ -67,7 +74,7 @@ optional<vm_obj> eval_helper::try_exec_io() {
 optional<vm_obj> eval_helper::try_exec_tac() {
     if (is_constant(get_app_fn(m_ty), get_tactic_name())) {
         auto tac_st = mk_tactic_state_for(m_env, m_opts, m_fn, m_tc.mctx(), m_tc.lctx(), mk_true());
-        m_vms.push(tactic::to_obj(tac_st));
+        m_args.push_back(tactic::to_obj(tac_st));
         auto r = invoke_fn();
         if (tactic::is_result_success(r)) {
             return optional<vm_obj>(tactic::get_result_value(r));

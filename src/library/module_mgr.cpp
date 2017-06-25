@@ -19,6 +19,28 @@ Author: Gabriel Ebner
 
 namespace lean {
 
+environment module_info::get_latest_env() const {
+    if (m_snapshots) {
+        auto snap = *m_snapshots;
+        while (snap.m_next) {
+            if (auto next = peek(snap.m_next)) {
+                snap = *next;
+            } else {
+                break;
+            }
+        }
+        if (auto parser_snap = snap.m_snapshot_at_end) {
+            return parser_snap->m_env;
+        }
+    }
+    if (auto res = peek(m_result)) {
+        if (auto env = peek(res->m_loaded_module->m_env)) {
+            return *env;
+        }
+    }
+    return environment();
+}
+
 void module_mgr::mark_out_of_date(module_id const & id) {
     for (auto & mod : m_modules) {
         if (!mod.second || mod.second->m_out_of_date) continue;
@@ -97,6 +119,8 @@ static gtask compile_olean(std::shared_ptr<module_info const> const & mod, log_t
         exclusive_file_lock output_lock(olean_fn);
         std::ofstream out(olean_fn, std::ios_base::binary);
         write_module(*res.m_loaded_module, out);
+        out.close();
+        if (!out) throw exception("failed to write olean file");
         return unit();
     }).depends_on(mod_dep).depends_on(olean_deps).depends_on(errs), std::string("saving olean"));
 }
@@ -144,6 +168,12 @@ void module_mgr::build_module(module_id const & id, bool can_use_olean, name_set
             auto parsed_olean = parse_olean(in2, olean_fn, check_hash);
 
             auto mod = std::make_shared<module_info>();
+
+            if (m_server_mode) {
+                try {
+                    mod->m_lean_contents = std::get<0>(m_vfs->load_module(id, false));
+                } catch (...) {}
+            }
 
             mod->m_mod = id;
             mod->m_lt = lt.get();
@@ -234,14 +264,15 @@ module_mgr::build_lean(module_id const & id, std::string const & contents, time_
 
     auto ldr = mk_loader(id, mod->m_deps);
     auto mod_parser_fn = std::make_shared<module_parser>(id, contents, m_initial_env, ldr);
-    mod_parser_fn->save_info(m_use_snapshots);
+    mod_parser_fn->save_info(m_server_mode);
 
     module_parser_result snapshots;
     std::tie(mod->m_cancel, snapshots) = build_lean_snapshots(
             mod_parser_fn, m_modules[id], deps, contents);
+    lean_assert(!mod->m_cancel->is_cancelled());
     scope_cancellation_token scope_cancel(mod->m_cancel);
 
-    if (m_use_snapshots) {
+    if (m_server_mode) {
         // Even just keeping a reference to the final environment costs us
         // a few hundred megabytes (when compiling the standard library).
         mod->m_snapshots = snapshots;
@@ -272,6 +303,7 @@ module_mgr::build_lean(module_id const & id, std::string const & contents, time_
 }
 
 static optional<pos_info> get_first_diff_pos(std::string const & as, std::string const & bs) {
+    if (as == bs) return optional<pos_info>();
     char const * a = as.c_str(), * b = bs.c_str();
     int line = 1;
     while (true) {
@@ -306,7 +338,7 @@ module_mgr::build_lean_snapshots(std::shared_ptr<module_parser> const & mod_pars
         return std::make_pair(cancel_tok, mod_parser->parse(optional<std::vector<gtask>>(deps)));
     };
 
-    if (!m_use_snapshots) return rebuild();
+    if (!m_server_mode) return rebuild();
     if (!old_mod) return rebuild();
     if (old_mod->m_source != module_src::LEAN)
         return rebuild();
@@ -324,7 +356,8 @@ module_mgr::build_lean_snapshots(std::shared_ptr<module_parser> const & mod_pars
     logtree().reuse("_next"); // TODO(gabriel): this needs to be the same name as in module_parser...
     if (auto diff_pos = get_first_diff_pos(contents, *old_mod->m_lean_contents)) {
         return std::make_pair(old_mod->m_cancel,
-                              mod_parser->resume_from_start(snap, *diff_pos, optional<std::vector<gtask>>(deps)));
+                              mod_parser->resume_from_start(snap, old_mod->m_cancel,
+                                                            *diff_pos, optional<std::vector<gtask>>(deps)));
     } else {
         // no diff
         return std::make_pair(old_mod->m_cancel, snap);
@@ -341,9 +374,22 @@ std::shared_ptr<module_info const> module_mgr::get_module(module_id const & id) 
 void module_mgr::invalidate(module_id const & id) {
     unique_lock<mutex> lock(m_mutex);
 
-    if (auto & mod = m_modules[id])
+    bool rebuild_rdeps = true;
+    if (auto & mod = m_modules[id]) {
+        if (mod->m_lean_contents) {
+            try {
+                if (std::get<0>(m_vfs->load_module(id, false)) == *mod->m_lean_contents) {
+                    // content unchanged
+                    rebuild_rdeps = false;
+                }
+            } catch (...) {}
+        }
+
         mod->m_out_of_date = true;
-    mark_out_of_date(id);
+    }
+    if (rebuild_rdeps) {
+        mark_out_of_date(id);
+    }
 
     buffer<module_id> to_rebuild;
     to_rebuild.push_back(id);
@@ -365,10 +411,26 @@ std::vector<module_name> module_mgr::get_direct_imports(module_id const & id, st
         std::istringstream in(contents);
         bool use_exceptions = true;
         parser p(get_initial_env(), m_ios, nullptr, in, id, use_exceptions);
+        try {
+            p.init_scanner();
+        } catch (...) {}
         p.get_imports(imports);
     } catch (...) {}
 
     return imports;
+}
+
+std::vector<std::shared_ptr<module_info const>> module_mgr::get_all_modules() {
+    unique_lock<mutex> lock(m_mutex);
+
+    std::vector<std::shared_ptr<module_info const>> mods;
+    for (auto & mod : m_modules) {
+        if (mod.second) {
+            mods.push_back(mod.second);
+        }
+    }
+
+    return mods;
 }
 
 void module_mgr::cancel_all() {

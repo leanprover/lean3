@@ -8,9 +8,11 @@ import init.data.nat.basic
 open nat
 structure fin (n : nat) := (val : nat) (is_lt : val < n)
 
+attribute [pp_using_anonymous_constructor] fin
+
 namespace fin
 
-def {u} elim0 {α : Type u} : fin 0 → α
+def {u} elim0 {α : Sort u} : fin 0 → α
 | ⟨_, h⟩ := absurd h (not_lt_zero _)
 
 variable {n : nat}

@@ -30,14 +30,14 @@ universes u v
 class has_lift (a : Sort u) (b : Sort v) :=
 (lift : a → b)
 
-/- Auxiliary class that contains the transitive closure of has_lift. -/
+/-- Auxiliary class that contains the transitive closure of has_lift. -/
 class has_lift_t (a : Sort u) (b : Sort v) :=
 (lift : a → b)
 
 class has_coe (a : Sort u) (b : Sort v) :=
 (coe : a → b)
 
-/- Auxiliary class that contains the transitive closure of has_coe. -/
+/-- Auxiliary class that contains the transitive closure of has_coe. -/
 class has_coe_t (a : Sort u) (b : Sort v) :=
 (coe : a → b)
 
@@ -146,6 +146,9 @@ instance coe_to_lift {a : Sort u} {b : Sort v} [has_coe_t a b] : has_lift_t a b 
 instance coe_bool_to_Prop : has_coe bool Prop :=
 ⟨λ y, y = tt⟩
 
+instance coe_sort_bool : has_coe_to_sort bool :=
+⟨Prop, λ y, y = tt⟩
+
 instance coe_decidable_eq (x : bool) : decidable (coe x) :=
 show decidable (x = tt), from bool.decidable_eq x tt
 
@@ -156,7 +159,7 @@ instance coe_subtype {a : Type u} {p : a → Prop} : has_coe {x // p x} a :=
 
 universes ua ua₁ ua₂ ub ub₁ ub₂
 
-/- Remark: we cant use [has_lift_t a₂ a₁] since it will produce non-termination whenever a type class resolution
+/- Remark: we can't use [has_lift_t a₂ a₁] since it will produce non-termination whenever a type class resolution
    problem does not have a solution. -/
 instance lift_fn {a₁ : Sort ua₁} {a₂ : Sort ua₂} {b₁ : Sort ub₁} {b₂ : Sort ub₂} [has_lift a₂ a₁] [has_lift_t b₁ b₂] : has_lift (a₁ → b₁) (a₂ → b₂) :=
 ⟨λ f x, ↑(f ↑x)⟩
