@@ -143,7 +143,7 @@ char scanner::read_quoted_char(char const * error_msg) {
     lean_assert(curr() == '\\');
     next();
     check_not_eof(error_msg);
-    char c = curr();
+    int c = curr();
     if (c != '\\' && c != '\"' && c != 'n' && c != 't' && c != '\'' && c != 'x')
         throw_exception("invalid escape sequence");
     if (c == 'n') {
@@ -152,7 +152,7 @@ char scanner::read_quoted_char(char const * error_msg) {
         return '\t';
     } else if (c == 'x') {
         next();
-        char c = curr();
+        int c = curr();
         unsigned v = hex_to_unsigned(c);
         next();
         c = curr();
@@ -182,7 +182,7 @@ token_kind scanner::read_string() {
 }
 
 auto scanner::read_char() -> token_kind {
-    char c = curr();
+    int c = curr();
     if (c == '\\')
         c = read_quoted_char(g_end_error_char_msg);
     next();
@@ -204,7 +204,7 @@ auto scanner::read_quoted_symbol() -> token_kind {
     bool trailing_space = false;
     while (true) {
         check_not_eof("unexpected quoted identifier");
-        char c = curr();
+        int c = curr();
         next();
         switch (c) {
             case '`':
@@ -244,7 +244,7 @@ auto scanner::read_hex_number() -> token_kind {
     m_num_val = 0;
     bool found = false;
     while (true) {
-        char c = curr();
+        int c = curr();
         if (auto d = try_hex_to_unsigned(c)) {
             found = true;
             m_num_val = 16 * m_num_val + *d;
@@ -277,7 +277,7 @@ optional<unsigned> scanner::try_digit_to_unsigned(int base, char c) {
 auto scanner::read_number() -> token_kind {
     lean_assert('0' <= curr() && curr() <= '9');
     mpq q(1);
-    char c = curr();
+    int c = curr();
     next();
     m_num_val = c - '0';
 
@@ -357,7 +357,7 @@ void scanner::read_doc_block_core() {
     m_buffer.clear();
     while (true) {
         check_not_eof("unexpected end of documentation block");
-        char c = curr();
+        int c = curr();
         next();
         if (c == '-') {
             if (curr() == '/') {
@@ -382,8 +382,8 @@ auto scanner::read_mod_doc_block() -> token_kind {
 void scanner::read_comment_block() {
     unsigned nesting = 1;
     while (true) {
-        char c = curr();
         check_not_eof("unexpected end of comment block");
+        int c = curr();
         next();
         if (c == '/') {
             if (curr() == '-') {
@@ -409,7 +409,7 @@ void scanner::read_until(char const * end_str, char const * error_msg) {
     m_buffer.clear();
     while (true) {
         check_not_eof(error_msg);
-        char c = curr_next();
+        int c = curr_next();
         if (c == end_str[0]) {
             m_aux_buffer.clear();
             m_aux_buffer += c;
@@ -481,7 +481,7 @@ static char const * g_error_key_msg = "unexpected token";
 void scanner::read_field_idx() {
     lean_assert('0' <= curr() && curr() <= '9');
     mpz q(1);
-    char c = curr();
+    int c = curr();
     next();
     m_num_val = c - '0';
     while (true) {
@@ -634,7 +634,7 @@ void finalize_scanner() {
 auto scanner::scan(environment const & env) -> token_kind {
     m_tokens = &get_token_table(env);
     while (true) {
-        char c = curr();
+        int c = curr();
         m_pos  = m_upos;
         m_line = m_sline;
         switch (c) {

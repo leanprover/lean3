@@ -38,7 +38,7 @@ protected:
     int                 m_upos;  // current position taking into account utf-8 encoding
     int                 m_uskip; // hack for decoding utf-8, it marks how many units to skip
     int                 m_sline; // current line
-    char                m_curr;  // current char;
+    int                 m_curr;  // current char;
 
     int                 m_pos;   // start position of the token
     int                 m_line;  // line of the token
@@ -55,8 +55,8 @@ protected:
     [[ noreturn ]] void throw_exception(char const * msg);
     void next();
     void fetch_line();
-    char curr() const { return m_curr; }
-    char curr_next() { char c = curr(); next(); return c; }
+    int curr() const { return m_curr; }
+    int curr_next() { int c = curr(); next(); return c; }
     void check_not_eof(char const * error_msg);
     bool is_next_digit();
     bool is_next_id_rest();

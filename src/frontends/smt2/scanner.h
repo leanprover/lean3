@@ -30,7 +30,7 @@ private:
     std::string         m_curr_line{1};
     bool                m_last_line{1};
 
-    char                m_curr;     // current char;
+    int                 m_curr;     // current char;
     int                 m_cline{0}; // line of the char
     int                 m_cpos{0};  // position of the char
 
@@ -46,8 +46,8 @@ private:
     [[ noreturn ]] void throw_exception(std::string const & msg);
 
     void next();
-    char curr() const { return m_curr; }
-    char curr_next() { char c = curr(); next(); return c; }
+    int curr() const { return m_curr; }
+    int curr_next() { int c = curr(); next(); return c; }
     void check_not_eof(char const * error_msg);
 
     bool is_next_digit();
