@@ -24,19 +24,20 @@ lean::environment auto_import_tools(
     auto env = current_mod->get_produced_env();
 
     // Resolve the module to import.
-    lean::module_name to_import_mod_name = { import_name , lean::optional<unsigned>() };
+    lean::module_name to_import_mod_name(import_name);
     lean::module_id mod = lean::resolve(mod_mgr.m_path, "tools/native", to_import_mod_name);
     auto mod_to_import = mod_mgr.get_module(mod);
 
     // Copy the set of dependencies and add the module to import to the list.
     auto deps = current_mod->m_deps;
-    deps.push_back(lean::module_info::dependency { mod_to_import->m_mod, { import_name , lean::optional<unsigned>()}, mod_to_import });
+    deps.push_back(lean::module_info::dependency{
+        mod_to_import->m_mod, to_import_mod_name, mod_to_import});
 
     // Build a loader from the current module.
     auto loader = mk_loader(current_mod->m_mod, deps);
 
     // Finally add the module name we want to import, and then import into the environment, building a new one with the module imported and return it.
     std::vector<lean::module_name> imports;
-    imports.push_back({ import_name, lean::optional<unsigned>()});
+    imports.push_back(to_import_mod_name);
     return import_modules(env, current_mod->m_mod, imports, loader);
 }
