@@ -10,11 +10,25 @@ universes u w
 namespace array
 variables {α : Type u} {β : Type w} {n : nat}
 
+protected def ext : ∀ {a b : array α n} (h : ∀ i, read a i = read b i), a = b
+| ⟨f⟩ ⟨g⟩ h := congr_arg array.mk (funext h)
+
 lemma read_eq_read' [inhabited α] (a : array α n) (i : nat) (h : i < n) : read a ⟨i, h⟩ = read' a i :=
 by unfold read'; rw [dif_pos h]
 
 lemma write_eq_write' (a : array α n) (i : nat) (h : i < n) (v : α) : write a ⟨i, h⟩ v = write' a i v :=
 by unfold write'; rw [dif_pos h]
+
+lemma read_write (a : array α n) (i j : fin n) (v : α) :
+  read (write a i v) j = if i = j then v else a.read j := rfl
+
+lemma read_write_eq (a : array α n) (i : fin n) (v : α) :
+  read (write a i v) i = v :=
+by rw [read_write, if_pos rfl]
+
+lemma read_write_ne (a : array α n) (i j : fin n) (v : α) (h : i ≠ j) :
+  read (write a i v) j = read a j :=
+by rw [read_write, if_neg h]
 
 theorem rev_list_reverse_core (a : array α n) : Π i (h : i ≤ n) (t : list α),
   (a.iterate_aux (λ _ v l, v :: l) i h []).reverse_core t = a.rev_iterate_aux (λ _ v l, v :: l) i h t
@@ -72,14 +86,72 @@ iff.trans
 theorem mem_iff_list_mem (a : array α n) (v : α) : v ∈ a ↔ v ∈ a.to_list :=
 by rw [← rev_list_reverse]; simp[mem_iff_rev_list_mem]
 
-@[simp] def to_list_to_array (a : array α n) : a.to_list.to_array == a :=
+@[simp] theorem to_list_to_array (a : array α n) : a.to_list.to_array == a :=
 have array.mk (λ (v : fin n), list.nth_le (to_list a) (v.val) (eq.rec_on (eq.symm (to_list_length a)) (v.is_lt))) = a, from
 match a with ⟨f⟩ := congr_arg array.mk $ funext $ λ⟨i, h⟩, to_list_nth ⟨f⟩ i h _ end,
 heq_of_heq_of_eq
   (@eq.drec_on _ _ (λm (e : a.to_list.length = m), (array.mk (λv, a.to_list.nth_le v.1 v.2)) ==
     (@array.mk α m $ λv, a.to_list.nth_le v.1 (eq.rec_on (eq.symm e) v.2))) _ a.to_list_length (heq.refl _)) this
 
-@[simp] def to_array_to_list (l : list α) : l.to_array.to_list = l :=
+@[simp] theorem to_array_to_list (l : list α) : l.to_array.to_list = l :=
 list.ext_le (to_list_length _) $ λn h1 h2, to_list_nth _ _ _ _
+
+lemma push_back_rev_list_core (a : array α n) (v : α) :
+  ∀ i h h',
+    iterate_aux (a.push_back v) (λ_, list.cons) i h [] =
+    iterate_aux a (λ_, list.cons) i h' []
+| 0 h h' := rfl
+| (i+1) h h' := begin
+  simp [iterate_aux]; rw push_back_rev_list_core,
+  apply congr_fun, apply congr_arg,
+  dsimp [read, push_back],
+  rw [dif_neg], refl,
+  exact ne_of_lt h'
+end
+
+@[simp] theorem push_back_rev_list (a : array α n) (v : α) :
+  (a.push_back v).rev_list = v :: a.rev_list :=
+begin
+  unfold push_back rev_list foldl iterate, dsimp [iterate_aux, read, push_back],
+  rw [dif_pos (eq.refl n)], apply congr_arg,
+  apply push_back_rev_list_core
+end
+
+@[simp] theorem push_back_to_list (a : array α n) (v : α) :
+  (a.push_back v).to_list = a.to_list ++ [v] :=
+by rw [-rev_list_reverse, -rev_list_reverse, push_back_rev_list,
+       list.reverse_cons, list.concat_eq_append]
+
+def read_foreach_aux (f : fin n → α → α) (ai : array α n) :
+  ∀ i h (a : array α n) (j : fin n), j.1 < i →
+    (iterate_aux ai (λ i v a', write a' i (f i v)) i h a).read j = f j (ai.read j)
+| 0     hi a ⟨j, hj⟩ ji := absurd ji (nat.not_lt_zero _)
+| (i+1) hi a ⟨j, hj⟩ ji := begin
+  dsimp [iterate_aux], dsimp at ji,
+  change ite _ _ _ = _,
+  by_cases (⟨i, hi⟩ : fin _) = ⟨j, hj⟩ with e; dsimp [ite],
+  { rw e },
+  { rw [read_foreach_aux _ _ _ ⟨j, hj⟩],
+    exact (lt_or_eq_of_le (nat.le_of_lt_succ ji)).resolve_right
+      (ne.symm $ mt (@fin.eq_of_veq _ ⟨i, hi⟩ ⟨j, hj⟩) e) }
+end
+
+def read_foreach (a : array α n) (f : fin n → α → α) (i : fin n) :
+  (foreach a f).read i = f i (a.read i) :=
+read_foreach_aux _ _ _ _ _ _ i.2
+
+def read_map (f : α → α) (a : array α n) (i : fin n) :
+  (map f a).read i = f (a.read i) :=
+read_foreach _ _ _
+
+def read_map₂ (f : α → α → α) (a b : array α n) (i : fin n) :
+  (map₂ f a b).read i = f (a.read i) (b.read i) :=
+read_foreach _ _ _
+
+instance [decidable_eq α] : decidable_eq (array α n) := λ a b,
+suffices to_list a = to_list b → a = b, from
+decidable_of_decidable_of_iff (by apply_instance) ⟨this, congr_arg to_list⟩,
+λ h, eq_of_heq $ a.to_list_to_array.symm.trans $
+match to_list a, h with ._, rfl := b.to_list_to_array end
 
 end array

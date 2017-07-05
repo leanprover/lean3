@@ -688,6 +688,16 @@ section
   else
     if hq : q then is_true $ or.inr ⟨hq, hp⟩
     else is_false (or.rec (λ ⟨h, _⟩, hp h : ¬(p ∧ ¬ q)) (λ ⟨h, _⟩, hq h : ¬(q ∧ ¬ p)))
+
+  instance exists_prop_decidable {p} (P : p → Prop)
+    [Dp : decidable p] [DP : ∀ h, decidable (P h)] : decidable (∃ h, P h) :=
+  if h : p then decidable_of_decidable_of_iff (DP h)
+    ⟨λ h2, ⟨h, h2⟩, λ⟨h', h2⟩, h2⟩ else is_false (mt (λ⟨h, _⟩, h) h)
+
+  instance forall_prop_decidable {p} (P : p → Prop)
+    [Dp : decidable p] [DP : ∀ h, decidable (P h)] : decidable (∀ h, P h) :=
+  if h : p then decidable_of_decidable_of_iff (DP h)
+    ⟨λ h2 _, h2, λal, al h⟩ else is_true (λ h2, absurd h2 h)
 end
 
 instance {α : Sort u} [decidable_eq α] (a b : α) : decidable (a ≠ b) :=
@@ -885,13 +895,13 @@ lemma if_simp_congr_prop {b c x y u v : Prop} [dec_b : decidable b]
         ite b x y ↔ (@ite c (decidable_of_decidable_of_iff dec_b h_c) Prop u v) :=
 @if_ctx_simp_congr_prop b c x y u v dec_b h_c (λ h, h_t) (λ h, h_e)
 
-lemma dif_pos {c : Prop} [h : decidable c] (hc : c) {α : Sort u} {t : c → α} {e : ¬ c → α} : dite c t e = t hc :=
+@[simp] lemma dif_pos {c : Prop} [h : decidable c] (hc : c) {α : Sort u} {t : c → α} {e : ¬ c → α} : dite c t e = t hc :=
 match h with
 | (is_true hc)   := rfl
 | (is_false hnc) := absurd hc hnc
 end
 
-lemma dif_neg {c : Prop} [h : decidable c] (hnc : ¬c) {α : Sort u} {t : c → α} {e : ¬ c → α} : dite c t e = e hnc :=
+@[simp] lemma dif_neg {c : Prop} [h : decidable c] (hnc : ¬c) {α : Sort u} {t : c → α} {e : ¬ c → α} : dite c t e = e hnc :=
 match h with
 | (is_true hc)   := absurd hc hnc
 | (is_false hnc) := rfl
