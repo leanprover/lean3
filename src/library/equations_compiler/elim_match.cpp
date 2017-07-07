@@ -10,6 +10,8 @@ Author: Leonardo de Moura
 #include "kernel/instantiate.h"
 #include "kernel/for_each_fn.h"
 #include "kernel/replace_fn.h"
+#include "kernel/abstract.h"
+#include "library/placeholder.h"
 #include "kernel/inductive/inductive.h"
 #include "library/trace.h"
 #include "library/num.h"
@@ -25,6 +27,7 @@ Author: Leonardo de Moura
 #include "library/inverse.h"
 #include "library/aux_definition.h"
 #include "library/app_builder.h"
+#include "library/sorry.h"
 #include "library/delayed_abstraction.h"
 #include "library/tactic/tactic_state.h"
 #include "library/tactic/revert_tactic.h"
@@ -104,7 +107,10 @@ struct elim_match_fn {
         expr           m_goal;
         list<expr>     m_var_stack;
         list<equation> m_equations;
+        list<expr>     m_example;
     };
+
+    buffer<problem> m_unsolved;
 
     struct lemma {
         local_context  m_lctx;
@@ -177,6 +183,7 @@ struct elim_match_fn {
                 lean_unreachable();
             }
         }
+        auto tc = mk_type_context(P);
         return true;
     }
 
@@ -233,6 +240,13 @@ struct elim_match_fn {
         for (equation const & eqn : P.m_equations) {
             r += nest(line() + pp_equation(eqn));
         }
+
+        auto example = format("example:");
+        for (auto & ex : P.m_example) {
+            example += space() + paren(pp(ex));
+        }
+        r += line() + nest(example);
+
         return r;
     }
 
@@ -442,6 +456,7 @@ struct elim_match_fn {
         for (name const & n : var_names)
             vars.push_back(goal_lctx.get_local_decl(n).mk_ref());
         P.m_var_stack  = to_list(vars);
+        P.m_example    = P.m_var_stack;
         P.m_equations  = mk_equations(lctx, eqns);
         return mk_pair(P, mvar);
     }
@@ -526,12 +541,17 @@ struct elim_match_fn {
         return r && has_variable && has_constructor;
     }
 
-    /* Return true iff the next pattern of every equation is a value or variable,
+    /* Return true if the next pattern of every equation is a value or variable,
        and there are at least one equation where it is a variable and another where it is a
-       value. */
+       value.
+
+       We also perform a value transition if one of the next patterns is a
+       string literal.
+    */
     bool is_value_transition(problem const & P) {
         bool has_value    = false;
         bool has_variable = false;
+        bool has_string   = false;
         bool r = all_equations(P, [&](equation const & eqn) {
                 expr const & p = head(eqn.m_patterns);
                 if (is_local(p)) {
@@ -539,13 +559,17 @@ struct elim_match_fn {
                 } else {
                     type_context ctx = mk_type_context(eqn.m_lctx);
                     if (is_value(ctx, p)) {
-                        has_value    = true; return true;
+                        has_value    = true;
+                        if (is_string_value(p)) {
+                            has_string = true;
+                        }
+                        return true;
                     } else {
                         return false;
                     }
                 }
             });
-        if (!r || !has_value || !has_variable)
+        if (!has_string && (!r || !has_value || !has_variable))
             return false;
         type_context ctx  = mk_type_context(P);
         /* Check whether other variables on the variable stack depend on the head. */
@@ -626,6 +650,7 @@ struct elim_match_fn {
         new_P.m_fn_name   = P.m_fn_name;
         new_P.m_goal      = P.m_goal;
         new_P.m_var_stack = tail(P.m_var_stack);
+        new_P.m_example   = P.m_example;
         buffer<equation> new_eqns;
         for (equation const & eqn : P.m_equations) {
             equation new_eqn   = eqn;
@@ -655,8 +680,7 @@ struct elim_match_fn {
         for (equation const & eqn : eqns) {
             lean_assert(eqn.m_patterns);
             type_context ctx = mk_type_context(eqn.m_lctx);
-            /* We use ctx.relaxed_whnf to make sure we expose the kernel constructor */
-            expr pattern     = ctx.relaxed_whnf(head(eqn.m_patterns));
+            expr pattern     = whnf_constructor(ctx, head(eqn.m_patterns));
             if (!is_constructor_app(ctx, pattern)) {
                 throw_error("equation compiler failed, pattern is not a constructor "
                             "(use 'set_option trace.eqn_compiler.elim_match true' for additional details)");
@@ -714,16 +738,19 @@ struct elim_match_fn {
         lean_assert(is_constructor_transition(P));
         type_context ctx   = mk_type_context(P);
         expr x             = head(P.m_var_stack);
-        expr x_type        = ctx.relaxed_whnf(whnf_inductive(ctx, ctx.infer(x)));
+        expr x_type        = whnf_inductive(ctx, ctx.infer(x));
         lean_assert(is_inductive_app(x_type));
-        name I_name        = const_name(get_app_fn(x_type));
+        buffer<expr> x_type_args;
+        auto x_type_const  = get_app_args(x_type, x_type_args);
+        name I_name        = const_name(x_type_const);
         unsigned I_nparams = get_inductive_num_params(I_name);
+        lean_assert(x_type_args.size() >= I_nparams);
         intros_list ilist;
         hsubstitution_list slist;
         list<expr> new_goals;
         list<name> new_goal_cnames;
         try {
-            bool unfold_ginductive = true;
+            bool unfold_ginductive = false;
             list<name> ids;
             std::tie(new_goals, new_goal_cnames) =
                 cases(m_env, m_opts, transparency_mode::Semireducible, m_mctx,
@@ -750,6 +777,12 @@ struct elim_match_fn {
             new_P.m_var_stack      = update_var_stack(head(ilist), tail(P.m_var_stack), head(slist));
             new_P.m_goal           = new_goal;
             name const & C         = head(new_goal_cnames);
+            new_P.m_example = map(P.m_example, [&] (expr ex) {
+                ex = instantiate(abstract_local(ex, head(P.m_var_stack)),
+                    mk_app(mk_app(mk_constant(C, const_levels(x_type_const)), I_nparams, x_type_args.begin()), head(ilist)));
+                ex = apply(ex, head(slist));
+                return ex;
+            });
             new_P.m_equations      = get_equations_for(C, I_nparams, head(slist), eqns);
             to_buffer(process(new_P), new_Ls);
             new_goals       = tail(new_goals);
@@ -804,6 +837,7 @@ struct elim_match_fn {
             new_P.m_fn_name   = name(P.m_fn_name, "_ite_val");
             new_P.m_goal      = value_goals[i];
             new_P.m_var_stack = tail(P.m_var_stack);
+            new_P.m_example   = cons(val, tail(P.m_example));
             buffer<equation> new_eqns;
             for (equation const & eqn : P.m_equations) {
                 expr const & p = head(eqn.m_patterns);
@@ -856,6 +890,7 @@ struct elim_match_fn {
             new_P.m_fn_name   = name(P.m_fn_name, "_ite_else");
             new_P.m_goal      = else_goal;
             new_P.m_var_stack = tail(P.m_var_stack);
+            new_P.m_example   = P.m_example;
             buffer<equation> new_eqns;
             for (equation const & eqn : P.m_equations) {
                 expr const & p = head(eqn.m_patterns);
@@ -966,6 +1001,7 @@ struct elim_match_fn {
             problem new_P;
             new_P.m_fn_name   = P.m_fn_name;
             new_P.m_goal      = P.m_goal;
+            new_P.m_example   = P.m_example;
             new_P.m_var_stack = tail(P.m_var_stack);
             buffer<equation> new_eqns;
             for (equation const & eqn : P.m_equations) {
@@ -993,6 +1029,7 @@ struct elim_match_fn {
             problem new_P;
             new_P.m_fn_name     = P.m_fn_name;
             new_P.m_goal        = P.m_goal;
+            new_P.m_example     = P.m_example;
             buffer<expr> new_var_stack;
             for (unsigned i = I_nparams; i < C_args.size(); i++) {
                 new_var_stack.push_back(whnf_constructor(ctx, C_args[i]));
@@ -1134,6 +1171,12 @@ struct elim_match_fn {
         new_P.m_goal      = *M_3;
         new_P.m_var_stack = map(P.m_var_stack,
                                 [&](expr const & x) { return replace_locals(x, to_revert, new_Hs); });
+        new_P.m_example   = map(P.m_example, [&] (expr ex) {
+            auto f_x = instantiate(abstract_local(f_y1, y1), x);
+            ex = instantiate(abstract_local(ex, x), f_x);
+            ex = replace_locals(ex, to_revert, new_Hs);
+            return ex;
+        });
         buffer<equation> new_eqns;
         for (equation const & eqn : P.m_equations) {
             equation new_eqn   = eqn;
@@ -1148,8 +1191,9 @@ struct elim_match_fn {
 
     list<lemma> process_leaf(problem const & P) {
         if (!P.m_equations) {
-            throw_error("invalid non-exhaustive set of equations (use 'set_option trace.eqn_compiler.elim_match true' "
-                        "for additional details)");
+            m_unsolved.push_back(P);
+            m_mctx.assign(P.m_goal, mk_sorry(m_mctx.get_metavar_decl(P.m_goal).get_type(), true));
+            return list<lemma>();
         }
         equation const & eqn       = head(P.m_equations);
         m_used_eqns[eqn.m_eqn_idx] = true;
@@ -1204,6 +1248,11 @@ struct elim_match_fn {
                 return process_inaccessible(P);
             } else {
                 trace_match(tout() << "compilation failed at\n" << pp_problem(P) << "\n";);
+                if (!m_unsolved.empty()) {
+                    // report non-exhaustive match
+                    m_mctx.assign(P.m_goal, mk_sorry(m_mctx.get_metavar_decl(P.m_goal).get_type(), true));
+                    return list<lemma>();
+                }
                 throw_error("equation compiler failed (use 'set_option trace.eqn_compiler.elim_match true' "
                             "for additional details)");
             }
@@ -1262,6 +1311,23 @@ struct elim_match_fn {
         }
     }
 
+    list<list<expr>> get_counter_examples() {
+        buffer<list<expr>> counter_examples;
+
+        auto underscore = mk_expr_placeholder();
+        for (auto & P : m_unsolved) {
+            counter_examples.push_back(map(P.m_example, [&] (expr const & e) {
+                return replace(e, [&] (expr const & e, unsigned) {
+                    if (!has_local(e)) return some_expr(e);
+                    if (is_local(e)) return some_expr(underscore);
+                    return none_expr();
+                });
+            }));
+        }
+
+        return to_list(counter_examples);
+    }
+
     elim_match_result operator()(local_context const & lctx, expr const & eqns) {
         lean_assert(equations_num_fns(eqns) == 1);
         DEBUG_CODE({
@@ -1274,11 +1340,12 @@ struct elim_match_fn {
         std::tie(P, fn)          = mk_problem(lctx, eqns);
         lean_assert(check_problem(P));
         list<lemma> pre_Ls       = process(P);
-        check_no_unused_eqns(eqns);
+        auto counter_examples    = get_counter_examples();
+        if (!counter_examples) check_no_unused_eqns(eqns);
         fn                       = m_mctx.instantiate_mvars(fn);
         trace_match_debug(tout() << "code:\n" << fn << "\n";);
         list<expr> Ls            = finalize_lemmas(fn, pre_Ls);
-        return elim_match_result(fn, Ls);
+        return { fn, Ls, counter_examples };
     }
 };
 
@@ -1297,13 +1364,15 @@ static expr get_fn_type_from_eqns(expr const & eqns) {
     return binding_domain(eqn_buffer[0]);
 }
 
-expr mk_nonrec(environment & env, options const & opts, metavar_context & mctx,
+eqn_compiler_result mk_nonrec(environment & env, options const & opts, metavar_context & mctx,
                local_context const & lctx, expr const & eqns) {
     equations_header header = get_equations_header(eqns);
     auto R = elim_match(env, opts, mctx, lctx, eqns);
     if (header.m_is_meta || header.m_is_lemma) {
         /* Do not generate auxiliary equation or equational lemmas */
-        return R.m_fn;
+        auto fn = mk_constant(head(header.m_fn_names));
+        auto counter_examples = map2<expr>(R.m_counter_examples, [&] (list<expr> const & e) { return mk_app(fn, e); });
+        return { {R.m_fn}, counter_examples };
     }
     type_context ctx1(env, opts, mctx, lctx, transparency_mode::Semireducible);
     /*
@@ -1338,7 +1407,8 @@ expr mk_nonrec(environment & env, options const & opts, metavar_context & mctx,
                                 eqn_idx, header.m_is_private, locals.as_buffer(), new_lhs, rhs);
         eqn_idx++;
     }
-    return fn;
+    auto counter_examples = map2<expr>(R.m_counter_examples, [&] (list<expr> const & e) { return mk_app(fn, e); });
+    return { {fn}, counter_examples };
 }
 
 void initialize_elim_match() {

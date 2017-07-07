@@ -1,1 +1,21 @@
-non_exhaustive_error.lean:2:11: error: invalid non-exhaustive set of equations (use 'set_option trace.eqn_compiler.elim_match true' for additional details)
+non_exhaustive_error.lean:2:4: error: non-exhaustive match, the following cases are missing:
+g (1, _)
+g (nat.succ (nat.succ _), nat.succ _)
+non_exhaustive_error.lean:2:0: warning: declaration 'g' uses sorry
+non_exhaustive_error.lean:6:11: error: non-exhaustive match, the following cases are missing:
+f "hello world" 0
+f "hello world" (nat.succ (nat.succ _))
+f _ _
+non_exhaustive_error.lean:6:0: warning: declaration 'f' uses sorry
+non_exhaustive_error.lean:10:4: error: non-exhaustive match, the following cases are missing:
+foo (nat.succ _) 1
+non_exhaustive_error.lean:10:0: warning: declaration 'foo' uses sorry
+non_exhaustive_error.lean:17:11: error: non-exhaustive match, the following cases are missing:
+f 0 (nat.succ _)
+f (nat.succ _) _
+g 0 (nat.succ _)
+g (nat.succ _) _
+non_exhaustive_error.lean:17:0: warning: declaration '_mutual.f.g' uses sorry
+non_exhaustive_error.lean:27:4: error: non-exhaustive match, the following cases are missing:
+const_name (term.mk _ (term.mk _ _ :: _))
+non_exhaustive_error.lean:27:0: warning: declaration 'const_name' uses sorry
