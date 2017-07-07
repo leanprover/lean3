@@ -931,9 +931,18 @@ meta def delta : parse ident* → parse location → tactic unit
                           delta_target new_cs,
                           intron n
 
-private meta def unfold_projs_hyps (cfg : unfold_proj_config := {}) : list name → tactic unit
-| []      := skip
-| (h::hs) := get_local h >>= unfold_projs_hyp >> unfold_projs_hyps hs
+-- Applies a list of tactics in turn, always succeeding.
+meta def try_list : list (tactic unit) → tactic unit 
+| list.nil  := skip
+| (t :: ts) := try t >> try_list ts
+
+-- Applies a list of tactics in turn, succeeding if at least one succeeds.
+meta def at_least_one : list (tactic unit) → tactic unit
+| list.nil  := fail "at_least_one tactic failed, no more tactics"
+| (t :: ts) := (t >> try_list ts) <|> at_least_one ts
+
+private meta def unfold_projs_hyps (cfg : unfold_proj_config := {}) (names : list name) : tactic unit :=
+at_least_one (names.map $ λ h, get_local h >>= (λ e, unfold_projs_hyp e cfg))
 
 /--
 This tactic unfolds all structure projections.
