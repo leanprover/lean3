@@ -1,0 +1,6 @@
+C : Category,
+a : EmptyCategory.Obj
+⊢ C.Obj
+C : Category,
+a : empty
+⊢ C.Obj
