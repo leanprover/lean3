@@ -205,7 +205,8 @@ namespace nat
     rw [binary_rec],
     by_cases (bit b n = 0) with h',
     {simp [dif_pos h'],
-     generalize (binary_rec._main._pack._proof_1 (bit b n) h') e,
+     generalize : binary_rec._main._pack._proof_1 (bit b n) h' = e,
+     revert e,
      have bf := bodd_bit b n,
      have n0 := div2_bit b n,
      rw h' at bf n0,
@@ -213,7 +214,8 @@ namespace nat
      rw [← bf, ← n0, binary_rec_zero],
      intros, exact h.symm },
     {simp [dif_neg h'],
-     generalize (binary_rec._main._pack._proof_2 (bit b n)) e,
+     generalize : binary_rec._main._pack._proof_2 (bit b n) = e,
+     revert e,
      rw [bodd_bit, div2_bit],
      intros, refl}
   end
