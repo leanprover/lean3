@@ -366,7 +366,7 @@ meta def assign_last_expr_list
     (mk_error "internal invariant")
    (fun s, do
     s' ← rec s,
-    pure $ ir.stmt.seq $ list.append (list.taken (list.length ss - 1) ss) [s'])
+    pure $ ir.stmt.seq $ list.append (list.take (list.length ss - 1) ss) [s'])
 
 meta def assign_last_expr_cases (result_var : ir.symbol) (action : ir.stmt -> ir_compiler ir.stmt) :
   list (prod nat ir.stmt) -> ir_compiler (list (prod nat ir.stmt))
@@ -401,7 +401,7 @@ meta def compile_native_assign (n v body : expr) (action : expr -> ir_compiler i
   return $ ir.stmt.letb nm (ir.ty.object none) ir.expr.uninitialized (ir.stmt.seq [v'', body'])
 
 meta def macro_get_name : expr -> name
-| (expr.macro mdef _ _) := expr.macro_def_name mdef
+| (expr.macro mdef _) := expr.macro_def_name mdef
 | _ := name.anonymous
 
 meta def compile_return : ir.stmt -> ir_compiler ir.stmt
@@ -443,8 +443,8 @@ meta def compile_const_head_expr_app_to_ir_stmt
     match args with
     | (n :: v :: body :: []) :=
       match v with
-      | (expr.macro mdef arg_count args) :=
-        match native.get_quote_expr (expr.macro mdef arg_count args) with
+      | (expr.macro mdef args) :=
+        match native.get_quote_expr (expr.macro mdef args) with
         | option.some _ := do
           fresh ← fresh_name,
           st ← action n,
@@ -544,7 +544,7 @@ meta def compile_expr_to_ir_stmt : expr → ir_compiler ir.stmt
   in compile_expr_app_to_ir_stmt head args compile_expr_to_ir_stmt
 | (expr.lam _ _ _ _) := mk_error "found lam"
 | (expr.pi _ _ _ _) := mk_error "found pi, should not be translating a Pi for any reason (yet ...)"
-| (expr.macro d sz args) := compile_expr_macro_to_ir_expr (expr.macro d sz args) compile_expr_to_ir_stmt
+| (expr.macro d args) := compile_expr_macro_to_ir_expr (expr.macro d args) compile_expr_to_ir_stmt
 | (expr.elet n _ v body) := do
   n' ← compile_local n,
   v' ← compile_expr_to_ir_stmt v,

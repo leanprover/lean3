@@ -18,19 +18,22 @@ namespace format_cpp
 
 def one_of (c : char) (s : string) : bool := bool.ff
 
-def replace (c : char) (replacement : string) : string -> string
+private def replace_list (c : char) (replacement : list char) : list char -> list char
 | [] := []
 | (s :: ss) :=
   if c = s
-  then replacement ++ replace ss
-  else s :: replace ss
+  then replacement ++ replace_list ss
+  else s :: replace_list ss
+
+def replace (c : char) (replacement : string) (str : string) : string :=
+(replace_list c replacement.to_list str.to_list).to_string
 
 meta def mangle_external_name (n : name) : string :=
   name.to_string_with_sep "_" n
 
 meta def mangle_name (n : name) : string :=
   -- this is hack due to syntax highlighting, fix me
-  (replace (list.head ("\""))  "_$single_quote$_" $ name.to_string_with_sep "$dot$_" n)
+  (replace (char.of_nat 34)  "_$single_quote$_" $ name.to_string_with_sep "$dot$_" n)
 
 meta def mangle_symbol : ir.symbol → string
 | (ir.symbol.name n) := "_$lean$_" ++ mangle_name n
@@ -57,22 +60,26 @@ meta def real_concat : list string -> string
 | [] := ""
 | (s :: ss) := s ++ real_concat ss
 
+meta def binary_array (bs : string) : format :=
+let cs := list.map (fun c, "static_cast<char>(" ++ to_string (char.to_nat c) ++ ")") bs.to_list
+in format.bracket "{" "}" (string.intercalate ", " cs)
+
 meta def literal : ir.literal → format
 | (ir.literal.nat n) := to_fmt "lean::mk_vm_nat(" ++ to_fmt n ++ ")"
 | (ir.literal.integer z) := to_string z
 | (ir.literal.string s) := to_string s ++ "s"
-| (ir.literal.binary b) := format.bracket "{" "}" (real_concat $ (list.intersperse ", " (list.map (fun c, "static_cast<char>(" ++ to_string (char.to_nat c) ++ ")") b)))
+| (ir.literal.binary b) := binary_array b
 | (ir.literal.array ls) := format.bracket "{" "}" (comma_sep (list.map literal ls))
 | (ir.literal.symbol n) := mangle_symbol n
 
 meta def format_local (s : ir.symbol) : format :=
-  mangle_symbol s
+mangle_symbol s
 
 meta def string_lit (s : string) : format :=
-  format.bracket "\"" "\"" (to_fmt s)
+format.bracket "\"" "\"" (to_fmt s)
 
 meta def block (body : format) : format :=
-  "{" ++ (format.nest 4 (format.line ++ body)) ++ format.line ++ "}"
+"{" ++ (format.nest 4 (format.line ++ body)) ++ format.line ++ "}"
 
 meta def binary_op : ir.op → format
 | ir.op.equals := " == "
@@ -117,13 +124,13 @@ meta def expr' : ir.expr → format
 | (ir.expr.call f xs) := mk_call f xs
 
 meta def default_case (body : format) : format :=
-  to_fmt "default: " ++ block body
+to_fmt "default: " ++ block body
 
-meta def insert_newlines (newlines : nat) : list format → format :=
-  fun fs, format.join $ list.intersperse (format.join $ list.repeat format.line newlines) fs
+meta def insert_newlines (newlines : nat) (fs : list format) : format :=
+format.join $ list.intersperse (format.join $ list.repeat format.line newlines) fs
 
 meta def format_lines (fs : list format) : format :=
-  insert_newlines 1 fs
+insert_newlines 1 fs
 
 meta def case (action : ir.stmt → format) : (nat × ir.stmt) → format
 | (n, s) := "case " ++ to_fmt n ++ ": " ++ block (action s ++ format.line ++ "break;")

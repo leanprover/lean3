@@ -80,8 +80,8 @@ meta def should_abstract : binding -> bool
    | application_kind.nat_cases := ff
    | _ := tt
    end
-   | (expr.macro mdef i args) :=
-      match native.get_quote_expr (expr.macro mdef i args) with
+   | (expr.macro m_def args) :=
+      match native.get_quote_expr (expr.macro m_def args) with
       | some _ := ff
       | _ := tt
       end
@@ -100,9 +100,9 @@ meta def mk_single_let (body : expr) (b : binding) : expr :=
    | application_kind.nat_cases := mk_call (expr.const `native.assign []) []
    | _ := expr.elet n ty val body
    end
-   | (expr.macro mdef i args) :=
-      match native.get_quote_expr (expr.macro mdef i args) with
-      | some _ := mk_call (expr.const `native_compiler.assign []) [mk_local n, (expr.macro mdef i args), body]
+   | (expr.macro mdef args) :=
+      match native.get_quote_expr (expr.macro mdef args) with
+      | some _ := mk_call (expr.const `native_compiler.assign []) [mk_local n, (expr.macro mdef args), body]
       | _ := expr.elet n ty val body
       end
    | _ := expr.elet n ty val body
@@ -179,8 +179,8 @@ private meta def anf_call (head : expr) (args : list expr) (anf : expr → anf_m
       direct_call head args anf
     | call_type.over_sat arity := do
       -- trace_anf "oversat",
-      let pre_args := list.taken arity args,
-      let post_args := list.dropn arity args,
+      let pre_args := list.take arity args,
+      let post_args := list.drop arity args,
       call_expr <- (direct_call head pre_args anf),
       anf_call' call_expr post_args anf
     | call_type.under_sat := do
