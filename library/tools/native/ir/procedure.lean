@@ -5,7 +5,7 @@ Authors: Jared Roesch
 -/
 
 @[reducible] meta def procedure :=
-  name × expr
+name × expr
 
 inductive extern_fn
 | mk : bool → name → name → unsigned → extern_fn

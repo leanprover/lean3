@@ -44,36 +44,6 @@ to_expr q ff
 
        apply le_antisymm
 
-private meta def parser_desc_aux : expr → tactic (list format)
-| ```(ident)  := return ["id"]
-| ```(ident_) := return ["id"]
-| ```(qexpr) := return ["expr"]
-| ```(tk %%c) := list.ret <$> to_fmt <$> eval_expr string c
-| ```(cur_pos) := return []
-| ```(return ._) := return []
-| ```(._ <$> %%p) := parser_desc_aux p
-| ```(skip_info %%p) := parser_desc_aux p
-| ```(set_goal_info_pos %%p) := parser_desc_aux p
-| ```(with_desc %%desc %%p) := list.ret <$> eval_expr format desc
-| ```(%%p₁ <*> %%p₂) := do
-  f₁ ← parser_desc_aux p₁,
-  f₂ ← parser_desc_aux p₂,
-  return $ concat f₁ f₂
-| ```(%%p₁ <* %%p₂) := do
-  f₁ ← parser_desc_aux p₁,
-  f₂ ← parser_desc_aux p₂,
-  return $ concat f₁ f₂
-| ```(%%p₁ *> %%p₂) := do
-  f₁ ← parser_desc_aux p₁,
-  f₂ ← parser_desc_aux p₂,
-  return $ concat f₁ f₂
-| ```(many %%p) := do
-  f ← parser_desc_aux p,
-  return [maybe_paren f ++ "*"]
-| ```(optional %%p) := do
-  f ← parser_desc_aux p,
-  return [maybe_paren f ++ "?"]
-| ```(lean.parser.sep_by %%sep %%p) := do
    would first elaborate `le_antisymm`, and create
 
        @le_antisymm ?m_1 ?m_2 ?m_3 ?m_4

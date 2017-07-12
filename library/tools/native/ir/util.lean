@@ -98,7 +98,7 @@ meta def app_kind (head : expr) : application_kind :=
   end
 
 @[reducible] meta def binding :=
-  (name × expr × expr)
+(name × expr × expr)
 
 meta def mk_let (bindings : list binding) (body : expr) : expr :=
   list.foldl

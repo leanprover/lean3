@@ -14,6 +14,7 @@ namespace native
 
 inductive error : Type
 | string : string → error
+-- | ice : string → error
 | many : list error → error
 
 meta def error.to_string : error → string

@@ -45,10 +45,10 @@ meta def sequence_err : list (ir_compiler ir.item) → ir_compiler (list ir.item
          end
 
 meta def lift_result {A} (action : ir.result A) : ir_compiler A :=
-  fun s, (action, s)
+λ s, (action, s)
 
 meta def in_lean_ns (n : name) : ir.symbol :=
-  ir.symbol.external (some `lean) n
+ir.symbol.external (some `lean) n
 
 -- TODO: fix naming here
 private meta def take_arguments' : expr → list name → (list name × expr)
@@ -71,14 +71,13 @@ meta def mk_error {T} (msg : string) : ir_compiler T :=
   trace ("ERROR: " ++ msg) (lift_result (except.error $ error.string msg))
 
 meta def lookup_arity (n : name) : ir_compiler nat := do
-  map ← arities,
-  if n = `nat.cases_on
-  then pure 2
-  else
-  match rb_map.find map n with
-  | option.none := mk_error $ "could not find arity for: " ++ to_string n
-  | option.some n := return n
-  end
+do map ← arities,
+   if n = `nat.cases_on
+   then pure 2
+   else match rb_map.find map n with
+   | option.none := mk_error $ "could not find arity for: " ++ to_string n
+   | option.some n := return n
+   end
 
 meta def mk_nat_literal (n : nat) : ir_compiler ir.expr :=
 return (ir.expr.lit $ ir.literal.nat n)
@@ -87,10 +86,10 @@ meta def fresh_symbol : ir_compiler ir.symbol :=
 ir.symbol.name <$> fresh_name
 
 def upto (n : ℕ) : list ℕ :=
-  (nat.repeat (::) n []).reverse
+(nat.repeat (::) n []).reverse
 
 def label {A : Type} (xs : list A) : list (nat × A) :=
-  list.zip (upto (list.length xs)) xs
+list.zip (upto (list.length xs)) xs
 
 open tactic
 
@@ -103,10 +102,9 @@ meta def assert_expr : ir.stmt → ir_compiler ir.expr
 | s := mk_error ("internal invariant violated, found: " ++ to_string (format_cpp.stmt s))
 
 meta def mk_ir_call (head : ir.symbol) (args : list ir.expr) : ir_compiler ir.expr :=
-  let args'' := list.map assert_name args
-  in do
-    args' ← monad.sequence args'',
-    return (ir.expr.call head args')
+let args'' := list.map assert_name args
+in do args' ← monad.sequence args'',
+      return (ir.expr.call head args')
 
 meta def mk_direct_call (head : ir.symbol) (args : list ir.expr) : ir_compiler ir.stmt := do
   if list.length args < 9
@@ -133,16 +131,16 @@ let args'' := list.map assert_name args in do
     then return (ir.expr.mk_native_closure head arity args')
     else return (ir.expr.mk_native_closure (mk_nargs_symbol head) arity args')
 
-meta def bind_value_with_ty (val : ir.expr) (ty : ir.ty) (body : ir.symbol → ir_compiler ir.stmt) : ir_compiler ir.stmt := do
-  fresh ← fresh_symbol,
-  ir.stmt.letb fresh ty val <$> (body fresh)
+meta def bind_value_with_ty (val : ir.expr) (ty : ir.ty) (body : ir.symbol → ir_compiler ir.stmt) : ir_compiler ir.stmt :=
+do fresh ← fresh_symbol,
+   ir.stmt.letb fresh ty val <$> (body fresh)
 
 meta def bind_value (val : ir.expr) (body : ir.symbol → ir_compiler ir.stmt) : ir_compiler ir.stmt :=
-  bind_value_with_ty val (ir.ty.object none) body
+bind_value_with_ty val (ir.ty.object none) body
 
 -- not in love with this --solution-- hack, revisit
 meta def compile_local (n : ir.symbol) : ir_compiler ir.symbol :=
-  return n
+return n
 -- return $ (mk_str_name "_$local$_" (name.to_string_with_sep "_" n))
 
 meta def mk_invoke (loc : ir.symbol) (args : list ir.expr) : ir_compiler ir.stmt := do
@@ -196,42 +194,41 @@ match args with
 end
 
 meta def panic (msg : string) : ir_compiler ir.stmt :=
-  return $ ir.stmt.panic msg
+return $ ir.stmt.panic msg
 
 meta def bind_case_fields' (scrut : ir.symbol) : list (nat × ir.symbol) → ir.stmt → ir_compiler ir.stmt
 | [] body := return body
-| ((n, f) :: fs) body := do
-  loc ← compile_local f,
-  ir.stmt.letb loc (ir.ty.object none) (ir.expr.project scrut n) <$> (bind_case_fields' fs body)
+| ((n, f) :: fs) body :=
+do loc ← compile_local f,
+   ir.stmt.letb loc (ir.ty.object none) (ir.expr.project scrut n) <$> (bind_case_fields' fs body)
 
 meta def bind_case_fields (scrut : ir.symbol) (fs : list ir.symbol) (body : ir.stmt) : ir_compiler ir.stmt :=
-  bind_case_fields' scrut (label fs) body
+bind_case_fields' scrut (label fs) body
 
 meta def mk_is_simple (scrut : ir.symbol) : ir.expr :=
-  ir.expr.call (ir.symbol.external none `is_simple) [scrut]
+ir.expr.call (ir.symbol.external none `is_simple) [scrut]
 
 meta def mk_is_zero (n : ir.symbol) : ir.expr :=
-  mk_equals (mk_int 0) (ir.expr.sym n)
+mk_equals (mk_int 0) (ir.expr.sym n)
 
 meta def mk_cidx (obj : ir.symbol) : ir.expr :=
-  ir.expr.call (ir.symbol.external none `cidx) [obj]
+ir.expr.call (ir.symbol.external none `cidx) [obj]
 
 meta def mk_cases_on (case_name scrut : ir.symbol) (cases : list (nat × ir.stmt)) (default : ir.stmt) : ir_compiler ir.stmt := do
-  ctor_index ← fresh_symbol,
-  pure $ ir.stmt.seq [
-   ir.stmt.letb ctor_index (ir.ty.name `unsigned) (mk_cidx scrut) ir.stmt.nop,
-   ir.stmt.switch ctor_index cases default
-  ]
+do ctor_index ← fresh_symbol,
+   pure $ ir.stmt.seq [
+     ir.stmt.letb ctor_index (ir.ty.name `unsigned) (mk_cidx scrut) ir.stmt.nop,
+     ir.stmt.switch ctor_index cases default ]
 
 meta def compile_cases (action : expr → ir_compiler ir.stmt) (scrut : ir.symbol)
 : list (nat × expr) → ir_compiler (list (nat × ir.stmt))
 | [] := return []
-| ((n, body) :: cs) := do
-  (fs, body') ← take_arguments body,
-  body'' ← action body',
-  cs' ← compile_cases cs,
-  case ← bind_case_fields scrut (list.map ir.symbol.name fs) body'',
-  return $ (n, case) :: cs'
+| ((n, body) :: cs) :=
+do (fs, body') ← take_arguments body,
+    body'' ← action body',
+    cs' ← compile_cases cs,
+    case ← bind_case_fields scrut (list.map ir.symbol.name fs) body'',
+    return $ (n, case) :: cs'
 
 meta def compile_cases_on_to_ir_stmt
     (case_name : ir.symbol)
@@ -257,7 +254,7 @@ meta def bind_builtin_case_fields' (scrut : ir.symbol) : list (nat × ir.symbol)
   ir.stmt.letb loc (ir.ty.object none) (ir.expr.call `index [scrut, idx]) kont)
 
 meta def bind_builtin_case_fields (scrut : ir.symbol) (fs : list ir.symbol) (body : ir.stmt) : ir_compiler ir.stmt :=
-  bind_builtin_case_fields' scrut (label fs) body
+bind_builtin_case_fields' scrut (label fs) body
 
 meta def compile_builtin_cases (action : expr → ir_compiler ir.stmt) (scrut : ir.symbol)
   : list (nat × expr) → ir_compiler (list (nat × ir.stmt))
@@ -542,8 +539,8 @@ meta def compile_expr_to_ir_stmt : expr → ir_compiler ir.stmt
   let head := expr.get_app_fn (expr.app f x),
       args := expr.get_app_args (expr.app f x)
   in compile_expr_app_to_ir_stmt head args compile_expr_to_ir_stmt
-| (expr.lam _ _ _ _) := mk_error "found lam"
-| (expr.pi _ _ _ _) := mk_error "found pi, should not be translating a Pi for any reason (yet ...)"
+| (expr.lam _ _ _ _) := mk_error "found λ unexpected"
+| (expr.pi _ _ _ _) := mk_error "found unexpected Π, should not be translating a Π type"
 | (expr.macro d args) := compile_expr_macro_to_ir_expr (expr.macro d args) compile_expr_to_ir_stmt
 | (expr.elet n _ v body) := do
   n' ← compile_local n,
@@ -711,11 +708,11 @@ meta def emit_main (procs : list (name × expr)) : ir_compiler ir.defn := do
 ]))
 
 meta def name_to_str_array (n : name) : ir.literal :=
-    ir.literal.array $ list.map (fun n', ir.literal.string $ to_string n') $ name.components n
+ir.literal.array $ list.map (fun n', ir.literal.string $ to_string n') $ name.components n
 
-meta def mk_let_native_symbol_name (n : name) : ir_compiler (name × ir.stmt) := do
-  fresh ← fresh_name,
-  return $ (fresh, ir.stmt.letb fresh (ir.ty.symbol $ in_lean_ns `name) (ir.expr.lit $ name_to_str_array n) ir.stmt.nop)
+meta def mk_let_native_symbol_name (n : name) : ir_compiler (name × ir.stmt) :=
+do fresh ← fresh_name,
+   return $ (fresh, ir.stmt.letb fresh (ir.ty.symbol $ in_lean_ns `name) (ir.expr.lit $ name_to_str_array n) ir.stmt.nop)
 
 meta def emit_native_symbol_pairs (procs : list (name × expr)) : ir_compiler ir.stmt :=
   let ns := list.map prod.fst procs,
@@ -803,6 +800,13 @@ meta def execute_backend (ctxt : ir.context) (backend : native.backend) : tactic
 meta def execute_backends (backends : list native.backend) (ctxt : ir.context) : tactic unit :=
   monad.mapm (execute_backend ctxt) backends >> return ()
 
+-- We still have hardwired support for this right now, the eventual goal is to extend the
+-- backend interface to have everything needed.
+--
+-- TODO(@jroesch), move emit_main code here.
+meta def run_cpp_backend (ctxt : ir.context) : tactic format :=
+return $ format_cpp.program $ ctxt.to_items
+
 meta def compile
   (conf : config)
   (extern_fns : list extern_fn)
@@ -814,6 +818,6 @@ meta def compile
     | except.ok ctxt' := pure ctxt'
     end,
     execute_backends backends ctxt',
-    return (format_cpp.program $ ctxt'^.to_items)
+    run_cpp_backend ctxt
 
 end native

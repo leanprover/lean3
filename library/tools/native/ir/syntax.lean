@@ -47,6 +47,8 @@ inductive base_type
 -- an unbounded integer
 | integer
 
+#check expr
+
 inductive ty : Type
 | base : base_type → ty
 | object : option ty → ty
@@ -60,9 +62,8 @@ inductive ty : Type
 | raw_ptr : ty → ty
 -- | abs : list ty \r
 
--- bug here if you omit name
 instance has_coe_basetype_ty : has_coe base_type ty :=
- ⟨ fun bt, ty.base bt ⟩
+⟨ fun bt, ty.base bt ⟩
 
 inductive either (A B : Type) : Type
 | left : A → either
@@ -101,8 +102,8 @@ inductive expr : Type
 | uninitialized : expr
 | constructor : symbol → list symbol → expr
 | address_of : symbol → expr
--- these need to be literal/values/etc
 | binary_operator : op → expr → expr → expr
+-- these need to be literal/values/etc
 | array : list symbol → expr
 | call : symbol → list symbol → expr
 -- | value : value → expr
