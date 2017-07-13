@@ -110,7 +110,7 @@ private meta def parser_desc_aux : expr → tactic (list format)
 | `(optional %%p) := do
   f ← parser_desc_aux p,
   return [maybe_paren f ++ "?"]
-| `(sep_by %%sep %%p) := do
+| `(lean.parser.sep_by %%sep %%p) := do
   f₁ ← parser_desc_aux sep,
   f₂ ← parser_desc_aux p,
   return [maybe_paren f₂ ++ join f₁, " ..."]

@@ -63,6 +63,9 @@ meta def format.when {α : Type u} [has_to_format α] : bool → α → format
 meta def format.join (xs : list format) : format :=
 foldl compose (of_string "") xs
 
+meta def format.sep_by (sep : format) (items : list format) : format :=
+format.join $ list.intersperse sep items
+
 meta instance : has_to_format options :=
 ⟨λ o, format.of_options o⟩
 

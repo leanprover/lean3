@@ -27,7 +27,7 @@ struct text_importer {
 
     text_importer(environment const & env) : m_env(env) {
         m_level[0] = {};
-        m_name[0] = {};
+        m_name[0] = name({});
     }
 
     levels read_levels(std::istream & in) {

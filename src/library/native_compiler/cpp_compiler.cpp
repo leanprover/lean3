@@ -34,7 +34,21 @@ namespace lean {
       return *this;
   }
 
-  cpp_compiler::cpp_compiler() : m_library_paths(), m_include_paths(), m_files(), m_link(), m_debug(false) {}
+  cpp_compiler & cpp_compiler::output(std::string out) {
+      m_output = out;
+      return *this;
+  }
+
+  cpp_compiler::cpp_compiler(std::string cc) :
+    m_library_paths(),
+    m_include_paths(),
+    m_files(),
+    m_link(),
+    m_output(),
+    m_cc(cc),
+    m_debug(false),
+    m_shared(false),
+    m_pic(false) {}
 
   cpp_compiler & cpp_compiler::shared_library(bool on) {
       m_shared = on;
@@ -46,9 +60,14 @@ namespace lean {
       return * this;
   }
 
+   cpp_compiler & cpp_compiler::W(std::string opt) {
+       m_warnings.push_back(opt);
+      return * this;
+   }
+
   void cpp_compiler::run() {
-      process p("g++");
-      p.arg("-std=c++11");
+      process p(m_cc);
+      p.arg("-std=c++14");
 
       if (m_pic) {
           p.arg("-fPIC");
@@ -94,19 +113,30 @@ namespace lean {
           p.arg("-g");
       }
 
+      // Set the output if its been set.
+      if (m_output.size()) {
+         p.arg("-o");
+         p.arg(m_output);
+      }
+
+      // Add warning flags.
+      for (auto warning : m_warnings) {
+          auto dash_W = std::string("-W");
+          p.arg(dash_W + warning);
+      }
+
       p.run();
   }
 
   // Setup a compiler for building executables.
-  cpp_compiler mk_executable_compiler() {
-      cpp_compiler gpp;
-      gpp.link(LEAN_STATIC_LIB);
+  cpp_compiler mk_executable_compiler(std::string cc) {
+      cpp_compiler gpp(cc);
       return gpp;
   }
 
   // Setup a compiler for building dynamic libraries.
-  cpp_compiler mk_shared_compiler() {
-      cpp_compiler gpp;
+  cpp_compiler mk_shared_compiler(std::string cc) {
+      cpp_compiler gpp(cc);
       gpp.link(LEAN_SHARED_LIB);
       gpp.pic(true);
       gpp.shared_library(true);

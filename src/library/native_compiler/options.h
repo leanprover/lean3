@@ -17,6 +17,11 @@ struct config {
     bool         m_native_emit_dwarf;
     bool         m_native_dynamic;
     char const * m_native_dump;
+    char const * m_native_cc;
+    char const * m_native_binary;
+    char const * m_native_store_code;
+    bool         m_native_profile;
+    char const * m_native_backend;
 
     config(options const & o);
 

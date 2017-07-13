@@ -1,4 +1,8 @@
-import system.IO
+import system.io
 
-definition main : IO unit :=
-    put_str "Hello Lean!\n"
+variable [io.interface]
+
+-- set_option trace.compiler true
+
+def main : io unit :=
+    io.put_str "Hello Lean!"

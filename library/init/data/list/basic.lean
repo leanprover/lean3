@@ -232,7 +232,10 @@ zip_with prod.mk
 
 def unzip : list (α × β) → list α × list β
 | []            := ([], [])
-| ((a, b) :: t) := match unzip t with (al, bl) := (a::al, b::bl) end
+| ((a, b) :: t) :=
+match unzip t with
+| (al, bl) := (a::al, b::bl)
+end
 
 def repeat (a : α) : ℕ → list α
 | 0 := []

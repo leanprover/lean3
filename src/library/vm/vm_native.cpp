@@ -16,13 +16,17 @@ Author: Jared Roesch
 #include "library/native_compiler/native_compiler.h"
 #include "library/compiler/simp_inductive.h"
 #include "library/compiler/nat_value.h"
+#include "library/quote.h"
+#include "library/kernel_serializer.h"
+#include "util/serializer.h"
+#include "util/sstream.h"
 
 namespace lean {
 
 vm_obj native_is_internal_cnstr(vm_obj const & e) {
     auto opt_unsigned = is_internal_cnstr(to_expr(e));
     if (opt_unsigned) {
-        vm_obj u = to_obj(*opt_unsigned);
+        vm_obj u = mk_vm_simple(*opt_unsigned);
         return mk_vm_constructor(1, { u });
     } else {
         return mk_vm_constructor(0, {});
@@ -32,7 +36,7 @@ vm_obj native_is_internal_cnstr(vm_obj const & e) {
 vm_obj native_is_internal_cases(vm_obj const & e) {
     auto opt_unsigned = is_internal_cases(to_expr(e));
     if (opt_unsigned) {
-        vm_obj u = to_obj(*opt_unsigned);
+        vm_obj u = mk_vm_simple(*opt_unsigned);
         return mk_vm_constructor(1, { u });
     } else {
         return mk_vm_constructor(0, {});
@@ -42,7 +46,7 @@ vm_obj native_is_internal_cases(vm_obj const & e) {
 vm_obj native_is_internal_proj(vm_obj const & e) {
     auto opt_unsigned = is_internal_proj(to_expr(e));
     if (opt_unsigned) {
-        vm_obj u = to_obj(*opt_unsigned);
+        vm_obj u = mk_vm_simple(*opt_unsigned);
         return mk_vm_constructor(1, { u });
     } else {
         return mk_vm_constructor(0, {});
@@ -54,6 +58,16 @@ vm_obj native_get_nat_value(vm_obj const & o) {
     if (is_nat_value(e)) {
         auto n = mk_vm_nat(get_nat_value_value(e));
         return mk_vm_constructor(1, { n });
+    } else {
+        return mk_vm_simple(0);
+    }
+}
+
+vm_obj native_get_quote_expr(vm_obj const & o) {
+    expr e = to_expr(o);
+    if (is_pexpr_quote(e)) {
+        auto exp = to_obj(get_pexpr_quote_value(e));
+        return mk_vm_constructor(1, { exp });
     } else {
         return mk_vm_simple(0);
     }
@@ -74,12 +88,12 @@ vm_obj native_get_builtin(vm_obj const & o) {
         }
         case vm_builtin_kind::CFun: {
             auto efn = *get_builtin(n);
-            auto pair = mk_vm_constructor(0, { to_obj(efn.m_name), mk_vm_simple(efn.m_arity) });
+            auto pair = mk_vm_constructor(0, { to_obj(name(efn.m_native_name)), mk_vm_simple(efn.m_arity) });
             return mk_vm_some(pair);
         }
         case vm_builtin_kind::Cases: {
             auto efn = *get_builtin(n);
-            auto pair = mk_vm_constructor(1, { to_obj(efn.m_name), mk_vm_simple(efn.m_arity) });
+            auto pair = mk_vm_constructor(1, { to_obj(name(efn.m_native_name)), mk_vm_simple(efn.m_arity) });
             return mk_vm_some(pair);
         }
         default:
@@ -99,12 +113,35 @@ vm_obj native_dump_format(vm_obj const & string_obj, vm_obj const & format_obj) 
     return mk_vm_nat(0);
 }
 
+// Returns the serialized contents of `quote_macro`.
+// TODO: I think there are some issues with this in the new
+// quote style.
+vm_obj native_serialize_quote_macro(vm_obj const & pexpr_obj) {
+    auto exp = to_expr(pexpr_obj);
+    lean_assert(is_pexpr_quote(exp));
+    auto quoted_expr = get_pexpr_quote_value(exp);
+    std::ostringstream output_stream(std::ios_base::binary);
+    serializer s(output_stream);
+    s << quoted_expr;
+    return to_obj(output_stream.str());
+}
+
+vm_obj deserialize_quoted_expr(std::string data) {
+    std::istringstream in(data);
+    deserializer d(in);
+    expr e;
+    d >> e;
+    return to_obj(e);
+}
+
 void initialize_vm_native() {
     // Not sure if we should expose ese or what?
     DECLARE_VM_BUILTIN(name({"native", "is_internal_cnstr"}), native_is_internal_cnstr);
     DECLARE_VM_BUILTIN(name({"native", "is_internal_cases"}), native_is_internal_cases);
     DECLARE_VM_BUILTIN(name({"native", "is_internal_proj"}), native_is_internal_proj);
     DECLARE_VM_BUILTIN(name({"native", "get_nat_value"}), native_get_nat_value);
+    DECLARE_VM_BUILTIN(name({"native", "get_quote_expr"}), native_get_quote_expr);
+    DECLARE_VM_BUILTIN(name({"native", "serialize_quote_macro"}), native_serialize_quote_macro);
     DECLARE_VM_BUILTIN(name({"native", "get_builtin"}), native_get_builtin);
     DECLARE_VM_BUILTIN(name({"native", "dump_format"}), native_dump_format);
 }

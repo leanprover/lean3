@@ -54,7 +54,7 @@ void module_mgr::mark_out_of_date(module_id const & id) {
     }
 }
 
-static module_loader mk_loader(module_id const & cur_mod, std::vector<module_info::dependency> const & deps) {
+module_loader mk_loader(module_id const & cur_mod, std::vector<module_info::dependency> const & deps) {
     auto deps_per_mod_ptr = std::make_shared<std::unordered_map<module_id, std::vector<module_info::dependency>>>();
     auto & deps_per_mod = *deps_per_mod_ptr;
 
@@ -126,9 +126,9 @@ static gtask compile_olean(std::shared_ptr<module_info const> const & mod, log_t
 }
 
 // TODO(gabriel): adapt to vfs
-static module_id resolve(search_path const & path,
-                         module_id const & module_file_name,
-                         module_name const & ref) {
+module_id resolve(search_path const & path,
+                  module_id const & module_file_name,
+                  module_name const & ref) {
     auto base_dir = dirname(module_file_name);
     try {
         return find_file(path, base_dir, ref.m_relative, ref.m_name, ".lean");

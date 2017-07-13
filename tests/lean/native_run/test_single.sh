@@ -7,9 +7,9 @@ ulimit -s 8192
 LEAN=$1
 
 export LEAN_PATH=../../../library:.
-export HLEAN_PATH=../../../hott:.
-export LIBRARY=../../../build/debug
-export INCLUDE=../../../src
+# this needs to be fixed, not sure what to do
+export LIBRARY=$(../readlinkf.sh "../../../build/release")
+export INCLUDE=$(../readlinkf.sh "../../../src")
 
 if [ $# -ne 3 ]; then
     INTERACTIVE=no
@@ -17,23 +17,22 @@ else
     INTERACTIVE=$3
 fi
 f=$2
+ff=$(../readlinkf.sh "$f")
 
-if [ ${f: -6} == ".hlean" ]; then
-    CONFIG="config.hlean"
-else
-    CONFIG="config.lean"
+if [[ "$OSTYPE" == "msys" ]]; then
+    # Windows running MSYS2
+    # Replace /c/ with c:, and / with \\
+    ff=$(echo $ff  | sed 's|^/\([a-z]\)/|\1:/|' | sed 's|/|\\\\|g')
 fi
 
 echo "-- testing $f"
-"$LEAN" --compile $CONFIG "$f" -D native.library_path="$LIBRARY" -D native.include_path="$INCLUDE" &> "$f.compile.out"
-# Currently we always produce a file named a.out, it looks like the first command isn't running
-# and then it crashes when it can't find a.out
-./a.out &> "$f.produced.out.1"
-sed "/warning: imported file uses 'sorry'/d" "$f.produced.out.1" | sed "/warning: using 'sorry'/d" > "$f.produced.out"
-rm -f "$f.produced.out.1"
-rm -f "$f.compile.out"
-rm -f a.out
 
+"$LEAN" --compile "$f" -D native.library_path="$LIBRARY" -D native.include_path="$INCLUDE" -D native.binary="$f.bin" &> "$f.compile.out"
+DYLD_LIBRARY_PATH="$LIBRARY" "./$f.bin" &> "$f.produced.out"
+sed "/warning: imported file uses 'sorry'/d" "$f.produced.out" > "$f.produced.out.tmp"
+sed "/warning: using 'sorry'/d" "$f.produced.out.tmp" > "$f.produced.out"
+sed "s|^$ff|$f|" "$f.produced.out" > "$f.produced.out.tmp"
+mv "$f.produced.out.tmp" "$f.produced.out"
 if test -f "$f.expected.out"; then
     if diff --ignore-all-space -I "executing external script" "$f.produced.out" "$f.expected.out"; then
         echo "-- checked"
@@ -43,10 +42,8 @@ if test -f "$f.expected.out"; then
         if [ $INTERACTIVE == "yes" ]; then
             meld "$f.produced.out" "$f.expected.out"
             if diff -I "executing external script" "$f.produced.out" "$f.expected.out"; then
-                echo "-- mismath was fixed"
+                echo "-- mismatch was fixed"
             fi
-        else
-            diff --ignore-all-space -I "executing external script" "$f.produced.out" "$f.expected.out"
         fi
         exit 1
     fi

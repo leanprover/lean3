@@ -50,6 +50,7 @@ Author: Leonardo de Moura
 #include "init/init.h"
 #include "shell/simple_pos_info_provider.h"
 #include "shell/leandoc.h"
+#include "shell/auto_import.h"
 #if defined(LEAN_JSON)
 #include "shell/server.h"
 #endif
@@ -678,21 +679,24 @@ int main(int argc, char ** argv) {
             }
         }
 
-        // Options appear to be empty, pretty sure I'm making a mistake here.
         if (compile && !mods.empty()) {
-            auto final_env = mods.front().m_mod_info->get_produced_env();
-            auto final_opts = get(mods.front().m_mod_info->m_result).m_opts;
-            type_context tc(final_env, final_opts);
-            lean::scope_trace_env scope2(final_env, final_opts, tc);
-            lean::native::scope_config scoped_native_config(
-                final_opts);
-            native_compile_binary(final_env, final_env.get(lean::name("main")));
-        }
+            auto current_module = mods.front().m_mod_info;
 
-        // if (!mods.empty() && export_native_objects) {
-        //     // this code is now broken
-        //     env = lean::set_native_module_path(env, lean::name(native_output));
-        // }
+             lean::name native_tools = name({"tools", "native"});
+
+             auto native_env = auto_import_tools(
+                 mod_mgr,
+                 current_module,
+                 native_tools);
+
+             auto final_opts = get(mods.front().m_mod_info->m_result).m_opts;
+
+             type_context tc(native_env, final_opts);
+             lean::scope_trace_env scope2(native_env, final_opts, tc);
+             lean::native::scope_config scoped_native_config(final_opts);
+             native_compile_binary(native_env,
+                                   native_env.get(lean::name("main")));
+        }
 
         if (export_txt && !mods.empty()) {
             buffer<std::shared_ptr<module_info const>> mod_infos;

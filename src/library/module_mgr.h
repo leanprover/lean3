@@ -38,6 +38,7 @@ struct module_info {
         module_name m_import_name;
         std::shared_ptr<module_info const> m_mod_info;
     };
+
     std::vector<dependency> m_deps;
 
     optional<std::string> m_lean_contents;
@@ -76,11 +77,15 @@ public:
     std::tuple<std::string, module_src, time_t> load_module(module_id const & id, bool can_use_olean) override;
 };
 
+module_loader mk_loader(module_id const & cur_mod, std::vector<module_info::dependency> const & deps);
+module_id resolve(search_path const & path, module_id const & module_file_name, module_name const & ref);
+
 class module_mgr {
     bool m_server_mode = false;
     bool m_save_olean = false;
-
+    public:
     search_path m_path;
+    private:
     environment m_initial_env;
     io_state m_ios;
     module_vfs * m_vfs;
@@ -108,6 +113,7 @@ public:
     void invalidate(module_id const & id);
 
     std::shared_ptr<module_info const> get_module(module_id const &);
+    std::shared_ptr<module_info const> resolve_and_get_module(name const & absolute_module_name);
 
     std::vector<std::shared_ptr<module_info const>> get_all_modules();
 

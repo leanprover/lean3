@@ -30,6 +30,7 @@ Author: Leonardo de Moura
 #include "library/unfold_macros.h"
 #include "library/module_mgr.h"
 #include "library/library_task_builder.h"
+#include "library/vm/vm_native.h"
 #include "version.h"
 
 namespace lean {

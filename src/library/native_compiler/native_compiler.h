@@ -7,29 +7,34 @@ Author: Jared Roesch
 #pragma once
 #include <string>
 #include "kernel/environment.h"
+#include "library/vm/vm.h"
+#include "util/path.h"
 
 namespace lean {
 void initialize_install_path();
-std::string get_install_path();
+path get_install_path();
 
 struct extern_fn {
-    bool m_in_lean_namespace;
-    name m_name;
+    bool        m_in_lean_namespace;
+    name        m_lean_name;
+    std::string m_native_name;
+
     unsigned m_arity;
-    extern_fn(bool in_lean_namespace, name n, unsigned arity) :
-        m_in_lean_namespace(in_lean_namespace), m_name(n), m_arity(arity) {}
+    extern_fn(bool in_lean_namespace, name lean_name, std::string native_name, unsigned arity) :
+        m_in_lean_namespace(in_lean_namespace),
+        m_lean_name(lean_name),
+        m_native_name(native_name),
+        m_arity(arity) {}
+
+    vm_obj to_obj();
 };
 
 optional<extern_fn> get_builtin(name const & n);
 
-enum native_compiler_mode { JIT, AOT };
-void native_compile(environment const & env, buffer<pair<name, expr>> & procs, native_compiler_mode & mode);
+enum native_compiler_mode { Module, Executable };
 void native_compile_binary(environment const & env, declaration const & d);
-void native_compile_module(environment const & env, buffer<declaration> decls);
-void native_compile_module(environment const & env);
-// void native_aot_compile(environment const & env, config & conf, declaration const & main);
-// void native_compile_file(environment const & env, config & conf, declaration const & main);
-environment set_native_module_path(environment & env, name const & n);
+void compile_with_external_backend(environment const & env, declaration const & d);
+
 void initialize_native_compiler();
 void finalize_native_compiler();
 }
