@@ -66,11 +66,44 @@ def back : string → char
 def backn : string → nat → string
 | ⟨s⟩ n := ⟨s.take n⟩
 
+def frontn : string → nat → string
+| ⟨s⟩ n := ⟨s.drop (s.length - n)⟩
+
 def join (l : list string) : string :=
 l.foldl (λ r s, r ++ s) ""
 
 def singleton (c : char) : string :=
 str empty c
+
+private def replace_char_imp (c : char) (replacement : list char) : list char → list char
+| [] := []
+| (s :: ss) :=
+  if c = s
+  then replacement ++ replace_char_imp ss
+  else s :: replace_char_imp ss
+
+def replace_char (c : char) (replacement : string) : string → string :=
+λ ⟨ str ⟩, ⟨ (replace_char_imp c replacement.to_list str) ⟩
+
+private def split_on_core (c : char) : list char → list (list char)
+| [] := []
+| (h :: tail) :=
+if h = c
+then [] :: split_on_core tail
+else match split_on_core tail with
+| [] := (h :: []) :: []
+| (curr :: rest) := (h :: curr) :: rest
+end
+
+def split_on (c : char) : string → list string
+| ⟨ str ⟩ := list.reverse $
+  list.map (fun lc, ⟨ lc ⟩) $
+  split_on_core c str
+
+def starts_with (c : char) (str : string) : bool :=
+if str.to_list.head = c
+then bool.tt
+else bool.ff
 
 end string
 

@@ -18,4 +18,24 @@ begin cases s₁, cases s₂, intros h₁ h₂, unfold str at h₂, injection h�
 
 lemma str_ne_str_right (c₁ c₂ : char) {s₁ s₂ : string} : s₁ ≠ s₂ → str s₁ c₁ ≠ str s₂ c₂ :=
 begin cases s₁, cases s₂, intros h₁ h₂, unfold str at h₂, injection h₂, injection h, subst data, contradiction end
+
+-- lemma replace_char_with_self_is_id :
+-- ∀ str c, string.replace_char c (string.str "" c) str = str :=
+-- begin
+--     intros,
+--     cases str,
+--     dsimp [replace_char],
+--     apply congr,
+--     reflexivity,
+--     revert c,
+--     induction data; intros,
+--     case list.nil {
+--         simp [to_list],
+--         simp [list.reverse, list.reverse_core],
+--         admit
+--     },
+--     case list.cons { admit },
+-- end
+
+-- TODO add lemma for split
 end string
