@@ -18,22 +18,11 @@ namespace format_cpp
 
 def one_of (c : char) (s : string) : bool := bool.ff
 
-private def replace_list (c : char) (replacement : list char) : list char -> list char
-| [] := []
-| (s :: ss) :=
-  if c = s
-  then replacement ++ replace_list ss
-  else s :: replace_list ss
-
-def replace (c : char) (replacement : string) (str : string) : string :=
-(replace_list c replacement.to_list str.to_list).to_string
-
 meta def mangle_external_name (n : name) : string :=
   name.to_string_with_sep "_" n
 
 meta def mangle_name (n : name) : string :=
-  -- this is hack due to syntax highlighting, fix me
-  (replace (char.of_nat 34)  "_$single_quote$_" $ name.to_string_with_sep "$dot$_" n)
+string.replace_char (char.of_nat 34)  "_$single_quote$_" $ name.to_string_with_sep "$dot$_" n
 
 meta def mangle_symbol : ir.symbol → string
 | (ir.symbol.name n) := "_$lean$_" ++ mangle_name n

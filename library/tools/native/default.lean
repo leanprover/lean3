@@ -571,7 +571,7 @@ meta def trace_expr (e : expr) : ir_compiler unit :=
 
 meta def has_ir_refinement (n : name) : ir_compiler (option ir.item) := do
   ctxt ← get_context,
-  pure $ ir.lookup_item n ctxt
+  pure $ ctxt.lookup_item n
 
 meta def compile_defn (decl_name : name) (e : expr) : ir_compiler ir.defn := do
   -- trace ("compiling: " ++ to_string decl_name) (fun u, do
@@ -818,6 +818,6 @@ meta def compile
     | except.ok ctxt' := pure ctxt'
     end,
     execute_backends backends ctxt',
-    run_cpp_backend ctxt
+    run_cpp_backend ctxt'
 
 end native

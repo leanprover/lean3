@@ -52,7 +52,7 @@ def name.to_string_with_sep (sep : string) : name → string
 | anonymous                := "[anonymous]"
 | (mk_string s anonymous)  := s
 | (mk_numeral v anonymous) := repr v
-| (mk_string s n)          := name.to_string_with_sep n ++ sep ++ s
+| (mk_string s n)          := (name.to_string_with_sep n) ++ sep ++ s
 | (mk_numeral v n)         := name.to_string_with_sep n ++ sep ++ repr v
 
 private def name.components' : name -> list name
