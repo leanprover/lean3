@@ -36,6 +36,7 @@ Author: Leonardo de Moura
 #include "library/tactic/destruct_tactic.h"
 #include "library/tactic/algebraic_normalizer.h"
 #include "library/tactic/hole_command.h"
+#include "library/tactic/list_axioms_tactic.h"
 #include "library/tactic/backward/init_module.h"
 #include "library/tactic/smt/init_module.h"
 
@@ -74,10 +75,12 @@ void initialize_tactic_module() {
     initialize_destruct_tactic();
     initialize_algebraic_normalizer();
     initialize_hole_command();
+    initialize_list_axioms_tactic();
     initialize_smt_module();
 }
 void finalize_tactic_module() {
     finalize_smt_module();
+    finalize_list_axioms_tactic();
     finalize_hole_command();
     finalize_algebraic_normalizer();
     finalize_destruct_tactic();

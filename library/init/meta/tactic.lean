@@ -424,6 +424,7 @@ meta constant set_env : environment → tactic unit
 /-- (doc_string env d k) return the doc string for d (if available) -/
 meta constant doc_string : name → tactic string
 meta constant add_doc_string : name → string → tactic unit
+meta constant list_axioms : name → tactic (list name)
 /--
 Create an auxiliary definition with name `c` where `type` and `value` may contain local constants and
 meta-variables. This function collects all dependencies (universe parameters, universe metavariables,
