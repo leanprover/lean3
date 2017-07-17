@@ -110,8 +110,8 @@ end
 meta def mk_let' (bindings : list binding) (body : expr) : expr :=
 list.foldr
   (fun rest elem, mk_single_let elem rest)
-  (expr.abstract_locals body (list.map prod.fst (list.reverse (list.filter (fun b, should_abstract b = tt) bindings))))
-  (list.reverse bindings)
+  (body.abstract_locals (list.map prod.fst (list.reverse (list.filter (fun b, should_abstract b = tt) bindings))))
+  bindings.reverse
 
 private meta def mk_let_in_current_scope (body : expr) : anf_monad expr :=
 do (_, scopes, _) ← state.read,

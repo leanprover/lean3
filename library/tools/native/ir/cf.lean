@@ -16,10 +16,10 @@ open native
 namespace cf
 
 @[reducible] meta def cf_state :=
-  config × nat
+config × nat
 
 @[reducible] meta def cf_monad :=
-  state cf_state
+state cf_state
 
 /-- hello world -/
 meta def when_debug (action : cf_monad unit) : cf_monad unit := do
@@ -32,17 +32,17 @@ meta def when_debug (action : cf_monad unit) : cf_monad unit := do
 -- the error behavior here seems bad if you replace the unit
 -- with `u`
 meta def trace_cf (s : string) : cf_monad unit :=
-  when_debug (trace s (return ()))
+when_debug (trace s (return ()))
 
-meta def fresh_name : cf_monad name := do
-  (config, count) ← state.read,
-  -- need to replace this with unique prefix as per our earlier conversation
-  n ← pure $ name.mk_numeral (unsigned.of_nat' count) `_anf_,
-  state.write (config, count + 1),
-  return n
+meta def fresh_name : cf_monad name :=
+do (config, count) ← state.read,
+   -- need to replace this with unique prefix as per our earlier conversation
+   n ← pure $ name.mk_numeral (unsigned.of_nat' count) `_anf_,
+   state.write (config, count + 1),
+   return n
 
-private meta def cf_case (action : expr → cf_monad expr) (e : expr) : cf_monad expr := do
-  under_lambda fresh_name (fun e', action e') e
+private meta def cf_case (action : expr → cf_monad expr) (e : expr) : cf_monad expr :=
+under_lambda fresh_name (λ e', action e') e
 
 private meta def cf_cases_on (head : expr) (args : list expr) (cf : expr → cf_monad expr) : cf_monad expr :=
   match args with

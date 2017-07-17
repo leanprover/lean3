@@ -47,8 +47,6 @@ inductive base_type
 -- an unbounded integer
 | integer
 
-#check expr
-
 inductive ty : Type
 | base : base_type → ty
 | object : option ty → ty
@@ -97,16 +95,15 @@ inductive expr : Type
 | mk_object : nat → list symbol → expr
 | sym : symbol → expr
 | project : symbol → nat → expr
+| tag : symbol → expr
 | mk_native_closure : symbol → nat → list symbol → expr
 | invoke : symbol → list symbol → expr
 | uninitialized : expr
 | constructor : symbol → list symbol → expr
 | address_of : symbol → expr
 | binary_operator : op → expr → expr → expr
--- these need to be literal/values/etc
 | array : list symbol → expr
 | call : symbol → list symbol → expr
--- | value : value → expr
 
 instance literal_to_expr : has_coe literal expr :=
 ⟨ expr.lit ⟩
