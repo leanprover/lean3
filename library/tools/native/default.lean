@@ -615,12 +615,8 @@ meta def compile_decl : extern_fn → ir_compiler ir.item
     args ← n_fresh 2,
     return $ ir.item.decl $ ir.decl.mk native_name (list.zip args [ir.base_type.unsigned, ir.ty.raw_ptr $ ir.ty.symbol (in_lean_ns `vm_obj)]) (ir.ty.object none)
 
-meta def compile_decls : list extern_fn → list (ir_compiler ir.item) :=
-  fun xs, list.map compile_decl xs
-
-meta def format_error : error → format
-| (error.string s) := to_fmt s
-| (error.many es) := format.join (list.map format_error es)
+meta def compile_decls (xs : list extern_fn) : list (ir_compiler ir.item) :=
+xs.map compile_decl
 
 meta def mk_lean_name (n : name) : ir.expr :=
 ir.expr.constructor (in_lean_ns `name) (coe $ name.components n)
@@ -654,6 +650,7 @@ meta def emit_declare_vm_builtins : list (name × expr) → ir_compiler (list ir
   then do b ← emit_declare_vm_builtin n body, return (b :: tail)
   else do b ← emit_declare_vm_builtin_nargs n body, return (b :: tail)
 
+-- Still need to remove this... how?
 meta def emit_main (procs : list (name × expr)) : ir_compiler ir.defn := do
   builtins ← emit_declare_vm_builtins procs,
   arity ← lookup_arity `main,
@@ -712,13 +709,8 @@ meta def driver
   procs' ← apply_pre_ir_passes procs <$> configuration <*> pure map,
   (defns, defn_errs) ← sequence_err (compile_defns procs'),
   (decls, decl_errs) ← sequence_err (compile_decls externs),
-  if true -- is_executable conf
-  then do
-    main ← emit_main procs',
-    return (ir.item.defn main :: defns ++ decls, defn_errs ++ decl_errs)
-  else do
-    init ← emit_package_initialize procs',
-    return (ir.item.defn init :: defns ++ decls, defn_errs ++ decl_errs)
+  main ← emit_main procs',
+  return (ir.item.defn main :: defns ++ decls, defn_errs ++ decl_errs)
 
 meta def compile_and_add_to_context
   (conf : config)

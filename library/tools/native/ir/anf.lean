@@ -15,15 +15,16 @@ import tools.native.ir.builtin
 import tools.native.ir.util
 import tools.native.ir.pass
 import tools.native.config
-import tools.native.ir.compiler
 
 open native
 
+namespace anf
+
 @[reducible] meta def anf_state :=
-  (arity_map × list (list binding) × nat)
+(arity_map × list (list binding) × nat)
 
 @[reducible] meta def anf_monad :=
-  state anf_state
+state anf_state
 
 inductive call_type
 | saturated
@@ -48,7 +49,7 @@ do (map, _, _) <- state.read,
       pure (call_type.over_sat arity)
   end
 
-private meta def fresh_name : anf_monad name :=
+meta def fresh_name : anf_monad name :=
 do (arity, ss, count) ← state.read,
    n ← pure $ name.mk_numeral (unsigned.of_nat count) `_anf_,
    state.write (arity, ss, count + 1),
@@ -226,10 +227,14 @@ private meta def anf' : expr → anf_monad expr
 private meta def init_state (armap : arity_map) : anf_state :=
 (armap, [], 0)
 
-private meta def anf_transform (conf : config) (arity : arity_map) (e : expr) : expr :=
-prod.fst $ (under_lambda fresh_name (enter_scope ∘ anf') e) (init_state arity)
+meta def transform (conf : config) (arity : arity_map) (e : expr) : expr :=
+prod.fst $ (under_lambda anf.fresh_name (enter_scope ∘ anf') e) (init_state arity)
+
+end anf
+
+open anf
 
 meta def anf : pass :=
 { name := "anf",
   transform :=
-    λ conf arity_map proc, procedure.map_body (λ e, anf_transform conf arity_map e) proc }
+    λ conf arity_map proc, procedure.map_body (λ e, transform conf arity_map e) proc }

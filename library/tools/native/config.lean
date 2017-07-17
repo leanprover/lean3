@@ -8,22 +8,11 @@ import init.data.bool.basic
 
 namespace native
 
-inductive compilation_mode : Type
-| module : compilation_mode
-| executable : compilation_mode
-
 structure config :=
 (debug : bool := bool.ff)
-(mode : compilation_mode := compilation_mode.module)
 (backend : string := "c++")
 (include_path : list string)
 (library_path : list string)
-
-def is_executable (cfg : config) :=
-cfg.mode = compilation_mode.executable
-
-def is_module (cfg : config) :=
-cfg.mode = compilation_mode.module
 
 open tactic
 

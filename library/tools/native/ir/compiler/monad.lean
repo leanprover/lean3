@@ -21,6 +21,16 @@ meta def error.to_string : error → string
 | (error.string s) := s
 | (error.many es) := to_string $ list.map error.to_string es
 
+meta instance error.has_to_string : has_to_string error :=
+⟨ λ e, e.to_string ⟩
+
+meta def error.to_format : error → format
+| (error.string s) := to_fmt s
+| (error.many es) := format.join (es.map error.to_format)
+
+meta instance error.has_to_format : has_to_format error :=
+⟨ λ e, e.to_format ⟩
+
 @[reducible] meta def arity_map : Type :=
   rb_map name nat
 
