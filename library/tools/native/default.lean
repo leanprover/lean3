@@ -801,43 +801,13 @@ meta def execute_backend (ctxt : ir.context) (backend : native.backend) : tactic
   tactic.trace "about to execute backend",
   backend^.compiler ctxt
 
-meta def execute_backends (backends : list native.backend) (ctxt : ir.context) : tactic unit :=
-  monad.mapm (execute_backend ctxt) backends >> return ()
-
-meta def add_shared_dependencies (cc : cpp_compiler) : cpp_compiler :=
-{ cc with link := cc.link ++ ["gmp", "pthread", "mpfr", "leanshared"].to_buffer }
-
--- We still have hardwired support for this right now, the eventual goal is to extend the
--- backend interface to have everything needed.
---
--- TODO(@jroesch), move emit_main code here.
-meta def write_and_compile [io.interface] (cfg : config) (path : string) (data : buffer char) : io unit :=
-do handle ← io.mk_file_handle path io.mode.write,
-   io.fs.write handle data,
-   io.fs.close handle,
-   let cpp := { add_shared_dependencies $ cpp_compiler.mk_executable cfg with files := [path].to_buffer },
-   cpp_compiler.run cpp,
-   return ()
-
-meta def run_cpp_backend (cfg : config) (ctxt : ir.context) : tactic format :=
-do opts ← tactic.get_options,
-   let fmt := format_cpp.program $ ctxt.to_items,
-   tactic.trace "here",
-   tactic.run_io (fun ioi, @write_and_compile ioi cfg "out.cpp" (fmt.to_buffer opts)),
-   tactic.trace "here",
-   return fmt
-
-meta def load_config : tactic config :=
-do opts ← get_options,
-   let lib_path := opts.get_string `native.library_path "" ,
-   let inc_path := opts.get_string `native.include_path "",
-   tactic.trace lib_path,
-   tactic.trace inc_path,
-   -- TODO(@jroesch) do path parsing here
-   return {
-     library_path := [lib_path],
-     include_path := [inc_path]
-  }
+meta def execute_backends (cfg : config) (backends : list native.backend) (ctxt : ir.context) : tactic unit :=
+  do let backend_name := cfg.backend,
+     let opt_backend := backends.find (λ (b : native.backend), b.name = backend_name),
+     match opt_backend with
+     | none := tactic.fail $ "unknown compiler backend: " ++ backend_name
+     | some backend := execute_backend ctxt backend
+     end
 
 meta def compile (extern_fns : list extern_fn) (procs : list procedure) : tactic format := do
 do cfg ← load_config,
@@ -847,7 +817,7 @@ do cfg ← load_config,
    | except.error e := tactic.fail $ error.to_string e
    | except.ok ctxt' := pure ctxt'
    end,
-   execute_backends backends ctxt',
-   run_cpp_backend cfg ctxt'
+   execute_backends cfg backends ctxt',
+   return ""
 
 end native

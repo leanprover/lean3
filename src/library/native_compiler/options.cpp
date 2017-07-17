@@ -38,7 +38,7 @@ Author: Jared Roesch, and Leonardo de Moura
 #define LEAN_DEFAULT_NATIVE_PROFILE false
 #endif
 #ifndef LEAN_DEFAULT_NATIVE_BACKEND
-#define LEAN_DEFAULT_NATIVE_BACKEND ""
+#define LEAN_DEFAULT_NATIVE_BACKEND "c++"
 #endif
 
 namespace lean {

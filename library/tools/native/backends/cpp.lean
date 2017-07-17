@@ -10,6 +10,8 @@ import init.function
 
 import tools.native.ir
 import tools.native.backend
+import tools.native.attributes
+import tools.native.util
 
 meta def comma_sep (items : list format) : format :=
 format.sep_by (format.of_string "," ++ format.space) items
@@ -298,3 +300,39 @@ meta def program (items : list ir.item) : format :=
   ]
 
 end format_cpp
+
+namespace native.backend.cpp
+
+open native
+
+meta def add_shared_dependencies (cc : cpp_compiler) : cpp_compiler :=
+{ cc with link := cc.link ++ ["gmp", "pthread", "mpfr", "leanshared"].to_buffer }
+
+-- We still have hardwired support for this right now, the eventual goal is to extend the
+-- backend interface to have everything needed.
+--
+-- TODO(@jroesch), move emit_main code here.
+meta def write_and_compile [io.interface] (cfg : config) (path : string) (data : buffer char) : io unit :=
+do handle ← io.mk_file_handle path io.mode.write,
+   io.fs.write handle data,
+   io.fs.close handle,
+   let cpp := { add_shared_dependencies $ cpp_compiler.mk_executable cfg with files := [path].to_buffer },
+   cpp_compiler.run cpp,
+   return ()
+
+meta def run_cpp_backend (cfg : config) (ctxt : ir.context) : tactic format :=
+do opts ← tactic.get_options,
+   let fmt := format_cpp.program $ ctxt.to_items,
+   tactic.run_io (fun ioi, @write_and_compile ioi cfg "out.cpp" (fmt.to_buffer opts)),
+   return fmt
+
+meta def cpp_compiler (ctxt : ir.context) : tactic unit :=
+do cfg ← load_config,
+   run_cpp_backend cfg ctxt,
+   return ()
+
+@[backend] meta def native.cpp_backend : native.backend :=
+{ name := "c++",
+  compiler := cpp_compiler }
+
+end native.backend.cpp
