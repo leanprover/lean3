@@ -17,6 +17,7 @@ import tools.native.config
 import tools.native.backend
 import tools.native.backends.cpp
 import tools.native.attributes
+import tools.native.util
 
 import system.except
 
@@ -214,6 +215,9 @@ mk_equals (mk_int 0) (ir.expr.sym n)
 meta def mk_cidx (obj : ir.symbol) : ir.expr :=
 ir.expr.call (ir.symbol.external none `cidx) [obj]
 
+meta def mk_to_mpz (obj : ir.symbol) : ir.expr :=
+ir.expr.call (ir.symbol.external none `to_mpz) [obj]
+
 meta def mk_cases_on (case_name scrut : ir.symbol) (cases : list (nat × ir.stmt)) (default : ir.stmt) : ir_compiler ir.stmt := do
 do ctor_index ← fresh_symbol,
    pure $ ir.stmt.seq [
@@ -296,7 +300,7 @@ meta def mk_simple_nat_cases_on (scrut : ir.symbol) (zero_case succ_case : ir.st
     pure $ ir.stmt.ite is_zero zero_case succ_case))
 
 meta def mk_mpz_nat_cases_on (scrut : ir.symbol) (zero_case succ_case : ir.stmt) : ir_compiler ir.stmt :=
-  bind_value_with_ty (mk_cidx scrut) (ir.ty.name `mpz) (fun mpz,
+  bind_value_with_ty (mk_to_mpz scrut) (ir.ty.symbol (in_lean_ns `mpz)) (fun mpz,
     bind_value_with_ty (mk_is_zero mpz) (ir.ty.name `bool) (fun is_zero,
     pure $ ir.stmt.ite is_zero zero_case succ_case))
 
@@ -307,13 +311,13 @@ meta def mk_nat_cases_on (scrut : ir.symbol) (zero_case succ_case : ir.stmt) : i
       mk_mpz_nat_cases_on scrut zero_case succ_case)
 
 meta def assert_two_cases (cases : list expr) : ir_compiler (expr × expr) :=
-  match cases with
-  | c1 :: c2 :: _ := return (c1, c2)
-  | _ := mk_error "nat.cases_on should have exactly two cases"
-  end
+match cases with
+| c1 :: c2 :: _ := return (c1, c2)
+| _ := mk_error "nat.cases_on should have exactly two cases"
+end
 
 meta def mk_vm_nat (n : ir.symbol) : ir.expr :=
-  ir.expr.call (in_lean_ns `mk_vm_simple) [n]
+ir.expr.call (in_lean_ns `mk_vm_simple) [n]
 
 meta def compile_succ_case (action : expr → ir_compiler ir.stmt) (scrut : ir.symbol) (succ_case : expr) : ir_compiler ir.stmt := do
   (fs, body') ← take_arguments succ_case,
@@ -562,16 +566,16 @@ def unwrap_or_else {T R : Type} : ir.result T → (T → R) → (error → R) �
 | (except.ok t) f err := f t
 
 meta def replace_main (n : name) : name :=
-     if n = `main
-     then "___lean__main"
-     else n
+if n = `main
+then "___lean__main"
+else n
 
 meta def trace_expr (e : expr) : ir_compiler unit :=
-  trace ("trace_expr: " ++ to_string e) (return ())
+trace ("trace_expr: " ++ to_string e) (return ())
 
-meta def has_ir_refinement (n : name) : ir_compiler (option ir.item) := do
-  ctxt ← get_context,
-  pure $ ctxt.lookup_item n
+meta def has_ir_refinement (n : name) : ir_compiler (option ir.item) :=
+do ctxt ← get_context,
+   pure $ ctxt.lookup_item n
 
 meta def compile_defn (decl_name : name) (e : expr) : ir_compiler ir.defn := do
   -- trace ("compiling: " ++ to_string decl_name) (fun u, do
@@ -614,13 +618,13 @@ meta def compile_defn_to_items (decl_name : name) (e : expr) : list (ir_compiler
      then default
      else default ++ [ir.item.defn <$> compile_defn_nargs decl_name e]
 
-meta def compile_defns : list procedure → list (ir_compiler ir.item) :=
-  fun ps, list.bind ps (fun p, compile_defn_to_items (prod.fst p) (prod.snd p))
+meta def compile_defns (ps : list procedure) : list (ir_compiler ir.item) :=
+list.bind ps (fun p, compile_defn_to_items (prod.fst p) (prod.snd p))
 
-meta def mk_builtin_cases_on_proto (n : name) : ir_compiler ir.decl := do
-  o ← fresh_name,
-  data ← fresh_name,
-  return $ ir.decl.mk n [(o, ir.ty.ref (ir.ty.object none)), (data, ir.ty.mut_ref ir.ty.object_buffer)] (ir.ty.name `unsigned)
+meta def mk_builtin_cases_on_proto (n : name) : ir_compiler ir.decl :=
+do o ← fresh_name,
+   data ← fresh_name,
+   return $ ir.decl.mk n [(o, ir.ty.ref (ir.ty.object none)), (data, ir.ty.mut_ref ir.ty.object_buffer)] (ir.ty.name `unsigned)
 
 meta def n_fresh : nat -> ir_compiler (list name)
 | 0 := return []
@@ -744,7 +748,7 @@ meta def driver
   procs' ← apply_pre_ir_passes procs <$> configuration <*> pure map,
   (defns, defn_errs) ← sequence_err (compile_defns procs'),
   (decls, decl_errs) ← sequence_err (compile_decls externs),
-  if is_executable conf
+  if true -- is_executable conf
   then do
     main ← emit_main procs',
     return (ir.item.defn main :: defns ++ decls, defn_errs ++ decl_errs)
@@ -753,16 +757,16 @@ meta def driver
     return (ir.item.defn init :: defns ++ decls, defn_errs ++ decl_errs)
 
 meta def run_ir {A : Type} (action : ir_compiler A) (inital : ir_compiler_state): except error A :=
-  prod.fst $ action inital
+prod.fst $ action inital
 
 meta def merge {K V : Type} (map map' : rb_map K V) : rb_map K V :=
-   rb_map.fold map' map (fun key data m, rb_map.insert m key data)
+rb_map.fold map' map (fun key data m, rb_map.insert m key data)
 
 meta def extend_with_list {K V : Type} [has_ordering K] (map : rb_map K V) (es : list (prod K V)) : rb_map K V :=
-   merge map (rb_map.of_list es)
+merge map (rb_map.of_list es)
 
-meta def extern_to_arities : extern_fn -> prod name nat
-| (| _, lean_name, _, arity |) := (lean_name, unsigned.to_nat arity)
+meta def extern_to_arities : extern_fn -> (name × nat)
+| ⟨ _, lean_name, _, arity ⟩ := (lean_name, unsigned.to_nat arity)
 
 meta def compile_and_add_to_context
   (conf : config)
@@ -800,24 +804,50 @@ meta def execute_backend (ctxt : ir.context) (backend : native.backend) : tactic
 meta def execute_backends (backends : list native.backend) (ctxt : ir.context) : tactic unit :=
   monad.mapm (execute_backend ctxt) backends >> return ()
 
+meta def add_shared_dependencies (cc : cpp_compiler) : cpp_compiler :=
+{ cc with link := cc.link ++ ["gmp", "pthread", "mpfr", "leanshared"].to_buffer }
+
 -- We still have hardwired support for this right now, the eventual goal is to extend the
 -- backend interface to have everything needed.
 --
 -- TODO(@jroesch), move emit_main code here.
-meta def run_cpp_backend (ctxt : ir.context) : tactic format :=
-return $ format_cpp.program $ ctxt.to_items
+meta def write_and_compile [io.interface] (cfg : config) (path : string) (data : buffer char) : io unit :=
+do handle ← io.mk_file_handle path io.mode.write,
+   io.fs.write handle data,
+   io.fs.close handle,
+   let cpp := { add_shared_dependencies $ cpp_compiler.mk_executable cfg with files := [path].to_buffer },
+   cpp_compiler.run cpp,
+   return ()
 
-meta def compile
-  (conf : config)
-  (extern_fns : list extern_fn)
-  (procs : list procedure) : tactic format := do
-    ctxt ← new_context,
-    backends ← load_backends,
-    ctxt' ← match compile_and_add_to_context conf extern_fns procs ctxt with
-    | except.error e := tactic.fail $ error.to_string e
-    | except.ok ctxt' := pure ctxt'
-    end,
-    execute_backends backends ctxt',
-    run_cpp_backend ctxt'
+meta def run_cpp_backend (cfg : config) (ctxt : ir.context) : tactic format :=
+do opts ← tactic.get_options,
+   let fmt := format_cpp.program $ ctxt.to_items,
+   tactic.trace "here",
+   tactic.run_io (fun ioi, @write_and_compile ioi cfg "out.cpp" (fmt.to_buffer opts)),
+   tactic.trace "here",
+   return fmt
+
+meta def load_config : tactic config :=
+do opts ← get_options,
+   let lib_path := opts.get_string `native.library_path "" ,
+   let inc_path := opts.get_string `native.include_path "",
+   tactic.trace lib_path,
+   tactic.trace inc_path,
+   -- TODO(@jroesch) do path parsing here
+   return {
+     library_path := [lib_path],
+     include_path := [inc_path]
+  }
+
+meta def compile (extern_fns : list extern_fn) (procs : list procedure) : tactic format := do
+do cfg ← load_config,
+   ctxt ← new_context,
+   backends ← load_backends,
+   ctxt' ← match compile_and_add_to_context cfg extern_fns procs ctxt with
+   | except.error e := tactic.fail $ error.to_string e
+   | except.ok ctxt' := pure ctxt'
+   end,
+   execute_backends backends ctxt',
+   run_cpp_backend cfg ctxt'
 
 end native

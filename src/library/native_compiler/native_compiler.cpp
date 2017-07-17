@@ -172,29 +172,6 @@ void add_shared_dependencies(cpp_compiler & compiler) {
             .link("mpfr");
 }
 
-/* This function constructs a config value located in library/native/config.lean */
-vm_obj mk_lean_native_config(native_compiler_mode mode) {
-    auto native_conf = native::get_config();
-
-    vm_obj dump_passes;
-    if (native_conf.m_native_dump == std::string("")) {
-        dump_passes = mk_vm_simple(0);
-    } else {
-        dump_passes = mk_vm_simple(1);
-    }
-
-    vm_obj compilation_mode;
-    if (mode == native_compiler_mode::Module) {
-        compilation_mode = mk_vm_simple(0);
-    } else if (mode == native_compiler_mode::Executable) {
-        compilation_mode = mk_vm_simple(1);
-    } else {
-        lean_unreachable();
-    }
-
-    return mk_vm_constructor(0, dump_passes, compilation_mode, mk_vm_simple(0));
-}
-
 lean::vm_obj to_lean_procs(buffer<procedure> & procs) {
     // let procs_list = [];
     vm_obj procs_list = mk_vm_simple(0);
@@ -223,12 +200,10 @@ lean::vm_obj to_lean_extern_fns(buffer<extern_fn> & extern_fns) {
 format invoke_native_compiler(
     environment const & env,
     buffer<extern_fn> & extern_fns,
-    buffer<procedure> & procs,
-    native_compiler_mode mode)
+    buffer<procedure> & procs)
 {
     auto list_of_procs = to_lean_procs(procs);
     auto list_of_extern_fns = to_lean_extern_fns(extern_fns);
-    auto conf_obj = mk_lean_native_config(mode);
 
     options opts = get_global_ios().get_options();
 
@@ -263,7 +238,6 @@ format invoke_native_compiler(
         vm_state::profiler vm_profiler(S, opts);
         tactic_obj = S.invoke(
             cc,
-            conf_obj,
             list_of_extern_fns,
             list_of_procs,
             to_obj(s));
@@ -271,7 +245,6 @@ format invoke_native_compiler(
     } else {
         tactic_obj = S.invoke(
             cc,
-            conf_obj,
             list_of_extern_fns,
             list_of_procs,
             to_obj(s));
@@ -304,30 +277,10 @@ void native_compile(environment const & env,
                     native_compiler_mode mode) {
     auto conf = native::get_config();
     auto output_path = get_code_path();
-    std::fstream out(output_path, std::ios_base::out);
-    // TODO: (jroesch): with the new fs interface doing things like this
-    // in C++ are uncessary, it will make the bridge to the native compiler
-    // much simpler to directly write to a file.
-    auto fmt = invoke_native_compiler(env, extern_fns, procs, mode);
-    out << fmt << "\n\n";
-    out.close();
-
-    // Get a compiler with the config specified by native options, placed
-    // in the correct mode.
-    auto gpp = compiler_with_native_config(mode);
-
-    // There is an assumption that the default mode is still compiling C++.
-    // This code path is temporary, in the long run I think we should move
-    // the suffix of the current C++ compiler to Lean, and then we can
-    // deprecate this backend and switch to using the LLVM one.
-    if (conf.m_native_backend == std::string("")) {
-        // Add all the shared link dependencies.
-        add_shared_dependencies(gpp);
-        // Run the instance of g++.
-        gpp.file(output_path).run();
-    } else {
-        // For other backends we do nothing.
-    }
+    // std::fstream out(output_path, std::ios_base::out);
+    auto fmt = invoke_native_compiler(env, extern_fns, procs);
+    // out << fmt << "\n\n";
+    // out.close();
 }
 
 void native_preprocess(environment const & env, declaration const & d, buffer<procedure> & procs) {

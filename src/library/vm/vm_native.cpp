@@ -134,6 +134,31 @@ vm_obj deserialize_quoted_expr(std::string data) {
     return to_obj(e);
 }
 
+// TODO(@jroesch): is there a better way to do this?
+vm_obj native_platform() {
+    std::string platform_string;
+    #ifdef _WIN64
+    platform_string = "windows";
+    #elif _WIN32
+    platform_string = "windows";
+    #elif __APPLE__
+    platform_string = "macOS";
+    // #include "TargetConditionals.h"
+    // #if TARGET_OS_IPHONE && TARGET_IPHONE_SIMULATOR
+    //     // define something for simulator
+    // #elif TARGET_OS_IPHONE
+    //     // define something for iphone
+    // #else
+    //     #define TARGET_OS_OSX 1
+    //     // define something for OSX
+    // #endif
+    #elif __linux
+    platform_string = "linux";
+    // linux
+    #endif
+    return to_obj(platform_string);
+}
+
 void initialize_vm_native() {
     // Not sure if we should expose ese or what?
     DECLARE_VM_BUILTIN(name({"native", "is_internal_cnstr"}), native_is_internal_cnstr);
@@ -144,6 +169,8 @@ void initialize_vm_native() {
     DECLARE_VM_BUILTIN(name({"native", "serialize_quote_macro"}), native_serialize_quote_macro);
     DECLARE_VM_BUILTIN(name({"native", "get_builtin"}), native_get_builtin);
     DECLARE_VM_BUILTIN(name({"native", "dump_format"}), native_dump_format);
+    DECLARE_VM_BUILTIN(name({"native", "platform"}), native_platform);
+
 }
 
 void finalize_vm_native() {

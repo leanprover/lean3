@@ -8,3 +8,5 @@ def for {A : Type} : ℕ → A → (ℕ → A → A) -> A
 
 def main : io unit :=
   io.print $ for 10 0 (fun i sum, sum + i)
+
+#eval main

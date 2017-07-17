@@ -22,7 +22,7 @@ meta def mangle_external_name (n : name) : string :=
   name.to_string_with_sep "_" n
 
 meta def mangle_name (n : name) : string :=
-string.replace_char (char.of_nat 34)  "_$single_quote$_" $ name.to_string_with_sep "$dot$_" n
+string.replace_char '''  "_$single_quote$_" $ name.to_string_with_sep "$dot$_" n
 
 meta def mangle_symbol : ir.symbol → string
 | (ir.symbol.name n) := "_$lean$_" ++ mangle_name n
@@ -154,7 +154,7 @@ meta def ty : ir.ty → format
 | (ir.ty.raw_ptr T) := "const " ++ ty T ++ "*"
 
 meta def parens (inner : format) : format :=
-  format.bracket "(" ")" inner
+format.bracket "(" ")" inner
 
 meta def stmt_fuse_list : list ir.stmt -> list ir.stmt
 | [] := []

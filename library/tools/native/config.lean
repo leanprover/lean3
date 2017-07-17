@@ -8,29 +8,21 @@ import init.data.bool.basic
 
 namespace native
 
-inductive a_backend
-| CPP
-| JS
-
 inductive compilation_mode : Type
 | module : compilation_mode
 | executable : compilation_mode
 
--- eventually expose all the options here
--- if you change this you change the corresponding
--- code in library/native_compiler/native_compiler.cpp
 structure config :=
-(debug : bool)
-  -- this flag is invisble I don't understand why
-  (mode : compilation_mode)
-  (compiler_backend : option a_backend)
+(debug : bool := bool.ff)
+(mode : compilation_mode := compilation_mode.module)
+(compiler_backend : option string := none)
+(include_path : list string)
+(library_path : list string)
 
-def is_executable : config -> bool
-| (| _, compilation_mode.executable, _ |) := bool.tt
-| _ := bool.ff
+def is_executable (cfg : config) :=
+cfg.mode = compilation_mode.executable
 
-def is_module : config -> bool
-| (| _, compilation_mode.module, _ |) := bool.tt
-| _ := bool.ff
+def is_module (cfg : config) :=
+cfg.mode = compilation_mode.module
 
 end native
