@@ -10,6 +10,9 @@ name × expr
 inductive extern_fn
 | mk : bool → name → name → unsigned → extern_fn
 
+meta def extern_fn.to_arities : extern_fn → (name × nat)
+| ⟨ _, lean_name, _, arity ⟩ := (lean_name, unsigned.to_nat arity)
+
 meta def procedure.repr : procedure → string
 | (n, e) := "def " ++ to_string n ++ " := \n" ++ to_string e -- to_string for expr does not produce string that can be parsed by Lean
 

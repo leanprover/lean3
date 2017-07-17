@@ -308,9 +308,6 @@ open native
 meta def add_shared_dependencies (cc : cpp_compiler) : cpp_compiler :=
 { cc with link := cc.link ++ ["gmp", "pthread", "mpfr", "leanshared"].to_buffer }
 
--- We still have hardwired support for this right now, the eventual goal is to extend the
--- backend interface to have everything needed.
---
 -- TODO(@jroesch), move emit_main code here.
 meta def write_and_compile [io.interface] (cfg : config) (path : string) (data : buffer char) : io unit :=
 do handle ← io.mk_file_handle path io.mode.write,

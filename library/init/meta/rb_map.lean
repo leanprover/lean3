@@ -54,6 +54,12 @@ fold m (mk _ _) $ λa b m', if f b then insert m' a b else m'
 meta def mfold {key data α :Type} {m : Type → Type} [monad m] (mp : rb_map key data) (a : α) (fn : key → data → α → m α) : m α :=
 mp.fold (return a) (λ k d act, act >>= fn k d)
 
+meta def merge {key data : Type} (map map' : rb_map key data) : rb_map key data :=
+rb_map.fold map' map (fun k d m, rb_map.insert m k d)
+
+meta def extend {key data : Type} [has_ordering key] (map : rb_map key data) (es : list (key × data)) : rb_map key data :=
+merge map (rb_map.of_list es)
+
 end rb_map
 
 meta def mk_rb_map {key data : Type} [has_ordering key] : rb_map key data :=
@@ -193,5 +199,6 @@ list.foldl name_set.insert mk_name_set l
 
 meta def mfold {α :Type} {m : Type → Type} [monad m] (ns : name_set) (a : α) (fn : name → α → m α) : m α :=
 ns.fold (return a) (λ k act, act >>= fn k)
+
 
 end name_set

@@ -23,31 +23,6 @@ import system.except
 
 namespace native
 
-meta def trace_ir (s : string) : ir_compiler unit := do
-  conf ← configuration,
-  if config.debug conf
-  then trace s (return ())
-  else return ()
-
-meta def run {M E A} (res : except_t M E A) : M (except E A) := res
-
--- An `exotic` monad combinator that accumulates errors.
-meta def sequence_err : list (ir_compiler ir.item) → ir_compiler (list ir.item × list error)
-| [] := return ([], [])
-| (action :: remaining) :=
-    fun s,
-       match (run (sequence_err remaining)) s with
-       | (except.error e, s') := (except.error e, s)
-       | (except.ok (res, errs), s') :=
-         match (run action) s' with
-         | (except.error e, s'') := (except.ok (res, e :: errs), s'')
-         | (except.ok v, s'') := (except.ok (v :: res, errs), s'')
-         end
-         end
-
-meta def lift_result {A} (action : ir.result A) : ir_compiler A :=
-λ s, (action, s)
-
 meta def in_lean_ns (n : name) : ir.symbol :=
 ir.symbol.external (some `lean) n
 
@@ -55,12 +30,6 @@ ir.symbol.external (some `lean) n
 private meta def take_arguments' : expr → list name → (list name × expr)
 | (expr.lam n _ _ body) ns := take_arguments' body (n :: ns)
 | e' ns := (ns, e')
-
-meta def fresh_name : ir_compiler name := do
-  (ctxt, conf, map, counter) ← lift state.read,
-  let fresh := name.mk_numeral (unsigned.of_nat counter) `native._ir_compiler_,
-  lift $ state.write (ctxt, conf, map, counter + 1),
-  return fresh
 
 meta def take_arguments (e : expr) : ir_compiler (list name × expr) := do
   let (arg_names, body) := take_arguments' e [],
@@ -351,23 +320,21 @@ meta def compile_nat_cases_on_to_ir_expr
     )
   end
 
-def last {A : Type} : list A -> option A
+def useful_last {A : Type} : list A → option A
 | [] := none
 | (x :: []) := some x
-| (_ :: xs) := last xs
+| (_ :: xs) := useful_last xs
 
--- I had to manually transform this code due to issues with the equation compiler
--- set_option trace.eqn_compiler.elim_match true
--- why doesn't matching on the option work here
 meta def assign_last_expr_list
   (result_var : ir.symbol)
   (rec : ir.stmt -> ir_compiler ir.stmt)
   (ss : list ir.stmt) : ir_compiler ir.stmt :=
-  option.cases_on (last ss)
-    (mk_error "internal invariant")
-   (fun s, do
-    s' ← rec s,
-    pure $ ir.stmt.seq $ list.append (list.take (list.length ss - 1) ss) [s'])
+  match useful_last ss with
+  | none := mk_error "internal invariant"
+  | some s :=
+    do s' ← rec s,
+       pure $ ir.stmt.seq $ list.append (list.take (list.length ss - 1) ss) [s']
+  end
 
 meta def assign_last_expr_cases (result_var : ir.symbol) (action : ir.stmt -> ir_compiler ir.stmt) :
   list (prod nat ir.stmt) -> ir_compiler (list (prod nat ir.stmt))
@@ -655,11 +622,8 @@ meta def format_error : error → format
 | (error.string s) := to_fmt s
 | (error.many es) := format.join (list.map format_error es)
 
-meta instance has_coe_lift_list (A B : Type) [elem_coe : has_coe A B] : has_coe (list A) (list B) :=
-  (| list.map (@has_coe.coe A B elem_coe) |)
-
 meta def mk_lean_name (n : name) : ir.expr :=
-  ir.expr.constructor (in_lean_ns `name) (name.components n)
+ir.expr.constructor (in_lean_ns `name) (coe $ name.components n)
 
 meta def emit_declare_vm_builtin_nargs (n : name) (body : expr) : ir_compiler ir.stmt := do
   vm_name ←  pure $ mk_lean_name n,
@@ -721,7 +685,7 @@ do fresh ← fresh_name,
 meta def emit_native_symbol_pairs (procs : list (name × expr)) : ir_compiler ir.stmt :=
   let ns := list.map prod.fst procs,
       oleans := (list.repeat (ir.literal.string "") (list.length ns)),
-      syms := list.map (fun n, ir.literal.string $ format_cpp.mangle_symbol n) ns,
+      syms := list.map (fun n, ir.literal.string $ format_cpp.mangle_symbol n) (coe ns),
       arities := list.map (fun p , ir.literal.integer $ get_arity (prod.snd p)) procs
   in do
     -- not sure why this unification problem fails
@@ -756,31 +720,19 @@ meta def driver
     init ← emit_package_initialize procs',
     return (ir.item.defn init :: defns ++ decls, defn_errs ++ decl_errs)
 
-meta def run_ir {A : Type} (action : ir_compiler A) (inital : ir_compiler_state): except error A :=
-prod.fst $ action inital
-
-meta def merge {K V : Type} (map map' : rb_map K V) : rb_map K V :=
-rb_map.fold map' map (fun key data m, rb_map.insert m key data)
-
-meta def extend_with_list {K V : Type} [has_ordering K] (map : rb_map K V) (es : list (prod K V)) : rb_map K V :=
-merge map (rb_map.of_list es)
-
-meta def extern_to_arities : extern_fn -> (name × nat)
-| ⟨ _, lean_name, _, arity ⟩ := (lean_name, unsigned.to_nat arity)
-
 meta def compile_and_add_to_context
   (conf : config)
   (extern_fns : list extern_fn)
   (procs : list procedure)
   (ctxt : ir.context)
   : except error ir.context := do
-    let arity := extend_with_list (mk_arity_map procs) (list.map extern_to_arities extern_fns) in
+    let arity := (mk_arity_map procs).extend $ extern_fns.map (λ e, e.to_arities) in
     let action : ir_compiler _ := driver extern_fns procs in
-    match (run_ir action (ctxt, conf, arity, 0)) with
+    match (action.run (ctxt, conf, arity, 0)) with
     | except.error e := except.error e
     | except.ok (items, errs) :=
       if list.length errs = 0
-      then pure (ctxt^.extend (list.map (fun (i : ir.item), (i^.get_name, i)) items))
+      then pure $ ctxt.extend $ items.map (λ i, (i.get_name, i))
       else except.error (error.many errs)
   end
 

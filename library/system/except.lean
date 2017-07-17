@@ -98,8 +98,6 @@ begin
   reflexivity
 end
 
-#check has_bind.bind
-
 lemma except_t.bind_assoc {α β γ : Type u} (x : except_t m ε α) (f : α → except_t m ε β) (g : β → except_t m ε γ):
   except_t.bind (except_t.bind x f) g = except_t.bind x (λ (x : α), except_t.bind (f x) g) :=
 begin
@@ -136,6 +134,8 @@ admit
   -- unfold except_t.return,
   -- reflexivity,
 end
+
+def except_t.run {α : Type u} (res : except_t m ε α) : m (except ε α) := res
 
 end except_t
 
