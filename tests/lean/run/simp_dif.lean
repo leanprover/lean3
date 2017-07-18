@@ -11,14 +11,14 @@ by rw [dif_pos h]
 
 example (a b : nat) : (if h : b ≠ 0 then safe_div a b h else a) = a ∨ ∃ h, (if h : b ≠ 0 then safe_div a b h else a) = safe_div a b h :=
 begin
-  by_cases (b ≠ 0),
-  {apply or.inr, rw [dif_pos h], existsi h, refl},
-  {apply or.inl, rw [dif_neg h]}
+  by_cases (b ≠ 0); dsimp [dite],
+  {apply or.inr, existsi h, refl},
+  {apply or.inl, refl}
 end
 
 example (a b : nat) : (if h : b ≠ 0 then safe_div a b h else a) = a ∨ ∃ h, (if h : b ≠ 0 then safe_div a b h else a) = safe_div a b h :=
 begin
-  by_cases (b ≠ 0),
-  {apply or.inr, simp [dif_pos h], existsi h, trivial},
-  {apply or.inl, simp [dif_neg h]}
+  by_cases (b ≠ 0); dsimp [dite],
+  {apply or.inr, existsi h, trivial},
+  {apply or.inl, refl}
 end
