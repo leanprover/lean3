@@ -47,6 +47,8 @@ master branch (aka work in progress branch)
   There is a coercion from `bin_tree` to `list`. The new notation allows to input long sequences efficiently.
   It also prevents system stack overflows.
 
+* Add `user_attribute.after_set/before_unset` handlers that can be used for validation as well as side-effecting attributes.
+
 *Changes*
 
 * We now have two type classes for converting to string: `has_to_string` and `has_repr`.
