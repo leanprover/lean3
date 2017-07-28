@@ -19,8 +19,12 @@ static char const * g_end_error_qsym_msg = "unexpected end of quoted symbol";
 static scanner::char_kind g_char_to_kind[256];
 
 // Util
-static unsigned char to_uchar(char c) { return static_cast<unsigned char>(c); }
-static scanner::char_kind get_kind(char c) { return g_char_to_kind[to_uchar(c)]; }
+static unsigned char to_uchar(int c) {
+    if (c == EOF) return 255;
+    return static_cast<unsigned char>(c);
+}
+
+static scanner::char_kind get_kind(int c) { return g_char_to_kind[to_uchar(c)]; }
 
 [[ noreturn ]] void scanner::throw_exception(char const * msg) {
     auto pos = get_pos_info();
@@ -66,7 +70,7 @@ void scanner::read_comment() {
     lean_assert(curr() == ';');
     next();
     while (true) {
-        char c = curr();
+        int c = curr();
         next();
         if (c == '\n')
             return;
@@ -75,7 +79,7 @@ void scanner::read_comment() {
 
 void scanner::read_simple_symbol_core() {
     while (true) {
-        char c = curr();
+        int c = curr();
         switch (get_kind(c)) {
         case char_kind::SIMPLE_SYMBOL:
         case char_kind::NUMBER:
@@ -110,7 +114,7 @@ void scanner::read_quoted_symbol() {
     next();
     while (true) {
         check_not_eof(g_end_error_qsym_msg);
-        char c = curr();
+        int c = curr();
         if (c == '\\') {
             throw_exception("character '\' not allowed in quoted symbols");
         } else if (c == '|') {
@@ -129,7 +133,7 @@ void scanner::read_string() {
     m_str_val.clear();
     while (true) {
         check_not_eof(g_end_error_str_msg);
-        char c = curr();
+        int c = curr();
         // "" ==> "
         // " ==> <end-of-string>
         if (c == '\"') {
@@ -145,7 +149,7 @@ void scanner::read_string() {
 
 scanner::token_kind scanner::read_number() {
     lean_assert('0' <= curr() && curr() <= '9');
-    char c = curr();
+    int c = curr();
     next();
 
     mpq denom(1);
@@ -187,7 +191,7 @@ scanner::token_kind scanner::read_number() {
 void scanner::read_hex_bv_literal() {
     lean_assert(curr() == 'x');
     next();
-    char c = curr();
+    int c = curr();
 
     m_num_val = 0;
     m_bv_size = 0;
@@ -217,7 +221,7 @@ void scanner::read_hex_bv_literal() {
 void scanner::read_bin_bv_literal() {
     lean_assert(curr() == 'b');
     next();
-    char c = curr();
+    int c = curr();
 
     m_num_val = 0;
     m_bv_size = 0;
@@ -238,7 +242,7 @@ void scanner::read_bin_bv_literal() {
 void scanner::read_bv_literal() {
     lean_assert(curr() == '#');
     next();
-    char c = curr();
+    int c = curr();
     if (c == 'x') {
         read_hex_bv_literal();
     } else if (c == 'b') {
@@ -251,7 +255,7 @@ void scanner::read_bv_literal() {
 // Main loop
 scanner::token_kind scanner::scan() {
     while (true) {
-        char c = curr();
+        int c = curr();
         m_tpos  = m_cpos;
         m_tline = m_cline;
         switch (get_kind(c)) {
@@ -288,7 +292,7 @@ scanner::token_kind scanner::scan() {
             read_simple_symbol();
             return token_kind::SYMBOL;
         case char_kind::UNEXPECTED:
-            throw_exception(std::string("unexpected character: ") + c);
+            throw_exception(std::string("unexpected character: ") + static_cast<char>(c));
         }
     }
 }
