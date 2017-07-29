@@ -1196,7 +1196,7 @@ by {induction n; simp [*, mul_succ, -mul_comm]}
 @[simp] theorem mul_div_left (m : ℕ) {n : ℕ} (H : n > 0) : m * n / n = m :=
 by rw [mul_comm, mul_div_right _ H]
 
-protected theorem div_self {n : ℕ} (H : n > 0) : n / n = 1 :=
+@[simp] protected theorem div_self {n : ℕ} (H : n > 0) : n / n = 1 :=
 let t := add_div_right 0 H in by rwa [zero_add, nat.zero_div] at t
 
 theorem add_mul_div_left (x z : ℕ) {y : ℕ} (H : y > 0) : (x + y * z) / y = x / y + z :=
