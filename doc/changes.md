@@ -1,3 +1,5 @@
+See [What's new in Lean 3](https://github.com/leanprover/lean/blob/master/doc/new_in_lean3.md) for the changes from Lean 2 to Lean 3.
+
 master branch (aka work in progress branch)
 -------------
 
