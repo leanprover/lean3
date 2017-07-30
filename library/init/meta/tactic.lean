@@ -101,6 +101,11 @@ meta def try_lst : list (tactic unit) → tactic unit
     end
   end
 
+meta def continue (t : tactic α) : tactic (option α) :=
+λ s, result.cases_on (t s)
+ (λ a, success (some a))
+ (λ e ref s', success none s')
+
 meta def fail_if_success {α : Type u} (t : tactic α) : tactic unit :=
 λ s, result.cases_on (t s)
  (λ a s, mk_exception "fail_if_success combinator failed, given tactic succeeded" none s)

@@ -25,8 +25,9 @@ private meta def injection_intro : expr → list name → tactic (list expr × l
 | e  ns           := return ([], ns)
 
 -- Tries to decompose the given expression by constructor injectivity.
--- Returns the list of new hypotheses, and the remaining names from the given list.
-meta def injection_with (h : expr) (ns : list name) : tactic (list expr × list name) :=
+-- Returns the list of new hypotheses, and the remaining names from the given list,
+-- or none if the goal was closed.
+meta def injection_with (h : expr) (ns : list name) : tactic (option (list expr × list name)) :=
 do
   ht ← infer_type h,
   (lhs0, rhs0) ← match_eq ht,
@@ -46,30 +47,39 @@ do
       pr_type ← infer_type pr,
       pr_type ← whnf pr_type,
       eapply pr,
-      injection_intro (binding_domain pr_type) ns
+      try (clear h),
+      some <$> injection_intro (binding_domain pr_type) ns
     else fail "injection tactic failed, argument must be an equality proof where lhs and rhs are of the form (c ...), where c is a constructor"
-  else do
+  else
+  let Il := name.get_prefix n_fl,
+      Ir := name.get_prefix n_fr in
+  if Il = Ir then do
     tgt ← target,
-    let I_name := name.get_prefix n_fl,
-    pr ← mk_app (I_name <.> "no_confusion") [tgt, lhs, rhs, h],
+    pr ← mk_app (Il <.> "no_confusion") [tgt, lhs, rhs, h],
     exact pr,
-    return ([], ns)
+    return none
+  else if lhs.is_local_constant || rhs.is_local_constant then
+    subst h >> return (some ([], ns))
+  else
+    fail "injection tactic failed, argument must be an equality proof where lhs and rhs are of the form (c ...), where c is a constructor"
 
 meta def injection (h : expr) : tactic (list expr) :=
-do (t, _) ← injection_with h [], return t
+do o ← injection_with h [],
+   return $ option.rec [] prod.fst o
 
 private meta def injections_with_inner : nat → list expr → list name → tactic unit
 | 0     lc        ns := fail "recursion depth exceeded"
 | (n+1) []        ns := skip
 | (n+1) (h :: lc) ns :=
   do o ← try_core (injection_with h ns), match o with
-  | none          := injections_with_inner (n+1) lc ns
-  | some ([], _)  := skip -- This means that the contradiction part was triggered and the goal is done
-  | some (t, ns') := injections_with_inner n (t ++ lc) ns'
+  | none                  := injections_with_inner (n+1) lc ns
+  | some none             := skip
+  | some (some ([], ns')) := injections_with_inner (n+1) lc ns'
+  | some (some (t, ns'))  := injections_with_inner n (t ++ lc) ns'
   end
 
-meta def injections_with (ns : list name) : tactic unit :=
+meta def injections_with (ns : list name) (depth := 5) : tactic unit :=
 do lc ← local_context,
-   injections_with_inner 5 lc ns
+   injections_with_inner depth lc ns
 
 end tactic
