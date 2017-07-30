@@ -919,8 +919,8 @@ tactic.ac_refl
 meta def cc : tactic unit :=
 tactic.cc
 
-meta def subst (q : parse texpr) : tactic unit :=
-i_to_expr q >>= tactic.subst >> try (tactic.reflexivity reducible)
+meta def subst (l : parse parser.pexpr*) : tactic unit :=
+l.mmap' $ λ q, i_to_expr q >>= tactic.subst >> try (tactic.reflexivity reducible)
 
 meta def clear : parse ident* → tactic unit :=
 tactic.clear_lst
