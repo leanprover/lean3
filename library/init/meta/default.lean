@@ -16,3 +16,4 @@ import init.meta.interactive init.meta.converter init.meta.vm
 import init.meta.comp_value_tactics init.meta.smt
 import init.meta.async_tactic init.meta.ref init.meta.coinductive_predicates
 import init.meta.hole_command init.meta.congr_tactic
+import init.meta.specialize_tactic

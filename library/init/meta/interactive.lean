@@ -1064,6 +1064,7 @@ do gs ← get_goals,
    show_aux q gs []
 
 end interactive
+
 end tactic
 
 section add_interactive
