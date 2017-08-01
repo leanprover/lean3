@@ -1,2 +1,5 @@
 *.dSYM
 *.cpp
+*.compile.out
+*.bin
+a.out
