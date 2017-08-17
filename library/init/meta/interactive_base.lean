@@ -23,7 +23,7 @@ inductive loc : Type
 | wildcard : loc
 | ns       : list (option name) → loc
 
-meta instance : has_reflect loc
+meta instance loc.has_reflect : has_reflect loc
 | loc.wildcard := `(_)
 | (loc.ns xs)  := `(_)
 
@@ -47,6 +47,18 @@ meta def loc.try_apply (hyp_tac : expr → tactic unit) (goal_tac : tactic unit)
 do hs ← l.get_locals,
    let hts := hs.map hyp_tac,
    tactic.try_lst $ if l.include_goal then hts ++ [goal_tac] else hts
+
+meta inductive ident_assum : Type
+| by_name : name → ident_assum
+| by_type : pexpr → ident_assum
+
+meta instance ident_assum.has_reflect : has_reflect ident_assum
+| (ident_assum.by_name n) := `(_)
+| (ident_assum.by_type t) := `(_)
+
+meta def ident_assum.get : ident_assum → tactic expr
+| (ident_assum.by_name n) := tactic.get_local n
+| (ident_assum.by_type t) := tactic.to_expr t >>= tactic.find_assumption
 
 /-- Use `desc` as the interactive description of `p`. -/
 meta def with_desc {α : Type} (desc : format) (p : parser α) : parser α := p
@@ -74,6 +86,8 @@ meta def pexpr_list := list_of (parser.pexpr 0)
 meta def opt_pexpr_list := pexpr_list <|> return []
 meta def pexpr_list_or_texpr := pexpr_list <|> list.ret <$> texpr
 meta def only_flag : parser bool := (tk "only" *> return tt) <|> return ff
+meta def identa : parser ident_assum := (ident_assum.by_name <$> ident) <|>
+  (tk "‹" *> ident_assum.by_type <$> parser.pexpr 0 <* tk "›")
 end types
 
 precedence only:0
