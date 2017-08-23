@@ -404,7 +404,6 @@ public:
         This method is useful when we want to normalize the expression until we get a particular symbol as the head symbol. */
     expr whnf_head_pred(expr const & e, std::function<bool(expr const &)> const & pred); // NOLINT
     optional<expr> reduce_aux_recursor(expr const & e);
-    optional<expr> reduce_large_elim_recursor(expr const & e);
     optional<expr> reduce_projection(expr const & e);
     optional<expr> norm_ext(expr const & e) { return env().norm_ext()(e, *this); }
     optional<expr> reduce_recursor(expr const & e);

@@ -756,18 +756,6 @@ optional<expr> type_context::reduce_aux_recursor(expr const & e) {
         return none_expr();
 }
 
-optional<expr> type_context::reduce_large_elim_recursor(expr const & e) {
-    expr const & f = get_app_fn(e);
-    if (!is_constant(f))
-        return none_expr();
-    auto & fn = const_name(f);
-    if (fn == get_acc_rec_name()) {
-        transparency_scope scope(*this, transparency_mode::All);
-        return norm_ext(e);
-    }
-    return none_expr();
-}
-
 bool type_context::should_unfold_macro(expr const & e) {
     /* If m_transparency_mode is set to ALL, then we unfold all
        macros. In this way, we make sure type inference does not fail.
@@ -798,8 +786,6 @@ optional<expr> type_context::reduce_recursor(expr const & e) {
     if (auto r = norm_ext(e))
         return r;
     if (auto r = reduce_aux_recursor(e))
-        return r;
-    if (auto r = reduce_large_elim_recursor(e))
         return r;
     return none_expr();
 }
@@ -901,11 +887,6 @@ expr type_context::whnf_core(expr const & e0, bool proj_reduce) {
             }
 
             if (auto r = reduce_aux_recursor(e)) {
-                e = *r;
-                continue;
-            }
-
-            if (auto r = reduce_large_elim_recursor(e)) {
                 e = *r;
                 continue;
             }
