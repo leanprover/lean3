@@ -4,18 +4,78 @@ Released under Apache 2.0 license as described in the file LICENSE.
 Author: Leonardo de Moura
 -/
 prelude
-import init.data.nat.basic init.data.prod
+import init.data.nat.basic init.data.prod init.classical init.funext
 
 universes u v
 
 inductive acc {α : Sort u} (r : α → α → Prop) : α → Prop
 | intro : ∀ x, (∀ y, r y x → acc y) → acc x
 
+inductive cacc {α : Sort u} (r : α → α → Prop) : α → Type u
+| intro : ∀ x, (∀ y, r y x → cacc y) → cacc x
+
+namespace cacc
+variables {α : Sort u} {r : α → α → Prop}
+
+private lemma cacc_eq (x : α) (acx : cacc r x) : ∀ y (acy : cacc r y), x = y → acx == acy :=
+cacc.rec_on acx $ λ x acx ih y acy,
+  @cacc.cases_on _ _ (λ y acy, x = y → cacc.intro x acx == acy) _ acy $ λ y acy hxy,
+    have ∀ acy, cacc.intro x acx == @cacc.intro _ r y acy,
+      from eq.rec_on hxy $ λ acy, heq_of_eq $ congr_arg _ $
+        funext $ λ y, funext $ λ hyx, eq_of_heq (ih _ _ _ _ rfl),
+    this _
+
+instance (x : α) : subsingleton (cacc r x) :=
+⟨λ acx acy, eq_of_heq (cacc_eq _ _ _ _ rfl)⟩
+
+lemma to_acc {x} (h : cacc r x) : acc r x :=
+cacc.rec_on h (λ x h ih, ⟨_, ih⟩)
+
+end cacc
+
 namespace acc
 variables {α : Sort u} {r : α → α → Prop}
 
 def inv {x y : α} (h₁ : acc r x) (h₂ : r y x) : acc r y :=
 acc.rec_on h₁ (λ x₁ ac₁ ih h₂, ac₁ y h₂) h₂
+
+noncomputable def to_cacc {x} (h : acc r x) : cacc r x :=
+have nonempty (cacc r x),
+  from acc.rec_on h (λ x h ih, ⟨⟨_, λ y hr, classical.choice (ih _ hr)⟩⟩),
+classical.choice this
+
+protected meta def crec_impl {C : α → Sort v}
+  (minor : ∀ x, (∀ y, r y x → acc r y) → (∀ y, r y x → C y) → C x) :
+  ∀ {x : α} (acx : acc r x), C x
+| x acx := minor _ (λ y, acx.inv) (λ y hyx, crec_impl (acx.inv hyx))
+
+@[elab_as_eliminator]
+protected def crec {C : α → Sort v}
+  (minor : ∀ x, (∀ y, r y x → acc r y) → (∀ y, r y x → C y) → C x)
+  {x : α} (acx : acc r x) : C x :=
+cacc.rec_on (to_cacc acx)
+  (λ x h ih, minor _ (λ y hr, cacc.to_acc (h _ hr)) ih)
+
+protected lemma crec_eq {C : α → Sort v}
+  (minor : ∀ x, (∀ y, r y x → acc r y) → (∀ y, r y x → C y) → C x)
+  {x : α} (h : ∀ y, r y x → acc r y) :
+  @acc.crec _ _ C minor _ ⟨x, h⟩ =
+    minor x h (λ y hyx, @acc.crec _ _ C minor _ ⟨y, λ z hzy, inv (h _ hyx) hzy⟩) :=
+let C' x (acx : cacc r x) := C x,
+    minor' (x : α) (h : ∀ y, r y x → cacc r y) (ih) : C x :=
+      minor _ (λ y hr, cacc.to_acc (h _ hr)) ih in
+calc
+  @acc.crec _ _ C minor _ ⟨x, h⟩
+      = @cacc.rec _ _ C' minor' x (to_cacc ⟨x,h⟩) : rfl
+  ... = @cacc.rec _ _ C' minor' x ⟨_, λ y hyx, to_cacc (h _ hyx)⟩ :
+    @congr_arg _ (C x) _ _ _
+      (show to_cacc ⟨x,h⟩ = ⟨_, λ y hyx, to_cacc (h _ hyx)⟩, from subsingleton.elim _ _)
+  ... = minor x h (λ y hyx, @acc.crec _ _ C minor _ ⟨y, λ z hzy, inv (h _ hyx) hzy⟩) : rfl
+
+@[elab_as_eliminator]
+def crec_on {C : α → Sort v} {a : α} (x : acc r a)
+  (minor : ∀ (x : α), (∀ (y : α), r y x → acc r y) → (∀ (y : α), r y x → C y) → C x) : C a :=
+acc.crec minor x
 
 end acc
 
@@ -36,7 +96,7 @@ local infix `≺`:50    := r
 parameter hwf : well_founded r
 
 lemma recursion {C : α → Sort v} (a : α) (h : Π x, (Π y, y ≺ x → C y) → C x) : C a :=
-acc.rec_on (apply hwf a) (λ x₁ ac₁ ih, h x₁ ih)
+acc.crec_on (apply hwf a) (λ x₁ ac₁ ih, h x₁ ih)
 
 lemma induction {C : α → Prop} (a : α) (h : ∀ x, (∀ y, y ≺ x → C y) → C x) : C a :=
 recursion a h
@@ -45,11 +105,11 @@ variable {C : α → Sort v}
 variable F : Π x, (Π y, y ≺ x → C y) → C x
 
 def fix_F (x : α) (a : acc r x) : C x :=
-acc.rec_on a (λ x₁ ac₁ ih, F x₁ ih)
+acc.crec_on a (λ x₁ ac₁ ih, F x₁ ih)
 
 lemma fix_F_eq (x : α) (acx : acc r x) :
   fix_F F x acx = F x (λ (y : α) (p : y ≺ x), fix_F F y (acc.inv acx p)) :=
-acc.drec (λ x r ih, rfl) acx
+acc.crec_eq _ (λ y hyx, acx.inv hyx)
 end
 
 variables {α : Sort u} {C : α → Sort v} {r : α → α → Prop}
@@ -195,7 +255,8 @@ section
   subrelation.wf (rprod_sub_lex) (lex_wf ha hb)
 end
 
-instance has_well_founded {α : Type u} {β : Type v} [s₁ : has_well_founded α] [s₂ : has_well_founded β] : has_well_founded (α × β) :=
+instance has_well_founded {α : Type u} {β : Type v}
+  [s₁ : has_well_founded α] [s₂ : has_well_founded β] : has_well_founded (α × β) :=
 {r := lex s₁.r s₂.r, wf := lex_wf s₁.wf s₂.wf}
 
 end prod

@@ -23,11 +23,11 @@ theorem fib.succ_succ_eq (n : nat) : fib (succ (succ n)) = fib (succ n) + fib n 
 well_founded.fix_eq lt_wf fib.F (succ (succ n))
 
 example : fib 5 = 8 :=
-rfl
+by simp [fib.succ_succ_eq, fib.zero_eq, fib.one_eq]
 
 example : fib 6 = 13 :=
-rfl
+by simp [fib.succ_succ_eq, fib.zero_eq, fib.one_eq]
 
 #print "------------"
-#reduce fib 10
+-- #reduce fib 10  -- times out because of huge proof terms
 #eval fib 10

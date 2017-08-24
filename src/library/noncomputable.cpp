@@ -15,6 +15,7 @@ Author: Leonardo de Moura
 #include "library/fingerprint.h"
 #include "library/trace.h"
 #include "library/quote.h"
+#include "library/constants.h"
 // TODO(Leo): move inline attribute declaration to library
 #include "library/compiler/inliner.h"
 namespace lean {
@@ -190,6 +191,8 @@ struct get_noncomputable_reason_fn {
 optional<name> get_noncomputable_reason(environment const & env, name const & n) {
     declaration const & d = env.get(n);
     if (!d.is_definition())
+        return optional<name>();
+    if (d.get_name() == get_acc_crec_name())
         return optional<name>();
     type_checker tc(env);
     if (tc.is_prop(d.get_type()))
