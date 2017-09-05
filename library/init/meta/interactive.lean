@@ -687,7 +687,9 @@ meta def injection (q : parse texpr) (hs : parse with_ident_list) : tactic unit 
 do e ← i_to_expr q, tactic.injection_with e hs, try assumption
 
 meta def injections (hs : parse with_ident_list) : tactic unit :=
-do tactic.injections_with hs, try assumption
+do lc ← local_context,
+   tactic.injections_with 5 lc hs,
+   try assumption
 
 end interactive
 

@@ -26,7 +26,7 @@ open nat
 example (b c : nat) : succ b = succ c → b + 2 = c + 2 :=
 begin
   intro h,
-  injection h with h', clear h,
+  injection h with h',
   trace_state,
   subst h'
 end
