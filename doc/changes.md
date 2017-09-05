@@ -120,6 +120,12 @@ For more details, see discussion [here](https://github.com/leanprover/lean/pull/
   `strict_order`, `order_pair`, and `strong_order_pair`.  The `linear_order`
   class corresponds to `linear_order_pair`, and `linear_strong_order_pair`.
 
+* Subsingleton elimination for inductive families in Prop has been severely
+  restricted.  If the inductive type is in Prop, then it only eliminates to
+  Prop unless 1) there is at most one constructor, and 2) that constructor has
+  no non-parameter arguments.  Such inductive types automatically have K-like
+  reduction (if they have a constructor).
+
 *API name changes*
 
 * `list.dropn` => `list.drop`

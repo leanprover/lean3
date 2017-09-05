@@ -74,7 +74,8 @@ instance decidable_lt : ∀ (a b : fin n), decidable (a < b)
 instance decidable_le : ∀ (a b : fin n), decidable (a ≤ b)
 | ⟨a, _⟩ ⟨b, _⟩ := by apply nat.decidable_le
 
-lemma of_nat_zero : @of_nat n 0 = 0 := rfl
+lemma of_nat_zero : @of_nat n 0 = 0 :=
+by simp [of_nat]; refl
 
 lemma add_def (a b : fin n) : (a + b).val = (a.val + b.val) % n :=
 show (fin.add a b).val = (a.val + b.val) % n, from

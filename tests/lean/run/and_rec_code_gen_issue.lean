@@ -15,10 +15,10 @@ protected def return (σ : Type) {α : Type} (a : α) : hoare_state σ α :=
 protected def bind {σ α β : Type} (m₁ : hoare_state σ α) (m₂ : α → hoare_state σ β) : hoare_state σ β :=
 {pre    := λ s₁, m₁.pre s₁ ∧ ∀ a s₂, m₁.post s₁ a s₂ → (m₂ a).pre s₂,
  post   := λ s₁ b s₃, ∃ a s₂, m₁.post s₁ a s₂ ∧ (m₂ a).post s₂ b s₃,
- action := λ ⟨s₁, h₁, h₂⟩,
-           match m₁.action ⟨s₁, h₁⟩ with
+ action := λ ⟨s₁, h⟩,
+           match m₁.action ⟨s₁, h.left⟩ with
            | ⟨(a, s₂), h₃⟩ :=
-              match (m₂ a).action ⟨s₂, h₂ a s₂ h₃⟩ with
+              match (m₂ a).action ⟨s₂, h.right a s₂ h₃⟩ with
               | ⟨(b, s₃), s₄⟩ := ⟨(b, s₃), ⟨a, s₂, h₃, s₄⟩⟩
               end
            end

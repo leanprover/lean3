@@ -308,21 +308,6 @@ class erase_irrelevant_fn : public compiler_step_visitor {
         return add_args(r, 3, args);
     }
 
-    expr visit_acc_cases_on(buffer<expr> & args) {
-        lean_assert(args.size() >= 6);
-        expr a     = visit(args[3]);
-        expr minor = visit(args[5]);
-        /* acc.cases_on has type
-           Π {A : Type} {R : A → A → Prop} {C : A → Type} {a : A},
-             acc R a → (Π (x : A), (∀ (y : A), R y x → acc R y) → C x) → C a
-
-           We replace an acc.cases_on application with the minor premise
-           applied to {a : A} and an comp irrelevant term.
-        */
-        expr r = beta_reduce(mk_app(minor, a, mk_neutral_expr()));
-        return add_args(r, 6, args);
-    }
-
     expr visit_and_cases_on(buffer<expr> & args) {
         lean_assert(args.size() >= 5);
         expr minor = visit(args[4]);
@@ -385,8 +370,6 @@ class erase_irrelevant_fn : public compiler_step_visitor {
                 throw exception(sstream() << "code generation failed, auxiliary internal constructor '" << n << "' is being used");
             } else if (n == get_eq_rec_name()) {
                 return visit_eq_rec(args);
-            } else if (n == get_acc_cases_on_name()) {
-                return visit_acc_cases_on(args);
             } else if (n == get_and_cases_on_name()) {
                 return visit_and_cases_on(args);
             } else if (n == get_and_rec_name()) {

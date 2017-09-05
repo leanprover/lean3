@@ -5,8 +5,8 @@
 namespace lean{
 name const * g_abs = nullptr;
 name const * g_absurd = nullptr;
-name const * g_acc_cases_on = nullptr;
-name const * g_acc_rec = nullptr;
+name const * g_acc_crec = nullptr;
+name const * g_acc_crec_impl = nullptr;
 name const * g_add_comm_group = nullptr;
 name const * g_add_comm_semigroup = nullptr;
 name const * g_add_group = nullptr;
@@ -382,8 +382,8 @@ name const * g_zero_mul = nullptr;
 void initialize_constants() {
     g_abs = new name{"abs"};
     g_absurd = new name{"absurd"};
-    g_acc_cases_on = new name{"acc", "cases_on"};
-    g_acc_rec = new name{"acc", "rec"};
+    g_acc_crec = new name{"acc", "crec"};
+    g_acc_crec_impl = new name{"acc", "crec_impl"};
     g_add_comm_group = new name{"add_comm_group"};
     g_add_comm_semigroup = new name{"add_comm_semigroup"};
     g_add_group = new name{"add_group"};
@@ -760,8 +760,8 @@ void initialize_constants() {
 void finalize_constants() {
     delete g_abs;
     delete g_absurd;
-    delete g_acc_cases_on;
-    delete g_acc_rec;
+    delete g_acc_crec;
+    delete g_acc_crec_impl;
     delete g_add_comm_group;
     delete g_add_comm_semigroup;
     delete g_add_group;
@@ -1137,8 +1137,8 @@ void finalize_constants() {
 }
 name const & get_abs_name() { return *g_abs; }
 name const & get_absurd_name() { return *g_absurd; }
-name const & get_acc_cases_on_name() { return *g_acc_cases_on; }
-name const & get_acc_rec_name() { return *g_acc_rec; }
+name const & get_acc_crec_name() { return *g_acc_crec; }
+name const & get_acc_crec_impl_name() { return *g_acc_crec_impl; }
 name const & get_add_comm_group_name() { return *g_add_comm_group; }
 name const & get_add_comm_semigroup_name() { return *g_add_comm_semigroup; }
 name const & get_add_group_name() { return *g_add_group; }

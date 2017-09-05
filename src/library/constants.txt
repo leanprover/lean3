@@ -1,7 +1,7 @@
 abs
 absurd
-acc.cases_on
-acc.rec
+acc.crec
+acc.crec_impl
 add_comm_group
 add_comm_semigroup
 add_group

@@ -238,6 +238,7 @@ struct add_inductive_fn {
     list<level>          m_levels;       // m_decl.m_level_params ==> m_levels
     type_checker_ptr     m_tc;
 
+    bool                 m_nonparam_args;// true if at least one intro rule has a non-param argument
     level                m_elim_level;   // extra universe level for eliminator.
     bool                 m_dep_elim;     // true if using dependent elimination
 
@@ -263,6 +264,7 @@ struct add_inductive_fn {
         m_env(env), m_decl(decl),
         m_tc(new type_checker(m_env, true, false)) {
         m_is_not_zero = false;
+        m_nonparam_args = false;
         m_levels      = param_names_to_levels(decl.m_level_params);
         m_is_trusted  = is_trusted;
     }
@@ -398,6 +400,7 @@ struct add_inductive_fn {
                                            << "does not match inductive datatypes parameters'");
                 t = instantiate(binding_body(t), m_param_consts[i]);
             } else {
+                m_nonparam_args = true;
                 expr s = ensure_type(binding_domain(t));
                 // the sort is ok IF
                 //   1- its level is <= inductive datatype level, OR
@@ -447,54 +450,23 @@ struct add_inductive_fn {
         updt_type_checker();
     }
 
-    /** \brief Return true if type former C in the recursor can only map to Type.{0} */
+    /** \brief Return true if type former C in the recursor can only map to Prop */
     bool elim_only_at_universe_zero() {
         if (m_is_not_zero) {
-            // If Type.{0} is not impredicative or the resultant inductive datatype is not in Type.{0},
-            // then the recursor may return Type.{l} where l is a universe level parameter.
+            // If the resultant inductive datatype is not in Prop,
+            // then the recursor may return Sort l for any l.
             return false;
         }
         unsigned num_intros = length(m_decl.m_intro_rules);
         if (num_intros > 1) {
-            // If we have more than one introduction rule, then yes, the type former can only
-            // map to Type.{0}
+            // If we have more than one introduction rule, then yes, we can only eliminate into Prop
             return true;
         }
-        if (num_intros == 0) {
-            // if we don't have intro rules, then we don't need to check anything else
+        if (num_intros <= 1 && !m_nonparam_args) {
+            // We have at most one introduction rule, and no non-parameter arguments.
             return false;
         }
-        // We have only one introduction rule, the final check is, the type of each argument
-        // that is not a parameter:
-        //  1- It must live in Type.{0}, *OR*
-        //  2- It must occur in the return type. (this is essentially what is called a non-uniform parameter in Coq).
-        //     We can justify 2 by observing that this information is not a *secret* it is part of the type.
-        //     By eliminating to a non-proposition, we would not be revealing anything that is not already known.
-        auto ir    = head(m_decl.m_intro_rules);
-        expr t     = intro_rule_type(ir);
-        unsigned i = 0;
-        buffer<expr> to_check; // arguments that we must check if occur in the result type
-        while (is_pi(t)) {
-            expr local = mk_local_for(t);
-            if (i >= m_decl.m_num_params) {
-                expr s = ensure_type(binding_domain(t));
-                if (!is_zero(sort_level(s))) {
-                    // Current argument is not in Type.{0} (i.e., condition 1 failed).
-                    // We save it in to_check to be able to try condition 2 above.
-                    to_check.push_back(local);
-                }
-            }
-            t = instantiate(binding_body(t), local);
-            i++;
-        }
-        buffer<expr> result_args;
-        get_app_args(t, result_args);
-        // Check condition 2: every argument in to_check must occur in result_args
-        for (expr const & arg : to_check) {
-            if (std::find(result_args.begin(), result_args.end(), arg) == result_args.end())
-                return true; // condition 2 failed
-        }
-        return false;
+        return true;
     }
 
     /** \brief Initialize m_elim_level. */
@@ -546,14 +518,6 @@ struct add_inductive_fn {
 
         // Populate the field m_minor_premises
         unsigned minor_idx = 1;
-        // A declaration is target for K-like reduction when
-        // it has one intro, the intro has 0 arguments, proof irrelevance is enabled,
-        // and it is a proposition.
-        // In the following for-loop we check if the intro rule
-        // has 0 arguments.
-        bool is_K_target =
-            is_zero(m_it_level) &&             // It is a Prop
-            length(m_decl.m_intro_rules) == 1; // datatype has only one intro rule
         for (auto ir : m_decl.m_intro_rules) {
             buffer<expr> b_u; // nonrec and rec args
             buffer<expr> u;   // rec args
@@ -564,7 +528,6 @@ struct add_inductive_fn {
                 if (i < m_decl.m_num_params) {
                     t = instantiate(binding_body(t), m_param_consts[i]);
                 } else {
-                    is_K_target = false; // See comment before for-loop.
                     expr l = mk_local_for(t);
                     b_u.push_back(l);
                     if (is_rec_argument(binding_domain(t)))
@@ -606,7 +569,11 @@ struct add_inductive_fn {
             m_elim_info.m_minor_premises.push_back(minor);
             minor_idx++;
         }
-        m_elim_info.m_K_target = is_K_target;
+
+        m_elim_info.m_K_target =
+            is_zero(m_it_level) // It is a Prop
+            && length(m_decl.m_intro_rules) == 1 // datatype has only one intro rule
+            && !m_nonparam_args; // no non-param args
     }
 
     /** \brief Return the name of the eliminator/recursor for the type being defined . */

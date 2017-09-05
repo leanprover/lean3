@@ -12,6 +12,7 @@ Author: Leonardo de Moura
 #include "library/trace.h"
 #include "library/normalize.h"
 #include "library/vm/vm.h"
+#include "library/constants.h"
 #include "library/compiler/util.h"
 #include "library/compiler/compiler_step_visitor.h"
 
@@ -118,6 +119,12 @@ class inline_simple_definitions_fn : public compiler_step_visitor {
         return e;
     }
 
+    expr visit_acc_crec_app(expr const & e) {
+        buffer<expr> args;
+        auto & fn = get_app_args(e, args);
+        return visit_app(mk_app(mk_constant(get_acc_crec_impl_name(), const_levels(fn)), args));
+    }
+
     optional<expr> reduce_projection(expr const & e) {
         /* When trying to reduce a projection, we should only unfold reducible constants. */
         type_context::transparency_scope _(ctx(), transparency_mode::Instances);
@@ -133,6 +140,8 @@ class inline_simple_definitions_fn : public compiler_step_visitor {
             return default_visit_app(e);
         if (is_cases_on_recursor(env(), n) || is_nonrecursive_recursor(n))
             return visit_cases_on_app(e);
+        if (n == get_acc_crec_name())
+            return visit_acc_crec_app(e);
         unsigned nargs  = get_app_num_args(e);
         declaration d   = env().get(n);
         if (!d.is_definition() || d.is_theorem())
