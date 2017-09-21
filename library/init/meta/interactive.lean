@@ -1045,15 +1045,15 @@ do t ← target, guard_expr_eq t p
 meta def guard_hyp (n : parse ident) (p : parse $ tk ":=" *> texpr) : tactic unit :=
 do h ← get_local n >>= infer_type, guard_expr_eq h p
 
-meta def by_cases (q : parse texpr) (n : parse (tk "with" *> ident)?): tactic unit :=
-do p ← tactic.to_expr_strict q,
-   tactic.by_cases p (n.get_or_else `h)
+meta def by_cases : parse cases_arg_p → tactic unit
+| (n, q) := do
+  p ← tactic.to_expr_strict q,
+  tactic.by_cases p (n.get_or_else `h)
 
 meta def by_contradiction (n : parse ident?) : tactic unit :=
 tactic.by_contradiction n >> return ()
 
-meta def by_contra (n : parse ident?) : tactic unit :=
-tactic.by_contradiction n >> return ()
+meta def by_contra := by_contradiction
 
 /-- Type check the given expression, and trace its type. -/
 meta def type_check (p : parse texpr) : tactic unit :=

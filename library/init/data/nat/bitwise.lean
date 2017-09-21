@@ -208,7 +208,7 @@ lemma binary_rec_eq {C : nat → Sort u} {z : C 0} {f : ∀ b n, C n → C (bit 
   binary_rec z f (bit b n) = f b n (binary_rec z f n) :=
 begin
   rw [binary_rec],
-  by_cases (bit b n = 0) with h',
+  by_cases h' : bit b n = 0,
   {simp [dif_pos h'],
    generalize : binary_rec._main._pack._proof_1 (bit b n) h' = e,
    revert e,
