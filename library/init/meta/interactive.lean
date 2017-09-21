@@ -375,14 +375,51 @@ do e_type ← infer_type e >>= whnf,
    (const I ls) ← return $ get_app_fn e_type,
    return I
 
+meta def cases_arg_p : parser (option name × pexpr) :=
+with_desc "(id :)? expr" $ do
+  t ← texpr,
+  match t with
+  | (local_const x _ _ _) :=
+    (tk ":" *> do t ← texpr, pure (some x, t)) <|> pure (none, t)
+  | _ := pure (none, t)
+  end
+
+private meta def generalize_arg_p : pexpr → parser (pexpr × name)
+| (app (app (macro _ [const `eq _ ]) h) (local_const x _ _ _)) := pure (h, x)
+| _ := fail "parse error"
+
+/-- `generalize : e = x` replaces all occurrences of `e` in the target with a new hypothesis `x` of the same type.
+    `generalize h : e = x` in addition registers the hypothesis `h : e = x`. -/
+meta def generalize (h : parse ident?) (p : parse $ tk ":" *> with_desc "expr = id" (parser.pexpr 0 >>= generalize_arg_p)) : tactic unit :=
+do let (p, x) := p,
+   e ← i_to_expr p,
+   some h ← pure h | tactic.generalize e x >> intro1 >> skip,
+   tgt ← target,
+   -- if generalizing fails, fall back to not replacing anything
+   tgt' ← do {
+     ⟨tgt', _⟩ ← solve_aux tgt (tactic.generalize e x >> target),
+     to_expr ``(Π x, %%e = x → %%(tgt'.binding_body.lift_vars 0 1))
+   } <|> to_expr ``(Π x, %%e = x → %%tgt),
+   t ← assert h tgt',
+   swap,
+   exact ``(%%t %%e rfl),
+   intro x,
+   intro h
+
 precedence `generalizing` : 0
-meta def induction (p : parse texpr) (rec_name : parse using_ident) (ids : parse with_ident_list)
+meta def induction (hp : parse cases_arg_p) (rec_name : parse using_ident) (ids : parse with_ident_list)
   (revert : parse $ (tk "generalizing" *> ident*)?) : tactic unit :=
-do e ← i_to_expr p,
+do e ← match hp with
+   | (some h, p) := do
+     x ← mk_fresh_name,
+     generalize h (p, x),
+     get_local x
+   | (none, p) := i_to_expr p
+   end,
 
    -- generalize major premise
    e ← if e.is_local_constant then pure e
-   else generalize e >> intro1,
+   else tactic.generalize e >> intro1,
 
    -- generalize major premise args
    (e, newvars, locals) ← do {
@@ -483,47 +520,6 @@ do r   ← result,
 
 meta def destruct (p : parse texpr) : tactic unit :=
 i_to_expr p >>= tactic.destruct
-
-private meta def generalize_arg_p : pexpr → parser (pexpr × name)
-| (app (app (macro _ [const `eq _ ]) h) (local_const x _ _ _)) := pure (h, x)
-| _ := fail "parse error"
-
-/-- `generalize : e = x` replaces all occurrences of `e` in the target with a new hypothesis `x` of the same type.
-    `generalize h : e = x` in addition registers the hypothesis `h : e = x`. -/
-meta def generalize (h : parse ident?) (p : parse $ tk ":" *> with_desc "expr = id" (parser.pexpr 0 >>= generalize_arg_p)) : tactic unit :=
-do let (p, x) := p,
-   e ← i_to_expr p,
-   some h ← pure h | tactic.generalize e x >> intro1 >> skip,
-   tgt ← target,
-   -- if generalizing fails, fall back to not replacing anything
-   tgt' ← do {
-     ⟨tgt', _⟩ ← solve_aux tgt (tactic.generalize e x >> target),
-     to_expr ``(Π x, %%e = x → %%(tgt'.binding_body.lift_vars 0 1))
-   } <|> to_expr ``(Π x, %%e = x → %%tgt),
-   t ← assert h tgt',
-   swap,
-   exact ``(%%t %%e rfl),
-   intro x,
-   intro h
-
-meta def ginduction (p : parse texpr) (rec_name : parse using_ident) (ids : parse with_ident_list) : tactic unit :=
-do x ← mk_fresh_name,
-   let (h, hs) := (match ids with
-   | []        := (`_h, [])
-   | (h :: hs) := (h, hs)
-   end : name × list name),
-   generalize h (p, x),
-   t ← get_local x,
-   induction (to_pexpr t) rec_name hs ([] : list name)
-
-private meta def cases_arg_p : parser (option name × pexpr) :=
-with_desc "(id :)? expr" $ do
-  t ← texpr,
-  match t with
-  | (local_const x _ _ _) :=
-    (tk ":" *> do t ← texpr, pure (some x, t)) <|> pure (none, t)
-  | _ := pure (none, t)
-  end
 
 meta def cases : parse cases_arg_p → parse with_ident_list → tactic unit
 | (none,   p) ids := do
@@ -975,13 +971,13 @@ private meta def delta_hyps : list name → list name → tactic unit
 | cs []      := skip
 | cs (h::hs) := get_local h >>= delta_hyp cs >> delta_hyps cs hs
 
-meta def delta : parse ident* → parse location → tactic unit
-| cs (loc.wildcard) := do ls ← tactic.local_context,
-                          n ← revert_lst ls,
-                          new_cs ← to_qualified_names cs,
-                          delta_target new_cs,
-                          intron n
-| cs l              := do new_cs ← to_qualified_names cs, l.apply (delta_hyp new_cs) (delta_target new_cs)
+meta def delta (cs : parse ident*) : parse location → tactic unit
+| loc.wildcard := do ls ← tactic.local_context,
+                     n ← revert_lst ls,
+                     new_cs ← to_qualified_names cs,
+                     delta_target new_cs,
+                     intron n
+| l            := do new_cs ← to_qualified_names cs, l.apply (delta_hyp new_cs) (delta_target new_cs)
 
 private meta def unfold_projs_hyps (cfg : unfold_proj_config := {}) (hs : list name) : tactic bool :=
 hs.mfoldl (λ r h, do h ← get_local h, (unfold_projs_hyp h cfg >> return tt) <|> return r) ff
