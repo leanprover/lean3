@@ -375,6 +375,9 @@ do e_type ← infer_type e >>= whnf,
    (const I ls) ← return $ get_app_fn e_type,
    return I
 
+/-- Parse `(id :)? expr`. We can't use the individual parsers directly because the parser can't backtrack and
+   the id parser could traverse part-way into the expr in the case that the optional parameter isn't there,
+   so we read an `expr`, and then if it was actually an `id` we read `: expr` as well. -/
 meta def cases_arg_p : parser (option name × pexpr) :=
 with_desc "(id :)? expr" $ do
   t ← texpr,
@@ -384,6 +387,9 @@ with_desc "(id :)? expr" $ do
   | _ := pure (none, t)
   end
 
+/- Parse `expr = id`. We can't use the individual parsers directly because the parser can't backtrack and
+   the expr parser would read the whole expression, so we instead postprocess the parsed pexpr to ensure
+   it has the form `expr = id`. -/
 private meta def generalize_arg_p : parser (pexpr × name) :=
 with_desc "expr = id" $ do
   e ← parser.pexpr 0,
@@ -411,6 +417,16 @@ do let (p, x) := p,
    intro h
 
 precedence `generalizing` : 0
+/-- Apply the recursor for an inductive datatype, given an element `t` of the type. This tactic will also
+    generalize any hypotheses that depend on `t`.  Basic usage is `induction t`.
+
+    - `induction t with a b c` will name the arguments to the constructors in each case. `_` can be used
+      to skip arguments.
+    - `induction t using my_recursor` allows specification of an alternate recursor from the default.
+    - `induction t generalizing x y` will generalize the local constants `x` and `y` and their dependents
+      in the inductive hypothesis.
+    - `induction h : t` will introduce an equality of the form `h : t = C x y`, asserting that the input
+      term is equal to the current constructor case, to the context. -/
 meta def induction (hp : parse cases_arg_p) (rec_name : parse using_ident) (ids : parse with_ident_list)
   (revert : parse $ (tk "generalizing" *> ident*)?) : tactic unit :=
 do e ← match hp with
@@ -1049,6 +1065,9 @@ do t ← target, guard_expr_eq t p
 meta def guard_hyp (n : parse ident) (p : parse $ tk ":=" *> texpr) : tactic unit :=
 do h ← get_local n >>= infer_type, guard_expr_eq h p
 
+/-- The tactic `by_cases p` performs case analysis on a (decidable) proposition `p`.
+    This produces two subgoals, one with `h : p` in the context and one with `h : ¬p`.
+    The hypothesis may also be named using `by_cases h' : p`.   -/
 meta def by_cases : parse cases_arg_p → tactic unit
 | (n, q) := do
   p ← tactic.to_expr_strict q,
