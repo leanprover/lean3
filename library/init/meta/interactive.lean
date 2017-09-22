@@ -375,14 +375,71 @@ do e_type ← infer_type e >>= whnf,
    (const I ls) ← return $ get_app_fn e_type,
    return I
 
+/-- Parse `(id :)? expr`. We can't use the individual parsers directly because the parser can't backtrack and
+   the id parser could traverse part-way into the expr in the case that the optional parameter isn't there,
+   so we read an `expr`, and then if it was actually an `id` we read `: expr` as well. -/
+meta def cases_arg_p : parser (option name × pexpr) :=
+with_desc "(id :)? expr" $ do
+  t ← texpr,
+  match t with
+  | (local_const x _ _ _) :=
+    (tk ":" *> do t ← texpr, pure (some x, t)) <|> pure (none, t)
+  | _ := pure (none, t)
+  end
+
+/- Parse `expr = id`. We can't use the individual parsers directly because the parser can't backtrack and
+   the expr parser would read the whole expression, so we instead postprocess the parsed pexpr to ensure
+   it has the form `expr = id`. -/
+private meta def generalize_arg_p : parser (pexpr × name) :=
+with_desc "expr = id" $ do
+  e ← parser.pexpr 0,
+  match e with
+  | (app (app (macro _ [const `eq _ ]) h) (local_const x _ _ _)) := pure (h, x)
+  | _ := fail "parse error"
+  end
+
+/-- `generalize : e = x` replaces all occurrences of `e` in the target with a new hypothesis `x` of the same type.
+    `generalize h : e = x` in addition registers the hypothesis `h : e = x`. -/
+meta def generalize (h : parse ident?) (_ : parse $ tk ":") (p : parse generalize_arg_p) : tactic unit :=
+do let (p, x) := p,
+   e ← i_to_expr p,
+   some h ← pure h | tactic.generalize e x >> intro1 >> skip,
+   tgt ← target,
+   -- if generalizing fails, fall back to not replacing anything
+   tgt' ← do {
+     ⟨tgt', _⟩ ← solve_aux tgt (tactic.generalize e x >> target),
+     to_expr ``(Π x, %%e = x → %%(tgt'.binding_body.lift_vars 0 1))
+   } <|> to_expr ``(Π x, %%e = x → %%tgt),
+   t ← assert h tgt',
+   swap,
+   exact ``(%%t %%e rfl),
+   intro x,
+   intro h
+
 precedence `generalizing` : 0
-meta def induction (p : parse texpr) (rec_name : parse using_ident) (ids : parse with_ident_list)
+/-- Apply the recursor for an inductive datatype, given an element `t` of the type. This tactic will also
+    generalize any hypotheses that depend on `t`.  Basic usage is `induction t`.
+
+    - `induction t with a b c` will name the arguments to the constructors in each case. `_` can be used
+      to skip arguments.
+    - `induction t using my_recursor` allows specification of an alternate recursor from the default.
+    - `induction t generalizing x y` will generalize the local constants `x` and `y` and their dependents
+      in the inductive hypothesis.
+    - `induction h : t` will introduce an equality of the form `h : t = C x y`, asserting that the input
+      term is equal to the current constructor case, to the context. -/
+meta def induction (hp : parse cases_arg_p) (rec_name : parse using_ident) (ids : parse with_ident_list)
   (revert : parse $ (tk "generalizing" *> ident*)?) : tactic unit :=
-do e ← i_to_expr p,
+do e ← match hp with
+   | (some h, p) := do
+     x ← mk_fresh_name,
+     generalize h () (p, x),
+     get_local x
+   | (none, p) := i_to_expr p
+   end,
 
    -- generalize major premise
    e ← if e.is_local_constant then pure e
-   else generalize e >> intro1,
+   else tactic.generalize e >> intro1,
 
    -- generalize major premise args
    (e, newvars, locals) ← do {
@@ -484,54 +541,13 @@ do r   ← result,
 meta def destruct (p : parse texpr) : tactic unit :=
 i_to_expr p >>= tactic.destruct
 
-private meta def generalize_arg_p : pexpr → parser (pexpr × name)
-| (app (app (macro _ [const `eq _ ]) h) (local_const x _ _ _)) := pure (h, x)
-| _ := fail "parse error"
-
-/-- `generalize : e = x` replaces all occurrences of `e` in the target with a new hypothesis `x` of the same type.
-    `generalize h : e = x` in addition registers the hypothesis `h : e = x`. -/
-meta def generalize (h : parse ident?) (p : parse $ tk ":" *> with_desc "expr = id" (parser.pexpr 0 >>= generalize_arg_p)) : tactic unit :=
-do let (p, x) := p,
-   e ← i_to_expr p,
-   some h ← pure h | tactic.generalize e x >> intro1 >> skip,
-   tgt ← target,
-   -- if generalizing fails, fall back to not replacing anything
-   tgt' ← do {
-     ⟨tgt', _⟩ ← solve_aux tgt (tactic.generalize e x >> target),
-     to_expr ``(Π x, %%e = x → %%(tgt'.binding_body.lift_vars 0 1))
-   } <|> to_expr ``(Π x, %%e = x → %%tgt),
-   t ← assert h tgt',
-   swap,
-   exact ``(%%t %%e rfl),
-   intro x,
-   intro h
-
-meta def ginduction (p : parse texpr) (rec_name : parse using_ident) (ids : parse with_ident_list) : tactic unit :=
-do x ← mk_fresh_name,
-   let (h, hs) := (match ids with
-   | []        := (`_h, [])
-   | (h :: hs) := (h, hs)
-   end : name × list name),
-   generalize h (p, x),
-   t ← get_local x,
-   induction (to_pexpr t) rec_name hs ([] : list name)
-
-private meta def cases_arg_p : parser (option name × pexpr) :=
-with_desc "(id :)? expr" $ do
-  t ← texpr,
-  match t with
-  | (local_const x _ _ _) :=
-    (tk ":" *> do t ← texpr, pure (some x, t)) <|> pure (none, t)
-  | _ := pure (none, t)
-  end
-
 meta def cases : parse cases_arg_p → parse with_ident_list → tactic unit
 | (none,   p) ids := do
   e ← i_to_expr p,
   tactic.cases e ids
 | (some h, p) ids := do
   x   ← mk_fresh_name,
-  generalize h (p, x),
+  generalize h () (p, x),
   hx  ← get_local x,
   tactic.cases hx ids
 
@@ -1049,15 +1065,18 @@ do t ← target, guard_expr_eq t p
 meta def guard_hyp (n : parse ident) (p : parse $ tk ":=" *> texpr) : tactic unit :=
 do h ← get_local n >>= infer_type, guard_expr_eq h p
 
-meta def by_cases (q : parse texpr) (n : parse (tk "with" *> ident)?): tactic unit :=
-do p ← tactic.to_expr_strict q,
-   tactic.by_cases p (n.get_or_else `h)
+/-- The tactic `by_cases p` performs case analysis on a (decidable) proposition `p`.
+    This produces two subgoals, one with `h : p` in the context and one with `h : ¬p`.
+    The hypothesis may also be named using `by_cases h' : p`.   -/
+meta def by_cases : parse cases_arg_p → tactic unit
+| (n, q) := do
+  p ← tactic.to_expr_strict q,
+  tactic.by_cases p (n.get_or_else `h)
 
 meta def by_contradiction (n : parse ident?) : tactic unit :=
 tactic.by_contradiction n >> return ()
 
-meta def by_contra (n : parse ident?) : tactic unit :=
-tactic.by_contradiction n >> return ()
+meta def by_contra := by_contradiction
 
 /-- Type check the given expression, and trace its type. -/
 meta def type_check (p : parse texpr) : tactic unit :=

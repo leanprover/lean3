@@ -3,9 +3,13 @@ master branch (aka work in progress branch)
 
 *Features*
 
-- Implemented [RFC #1820](https://github.com/leanprover/lean/issues/1820)
+* Implemented [RFC #1820](https://github.com/leanprover/lean/issues/1820)
 
 *Changes*
+
+* `by_cases t with h` is now `by_cases h : t`.
+
+* `ginduction t with h h1 h2` is now `induction h : t with h1 h2`.
 
 *API name changes*
 
