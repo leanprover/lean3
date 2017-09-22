@@ -384,13 +384,17 @@ with_desc "(id :)? expr" $ do
   | _ := pure (none, t)
   end
 
-private meta def generalize_arg_p : pexpr → parser (pexpr × name)
-| (app (app (macro _ [const `eq _ ]) h) (local_const x _ _ _)) := pure (h, x)
-| _ := fail "parse error"
+private meta def generalize_arg_p : parser (pexpr × name) :=
+with_desc "expr = id" $ do
+  e ← parser.pexpr 0,
+  match e with
+  | (app (app (macro _ [const `eq _ ]) h) (local_const x _ _ _)) := pure (h, x)
+  | _ := fail "parse error"
+  end
 
 /-- `generalize : e = x` replaces all occurrences of `e` in the target with a new hypothesis `x` of the same type.
     `generalize h : e = x` in addition registers the hypothesis `h : e = x`. -/
-meta def generalize (h : parse ident?) (p : parse $ tk ":" *> with_desc "expr = id" (parser.pexpr 0 >>= generalize_arg_p)) : tactic unit :=
+meta def generalize (h : parse ident?) (_ : parse $ tk ":") (p : parse generalize_arg_p) : tactic unit :=
 do let (p, x) := p,
    e ← i_to_expr p,
    some h ← pure h | tactic.generalize e x >> intro1 >> skip,
@@ -412,7 +416,7 @@ meta def induction (hp : parse cases_arg_p) (rec_name : parse using_ident) (ids 
 do e ← match hp with
    | (some h, p) := do
      x ← mk_fresh_name,
-     generalize h (p, x),
+     generalize h () (p, x),
      get_local x
    | (none, p) := i_to_expr p
    end,
@@ -527,7 +531,7 @@ meta def cases : parse cases_arg_p → parse with_ident_list → tactic unit
   tactic.cases e ids
 | (some h, p) ids := do
   x   ← mk_fresh_name,
-  generalize h (p, x),
+  generalize h () (p, x),
   hx  ← get_local x,
   tactic.cases hx ids
 
@@ -971,13 +975,13 @@ private meta def delta_hyps : list name → list name → tactic unit
 | cs []      := skip
 | cs (h::hs) := get_local h >>= delta_hyp cs >> delta_hyps cs hs
 
-meta def delta (cs : parse ident*) : parse location → tactic unit
-| loc.wildcard := do ls ← tactic.local_context,
-                     n ← revert_lst ls,
-                     new_cs ← to_qualified_names cs,
-                     delta_target new_cs,
-                     intron n
-| l            := do new_cs ← to_qualified_names cs, l.apply (delta_hyp new_cs) (delta_target new_cs)
+meta def delta : parse ident* → parse location → tactic unit
+| cs (loc.wildcard) := do ls ← tactic.local_context,
+                          n ← revert_lst ls,
+                          new_cs ← to_qualified_names cs,
+                          delta_target new_cs,
+                          intron n
+| cs l              := do new_cs ← to_qualified_names cs, l.apply (delta_hyp new_cs) (delta_target new_cs)
 
 private meta def unfold_projs_hyps (cfg : unfold_proj_config := {}) (hs : list name) : tactic bool :=
 hs.mfoldl (λ r h, do h ← get_local h, (unfold_projs_hyp h cfg >> return tt) <|> return r) ff
