@@ -6,6 +6,12 @@
 
 (require 'cl-lib)
 
+; Set a nicer default lean-rootdir when installed with cmake
+(unless (load (expand-file-name
+	       "./lean-settings-installed.el"
+	       (file-name-directory load-file-name)) t)
+  (setq lean--default-rootdir nil))
+
 (defgroup lean nil
   "Lean Theorem Prover"
   :prefix "lean-"
@@ -29,8 +35,8 @@
     ('cygwin       "lean.exe"))
   "Default executable name of Lean")
 
-(defcustom lean-rootdir nil
-  "Full pathname of lean root directory. It should be defined by user."
+(defcustom lean-rootdir lean--default-rootdir
+  "Full pathname of lean root directory."
   :group 'lean
   :type 'string)
 
