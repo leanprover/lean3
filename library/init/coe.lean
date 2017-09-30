@@ -45,7 +45,7 @@ class has_coe_to_fun (a : Sort u) : Sort (max u (v+1)) :=
 (F : a → Sort v) (coe : Π x, F x)
 
 class has_coe_to_sort (a : Sort u) : Type (max u (v+1)) :=
-(S : Sort v) (coe : a → S)
+(coe : a → Sort v)
 
 def lift {a : Sort u} {b : Sort v} [has_lift a b] : a → b :=
 @has_lift.lift a b _
@@ -70,7 +70,7 @@ lift_t
 @[reducible] def coe_fn {a : Sort u} [has_coe_to_fun.{u v} a] : Π x : a, has_coe_to_fun.F.{u v} x :=
 has_coe_to_fun.coe
 
-@[reducible] def coe_sort {a : Sort u} [has_coe_to_sort.{u v} a] : a → has_coe_to_sort.S.{u v} a :=
+@[reducible] def coe_sort {a : Sort u} [has_coe_to_sort.{u v} a] : a → Sort v :=
 has_coe_to_sort.coe
 
 /- Notation -/
@@ -133,8 +133,7 @@ instance coe_fn_trans {a : Sort u₁} {b : Sort u₂} [has_coe_t_aux a b] [has_c
   coe := λ x, coe_fn (@has_coe_t_aux.coe a b _ x) }
 
 instance coe_sort_trans {a : Sort u₁} {b : Sort u₂} [has_coe_t_aux a b] [has_coe_to_sort.{u₂ u₃} b] : has_coe_to_sort.{u₁ u₃} a :=
-{ S   := has_coe_to_sort.S.{u₂ u₃} b,
-  coe := λ x, coe_sort (@has_coe_t_aux.coe a b _ x) }
+{ coe := λ x, coe_sort (@has_coe_t_aux.coe a b _ x) }
 
 /- Every coercion is also a lift -/
 
@@ -147,7 +146,7 @@ instance coe_bool_to_Prop : has_coe bool Prop :=
 ⟨λ y, y = tt⟩
 
 instance coe_sort_bool : has_coe_to_sort bool :=
-⟨Prop, λ y, y = tt⟩
+⟨λ y, y = tt⟩
 
 instance coe_decidable_eq (x : bool) : decidable (coe x) :=
 show decidable (x = tt), from bool.decidable_eq x tt
