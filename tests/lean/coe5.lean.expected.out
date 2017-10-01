@@ -1,5 +1,10 @@
-⇑f a : expr
-⇑(⇑f a) b : expr
-⇑(⇑(⇑f a) b) a : expr
-f a b a : expr
-@coe_fn.{1 1} (expr bool.tt) expr_to_app (@coe_fn.{1 1} (expr bool.tt) expr_to_app f a) b : expr bool.tt
+⇑f a : has_coe_to_fun.codomain a
+⇑(⇑f a) b : has_coe_to_fun.codomain b
+⇑(⇑(⇑f a) b) a : has_coe_to_fun.codomain a
+f a b a : has_coe_to_fun.codomain a
+@coe_fn.{1 1 1} (@has_coe_to_fun.codomain.{1 1 1} (expr bool.tt) expr_to_app f a) expr_to_app
+  (@coe_fn.{1 1 1} (expr bool.tt) expr_to_app f a)
+  b :
+  @has_coe_to_fun.codomain.{1 1 1} (@has_coe_to_fun.codomain.{1 1 1} (expr bool.tt) expr_to_app f a) expr_to_app
+    (@coe_fn.{1 1 1} (expr bool.tt) expr_to_app f a)
+    b

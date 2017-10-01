@@ -25,7 +25,7 @@ a type to a sort.
 -/
 prelude
 import init.data.list.basic init.data.subtype.basic init.data.prod
-universes u v
+universes u v w
 
 class has_lift (a : Sort u) (b : Sort v) :=
 (lift : a → b)
@@ -41,8 +41,8 @@ class has_coe (a : Sort u) (b : Sort v) :=
 class has_coe_t (a : Sort u) (b : Sort v) :=
 (coe : a → b)
 
-class has_coe_to_fun (a : Sort u) : Sort (max u (v+1)) :=
-(F : a → Sort v) (coe : Π x, F x)
+class has_coe_to_fun (a : Sort u) : Sort (max u (v+1) (w+1)) :=
+(domain : a → Sort v) (codomain : Π {x}, domain x → Sort w) (coe : Π x, Π (m : domain x), codomain m)
 
 class has_coe_to_sort (a : Sort u) : Type (max u (v+1)) :=
 (S : Sort v) (coe : a → S)
@@ -59,15 +59,12 @@ def coe_b {a : Sort u} {b : Sort v} [has_coe a b] : a → b :=
 def coe_t {a : Sort u} {b : Sort v} [has_coe_t a b] : a → b :=
 @has_coe_t.coe a b _
 
-def coe_fn_b {a : Sort u} [has_coe_to_fun.{u v} a] : Π x : a, has_coe_to_fun.F.{u v} x :=
-has_coe_to_fun.coe
-
 /- User level coercion operators -/
 
 @[reducible] def coe {a : Sort u} {b : Sort v} [has_lift_t a b] : a → b :=
 lift_t
 
-@[reducible] def coe_fn {a : Sort u} [has_coe_to_fun.{u v} a] : Π x : a, has_coe_to_fun.F.{u v} x :=
+@[reducible] def coe_fn {a : Sort u} [has_coe_to_fun.{u v w} a] : Π x : a,  Π (m : has_coe_to_fun.domain.{u v w} x), has_coe_to_fun.codomain m  :=
 has_coe_to_fun.coe
 
 @[reducible] def coe_sort {a : Sort u} [has_coe_to_sort.{u v} a] : a → has_coe_to_sort.S.{u v} a :=
@@ -81,7 +78,7 @@ notation `⇑`:max x:max := coe_fn x
 
 notation `↥`:max x:max := coe_sort x
 
-universes u₁ u₂ u₃
+universes u₁ u₂ u₃ u₄
 
 /- Transitive closure for has_lift, has_coe, has_coe_to_fun -/
 
@@ -128,9 +125,8 @@ instance coe_trans_aux {a : Sort u₁} {b : Sort u₂} {c : Sort u₃} [has_coe 
 instance coe_base_aux {a : Sort u} {b : Sort v} [has_coe a b] : has_coe_t_aux a b :=
 ⟨coe_b⟩
 
-instance coe_fn_trans {a : Sort u₁} {b : Sort u₂} [has_coe_t_aux a b] [has_coe_to_fun.{u₂ u₃} b] : has_coe_to_fun.{u₁ u₃} a :=
-{ F   := λ x, @has_coe_to_fun.F.{u₂ u₃} b _ (@has_coe_t_aux.coe a b _ x),
-  coe := λ x, coe_fn (@has_coe_t_aux.coe a b _ x) }
+instance coe_fn_trans {a : Sort u₁} {b : Sort u₂} [has_coe_t_aux a b] [has_coe_to_fun.{u₂ u₃ u₄} b] : has_coe_to_fun.{u₁ u₃ u₄} a :=
+{ domain := λ x, has_coe_to_fun.domain.{u₂ u₃ u₄} (has_coe_t_aux.coe b x), codomain := _, coe := λ x, coe_fn (@has_coe_t_aux.coe a b _ x) }
 
 instance coe_sort_trans {a : Sort u₁} {b : Sort u₂} [has_coe_t_aux a b] [has_coe_to_sort.{u₂ u₃} b] : has_coe_to_sort.{u₁ u₃} a :=
 { S   := has_coe_to_sort.S.{u₂ u₃} b,

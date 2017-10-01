@@ -8,7 +8,7 @@ infix ` ≃ `:50 := equiv
 variables {α : Type u} {β : Type v} {γ : Type w}
 
 instance: has_coe_to_fun (α ≃ β) := {
-    F := λ _, α → β,
+    domain := _, codomain := _,
     coe := equiv.f,
 }
 
@@ -21,6 +21,6 @@ local postfix `⁻¹` := equiv.inv
 def equiv.trans (f : α ≃ β) (g : β ≃ γ) : α ≃ γ :=
 ⟨g ∘ f, f⁻¹ ∘ g⁻¹⟩
 
-example (f : α ≃ β) := function.bijective f
+example (f : α ≃ β) := @function.bijective α β f
 example (f : α ≃ β) (a : α) := f a
 example (f : (α ≃ β) ≃ (β ≃ α)) (g : α ≃ β) (b : β) := f g b
