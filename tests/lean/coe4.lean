@@ -5,7 +5,7 @@ structure Functor (A : Type u) :=
 
 attribute [instance]
 definition coe_functor_to_fn (A : Type u) : has_coe_to_fun (Functor A) :=
-{ F   := λ f, A → A → A,
+{ domain := _, codomain := _,
   coe := Functor.fn }
 
 constant f : Functor nat

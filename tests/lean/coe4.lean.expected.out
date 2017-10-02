@@ -1,6 +1,7 @@
 ⇑f 0 1 : ℕ
 f 0 1 : ℕ
 ⇑f 0 1 : ℕ
-@coe_fn.{1 1} (Functor.{0} nat) (coe_functor_to_fn.{0} nat) f (@has_zero.zero.{0} nat nat.has_zero)
+@coe_fn.{1 1 1} (Functor.{0} nat) (coe_functor_to_fn.{0} nat) f
+  (@has_zero.zero.{0} (@has_coe_to_fun.domain.{1 1 1} (Functor.{0} nat) (coe_functor_to_fn.{0} nat) f) nat.has_zero)
   (@has_one.one.{0} nat nat.has_one) :
   nat

@@ -488,7 +488,8 @@ meta def add_coinductive_predicate
         let (bs, eqs) := compact_relation r.loc_args $ pd.locals.zip r.insts,
         eqs ← eqs.mmap (λ⟨l, i⟩, do
           sort u ← infer_type l.local_type,
-          return $ (const `eq [u] : expr) l.local_type i l),
+          let final : expr tt := (const `eq [u] : expr) l.local_type i l,
+          return final),
         match bs, eqs with
         | [], [] := return ((0, 0), mk_true)
         | _, []  := prod.mk (bs.length, 0) <$> mk_exists_lst bs.init bs.ilast.local_type
