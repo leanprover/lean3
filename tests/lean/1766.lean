@@ -13,10 +13,10 @@ end
 def value_2 (x : option nat) (H : is_some x)
    : x = x :=
 begin
-   destruct x; intros,
-   {destruct H,
-    intros, rw a at a_1},
-   {refl}
+   destruct x,
+   {intro h, destruct H,
+    intros _ h', rw h at h'},
+   {intros, refl}
 end
 
 inductive is_some' (x : option nat) : Type
@@ -25,8 +25,8 @@ inductive is_some' (x : option nat) : Type
 def value_3 (x : option nat) (H : is_some' x)
    : nat :=
 begin
-   destruct x; intros,
-   {destruct H,
-    intros, clear a_2, rw a at a_1, contradiction},
-   {assumption}
+   destruct x,
+   {intro h, destruct H,
+    intros _ h' _, rw h at h', contradiction},
+   {intros, assumption}
 end

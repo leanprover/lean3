@@ -32,12 +32,12 @@ half_baked : ℕ → ℕ
 elab_error_recovery.lean:1:4: error: non-exhaustive match, the following cases are missing:
 half_baked _
 def half_baked._main : ℕ → ℕ :=
-λ (a : ℕ),
-  ite (a = 3) (id_rhs ℕ 2)
-    (ite (a = 0) (id_rhs ℕ (1 + ⁇))
-       (ite (a = 5) (id_rhs ℕ (⁇ + 4))
-          (ite (a = 42) (id_rhs ℕ (ite (2 ∈ 3) 3 ⁇))
-             (ite (a = 7) (id_rhs ℕ ⁇) (ite (a = 10) (id_rhs ℕ ⁇) ⁇)))))
+λ (_x : ℕ),
+  ite (_x = 3) (id_rhs ℕ 2)
+    (ite (_x = 0) (id_rhs ℕ (1 + ⁇))
+       (ite (_x = 5) (id_rhs ℕ (⁇ + 4))
+          (ite (_x = 42) (id_rhs ℕ (ite (2 ∈ 3) 3 ⁇))
+             (ite (_x = 7) (id_rhs ℕ ⁇) (ite (_x = 10) (id_rhs ℕ ⁇) ⁇)))))
 2
 nat.succ (nat.succ (nat.succ (nat.succ ⁇)))
 2

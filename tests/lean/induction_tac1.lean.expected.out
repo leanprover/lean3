@@ -15,7 +15,7 @@ Hind : n' = 0 ∨ n' = succ (pred n')
 H : 0 ≠ 0
 ⊢ 0 > 0 → 0 = succ (pred 0)
 
-a : ℕ,
-ih_1 : a ≠ 0 → a > 0 → a = succ (pred a),
-H : succ a ≠ 0
-⊢ succ a > 0 → succ a = succ (pred (succ a))
+_x : ℕ,
+ih_1 : _x ≠ 0 → _x > 0 → _x = succ (pred _x),
+H : succ _x ≠ 0
+⊢ succ _x > 0 → succ _x = succ (pred (succ _x))
