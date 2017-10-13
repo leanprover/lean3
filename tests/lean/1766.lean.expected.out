@@ -2,5 +2,5 @@
 state:
 x : option ℕ,
 H : is_some x,
-a : x = none
+_x : x = none
 ⊢ ℕ

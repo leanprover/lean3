@@ -4,22 +4,22 @@ with
   ?m_2 = ?m_2
 state:
 a b c : ℕ,
-a_1 : a = b,
-a_2 : b = c
+_x : a = b,
+_x_1 : b = c
 ⊢ a = c
 hello world
 auto_quote_error2.lean:16:2: error: solve1 tactic failed, focused goal has not been solved
 state:
 a b c : ℕ,
-a_1 : a = b,
-a_2 : b = c
+_x : a = b,
+_x_1 : b = c
 ⊢ a = c
 hello world
 auto_quote_error2.lean:28:2: error: solve1 tactic failed, focused goal has not been solved
 state:
 a b c : ℕ,
-a_1 : a = b,
-a_2 : b = c
+_x : a = b,
+_x_1 : b = c
 ⊢ a = ?m_1
 auto_quote_error2.lean:37:22: error: don't know how to synthesize placeholder
 context:

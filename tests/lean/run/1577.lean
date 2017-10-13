@@ -9,8 +9,8 @@ lemma sm : forall t1 t2,
 eqT t1 t2 ->
 t1 = t2 :=
 begin
-intros,
-simp [eqT] at a,
+intros t1 t2 h,
+simp [eqT] at h,
 assumption
 end
 

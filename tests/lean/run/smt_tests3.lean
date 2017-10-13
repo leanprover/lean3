@@ -4,7 +4,7 @@ def f : nat → nat
 
 lemma ex(a : nat) : f a ≠ 0 :=
 begin
-  induction a,
+  induction a with a,
   dsimp [f], intro x, contradiction,
   dsimp [f],
   change nat.succ (f a) ≠ 0,

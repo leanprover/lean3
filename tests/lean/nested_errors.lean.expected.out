@@ -1,6 +1,6 @@
 nested_errors.lean:7:13: error: intro tactic failed, Pi/let expression expected
 state:
 a b c : ℕ,
-a_1 : a = b,
-a_2 : c = b
+_x : a = b,
+_x_1 : c = b
 ⊢ a = c

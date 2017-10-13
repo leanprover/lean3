@@ -15,10 +15,10 @@ symm : ∀ (a b : A), a = b → b = a
 inaccessible2.lean:13:11: error: equation compiler failed to create auxiliary declaration 'symm._main'
 nested exception message:
 type mismatch at application
-  eq.rec (λ (a_1 : a = a) (H_2 : a_1 == eq.refl a), id_rhs (⁇ = ⁇) rfl)
+  eq.rec (λ (_x : a = a) (H_2 : _x == eq.refl a), id_rhs (⁇ = ⁇) rfl)
 term
-  λ (a_1 : a = a) (H_2 : a_1 == eq.refl a), id_rhs (⁇ = ⁇) rfl
+  λ (_x : a = a) (H_2 : _x == eq.refl a), id_rhs (⁇ = ⁇) rfl
 has type
-  ∀ (a_1 : a = a), a_1 == _ → ⁇ = ⁇
+  ∀ (_x : a = a), _x == _ → ⁇ = ⁇
 but is expected to have type
-  (λ (b : A), ∀ (a_1 : a = b), a_1 == _ → b = a) a
+  (λ (b : A), ∀ (_x : a = b), _x == _ → b = a) a

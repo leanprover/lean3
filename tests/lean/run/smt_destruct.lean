@@ -4,8 +4,8 @@ lemma ex1 (p q : Prop) : p ∨ q → p ∨ ¬q → ¬p ∨ q → ¬p ∨ ¬q →
 by using_smt $ do
    intros,
    trace_state,
-   a_1 ← tactic.get_local `a_1,
-   destruct a_1,
+   h ← tactic.get_local `_x_1,
+   destruct h,
    repeat close
 
 lemma ex2 (p q : Prop) : p ∨ q → p ∨ ¬q → ¬p ∨ q → ¬p ∨ ¬q → false :=
@@ -18,7 +18,7 @@ end
 lemma ex3 (p q : Prop) : p ∨ q → p ∨ ¬q → ¬p ∨ q → ¬p ∨ ¬q → false :=
 begin [smt]
    intros,
-   destruct a_1 -- bad style, it relies on automatically generated names
+   destruct _x_1 -- bad style, it relies on automatically generated names
 end
 
 lemma ex4 (p q : Prop) : p ∨ q → p ∨ ¬q → ¬p ∨ q → ¬p ∨ ¬q → false :=
