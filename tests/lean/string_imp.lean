@@ -13,3 +13,4 @@
 #eval ("αβcc".mk_iterator.next.insert "_foo_").to_string
 #eval ("αβcc".mk_iterator.next.next.insert "_foo_").to_string
 #eval ("αβcc".mk_iterator.next.next.prev.insert "_foo_").to_string
+#eval "≠"

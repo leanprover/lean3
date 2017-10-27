@@ -149,7 +149,7 @@ unsigned next_utf8(std::string const & str, size_t & i) {
 
     /* one continuation (128 to 2047) */
     if ((c & 0xe0) == 0xc0 && i + 1 < str.size()) {
-        unsigned c1 = static_cast<unsigned char>(str[i+1]);
+        unsigned c1 = static_cast<unsigned char>(str[i+1]) & 0x3f;
         unsigned r = ((c & 0x1f) << 6) | c1;
         if (r >= 128) {
             i += 2;
@@ -159,8 +159,8 @@ unsigned next_utf8(std::string const & str, size_t & i) {
 
     /* two continuations (2048 to 55295 and 57344 to 65535) */
     if ((c & 0xf0) == 0xe0 && i + 2 < str.size()) {
-        unsigned c1 = static_cast<unsigned char>(str[i+1]);
-        unsigned c2 = static_cast<unsigned char>(str[i+2]);
+        unsigned c1 = static_cast<unsigned char>(str[i+1]) & 0x3f;
+        unsigned c2 = static_cast<unsigned char>(str[i+2]) & 0x3f;
         unsigned r = ((c & 0x0f) << 12) | (c1 << 6) | c2;
         if (r >= 2048 && (r < 55296 || r > 57343)) {
             i += 3;
@@ -170,9 +170,9 @@ unsigned next_utf8(std::string const & str, size_t & i) {
 
     /* three continuations (65536 to 1114111) */
     if ((c & 0xf8) == 0xf0 && i + 3 < str.size()) {
-        unsigned c1 = static_cast<unsigned char>(str[i+1]);
-        unsigned c2 = static_cast<unsigned char>(str[i+2]);
-        unsigned c3 = static_cast<unsigned char>(str[i+3]);
+        unsigned c1 = static_cast<unsigned char>(str[i+1]) & 0x3f;
+        unsigned c2 = static_cast<unsigned char>(str[i+2]) & 0x3f;
+        unsigned c3 = static_cast<unsigned char>(str[i+3]) & 0x3f;
         unsigned r  = ((c & 0x07) << 18) | (c1 << 12) | (c2 << 6) | c3;
         if (r >= 65536 && r <= 1114111) {
             i += 4;
