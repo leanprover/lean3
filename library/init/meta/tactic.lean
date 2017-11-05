@@ -1208,4 +1208,19 @@ do t ← target,
    locked_pr ← mk_id_locked_eq t new_target pr,
    mk_eq_mpr locked_pr ht >>= exact
 
+meta def replace_at (tac : expr → tactic (expr × expr)) (hs : list expr) (tgt : bool) : tactic bool :=
+do to_remove ← hs.mfilter $ λ h, do {
+         h_type ← infer_type h,
+         (do (new_h_type, pr) ← tac h_type,
+             assert h.local_pp_name new_h_type,
+             mk_eq_mp pr h >>= tactic.exact >> return tt)
+         <|>
+         (return ff) },
+   goal_simplified ← if tgt then (do
+     (new_t, pr) ← target >>= tac,
+     replace_target new_t pr,
+     return tt) <|> return ff else return ff,
+   to_remove.mmap' (λ h, try (clear h)),
+   return (¬ to_remove.empty ∨ goal_simplified)
+
 end tactic
