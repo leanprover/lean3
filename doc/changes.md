@@ -25,6 +25,12 @@ master branch (aka work in progress branch)
   The new instance is more efficient than the one in mathlib because it doesn't
   convert the array into a list.
 
+- Add alternative syntax `{..., ..s}` for the structure update `{s with ...}`.
+  Multiple fallback sources can be given: `{..., ..s, ..t}` will fall back to
+  searching a field in `s`, then in `t`. The last component can also be `..`,
+  which will replace any missing fields with a placeholder.
+  The old notation will be removed in the future.
+
 *Changes*
 
 - `string` is now a list of unicode scalar values. Moreover, in the VM,
