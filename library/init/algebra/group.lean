@@ -223,6 +223,8 @@ ls.foldl (λ t ⟨src, tgt⟩, do
   else t)
 skip
 
+local attribute [-simp] mul_comm mul_assoc mul_left_comm
+
 run_cmd transport_multiplicative_to_additive
   [/- map operations -/
    (`has_mul.mul, `has_add.add), (`has_one.one, `has_zero.zero), (`has_inv.inv, `has_neg.neg),
