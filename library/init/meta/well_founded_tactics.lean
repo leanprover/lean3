@@ -14,7 +14,7 @@ by {apply nat.add_lt_add_left, assumption}
 
 /- TODO(Leo): move this lemma, or delete it after we add algebraic normalizer. -/
 lemma nat.zero_lt_one_add (a : nat) : 0 < 1 + a :=
-suffices 0 < a + 1, by {simp, assumption},
+suffices 0 < a + 1, by {simp [add_comm], assumption},
 nat.zero_lt_succ _
 
 /- TODO(Leo): move this lemma, or delete it after we add algebraic normalizer. -/

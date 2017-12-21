@@ -345,7 +345,7 @@ begin
     calc
       a + a > b + a             : add_lt_add_right h _
         ... = b + a + b - b     : by rw add_sub_cancel
-        ... = b + b + a - b     : by simp
+        ... = b + b + a - b     : by rw add_right_comm
         ... = (b + b) + (a - b) : by rw add_sub,
    have h3 : (a + a) / 2 > ((b + b) + (a - b)) / 2,
      exact div_lt_div_of_lt_of_pos h2 two_pos,

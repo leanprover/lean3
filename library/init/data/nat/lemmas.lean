@@ -776,7 +776,7 @@ begin
     { apply nat.sub_lt _ h.left,
       apply lt_of_lt_of_le h.left h.right },
     rw [div_def, mod_def, if_pos h, if_pos h],
-    simp [left_distrib, IH _ h'],
+    simp [left_distrib, add_comm, add_left_comm, IH _ h'],
     rw [← nat.add_sub_assoc h.right, nat.add_sub_cancel_left] },
   -- ¬ (0 < k ∧ k ≤ m)
   { rw [div_def, mod_def, if_neg h', if_neg h'], simp },
@@ -850,7 +850,7 @@ begin
     { simp [succ_mul, not_succ_le_zero],
       apply not_le_of_gt,
       apply lt_of_lt_of_le h,
-      apply le_add_right } },
+      apply le_add_left } },
   -- step: k ≤ y
   { rw [div_eq_sub_div Hk h],
     cases x with x,
@@ -915,7 +915,7 @@ theorem sub_induction {P : ℕ → ℕ → Sort u} (H1 : ∀m, P 0 m)
 theorem succ_add_eq_succ_add (n m : ℕ) : succ n + m = n + succ m :=
 by simp [succ_add, add_succ]
 
-theorem one_add (n : ℕ) : 1 + n = succ n := by simp
+theorem one_add (n : ℕ) : 1 + n = succ n := by simp [add_comm]
 
 protected theorem add_right_comm : ∀ (n m k : ℕ), n + m + k = n + k + m :=
 right_comm nat.add nat.add_comm nat.add_assoc
@@ -1012,7 +1012,7 @@ by rw [nat.mul_sub_left_distrib, right_distrib, right_distrib, mul_comm b a, add
        nat.add_sub_add_left]
 
 theorem succ_mul_succ_eq (a b : nat) : succ a * succ b = a*b + a + b + 1 :=
-begin rw [← add_one, ← add_one], simp [right_distrib, left_distrib] end
+begin rw [← add_one, ← add_one], simp [add_comm, add_left_comm, right_distrib, left_distrib] end
 
 theorem succ_sub {m n : ℕ} (h : m ≥ n) : succ m - n = succ (m - n) :=
 exists.elim (nat.le.dest h)
@@ -1145,7 +1145,7 @@ begin
     have h₄ : x - n * k ≥ n,
     { apply @nat.le_of_add_le_add_right (n*k),
       rw [nat.sub_add_cancel h₂],
-      simp [mul_succ] at h₁, simp [h₁] },
+      simp [mul_succ, add_comm] at h₁, simp [h₁] },
     rw [mul_succ, ← nat.sub_sub, ← mod_eq_sub_mod h₄, k_ih h₂] }
 end
 
@@ -1374,7 +1374,7 @@ begin
       simp [pow_succ] at h₁,
       simp [h₁] },
     rw [mod_eq_of_lt h₁, mod_eq_of_lt h₂],
-    simp [mod_add_div] },
+    simp [mod_add_div, add_comm] },
   -- step: p ≥ b^succ w
   { -- Generate condiition for induction principal
     have h₂ : p - b^succ w < p,

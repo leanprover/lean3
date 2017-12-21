@@ -33,7 +33,7 @@ lemma length_cons (a : α) (l : list α) : length (a :: l) = length l + 1 :=
 rfl
 
 @[simp] lemma length_append (s t : list α) : length (s ++ t) = length s + length t :=
-by induction s; simp [*]
+by induction s; simp [*, add_right_comm]
 
 @[simp] lemma length_repeat (a : α) (n : ℕ) : length (repeat a n) = n :=
 by induction n; simp [*]; refl
