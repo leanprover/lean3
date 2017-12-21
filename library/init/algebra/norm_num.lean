@@ -15,7 +15,7 @@ def add1 [has_add α] [has_one α] (a : α) : α :=
 a + 1
 
 local attribute [reducible] bit0 bit1 add1
-local attribute [simp] right_distrib left_distrib
+local attribute [simp] right_distrib left_distrib add_comm add_left_comm
 
 private meta def u : tactic unit :=
 `[unfold bit0 bit1 add1]

@@ -39,7 +39,7 @@ lemma le.intro_sub {a b : ℤ} {n : ℕ} (h : b - a = n) : a ≤ b :=
 show nonneg (b - a), by rw h; trivial
 
 lemma le.intro {a b : ℤ} {n : ℕ} (h : a + n = b) : a ≤ b :=
-le.intro_sub (by rw [← h]; simp)
+le.intro_sub (by rw [← h]; simp [add_comm])
 
 lemma le.dest_sub {a b : ℤ} (h : a ≤ b) : ∃ n : ℕ, b - a = n := nonneg.elim h
 
@@ -82,7 +82,8 @@ let ⟨n, (h : ↑(1+n) = a)⟩ := le.dest h in
 ⟨n, by rw add_comm at h; exact h.symm⟩
 
 lemma lt_add_succ (a : ℤ) (n : ℕ) : a < a + ↑(nat.succ n) :=
-le.intro (show a + 1 + n = a + nat.succ n, begin simp [int.coe_nat_eq], reflexivity end)
+le.intro (show a + 1 + n = a + nat.succ n,
+  begin simp [int.coe_nat_eq, add_comm, add_left_comm], refl end)
 
 lemma lt.intro {a b : ℤ} {n : ℕ} (h : a + nat.succ n = b) : a < b :=
 h ▸ lt_add_succ a n

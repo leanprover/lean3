@@ -64,7 +64,7 @@ le_of_lt
 /- 3. nat_abs auxiliary lemmas -/
 
 lemma neg_succ_of_nat_lt_zero (n : ℕ) : neg_succ_of_nat n < 0 :=
-@lt.intro _ _ n (by simp [neg_succ_of_nat_coe, int.coe_nat_succ, int.coe_nat_add, int.coe_nat_one])
+@lt.intro _ _ n (by simp [neg_succ_of_nat_coe, int.coe_nat_succ, int.coe_nat_add, int.coe_nat_one, add_assoc])
 
 lemma of_nat_ge_zero (n : ℕ) : of_nat n ≥ 0 :=
 @le.intro _ _ n (by rw [zero_add, int.coe_nat_eq])

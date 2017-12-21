@@ -9,6 +9,8 @@ prelude
 import init.data.nat.lemmas init.data.nat.gcd init.meta.transfer init.data.list
 open nat
 
+local attribute [simp] add_assoc add_comm add_left_comm mul_assoc mul_comm mul_left_comm
+
 /- the type, coercions, and notation -/
 
 @[derive decidable_eq]
@@ -392,8 +394,6 @@ protected meta def transfer_core : tactic unit := do
 protected meta def transfer (distrib := tt) : tactic unit :=
 if distrib then `[int.transfer_core, simp [add_mul, mul_add]]
 else `[int.transfer_core, simp]
-
-local attribute [simp] mul_assoc mul_comm mul_left_comm
 
 instance : comm_ring int :=
 { add            := int.add,
