@@ -17,8 +17,8 @@ Dependencies can be fetched from git repositories; in this case `leanpkg` will r
 
 You need to run `leanpkg configure` first, in order to download dependencies and generate the `leanpkg.path` file.
 ```
-git clone https://github.com/leanprover/library_dev
-cd library_dev
+git clone https://github.com/leanprover/mathlib
+cd mathlib
 leanpkg configure
 ```
 
@@ -28,7 +28,7 @@ The `leanpkg new` command creates a new package.  You can use `leanpkg add` to a
 ```
 leanpkg new my_awesome_pkg
 cd my_awesome_pkg
-leanpkg add https://github.com/leanprover/library_dev
+leanpkg add https://github.com/leanprover/mathlib
 ```
 
 You can now add new `.lean` files inside the `my_awesome_pkg` directory.
@@ -51,8 +51,8 @@ version = "0.1"
 
 [dependencies]
 demopkg = { path = "relative/path/to/demopkg" }
-library_dev = { git = "https://github.com/leanprover/library_dev",
-  rev = "62f7883d937861b618ae8bd645ee16ec137dd0bd" }
+mathlib = {git = "https://github.com/leanprover/mathlib", rev = "0abe0860e64fd7f6dd64183bb77822941e265a82"}
+
 ```
 
 By default source files are assumed to be directly in the root directory of the package.  You can optionally add a `path = "src"` attribute to the `[package]` section that selects a different directory.
