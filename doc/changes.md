@@ -105,6 +105,10 @@ master branch (aka work in progress branch)
 
 * Add interactive `subst_vars` tactic.
 
+* Allow the Script, Double-struck, and Fractur symbols from
+  Mathematical Alphanumeric Symbols: https://unicode.org/charts/PDF/U1D400.pdf
+  to be used as variables Example: `variables 𝓞 : Prop`.
+
 *Changes*
 
 * Replace `inout` modifier in type class declarations with `out_param` modifier.
