@@ -1601,13 +1601,12 @@ do h ← intro `h,
    ```
 -/
 meta def mk_inj_eq : tactic unit :=
-`[
-  intros,
-  apply propext,
-  apply iff.intro,
-  { tactic.apply_inj_lemma },
-  { intro _, try { cases_matching* _ ∧ _ }, refl <|> { congr; { assumption <|> subst_vars } } }
-]
+do intros,
+   applyc ``propext,
+   applyc ``iff.intro,
+   solve1 tactic.apply_inj_lemma,
+   solve1 `[intro _, try { cases_matching* _ ∧ _ }, refl <|> { congr; { assumption <|> subst_vars } }]
+
 end tactic
 
 /- Define inj_eq lemmas for inductive datatypes that were declared before `mk_inj_eq` -/
