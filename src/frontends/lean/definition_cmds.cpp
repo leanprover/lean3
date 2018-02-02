@@ -249,6 +249,9 @@ declare_definition(parser & p, environment const & env, decl_cmd_kind kind, buff
     } else {
         c_real_name = get_namespace(env) + c_name;
     }
+    if (env.find(c_real_name)) {
+        throw exception(sstream() << "invalid definition, a declaration named '" << c_real_name << "' has already been declared");
+    }
     if (val && !meta.m_modifiers.m_is_meta && !type_checker(env).is_prop(type)) {
         /* We only abstract nested proofs if the type of the definition is not a proposition */
         std::tie(new_env, type) = abstract_nested_proofs(new_env, c_real_name, type);
@@ -860,12 +863,19 @@ environment single_definition_cmd_core(parser & p, decl_cmd_kind kind, cmd_meta 
     } catch (throwable & ex) {
         // Even though we catch exceptions during elaboration, there can still be other exceptions,
         // e.g. when adding a declaration to the environment.
-        try {
-            auto res = process(p.mk_sorry(header_pos, true));
+
+        // If we have already logged an error during elaboration, don't
+        // bother showing the less helpful kernel exception
+        if (!lt.get().has_entry_now(is_error_message))
             p.mk_message(header_pos, ERROR).set_exception(ex).report();
-            return res;
-        } catch (...) {}
-        throw;
+        // As a last resort, try replacing the definition body with `sorry`.
+        // If that doesn't work either, just silently give up since we have
+        // already logged at least one error.
+        try {
+            return process(p.mk_sorry(header_pos, true));
+        } catch (...) {
+            return env;
+        }
     }
 }
 

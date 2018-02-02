@@ -216,7 +216,7 @@ optional<name> has_default_value(environment const & env, name const & S_name, n
     return optional<name>();
 }
 
-expr mk_field_default_value(environment const & env, name const & full_field_name, std::function<optional<expr>(name const &)> const & get_field_value) {
+expr mk_field_default_value(environment const & env, name const & full_field_name, std::function<expr(name const &)> const & get_field_value) {
     optional<name> default_name = has_default_value(env, full_field_name.get_prefix(), full_field_name.get_string());
     lean_assert(default_name);
     declaration decl = env.get(*default_name);
@@ -225,12 +225,7 @@ expr mk_field_default_value(environment const & env, name const & full_field_nam
     while (is_lambda(value)) {
         if (is_explicit(binding_info(value))) {
             name fname = binding_name(value);
-            optional<expr> fval = get_field_value(fname);
-            if (!fval) {
-                throw exception(sstream() << "failed to construct default value for '" << full_field_name << "', "
-                                << "it depends on field '" << fname << "', but the value for this field is not available");
-            }
-            args.push_back(*fval);
+            args.push_back(get_field_value(fname));
         } else {
             args.push_back(mk_expr_placeholder());
         }
@@ -503,7 +498,11 @@ struct structure_cmd_fn {
                     fname = *ref;
                 else
                     fname = name(parent_name.get_string()).append_before("to_");
-                expr field = mk_local(fname, mk_as_is(parent));
+                binder_info bi;
+                if (m_meta_info.m_attrs.has_class() && is_class(m_env, parent_name))
+                    // make superclass fields inst implicit
+                    bi = mk_inst_implicit_binder_info();
+                expr field = mk_local(fname, mk_as_is(parent), bi);
                 m_fields.emplace_back(field, none_expr(), field_kind::subobject);
             }
 
@@ -594,9 +593,7 @@ struct structure_cmd_fn {
 
     expr mk_field_default_value(name const & full_field_name) {
         return ::lean::mk_field_default_value(m_env, full_field_name, [&](name const & fname) {
-                if (auto d = get_field_by_name(fname))
-                    return some_expr(mk_explicit(d->m_local));
-                return none_expr();
+                return mk_explicit(get_field_by_name(fname)->m_local);
             });
     }
 
@@ -1088,6 +1085,8 @@ struct structure_cmd_fn {
                 collect_locals(type, used_locals);
                 collect_locals(val, used_locals);
                 buffer<expr> args;
+                // note: `mk_field_default_value` expects params to be implicit
+                // and fields to be explicit
                 /* Copy params first */
                 for (expr const & local : used_locals.get_collected()) {
                     if (is_param(local)) {
@@ -1100,7 +1099,7 @@ struct structure_cmd_fn {
                 /* Copy fields it depends on */
                 for (expr const & local : used_locals.get_collected()) {
                     if (!is_param(local))
-                        args.push_back(local);
+                        args.push_back(update_local(local, binder_info()));
                 }
                 name decl_name  = name(m_name + field.get_name(), "_default");
                 name decl_prv_name;

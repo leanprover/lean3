@@ -29,6 +29,7 @@ public:
     class checkpoint;
 private:
     friend class validate_and_collect_lhs_mvars;
+    friend class visit_structure_instance_fn;
     typedef std::vector<pair<expr, expr>> to_check_sorts;
     enum class arg_mask {
         AllExplicit /* @ annotation */,
@@ -115,7 +116,6 @@ private:
     expr try_to_pi(expr const & e) { return m_ctx.try_to_pi(e); }
     bool is_def_eq(expr const & e1, expr const & e2);
     bool try_is_def_eq(expr const & e1, expr const & e2);
-    bool assign_mvar(expr const & e1, expr const & e2) { lean_assert(is_metavar(e1)); return is_def_eq(e1, e2); }
     bool is_uvar_assigned(level const & l) const { return m_ctx.is_assigned(l); }
     bool is_mvar_assigned(expr const & e) const { return m_ctx.is_assigned(e); }
 
@@ -126,6 +126,7 @@ private:
 
     level mk_univ_metavar();
     expr mk_metavar(expr const & A, expr const & ref);
+    expr mk_metavar(name const & pp_n, expr const & A, expr const & ref);
     expr mk_type_metavar(expr const & ref);
     expr mk_metavar(optional<expr> const & A, expr const & ref);
     expr mk_instance_core(local_context const & lctx, expr const & C, expr const & ref);
@@ -195,7 +196,8 @@ private:
     expr visit_const_core(expr const & e);
     void save_identifier_info(expr const & f);
     expr visit_function(expr const & fn, bool has_args, optional<expr> const & expected_type, expr const & ref);
-    format mk_app_type_mismatch_error(expr const & t, expr const & arg, expr const & arg_type, expr const & expected_type);
+    [[noreturn]] void throw_app_type_mismatch_error(expr const & t, expr const & arg, expr const & arg_type,
+                                                    expr const & expected_type, expr const & ref);
     format mk_app_arg_mismatch_error(expr const & t, expr const & arg, expr const & expected_arg);
 
     bool is_with_expected_candidate(expr const & fn);
@@ -259,11 +261,8 @@ private:
     field_resolution field_to_decl(expr const & e, expr const & s, expr const & s_type);
     field_resolution find_field_fn(expr const & e, expr const & s, expr const & s_type);
     expr visit_field(expr const & e, optional<expr> const & expected_type);
-    void assign_field_mvar(name const & S_fname, expr const & mvar,
-                           optional<expr> const & new_new_fval, expr const & new_fval, expr const & new_fval_type,
-                           expr const & expected_type, expr const & ref);
     expr instantiate_mvars(expr const & e, std::function<bool(expr const &)> pred); // NOLINT
-    expr visit_structure_instance(expr const & e, optional<expr> const & expected_type);
+    expr visit_structure_instance(expr const & e, optional<expr> expected_type);
     expr visit_expr_quote(expr const & e, optional<expr> const & expected_type);
     expr visit(expr const & e, optional<expr> const & expected_type);
 

@@ -122,9 +122,16 @@ master branch (aka work in progress branch)
   For example, given the goal `... |- [1,2].map nat.succ = t`, `simp!` reduces the left-hand-side
   of the equation to `[nat.succ 1, nat.succ 2]`. In this example, `simp!` is equivalent to
   `simp [list.map]`.
+
 * Allow the Script, Double-struck, and Fractur symbols from
   Mathematical Alphanumeric Symbols: https://unicode.org/charts/PDF/U1D400.pdf
   to be used as variables Example: `variables 𝓞 : Prop`.
+
+* Structure instance notation now allows explicitly setting implicit structure fields
+
+* Structure instance notation now falls back to type inference for inferring the
+  value of a superclass. This change eliminates the need for most `..` source specifiers
+  in instance declarations.
 
 *Changes*
 
@@ -211,6 +218,9 @@ master branch (aka work in progress branch)
 * `by_cases p with h` ==> `by_cases h : p`
 
 * leanpkg now always stores .lean package files in a separate `src` directory.
+
+* Structure constructor parameters representing superclasses are now marked as instance implicit.
+  Note: Instances using the {...} structure notation should not be affected by this change.
 
 *API name changes*
 
