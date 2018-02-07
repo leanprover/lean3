@@ -1,0 +1,4 @@
+def P : C → list ℕ :=
+λ (c : C), @C.d c ℕ [0]
+λ (d : D ℕ), @D.d ℕ d : D ℕ → ℕ
+λ [_inst_1 : E ℕ], @E.e ℕ _inst_1 : Π [_inst_1 : E ℕ], ℕ
