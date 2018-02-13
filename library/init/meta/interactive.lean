@@ -1159,16 +1159,8 @@ namespace interactive
 open interactive interactive.types expr
 
 meta def simp_core_aux (cfg : simp_config) (discharger : tactic unit) (s : simp_lemmas) (u : list name) (hs : list expr) (tgt : bool) : tactic unit :=
-do to_remove ← hs.mfilter $ λ h, do {
-         h_type ← infer_type h,
-         (do (new_h_type, pr) ← simplify s u h_type cfg `eq discharger,
-             assert h.local_pp_name new_h_type,
-             mk_eq_mp pr h >>= tactic.exact >> return tt)
-         <|>
-         (return ff) },
-   goal_simplified ← if tgt then (simp_target s u cfg discharger >> return tt) <|> (return ff) else return ff,
-   guard (cfg.fail_if_unchanged = ff ∨ to_remove.length > 0 ∨ goal_simplified) <|> fail "simplify tactic failed to simplify",
-   to_remove.mmap' (λ h, try (clear h))
+do chg ← replace_at (λ e, simplify s u e cfg `eq discharger) hs tgt,
+   guard (cfg.fail_if_unchanged = ff ∨ chg) <|> fail "simplify tactic failed to simplify"
 
 meta def simp_core (cfg : simp_config) (discharger : tactic unit)
                    (no_dflt : bool) (hs : list simp_arg_type) (attr_names : list name)
