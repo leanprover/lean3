@@ -8,6 +8,7 @@ Author: Leonardo de Moura
 #include <iostream>
 #include <chrono>
 #include <functional>
+#include <string>
 
 #ifndef LEAN_STACK_BUFFER_SPACE
 #define LEAN_STACK_BUFFER_SPACE 128*1024  // 128 Kb
@@ -15,6 +16,9 @@ Author: Leonardo de Moura
 
 namespace lean {
 namespace chrono = std::chrono;
+
+/// obtain a thread-specific string buffer
+std::string& get_tls_str_buffer();
 };
 
 #if defined(LEAN_MULTI_THREAD)
