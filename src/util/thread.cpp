@@ -22,6 +22,13 @@ Author: Leonardo de Moura
 
 namespace lean {
 
+MK_THREAD_LOCAL_GET_DEF(std::string, get_buffer_str);
+
+std::string& get_tls_str_buffer() {
+    return get_buffer_str();
+}
+
+
 using runnable = std::function<void()>;
 
 static void thread_main(void * p) {
