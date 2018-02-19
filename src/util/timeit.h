@@ -51,12 +51,18 @@ public:
         m_start = std::chrono::steady_clock::now();
     }
     xtimeit(std::function<void(second_duration)> const & fn) : xtimeit(second_duration(0), fn) {} // NOLINT
+    xtimeit(xtimeit const &) = delete;
+    xtimeit(xtimeit &&) = default;
     ~xtimeit() {
-        auto end = std::chrono::steady_clock::now();
-        auto diff = second_duration(end - m_start);
-        if (diff >= m_threshold) {
+        auto diff = get_elapsed();
+        if (diff >= m_threshold && m_fn) {
             m_fn(diff);
         }
+    }
+
+    second_duration get_elapsed() const {
+        auto end = std::chrono::steady_clock::now();
+        return second_duration(end - m_start);
     }
 };
 
