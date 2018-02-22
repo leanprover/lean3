@@ -4414,5 +4414,7 @@ void initialize_type_context() {
 void finalize_type_context() {
     delete g_class_instance_max_depth;
     delete g_nat_offset_threshold;
+    delete g_unfold_lemmas;
+    delete g_smart_unfolding;
 }
 }
