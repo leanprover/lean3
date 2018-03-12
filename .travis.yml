@@ -14,7 +14,8 @@ addons:
     packages: &default_packages
       - cmake
       - libgmp-dev
-      - libgoogle-perftools-dev
+      - libjemalloc1
+      - libjemalloc-dev
       - g++-4.9
       - clang-3.4
 
@@ -104,7 +105,7 @@ before_install:
     if [[ $TRAVIS_OS_NAME == osx ]]; then
       brew update &&
       (brew install gcc || brew link --overwrite gcc) &&
-      brew install gmp &&
+      brew install gmp jemalloc &&
       # workaround for https://github.com/travis-ci/travis-ci/issues/6307
       command curl -sSL https://rvm.io/mpapis.asc | gpg --import -
       rvm get head || true

@@ -10,7 +10,10 @@ cache: c:\tools\vcpkg\installed\
 
 install:
   # upgrade git for vcpkg: https://github.com/appveyor/ci/issues/2097
-  - if %CFG% == MSVC (choco upgrade git -y & vcpkg install mpir:x64-windows)
+  - if %CFG% == MSVC (choco upgrade git -y && C:\msys64\usr\bin\bash -c "
+    (cd c:/tools/vcpkg && git pull) &&
+    vcpkg install mpir:x64-windows jemalloc:x64-windows")
+  - if %CFG% == MINGW64 (C:\msys64\usr\bin\bash -lc "pacman -Sy --noconfirm mingw-w64-x86_64-jemalloc")
 
 build_script:
   - call "C:\Program Files (x86)\Microsoft Visual Studio\2017\Community\VC\Auxiliary\Build\vcvars64.bat"
