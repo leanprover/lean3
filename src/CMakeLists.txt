@@ -25,7 +25,7 @@ option(STATIC             "STATIC"             OFF)
 option(SPLIT_STACK        "SPLIT_STACK"        OFF)
 option(VM_UNCHECKED       "VM_UNCHECKED"       OFF)
 option(TCMALLOC           "TCMALLOC"           OFF)
-option(JEMALLOC           "JEMALLOC"           OFF)
+option(JEMALLOC           "JEMALLOC"           ON)
 # When OFF we disable JSON support to support older compilers
 option(JSON               "JSON"               ON)
 
@@ -49,7 +49,7 @@ option(TYPE_INFER_CACHE    "TYPE_INFER_CACHE"     ON)
 option(ALPHA               "ALPHA FEATURES"       OFF)
 option(TRACK_CUSTOM_ALLOCATORS "TRACK_CUSTOM_ALLOCATORS" OFF)
 option(TRACK_LIVE_EXPRS    "TRACK_LIVE_EXPRS" OFF)
-option(CUSTOM_ALLOCATORS   "CUSTOM_ALLOCATORS" ON)
+option(CUSTOM_ALLOCATORS   "CUSTOM_ALLOCATORS" OFF)
 option(SAVE_SNAPSHOT       "SAVE_SNAPSHOT" ON)
 option(SAVE_INFO           "SAVE_INFO" ON)
 
