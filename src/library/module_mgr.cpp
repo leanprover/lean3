@@ -16,6 +16,7 @@ Author: Gabriel Ebner
 #include "frontends/lean/pp.h"
 #include "frontends/lean/parser.h"
 #include "library/library_task_builder.h"
+#include "library/time_task.h"
 
 namespace lean {
 
@@ -115,6 +116,8 @@ static gtask compile_olean(std::shared_ptr<module_info const> const & mod, log_t
 
         if (get(errs)) throw exception("not creating olean file because of errors");
 
+        auto msg = message_builder(environment(), get_global_ios(), mod->m_id, pos_info {-1, 0}, INFORMATION);
+        time_task _("saving .olean", msg, res.m_opts, mod->m_id);
         auto olean_fn = olean_of_lean(mod->m_id);
         exclusive_file_lock output_lock(olean_fn);
         std::ofstream out(olean_fn, std::ios_base::binary);
