@@ -16,6 +16,8 @@ Author: Leonardo de Moura
 #endif
 
 #if defined(HAS_JEMALLOC)
+// use the same `je_` prefix on all platforms
+#define JEMALLOC_NO_DEMANGLE
 #include <jemalloc/jemalloc.h>
 
 namespace lean {
@@ -23,11 +25,11 @@ namespace lean {
 size_t get_peak_rss() {
     // refresh stats
     uint64_t epoch;
-    mallctl("epoch", NULL, NULL, &epoch, sizeof(epoch));
+    je_mallctl("epoch", NULL, NULL, &epoch, sizeof(epoch));
 
     size_t allocated;
     size_t sz = sizeof(size_t);
-    if (mallctl("stats.allocated", &allocated, &sz, NULL, 0) == 0) {
+    if (je_mallctl("stats.allocated", &allocated, &sz, NULL, 0) == 0) {
         return allocated;
     } else {
         return 0;
