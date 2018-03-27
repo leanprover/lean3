@@ -2989,6 +2989,8 @@ void vm_state::run() {
             unsigned nargs     = instr.get_nargs();
             unsigned sz        = m_stack.size();
             lean_vm_check(nargs <= sz);
+            if (nargs > 0)
+                g_num_unknown_partial++;
             vm_obj new_value   = mk_vm_closure(instr.get_fn_idx(), nargs, m_stack.data() + sz - nargs);
             m_stack.resize(sz - nargs + 1);
             swap(m_stack.back(), new_value);
