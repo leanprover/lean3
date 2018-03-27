@@ -5,6 +5,7 @@ Released under Apache 2.0 license as described in the file LICENSE.
 Author: Leonardo de Moura
 */
 #include <string>
+#include "kernel/instantiate.h"
 #include "kernel/inductive/inductive.h"
 #include "library/util.h"
 #include "library/module.h"
@@ -118,7 +119,7 @@ class inline_simple_definitions_fn : public compiler_step_visitor {
             }
             /* reduce */
             if (auto r = ctx().norm_ext(new_e))
-                return copy_tag(e, visit(beta_reduce(*r)));
+                return copy_tag(e, visit(head_beta_reduce(*r)));
         }
         return copy_tag(e, mk_app(fn, args));
     }

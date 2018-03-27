@@ -5,6 +5,7 @@ Author: Daniel Selsam, Leonardo de Moura
 */
 #pragma once
 #include "kernel/expr_pair.h"
+#include "kernel/expr_maps.h"
 #include "library/type_context.h"
 #include "library/defeq_canonizer.h"
 #include "library/vm/vm.h"
@@ -156,7 +157,7 @@ public:
     simplify_core_fn(type_context_old & ctx, defeq_canonizer::state & dcs, simp_lemmas const & slss,
                      simp_config const & cfg);
 
-    environment const & env() const;
+    environment const & env() const { return m_ctx.env(); }
     simp_result operator()(name const & rel, expr const & e);
 
     optional<expr> prove_by_simp(name const & rel, expr const & e);

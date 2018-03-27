@@ -36,6 +36,7 @@ Author: Leonardo de Moura
 #include "library/compiler/elim_unused_lets.h"
 #include "library/compiler/extract_values.h"
 #include "library/compiler/cse.h"
+#include "library/compiler/comp_simp.h"
 
 namespace lean {
 class expand_aux_fn : public compiler_step_visitor {
@@ -233,11 +234,14 @@ public:
     preprocess_fn(environment const & env):
         m_env(env) {}
 
-    void operator()(declaration const & d, buffer<procedure> & procs) {
+    environment operator()(declaration const & d, buffer<procedure> & procs) {
         if (compile_irrelevant(d, procs))
-            return;
+            return m_env;
         expr v = d.get_value();
         lean_trace(name({"compiler", "input"}), tout() << "\n" << v << "\n";);
+        std::tie(m_env, v) = apply_comp_simp(m_env, d.get_name(), v);
+        lean_cond_assert("compiler", check(d, v));
+        lean_trace(name({"compiler", "simp"}), tout() << "\n" << v << "\n";);
         v = inline_simple_definitions(m_env, m_cache, v);
         lean_cond_assert("compiler", check(d, v));
         lean_trace(name({"compiler", "inline"}), tout() << "\n" << v << "\n";);
@@ -272,24 +276,28 @@ public:
         cse(m_env, m_cache, procs);
         lean_trace(name({"compiler", "cse"}), tout() << "\n"; display(procs););
         lean_trace(name({"compiler", "preprocess"}), tout() << "\n"; display(procs););
+        return m_env;
     }
 };
 
-void preprocess(environment const & env, declaration const & d, buffer<procedure> & result) {
+environment preprocess(environment const & env, declaration const & d, buffer<procedure> & result) {
     return preprocess_fn(env)(d, result);
 }
 
-void preprocess(environment const & env, buffer<declaration> const & ds, buffer<procedure> & result) {
+environment preprocess(environment const & env, buffer<declaration> const & ds, buffer<procedure> & result) {
+    environment new_env = env;
     for (declaration const & d : ds) {
         buffer<procedure> procs;
-        preprocess(env, d, procs);
+        new_env = preprocess(new_env, d, procs);
         result.append(procs);
     }
+    return new_env;
 }
 
 void initialize_preprocess() {
     register_trace_class("compiler");
     register_trace_class({"compiler", "input"});
+    register_trace_class({"compiler", "simp"});
     register_trace_class({"compiler", "expand_aux"});
     register_trace_class({"compiler", "eta_expansion"});
     register_trace_class({"compiler", "simplify_pr1"});

@@ -36,8 +36,8 @@ void initialize() {
     initialize_library_core_module();
     initialize_vm_core_module();
     initialize_library_module();
-    initialize_compiler_module();
     initialize_tactic_module();
+    initialize_compiler_module();
     initialize_constructions_module();
     initialize_equations_compiler_module();
     initialize_inductive_compiler_module();

@@ -70,6 +70,8 @@ by induction l; simp [*]
 @[simp] lemma length_map (f : α → β) (l : list α) : length (map f l) = length l :=
 by induction l; simp [*]
 
+attribute [comp_simp] map_cons map_singleton map_id map_map length_map
+
 /- bind -/
 
 @[simp] lemma nil_bind (f : α → list β) : list.bind [] f = [] :=
