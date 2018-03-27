@@ -418,6 +418,10 @@ public:
     }
 };
 
+namespace lean {
+void display_func_app_stats(std::ostream & out);
+}
+
 int main(int argc, char ** argv) {
 #if defined(LEAN_EMSCRIPTEN)
     EM_ASM(
@@ -771,6 +775,7 @@ int main(int argc, char ** argv) {
             gen_doc(env, opts, out);
         }
 
+        lean::display_func_app_stats(std::cout);
         return ((ok && !get(has_errors(lt.get_root()))) || test_suite) ? 0 : 1;
     } catch (lean::throwable & ex) {
         lean::message_builder(env, ios, "<unknown>", lean::pos_info(1, 1), lean::ERROR).set_exception(ex).report();

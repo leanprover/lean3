@@ -2841,6 +2841,25 @@ void vm_state::display_registers(std::ostream & out) const {
     out << "pc: " << m_pc << ", bp: " << m_bp << "\n";
 }
 
+static unsigned g_num_known_calls = 0;
+static unsigned g_num_unknown_exact = 0;
+static unsigned g_num_unknown_partial = 0;
+static unsigned g_num_unknown_over = 0;
+
+void display_func_app_stats(std::ostream & out) {
+    unsigned total = g_num_known_calls + g_num_unknown_exact + g_num_unknown_partial + g_num_unknown_over;
+    if (total == 0) return;
+    out << std::setprecision(3);
+    out
+        << "Function application statistics\n"
+        << "  statically known:       " << g_num_known_calls << " " << (((double)g_num_known_calls/((double)total)) * 100.0) << "%\n"
+        << "  unknown, arity matches: " << g_num_unknown_exact << " " << (((double)g_num_unknown_exact/((double)total)) * 100.0) << "%\n"
+        << "  unknown, partial:       " << g_num_unknown_partial << " " << (((double)g_num_unknown_partial/((double)total)) * 100.0) << "%\n"
+        << "  unknown, over:          " << g_num_unknown_over << " " << (((double)g_num_unknown_over/((double)total)) * 100.0) << "%\n"
+        << "  total:                  " << total << "\n"
+        << "\n";
+}
+
 void vm_state::run() {
     lean_assert(m_code);
     unsigned init_call_stack_sz = m_call_stack.size();
@@ -3186,6 +3205,7 @@ void vm_state::run() {
             stack_pop_back();
             // TODO(Leo): remove redundant code. The following two branches in the if-then-else statement are very similar.
             if (is_simple(closure)) {
+                /* closure is a function that returns computationally irrelevant data. */
                 lean_vm_check(cidx(closure) == 0);
                 stack_pop_back();
                 m_stack.push_back(closure);
@@ -3205,6 +3225,7 @@ void vm_state::run() {
                 std::copy(c->get_args(), c->get_args() + c->get_num_args(), std::back_inserter(m_stack));
                 if (nargs < arity) {
                     /* Case 1) We don't have sufficient arguments. So, we create a new closure */
+                    g_num_unknown_partial++;
                     sz = m_stack.size();
                     vm_obj new_value = update_native_closure(closure, nargs, m_stack.data() + sz - nargs);
                     m_stack.resize(sz - nargs + 1);
@@ -3217,6 +3238,10 @@ void vm_state::run() {
                     buffer<vm_obj> args;
                     /* Case 2 */
                     invoke_fn(c->get_fn(), arity);
+                    if (m_code[m_pc+1].op() == opcode::Apply)
+                        g_num_unknown_over++;
+                    else
+                        g_num_unknown_exact++;
                     goto main_loop;
                 }
             } else {
@@ -3236,6 +3261,7 @@ void vm_state::run() {
                 std::copy(cfields(closure), cfields(closure) + csz, std::back_inserter(m_stack));
                 if (nargs < arity) {
                     /* Case 1) We don't have sufficient arguments. So, we create a new closure */
+                    g_num_unknown_partial++;
                     sz = m_stack.size();
                     vm_obj new_value = mk_vm_closure(fn_idx, nargs, m_stack.data() + sz - nargs);
                     m_stack.resize(sz - nargs + 1);
@@ -3247,6 +3273,10 @@ void vm_state::run() {
                     lean_assert(nargs == arity);
                     /* Case 2 */
                     invoke(d);
+                    if (m_code[m_pc+1].op() == opcode::Apply)
+                        g_num_unknown_over++;
+                    else
+                        g_num_unknown_exact++;
                     goto main_loop;
                 }
             }
@@ -3255,6 +3285,7 @@ void vm_state::run() {
             check_interrupted();
             check_heartbeat();
             check_memory("vm");
+            g_num_known_calls++;
             /**
                Instruction: ginvoke fn
 
@@ -3290,6 +3321,7 @@ void vm_state::run() {
             check_interrupted();
             check_heartbeat();
             check_memory("vm");
+            g_num_known_calls++;
             /**
                Instruction: builtin fn
 
@@ -3312,6 +3344,7 @@ void vm_state::run() {
             check_interrupted();
             check_heartbeat();
             check_memory("vm");
+            g_num_known_calls++;
             /**
                Instruction: cfun fn
 
