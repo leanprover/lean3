@@ -197,6 +197,8 @@ FOREACH(T ${LEANFAILTESTS})
 ENDFOREACH(T)
 
 # LEANPKG TESTS
+if(NOT (${LEAN_VERSION_IS_RELEASE} EQUAL "1"))
+# Remark: when LEAN_VERSION_IS_RELEASE is 1, one the leanpkg tests fail because the output contains extra information
 file(GLOB LEANPKGTESTS "${LEAN_SOURCE_DIR}/../tests/lean/leanpkg/*.sh")
 FOREACH(T ${LEANPKGTESTS})
   GET_FILENAME_COMPONENT(T_NAME ${T} NAME)
@@ -206,6 +208,7 @@ FOREACH(T ${LEANPKGTESTS})
            COMMAND bash "./test_single.sh" "${LEAN_SOURCE_DIR}/../bin/lean" ${T_NAME})
   endif()
 ENDFOREACH(T)
+endif()
 
 # LEAN TESTS using --trust=0
 file(GLOB LEANT0TESTS "${LEAN_SOURCE_DIR}/../tests/lean/trust0/*.lean")

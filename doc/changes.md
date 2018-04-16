@@ -1,4 +1,4 @@
-master branch (aka work in progress branch)
+v3.4.0 (16 April 2018)
 -------------
 
 *Features*
@@ -135,7 +135,7 @@ master branch (aka work in progress branch)
 
 * The `--profile` flag will now print cumulative profiling times at the end of execution
 
-* do notation now uses the top-level, overloadable `bind` function instead of `has_bind.bind`, 
+* do notation now uses the top-level, overloadable `bind` function instead of `has_bind.bind`,
   allowing binds with different type signatures
 
 * Structures fields can now be defined with an implicitness infer annotation and parameters.
