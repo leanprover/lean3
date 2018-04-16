@@ -40,7 +40,7 @@ test_script:
         for d in _target/deps/*; do (cd $d; ../../../../bin/leanpkg test || exit 1); done;
       fi"
   - C:\msys64\usr\bin\bash -lc "exec 0</dev/null && cd $APPVEYOR_BUILD_FOLDER &&
-      if [[ $UPLOAD == ON && $GH_TOKEN && $APPVEYOR_REPO_BRANCH == master ]]; then
+      if [[ $UPLOAD == ON && $GH_TOKEN && $APPVEYOR_REPO_BRANCH == master && -f build/nightly.sh ]]; then
         . build/nightly.sh &&
         bash script/deploy_nightly.sh build/lean-*-windows.zip;
       fi"
