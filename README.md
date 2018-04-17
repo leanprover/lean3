@@ -17,9 +17,11 @@ About
 
 - [Homepage](http://leanprover.github.io)
 - [Theorem Proving in Lean](https://leanprover.github.io/theorem_proving_in_lean/index.html)
-- [Core library](library/library.md)
 - [Change Log](doc/changes.md)
 - [FAQ](doc/faq.md)
+- **Important**: Lean 3.4.0 is the latest release. It is also the last release for the Lean 3.x code base. Only major bugs (e.g., soundness) will be fixed for this code base from now on.
+  We are currently developing Lean 4 in a new (private) repository.
+  The Lean 4 source code will be released here when ready. The main goals for Lean 4 are described [here](doc/lean4.md).
 - For HoTT mode, please use [Lean2](https://github.com/leanprover/lean2).
 
 Installation
