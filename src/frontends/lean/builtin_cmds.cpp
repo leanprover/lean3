@@ -31,6 +31,7 @@ Author: Leonardo de Moura
 #include "library/private.h"
 #include "library/type_context.h"
 #include "library/reducible.h"
+#include "library/typed_expr.h"
 #include "library/documentation.h"
 #include "library/placeholder.h"
 #include "library/vm/vm.h"
@@ -52,7 +53,6 @@ Author: Leonardo de Moura
 #include "frontends/lean/tokens.h"
 #include "frontends/lean/parse_table.h"
 #include "frontends/lean/decl_attributes.h"
-#include "frontends/lean/typed_expr.h"
 
 namespace lean {
 environment section_cmd(parser & p) {
