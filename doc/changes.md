@@ -1,3 +1,8 @@
+v3.4.1 (28 April 2018)
+-------------
+
+Bugfix release: Fix a regression concerning type ascriptions in function position
+
 v3.4.0 (16 April 2018)
 -------------
 
