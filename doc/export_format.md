@@ -20,7 +20,7 @@ Hierarchical names
 ------------------
 
 A hierarchical name is essentially a list of strings and integers.
-Each hierarchical name has a unique identifier: a unsigned integer.
+Each hierarchical name has a unique identifier: an unsigned integer.
 The unsigned integer 0 denotes the _anonymous_ hierarchical name.
 We can also view it as the empty name.
 The following commands are used to define hierarchical names in the export file.
@@ -51,7 +51,7 @@ That is, declaration in Lean can be parametrized by one or more universe level p
 The declarations can then be instantiated with universe level expressions.
 In the standard Lean front-end, universe levels can be omitted, and the Lean elaborator (tries) to infer them automatically for users.
 In this section, we describe the commands for create universe terms.
-Each universe term has a unique identifier: a unsigned integer.
+Each universe term has a unique identifier: an unsigned integer.
 Note that the identifiers assigned to universe terms and hierarchical names are not disjoint.
 The unsigned integer 0 is used to denote the universe 0.
 
@@ -65,7 +65,7 @@ The following commands are used to create universe terms in the export file.
 ```
 
 In the commands above, `uidx`, `uidx_1` and `uidx_2` denote the unique identifier of existing universe terms,
-`nidx` the unique identifier of existing hierarchical names, and `nidx'` is the identifier for the universe
+`nidx` the unique identifier of existing hierarchical names, and `uidx'` is the identifier for the universe
 term being defined. The command `#US` defines the _successor_ universe for `uidx`, the `#UM` the maximum universe for `uidx_1` and `uidx_2`,
 and `#UIM` is the "impredicative" maximum. It is defined as zero if `uidx_2` evaluates to zero, and `#UM` otherwise.
 The command `#UP` defines the universe parameter with name `nidx`.
@@ -87,13 +87,13 @@ Expressions
 
 In Lean, we have the following kind of expressions:
 variables, sorts (aka Type), constants, constants, function applications, lambdas, and dependent function spaces (aka Pis).
-Each expression has a unique identifier: a unsigned integer.
+Each expression has a unique identifier: an unsigned integer.
 Again, the expression unique identifiers are not disjoint from the universe term and hierarchical name ones.
 The following command are used to create expressions in the export file.
 ```
 <eidx'> #EV <integer>
 <eidx'> #ES <uidx>
-<eidx'> #EC <nidx> <uidx>*
+<eidx'> #EC <nidx> <uidx*>
 <eidx'> #EA <eidx_1> <eidx_2>
 <eidx'> #EL <info> <nidx> <eidx_1> <eidx_2>
 <eidx'> #EP <info> <nidx> <eidx_1> <eidx_2>
@@ -105,7 +105,7 @@ identifier of existing expressions, `info` is an annotation (explained later), a
 The command `#EV` defines a bound variable with de Bruijn index `<integer>`.
 The command `#ES` defines a sort using the given universe term.
 The command `#EC` defines a constant with hierarchical name `nidx` and instantiated with 0 or more
-universe terms `<uidx>*`.
+universe terms `<uidx*>`.
 The command `#EA` defines function application where `eidx_1` is the function, and `eidx_2` is the argument.
 The binders of lambda and Pi abstractions are decorated with `info`.
 This information has no semantic value for fully elaborated terms, but it is useful for pretty printing.
@@ -150,9 +150,9 @@ Definitions and Axioms
 
 The command
 ```
-#DEF <nidx> <eidx_1> <edix_2> <nidx*>
+#DEF <nidx> <eidx_1> <eidx_2> <nidx*>
 ```
-declares a definition with name `nidx` with zero or more universe parameters named `<nidx>*`.
+declares a definition with name `nidx` with zero or more universe parameters named `<nidx*>`.
 The type is given by the expression `eidx_1` and the value by `eidx_2`.
 Axioms are declared in a similar way
 ```
@@ -161,19 +161,19 @@ Axioms are declared in a similar way
 We are postulating the existence of an element with the given type.
 The following command declare the `definition id.{l} {A : Type.{l}} (a : A) : A := a`.
 ```
-2 #NS 0 id
-3 #NS 0 l
-4 #NS 0 A
-1 #UP 3
+1 #NS 0 id
+2 #NS 0 l
+3 #NS 0 A
+1 #UP 2
 0 #ES 1
-5 #NS 0 a
+4 #NS 0 a
 1 #EV 0
 2 #EV 1
-3 #EP #BD 5 1 2
-4 #EP #BI 4 0 3
-5 #EL #BD 5 1 1
-6 #EL #BD 4 0 5
-#DEF 4 6 2 3
+3 #EP #BD 4 1 2
+4 #EP #BI 3 0 3
+5 #EL #BD 4 1 1
+6 #EL #BI 3 0 5
+#DEF 1 4 6 2
 ```
 
 Inductive definitions
@@ -182,7 +182,7 @@ Inductive definitions
 Inductive definitions are given by the number of parameters, name, type,
 introduction rules, and universe parameters.
 ```
-#IND <num> <nidx> <eidx> <num_intros> <intro>* <nidx*>
+#IND <num> <nidx> <eidx> <num_intros> <intro*> <nidx*>
 ```
 Each `<intro>` is a pair of indices for the name and type of the introduction rule.
 
