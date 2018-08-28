@@ -157,9 +157,15 @@ constant quot.lift {α : Sort u} {r : α → α → Prop} {β : Sort v} (f : α 
 
 constant quot.ind {α : Sort u} {r : α → α → Prop} {β : quot r → Prop} :
   (∀ a : α, β (quot.mk r a)) → ∀ q : quot r, β q
+
+Also the reduction rule:
+
+quot.lift f _ (quot.mk a) ~~> f a
+
 -/
 init_quotient
 
+/--Higher equality. It sets the types to be equal as well as the values.-/
 inductive heq {α : Sort u} (a : α) : Π {β : Sort u}, β → Prop
 | refl : heq a
 
@@ -389,7 +395,7 @@ attribute [pattern] has_zero.zero has_one.one bit0 bit1 has_add.add has_neg.neg
 def insert {α : Type u} {γ : Type v} [has_insert α γ] : α → γ → γ :=
 has_insert.insert
 
-/- The empty collection -/
+/- The singleton collection -/
 def singleton {α : Type u} {γ : Type v} [has_emptyc γ] [has_insert α γ] (a : α) : γ :=
 has_insert.insert a ∅
 
