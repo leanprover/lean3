@@ -7,6 +7,7 @@ prelude
 import init.meta.level init.category.monad init.meta.rb_map
 universes u v
 open native
+/-- Column and line position in a Lean source file. -/
 structure pos :=
 (line   : nat)
 (column : nat)
@@ -20,6 +21,7 @@ else is_false (λ contra, pos.no_confusion contra (λ e₁ e₂, absurd e₁ h�
 meta instance : has_to_format pos :=
 ⟨λ ⟨l, c⟩, "⟨" ++ l ++ ", " ++ c ++ "⟩"⟩
 
+/--  -/
 inductive binder_info
 | default | implicit | strict_implicit | inst_implicit | aux_decl
 
@@ -31,34 +33,72 @@ instance : has_repr binder_info :=
 | binder_info.inst_implicit := "inst_implicit"
 | binder_info.aux_decl := "aux_decl"
 end⟩
+/--Macros are basically "promises" to build an expr by some C++ code, you can't build them in Lean.
+   You can unfold a macro and force it to evaluate.
+   They are used for 
+   - `sorry`.
+   - Term placeholders (`_`) in `pexpr`s.
+   - Expression annotations. You can attach a `name` to any expression. See `expr.is_annotation`. [TODO] how do you add annotations?
+   - Meta-recursive calls (eg `meta def Y : _ | f x := f (Y f) x`).
+   - Builtin projections (see example below).
+   - Ephemeral structures inside certain specialised C++ implemented tactics.
 
+   #### Builtin Projections
+   ```
+    structure foo := (mynat : ℕ)
+    #print foo.mynat
+
+    -- @[reducible]
+    -- def foo.mynat : foo → ℕ :=
+    -- λ (c : foo), [foo.mynat c]
+
+   ```
+   The thing in square brackets is a macro.
+  -/
 meta constant macro_def : Type
 
-/-- Reflect a C++ expr object. The VM replaces it with the C++ implementation. -/
+/-- An expression. eg ```(4+5)``. 
+    
+    The `elab` flag is indicates whether the `expr` has been typechecked and doesn't contain any placeholder macros.
+    The VM replaces instances of this datatype with the C++ implementation. -/
 meta inductive expr (elaborated : bool := tt)
+/- A bound variable with a de-Bruijn index. -/
 | var      {} : nat → expr
+/- A type universe: `Sort u` -/
 | sort     {} : level → expr
+/- A global constant. These include definitions, constants and inductive type stuff present in the environment as well as hard-coded definitions. -/
 | const    {} : name → list level → expr
-| mvar        : name → name → expr → expr
-| local_const : name → name → binder_info → expr → expr
+/- [WARNING] Do not trust the types for `mvar` and `local_const`, 
+they are sometimes dummy values. Use `tactic.infer_type` instead. -/
+/- An `mvar` is a 'hole' yet to be filled in by the elaborator or tactic state. -/
+| mvar        (pretty : name)  (unique : name)  (type : expr) : expr
+/- A local constant. For example, if our tactic state was `h : P ⊢ Q`, `h` would be a local constant. -/
+| local_const (pretty : name) (unique : name) (bi : binder_info) (type : expr) : expr
+/- Function application. -/
 | app         : expr → expr → expr
-| lam         : name → binder_info → expr → expr → expr
-| pi          : name → binder_info → expr → expr → expr
-| elet        : name → expr → expr → expr → expr
+/- Lambda abstraction. eg ```(λ a : α, x)`` -/
+| lam        (var_name : name) (bi : binder_info) (var_type : expr) (body : expr) : expr
+/- Pi type constructor. eg ```(Π a : α, x)`` and ```(α → β)`` -/
+| pi         (var_name : name) (bi : binder_info) (var_type : expr) (body : expr) : expr
+/- An explicit let binding. [TODO] why no binder info? -/
+| elet       (var_name : name) (type : expr) (assignment : expr) (body : expr) : expr
+/- A macro, see the docstring for `macro_def`.
+  [TODO] The list of expressions are local constants and metavariables that the macro depends on. 
+  -/
 | macro       : macro_def → list expr → expr
 
 variable {elab : bool}
 
-meta instance : inhabited expr :=
-⟨expr.sort level.zero⟩
+meta instance : inhabited expr := ⟨expr.sort level.zero⟩
 
+/-- Get the name of the macro definition. -/
 meta constant expr.macro_def_name (d : macro_def) : name
-meta def expr.mk_var (n : nat) : expr :=
-expr.var n
+meta def expr.mk_var (n : nat) : expr := expr.var n
 
 /- Expressions can be annotated using the annotation macro. -/
 meta constant expr.is_annotation : expr elab → option (name × expr elab)
 
+/-- Remove all macro annotations from the given `expr`. -/
 meta def expr.erase_annotations : expr elab → expr elab
 | e :=
   match e.is_annotation with
@@ -90,9 +130,11 @@ meta constant expr.lt : expr → expr → bool
 /-- Compares expressions, ignoring binder names. -/
 meta constant expr.lex_lt : expr → expr → bool
 
+/-- `expr.fold e a f`: Traverses each subexpression of `e`. The `nat` passed to the folder `f` is the binder depth. -/
 meta constant expr.fold {α : Type} : expr → α → (expr → nat → α → α) → α
 meta constant expr.replace : expr → (expr → nat → option expr) → expr
 
+/-- `abstract_local e n` replaces each instance of the local constant with ([TODO] unique? pretty?) name `n` in `e` with a de-Bruijn variable. -/
 meta constant expr.abstract_local  : expr → name → expr
 meta constant expr.abstract_locals : expr → list name → expr
 
@@ -101,30 +143,39 @@ meta def expr.abstract : expr → expr → expr
 | e _                           := e
 
 meta constant expr.instantiate_univ_params : expr → list (name × level) → expr
+/-- `instantiate_var a b` takes the 0th de-Bruijn variable in `a` and replaces each occurrence with `b`. -/
 meta constant expr.instantiate_var         : expr → expr → expr
+/-- ``instantiate_vars `(#0 #1 #2) [x,y,z] = `(%%x %%y %%z)`` -/
 meta constant expr.instantiate_vars        : expr → list expr → expr
 
+/-- Perform beta-reduction if the left expression is a lambda. Ie: ``expr.subst | `(λ x, %%Y) Z := Y[x/Z] | X Z := X``-/
 protected meta constant expr.subst : expr elab → expr elab → expr elab
 
 /-- `has_var e` returns true iff e has free variables. -/
 meta constant expr.has_var       : expr → bool
+/-- `has_var_idx e n` returns true iff `e` has a free variable with de-Bruijn index `n`. -/
 meta constant expr.has_var_idx   : expr → nat → bool
+/-- `has_local e` returns true if `e` contains a local constant. -/
 meta constant expr.has_local     : expr → bool
+/-- `has_meta_var e` returns true iff `e` contains a metavariable. -/
 meta constant expr.has_meta_var  : expr → bool
 /-- `lower_vars e s d` lowers the free variables >= s in `e` by `d`. That is, a free variable `var i` s.t.
    `i >= s` is mapped to `var (i-d)`. -/
 meta constant expr.lower_vars    : expr → nat → nat → expr
 /-- Lifts free variables. See `expr.lower_vars` for details. -/
 meta constant expr.lift_vars     : expr → nat → nat → expr
+/-- Get the position of the given expression in the Lean source file, if anywhere. -/
 protected meta constant expr.pos : expr elab → option pos
 /-- `copy_pos_info src tgt` copies position information from `src` to `tgt`. -/
 meta constant expr.copy_pos_info : expr → expr → expr
-
+/- [TODO] As far as I can tell, this is checking if the given expr is a constant and then checking that it ends with `_cnstr`. It is not used anywhere in Lean. -/
 meta constant expr.is_internal_cnstr : expr → option unsigned
+/- [TODO] There is a macro called a "nat value macro". This function extracts that to a natural number. 
+I don't know how these macros are used or created. -/
 meta constant expr.get_nat_value : expr → option nat
-
+/-- Get a list of all of the universe parameters that the given expression depends on. -/
 meta constant expr.collect_univ_params : expr → list name
-/-- `occurs e t` returns `tt` iff `e` occurs in `t` -/
+/-- `occurs e t` returns `tt` iff `e` occurs in `t`. [TODO] up to what equivalence? -/
 meta constant expr.occurs        : expr → expr → bool
 
 meta constant expr.has_local_in : expr → name_set → bool
@@ -134,7 +185,7 @@ meta constant expr.has_local_in : expr → name_set → bool
     of `a` in the calling context. Local constants in the representation are replaced
     by nested inference of `reflected` instances.
 
-    The quotation expression `(a) (outside of patterns) is equivalent to `reflect a`
+    The quotation expression `` `(a) `` (outside of patterns) is equivalent to `reflect a`
     and thus can be used as an explicit way of inferring an instance of `reflected a`. -/
 @[class] meta def reflected {α : Sort u} : α → Type :=
 λ _, expr
@@ -186,6 +237,7 @@ meta constant mk_sorry (type : expr) : expr
 /-- Checks whether e is sorry, and returns its type. -/
 meta constant is_sorry (e : expr) : option expr
 
+/-- Replace each instance of the local constant with name `n` by the expression `s` in `e`. -/
 meta def instantiate_local (n : name) (s : expr) (e : expr) : expr :=
 instantiate_var (abstract_local e n) s
 
@@ -283,6 +335,7 @@ meta def is_constant_of : expr elab → name → bool
 meta def is_app_of (e : expr) (n : name) : bool :=
 is_constant_of (get_app_fn e) n
 
+/-- The same as `is_app_of` but must also have exactly `n` arguments. -/
 meta def is_napp_of (e : expr) (c : name) (n : nat) : bool :=
 is_app_of e c ∧ get_app_num_args e = n
 
@@ -386,11 +439,12 @@ meta def is_numeral : expr → bool
 meta def imp (a b : expr) : expr :=
 pi `_ binder_info.default a b
 
+/-- `lambdas cs e` lambda binds `e` with each of the local constants in `cs`.  -/
 meta def lambdas : list expr → expr → expr
 | (local_const uniq pp info t :: es) f :=
   lam pp info t (abstract_local (lambdas es f) uniq)
 | _ f := f
-
+/-- Same as `expr.lambdas` but with `pi`. -/
 meta def pis : list expr → expr → expr
 | (local_const uniq pp info t :: es) f :=
   pi pp info t (abstract_local (pis es f) uniq)
@@ -417,11 +471,14 @@ meta def to_raw_fmt : expr elab → format
 | (elet n g e f) := p ["elet", to_fmt n, to_raw_fmt g, to_raw_fmt e, to_raw_fmt f]
 | (macro d args) := sbracket (format.join (list.intersperse " " ("macro" :: to_fmt (macro_def_name d) :: args.map to_raw_fmt)))
 
+/-- Fold an accumulator `a` over each subexpression in the expression `e`. 
+The `nat` passed to `fn` is the number of binders above the subexpression. -/
 meta def mfold {α : Type} {m : Type → Type} [monad m] (e : expr) (a : α) (fn : expr → nat → α → m α) : m α :=
 fold e (return a) (λ e n a, a >>= fn e n)
 
 end expr
 
+/-- An dictionary from `data` to expressions. -/
 @[reducible] meta def expr_map (data : Type) := rb_map expr data
 namespace expr_map
 export native.rb_map (hiding mk)
