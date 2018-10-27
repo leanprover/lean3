@@ -1271,7 +1271,7 @@ void elaborator::first_pass(expr const & fn, buffer<expr> const & args,
     expr type             = whnf(fn_type);
     unsigned i   = 0;
     /* First pass: compute type for an fn-application, and unify it with expected_type.
-       We don't visit expelicit arguments at this point. */
+       We don't visit explicit arguments at this point. */
 
     /* Outer loop is used to make sure we consume implicit arguments occurring after auto/option params. */
     while (true) {

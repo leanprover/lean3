@@ -31,11 +31,11 @@ Create a congruence lemma for the simplifier using h,
 if nargs is not none, then it tries to create a lemma for an application of arity nargs.
 -/
 meta constant mk_congr_lemma_simp (h : expr) (nargs : option nat := none) (md := semireducible) : tactic congr_lemma
-/- Create a specialized theorem using (a prefix of) the arguments of the given application. -/
+/-- Create a specialized theorem using (a prefix of) the arguments of the given application. -/
 meta constant mk_specialized_congr_lemma_simp (h : expr) (md : transparency := semireducible) : tactic congr_lemma
 
 meta constant mk_congr_lemma (h : expr) (nargs : option nat := none) (md := semireducible) : tactic congr_lemma
-/- Create a specialized theorem using (a prefix of) the arguments of the given application. -/
+/-- Create a specialized theorem using (a prefix of) the arguments of the given application. -/
 meta constant mk_specialized_congr_lemma (h : expr) (md := semireducible) : tactic congr_lemma
 
 meta constant mk_hcongr_lemma (h : expr) (nargs : option nat := none) (md := semireducible) : tactic congr_lemma

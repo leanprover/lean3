@@ -1,6 +1,6 @@
 prelude
 import init.logic
-
+/-- A task is a promise to produce a value later. They perform the same role as promises in JavaScript. -/
 meta constant {u} task : Type u → Type u
 
 namespace task

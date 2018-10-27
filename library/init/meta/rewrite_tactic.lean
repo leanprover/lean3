@@ -15,11 +15,16 @@ structure rewrite_cfg extends apply_cfg :=
 
 /-- Rewrite the expression `e` using `h`.
     The unification is performed using the transparency mode in `cfg`.
-    If `cfg.approx` is `tt`, then fallback to first-order unification, and approximate context during unification.
-    `cfg.new_goals` specifies which unassigned metavariables become new goals, and their order.
-    If `cfg.instances` is `tt`, then use type class resolution to instantiate unassigned meta-variables.
-    The fields `cfg.auto_param` and `cfg.opt_param` are ignored by this tactic (See `tactic.rewrite`).
-    It a triple `(new_e, prf, metas)` where `prf : e = new_e`, and `metas` is a list of all introduced meta variables,
+    If `cfg.approx` is `tt`, then fallback to first-order unification, 
+    and approximate context during unification.
+    `cfg.new_goals` specifies which unassigned metavariables become new goals, 
+    and their order.
+    If `cfg.instances` is `tt`, then use type class resolution to instantiate 
+    unassigned meta-variables.
+    The fields `cfg.auto_param` and `cfg.opt_param` are ignored by this tactic 
+    (See `tactic.rewrite`).
+    It a triple `(new_e, prf, metas)` where `prf : e = new_e`, and `metas` 
+    is a list of all introduced meta variables,
     even the assigned ones.
 
     TODO(Leo): improve documentation and explain symm/occs -/

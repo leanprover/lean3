@@ -21,9 +21,29 @@ else is_false (λ contra, pos.no_confusion contra (λ e₁ e₂, absurd e₁ h�
 meta instance : has_to_format pos :=
 ⟨λ ⟨l, c⟩, "⟨" ++ l ++ ", " ++ c ++ "⟩"⟩
 
-/--  -/
+/-- Auxiliary annotation for binders (Lambda and Pi). 
+    This information is only used for elaboration.
+      The difference between `{}` and `⦃⦄` is how implicit arguments are treated that are *not* followed by explicit arguments.  
+  `{}` arguments are applied eagerly, while `⦃⦄` arguments are left partially applied:
+```lean
+def foo {x : ℕ} : ℕ := x
+def bar ⦃x : ℕ⦄ : ℕ := x
+#check foo -- foo : ℕ
+#check bar -- bar : Π ⦃x : ℕ⦄, ℕ
+```  
+    -/
 inductive binder_info
-| default | implicit | strict_implicit | inst_implicit | aux_decl
+/- `(x : α)` -/
+| default 
+/- `{x : α}` -/
+| implicit 
+/- `⦃x:α⦄` -/
+| strict_implicit 
+/- `[x : α]`. Should be inferred with typeclass resolution. -/
+| inst_implicit 
+/- Auxiliary internal attribute used to mark local constants representing recursive functions
+        in recursive equations and `match` statements. -/
+| aux_decl
 
 instance : has_repr binder_info :=
 ⟨λ bi, match bi with
@@ -59,14 +79,16 @@ meta constant macro_def : Type
 
 /-- An expression. eg ```(4+5)``. 
     
-    The `elab` flag is indicates whether the `expr` has been typechecked and doesn't contain any placeholder macros.
+    The `elab` flag is indicates whether the `expr` has been elaborated and doesn't contain any placeholder macros.
+    For example the equality `x = x` is represented in `expr ff` as ``app (app (const `eq _) x) x`` while in `expr tt` it is represented as ``app (app (app (const `eq _) t) x) x`` (one more argument).
     The VM replaces instances of this datatype with the C++ implementation. -/
 meta inductive expr (elaborated : bool := tt)
 /- A bound variable with a de-Bruijn index. -/
 | var      {} : nat → expr
 /- A type universe: `Sort u` -/
 | sort     {} : level → expr
-/- A global constant. These include definitions, constants and inductive type stuff present in the environment as well as hard-coded definitions. -/
+/- A global constant. These include definitions, constants and inductive type stuff present 
+in the environment as well as hard-coded definitions. -/
 | const    {} : name → list level → expr
 /- [WARNING] Do not trust the types for `mvar` and `local_const`, 
 they are sometimes dummy values. Use `tactic.infer_type` instead. -/
@@ -80,10 +102,10 @@ they are sometimes dummy values. Use `tactic.infer_type` instead. -/
 | lam        (var_name : name) (bi : binder_info) (var_type : expr) (body : expr) : expr
 /- Pi type constructor. eg ```(Π a : α, x)`` and ```(α → β)`` -/
 | pi         (var_name : name) (bi : binder_info) (var_type : expr) (body : expr) : expr
-/- An explicit let binding. [TODO] why no binder info? -/
+/- An explicit let binding. -/
 | elet       (var_name : name) (type : expr) (assignment : expr) (body : expr) : expr
 /- A macro, see the docstring for `macro_def`.
-  [TODO] The list of expressions are local constants and metavariables that the macro depends on. 
+  The list of expressions are local constants and metavariables that the macro depends on. 
   -/
 | macro       : macro_def → list expr → expr
 

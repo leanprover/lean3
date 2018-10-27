@@ -34,7 +34,7 @@ f ()
   This is a deterministic way of interrupting long running tasks. -/
 meta def try_for {α : Type u} (max : nat) (f : thunk α) : option α :=
 some (f ())
-
+/-- Throws an exception when it is evaluated.  -/
 meta constant undefined_core {α : Sort u} (message : string) : α
 
 meta def undefined {α : Sort u} : α := undefined_core "undefined"

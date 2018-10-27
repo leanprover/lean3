@@ -7,6 +7,7 @@ prelude
 import init.meta.declaration init.meta.exceptional init.data.option.basic
 import init.meta.rb_map
 
+/-- An __environment__ contains all of the declarations and notation that have been defined so far.   -/
 meta constant environment : Type
 
 namespace environment

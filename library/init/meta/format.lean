@@ -11,13 +11,22 @@ universes u v
 inductive format.color
 | red | green | orange | blue | pink | cyan | grey
 
+/-- Format is a rich string with highlighting and information about how tabs should be put in if linebreaks are needed.  -/
 meta constant format : Type
+/-- [TODO] this either means newline or that it is ok to put a linebreak in here. -/
 meta constant format.line            : format
+/-- whitespace -/
 meta constant format.space           : format
+/-- Empty -/
 meta constant format.nil             : format
+/-- Concatenate the given formats. -/
 meta constant format.compose         : format → format → format
+/-- `format.nest n f` tells the formatter that `f` is nested inside something with length `n` 
+so that it is pretty-printed with the correct tabs on a line break. -/
 meta constant format.nest            : nat → format → format
+/-- Make the given format be displayed a particular color. -/
 meta constant format.highlight       : format → color → format
+/-- [TODO] what does this do? -/
 meta constant format.group           : format → format
 meta constant format.of_string       : string → format
 meta constant format.of_nat          : nat → format

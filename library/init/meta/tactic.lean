@@ -257,6 +257,10 @@ meta constant intro_core    : name → tactic expr
 meta constant intron        : nat → tactic unit
 /-- Clear the given local constant. The tactic fails if the given expression is not a local constant. -/
 meta constant clear         : expr → tactic unit
+/-- `revert_lst : list expr → tactic nat` is the reverse of `intron`. It takes a local constant `c` and puts it back as bound by a `pi` or `elet` of the main target.
+If there are other local constants that depend on `c`, these are also reverted. Because of this, the `nat` that is returned is the actual number of reverted local constants.
+Example: with `x : ℕ, h : P(x) ⊢ T(x)`, `revert_lst [x]` returns `2` and produces the state ` ⊢ Π x, P(x) → T(x)`. 
+ -/
 meta constant revert_lst    : list expr → tactic nat
 /-- Return `e` in weak head normal form with respect to the given transparency setting.
     If `unfold_ginductive` is `tt`, then nested and/or mutually recursive inductive datatype constructors
@@ -281,11 +285,16 @@ meta constant is_def_eq (t s : expr) (md := semireducible) (approx := ff) : tact
    Remark: transparency does not affect type inference -/
 meta constant infer_type    : expr → tactic expr
 
+/-- Get the `local_const` expr for the given `name`. -/
 meta constant get_local     : name → tactic expr
 /-- Resolve a name using the current local context, environment, aliases, etc. -/
 meta constant resolve_name  : name → tactic pexpr
 /-- Return the hypothesis in the main goal. Fail if tactic_state does not have any goal left. -/
 meta constant local_context : tactic (list expr)
+/-- Get a fresh name that is guaranteed to not be in use in the local context.
+    If `n` is provided and `n` is not in use, then `n` is returned. 
+    Otherwise a number `i` is appended to give `"n_i"`.
+-/
 meta constant get_unused_name (n : name := `_x) (i : option nat := none) : tactic name
 /--  Helper tactic for creating simple applications where some arguments are inferred using
     type inference.
@@ -576,7 +585,10 @@ whnf e md ff
 
 meta def whnf_target : tactic unit :=
 target >>= whnf >>= change
-
+/--Change the target of the main goal.
+   The input expression must be definitionally equal to the current target.
+   The tactic does not check whether `e`
+   is definitionally equal to the current target. The error will only be detected by the kernel type checker. -/
 meta def unsafe_change (e : expr) : tactic unit :=
 change e ff
 
@@ -627,6 +639,9 @@ do (expr.const n _) ← resolve_name n,
 meta def to_expr_strict (q : pexpr) : tactic expr :=
 to_expr q
 
+/--
+Example: with `x : ℕ, h : P(x) ⊢ T(x)`, `revert x` returns `2` and produces the state ` ⊢ Π x, P(x) → T(x)`. 
+ -/
 meta def revert (l : expr) : tactic nat :=
 revert_lst [l]
 
@@ -1125,6 +1140,7 @@ else do
   h ← tactic.intro1,
   focus1 (do r ← cases_core h ids md, all_goals (intron n), return $ r.map (λ t, t.1))
 
+/-- The same as `exact` except you can add proof holes. -/
 meta def refine (e : pexpr) : tactic unit :=
 do tgt : expr ← target,
    to_expr ``(%%e : %%tgt) tt >>= exact
@@ -1168,6 +1184,7 @@ private meta def mk_aux_decl_name : option name → tactic name
 | none          := new_aux_decl_name
 | (some suffix) := do p ← decl_name, return $ p ++ suffix
 
+/-- Save the goal state. Take the main target, and add   -/
 meta def abstract (tac : tactic unit) (suffix : option name := none) (zeta_reduce := tt) : tactic unit :=
 do fail_if_no_goals,
    gs ← get_goals,
@@ -1260,6 +1277,7 @@ main_goal >>= get_tag
 meta def set_main_tag (t : tag) : tactic unit :=
 do g ← main_goal, set_tag g t
 
+/-- [TODO] docs-/
 meta def subst (h : expr) : tactic unit :=
 (do guard h.is_local_constant,
     some (α, lhs, β, rhs) ← expr.is_heq <$> infer_type h,

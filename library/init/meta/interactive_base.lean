@@ -19,6 +19,7 @@ namespace interactive
     to the tactic. -/
 @[reducible] meta def parse {α : Type} [has_reflect α] (p : parser α) : Type := α
 
+/-- A `loc` is either a 'wildcard', which means "everywhere", or a list of `option name`s. `none` means `target` and `some n` means `n` in the local context.-/
 inductive loc : Type
 | wildcard : loc
 | ns       : list (option name) → loc

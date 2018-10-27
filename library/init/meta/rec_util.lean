@@ -16,7 +16,7 @@ meta def is_type_app_of (e : expr) (I_name : name) : tactic bool :=
 do t ← infer_type e,
    return $ is_constant_of (get_app_fn t) I_name
 
-/- Auxiliary function for using brec_on "dictionary" -/
+/-- Auxiliary function for using brec_on "dictionary" -/
 private meta def mk_rec_inst_aux : expr → nat → tactic expr
 | F 0     := do
   P ← mk_app `pprod.fst [F],

@@ -19,6 +19,8 @@ acc.rec_on h₁ (λ x₁ ac₁ ih h₂, ac₁ y h₂) h₂
 
 end acc
 
+/-- A relation `r : α → α → Prop` is well-founded when `∀ x, (∀ y, r y x → P y → P x) → P x` for all predicates `P`.
+Once you know that a relation is well_founded, you can use it to define fixpoint functions on `α`.-/
 inductive well_founded {α : Sort u} (r : α → α → Prop) : Prop
 | intro (h : ∀ a, acc r a) : well_founded
 
@@ -54,11 +56,11 @@ end
 
 variables {α : Sort u} {C : α → Sort v} {r : α → α → Prop}
 
--- Well-founded fixpoint
+/-- Well-founded fixpoint -/
 def fix (hwf : well_founded r) (F : Π x, (Π y, r y x → C y) → C x) (x : α) : C x :=
 fix_F F x (apply hwf x)
 
--- Well-founded fixpoint satisfies fixpoint equation
+/-- Well-founded fixpoint satisfies fixpoint equation -/
 lemma fix_eq (hwf : well_founded r) (F : Π x, (Π y, r y x → C y) → C x) (x : α) :
   fix hwf F x = F x (λ y h, fix hwf F y) :=
 fix_F_eq F x (apply hwf x)
@@ -66,12 +68,12 @@ end well_founded
 
 open well_founded
 
--- Empty relation is well-founded
+/-- Empty relation is well-founded -/
 def empty_wf {α : Sort u} : well_founded empty_relation :=
 well_founded.intro (λ (a : α),
   acc.intro a (λ (b : α) (lt : false), false.rec _ lt))
 
--- Subrelation of a well-founded relation is well-founded
+/- Subrelation of a well-founded relation is well-founded -/
 namespace subrelation
 section
   parameters {α : Sort u} {r Q : α → α → Prop}
@@ -125,7 +127,7 @@ section
 end
 end tc
 
--- less-than is well-founded
+/-- less-than is well-founded -/
 def nat.lt_wf : well_founded nat.lt :=
 ⟨nat.rec
   (acc.intro 0 (λ n h, absurd h (nat.not_lt_zero n)))
