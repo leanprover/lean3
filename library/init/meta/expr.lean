@@ -58,22 +58,23 @@ end⟩
    They are used for 
    - `sorry`.
    - Term placeholders (`_`) in `pexpr`s.
-   - Expression annotations. You can attach a `name` to any expression. See `expr.is_annotation`. [TODO] how do you add annotations?
-   - Meta-recursive calls (eg `meta def Y : _ | f x := f (Y f) x`).
-   - Builtin projections (see example below).
+   - Expression annotations. You can attach a `name` to any expression. See `expr.is_annotation`. 
+   - Meta-recursive calls. Eg: 
+     ```
+     meta def Y : (α → α) → α | f := f (Y f)
+     ```
+     The `Y` that appears in `f (Y f)` is a macro.
+   - Builtin projections:
+     ```
+     structure foo := (mynat : ℕ)
+     #print foo.mynat
+     -- @[reducible]
+     -- def foo.mynat : foo → ℕ :=
+     -- λ (c : foo), [foo.mynat c]
+     ```
+     The thing in square brackets is a macro.
    - Ephemeral structures inside certain specialised C++ implemented tactics.
-
-   #### Builtin Projections
-   ```
-    structure foo := (mynat : ℕ)
-    #print foo.mynat
-
-    -- @[reducible]
-    -- def foo.mynat : foo → ℕ :=
-    -- λ (c : foo), [foo.mynat c]
-
-   ```
-   The thing in square brackets is a macro.
+   - [TODO] are there any more?
   -/
 meta constant macro_def : Type
 
