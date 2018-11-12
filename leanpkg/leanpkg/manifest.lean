@@ -9,7 +9,7 @@ namespace leanpkg
 
 inductive source
 | path (dir_name : string) : source
-| git (url rev : string) : source
+| git (url rev : string) (branch : option string) : source
 
 namespace source
 
@@ -18,12 +18,18 @@ def from_toml (v : toml.value) : option source :=
     return $ path dir_name) <|>
 (do toml.value.str url ← v.lookup "git" | none,
     toml.value.str rev ← v.lookup "rev" | none,
-    return $ git url rev)
+    match v.lookup "branch" with
+    | none                         := return $ git url rev none
+    | some (toml.value.str branch) := return $ git url rev (some branch)
+    | _ := none
+    end)
 
 def to_toml : ∀ (s : source), toml.value
 | (path dir_name) := toml.value.table [("path", toml.value.str dir_name)]
-| (git url rev) :=
+| (git url rev none) :=
   toml.value.table [("git", toml.value.str url), ("rev", toml.value.str rev)]
+| (git url rev (some branch)) :=
+  toml.value.table [("git", toml.value.str url), ("branch", toml.value.str branch), ("rev", toml.value.str rev)]
 
 /- TODO(Leo): has_to_string -/
 instance : has_repr source :=
