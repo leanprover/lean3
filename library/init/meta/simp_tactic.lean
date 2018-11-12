@@ -31,8 +31,22 @@ meta constant simp_lemmas.mk : simp_lemmas
 meta constant simp_lemmas.join : simp_lemmas → simp_lemmas → simp_lemmas
 meta constant simp_lemmas.erase : simp_lemmas → list name → simp_lemmas
 meta constant simp_lemmas.mk_default : tactic simp_lemmas
+/--[TODO] docs-/
 meta constant simp_lemmas.add : simp_lemmas → expr → tactic simp_lemmas
+/--[TODO] Add a simplification lemma. Give the name of the lemma declaration that you wish to add.
+  eg `my_lemma : LHS = RHS := 
+-/
 meta constant simp_lemmas.add_simp : simp_lemmas → name → tactic simp_lemmas
+/-- Adds a congruence simp lemma to simp_lemmas.
+A congruence simp lemma is a lemma that breaks the simplification down into separate problems.
+For example, to simplify `a ∧ b` to `c ∧ d`, we should try to simp `a` to `c` and `b` to `d`.
+For examples of congruence simp lemmas look for lemmas with the `@[congr]` attribute.
+```lean
+lemma if_simp_congr ... (h_c : b ↔ c) (h_t : x = u) (h_e : y = v) : ite b x y = ite c u v := ...
+lemma imp_congr_right (h : a → (b ↔ c)) : (a → b) ↔ (a → c) := ...
+lemma and_congr (h₁ : a ↔ c) (h₂ : b ↔ d) : (a ∧ b) ↔ (c ∧ d) := ...
+```
+-/
 meta constant simp_lemmas.add_congr : simp_lemmas → name → tactic simp_lemmas
 
 meta def simp_lemmas.append (s : simp_lemmas) (hs : list expr) : tactic simp_lemmas :=
@@ -221,7 +235,7 @@ revert_and_transform (λ e, unfold_projs e cfg) h
 
 structure simp_config :=
 (max_steps : nat           := simp.default_max_steps)
-(contextual : bool         := ff)
+(contextual : bool         := ff) -- [TODO] what does this mean?
 (lift_eq : bool            := tt)
 (canonize_instances : bool := tt)
 (canonize_proofs : bool    := ff)
@@ -259,6 +273,7 @@ do when (expr.is_local_constant h = ff) (fail "tactic simp_at failed, the given 
    (h_new_type, pr) ← simplify s to_unfold htype cfg `eq discharger,
    replace_hyp h h_new_type pr
 
+/-- Returns (a,e,pr), the final user data a, the new expression e, and the proof `pr` that the given expression equals the input one.-/
 meta constant ext_simplify_core
   /- The user state type. -/
   {α : Type}
@@ -273,7 +288,8 @@ meta constant ext_simplify_core
      The argument 'α' is the current user state. -/
   (discharger : α → tactic α)
   /- (pre a s r p e) is invoked before visiting the children of subterm 'e',
-     'r' is the simplification relation being used, 's' is the updated set of lemmas if 'contextual' is tt,
+     's' is the updated set of lemmas if 'contextual' is tt,
+     'r' is the simplification relation being used, 
      'p' is the "parent" expression (if there is one).
      if it succeeds the result is (new_a, new_e, new_pr, flag) where
        - 'new_a' is the new value for the user data
@@ -285,7 +301,7 @@ meta constant ext_simplify_core
      The output is similar to (pre a r s p e), but the 'flag' indicates whether
      the new expression should be revisited or not. -/
   (post : α → simp_lemmas  → name → option expr → expr → tactic (α × expr × option expr × bool))
-  /- simplification relation -/
+  /- simplification relation; usually `=` or `↔`. -/
   (r : name) :
   expr → tactic (α × expr × expr)
 
