@@ -13,6 +13,10 @@ if lean.is_release then
 else
     "master"
 
+def git_default_revision : option string → string
+| none := upstream_git_branch
+| (some branch) := branch
+
 def git_parse_revision (git_repo_dir : string) (rev : string) : io string := do
 rev ← io.cmd {cmd := "git", args := ["rev-parse", "-q", "--verify", rev], cwd := git_repo_dir},
 return rev.pop_back -- remove newline at end
@@ -24,9 +28,9 @@ def git_parse_origin_revision (git_repo_dir : string) (rev : string) : io string
 (git_parse_revision git_repo_dir $ "origin/" ++ rev) <|> git_parse_revision git_repo_dir rev
     <|> io.fail ("cannot find revision " ++ rev ++ " in repository " ++ git_repo_dir)
 
-def git_latest_origin_revision (git_repo_dir : string) : io string := do
+def git_latest_origin_revision (git_repo_dir : string) (branch : option string) : io string := do
 io.cmd {cmd := "git", args := ["fetch"], cwd := git_repo_dir},
-git_parse_origin_revision git_repo_dir upstream_git_branch
+git_parse_origin_revision git_repo_dir (git_default_revision branch)
 
 def git_revision_exists (git_repo_dir : string) (rev : string) : io bool := do
 some _ ← optional (git_parse_revision git_repo_dir (rev ++ "^{commit}"))

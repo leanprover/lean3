@@ -59,11 +59,12 @@ match dep.src with
   let depdir := resolve_dir dir relpath,
   io.put_str_ln $ dep.name ++ ": using local path " ++ depdir,
   modify $ λ assg, assg.insert dep.name depdir
-| (source.git url rev) := do
+| (source.git url rev branch) := do
   let depdir := "_target/deps/" ++ dep.name,
   already_there ← dir_exists depdir,
   if already_there then do {
-    io.put_str_ln $ dep.name ++ ": trying to update " ++ depdir ++ " to revision " ++ rev,
+    io.put_str $ dep.name ++ ": trying to update " ++ depdir ++ " to revision " ++ rev,
+    io.put_str_ln $ match branch with | none := "" | some branch := "@" ++ branch end,
     hash ← git_parse_origin_revision depdir rev,
     rev_ex ← git_revision_exists depdir hash,
     when (¬rev_ex) $

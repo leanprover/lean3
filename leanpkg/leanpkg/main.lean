@@ -99,17 +99,19 @@ if url.backn 4 = ".git" then url.popn_back 4 else url
 def looks_like_git_url (dep : string) : bool :=
 ':' ∈ dep.to_list
 
-def parse_add_dep (dep : string) : io dependency :=
+def parse_add_dep (dep : string) (branch : option string) : io dependency :=
 if looks_like_git_url dep then
-  pure { name := basename (strip_dot_git dep), src := source.git dep upstream_git_branch }
+  pure { name := basename (strip_dot_git dep), src := source.git dep (git_default_revision branch) branch }
 else do
   ex ← dir_exists dep,
-  if ex then
-    pure { name := basename dep, src := source.path dep }
+  if ex then match branch with
+    | some branch := io.fail sformat!"extraneous trailing path argument '{branch}'"
+    | none := pure { name := basename dep, src := source.path dep }
+    end
   else do
     [user, repo] ← pure $ dep.split (= '/')
       | io.fail sformat!"path '{dep}' does not exist",
-    pure { name := repo, src := source.git sformat!"https://github.com/{user}/{repo}" upstream_git_branch }
+    pure { name := repo, src := source.git sformat!"https://github.com/{user}/{repo}" (git_default_revision branch) branch }
 
 def absolutize_dep (dep : dependency) : io dependency :=
 match dep.src with
@@ -119,8 +121,24 @@ match dep.src with
 | _ := pure dep
 end
 
+def parse_install_dep (dep : string) (branch : option string) : io dependency := do
+  dep ← parse_add_dep dep none,
+  dep ← absolutize_dep dep,
+  dot_lean_dir ← get_dot_lean_dir,
+  exec_cmd {cmd := "mkdir", args := ["-p", dot_lean_dir]},
+  let user_toml_fn := dot_lean_dir ++ "/" ++ leanpkg_toml_fn,
+  ex ← exists_file user_toml_fn,
+  when (¬ ex) $ write_manifest {
+      name := "_user_local_packages",
+      version := "1"
+    } user_toml_fn,
+  change_dir dot_lean_dir,
+  return dep
+
 def fixup_git_version (dir : string) : ∀ (src : source), io source
-| (source.git url _) := source.git url <$> git_head_revision dir
+| (source.git url _ _) := do
+  rev ← git_head_revision dir,
+  return $ source.git url rev none
 | src := return src
 
 def add (dep : dependency) : io unit := do
@@ -141,10 +159,10 @@ init_pkg (basename dir) true
 
 def upgrade_dep (assg : assignment) (d : dependency) : io dependency :=
 match d.src with
-| (source.git url rev) := (do
+| (source.git url rev branch) := (do
     some path ← return (assg.find d.name) | io.fail "unresolved dependency",
-    new_rev ← git_latest_origin_revision path,
-    return {d with src := source.git url new_rev})
+    new_rev ← git_latest_origin_revision path branch,
+    return {d with src := source.git url new_rev branch})
   <|> return d
 | _ := return d
 end
@@ -168,11 +186,11 @@ test  [-- <lean-args>] download dependencies, build *.olean files, and run test 
 new <dir>              create a Lean package in a new directory
 init <name>            create a Lean package in the current directory
 
-add <url>              add a dependency from a git repository (uses latest upstream revision)
+add <url> [branch]     add a dependency from a git repository (uses latest upstream revision)
 add <dir>              add a local dependency
 upgrade                upgrade all git dependencies to the latest upstream version
 
-install <url>          install a user-wide package from git
+install <url> [branch] install a user-wide package from git
 install <dir>          install a user-wide package from a local directory
 
 dump                   print the parsed leanpkg.toml file (for debugging)
@@ -185,24 +203,13 @@ def main : ∀ (cmd : string) (leanpkg_args lean_args : list string), io unit
 | "test"      _      lean_args := test lean_args
 | "new"       [dir]  []        := new dir
 | "init"      [name] []        := init name
-| "add"       [dep]  []        := parse_add_dep dep >>= add
+| "add"       [dep]  []        := parse_add_dep dep none >>= add
+| "add"       [dep]  [branch]  := parse_add_dep dep branch >>= add
 | "upgrade"   []     []        := upgrade
-| "install"   [dep]  []        := do
-  dep ← parse_add_dep dep,
-  dep ← absolutize_dep dep,
-  dot_lean_dir ← get_dot_lean_dir,
-  exec_cmd {cmd := "mkdir", args := ["-p", dot_lean_dir]},
-  let user_toml_fn := dot_lean_dir ++ "/" ++ leanpkg_toml_fn,
-  ex ← exists_file user_toml_fn,
-  when (¬ ex) $ write_manifest {
-      name := "_user_local_packages",
-      version := "1"
-    } user_toml_fn,
-  change_dir dot_lean_dir,
-  add dep,
-  build []
-| "dump"       []    []        := read_manifest >>= io.print_ln ∘ repr
-| "help"       ["configure"] [] := io.print_ln "Download dependencies
+| "install"   [dep]  []        := parse_install_dep dep none >>= add >> build []
+| "install"   [dep]  [branch]  := parse_install_dep dep branch >>= add >> build []
+| "dump"      []    []        := read_manifest >>= io.print_ln ∘ repr
+| "help"      ["configure"] [] := io.print_ln "Download dependencies
 
 Usage:
   leanpkg configure
