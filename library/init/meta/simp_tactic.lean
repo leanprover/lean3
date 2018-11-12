@@ -31,11 +31,9 @@ meta constant simp_lemmas.mk : simp_lemmas
 meta constant simp_lemmas.join : simp_lemmas → simp_lemmas → simp_lemmas
 meta constant simp_lemmas.erase : simp_lemmas → list name → simp_lemmas
 meta constant simp_lemmas.mk_default : tactic simp_lemmas
-/--[TODO] docs-/
+/-- Add a simplification lemma by an expression. The expression must have the type `X ~ Y` for some equivalence relation. -/
 meta constant simp_lemmas.add : simp_lemmas → expr → tactic simp_lemmas
-/--[TODO] Add a simplification lemma. Give the name of the lemma declaration that you wish to add.
-  eg `my_lemma : LHS = RHS := 
--/
+/--Add a simplification lemma by it's declaration name.-/
 meta constant simp_lemmas.add_simp : simp_lemmas → name → tactic simp_lemmas
 /-- Adds a congruence simp lemma to simp_lemmas.
 A congruence simp lemma is a lemma that breaks the simplification down into separate problems.
