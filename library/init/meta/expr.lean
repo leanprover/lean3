@@ -74,7 +74,6 @@ end⟩
      ```
      The thing in square brackets is a macro.
    - Ephemeral structures inside certain specialised C++ implemented tactics.
-   - [TODO] are there any more?
   -/
 meta constant macro_def : Type
 

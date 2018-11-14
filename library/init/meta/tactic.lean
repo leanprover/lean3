@@ -236,6 +236,15 @@ meta def trace_state : tactic unit :=
 do s ← read,
    trace $ to_fmt s
 
+/-- A parameter representing how aggressively definitions should be unfolded when trying to decide if two terms match, unify or are definitionally equal.
+By default, theorem declarations are never unfolded. [TODO] there is a config flag `m_unfold_lemmas`that will make it unfold theorems.
+- `all` will unfold everything, including macros and theorems. Except projection macros.
+- `semireducible` will unfold everything except theorems and definitions tagged as irreducible.
+- `instances` will unfold all class instance definitions and definitions tagged with reducible.
+- `reducible` will only unfold definitions tagged with the `reducible` attribute.
+- `none` will never unfold anything.
+[NOTE] You are not allowed to tag a definition with more than one of `reducible`, `irreducible`, `semireducible` attributes.
+ -/
 inductive transparency
 | all | semireducible | instances | reducible | none
 
@@ -267,15 +276,15 @@ meta constant revert_lst    : list expr → tactic nat
     and types are unfolded. Recall that nested and mutually recursive inductive datatype declarations
     are compiled into primitive datatypes accepted by the Kernel. -/
 meta constant whnf (e : expr) (md := semireducible) (unfold_ginductive := tt) : tactic expr
-/-- (head) eta expand the given expression -/
+/-- (head) eta expand the given expression. `f : α → β` head-eta-expands to `λ a, f a`. If `f` isn't a function then it just returns `f`.  -/
 meta constant head_eta_expand : expr → tactic expr
-/-- (head) beta reduction -/
+/-- (head) beta reduction. `(λ x, B) c` reduces to `B[x/c]`. -/
 meta constant head_beta       : expr → tactic expr
-/-- (head) zeta reduction -/
+/-- (head) zeta reduction. Reduction of let bindings at the head of the expression. `let x : a := b in c` reduces to `c[x/b]`. -/
 meta constant head_zeta       : expr → tactic expr
-/-- zeta reduction -/
+/-- Zeta reduction. Reduction of let bindings. `let x : a := b in c` reduces to `c[x/b]`. -/
 meta constant zeta            : expr → tactic expr
-/-- (head) eta reduction -/
+/-- (head) eta reduction. `(λ x, f x)` reduces to `f`. -/
 meta constant head_eta        : expr → tactic expr
 /-- Succeeds if `t` and `s` can be unified using the given transparency setting. -/
 meta constant unify (t s : expr) (md := semireducible) (approx := ff) : tactic unit
@@ -374,14 +383,22 @@ meta constant assertv_core  : name → expr → expr → tactic unit
 meta constant define_core   : name → expr → tactic unit
 /-- `definev_core H T P`, change target to `let H : T := P in target` if P has type T. -/
 meta constant definev_core  : name → expr → expr → tactic unit
-/-- rotate goals to the left -/
+/-- Rotate goals to the left. That is, `rotate_left 1` takes the main goal and puts it to the back of the subgoal list. -/
 meta constant rotate_left   : nat → tactic unit
+/--Gets a list of metavariables, one for each goal. -/
 meta constant get_goals     : tactic (list expr)
+/--Replace the current list of goals with the given one. Each expr in the list should be a metavariable. Any assigned metavariables will be ignored.-/
 meta constant set_goals     : list expr → tactic unit
+/--How to order the new goals made from an `apply` tactic. 
+Supposing we were applying `e : ∀ (a:α) (p : P(a)), Q`
+- `non_dep_first` would produce goals `⊢ P(?m)`, `⊢ α`. It puts the P goal at the front because none of the arguments after `p` in `e` depend on `p`. It doesn't matter what the result `Q` depends on.
+- `non_dep_only` would produce goal `⊢ P(?m)`.
+- `all` would produce goals `⊢ α`, `⊢ P(?m)`.
+-/
 inductive new_goals
 | non_dep_first | non_dep_only | all
 /-- Configuration options for the `apply` tactic.
-
+- `md` sets how aggressively definitions are unfolded.
 - `new_goals` is the strategy for ordering new goals.
 - `instances` if `tt`, then `apply` tries to synthesize unresolved `[...]` arguments using type class resolution.
 - `auto_param` if `tt`, then `apply` tries to synthesize unresolved `(h : p . tac_id)` arguments using tactic `tac_id`.
@@ -399,8 +416,9 @@ structure apply_cfg :=
 (auto_param    := tt)
 (opt_param     := tt)
 (unify         := tt)
-/-- Apply the expression `e` to the main goal,
-    the unification is performed using the transparency mode in `cfg`.
+/-- Apply the expression `e` to the main goal, the unification is performed using the transparency mode in `cfg`.
+    Supposing `e : Π (a₁:α₁) ... (aₙ:αₙ), P(a₁,...,aₙ)` and the target is `Q`, `apply` will attempt to unify `Q` with `P(?a₁,...?aₙ)`.
+    All of the metavariables that are not assigned are added as new metavariables.
     If `cfg.approx` is `tt`, then fallback to first-order unification, and approximate context during unification.
     `cfg.new_goals` specifies which unassigned metavariables become new goals, and their order.
     If `cfg.instances` is `tt`, then use type class resolution to instantiate unassigned meta-variables.
@@ -421,6 +439,7 @@ meta constant get_assignment : expr → tactic expr
 /-- Return true if the given meta-variable is assigned.
     Fail if argument is not a meta-variable. -/
 meta constant is_assigned : expr → tactic bool
+/--Make a name that is guaranteed to be unique. Eg `_fresh.1001.4667`. These will be different for each run of the tactic.  -/
 meta constant mk_fresh_name : tactic name
 
 /-- Induction on `h` using recursor `rec`, names for the new hypotheses
@@ -454,8 +473,9 @@ meta constant instantiate_mvars : expr → tactic expr
 meta constant add_decl : declaration → tactic unit
 /-- Changes the environment to the `new_env`. `new_env` needs to be a descendant from the current environment. -/
 meta constant set_env : environment → tactic unit
-/-- (doc_string env d k) return the doc string for d (if available) -/
+/-- `doc_string env d k` returns the doc string for `d` (if available) -/
 meta constant doc_string : name → tactic string
+/-- Set the docstring for the given declaration. -/
 meta constant add_doc_string : name → string → tactic unit
 /--
 Create an auxiliary definition with name `c` where `type` and `value` may contain local constants and
@@ -516,14 +536,14 @@ meta constant sleep (msecs : nat) : tactic unit
 meta constant type_check (e : expr) (md := semireducible) : tactic unit
 open list nat
 
-/-- Goals can be tagged using a list of names. -/
+/-- A `tag` is a list of `names`. These are attached to goals to help tactics track them.-/
 def tag : Type := list name
 
-/-- Enable/disable goal tagging -/
+/-- Enable/disable goal tagging.  -/
 meta constant enable_tags (b : bool) : tactic unit
 /-- Return tt iff goal tagging is enabled. -/
 meta constant tags_enabled : tactic bool
-/-- Tag goal `g` with tag `t`. It does nothing is goal tagging is disabled.
+/-- Tag goal `g` with tag `t`. It does nothing if goal tagging is disabled.
     Remark: `set_goal g []` removes the tag -/
 meta constant set_tag (g : expr) (t : tag) : tactic unit
 /-- Return tag associated with `g`. Return `[]` if there is no tag. -/
