@@ -165,7 +165,10 @@ quot.lift f _ (quot.mk a) ~~> f a
 -/
 init_quotient
 
-/--Higher equality. It sets the types to be equal as well as the values.-/
+/-- Heterogeneous equality. 
+It's purpose is to write down equalities between terms whose types are not definitionally equal.
+For example, given `x : vector α n` and `y : vector α (0+n)`, `x = y` doesn't typecheck but `x == y` does.
+ -/
 inductive heq {α : Sort u} (a : α) : Π {β : Sort u}, β → Prop
 | refl : heq a
 
