@@ -10,73 +10,76 @@ prelude
 notation `Prop` := Sort 0
 notation f ` $ `:1 a:0 := f a
 
-/- Logical operations and relations -/
+/- Reserving notation. We do this sot that the precedence of all of the operators
+can be seen in one place and to prevent core notation being accidentally overloaded later.  -/
 
-reserve prefix `¬`:40
-reserve prefix `~`:40
-reserve infixr ` ∧ `:35
-reserve infixr ` /\ `:35
-reserve infixr ` \/ `:30
-reserve infixr ` ∨ `:30
-reserve infix ` <-> `:20
-reserve infix ` ↔ `:20
-reserve infix ` = `:50
-reserve infix ` == `:50
-reserve infix ` ≠ `:50
-reserve infix ` ≈ `:50
-reserve infix ` ~ `:50
-reserve infix ` ≡ `:50
-reserve infixl ` ⬝ `:75
-reserve infixr ` ▸ `:75
-reserve infixr ` ▹ `:75
+/- Notation for logical operations and relations -/
+
+reserve prefix `¬`:40    
+reserve prefix `~`:40    -- not used
+reserve infixr ` ∧ `:35  
+reserve infixr ` /\ `:35 
+reserve infixr ` \/ `:30 
+reserve infixr ` ∨ `:30  
+reserve infix ` <-> `:20 
+reserve infix ` ↔ `:20  
+reserve infix ` = `:50   -- eq
+reserve infix ` == `:50  -- heq
+reserve infix ` ≠ `:50   
+reserve infix ` ≈ `:50   -- has_equiv.equiv
+reserve infix ` ~ `:50   -- used as local notation for relations
+reserve infix ` ≡ `:50   -- not used
+reserve infixl ` ⬝ `:75  -- not used
+reserve infixr ` ▸ `:75  -- eq.subst
+reserve infixr ` ▹ `:75  -- not used
 
 /- types and type constructors -/
 
-reserve infixr ` ⊕ `:30
-reserve infixr ` × `:35
+reserve infixr ` ⊕ `:30  -- sum (defined in init/data/sum/basic.lean)
+reserve infixr ` × `:35 
 
 /- arithmetic operations -/
 
-reserve infixl ` + `:65
-reserve infixl ` - `:65
-reserve infixl ` * `:70
-reserve infixl ` / `:70
-reserve infixl ` % `:70
-reserve prefix `-`:100
-reserve infixr ` ^ `:80
+reserve infixl ` + `:65 
+reserve infixl ` - `:65 
+reserve infixl ` * `:70 
+reserve infixl ` / `:70 
+reserve infixl ` % `:70 
+reserve prefix `-`:100  
+reserve infixr ` ^ `:80 
 
-reserve infixr ` ∘ `:90                 -- input with \comp
+reserve infixr ` ∘ `:90  -- function composition
 
-reserve infix ` <= `:50
-reserve infix ` ≤ `:50
-reserve infix ` < `:50
-reserve infix ` >= `:50
-reserve infix ` ≥ `:50
-reserve infix ` > `:50
+reserve infix ` <= `:50  
+reserve infix ` ≤ `:50   
+reserve infix ` < `:50   
+reserve infix ` >= `:50  
+reserve infix ` ≥ `:50   
+reserve infix ` > `:50   
 
 /- boolean operations -/
 
-reserve infixl ` && `:70
-reserve infixl ` || `:65
+reserve infixl ` && `:70 
+reserve infixl ` || `:65 
 
 /- set operations -/
 
-reserve infix ` ∈ `:50
-reserve infix ` ∉ `:50
-reserve infixl ` ∩ `:70
-reserve infixl ` ∪ `:65
-reserve infix ` ⊆ `:50
-reserve infix ` ⊇ `:50
-reserve infix ` ⊂ `:50
+reserve infix ` ∈ `:50   
+reserve infix ` ∉ `:50   
+reserve infixl ` ∩ `:70  
+reserve infixl ` ∪ `:65  
+reserve infix ` ⊆ `:50   
+reserve infix ` ⊇ `:50   
+reserve infix ` ⊂ `:50   
 reserve infix ` ⊃ `:50
-reserve infix ` \ `:70
+reserve infix ` \ `:70   -- symmetric difference
 
 /- other symbols -/
 
-reserve infix ` ∣ `:50
-reserve infixl ` ++ `:65
-reserve infixr ` :: `:67
-reserve infixl `; `:1
+reserve infix ` ∣ `:50   -- has_dvd.dvd
+reserve infixl ` ++ `:65 -- has_append.append
+reserve infixr ` :: `:67 -- list.cons
+reserve infixl `; `:1    -- has_andthen.andthen
 
 universes u v w
 
