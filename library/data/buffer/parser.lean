@@ -9,6 +9,7 @@ inductive parse_result (α : Type)
 | done (pos : ℕ) (result : α) : parse_result
 | fail (pos : ℕ) (expected : dlist string) : parse_result
 
+/-- The parser monad. If you are familiar with the Parsec library in Haskell, you will understand this.  -/
 def parser (α : Type) :=
 ∀ (input : char_buffer) (start : ℕ), parse_result α
 
@@ -171,6 +172,7 @@ many p >> eps
 def many1 (p : parser α) : parser (list α) :=
 list.cons <$> p <*> many p
 
+/-- Matches one of more occurences of the char parser `p` and implodes them into a string. -/
 def many_char1 (p : parser char) : parser string :=
 list.as_string <$> many1 p
 
