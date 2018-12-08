@@ -237,13 +237,14 @@ do s ← read,
    trace $ to_fmt s
 
 /-- A parameter representing how aggressively definitions should be unfolded when trying to decide if two terms match, unify or are definitionally equal.
-By default, theorem declarations are never unfolded. [TODO] there is a config flag `m_unfold_lemmas`that will make it unfold theorems.
+By default, theorem declarations are never unfolded. 
 - `all` will unfold everything, including macros and theorems. Except projection macros.
 - `semireducible` will unfold everything except theorems and definitions tagged as irreducible.
 - `instances` will unfold all class instance definitions and definitions tagged with reducible.
 - `reducible` will only unfold definitions tagged with the `reducible` attribute.
 - `none` will never unfold anything.
 [NOTE] You are not allowed to tag a definition with more than one of `reducible`, `irreducible`, `semireducible` attributes.
+[NOTE] there is a config flag `m_unfold_lemmas`that will make it unfold theorems.
  -/
 inductive transparency
 | all | semireducible | instances | reducible | none
@@ -1297,7 +1298,6 @@ main_goal >>= get_tag
 meta def set_main_tag (t : tag) : tactic unit :=
 do g ← main_goal, set_tag g t
 
-/-- [TODO] docs-/
 meta def subst (h : expr) : tactic unit :=
 (do guard h.is_local_constant,
     some (α, lhs, β, rhs) ← expr.is_heq <$> infer_type h,

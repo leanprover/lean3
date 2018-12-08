@@ -184,6 +184,7 @@ end name_map
 meta def mk_name_map {data : Type} : name_map data :=
 name_map.mk data
 
+/-- An rb_map of `name`s. -/
 meta constant name_set : Type
 meta constant mk_name_set : name_set
 

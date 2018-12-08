@@ -58,7 +58,7 @@ end⟩
    They are used for 
    - `sorry`.
    - Term placeholders (`_`) in `pexpr`s.
-   - Expression annotations. You can attach a `name` to any expression. See `expr.is_annotation`. 
+   - Expression annotations. See `expr.is_annotation`. 
    - Meta-recursive calls. Eg: 
      ```
      meta def Y : (α → α) → α | f := f (Y f)
@@ -117,7 +117,9 @@ meta instance : inhabited expr := ⟨expr.sort level.zero⟩
 meta constant expr.macro_def_name (d : macro_def) : name
 meta def expr.mk_var (n : nat) : expr := expr.var n
 
-/- Expressions can be annotated using the annotation macro. -/
+/-- Expressions can be annotated using an annotation macro during compilation.
+For example, a `have x:X, from p, q` expression will be compiled to `(λ x:X,q)(p)`, but nested in an annotation macro with the name `"have"`. 
+These annotations have no real semantic meaning, but are useful for helping Lean's pretty printer. -/
 meta constant expr.is_annotation : expr elab → option (name × expr elab)
 
 /-- Remove all macro annotations from the given `expr`. -/
@@ -141,10 +143,13 @@ protected meta constant expr.to_string : expr elab → string
 meta instance : has_to_string (expr elab) := ⟨expr.to_string⟩
 meta instance : has_to_format (expr elab) := ⟨λ e, e.to_string⟩
 
-/- Coercion for letting users write (f a) instead of (expr.app f a) -/
+/-- Coercion for letting users write (f a) instead of (expr.app f a) -/
 meta instance : has_coe_to_fun (expr elab) :=
 { F := λ e, expr elab → expr elab, coe := λ e, expr.app e }
 
+/-- Each expression created by Lean carries a hash. 
+This is calculated upon creation of the expression. 
+Two structurally equal expressions will have the same hash. -/
 meta constant expr.hash : expr → nat
 
 /-- Compares expressions, ignoring binder names, and sorting by hash. -/
@@ -162,14 +167,17 @@ meta constant expr.fold {α : Type} : expr → α → (expr → nat → α → �
  -/
 meta constant expr.replace : expr → (expr → nat → option expr) → expr
 
-/-- `abstract_local e n` replaces each instance of the local constant with ([TODO] unique? pretty?) name `n` in `e` with a de-Bruijn variable. -/
+/-- `abstract_local e n` replaces each instance of the local constant with unique (not pretty) name `n` in `e` with a de-Bruijn variable. -/
 meta constant expr.abstract_local  : expr → name → expr
+/-- Multi version of `abstract_local`. Note that the given expression will only be traversed once, so this is not the same as `list.foldl expr.abstract_local`.-/
 meta constant expr.abstract_locals : expr → list name → expr
-
+/-- `abstract e x` Abstracts the expression `e` over the local constant `x`.  -/
 meta def expr.abstract : expr → expr → expr
 | e (expr.local_const n m bi t) := e.abstract_local n
 | e _                           := e
 
+/-- Expressions depend on `level`s, and these may depend on universe parameters which have names.
+`instantiate_univ_params e [(n₁,l₁), ...]` will traverse `e` and replace any universe parameters with name `nᵢ` with the corresponding level `lᵢ`.  -/
 meta constant expr.instantiate_univ_params : expr → list (name × level) → expr
 /-- `instantiate_var a b` takes the 0th de-Bruijn variable in `a` and replaces each occurrence with `b`. -/
 meta constant expr.instantiate_var         : expr → expr → expr
@@ -196,16 +204,23 @@ meta constant expr.lift_vars     : expr → nat → nat → expr
 protected meta constant expr.pos : expr elab → option pos
 /-- `copy_pos_info src tgt` copies position information from `src` to `tgt`. -/
 meta constant expr.copy_pos_info : expr → expr → expr
-/- [TODO] As far as I can tell, this is checking if the given expr is a constant and then checking that it ends with `_cnstr`. It is not used anywhere in Lean. -/
+/-- Returns `some n` when the given expression is a constant with the name `..._cnstr.n` 
+```
+is_internal_cnstr : expr → option unsigned
+|(const (mk_numeral n (mk_string "_cnstr" _)) _) := some n
+|_ := none
+```
+[NOTE] This is not used anywhere in core Lean.
+-/
 meta constant expr.is_internal_cnstr : expr → option unsigned
-/- [TODO] There is a macro called a "nat value macro". This function extracts that to a natural number. 
-I don't know how these macros are used or created. -/
+/-- There is a macro called a "nat_value_macro" holding a natural number which are used during compilation. 
+This function extracts that to a natural number. [NOTE] This is not used anywhere in Lean. -/
 meta constant expr.get_nat_value : expr → option nat
 /-- Get a list of all of the universe parameters that the given expression depends on. -/
 meta constant expr.collect_univ_params : expr → list name
-/-- `occurs e t` returns `tt` iff `e` occurs in `t`. [TODO] up to what equivalence? -/
+/-- `occurs e t` returns `tt` iff `e` occurs in `t` up to α-equivalence. Purely structural: no unification or definitional equality. -/
 meta constant expr.occurs        : expr → expr → bool
-
+/-- Returns true if any of the names in the given `name_set` are present in the given `expr`. -/
 meta constant expr.has_local_in : expr → name_set → bool
 
 /-- (reflected a) is a special opaque container for a closed `expr` representing `a`.
