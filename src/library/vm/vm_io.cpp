@@ -21,6 +21,7 @@ Author: Leonardo de Moura
 #endif
 #include <util/unit.h>
 #include "util/sstream.h"
+#include "util/utf8.h"
 #include "library/handle.h"
 #include "library/io_state.h"
 #include "library/constants.h"
@@ -116,9 +117,8 @@ static vm_obj to_obj(std::shared_ptr<child> && h) {
 inductive io.mode
 | read | write | read_write | append
 */
-char const * to_c_io_mode(vm_obj const & mode, vm_obj const & bin) {
-    bool is_bin = to_bool(bin);
-    switch (cidx(mode)) {
+char const * to_c_io_mode(unsigned int mode, bool is_bin) {
+    switch (mode) {
     case 0: return is_bin ? "rb" : "r";
     case 1: return is_bin ? "wb" : "w";
     case 2: return is_bin ? "r+b" : "r+";
@@ -130,9 +130,10 @@ char const * to_c_io_mode(vm_obj const & mode, vm_obj const & bin) {
 
 /* (mk_file_handle : string → io.mode → bool → m io.error handle) */
 static vm_obj fs_mk_file_handle(vm_obj const & fname, vm_obj const & m, vm_obj const & bin, vm_obj const &) {
-    FILE * h = fopen(to_string(fname).c_str(), to_c_io_mode(m, bin));
+    bool is_bin = to_bool(bin);
+    FILE * h = fopen(to_string(fname).c_str(), to_c_io_mode(cidx(m), is_bin));
     if (h != nullptr)
-        return mk_io_result(to_obj(std::make_shared<handle>(h)));
+        return mk_io_result(to_obj(std::make_shared<handle>(h, is_bin)));
     else
         return mk_io_failure(sstream() << "failed to open file '" << to_string(fname) << "'");
 }
@@ -194,15 +195,28 @@ static vm_obj fs_read(vm_obj const & h, vm_obj const & n, vm_obj const &) {
     if (href->is_closed()) return mk_handle_has_been_closed_error();
     buffer<char> tmp;
     unsigned num = force_to_unsigned(n); /* TODO(Leo): handle size_t */
-    tmp.resize(num, 0);
-    size_t sz = fread(tmp.data(), 1, num, href->m_file);
+    size_t bytes = num * (href->m_binary ? 1 : 4);
+    tmp.resize(bytes, 0);
+    size_t sz = fread(tmp.data(), 1, bytes, href->m_file);
     if (ferror(href->m_file)) {
         clearerr(href->m_file);
         return mk_io_failure("read failed");
     }
     parray<vm_obj> r;
-    for (size_t i = 0; i < sz; i++) {
-        r.push_back(mk_vm_simple(static_cast<unsigned char>(tmp[i])));
+    if (href->m_binary) {
+        for (size_t i = 0; i < sz; i++) {
+            r.push_back(mk_vm_simple(static_cast<unsigned char>(tmp[i])));
+        }
+    } else {
+        size_t i = 0;
+        for (ssize_t chars = 0; chars < num && i < sz; chars++) {
+            r.push_back(mk_vm_simple(next_utf8_buff(tmp.data(), sz, i)));
+        }
+
+        ssize_t extra = static_cast<ssize_t>(sz - i);
+        if (extra > 0) {
+            fseek(href->m_file, -extra, SEEK_CUR);
+        }
     }
     return mk_io_result(mk_buffer(r));
 }
@@ -218,7 +232,11 @@ static vm_obj fs_write(vm_obj const & h, vm_obj const & b, vm_obj const &) {
     parray<vm_obj> const & a = to_array(cfield(b, 1));
     unsigned sz = a.size();
     for (unsigned i = 0; i < sz; i++) {
-        tmp.push_back(static_cast<unsigned char>(cidx(a[i])));
+        if (href->m_binary) {
+            tmp.push_back(static_cast<unsigned char>(cidx(a[i])));
+        } else {
+            push_unicode_scalar(tmp, cidx(a[i]));
+        }
     }
 
     try {
@@ -253,15 +271,15 @@ static vm_obj fs_get_line(vm_obj const & h, vm_obj const &) {
 }
 
 static vm_obj fs_stdin(vm_obj const &) {
-    return mk_io_result(to_obj(std::make_shared<handle>(stdin)));
+    return mk_io_result(to_obj(std::make_shared<handle>(stdin, false)));
 }
 
 static vm_obj fs_stdout(vm_obj const &) {
-    return mk_io_result(to_obj(std::make_shared<handle>(stdout)));
+    return mk_io_result(to_obj(std::make_shared<handle>(stdout, false)));
 }
 
 static vm_obj fs_stderr(vm_obj const &) {
-    return mk_io_result(to_obj(std::make_shared<handle>(stderr)));
+    return mk_io_result(to_obj(std::make_shared<handle>(stderr, false)));
 }
 
 /*

@@ -21,7 +21,8 @@ public:
 class handle {
 public:
     FILE * m_file;
-    handle(FILE * file_desc):m_file(file_desc) {}
+    bool m_binary;
+    handle(FILE * file_desc, bool binary):m_file(file_desc), m_binary(binary) {}
 
     void close();
 
