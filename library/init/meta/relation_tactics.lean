@@ -36,7 +36,7 @@ do (const c _) ← return e.get_app_fn,
    (some lhs) ← return $ args.nth lhs_pos,
    (some rhs) ← return $ args.nth rhs_pos,
    return (c, lhs, rhs)
-
+/-- If the main target has the form `r lhs rhs`, then return `(r,lhs,rhs)`. -/
 meta def target_lhs_rhs : tactic (name × expr × expr) :=
 target >>= relation_lhs_rhs
 
