@@ -12,7 +12,8 @@ open tactic
 
 universe u
 
-/-- `conv α` is a tactic for discharging goals of the form `lhs ~ rhs` for some relation `~` (usually equality) and fixed lhs, rhs. 
+/-- `conv α` is a tactic for discharging goals of the form `lhs ~ rhs` for some relation `~` (usually equality) and fixed lhs, rhs.
+Known in the literature as a __conversion__ tactic.
 So for example, if one had the lemma `p : x = y`, then the conversion for `p` would be one that solves `p`. 
 -/
 meta def conv (α : Type u) :=
@@ -102,7 +103,7 @@ private meta def congr_aux : list congr_arg_kind → list expr → tactic (list 
   end
 | ks      as := fail "congr tactic failed, unsupported congruence lemma"
 
-/-- Use congruence lemmas. -/
+/-- Take the target equality `f x y = X` and try to apply the congruence lemma for `f` to it (namely `x = x' → y = y' → f x y = f x' y'`). -/
 meta def congr : conv unit :=
 do (r, lhs, rhs) ← target_lhs_rhs,
    guard (r = `eq),
@@ -116,6 +117,7 @@ do (r, lhs, rhs) ← target_lhs_rhs,
    set_goals $ new_gs ++ gs,
    return ()
 
+/-- Create a conversion from the function extensionality tactic.-/
 meta def funext : conv unit :=
 iterate $ do
   (r, lhs, rhs) ← target_lhs_rhs,
