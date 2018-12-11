@@ -64,7 +64,9 @@ hs.mfoldl simp_lemmas.add s
 meta constant simp_lemmas.rewrite (s : simp_lemmas) (e : expr)
                                   (prove : tactic unit := failed) (r : name := `eq) (md := reducible)
                                   : tactic (expr × expr)
-
+meta constant simp_lemmas.rewrites (s : simp_lemmas) (e : expr)
+                                  (prove : tactic unit := failed) (r : name := `eq) (md := reducible)
+                                  : tactic $ list (expr × expr)
 /-- `simp_lemmas.drewrite s e` tries to rewrite 'e' using only refl lemmas in 's' -/
 meta constant simp_lemmas.drewrite (s : simp_lemmas) (e : expr) (md := reducible) : tactic expr
 
