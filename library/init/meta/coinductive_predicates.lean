@@ -405,7 +405,7 @@ meta def add_coinductive_predicate
         bs ← intros,
         ms ← apply_core ((const n u_params).app_of_list $ ps ++ fs.map prod.fst) {new_goals := new_goals.all},
         params ← (ms.zip bs).enum.mfilter (λ⟨n, m, d⟩, bnot <$> is_assigned m.2),
-        params.mmap' (λ⟨n, m, d⟩, mono d (fs.map prod.snd) <|>
+        params.mmap' (λ⟨n, m, d⟩, mono d (fs.map prod.snd) <|> exact d <|>
           fail format! "failed to prove montonoicity of {n+1}. parameter of intro-rule {pp_n}")))),
 
   pds.mmap' (λpd, do
@@ -527,8 +527,10 @@ meta def add_coinductive_predicate
                 (eqs, eq') ← elim_gen_prod (n_eqs - 1) h [],
                 (eqs ++ [eq']).mmap' subst
               else skip,
-              eapply ((const r.func_nm u_params).app_of_list $ ps ++ fs),
-              iterate assumption)
+              vs ← apply_core ((const r.func_nm u_params).app_of_list $ ps ++ fs),
+              vs ← vs.mfilter (λ v, bnot <$> is_assigned v.2),
+              (vs.zip (as ++ [h])).mmap' (λ ⟨v,a⟩, unify v.2 a),
+              cleanup )
           end),
         exact h)),
 

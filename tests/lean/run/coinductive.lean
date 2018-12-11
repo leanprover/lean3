@@ -104,3 +104,26 @@ end
 
 coinductive foo : list ℕ → Prop
 | mk : ∀ xs, (∀ k l m, foo (k::l::m::xs)) → foo xs
+
+coinductive rel : ℕ → ℕ → Prop
+| trans (x y z : ℕ) :
+  rel x y → rel y z → rel x z
+
+#check rel.corec_on
+-- rel.corec_on :
+--   ∀ (C : ℕ → ℕ → Prop) {a a_1 : ℕ},
+--     C a a_1 → (∀ (a a_1 : ℕ), C a a_1 → (∃ (y : ℕ), C a y ∧ C y a_1)) → rel a a_1
+
+coinductive rel' : ℕ → ℕ → Prop
+| trans (x y z w : ℕ) :
+  rel' x y → rel' y z → rel' x z
+| trans2 (x y z w : ℕ) :
+  rel' y z -> rel' x y -> rel' z w -> rel' x w
+
+#check rel'.corec_on
+-- rel'.corec_on :
+--   ∀ (C : ℕ → ℕ → Prop) {a a_1 : ℕ},
+--     C a a_1 →
+--     (∀ (a a_1 : ℕ),
+--        C a a_1 → ((∃ (y w : ℕ), C a y ∧ C y a_1) ∨ ∃ (y z : ℕ), C y z ∧ C a y ∧ C z a_1)) →
+--     rel' a a_1
