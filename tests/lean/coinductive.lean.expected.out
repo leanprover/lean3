@@ -1,0 +1,166 @@
+all_stream : Π {α : Type u}, set α → stream α → Prop
+all_stream.cases_on : ∀ {α : Type u} (s : set α) {C : stream α → Prop} {a : stream α},
+  all_stream s a → (∀ {a : α} {ω : stream α}, a ∈ s → all_stream s ω → C (a :: ω)) → C a
+all_stream.construct : ∀ {α : Type u} (s : set α) {a : stream α}, all_stream.functional s (all_stream s) a → all_stream s a
+all_stream.corec_functional : ∀ {α : Type u} (s : set α) (C : stream α → Prop),
+  (∀ {a : stream α}, C a → all_stream.functional s C a) → ∀ {a : stream α}, C a → all_stream s a
+all_stream.corec_on : ∀ {α : Type u} (s : set α) (C : stream α → Prop) {a : stream α},
+  C a →
+  (∀ (a : stream α), C a → (∃ {a_1 : α} {ω : stream α}, a_1 ∈ s ∧ C ω ∧ a_1 :: ω = a)) →
+  all_stream s a
+all_stream.destruct : ∀ {α : Type u} (s : set α) {a : stream α}, all_stream s a → all_stream.functional s (all_stream s) a
+all_stream.functional : Π {α : Type u}, set α → (stream α → Prop) → stream α → Prop
+all_stream.functional.mono : ∀ {α : Type u} (s : set α) (C C₂ : stream α → Prop),
+  (∀ {a : stream α}, C a → C₂ a) →
+  ∀ {a : stream α}, all_stream.functional s C a → all_stream.functional s C₂ a
+all_stream.functional.rec : ∀ {α : Type u} {s : set α} {C C_1 : stream α → Prop},
+  (∀ {a : α} {ω : stream α}, a ∈ s → C ω → C_1 (a :: ω)) →
+  ∀ {a : stream α}, all_stream.functional s C a → C_1 a
+all_stream.functional.step : ∀ {α : Type u} (s : set α) (C : stream α → Prop) {a : α} {ω : stream α},
+  a ∈ s → C ω → all_stream.functional s C (a :: ω)
+all_stream.step : ∀ {α : Type u} (s : set α) {a : α} {ω : stream α}, a ∈ s → all_stream s ω → all_stream s (a :: ω)
+all_stream : Π {α : Type u}, set α → stream α → Prop
+all_stream.step :
+  ∀ {α : Type u} (s : set α) {a : α} {ω : stream α}, a ∈ s → all_stream s ω → all_stream s (a :: ω)
+all_stream.corec_functional :
+  ∀ {α : Type u} (s : set α) (C : stream α → Prop),
+    (∀ {a : stream α}, C a → all_stream.functional s C a) → ∀ {a : stream α}, C a → all_stream s a
+alt_stream : stream bool → Prop
+alt_stream.cases_on : ∀ {C : stream bool → Prop} {a : stream bool},
+  alt_stream a →
+  (∀ {ω : stream bool}, alt_stream (ff :: ω) → C (tt :: ff :: ω)) →
+  (∀ {ω : stream bool}, alt_stream (tt :: ω) → C (ff :: tt :: ω)) → C a
+alt_stream.construct : ∀ {a : stream bool}, alt_stream.functional alt_stream a → alt_stream a
+alt_stream.corec_functional : ∀ (C : stream bool → Prop),
+  (∀ {a : stream bool}, C a → alt_stream.functional C a) → ∀ {a : stream bool}, C a → alt_stream a
+alt_stream.corec_on : ∀ (C : stream bool → Prop) {a : stream bool},
+  C a →
+  (∀ (a : stream bool),
+     C a →
+     ((∃ {ω : stream bool}, C (ff :: ω) ∧ tt :: ff :: ω = a) ∨
+        ∃ {ω : stream bool}, C (tt :: ω) ∧ ff :: tt :: ω = a)) →
+  alt_stream a
+alt_stream.destruct : ∀ {a : stream bool}, alt_stream a → alt_stream.functional alt_stream a
+alt_stream.ff_step : ∀ {ω : stream bool}, alt_stream (tt :: ω) → alt_stream (ff :: tt :: ω)
+alt_stream.functional : (stream bool → Prop) → stream bool → Prop
+alt_stream.functional.ff_step : ∀ (C : stream bool → Prop) {ω : stream bool}, C (tt :: ω) → alt_stream.functional C (ff :: tt :: ω)
+alt_stream.functional.mono : ∀ (C C₂ : stream bool → Prop),
+  (∀ {a : stream bool}, C a → C₂ a) →
+  ∀ {a : stream bool}, alt_stream.functional C a → alt_stream.functional C₂ a
+alt_stream.functional.rec : ∀ {C C_1 : stream bool → Prop},
+  (∀ {ω : stream bool}, C (ff :: ω) → C_1 (tt :: ff :: ω)) →
+  (∀ {ω : stream bool}, C (tt :: ω) → C_1 (ff :: tt :: ω)) →
+  ∀ {a : stream bool}, alt_stream.functional C a → C_1 a
+alt_stream.functional.tt_step : ∀ (C : stream bool → Prop) {ω : stream bool}, C (ff :: ω) → alt_stream.functional C (tt :: ff :: ω)
+alt_stream.tt_step : ∀ {ω : stream bool}, alt_stream (ff :: ω) → alt_stream (tt :: ff :: ω)
+alt_stream : stream bool → Prop
+alt_stream.tt_step : ∀ {ω : stream bool}, alt_stream (ff :: ω) → alt_stream (tt :: ff :: ω)
+alt_stream.ff_step : ∀ {ω : stream bool}, alt_stream (tt :: ω) → alt_stream (ff :: tt :: ω)
+alt_stream.corec_functional :
+  ∀ (C : stream bool → Prop),
+    (∀ {a : stream bool}, C a → alt_stream.functional C a) → ∀ {a : stream bool}, C a → alt_stream a
+tt_stream : stream bool → Prop
+tt_stream.cases_on : ∀ {C_tt_stream : stream bool → Prop} {a : stream bool},
+  tt_stream a → (∀ {ω : stream bool}, ff_stream ω → C_tt_stream (tt :: ω)) → C_tt_stream a
+tt_stream.construct : ∀ {a : stream bool}, tt_stream.functional tt_stream ff_stream a → tt_stream a
+tt_stream.corec_functional : ∀ (C_tt_stream C_ff_stream : stream bool → Prop),
+  (∀ {a : stream bool}, C_tt_stream a → tt_stream.functional C_tt_stream C_ff_stream a) →
+  (∀ {a : stream bool}, C_ff_stream a → ff_stream.functional C_tt_stream C_ff_stream a) →
+  ∀ {a : stream bool}, C_tt_stream a → tt_stream a
+tt_stream.corec_on : ∀ (C_tt_stream C_ff_stream : stream bool → Prop) {a : stream bool},
+  C_tt_stream a →
+  (∀ (a : stream bool), C_tt_stream a → (∃ {ω : stream bool}, C_ff_stream ω ∧ tt :: ω = a)) →
+  (∀ (a : stream bool), C_ff_stream a → (∃ {ω : stream bool}, C_tt_stream ω ∧ ff :: ω = a)) → tt_stream a
+tt_stream.destruct : ∀ {a : stream bool}, tt_stream a → tt_stream.functional tt_stream ff_stream a
+tt_stream.functional : (stream bool → Prop) → (stream bool → Prop) → stream bool → Prop
+tt_stream.functional.mono : ∀ (C_tt_stream C₂_tt_stream : stream bool → Prop),
+  (∀ {a : stream bool}, C_tt_stream a → C₂_tt_stream a) →
+  ∀ (C_ff_stream C₂_ff_stream : stream bool → Prop),
+    (∀ {a : stream bool}, C_ff_stream a → C₂_ff_stream a) →
+    ∀ {a : stream bool},
+      tt_stream.functional C_tt_stream C_ff_stream a → tt_stream.functional C₂_tt_stream C₂_ff_stream a
+tt_stream.functional.rec : ∀ {C_tt_stream C_ff_stream C : stream bool → Prop},
+  (∀ {ω : stream bool}, C_ff_stream ω → C (tt :: ω)) →
+  ∀ {a : stream bool}, tt_stream.functional C_tt_stream C_ff_stream a → C a
+tt_stream.functional.step : ∀ (C_tt_stream C_ff_stream : stream bool → Prop) {ω : stream bool},
+  C_ff_stream ω → tt_stream.functional C_tt_stream C_ff_stream (tt :: ω)
+tt_stream.step : ∀ {ω : stream bool}, ff_stream ω → tt_stream (tt :: ω)
+ff_stream : stream bool → Prop
+ff_stream.cases_on : ∀ {C_ff_stream : stream bool → Prop} {a : stream bool},
+  ff_stream a → (∀ {ω : stream bool}, tt_stream ω → C_ff_stream (ff :: ω)) → C_ff_stream a
+ff_stream.construct : ∀ {a : stream bool}, ff_stream.functional tt_stream ff_stream a → ff_stream a
+ff_stream.corec_functional : ∀ (C_tt_stream C_ff_stream : stream bool → Prop),
+  (∀ {a : stream bool}, C_tt_stream a → tt_stream.functional C_tt_stream C_ff_stream a) →
+  (∀ {a : stream bool}, C_ff_stream a → ff_stream.functional C_tt_stream C_ff_stream a) →
+  ∀ {a : stream bool}, C_ff_stream a → ff_stream a
+ff_stream.corec_on : ∀ (C_tt_stream C_ff_stream : stream bool → Prop) {a : stream bool},
+  C_ff_stream a →
+  (∀ (a : stream bool), C_tt_stream a → (∃ {ω : stream bool}, C_ff_stream ω ∧ tt :: ω = a)) →
+  (∀ (a : stream bool), C_ff_stream a → (∃ {ω : stream bool}, C_tt_stream ω ∧ ff :: ω = a)) → ff_stream a
+ff_stream.destruct : ∀ {a : stream bool}, ff_stream a → ff_stream.functional tt_stream ff_stream a
+ff_stream.functional : (stream bool → Prop) → (stream bool → Prop) → stream bool → Prop
+ff_stream.functional.mono : ∀ (C_tt_stream C₂_tt_stream : stream bool → Prop),
+  (∀ {a : stream bool}, C_tt_stream a → C₂_tt_stream a) →
+  ∀ (C_ff_stream C₂_ff_stream : stream bool → Prop),
+    (∀ {a : stream bool}, C_ff_stream a → C₂_ff_stream a) →
+    ∀ {a : stream bool},
+      ff_stream.functional C_tt_stream C_ff_stream a → ff_stream.functional C₂_tt_stream C₂_ff_stream a
+ff_stream.functional.rec : ∀ {C_tt_stream C_ff_stream C : stream bool → Prop},
+  (∀ {ω : stream bool}, C_tt_stream ω → C (ff :: ω)) →
+  ∀ {a : stream bool}, ff_stream.functional C_tt_stream C_ff_stream a → C a
+ff_stream.functional.step : ∀ (C_tt_stream C_ff_stream : stream bool → Prop) {ω : stream bool},
+  C_tt_stream ω → ff_stream.functional C_tt_stream C_ff_stream (ff :: ω)
+ff_stream.step : ∀ {ω : stream bool}, tt_stream ω → ff_stream (ff :: ω)
+tt_stream : stream bool → Prop
+tt_stream.corec_functional :
+  ∀ (C_tt_stream C_ff_stream : stream bool → Prop),
+    (∀ {a : stream bool}, C_tt_stream a → tt_stream.functional C_tt_stream C_ff_stream a) →
+    (∀ {a : stream bool}, C_ff_stream a → ff_stream.functional C_tt_stream C_ff_stream a) →
+    ∀ {a : stream bool}, C_tt_stream a → tt_stream a
+ff_stream : stream bool → Prop
+ff_stream.corec_functional :
+  ∀ (C_tt_stream C_ff_stream : stream bool → Prop),
+    (∀ {a : stream bool}, C_tt_stream a → tt_stream.functional C_tt_stream C_ff_stream a) →
+    (∀ {a : stream bool}, C_ff_stream a → ff_stream.functional C_tt_stream C_ff_stream a) →
+    ∀ {a : stream bool}, C_ff_stream a → ff_stream a
+tt_ff_stream : stream bool → Prop
+tt_ff_stream.cases_on : ∀ {C_tt_ff_stream : stream bool → Prop} {a : stream bool},
+  tt_ff_stream a →
+  (∀ {ω : stream bool}, tt_ff_stream ω ∨ ff_tt_stream ω → C_tt_ff_stream (tt :: ω)) → C_tt_ff_stream a
+tt_ff_stream.construct : ∀ {a : stream bool}, tt_ff_stream.functional tt_ff_stream ff_tt_stream a → tt_ff_stream a
+tt_ff_stream.corec_functional : ∀ (C_tt_ff_stream C_ff_tt_stream : stream bool → Prop),
+  (∀ {a : stream bool}, C_tt_ff_stream a → tt_ff_stream.functional C_tt_ff_stream C_ff_tt_stream a) →
+  (∀ {a : stream bool}, C_ff_tt_stream a → ff_tt_stream.functional C_tt_ff_stream C_ff_tt_stream a) →
+  ∀ {a : stream bool}, C_tt_ff_stream a → tt_ff_stream a
+tt_ff_stream.corec_on : ∀ (C_tt_ff_stream C_ff_tt_stream : stream bool → Prop) {a : stream bool},
+  C_tt_ff_stream a →
+  (∀ (a : stream bool),
+     C_tt_ff_stream a → (∃ {ω : stream bool}, (C_tt_ff_stream ω ∨ C_ff_tt_stream ω) ∧ tt :: ω = a)) →
+  (∀ (a : stream bool),
+     C_ff_tt_stream a → (∃ {ω : stream bool}, (C_ff_tt_stream ω ∨ C_tt_ff_stream ω) ∧ ff :: ω = a)) →
+  tt_ff_stream a
+tt_ff_stream.destruct : ∀ {a : stream bool}, tt_ff_stream a → tt_ff_stream.functional tt_ff_stream ff_tt_stream a
+tt_ff_stream.functional : (stream bool → Prop) → (stream bool → Prop) → stream bool → Prop
+tt_ff_stream.functional.mono : ∀ (C_tt_ff_stream C₂_tt_ff_stream : stream bool → Prop),
+  (∀ {a : stream bool}, C_tt_ff_stream a → C₂_tt_ff_stream a) →
+  ∀ (C_ff_tt_stream C₂_ff_tt_stream : stream bool → Prop),
+    (∀ {a : stream bool}, C_ff_tt_stream a → C₂_ff_tt_stream a) →
+    ∀ {a : stream bool},
+      tt_ff_stream.functional C_tt_ff_stream C_ff_tt_stream a →
+      tt_ff_stream.functional C₂_tt_ff_stream C₂_ff_tt_stream a
+tt_ff_stream.functional.rec : ∀ {C_tt_ff_stream C_ff_tt_stream C : stream bool → Prop},
+  (∀ {ω : stream bool}, C_tt_ff_stream ω ∨ C_ff_tt_stream ω → C (tt :: ω)) →
+  ∀ {a : stream bool}, tt_ff_stream.functional C_tt_ff_stream C_ff_tt_stream a → C a
+tt_ff_stream.functional.step : ∀ (C_tt_ff_stream C_ff_tt_stream : stream bool → Prop) {ω : stream bool},
+  C_tt_ff_stream ω ∨ C_ff_tt_stream ω → tt_ff_stream.functional C_tt_ff_stream C_ff_tt_stream (tt :: ω)
+tt_ff_stream.step : ∀ {ω : stream bool}, tt_ff_stream ω ∨ ff_tt_stream ω → tt_ff_stream (tt :: ω)
+coinductive.lean:95:0: warning: declaration '[anonymous]' uses sorry
+rel.corec_on :
+  ∀ (C : ℕ → ℕ → Prop) {a a_1 : ℕ},
+    C a a_1 → (∀ (a a_1 : ℕ), C a a_1 → (∃ (y : ℕ), C a y ∧ C y a_1)) → rel a a_1
+rel'.corec_on :
+  ∀ (C : ℕ → ℕ → Prop) {a a_1 : ℕ},
+    C a a_1 →
+    (∀ (a a_1 : ℕ),
+       C a a_1 → ((∃ (y w : ℕ), C a y ∧ C y a_1) ∨ ∃ (y z : ℕ), C y z ∧ C a y ∧ C z a_1)) →
+    rel' a a_1

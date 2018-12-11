@@ -529,8 +529,11 @@ meta def add_coinductive_predicate
               else skip,
               vs ← apply_core ((const r.func_nm u_params).app_of_list $ ps ++ fs),
               vs ← vs.mfilter (λ v, bnot <$> is_assigned v.2),
-              (vs.zip (as ++ [h])).mmap' (λ ⟨v,a⟩, unify v.2 a),
-              cleanup )
+              let as' := as ++ [h],
+              if as'.length = vs.length then do
+                (vs.zip as').mmap' (λ ⟨v,a⟩, unify v.2 a),
+                cleanup
+              else iterate assumption )
           end),
         exact h)),
 
