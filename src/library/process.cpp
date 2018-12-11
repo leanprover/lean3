@@ -175,9 +175,9 @@ std::shared_ptr<child> process::spawn_core() {
     }
 
     return std::make_shared<windows_child>(proc_handle,
-        std::make_shared<handle>(parent_stdin),
-        std::make_shared<handle>(parent_stdout),
-        std::make_shared<handle>(parent_stderr));
+        std::make_shared<handle>(parent_stdin, false),
+        std::make_shared<handle>(parent_stdout, false),
+        std::make_shared<handle>(parent_stderr, false));
 }
 
 static void set_env(std::string const & var, optional<std::string> const & val) {
