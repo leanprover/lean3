@@ -364,6 +364,7 @@ meta constant subst_core     : expr → tactic unit
     the target type. -/
 meta constant exact (e : expr) (md := semireducible) : tactic unit
 /-- Elaborate the given quoted expression with respect to the current main goal.
+    Note that this means that any implicit arguments for the given `pexpr` will be applied with fresh metavariables.
     If `allow_mvars` is tt, then metavariables are tolerated and become new goals if `subgoals` is tt. -/
 meta constant to_expr (q : pexpr) (allow_mvars := tt) (subgoals := tt) : tactic expr
 /-- Return true if the given expression is a type class. -/
