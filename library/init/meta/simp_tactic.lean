@@ -28,8 +28,11 @@ An individual simp lemma is:
 meta constant simp_lemmas : Type
 /-- Make a new table of simp lemmas -/
 meta constant simp_lemmas.mk : simp_lemmas
+/-- Merge the simp_lemma tables. -/
 meta constant simp_lemmas.join : simp_lemmas → simp_lemmas → simp_lemmas
+/-- Remove the given lemmas from the table. Use the names of the lemmas. -/
 meta constant simp_lemmas.erase : simp_lemmas → list name → simp_lemmas
+/-- Makes the default simp_lemmas table which is composed of all lemmas tagged with `simp`. -/
 meta constant simp_lemmas.mk_default : tactic simp_lemmas
 /-- Add a simplification lemma by an expression. The expression must have the type `X ~ Y` for some equivalence relation. -/
 meta constant simp_lemmas.add : simp_lemmas → expr → tactic simp_lemmas
@@ -271,35 +274,45 @@ do when (expr.is_local_constant h = ff) (fail "tactic simp_at failed, the given 
    (h_new_type, pr) ← simplify s to_unfold htype cfg `eq discharger,
    replace_hyp h h_new_type pr
 
-/-- Returns (a,e,pr), the final user data a, the new expression e, and the proof `pr` that the given expression equals the input one.-/
+/-- 
+`ext_simplify_core a c s discharger pre post r e`:
+
+- `a : α` - initial user data
+- `c : simp_config` - simp configuration options
+- `s : simp_lemmas` - the set of simp_lemmas to use. Remark: the simplification lemmas are not applied automatically like in the simplify tactic. The caller must use them at pre/post.
+- `discharger : α → tactic α` - tactic for dischaging hypothesis in conditional rewriting rules. The argument 'α' is the current user data.
+- `pre a s r p e` is invoked before visiting the children of subterm 'e'.
+  + arguments:
+    - `a` is the current user data
+    - `s` is the updated set of lemmas if 'contextual' is `tt`,
+    - `r` is the simplification relation being used, 
+    - `p` is the "parent" expression (if there is one).
+    - `e` is the current subexpression in question.
+  + if it succeeds the result is `(new_a, new_e, new_pr, flag)` where
+    - `new_a` is the new value for the user data
+    - `new_e` is a new expression s.t. `r e new_e`
+    - `new_pr` is a proof for `e r new_e`, If it is none, the proof is assumed to be by reflexivity
+    - `flag`  if tt `new_e` children should be visited, and `post` invoked.
+- `(post a s r p e)` is invoked after visiting the children of subterm `e`,
+  The output is similar to `(pre a r s p e)`, but the 'flag' indicates whether the new expression should be revisited or not.
+- `r` is the simplification relation. Usually `=` or `↔`.
+- `e` is the input expression to be simplified.
+
+The method returns `(a,e,pr)` where
+
+ - `a` is the final user data
+ - `e` is the new expression
+ - `pr` is the proof that the given expression equals the input expression.
+
+-/
 meta constant ext_simplify_core
-  /- The user state type. -/
   {α : Type}
-  /- Initial user data -/
   (a : α)
   (c : simp_config)
-  /- Congruence and simplification lemmas.
-     Remark: the simplification lemmas are not applied automatically like in the simplify tactic.
-     the caller must use them at pre/post. -/
   (s : simp_lemmas)
-  /- Tactic for dischaging hypothesis in conditional rewriting rules.
-     The argument 'α' is the current user state. -/
   (discharger : α → tactic α)
-  /- (pre a s r p e) is invoked before visiting the children of subterm 'e',
-     's' is the updated set of lemmas if 'contextual' is tt,
-     'r' is the simplification relation being used, 
-     'p' is the "parent" expression (if there is one).
-     if it succeeds the result is (new_a, new_e, new_pr, flag) where
-       - 'new_a' is the new value for the user data
-       - 'new_e' is a new expression s.t. 'e r new_e'
-       - 'new_pr' is a proof for 'e r new_e', If it is none, the proof is assumed to be by reflexivity
-       - 'flag'  if tt 'new_e' children should be visited, and 'post' invoked. -/
   (pre : α → simp_lemmas → name → option expr → expr → tactic (α × expr × option expr × bool))
-  /- (post a s r p e) is invoked after visiting the children of subterm 'e',
-     The output is similar to (pre a r s p e), but the 'flag' indicates whether
-     the new expression should be revisited or not. -/
   (post : α → simp_lemmas  → name → option expr → expr → tactic (α × expr × option expr × bool))
-  /- simplification relation; usually `=` or `↔`. -/
   (r : name) :
   expr → tactic (α × expr × expr)
 
