@@ -1008,9 +1008,10 @@ do r ← apply_core e cfg,
    try_apply_opt_auto_param_for_apply cfg r,
    return r
 
+/-- Same as `apply` but __all__ arguments that weren't inferred are added to goal list. -/
 meta def fapply (e : expr) : tactic (list (name × expr)) :=
 apply e {new_goals := new_goals.all}
-
+/-- Same as `apply` but only goals that don't depend on other goals are added to goal list. -/
 meta def eapply (e : expr) : tactic (list (name × expr)) :=
 apply e {new_goals := new_goals.non_dep_only}
 
