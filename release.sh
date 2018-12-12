@@ -1,6 +1,6 @@
 #! /bin/zsh
-mkdir -p release/build
-pushd release/build
+mkdir -p build/release
+pushd build/release
 cmake ../../src
 make
 popd
