@@ -1483,16 +1483,16 @@ static vm_obj simp_lemmas_rewrite_core(transparency_mode const & m, simp_lemmas 
 static vm_obj simp_lemmas_rewrites_core(transparency_mode const & m, simp_lemmas const & sls, vm_obj const & prove_fn,
                                        name const & R, expr const & e, tactic_state s) {
     LEAN_TACTIC_TRY;
+    buffer<vm_obj> result; // [HACK] E.W.Ayers: do I need to worry about memory leaks?
     simp_lemmas_for const * sr = sls.find(R);
-    if (!sr) return tactic::mk_exception("failed to apply simp_lemmas, no lemmas for the given relation", s);
+    if (!sr) return tactic::mk_success(to_obj(result), s);
 
     list<simp_lemma> const * srs = sr->find(e);
-    if (!srs) return tactic::mk_exception("failed to apply simp_lemmas, no simp lemma", s);
+    if (!srs) return tactic::mk_success(to_obj(result), s);
 
     tactic_state_context_cache cache(s);
     type_context_old ctx = cache.mk_type_context(m);
 
-    buffer<vm_obj> result; // [HACK] E.W.Ayers: do I need to worry about memory leaks?
 
     for (simp_lemma const & lemma : *srs) {
         simp_result r = simp_lemma_rewrite_core(ctx, lemma, prove_fn, e, s);
