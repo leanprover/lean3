@@ -34,9 +34,17 @@ meta constant simp_lemmas.join : simp_lemmas → simp_lemmas → simp_lemmas
 meta constant simp_lemmas.erase : simp_lemmas → list name → simp_lemmas
 /-- Makes the default simp_lemmas table which is composed of all lemmas tagged with `simp`. -/
 meta constant simp_lemmas.mk_default : tactic simp_lemmas
-/-- Add a simplification lemma by an expression. The expression must have the type `X ~ Y` for some equivalence relation. -/
+/-- Add a simplification lemma by an expression `p`. Some conditions on `p` must hold for it to be added, see list below.
+If your lemma is not being added, you can see the reasons by setting `set_option trace.simp_lemmas true`.
+
+- `p` must have the type `Π (h₁ : _) ... (hₙ : _), LHS ~ RHS` for some reflexive, transitive relation (usually `=`).
+- Any of the hypotheses `hᵢ` should either be present in `LHS` or otherwise a `Prop` or a typeclass instance.
+- `LHS` should not occur within `RHS`.
+- `LHS` should not occur within a hypothesis `hᵢ`.
+
+ -/
 meta constant simp_lemmas.add : simp_lemmas → expr → tactic simp_lemmas
-/--Add a simplification lemma by it's declaration name.-/
+/--Add a simplification lemma by it's declaration name. See `simp_lemmas.add` for more information.-/
 meta constant simp_lemmas.add_simp : simp_lemmas → name → tactic simp_lemmas
 /-- Adds a congruence simp lemma to simp_lemmas.
 A congruence simp lemma is a lemma that breaks the simplification down into separate problems.
