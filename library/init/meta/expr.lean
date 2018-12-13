@@ -93,9 +93,9 @@ in the environment as well as hard-coded definitions. -/
 /- [WARNING] Do not trust the types for `mvar` and `local_const`, 
 they are sometimes dummy values. Use `tactic.infer_type` instead. -/
 /- An `mvar` is a 'hole' yet to be filled in by the elaborator or tactic state. -/
-| mvar        (pretty : name)  (unique : name)  (type : expr) : expr
+| mvar        (unique : name)  (pretty : name)  (type : expr) : expr
 /- A local constant. For example, if our tactic state was `h : P ⊢ Q`, `h` would be a local constant. -/
-| local_const (pretty : name) (unique : name) (bi : binder_info) (type : expr) : expr
+| local_const (unique : name) (pretty : name) (bi : binder_info) (type : expr) : expr
 /- Function application. -/
 | app         : expr → expr → expr
 /- Lambda abstraction. eg ```(λ a : α, x)`` -/
