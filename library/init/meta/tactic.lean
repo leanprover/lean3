@@ -1207,7 +1207,7 @@ private meta def mk_aux_decl_name : option name → tactic name
 | none          := new_aux_decl_name
 | (some suffix) := do p ← decl_name, return $ p ++ suffix
 
-/-- Save the goal state. Take the main target, and add   -/
+/-- Save the goal state. Take the main target, and add [TODO]  -/
 meta def abstract (tac : tactic unit) (suffix : option name := none) (zeta_reduce := tt) : tactic unit :=
 do fail_if_no_goals,
    gs ← get_goals,
