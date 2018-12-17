@@ -1480,44 +1480,12 @@ static vm_obj simp_lemmas_rewrite_core(transparency_mode const & m, simp_lemmas 
     LEAN_TACTIC_CATCH(s);
 }
 
-static vm_obj simp_lemmas_rewrites_core(transparency_mode const & m, simp_lemmas const & sls, vm_obj const & prove_fn,
-                                       name const & R, expr const & e, tactic_state s) {
-    LEAN_TACTIC_TRY;
-    buffer<vm_obj> result; // [HACK] E.W.Ayers: do I need to worry about memory leaks?
-    simp_lemmas_for const * sr = sls.find(R);
-    if (!sr) return tactic::mk_success(to_obj(result), s);
-
-    list<simp_lemma> const * srs = sr->find(e);
-    if (!srs) return tactic::mk_success(to_obj(result), s);
-
-    tactic_state_context_cache cache(s);
-    type_context_old ctx = cache.mk_type_context(m);
-
-
-    for (simp_lemma const & lemma : *srs) {
-        simp_result r = simp_lemma_rewrite_core(ctx, lemma, prove_fn, e, s);
-        if (!is_eqp(r.get_new(), e)) {
-            lean_trace("simp_lemmas", scope_trace_env scope(ctx.env(), ctx);
-                       tout() << "[" << lemma.get_id() << "]: " << e << " ==> " << r.get_new() << "\n";);
-            vm_obj new_e  = to_obj(r.get_new());
-            vm_obj new_pr = to_obj(r.get_proof());
-            result.push_back(mk_vm_pair(new_e, new_pr));
-        }
-    }
-    return tactic::mk_success(to_obj(result), s);
-    LEAN_TACTIC_CATCH(s);
-}
-
 vm_obj simp_lemmas_rewrite(vm_obj const & sls, vm_obj const & e, vm_obj const & prove_fn,
                            vm_obj const & R, vm_obj const & m, vm_obj const & s) {
     return simp_lemmas_rewrite_core(to_transparency_mode(m), to_simp_lemmas(sls), prove_fn,
                                     to_name(R), to_expr(e), tactic::to_state(s));
 }
-vm_obj simp_lemmas_rewrites(vm_obj const & sls, vm_obj const & e, vm_obj const & prove_fn,
-                           vm_obj const & R, vm_obj const & m, vm_obj const & s) {
-    return simp_lemmas_rewrites_core(to_transparency_mode(m), to_simp_lemmas(sls), prove_fn,
-                                    to_name(R), to_expr(e), tactic::to_state(s));
-}
+
 static vm_obj simp_lemmas_drewrite_core(transparency_mode const & m, simp_lemmas const & sls, expr const & e, tactic_state s) {
     LEAN_TACTIC_TRY;
     simp_lemmas_for const * sr = sls.find(get_eq_name());
@@ -1629,7 +1597,6 @@ void initialize_simp_lemmas() {
     DECLARE_VM_BUILTIN(name({"simp_lemmas", "add_simp"}),        simp_lemmas_add_simp);
     DECLARE_VM_BUILTIN(name({"simp_lemmas", "add_congr"}),       simp_lemmas_add_congr);
     DECLARE_VM_BUILTIN(name({"simp_lemmas", "rewrite"}),         simp_lemmas_rewrite);
-    DECLARE_VM_BUILTIN(name({"simp_lemmas", "rewrites"}),         simp_lemmas_rewrites);
     DECLARE_VM_BUILTIN(name({"simp_lemmas", "drewrite"}),        simp_lemmas_drewrite);
     DECLARE_VM_BUILTIN(name({"simp_lemmas", "pp"}),              simp_lemmas_pp);
 
