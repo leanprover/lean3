@@ -13,7 +13,7 @@ inductive format.color
 
 /-- Format is a rich string with highlighting and information about how tabs should be put in if linebreaks are needed. A 'pretty string'.  -/
 meta constant format : Type
-/-- [TODO] this either means newline or that it is ok to put a linebreak in here. -/
+/-- Indicate that it is ok to put a linebreak in here if the line is too long. -/
 meta constant format.line            : format
 /-- whitespace. [TODO] any special properties or is it literally just a space? -/
 meta constant format.space           : format
