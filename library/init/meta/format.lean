@@ -15,18 +15,26 @@ inductive format.color
 meta constant format : Type
 /-- Indicate that it is ok to put a linebreak in here if the line is too long. -/
 meta constant format.line            : format
-/-- whitespace. [TODO] any special properties or is it literally just a space? -/
+/-- The whitespace character `" "`. -/
 meta constant format.space           : format
-/-- The empty format. -/
+/-- = `""` -/
 meta constant format.nil             : format
 /-- Concatenate the given formats. -/
 meta constant format.compose         : format → format → format
 /-- `format.nest n f` tells the formatter that `f` is nested inside something with length `n` 
-so that it is pretty-printed with the correct tabs on a line break. -/
+so that it is pretty-printed with the correct tabs on a line break.
+For example, in `list.to_format` we have:
+
+```
+(nest 1 $ format.join $ list.intersperse ("," ++ line) $ xs.map to_fmt)
+```
+
+This will be written all on one line, but when the list is too large, it will put in linebreaks after the comma and indent later lines by 1.
+ -/
 meta constant format.nest            : nat → format → format
 /-- Make the given format be displayed a particular color. [TODO] does this override nested colours etc? -/
 meta constant format.highlight       : format → color → format
-/-- [TODO] what does this do? -/
+/-- [TODO] I think this might be obsolete, in the Lean source code it seems to be doing the same thing as `flatten`. -/
 meta constant format.group           : format → format
 meta constant format.of_string       : string → format
 meta constant format.of_nat          : nat → format
