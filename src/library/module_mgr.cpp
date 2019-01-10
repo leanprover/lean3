@@ -353,6 +353,16 @@ module_mgr::build_lean_snapshots(std::shared_ptr<module_parser> const & mod_pars
     }
 }
 
+static void remove_cr(std::string & str) {
+    str.erase(std::remove(str.begin(), str.end(), '\r'), str.end());
+}
+
+static bool equal_upto_cr(std::string a, std::string b) {
+    remove_cr(a);
+    remove_cr(b);
+    return a == b;
+}
+
 std::shared_ptr<module_info const> module_mgr::get_module(module_id const & id) {
     unique_lock<mutex> lock(m_mutex);
     name_set module_stack;
@@ -366,7 +376,9 @@ void module_mgr::invalidate(module_id const & id) {
     bool rebuild_rdeps = true;
     if (auto & mod = m_modules[id]) {
         try {
-            if (m_vfs->load_module(id, false)->m_contents == mod->m_contents) {
+            // HACK(gabriel): On windows vscode sends different line endings than the on-disk version.
+            // This causes the server to recompile all files even when just hovering.
+            if (equal_upto_cr(m_vfs->load_module(id, false)->m_contents, mod->m_contents)) {
                 // content unchanged
                 rebuild_rdeps = false;
             }
