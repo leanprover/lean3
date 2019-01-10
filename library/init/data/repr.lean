@@ -15,7 +15,8 @@ Implement `has_repr` if the output string is valid lean code that evaluates back
 If you just want to view the object as a string for a trace message, use `has_to_string`.
 
 ### Example:
-``` lean
+
+```
 #eval to_string "hello world"
 -- [Lean] "hello world"
 #eval repr "hello world" 
@@ -29,7 +30,7 @@ class has_repr (α : Type u) :=
 (repr : α → string)
 
 /-- `repr` is similar to `to_string` except that we should have the property `eval (repr x) = x` for most sensible datatypes. 
-Hence, `repr "hello"` has the value `"\"hello\"""` not `"hello"`.  -/
+Hence, `repr "hello"` has the value `"\"hello\""` not `"hello"`.  -/
 def repr {α : Type u} [has_repr α] : α → string :=
 has_repr.repr
 
