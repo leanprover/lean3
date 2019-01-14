@@ -195,10 +195,13 @@ meta constant expr.has_var_idx   : expr → nat → bool
 meta constant expr.has_local     : expr → bool
 /-- `has_meta_var e` returns true iff `e` contains a metavariable. -/
 meta constant expr.has_meta_var  : expr → bool
-/-- `lower_vars e s d` lowers the free variables >= s in `e` by `d`. That is, a free variable `var i` s.t.
-   `i >= s` is mapped to `var (i-d)`. -/
+/-- `lower_vars e s d` lowers the free variables >= s in `e` by `d`. Note that this can cause variable clashes.
+    examples: 
+    -  ``lower_vars `(#2 #1 #0) 1 1 = `(#1 #0 #0)``
+    -  ``lower_vars `(λ x, #2 #1 #0) 1 1 = `(λ x, #1 #1 #0 )``
+    -/
 meta constant expr.lower_vars    : expr → nat → nat → expr
-/-- Lifts free variables. See `expr.lower_vars` for details. -/
+/-- Lifts free variables. `lift_vars e s d` will lift all free variables with index `≥ s` in `e` by `d`. -/
 meta constant expr.lift_vars     : expr → nat → nat → expr
 /-- Get the position of the given expression in the Lean source file, if anywhere. -/
 protected meta constant expr.pos : expr elab → option pos
