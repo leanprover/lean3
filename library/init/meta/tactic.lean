@@ -614,14 +614,21 @@ target >>= whnf >>= change
 meta def unsafe_change (e : expr) : tactic unit :=
 change e ff
 
+/-- Pi or elet introduction. 
+Given the tactic state `⊢ Π x : α, Y`, ``intro `hello`` will produce the state `hello : α ⊢ Y[x/hello]`.
+Returns the new local constant. Similarly for `elet` expressions. If the target is not a Pi or elet it will try to put it in WHNF.
+
+ -/
 meta def intro (n : name) : tactic expr :=
 do t ← target,
    if expr.is_pi t ∨ expr.is_let t then intro_core n
    else whnf_target >> intro_core n
 
+/-- Like `intro` except the name is derived from the bound name in the Π. -/
 meta def intro1 : tactic expr :=
 intro `_
 
+/-- Repeatedly apply `intro1` and return the list of new local constants in order of introduction.-/
 meta def intros : tactic (list expr) :=
 do t ← target,
 match t with
@@ -630,11 +637,12 @@ match t with
 | _                 := return []
 end
 
+/-- Same as `intros`, except with the given names for the new hypotheses. Use the name ```_`` to instead use the binder's name.-/
 meta def intro_lst : list name → tactic (list expr)
 | []      := return []
 | (n::ns) := do H ← intro n, Hs ← intro_lst ns, return (H :: Hs)
 
-/-- Introduces new hypotheses with forward dependencies -/
+/-- Introduces new hypotheses with forward dependencies.  -/
 meta def intros_dep : tactic (list expr) :=
 do t ← target,
    let proc (b : expr) :=
