@@ -1,3 +1,24 @@
+v3.4.2 (18 Jan 2019)
+-------------
+
+Patch release
+
+*Features*
+
+* `leanpkg`: Allow specifying a branch to use for `leanpkg upgrade` ([#1981](https://github.com/leanprover/lean/pull/1981))
+
+*Changes*
+
+* Fix the definition of `list.lt`
+
+* Make `leanpkg` work when installed in a path containing spaces
+
+* `io`: Encode/decode UTF-8 for text-mode streams
+
+* Remove `coinductive` predicates and `transfer`. To be moved to [mathlib](https://github.com/leanprover/mathlib) instead.
+
+* Windows: Ignore file changes that only changed line endings
+
 v3.4.1 (28 April 2018)
 -------------
 
