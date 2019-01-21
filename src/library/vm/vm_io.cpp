@@ -209,11 +209,11 @@ static vm_obj fs_read(vm_obj const & h, vm_obj const & n, vm_obj const &) {
         }
     } else {
         size_t i = 0;
-        for (ssize_t chars = 0; chars < num && i < sz; chars++) {
+        for (size_t chars = 0; chars < num && i < sz; chars++) {
             r.push_back(mk_vm_simple(next_utf8_buff(tmp.data(), sz, i)));
         }
 
-        ssize_t extra = static_cast<ssize_t>(sz - i);
+        size_t extra = static_cast<size_t>(sz - i);
         if (extra > 0) {
             fseek(href->m_file, -extra, SEEK_CUR);
         }
