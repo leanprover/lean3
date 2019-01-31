@@ -6,6 +6,7 @@ Authors: Sebastian Ullrich
 prelude
 import init.meta.expr init.util
 
+/-- `has_reflect α` lets you produce an `expr` from an instance of α. That is, it is a function from α to expr such that the expr has type α. -/
 @[reducible] meta def {u} has_reflect (α : Sort u) := Π a : α, reflected a
 
 section
