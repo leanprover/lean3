@@ -15,17 +15,17 @@ can be seen in one place and to prevent core notation being accidentally overloa
 
 /- Notation for logical operations and relations -/
 
-reserve prefix `¬`:40    
+reserve prefix `¬`:40
 reserve prefix `~`:40    -- not used
-reserve infixr ` ∧ `:35  
-reserve infixr ` /\ `:35 
-reserve infixr ` \/ `:30 
-reserve infixr ` ∨ `:30  
-reserve infix ` <-> `:20 
-reserve infix ` ↔ `:20  
+reserve infixr ` ∧ `:35
+reserve infixr ` /\ `:35
+reserve infixr ` \/ `:30
+reserve infixr ` ∨ `:30
+reserve infix ` <-> `:20
+reserve infix ` ↔ `:20
 reserve infix ` = `:50   -- eq
 reserve infix ` == `:50  -- heq
-reserve infix ` ≠ `:50   
+reserve infix ` ≠ `:50
 reserve infix ` ≈ `:50   -- has_equiv.equiv
 reserve infix ` ~ `:50   -- used as local notation for relations
 reserve infix ` ≡ `:50   -- not used
@@ -36,41 +36,41 @@ reserve infixr ` ▹ `:75  -- not used
 /- types and type constructors -/
 
 reserve infixr ` ⊕ `:30  -- sum (defined in init/data/sum/basic.lean)
-reserve infixr ` × `:35 
+reserve infixr ` × `:35
 
 /- arithmetic operations -/
 
-reserve infixl ` + `:65 
-reserve infixl ` - `:65 
-reserve infixl ` * `:70 
-reserve infixl ` / `:70 
-reserve infixl ` % `:70 
-reserve prefix `-`:100  
-reserve infixr ` ^ `:80 
+reserve infixl ` + `:65
+reserve infixl ` - `:65
+reserve infixl ` * `:70
+reserve infixl ` / `:70
+reserve infixl ` % `:70
+reserve prefix `-`:100
+reserve infixr ` ^ `:80
 
 reserve infixr ` ∘ `:90  -- function composition
 
-reserve infix ` <= `:50  
-reserve infix ` ≤ `:50   
-reserve infix ` < `:50   
-reserve infix ` >= `:50  
-reserve infix ` ≥ `:50   
-reserve infix ` > `:50   
+reserve infix ` <= `:50
+reserve infix ` ≤ `:50
+reserve infix ` < `:50
+reserve infix ` >= `:50
+reserve infix ` ≥ `:50
+reserve infix ` > `:50
 
 /- boolean operations -/
 
-reserve infixl ` && `:70 
-reserve infixl ` || `:65 
+reserve infixl ` && `:70
+reserve infixl ` || `:65
 
 /- set operations -/
 
-reserve infix ` ∈ `:50   
-reserve infix ` ∉ `:50   
-reserve infixl ` ∩ `:70  
-reserve infixl ` ∪ `:65  
-reserve infix ` ⊆ `:50   
-reserve infix ` ⊇ `:50   
-reserve infix ` ⊂ `:50   
+reserve infix ` ∈ `:50
+reserve infix ` ∉ `:50
+reserve infixl ` ∩ `:70
+reserve infixl ` ∪ `:65
+reserve infix ` ⊆ `:50
+reserve infix ` ⊇ `:50
+reserve infix ` ⊂ `:50
 reserve infix ` ⊃ `:50
 reserve infix ` \ `:70   -- symmetric difference
 
@@ -168,7 +168,7 @@ quot.lift f _ (quot.mk a) ~~> f a
 -/
 init_quotient
 
-/-- Heterogeneous equality. 
+/-- Heterogeneous equality.
 It's purpose is to write down equalities between terms whose types are not definitionally equal.
 For example, given `x : vector α n` and `y : vector α (0+n)`, `x = y` doesn't typecheck but `x == y` does.
  -/
