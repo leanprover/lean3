@@ -77,12 +77,12 @@ def bijective (f : α → β) := injective f ∧ surjective f
 lemma bijective_comp {g : β → φ} {f : α → β} : bijective g → bijective f → bijective (g ∘ f)
 | ⟨h_ginj, h_gsurj⟩ ⟨h_finj, h_fsurj⟩ := ⟨injective_comp h_ginj h_finj, surjective_comp h_gsurj h_fsurj⟩
 
--- g is a left inverse to f
+/-- `left_inverse g f` means that g is a left inverse to f. That is, `g ∘ f = id`. -/
 def left_inverse (g : β → α) (f : α → β) : Prop := ∀ x, g (f x) = x
 
 def has_left_inverse (f : α → β) : Prop := ∃ finv : β → α, left_inverse finv f
 
--- g is a right inverse to f
+/-- `right_inverse g f` means that g is a right inverse to f. That is, `f ∘ g = id`. -/
 def right_inverse (g : β → α) (f : α → β) : Prop := left_inverse f g
 
 def has_right_inverse (f : α → β) : Prop := ∃ finv : β → α, right_inverse finv f

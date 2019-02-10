@@ -76,7 +76,7 @@ reserve infix ` \ `:70   -- symmetric difference
 
 /- other symbols -/
 
-reserve infix ` ∣ `:50   -- has_dvd.dvd
+reserve infix ` ∣ `:50   -- has_dvd.dvd. Note this is different to `|`.
 reserve infixl ` ++ `:65 -- has_append.append
 reserve infixr ` :: `:67 -- list.cons
 reserve infixl `; `:1    -- has_andthen.andthen
@@ -216,7 +216,7 @@ infix == := heq
 
 lemma eq_of_heq {α : Sort u} {a a' : α} (h : a == a') : a = a' :=
 have ∀ (α' : Sort u) (a' : α') (h₁ : @heq α a α' a') (h₂ : α = α'), (eq.rec_on h₂ a : α') = a', from
-     λ (α' : Sort u) (a' : α') (h₁ : @heq α a α' a'), heq.rec_on h₁ (λ h₂ : α = α, rfl),
+  λ (α' : Sort u) (a' : α') (h₁ : @heq α a α' a'), heq.rec_on h₁ (λ h₂ : α = α, rfl),
 show (eq.rec_on (eq.refl α) a : α) = a', from
   this α a' h (eq.refl α)
 
@@ -401,7 +401,7 @@ attribute [pattern] has_zero.zero has_one.one bit0 bit1 has_add.add has_neg.neg
 def insert {α : Type u} {γ : Type v} [has_insert α γ] : α → γ → γ :=
 has_insert.insert
 
-/- The singleton collection -/
+/-- The singleton collection -/
 def singleton {α : Type u} {γ : Type v} [has_emptyc γ] [has_insert α γ] (a : α) : γ :=
 has_insert.insert a ∅
 

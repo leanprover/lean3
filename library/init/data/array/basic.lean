@@ -18,7 +18,7 @@ variables {n : nat} {α : fin n → Type u} {β : Type v}
 def nil {α} : d_array 0 α :=
 {data := λ ⟨x, h⟩, absurd h (nat.not_lt_zero x)}
 
-/-- `read a i` reads the `i`th member of `a`. has builtin VM implementation -/
+/-- `read a i` reads the `i`th member of `a`. Has builtin VM implementation. -/
 def read (a : d_array n α) (i : fin n) : α i :=
 a.data i
 
@@ -32,11 +32,11 @@ def iterate_aux (a : d_array n α) (f : Π i : fin n, α i → β → β) : Π (
   let i : fin n := ⟨j, h⟩ in
   f i (a.read i) (iterate_aux j (le_of_lt h) b)
 
-/-- has builtin VM implementation -/
+/-- Fold over the elements of the given array in ascending order. Has builtin VM implementation. -/
 def iterate (a : d_array n α) (b : β) (f : Π i : fin n, α i → β → β) : β :=
 iterate_aux a f n (le_refl _) b
 
-/-- has builtin VM implementation -/
+/-- Map the array. Has builtin VM implementation. -/
 def foreach (a : d_array n α) (f : Π i : fin n, α i → α i) : d_array n α :=
 iterate a a $ λ i v a', a'.write i (f i v)
 
@@ -137,7 +137,7 @@ end d_array
 def array (n : nat) (α : Type u) : Type u :=
 d_array n (λ _, α)
 
-/- has builtin VM implementation -/
+/-- `mk_array n v` creates a new array of length `n` where each element is `v`. Has builtin VM implementation. -/
 def mk_array {α} (n) (v : α) : array n α :=
 {data := λ _, v}
 
@@ -153,9 +153,11 @@ d_array.read a i
 def write (a : array n α) (i : fin n) (v : α) : array n α :=
 d_array.write a i v
 
+/-- Fold array starting from 0, folder function includes an index argument. -/
 def iterate (a : array n α) (b : β) (f : fin n → α → β → β) : β :=
 d_array.iterate a b f
 
+/-- Map each element of the given array with an index argument. -/
 def foreach (a : array n α) (f : fin n → α → α) : array n α :=
 iterate a a (λ i v a', a'.write i (f i v))
 
@@ -190,7 +192,7 @@ def push_back (a : array n α) (v : α) : array (n+1) α :=
 lemma pop_back_idx {j n} (h : j < n) : j < n + 1 :=
 nat.lt.step h
 
-/-- Discard _last_ element in the array. has builtin VM implementation -/
+/-- Discard _last_ element in the array. Has builtin VM implementation. -/
 def pop_back (a : array (n+1) α) : array n α :=
 {data := λ ⟨j, h⟩, a.read ⟨j, pop_back_idx h⟩}
 
