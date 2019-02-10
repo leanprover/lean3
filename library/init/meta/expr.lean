@@ -53,7 +53,7 @@ instance : has_repr binder_info :=
 | binder_info.inst_implicit := "inst_implicit"
 | binder_info.aux_decl := "aux_decl"
 end⟩
-/--Macros are basically "promises" to build an expr by some C++ code, you can't build them in Lean.
+/-- Macros are basically "promises" to build an expr by some C++ code, you can't build them in Lean.
    You can unfold a macro and force it to evaluate.
    They are used for 
    - `sorry`.

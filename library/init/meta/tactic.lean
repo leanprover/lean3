@@ -387,11 +387,11 @@ meta constant define_core   : name → expr → tactic unit
 meta constant definev_core  : name → expr → expr → tactic unit
 /-- Rotate goals to the left. That is, `rotate_left 1` takes the main goal and puts it to the back of the subgoal list. -/
 meta constant rotate_left   : nat → tactic unit
-/--Gets a list of metavariables, one for each goal. -/
+/-- Gets a list of metavariables, one for each goal. -/
 meta constant get_goals     : tactic (list expr)
-/--Replace the current list of goals with the given one. Each expr in the list should be a metavariable. Any assigned metavariables will be ignored.-/
+/-- Replace the current list of goals with the given one. Each expr in the list should be a metavariable. Any assigned metavariables will be ignored.-/
 meta constant set_goals     : list expr → tactic unit
-/--How to order the new goals made from an `apply` tactic. 
+/-- How to order the new goals made from an `apply` tactic. 
 Supposing we were applying `e : ∀ (a:α) (p : P(a)), Q`
 - `non_dep_first` would produce goals `⊢ P(?m)`, `⊢ α`. It puts the P goal at the front because none of the arguments after `p` in `e` depend on `p`. It doesn't matter what the result `Q` depends on.
 - `non_dep_only` would produce goal `⊢ P(?m)`.
@@ -441,7 +441,7 @@ meta constant get_assignment : expr → tactic expr
 /-- Return true if the given meta-variable is assigned.
     Fail if argument is not a meta-variable. -/
 meta constant is_assigned : expr → tactic bool
-/--Make a name that is guaranteed to be unique. Eg `_fresh.1001.4667`. These will be different for each run of the tactic.  -/
+/-- Make a name that is guaranteed to be unique. Eg `_fresh.1001.4667`. These will be different for each run of the tactic.  -/
 meta constant mk_fresh_name : tactic name
 
 /-- Induction on `h` using recursor `rec`, names for the new hypotheses
@@ -607,7 +607,7 @@ whnf e md ff
 
 meta def whnf_target : tactic unit :=
 target >>= whnf >>= change
-/--Change the target of the main goal.
+/-- Change the target of the main goal.
    The input expression must be definitionally equal to the current target.
    The tactic does not check whether `e`
    is definitionally equal to the current target. The error will only be detected by the kernel type checker. -/

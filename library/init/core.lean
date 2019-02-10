@@ -83,7 +83,7 @@ reserve infixl `; `:1    -- has_andthen.andthen
 
 universes u v w
 
-/-
+/--
 The kernel definitional equality test (t =?= s) has special support for id_delta applications.
 It implements the following rules
 

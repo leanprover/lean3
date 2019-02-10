@@ -47,7 +47,7 @@ constant A : Type
 
 run_cmd doc_string `A >>= trace
 
-/--Documentation for point
+/-- Documentation for point
 test
 
  -/

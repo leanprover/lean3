@@ -44,7 +44,7 @@ If your lemma is not being added, you can see the reasons by setting `set_option
 
  -/
 meta constant simp_lemmas.add : simp_lemmas → expr → tactic simp_lemmas
-/--Add a simplification lemma by it's declaration name. See `simp_lemmas.add` for more information.-/
+/-- Add a simplification lemma by it's declaration name. See `simp_lemmas.add` for more information.-/
 meta constant simp_lemmas.add_simp : simp_lemmas → name → tactic simp_lemmas
 /-- Adds a congruence simp lemma to simp_lemmas.
 A congruence simp lemma is a lemma that breaks the simplification down into separate problems.
