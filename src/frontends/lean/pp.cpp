@@ -149,7 +149,7 @@ void initialize_pp() {
 
     register_system_attribute(basic_attribute::with_check(
                                   *g_pp_using_anonymous_constructor,
-                                  "if a structure S is marked with this attribute, then its constructor applications"
+                                  "if a structure S is marked with this attribute, then its constructor applications "
                                   "are pretty printed using the anonymous constructor",
                                   [](environment const & env, name const & d, bool) -> void {
                                       if (!is_structure(env, d))
