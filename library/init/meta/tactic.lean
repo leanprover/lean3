@@ -616,8 +616,8 @@ change e ff
 
 /-- Pi or elet introduction. 
 Given the tactic state `⊢ Π x : α, Y`, ``intro `hello`` will produce the state `hello : α ⊢ Y[x/hello]`.
-Returns the new local constant. Similarly for `elet` expressions. If the target is not a Pi or elet it will try to put it in WHNF.
-
+Returns the new local constant. Similarly for `elet` expressions. 
+If the target is not a Pi or elet it will try to put it in WHNF.
  -/
 meta def intro (n : name) : tactic expr :=
 do t ← target,

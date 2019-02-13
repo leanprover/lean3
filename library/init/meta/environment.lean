@@ -12,11 +12,31 @@ meta constant environment : Type
 
 namespace environment
 /--
-Information for a projection declaration
+Consider a type ψ which is an inductive datatype using a single constructor `mk (a : α) (b : β) : → ψ`.
+Lean will automatically make two projection functions `a : ψ → α`, `b : ψ → β`.
+Lean tags these declarations as __projections__. 
+This helps the simplifier / rewriter not have to expand projectors.
+Eg `a (mk x y)` will automatically reduce to `x`.
+If you `extend` a structure, all of the projections on the parent will also be created for the child. 
+
+[TODO] any other reasons Lean treats projections differently to regular declarations?
+    I know that you get projection macros.
+[TODO] Are there projections that aren't arguments to constructors?
+[NOTE] projectors have nothing to do with the dot `mylist.map` syntax.
+
+You can find out if a declaration is a projection using `environment.is_projection` which returns `projection_info`.
+
+Data for a projection declaration:
 - `cname`    is the name of the constructor associated with the projection.
-- `nparams`  is the number of constructor parameters
-- `idx`      is the parameter being projected by this projection
-- `is_class` is tt iff this is a class projection.
+- `nparams`  is the number of constructor parameters. Eg `and.intro` has two type parameters.
+- `idx`      is the parameter being projected by this projection.
+- `is_class` is tt iff this is a typeclass projection.
+
+### Examples:
+
+- `and.right` is a projection with ``{cname := `and.intro, nparams := 2, idx := 1, is_class := ff}``
+- `ordered_ring.neg` is a projection with ``{cname := `ordered_ring.mk, nparams := 1, idx := 5, is_class := tt}``.
+
 -/
 structure projection_info :=
 (cname : name)
@@ -65,10 +85,12 @@ meta constant inductive_num_params : environment → name → nat
 meta constant inductive_num_indices : environment → name → nat
 /-- Return tt iff the inductive datatype recursor supports dependent elimination -/
 meta constant inductive_dep_elim : environment → name → bool
-/-- Return tt iff the given name is a generalized inductive datatype -/
+/-- Return tt iff the given name is a generalized inductive datatype.
+That is, the name points to a declaration made with the `inductive` keyword. -/
 meta constant is_ginductive : environment → name → bool
+/-- See the docstring for `projection_info`. -/
 meta constant is_projection : environment → name → option projection_info
-/-- Fold over declarations in the environment -/
+/-- Fold over declarations in the environment. -/
 meta constant fold {α :Type} : environment → α → (declaration → α → α) → α
 /-- `relation_info env n` returns some value if n is marked as a relation in the given environment.
    the tuple contains: total number of arguments of the relation, lhs position and rhs position. -/
