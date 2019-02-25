@@ -65,7 +65,7 @@ meta constant is_namespace    : environment → name → bool
    name, universe parameters, number of parameters, type, constructors (name and type), is_meta -/
 meta constant add_inductive   : environment → name → list name → nat → expr → list (name × expr) → bool →
                                 exceptional environment
-/-- Return tt iff the given name is an inductive datatype -/
+/-- Return tt iff the given name is an inductive datatype. -/
 meta constant is_inductive    : environment → name → bool
 /-- Return tt iff the given name is a constructor -/
 meta constant is_constructor  : environment → name → bool
@@ -85,8 +85,12 @@ meta constant inductive_num_params : environment → name → nat
 meta constant inductive_num_indices : environment → name → nat
 /-- Return tt iff the inductive datatype recursor supports dependent elimination -/
 meta constant inductive_dep_elim : environment → name → bool
-/-- Return tt iff the given name is a generalized inductive datatype.
-That is, the name points to a declaration made with the `inductive` keyword. -/
+/-- Functionally equivalent to `is_inductive`.
+
+Technically, this works by checking if the name is in the ginductive environment 
+extension which is outside the kernel, whereas `is_inductive` works by looking at the kernel extension.
+But there are no `is_inductive`s which are not `is_ginductive`.
+ -/
 meta constant is_ginductive : environment → name → bool
 /-- See the docstring for `projection_info`. -/
 meta constant is_projection : environment → name → option projection_info
