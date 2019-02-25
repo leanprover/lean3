@@ -14,10 +14,10 @@ namespace environment
 /--
 Consider a type ψ which is an inductive datatype using a single constructor `mk (a : α) (b : β) : → ψ`.
 Lean will automatically make two projection functions `a : ψ → α`, `b : ψ → β`.
-Lean tags these declarations as __projections__. 
+Lean tags these declarations as __projections__.
 This helps the simplifier / rewriter not have to expand projectors.
 Eg `a (mk x y)` will automatically reduce to `x`.
-If you `extend` a structure, all of the projections on the parent will also be created for the child. 
+If you `extend` a structure, all of the projections on the parent will also be created for the child.
 
 [TODO] any other reasons Lean treats projections differently to regular declarations?
     I know that you get projection macros.
@@ -87,7 +87,7 @@ meta constant inductive_num_indices : environment → name → nat
 meta constant inductive_dep_elim : environment → name → bool
 /-- Functionally equivalent to `is_inductive`.
 
-Technically, this works by checking if the name is in the ginductive environment 
+Technically, this works by checking if the name is in the ginductive environment
 extension which is outside the kernel, whereas `is_inductive` works by looking at the kernel extension.
 But there are no `is_inductive`s which are not `is_ginductive`.
  -/
@@ -116,6 +116,7 @@ meta constant structure_fields : environment → name → option (list name)
    occurring in instances of type classes tagged with the attribute `attr_name`.
    Example: [algebra] -/
 meta constant get_class_attribute_symbols : environment → name → name_set
+/-- The fingerprint of the environment is a hash formed from all of the declarations in the environment. -/
 meta constant fingerprint : environment → nat
 open expr
 

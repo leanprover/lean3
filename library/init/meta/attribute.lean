@@ -10,7 +10,7 @@ import init.meta.tactic init.meta.rb_map init.meta.has_reflect init.meta.lean.pa
 Eg. ``get_instances `simp`` returns a list with the names of all of the lemmas in the environment tagged with the `@[simp]` attribute.
  -/
 meta constant attribute.get_instances : name → tactic (list name)
-/-- Returns a hash of `get_instances`. -/
+/-- Returns a hash of `get_instances`. You can use this to tell if your attribute instances have changed. -/
 meta constant attribute.fingerprint : name → tactic nat
 
 /-- Configuration for a user attribute cache. For example, the `simp` attribute has a cache of type simp_lemmas.
