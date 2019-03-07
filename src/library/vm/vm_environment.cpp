@@ -15,8 +15,11 @@ Author: Leonardo de Moura
 #include "library/projection.h"
 #include "library/util.h"
 #include "library/fingerprint.h"
+#include "library/tactic/tactic_state.h"
 #include "library/relation_manager.h"
+#include "library/inductive_compiler/add_decl.h"
 #include "library/inductive_compiler/ginductive.h"
+#include "library/inductive_compiler/basic.h"
 #include "library/vm/vm_nat.h"
 #include "library/vm/vm_name.h"
 #include "library/vm/vm_option.h"
@@ -76,37 +79,114 @@ vm_obj environment_get(vm_obj const & env, vm_obj const & n) {
     }
 }
 
-static list<inductive::intro_rule> to_list_intro_rule(vm_obj const & cnstrs) {
+  static list<inductive::intro_rule> to_list_intro_rule(vm_obj const & cnstrs) {
+    std::cout << "to_list_intro_rule: " << (int) cnstrs.kind() << std::endl;
     if (is_simple(cnstrs))
-        return list<inductive::intro_rule>();
+      return list<inductive::intro_rule>();
     else
-        return list<inductive::intro_rule>(mk_local(to_name(cfield(cfield(cnstrs, 0), 0)),
-                                                    to_expr(cfield(cfield(cnstrs, 0), 1))),
-                                           to_list_intro_rule(cfield(cnstrs, 1)));
+      return list<inductive::intro_rule>(mk_local(to_name(cfield(cfield(cnstrs, 0), 0)),
+                                                  to_expr(cfield(cfield(cnstrs, 0), 1))),
+                                         to_list_intro_rule(cfield(cnstrs, 1)));
+  }
+
+  // static list<expr> to_list_expr(vm_obj const & cnstrs) {
+  //   if (is_simple(cnstrs))
+  //     return list<inductive::intro_rule>();
+  //   else
+  //     return list<inductive::intro_rule>(mk_local(to_name(cfield(cfield(cnstrs, 0), 0)),
+  //                                                 to_expr(cfield(cfield(cnstrs, 0), 1))),
+  //                                        to_list_intro_rule(cfield(cnstrs, 1)));
+  // }
+
+template <typename T>
+buffer<T> to_buffer(list<T> const & in) {
+  buffer<T> result;
+  for (auto x : in) {
+    result.push_back(x); }
+  return result;
+}
+
+static buffer<buffer<inductive::intro_rule>> to_buffer_buffer_intro_rule(vm_obj const & cnstrs) {
+  vm_obj const *iter = &cnstrs;
+  buffer<buffer<inductive::intro_rule>> result;
+  while (!is_simple(cnstrs)) {
+    std::cout << "A\n";
+    auto lst = to_list_intro_rule(cfield(*iter, 0));
+    std::cout << "C\n";
+    auto buf = to_buffer(lst);
+    std::cout << "D\n";
+    result.push_back(buf);
+    iter = &cfield(*iter, 1);
+    std::cout << "B\n";
+  }
+  std::cout << "this far\n";
+  return result;
 }
 
 vm_obj environment_add_inductive(vm_obj const & env, vm_obj const & n, vm_obj const & ls, vm_obj const & num,
                                  vm_obj const & type, vm_obj const & cnstrs, vm_obj const & is_meta) {
     try {
-        environment new_env = module::add_basic_inductive(to_env(env),
+        environment new_env = module::add_inductive(to_env(env),
                                                     inductive::inductive_decl(to_name(n),
                                                                               to_list_name(ls),
                                                                               force_to_unsigned(num, 0),
                                                                               to_expr(type),
                                                                               to_list_intro_rule(cnstrs)),
                                                     !to_bool(is_meta));
-        // environment new_env = module::add_inductive(to_env(env),
-        //                                             inductive::inductive_decl(to_name(n),
-        //                                                                       to_list_name(ls),
-        //                                                                       force_to_unsigned(num, 0),
-        //                                                                       to_expr(type),
-        //                                                                       to_list_intro_rule(cnstrs)),
-        //                                             !to_bool(is_meta));
         return mk_vm_exceptional_success(to_obj(new_env));
     } catch (throwable & ex) {
         return mk_vm_exceptional_exception(ex);
     }
 }
+  // environment add_inductive_declaration(environment const & old_env, options const & opts,
+  //                                       name_map<implicit_infer_kind> implicit_infer_map,
+  //                                       buffer<name> const & lp_names, buffer<expr> const & params,
+  //                                       buffer<expr> const & inds, buffer<buffer<expr> > const & intro_rules,
+  //                                       bool is_trusted) {
+
+vm_obj tactic_add_ginductive(vm_obj const & ls, vm_obj const & params_,
+                             vm_obj const & ind_, vm_obj const & cnstrs, vm_obj const & is_meta,
+                             vm_obj const & s0) {
+  tactic_state s = tactic::to_state(s0);
+  try {
+      environment old_env = s.env();
+      std::cout << "params\n";
+      buffer<expr> params;
+      to_buffer_expr(params_, params);
+      std::cout << "bar\n";
+      buffer<expr> ind;
+      to_buffer_expr(ind_, ind);
+      // buffer<expr> ind = to_buffer(to_list_intro_rule(ind_));
+      // auto lp = to_list_name(ls);
+      std::cout << "foo\n";
+      buffer<buffer<expr>> intro_rules;
+      to_buffer_buffer_expr(cnstrs, intro_rules); // = to_buffer_buffer_intro_rule(cnstrs);
+      buffer<name> lp;
+      to_buffer_name(ls, lp);
+      // ginductive_decl decl(old_env, 0, to_list_name(ls), params, inds, to_list_intro_rule(cnstrs));
+
+      std::cout << "foo bar\n";
+      environment new_env = lean::add_inductive_declaration(
+                  old_env, s.get_options(),
+                  rb_map<name,implicit_infer_kind,name_quick_cmp>(),
+                  lp, params, ind, intro_rules, !to_bool(is_meta));
+      std::cout << "bar foo bar\n";
+
+      // environment new_env = lean::add_basic_inductive_decl(old_env, options(), rb_map<name,implicit_infer_kind,name_quick_cmp>(),#include <vm_option.h>
+      //                                               inductive::inductive_decl(to_name(n),
+      //                                                                         to_list_name(ls),
+      //                                                                         force_to_unsigned(num, 0),
+      //                                                                         to_expr(type),
+      //                                                                         to_list_intro_rule(cnstrs)),
+      //                                               !to_bool(is_meta));
+      // post_process(params, ind, intro_rules);
+      // return mk_vm_exceptional_success(to_obj(s));
+      return tactic::mk_success(set_env(s, new_env));
+    } catch (exception & ex) {
+      return tactic::mk_exception(ex, s);
+    }
+}
+
 
 vm_obj environment_is_inductive(vm_obj const & env, vm_obj const & n) {
     return mk_vm_bool(static_cast<bool>(inductive::is_inductive_decl(to_env(env), to_name(n))));
@@ -286,6 +366,7 @@ void initialize_vm_environment() {
     DECLARE_VM_BUILTIN(name({"environment", "constructors_of"}),       environment_constructors_of);
     DECLARE_VM_BUILTIN(name({"environment", "recursor_of"}),           environment_recursor_of);
     DECLARE_VM_BUILTIN(name({"environment", "inductive_num_params"}),  environment_inductive_num_params);
+    DECLARE_VM_BUILTIN(name({"tactic", "add_ginductive"}),             tactic_add_ginductive);
     DECLARE_VM_BUILTIN(name({"environment", "inductive_num_indices"}), environment_inductive_num_indices);
     DECLARE_VM_BUILTIN(name({"environment", "inductive_dep_elim"}),    environment_inductive_dep_elim);
     DECLARE_VM_BUILTIN(name({"environment", "add_namespace"}),         environment_add_namespace);

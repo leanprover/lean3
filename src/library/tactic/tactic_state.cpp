@@ -21,6 +21,7 @@ Author: Leonardo de Moura
 #include "library/scoped_ext.h"
 #include "library/aux_definition.h"
 #include "library/unfold_macros.h"
+// #include "library/inductive_compiler/basic.h"
 #include "library/inductive_compiler/ginductive.h"
 #include "library/vm/vm_environment.h"
 #include "library/vm/vm_exceptional.h"
