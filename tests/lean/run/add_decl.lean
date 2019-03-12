@@ -2,22 +2,48 @@ prelude
 import init.meta.tactic
 open tactic expr
 
--- meta constant add_ginductive : list name → list expr → list expr → list (list expr) → bool → tactic unit
-#check add_ginductive
-  run_cmd
-do -- t ← mk_local_def `foo `(Type),
-   let c := @const tt `foo [],
-   v ← mk_local_def `foo `(Type),
-   c ← mk_local_def `constr (const `foo []),
-   add_ginductive [] [] [v] [[c]] ff
-   -- `foo [] 0 `(Type) [(`constr,c)]
+/-
+inductive foo (α : Type)
+| constr : foo
+-/
 
-mutual inductive odd, even (α : Type)
-with odd : ℕ → Prop
-| zero : odd 0
-with even : ℕ → Prop
-| one : even 1
+run_cmd do
+  α ← mk_local_def `α `(Type),
+  let c : expr := (@const tt `foo []).app α,
+  env ← get_env,
+  env.add_ginductive options.mk
+    [] [α] [((`foo, `(Type)), [⟨`foo.constr, c, default _⟩])] ff >>= set_env
 
+#print foo
 
+/-
+mutual inductive odd, even (α : Type) (zero : α) (succ : α → α)
+with odd : α → Prop
+| succ {n} : even n → odd (succ n)
+with even : α → Prop
+| zero : even zero
+| succ {n} : odd n → even (succ n)
+-/
 
-#check foo.no_confusion
+run_cmd do
+  env ← get_env,
+  α ← mk_local_def `α `(Type),
+  zero ← mk_local_def `zero α,
+  succ ← mk_local_def `succ `((%%α : Type) → (%%α : Type)),
+  let odd : expr := (@const tt `odd []).app α zero succ,
+  let even : expr := (@const tt `even []).app α zero succ,
+  let pred := `((%%α : Type) → Prop),
+  n ← mk_local' `n binder_info.implicit α,
+  let odd_succ_ty := `((%%(even n) : Prop) → (%%(odd (succ n)) : Prop)).bind_pi n,
+  let even_succ_ty := `((%%(odd n) : Prop) → (%%(even (succ n)) : Prop)).bind_pi n,
+  pp odd_succ_ty >>= trace,
+  env.add_ginductive options.mk
+    [] [α, zero, succ] [
+      ((`odd, `((%%α : Type) → Prop)),
+        [⟨`odd.succ, odd_succ_ty, default _⟩]),
+      ((`even, `((%%α : Type) → Prop)),
+        [⟨`even.zero, even zero, default _⟩,
+         ⟨`even.succ, even_succ_ty, default _⟩])] ff >>= set_env
+
+#print prefix odd
+#print prefix even

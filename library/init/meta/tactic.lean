@@ -28,11 +28,6 @@ meta constant to_format   (s : tactic_state) (target_lhs_only : bool := ff) : fo
 meta constant format_expr : tactic_state → expr → format
 meta constant get_options : tactic_state → options
 meta constant set_options : tactic_state → options → tactic_state
-
--- vm_obj tactic_add_ginductive(vm_obj const & ls, vm_obj const & params_,
--- vm_obj const & ind_, vm_obj const & cnstrs, vm_obj const & is_meta,
--- vm_obj const & s0) {
-
 end tactic_state
 
 meta instance : has_to_format tactic_state :=
@@ -79,7 +74,6 @@ meta def {u₁ u₂} tactic.down {α : Type u₂} (t : tactic (ulift.{u₁} α))
 end
 
 namespace tactic
-
 variables {α : Type u}
 
 meta def try_core (t : tactic α) : tactic (option α) :=
@@ -246,9 +240,6 @@ inductive transparency
 | all | semireducible | instances | reducible | none
 
 export transparency (reducible semireducible)
-
-/-- you haven't seen this declaration. Get on your way and tell no one -/
-meta constant add_ginductive : list name → list expr → list expr → list (list expr) → bool → tactic unit
 
 /-- (eval_expr α e) evaluates 'e' IF 'e' has type 'α'. -/
 meta constant eval_expr (α : Type u) [reflected α] : expr → tactic α

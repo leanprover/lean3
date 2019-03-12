@@ -71,19 +71,6 @@ MK_TO_BUFFER(name, to_name)
 MK_TO_BUFFER(level, to_level)
 MK_TO_BUFFER(expr, to_expr)
 
-void to_buffer_buffer_expr(vm_obj const & o, buffer<buffer<expr>> & r) {
-  if (is_simple(o)) {
-    return;
-  } else {
-    lean_vm_check(is_constructor(o));
-    buffer<expr> new_buf;
-    to_buffer_expr(cfield(o, 0), new_buf);
-    r.push_back(new_buf);
-    to_buffer_buffer_expr(cfield(o, 1), r);
-  }
-}
-
-
 template<typename A>
 unsigned list_cases_on_core(list<A> const & l, buffer<vm_obj> & data) {
     if (empty(l)) {

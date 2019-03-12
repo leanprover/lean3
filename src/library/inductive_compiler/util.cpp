@@ -17,6 +17,24 @@
 
 namespace lean {
 
+vm_obj to_obj(implicit_infer_kind k) {
+    switch (k) {
+    case implicit_infer_kind::Implicit:        return mk_vm_simple(0);
+    case implicit_infer_kind::RelaxedImplicit: return mk_vm_simple(1);
+    case implicit_infer_kind::None:            return mk_vm_simple(2);
+    }
+    lean_unreachable();
+}
+
+implicit_infer_kind to_implicit_infer_kind(vm_obj const & o) {
+    switch (cidx(o)) {
+    case 0: return implicit_infer_kind::Implicit;
+    case 1: return implicit_infer_kind::RelaxedImplicit;
+    case 2: return implicit_infer_kind::None;
+    }
+    lean_unreachable();
+}
+
 implicit_infer_kind get_implicit_infer_kind(name_map<implicit_infer_kind> const & implicit_infer_map, name const & n) {
     if (auto it = implicit_infer_map.find(n))
         return *it;

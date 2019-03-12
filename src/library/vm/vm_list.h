@@ -28,8 +28,6 @@ vm_obj to_obj(buffer<expr> const & ls);
 vm_obj to_obj(list<expr> const & ls);
 vm_obj to_obj(list<list<expr>> const & ls);
 
-void to_buffer_buffer_expr(vm_obj const & o, buffer<buffer<expr>> & r);
-
 template<typename A, typename F>
 vm_obj to_vm_list(list<A> const & ls, F const & fn) {
     if (empty(ls)) return mk_vm_simple(0);
