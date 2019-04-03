@@ -36,11 +36,19 @@ meta instance : has_to_format tactic_state :=
 meta instance : has_to_string tactic_state :=
 ⟨λ s, (to_fmt s).to_string s.get_options⟩
 
+/-- `tactic` is the monad for building tactics.
+    You use this to:
+    - View and modify the local goals and hypotheses in the prover's state.
+    - Invoke type checking and elaboration of terms.
+    - View and modify the environment. 
+    - Build new tactics out of existing ones such as `simp` and `rewrite`.
+-/
 @[reducible] meta def tactic := interaction_monad tactic_state
 @[reducible] meta def tactic_result := interaction_monad.result tactic_state
 
 namespace tactic
   export interaction_monad (hiding failed fail)
+  /-- Cause the tactic to fail with no error message. -/
   meta def failed {α : Type} : tactic α := interaction_monad.failed
   meta def fail {α : Type u} {β : Type v} [has_to_format β] (msg : β) : tactic α :=
   interaction_monad.fail msg
@@ -81,6 +89,7 @@ meta def try_core (t : tactic α) : tactic (option α) :=
  (λ a, success (some a))
  (λ e ref s', success none s)
 
+/-- Does nothing. -/
 meta def skip : tactic unit :=
 success ()
 
@@ -122,6 +131,7 @@ meta def iterate_exactly : nat → tactic unit → tactic unit
 | 0        t := skip
 | (succ n) t := do t, iterate_exactly n t
 
+/-- Repeat the given tactic forever. -/
 meta def iterate : tactic unit → tactic unit :=
 iterate_at_most 100000
 
@@ -134,7 +144,7 @@ end
 meta instance opt_to_tac : has_coe (option α) (tactic α) :=
 ⟨returnopt⟩
 
-/-- Decorate t's exceptions with msg -/
+/-- Decorate t's exceptions with msg. -/
 meta def decorate_ex (msg : format) (t : tactic α) : tactic α :=
 λ s, result.cases_on (t s)
   success
@@ -144,9 +154,11 @@ meta def decorate_ex (msg : format) (t : tactic α) : tactic α :=
      | none   := exception none
      end)
 
+/-- Set the tactic_state. -/
 @[inline] meta def write (s' : tactic_state) : tactic unit :=
 λ s, success () s'
 
+/-- Get the tactic_state. -/
 @[inline] meta def read : tactic tactic_state :=
 λ s, success s s
 
@@ -823,13 +835,15 @@ meta def num_goals     : tactic nat :=
 do gs ← get_goals,
    return (length gs)
 
-/-- We have to provide the instance argument `[has_mod nat]` because
+/-- Rotate the goals to the right by `n`. That is, take the goal at the back and push it to the front `n` times.
+[NOTE] We have to provide the instance argument `[has_mod nat]` because
    mod for nat was not defined yet -/
 meta def rotate_right (n : nat) [has_mod nat] : tactic unit :=
 do ng ← num_goals,
    if ng = 0 then skip
    else rotate_left (ng - n % ng)
 
+/-- Rotate the goals to the left by `n`. That is, put the main goal to the back `n` times. -/
 meta def rotate : nat → tactic unit :=
 rotate_left
 
@@ -1341,6 +1355,7 @@ end list
 
 /- Install monad laws tactic and use it to prove some instances. -/
 
+/-- Try to prove with `iff.refl`.-/
 meta def order_laws_tac := whnf_target >> intros >> to_expr ``(iff.refl _) >>= exact
 
 meta def monad_from_pure_bind {m : Type u → Type v}
