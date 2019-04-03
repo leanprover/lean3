@@ -15,15 +15,18 @@ universe u
 variables {α : Type u}
 
 set_option auto_param.check_exists false
+/-- A preorder is a reflexive, transitive relation `≤` with `a < b` defined in the obvious way. -/
 class preorder (α : Type u) extends has_le α, has_lt α :=
 (le_refl : ∀ a : α, a ≤ a)
 (le_trans : ∀ a b c : α, a ≤ b → b ≤ c → a ≤ c)
 (lt := λ a b, a ≤ b ∧ ¬ b ≤ a)
 (lt_iff_le_not_le : ∀ a b : α, a < b ↔ (a ≤ b ∧ ¬ b ≤ a) . order_laws_tac)
 
+/-- A partial order is a reflexive, transitive, antisymmetric relation `≤`. -/
 class partial_order (α : Type u) extends preorder α :=
 (le_antisymm : ∀ a b : α, a ≤ b → b ≤ a → a = b)
 
+/-- A linear order is reflexive, transitive, antisymmetric and total relation `≤`.-/
 class linear_order (α : Type u) extends partial_order α :=
 (le_total : ∀ a b : α, a ≤ b ∨ b ≤ a)
 
