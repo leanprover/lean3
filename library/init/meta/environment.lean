@@ -23,6 +23,23 @@ structure projection_info :=
 (idx : nat)
 (is_class : bool)
 
+/-- A marking on the binders of structures and inductives indicating
+   how this constructor should mark its parameters.
+
+       inductive foo
+       | one {} : foo -> foo   -- relaxed_implicit
+       | two ( ) : foo -> foo   -- none
+       | three : foo -> foo    -- implicit (default)
+-/
+inductive implicit_infer_kind | implicit | relaxed_implicit | none
+instance implicit_infer_kind.inhabited : inhabited implicit_infer_kind := ⟨implicit_infer_kind.implicit⟩
+
+/-- One introduction rule in an inductive declaration -/
+meta structure intro_rule :=
+(constr : name)
+(type : expr)
+(infer : implicit_infer_kind := implicit_infer_kind.implicit)
+
 /-- Create a standard environment using the given trust level -/
 meta constant mk_std          : nat → environment
 /-- Return the trust level of the given environment -/
@@ -42,8 +59,26 @@ meta constant add_namespace   : environment → name → environment
 meta constant is_namespace    : environment → name → bool
 /-- Add a new inductive datatype to the environment
    name, universe parameters, number of parameters, type, constructors (name and type), is_meta -/
-meta constant add_inductive   : environment → name → list name → nat → expr → list (name × expr) → bool →
-                                exceptional environment
+meta constant add_inductive (env : environment)
+  (n : name) (levels : list name) (num_params : nat) (type : expr)
+  (intros : list (name × expr)) (is_meta : bool) : exceptional environment
+/-- Add a new general inductive declaration to the environment.
+  This has the same effect as a `inductive` in the file, including generating
+  all the auxiliary definitions, as well as triggering mutual/nested inductive
+  compilation, by contrast to `environment.add_inductive` which only adds the
+  core axioms supported by the kernel.
+
+  The `inds` argument should be a list of inductives in the mutual family.
+  The first argument is a pair of the name of the type being constructed
+  and the type of this inductive family (not including the params).
+  The second argument is a list of intro rules, specified by a name, an
+  `implicit_infer_kind` giving the implicitness of the params for this constructor,
+  and an expression with the type of the constructor (not including the params).
+-/
+meta constant add_ginductive (env : environment) (opt : options)
+  (levels : list name) (params : list expr)
+  (inds : list ((name × expr) × list intro_rule))
+  (is_meta : bool) : exceptional environment
 /-- Return tt iff the given name is an inductive datatype -/
 meta constant is_inductive    : environment → name → bool
 /-- Return tt iff the given name is a constructor -/

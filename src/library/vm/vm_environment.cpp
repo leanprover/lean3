@@ -16,7 +16,9 @@ Author: Leonardo de Moura
 #include "library/util.h"
 #include "library/fingerprint.h"
 #include "library/relation_manager.h"
+#include "library/inductive_compiler/add_decl.h"
 #include "library/inductive_compiler/ginductive.h"
+#include "library/inductive_compiler/util.h"
 #include "library/vm/vm_nat.h"
 #include "library/vm/vm_name.h"
 #include "library/vm/vm_option.h"
@@ -24,6 +26,7 @@ Author: Leonardo de Moura
 #include "library/vm/vm_expr.h"
 #include "library/vm/vm_declaration.h"
 #include "library/vm/vm_exceptional.h"
+#include "library/vm/vm_options.h"
 #include "library/vm/vm_list.h"
 #include "library/vm/vm_pos_info.h"
 #include "library/vm/vm_rb_map.h"
@@ -95,6 +98,53 @@ vm_obj environment_add_inductive(vm_obj const & env, vm_obj const & n, vm_obj co
                                                                               to_expr(type),
                                                                               to_list_intro_rule(cnstrs)),
                                                     !to_bool(is_meta));
+        return mk_vm_exceptional_success(to_obj(new_env));
+    } catch (throwable & ex) {
+        return mk_vm_exceptional_exception(ex);
+    }
+}
+
+// meta constant add_ginductive (env : environment) (opt : options)
+//   (levels : list name) (params : list expr)
+//   (inds : list ((name × expr) × list intro_rule))
+//   (is_meta : bool) : exceptional environment
+vm_obj environment_add_ginductive(vm_obj const & env, vm_obj const & opts, vm_obj const & ls, vm_obj const & params_,
+                                  vm_obj const & inds_, vm_obj const & is_meta) {
+    try {
+        buffer<expr> params;
+        to_buffer_expr(params_, params);
+        buffer<name> lp;
+        to_buffer_name(ls, lp);
+        buffer<expr> inds;
+        buffer<buffer<expr>> intro_rules;
+        name_map<implicit_infer_kind> implicit_infer_map;
+
+        for (vm_obj const * p = &inds_; !is_simple(*p); p = &cfield(*p, 1)) {
+            if (!is_constructor(*p))
+                lean_unreachable(); // LCOV_EXCL_LINE
+            auto o = cfield(*p, 0);
+
+            inds.push_back(mk_local(to_name(cfield(cfield(o, 0), 0)), to_expr(cfield(cfield(o, 0), 1))));
+            intro_rules.emplace_back();
+            for (vm_obj const * q = &cfield(o, 1); !is_simple(*q); q = &cfield(*q, 1)) {
+                if (!is_constructor(*q))
+                    lean_unreachable(); // LCOV_EXCL_LINE
+                auto o = cfield(*q, 0);
+                auto cname = to_name(cfield(o, 0));
+                implicit_infer_map.insert(cname, to_implicit_infer_kind(cfield(o, 2)));
+                intro_rules.back().push_back(mk_local(cname, to_expr(cfield(o, 1))));
+            }
+        }
+
+        if (inds.empty())
+            throw exception("cannot declare 0 inductives");
+
+        std::cout << "foo bar\n";
+        environment new_env = add_inductive_declaration(
+                    to_env(env), to_options(opts), implicit_infer_map,
+                    lp, params, inds, intro_rules, !to_bool(is_meta));
+        std::cout << "bar foo bar\n";
+
         return mk_vm_exceptional_success(to_obj(new_env));
     } catch (throwable & ex) {
         return mk_vm_exceptional_exception(ex);
@@ -275,6 +325,7 @@ void initialize_vm_environment() {
     DECLARE_VM_BUILTIN(name({"environment", "is_constructor"}),        environment_is_constructor);
     DECLARE_VM_BUILTIN(name({"environment", "is_recursor"}),           environment_is_recursor);
     DECLARE_VM_BUILTIN(name({"environment", "is_recursive"}),          environment_is_recursive);
+    DECLARE_VM_BUILTIN(name({"environment", "add_ginductive"}),        environment_add_ginductive);
     DECLARE_VM_BUILTIN(name({"environment", "inductive_type_of"}),     environment_inductive_type_of);
     DECLARE_VM_BUILTIN(name({"environment", "constructors_of"}),       environment_constructors_of);
     DECLARE_VM_BUILTIN(name({"environment", "recursor_of"}),           environment_recursor_of);
@@ -292,8 +343,8 @@ void initialize_vm_environment() {
     DECLARE_VM_BUILTIN(name({"environment", "decl_olean"}),            environment_decl_olean);
     DECLARE_VM_BUILTIN(name({"environment", "decl_pos"}),              environment_decl_pos);
     DECLARE_VM_BUILTIN(name({"environment", "unfold_untrusted_macros"}), environment_unfold_untrusted_macros);
-    DECLARE_VM_BUILTIN(name({"environment", "unfold_all_macros"}), environment_unfold_all_macros);
-    DECLARE_VM_BUILTIN(name({"environment", "structure_fields"}),        environment_structure_fields);
+    DECLARE_VM_BUILTIN(name({"environment", "unfold_all_macros"}),     environment_unfold_all_macros);
+    DECLARE_VM_BUILTIN(name({"environment", "structure_fields"}),      environment_structure_fields);
     DECLARE_VM_BUILTIN(name({"environment", "get_class_attribute_symbols"}), environment_get_class_attribute_symbols);
     DECLARE_VM_BUILTIN(name({"environment", "fingerprint"}),           environment_fingerprint);
 }

@@ -8,9 +8,12 @@ Author: Daniel Selsam
 #include "kernel/environment.h"
 #include "library/util.h"
 #include "library/type_context.h"
+#include "library/vm/vm.h"
 
 namespace lean {
 
+implicit_infer_kind to_implicit_infer_kind(vm_obj const & o);
+vm_obj to_obj(implicit_infer_kind idx);
 implicit_infer_kind get_implicit_infer_kind(name_map<implicit_infer_kind> const & implicit_infer_map, name const & n);
 unsigned get_num_indices(environment const & env, expr const & ind);
 expr get_ind_result_type(type_context_old & tctx, expr const & ind);
