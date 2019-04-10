@@ -34,6 +34,8 @@ Author: Leonardo de Moura
 #include "library/vm/vm_option.h"
 #include "library/vm/vm_io.h"
 #include "library/vm/vm_list.h"
+#include "library/vm/vm_expr.h"
+#include "library/kernel_serializer.h"
 
 namespace lean {
 vm_obj io_core(vm_obj const &, vm_obj const &) {
@@ -308,6 +310,48 @@ static vm_obj monad_io_file_system_impl () {
         mk_native_closure(fs_stdin),
         mk_native_closure(fs_stdout),
         mk_native_closure(fs_stderr)});
+}
+
+static vm_obj serial_serialize(vm_obj const & h, vm_obj const & e, vm_obj const &) {
+    std::ostringstream out;
+    serializer s(out);
+    s << to_expr(e);
+
+    FILE *f = to_handle(h)->m_file;
+    std::string str = out.str();
+    fwrite(str.c_str(), str.size(), 1, f);
+    if (ferror(f)) {
+        clearerr(f);
+        return mk_io_failure("serialize failed");
+    }
+
+    return mk_io_result(mk_vm_unit());
+}
+
+static vm_obj serial_deserialize(vm_obj const & h, vm_obj const &) {
+    FILE *f = to_handle(h)->m_file;
+    fseek(f, 0, SEEK_END);
+    long fsize = ftell(f);
+    fseek(f, 0, SEEK_SET);
+
+    char *data = reinterpret_cast<char *>(malloc(fsize));
+    fread(data, fsize, 1, f);
+    if (ferror(f)) {
+        clearerr(f);
+        return mk_io_failure("deserialize failed");
+    }
+
+    std::istringstream in(std::string(data, fsize));
+    free(data);
+    deserializer d(in);
+
+    return mk_io_result(to_obj(read_expr(d)));
+}
+
+static vm_obj monad_io_serial_impl () {
+    return mk_vm_constructor(0, {
+        mk_native_closure(serial_serialize),
+        mk_native_closure(serial_deserialize)});
 }
 
 stdio to_stdio(vm_obj const & o) {
@@ -598,6 +642,7 @@ void initialize_vm_io() {
     DECLARE_VM_BUILTIN(name("monad_io_impl"), monad_io_impl);
     DECLARE_VM_BUILTIN(name("monad_io_terminal_impl"), monad_io_terminal_impl);
     DECLARE_VM_BUILTIN(name("monad_io_file_system_impl"), monad_io_file_system_impl);
+    DECLARE_VM_BUILTIN(name("monad_io_serial_impl"), monad_io_serial_impl);
     DECLARE_VM_BUILTIN(name("monad_io_environment_impl"), monad_io_environment_impl);
     DECLARE_VM_BUILTIN(name("monad_io_process_impl"), monad_io_process_impl);
     DECLARE_VM_BUILTIN(name("monad_io_random_impl"), monad_io_random_impl);

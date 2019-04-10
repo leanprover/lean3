@@ -62,6 +62,10 @@ class monad_io_file_system (m : Type → Type → Type) [monad_io m] :=
 (stdout         : m io.error (handle m))
 (stderr         : m io.error (handle m))
 
+meta class monad_io_serial (m : Type → Type → Type) [monad_io m] :=
+(serialize      : (handle m) → expr → m io.error unit)
+(deserialize    : (handle m) → m io.error expr)
+
 class monad_io_environment (m : Type → Type → Type) :=
 (get_env : string → m io.error (option string))
 -- we don't provide set_env as it is (thread-)unsafe (at least with glibc)

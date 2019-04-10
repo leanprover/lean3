@@ -15,6 +15,7 @@ rand_nat
 @[instance] constant monad_io_impl             : monad_io io_core
 @[instance] constant monad_io_terminal_impl    : monad_io_terminal io_core
 @[instance] constant monad_io_file_system_impl : monad_io_file_system io_core
+@[instance] meta constant monad_io_serial_impl : monad_io_serial io_core
 @[instance] constant monad_io_environment_impl : monad_io_environment io_core
 @[instance] constant monad_io_process_impl     : monad_io_process io_core
 @[instance] constant monad_io_random_impl      : monad_io_random io_core
@@ -89,6 +90,12 @@ monad_io_file_system.stderr io_core
 
 def stdout : io handle :=
 monad_io_file_system.stdout io_core
+
+meta def serialize : handle → expr → io unit :=
+monad_io_serial.serialize
+
+meta def deserialize : handle → io expr :=
+monad_io_serial.deserialize
 
 namespace env
 
