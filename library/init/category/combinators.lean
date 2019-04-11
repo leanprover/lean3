@@ -17,12 +17,6 @@ def list.mmap' {m : Type → Type v} [monad m] {α : Type u} {β : Type} (f : α
 | []       := return ()
 | (h :: t) := f h >> list.mmap' t
 
-infix ` =<< `:2 := λ u v, v >>= u
-
-infix ` >=> `:2 := λ s t a, s a >>= t
-
-infix ` <=< `:2 := λ t s a, s a >>= t
-
 def mjoin {m : Type u → Type u} [monad m] {α : Type u} (a : m (m α)) : m α :=
 bind a id
 
