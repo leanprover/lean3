@@ -28,7 +28,7 @@ variables [division_ring α]
 protected definition algebra.div (a b : α) : α :=
 a * b⁻¹
 
-instance division_ring_has_div [division_ring α] : has_div α :=
+instance division_ring_has_div : has_div α :=
 ⟨algebra.div⟩
 
 lemma division_def (a b : α) : a / b = a * b⁻¹ :=
