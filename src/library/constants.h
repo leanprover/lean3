@@ -160,6 +160,7 @@ name const & get_int_neg_ne_of_pos_name();
 name const & get_int_ne_neg_of_pos_name();
 name const & get_int_neg_ne_zero_of_ne_name();
 name const & get_int_zero_ne_neg_of_ne_name();
+name const & get_interactive_executor_name();
 name const & get_interactive_param_desc_name();
 name const & get_interactive_parse_name();
 name const & get_io_core_name();

@@ -158,6 +158,7 @@ name const * g_int_neg_ne_of_pos = nullptr;
 name const * g_int_ne_neg_of_pos = nullptr;
 name const * g_int_neg_ne_zero_of_ne = nullptr;
 name const * g_int_zero_ne_neg_of_ne = nullptr;
+name const * g_interactive_executor = nullptr;
 name const * g_interactive_param_desc = nullptr;
 name const * g_interactive_parse = nullptr;
 name const * g_io_core = nullptr;
@@ -515,6 +516,7 @@ void initialize_constants() {
     g_int_ne_neg_of_pos = new name{"int", "ne_neg_of_pos"};
     g_int_neg_ne_zero_of_ne = new name{"int", "neg_ne_zero_of_ne"};
     g_int_zero_ne_neg_of_ne = new name{"int", "zero_ne_neg_of_ne"};
+    g_interactive_executor = new name{"interactive", "executor"};
     g_interactive_param_desc = new name{"interactive", "param_desc"};
     g_interactive_parse = new name{"interactive", "parse"};
     g_io_core = new name{"io_core"};
@@ -873,6 +875,7 @@ void finalize_constants() {
     delete g_int_ne_neg_of_pos;
     delete g_int_neg_ne_zero_of_ne;
     delete g_int_zero_ne_neg_of_ne;
+    delete g_interactive_executor;
     delete g_interactive_param_desc;
     delete g_interactive_parse;
     delete g_io_core;
@@ -1230,6 +1233,7 @@ name const & get_int_neg_ne_of_pos_name() { return *g_int_neg_ne_of_pos; }
 name const & get_int_ne_neg_of_pos_name() { return *g_int_ne_neg_of_pos; }
 name const & get_int_neg_ne_zero_of_ne_name() { return *g_int_neg_ne_zero_of_ne; }
 name const & get_int_zero_ne_neg_of_ne_name() { return *g_int_zero_ne_neg_of_ne; }
+name const & get_interactive_executor_name() { return *g_interactive_executor; }
 name const & get_interactive_param_desc_name() { return *g_interactive_param_desc; }
 name const & get_interactive_parse_name() { return *g_interactive_parse; }
 name const & get_io_core_name() { return *g_io_core; }

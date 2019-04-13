@@ -35,20 +35,18 @@ Author: Leonardo de Moura
 
    1) Make sure it is a monad. That is, we have an instance for (monad Tac)
 
-   2) There is a namespace Tac.interactive
+   2) There is a definition: Tac.step {α : Type} (t : Tac α) : Tac unit
 
-   3) There is a definition: Tac.step {α : Type} (t : Tac α) : Tac unit
-
-   4) (Optional) Tac.istep {α : Type} (line0 col0 : nat) (line col : nat) (tac : Tac α) : Tac unit
+   3) (Optional) Tac.istep {α : Type} (line0 col0 : nat) (line col : nat) (tac : Tac α) : Tac unit
       Similar to step but it should scope trace messages at the given line/col,
       and ensure that the exception position is after (line0, col0)
 
-   6) There is a definition Tac.save_info (line col : nat) : Tac unit
+   4) There is a definition Tac.save_info (line col : nat) : Tac unit
 
-   7) There is a definition Tac.execute (tac : Tac unit) : tactic unit
+   5) There is a instance of `interactive.executor Tac`, which consists of an
+      inhabited `config_type : Type` (which could be `unit`), along with
 
-   8) There is a definition Tac.execute_with (cfg : config) (tac : Tac unit) : tactic unit
-      where config is an arbitrary type.
+        execute_with (cfg : config) (tac : Tac unit) : tactic unit
 
    TODO(Leo): improve the "recipe" above. It is too ad hoc.
 */
@@ -418,6 +416,33 @@ static name parse_tactic_class(parser & p, name tac_class) {
     }
 }
 
+/*  Constructs an app of:
+        interactive.executor.execute_explicit : Π (m : Type → Type u)
+            [monad m] [interactive.executor m],
+        m unit → tactic unit
+*/
+static expr mk_tactic_execute(expr tac, name tac_class) {
+    return mk_app({
+        mk_constant(name(get_interactive_executor_name(), "execute_explicit")),
+        mk_constant(tac_class),
+        tac
+    });
+}
+
+/*  Constructs an app of:
+        interactive.executor.execute_with_explicit : Π (m : Type → Type u)
+            [monad m] [interactive.executor m],
+        interactive.executor.config_type m → m unit → tactic unit
+*/
+static expr mk_tactic_execute_with(expr tac, expr cfg, name tac_class) {
+    return mk_app({
+        mk_constant(name(get_interactive_executor_name(), "execute_with_explicit")),
+        mk_constant(tac_class),
+        cfg,
+        tac
+    });
+}
+
 struct parse_begin_end_block_fn {
     parser & m_p;
     name     m_tac_class;
@@ -509,12 +534,12 @@ struct parse_begin_end_block_fn {
             ex.report_goal_pos(end_pos);
             throw;
         }
-        if (!is_ext_tactic_class) {
+        if (!is_ext_tactic_class && m_tac_class != get_tactic_name()) {
             return r;
         } else if (cfg) {
-            return copy_tag(r, mk_app(mk_constant(name(m_tac_class, "execute_with")), *cfg, r));
+            return copy_tag(r, mk_tactic_execute_with(r, *cfg, m_tac_class));
         } else {
-            return copy_tag(r, mk_app(mk_constant(name(m_tac_class, "execute")), r));
+            return copy_tag(r, mk_tactic_execute(r, m_tac_class));
         }
     }
 };
@@ -553,6 +578,7 @@ expr parse_by(parser & p, unsigned, expr const *, pos_info const & pos) {
     try {
         bool use_istep    = true;
         expr tac  = parse_tactic(p, get_tactic_name(), use_istep);
+        tac = mk_tactic_execute(tac, get_tactic_name());
         expr type = mk_tactic_unit(get_tactic_name());
         expr r    = p.save_pos(mk_typed_expr(type, tac), tac_pos);
         return p.save_pos(mk_by(r), pos);

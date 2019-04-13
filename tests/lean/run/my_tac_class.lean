@@ -27,8 +27,8 @@ meta def istep {α : Type} (line0 col0 line col : nat) (t : mytac α) : mytac un
     | none := interaction_monad.silent_fail new_s
     end)⟩
 
-meta def execute (tac : mytac unit) : tactic unit :=
-tac.run 0 >> return ()
+meta instance : interactive.executor mytac :=
+{ config_type := unit, execute_with := λ _ tac, tac.run 0 >> return () }
 
 meta def save_info (p : pos) : mytac unit :=
 do v ← get,

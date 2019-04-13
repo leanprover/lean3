@@ -30,6 +30,11 @@ using_smt tac
 meta def execute_with (cfg : smt_config) (tac : smt_tactic unit) : tactic unit :=
 using_smt tac cfg
 
+meta instance : interactive.executor smt_tactic :=
+{ config_type := smt_config,
+  inhabited := ⟨{}⟩,
+  execute_with := λ cfg tac, using_smt tac cfg, }
+
 namespace interactive
 open lean.parser
 open interactive
