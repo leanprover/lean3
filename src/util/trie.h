@@ -30,7 +30,7 @@ class trie : public KeyCMP {
         if (n.is_shared())
             return trie(new cell(*n.m_ptr));
         else
-            return n;
+            return std::move(n);
     }
 
     template<typename It>

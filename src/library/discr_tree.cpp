@@ -118,7 +118,7 @@ auto discr_tree::ensure_unshared(node && n) -> node {
     else if (n.is_shared())
         return node(new (get_allocator().allocate()) node_cell(*n.m_ptr));
     else
-        return n;
+        return std::move(n);
 }
 
 discr_tree::node::node(node_cell * ptr):m_ptr(ptr) { if (m_ptr) ptr->inc_ref(); }

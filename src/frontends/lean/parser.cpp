@@ -2641,7 +2641,7 @@ void parser::maybe_throw_error(parser_error && err) {
             m_error_since_last_cmd = true;
         }
     } else {
-        throw err;
+        throw std::move(err);
     }
 }
 

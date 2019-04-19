@@ -736,7 +736,7 @@ expr copy_tag(expr const & e, expr && new_e) {
     tag t = e.get_tag();
     if (t != nulltag)
         new_e.set_tag(t);
-    return new_e;
+    return std::move(new_e);
 }
 
 expr update_app(expr const & e, expr const & new_fn, expr const & new_arg) {

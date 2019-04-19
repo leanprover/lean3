@@ -39,5 +39,5 @@ public:
 
 inline void * operator new(size_t s, lean::small_object_allocator & r) { return r.allocate(s); }
 inline void * operator new[](size_t s, lean::small_object_allocator & r) { return r.allocate(s); }
-inline void operator delete(void *, lean::small_object_allocator &) { lean_unreachable(); }
-inline void operator delete[](void *, lean::small_object_allocator &) { lean_unreachable(); }
+inline void operator delete(void *, lean::small_object_allocator &) { /* unreachable */ }
+inline void operator delete[](void *, lean::small_object_allocator &) { /* unreachable */ }

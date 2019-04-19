@@ -68,7 +68,7 @@ using inductive::mk_intro_rule;
 class add_basic_inductive_decl_fn {
     environment                           m_env;
     options const &                       m_opts;
-    name_map<implicit_infer_kind> const & m_implicit_infer_map;
+    name_map<implicit_infer_kind>         m_implicit_infer_map;
     ginductive_decl const &               m_decl;
     bool                                  m_is_trusted;
     void mk_basic_aux_decls() {

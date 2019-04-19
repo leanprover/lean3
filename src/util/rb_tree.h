@@ -85,13 +85,13 @@ class rb_tree : private CMP {
         if (n.is_shared()) {
             return node(new (get_allocator().allocate()) node_cell(*n.m_ptr));
         } else {
-            return n;
+            return std::move(n);
         }
     }
 
     static node set_black(node && n) {
         if (n.is_black())
-            return n;
+            return std::move(n);
         node r = ensure_unshared(n.steal());
         r->m_red = false;
         return r;
@@ -139,7 +139,7 @@ class rb_tree : private CMP {
         h->m_right = ensure_unshared(h->m_right.steal());
         h->m_left->m_red  = !h->m_left->m_red;
         h->m_right->m_red = !h->m_right->m_red;
-        return h;
+        return std::move(h);
     }
 
     LEAN_STATIC node fixup(node && h) {
@@ -150,7 +150,7 @@ class rb_tree : private CMP {
             h = rotate_right(h.steal());
         if (h->m_left.is_red() && h->m_right.is_red())
             h = flip_colors(h.steal());
-        return h;
+        return std::move(h);
     }
 
     node insert(node && n, T const & v) {
@@ -177,7 +177,7 @@ class rb_tree : private CMP {
             h          = rotate_left(h.steal());
             return flip_colors(h.steal());
         } else {
-            return h;
+            return std::move(h);
         }
     }
 
@@ -188,7 +188,7 @@ class rb_tree : private CMP {
             h          = rotate_right(h.steal());
             return flip_colors(h.steal());
         } else {
-            return h;
+            return std::move(h);
         }
     }
 
