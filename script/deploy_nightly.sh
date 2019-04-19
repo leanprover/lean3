@@ -1,6 +1,7 @@
 #!/bin/bash
 
 set -exu
+set -x				# echo commands
 
 [ -z ${LEAN_VERSION_STRING+x} ] && exit 0
 
@@ -27,10 +28,10 @@ then
     echo -e "*Full commit log*\n" >> diff.md
     git log --oneline $last_tag..HEAD | sed 's/^/* /' >> diff.md
     git push nightly $LEAN_VERSION_STRING
-    gothub release -s $GH_TOKEN -u leanprover -r lean-nightly -t $LEAN_VERSION_STRING -d - --pre-release < diff.md
+    gothub release -u leanprover -r lean-nightly -t $LEAN_VERSION_STRING -d - --pre-release < diff.md
 else
     # make sure every runner is building the same commit
     [ $(git rev-parse HEAD) == $(git rev-parse $LEAN_VERSION_STRING) ] || exit 1
 fi
 
-gothub upload -s $GH_TOKEN -u leanprover -r lean-nightly -t $LEAN_VERSION_STRING -n "$(basename $1)" -f "$1"
+gothub upload -u leanprover -r lean-nightly -t $LEAN_VERSION_STRING -n "$(basename $1)" -f "$1"
