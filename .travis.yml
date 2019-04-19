@@ -171,5 +171,5 @@ deploy:
   overwrite: true
   on:
     condition: $UPLOAD = ON && $GH_TOKEN
-    repo: leanprover/lean
+    repo: leanprover-community/lean
     tags: true
