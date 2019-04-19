@@ -34,11 +34,16 @@ vm_obj revert(list<expr> const & ls, tactic_state const & s, bool preserve_local
         local_context lctx         = g->get_context();
         buffer<expr> locals;
         for (expr const & l : ls) {
-            if (lctx.find_local_decl(l)) {
-                locals.push_back(l);
+            if (is_mlocal(l)) {
+                if (lctx.find_local_decl(l)) {
+                    locals.push_back(l);
+                } else {
+                    return tactic::mk_exception(sstream() << "revert tactic failed, unknown '"
+                                                << mlocal_pp_name(l) << "' hypothesis", s);
+                }
             } else {
-                return tactic::mk_exception(sstream() << "revert tactic failed, unknown '"
-                                            << mlocal_pp_name(l) << "' hypothesis", s);
+                return tactic::mk_exception(sstream() << "revert tactic failed, expecting local variable, found '"
+                                            << l << "'", s);
             }
         }
         tactic_state new_s = revert(locals, s, preserve_locals_order);
