@@ -2,7 +2,7 @@
 # script should be sourced
 
 git remote add nightly "https://$GH_TOKEN@github.com/leanprover-community/lean-nightly.git"
-set -x				# echo commands
+# set -x				# echo commands
 git fetch nightly --tags
 
 export LEAN_VERSION_STRING="nightly-$(date -u +%F)"

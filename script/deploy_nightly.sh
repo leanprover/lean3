@@ -1,7 +1,7 @@
 #!/bin/bash
 
 set -exu
-set -x				# echo commands
+# set -x				# echo commands
 
 [ -z ${LEAN_VERSION_STRING+x} ] && exit 0
 
