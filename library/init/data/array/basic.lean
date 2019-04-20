@@ -7,21 +7,22 @@ prelude
 import init.data.nat init.data.bool init.ite_simp
 universes u v w
 
-/- In the VM, d_array is implemented a persistent array. -/
+/-- In the VM, d_array is implemented as a persistent array. -/
 structure d_array (n : nat) (α : fin n → Type u) :=
 (data : Π i : fin n, α i)
 
 namespace d_array
 variables {n : nat} {α : fin n → Type u} {β : Type v}
 
+/-- The empty array. -/
 def nil {α} : d_array 0 α :=
 {data := λ ⟨x, h⟩, absurd h (nat.not_lt_zero x)}
 
-/- has builtin VM implementation -/
+/-- `read a i` reads the `i`th member of `a`. Has builtin VM implementation. -/
 def read (a : d_array n α) (i : fin n) : α i :=
 a.data i
 
-/- has builtin VM implementation -/
+/-- `write a i v` sets the `i`th member of `a` to be `v`. Has builtin VM implementation. -/
 def write (a : d_array n α) (i : fin n) (v : α i) : d_array n α :=
 {data := λ j, if h : i = j then eq.rec_on h v else a.read j}
 
@@ -31,11 +32,11 @@ def iterate_aux (a : d_array n α) (f : Π i : fin n, α i → β → β) : Π (
   let i : fin n := ⟨j, h⟩ in
   f i (a.read i) (iterate_aux j (le_of_lt h) b)
 
-/- has builtin VM implementation -/
+/-- Fold over the elements of the given array in ascending order. Has builtin VM implementation. -/
 def iterate (a : d_array n α) (b : β) (f : Π i : fin n, α i → β → β) : β :=
 iterate_aux a f n (le_refl _) b
 
-/- has builtin VM implementation -/
+/-- Map the array. Has builtin VM implementation. -/
 def foreach (a : d_array n α) (f : Π i : fin n, α i → α i) : d_array n α :=
 iterate a a $ λ i v a', a'.write i (f i v)
 
@@ -73,6 +74,7 @@ protected def beq_aux [∀ i, decidable_eq (α i)] (a b : d_array n α) : Π (i 
 | 0     h := tt
 | (i+1) h := if a.read ⟨i, h⟩ = b.read ⟨i, h⟩ then beq_aux i (le_of_lt h) else ff
 
+/-- Boolean element-wise equality check. -/
 protected def beq [∀ i, decidable_eq (α i)] (a b : d_array n α) : bool :=
 d_array.beq_aux a b n (le_refl _)
 
@@ -131,10 +133,11 @@ instance [∀ i, decidable_eq (α i)] : decidable_eq (d_array n α) :=
 
 end d_array
 
+/-- A non-dependent array (see `d_array`). Implemented in the VM as a persistent array.  -/
 def array (n : nat) (α : Type u) : Type u :=
 d_array n (λ _, α)
 
-/- has builtin VM implementation -/
+/-- `mk_array n v` creates a new array of length `n` where each element is `v`. Has builtin VM implementation. -/
 def mk_array {α} (n) (v : α) : array n α :=
 {data := λ _, v}
 
@@ -150,9 +153,11 @@ d_array.read a i
 def write (a : array n α) (i : fin n) (v : α) : array n α :=
 d_array.write a i v
 
+/-- Fold array starting from 0, folder function includes an index argument. -/
 def iterate (a : array n α) (b : β) (f : fin n → α → β → β) : β :=
 d_array.iterate a b f
 
+/-- Map each element of the given array with an index argument. -/
 def foreach (a : array n α) (f : fin n → α → α) : array n α :=
 iterate a a (λ i v a', a'.write i (f i v))
 
@@ -180,14 +185,14 @@ a.rev_foldl [] (::)
 lemma push_back_idx {j n} (h₁ : j < n + 1) (h₂ : j ≠ n) : j < n :=
 nat.lt_of_le_and_ne (nat.le_of_lt_succ h₁) h₂
 
-/- has builtin VM implementation -/
+/-- `push_back a v` pushes value `v` to the end of the array. Has builtin VM implementation. -/
 def push_back (a : array n α) (v : α) : array (n+1) α :=
 {data := λ ⟨j, h₁⟩, if h₂ : j = n then v else a.read ⟨j, push_back_idx h₁ h₂⟩}
 
 lemma pop_back_idx {j n} (h : j < n) : j < n + 1 :=
 nat.lt.step h
 
-/- has builtin VM implementation -/
+/-- Discard _last_ element in the array. Has builtin VM implementation. -/
 def pop_back (a : array (n+1) α) : array n α :=
 {data := λ ⟨j, h⟩, a.read ⟨j, pop_back_idx h⟩}
 

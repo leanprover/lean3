@@ -7,7 +7,7 @@ prelude
 import init.meta.tactic
 
 /--
-The front-end (e.g., Emacs, VS Code) can invoke commands for holes {! ... !} in
+The front-end (e.g., Emacs, VS Code) can invoke commands for holes `{! ... !}` in
 a declaration. A command is a tactic that takes zero or more pre-terms in the
 hole, and returns a list of pair (s, descr) where 's' is a substitution and 'descr' is
 a short explanation for the substitution.

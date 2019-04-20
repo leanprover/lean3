@@ -20,7 +20,7 @@ variables {f : Type u → Type v} [alternative f] {α : Type u}
 
 @[inline] def failure : f α :=
 alternative.failure f
-
+/-- If the condition `p` is decided to be false, then fail, otherwise, return unit. -/
 @[inline] def guard {f : Type → Type v} [alternative f] (p : Prop) [decidable p] : f unit :=
 if p then pure () else failure
 

@@ -6,7 +6,7 @@ Authors: Leonardo de Moura
 prelude
 import init.meta.name init.meta.format
 
-/-- Reflect a C++ level object. The VM replaces it with the C++ implementation. -/
+/-- A type universe term. eg `max u v`. Reflect a C++ level object. The VM replaces it with the C++ implementation. -/
 meta inductive level
 | zero   : level
 | succ   : level → level

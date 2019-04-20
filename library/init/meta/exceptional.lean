@@ -9,6 +9,7 @@ import init.category.monad init.meta.format init.util
 Remark: we use a function that produces a format object as the exception information.
 Motivation: the formatting object may be big, and we may create it on demand.
 -/
+/-- An exceptional is similar to `Result` in Haskell.-/
 meta inductive exceptional (α : Type)
 | success   : α → exceptional
 | exception : (options → format) → exceptional

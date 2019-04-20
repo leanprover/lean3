@@ -10,29 +10,32 @@ prelude
 notation `Prop` := Sort 0
 notation f ` $ `:1 a:0 := f a
 
-/- Logical operations and relations -/
+/- Reserving notation. We do this sot that the precedence of all of the operators
+can be seen in one place and to prevent core notation being accidentally overloaded later.  -/
+
+/- Notation for logical operations and relations -/
 
 reserve prefix `¬`:40
-reserve prefix `~`:40
+reserve prefix `~`:40    -- not used
 reserve infixr ` ∧ `:35
 reserve infixr ` /\ `:35
 reserve infixr ` \/ `:30
 reserve infixr ` ∨ `:30
 reserve infix ` <-> `:20
 reserve infix ` ↔ `:20
-reserve infix ` = `:50
-reserve infix ` == `:50
+reserve infix ` = `:50   -- eq
+reserve infix ` == `:50  -- heq
 reserve infix ` ≠ `:50
-reserve infix ` ≈ `:50
-reserve infix ` ~ `:50
-reserve infix ` ≡ `:50
-reserve infixl ` ⬝ `:75
-reserve infixr ` ▸ `:75
-reserve infixr ` ▹ `:75
+reserve infix ` ≈ `:50   -- has_equiv.equiv
+reserve infix ` ~ `:50   -- used as local notation for relations
+reserve infix ` ≡ `:50   -- not used
+reserve infixl ` ⬝ `:75  -- not used
+reserve infixr ` ▸ `:75  -- eq.subst
+reserve infixr ` ▹ `:75  -- not used
 
 /- types and type constructors -/
 
-reserve infixr ` ⊕ `:30
+reserve infixr ` ⊕ `:30  -- sum (defined in init/data/sum/basic.lean)
 reserve infixr ` × `:35
 
 /- arithmetic operations -/
@@ -45,7 +48,7 @@ reserve infixl ` % `:70
 reserve prefix `-`:100
 reserve infixr ` ^ `:80
 
-reserve infixr ` ∘ `:90                 -- input with \comp
+reserve infixr ` ∘ `:90  -- function composition
 
 reserve infix ` <= `:50
 reserve infix ` ≤ `:50
@@ -69,18 +72,18 @@ reserve infix ` ⊆ `:50
 reserve infix ` ⊇ `:50
 reserve infix ` ⊂ `:50
 reserve infix ` ⊃ `:50
-reserve infix ` \ `:70
+reserve infix ` \ `:70   -- symmetric difference
 
 /- other symbols -/
 
-reserve infix ` ∣ `:50
-reserve infixl ` ++ `:65
-reserve infixr ` :: `:67
-reserve infixl `; `:1
+reserve infix ` ∣ `:50   -- has_dvd.dvd. Note this is different to `|`.
+reserve infixl ` ++ `:65 -- has_append.append
+reserve infixr ` :: `:67 -- list.cons
+reserve infixl `; `:1    -- has_andthen.andthen
 
 universes u v w
 
-/-
+/--
 The kernel definitional equality test (t =?= s) has special support for id_delta applications.
 It implements the following rules
 
@@ -157,9 +160,18 @@ constant quot.lift {α : Sort u} {r : α → α → Prop} {β : Sort v} (f : α 
 
 constant quot.ind {α : Sort u} {r : α → α → Prop} {β : quot r → Prop} :
   (∀ a : α, β (quot.mk r a)) → ∀ q : quot r, β q
+
+Also the reduction rule:
+
+quot.lift f _ (quot.mk a) ~~> f a
+
 -/
 init_quotient
 
+/-- Heterogeneous equality.
+It's purpose is to write down equalities between terms whose types are not definitionally equal.
+For example, given `x : vector α n` and `y : vector α (0+n)`, `x = y` doesn't typecheck but `x == y` does.
+ -/
 inductive heq {α : Sort u} (a : α) : Π {β : Sort u}, β → Prop
 | refl : heq a
 
@@ -389,7 +401,7 @@ attribute [pattern] has_zero.zero has_one.one bit0 bit1 has_add.add has_neg.neg
 def insert {α : Type u} {γ : Type v} [has_insert α γ] : α → γ → γ :=
 has_insert.insert
 
-/- The empty collection -/
+/-- The singleton collection -/
 def singleton {α : Type u} {γ : Type v} [has_emptyc γ] [has_insert α γ] (a : α) : γ :=
 has_insert.insert a ∅
 

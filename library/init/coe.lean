@@ -27,6 +27,7 @@ prelude
 import init.data.list.basic init.data.subtype.basic init.data.prod
 universes u v
 
+/-- Can perform a lifting operation `↑a`. -/
 class has_lift (a : Sort u) (b : Sort v) :=
 (lift : a → b)
 

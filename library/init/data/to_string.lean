@@ -11,6 +11,11 @@ open sum subtype nat
 
 universes u v
 
+/-- Convert the object into a string for tracing/display purposes. 
+Similar to Haskell's `show`.
+See also `has_repr`, which is used to output a string which is a valid lean code.
+See also `has_to_format` and `has_to_tactic_format`, `format` has additional support for colours and pretty printing multilines.
+ -/
 class has_to_string (α : Type u) :=
 (to_string : α → string)
 

@@ -8,6 +8,7 @@ import init.meta.tactic
 universes u v
 
 namespace tactic
+/-- A `ref` performs the role of a mutable variable within a tactic. -/
 meta constant ref (α : Type u) : Type u
 /-- Create a new reference `r` with initial value `a`, execute `t r`, and then delete `r`. -/
 meta constant using_new_ref {α : Type u} {β : Type v} (a : α) (t : ref α → tactic β) : tactic β

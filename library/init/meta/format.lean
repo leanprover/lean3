@@ -11,20 +11,39 @@ universes u v
 inductive format.color
 | red | green | orange | blue | pink | cyan | grey
 
+/-- Format is a rich string with highlighting and information about how tabs should be put in if linebreaks are needed. A 'pretty string'.  -/
 meta constant format : Type
+/-- Indicate that it is ok to put a linebreak in here if the line is too long. -/
 meta constant format.line            : format
+/-- The whitespace character `" "`. -/
 meta constant format.space           : format
+/-- = `""` -/
 meta constant format.nil             : format
+/-- Concatenate the given formats. -/
 meta constant format.compose         : format → format → format
+/-- `format.nest n f` tells the formatter that `f` is nested inside something with length `n` 
+so that it is pretty-printed with the correct tabs on a line break.
+For example, in `list.to_format` we have:
+
+```
+(nest 1 $ format.join $ list.intersperse ("," ++ line) $ xs.map to_fmt)
+```
+
+This will be written all on one line, but when the list is too large, it will put in linebreaks after the comma and indent later lines by 1.
+ -/
 meta constant format.nest            : nat → format → format
+/-- Make the given format be displayed a particular color. [TODO] does this override nested colours etc? -/
 meta constant format.highlight       : format → color → format
+/-- [TODO] I think this might be obsolete, in the Lean source code it seems to be doing the same thing as `flatten`. -/
 meta constant format.group           : format → format
 meta constant format.of_string       : string → format
 meta constant format.of_nat          : nat → format
+/-- [TODO] -/
 meta constant format.flatten         : format → format
 meta constant format.to_string  (f : format) (o : options := options.mk) : string
 meta constant format.of_options      : options → format
 meta constant format.is_nil          : format → bool
+/-- [TODO] -/
 meta constant trace_fmt {α : Type u} : format → (unit → α) → α
 
 meta instance : inhabited format :=
@@ -36,6 +55,9 @@ meta instance : has_append format :=
 meta instance : has_to_string format :=
 ⟨λ f, f.to_string options.mk⟩
 
+/-- Use this instead of `has_to_string` to enable prettier formatting. 
+See docstring for `format` for more on the differences between `format` and `string`.
+Note that `format` is `meta` while `string` is not. -/
 meta class has_to_format (α : Type u) :=
 (to_format : α → format)
 

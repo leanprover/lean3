@@ -25,12 +25,14 @@ assume hp, h₂ (h₁ hp)
 
 def trivial : true := ⟨⟩
 
+/-- We can't have `a` and `¬a`, that would be absurd!-/
 @[inline] def absurd {a : Prop} {b : Sort v} (h₁ : a) (h₂ : ¬a) : b :=
 false.rec b (h₂ h₁)
 
 lemma not.intro {a : Prop} (h : a → false) : ¬ a :=
 h
 
+/-- Modus tollens.-/
 lemma mt {a b : Prop} (h₁ : a → b) (h₂ : ¬b) : ¬a := assume ha : a, h₂ (h₁ ha)
 
 /- not -/
@@ -626,7 +628,7 @@ namespace decidable
   decidable.rec_on h (λ h, h₄) (λ h, false.rec _ (h₃ h))
 
   def by_cases {q : Sort u} [φ : decidable p] : (p → q) → (¬p → q) → q := dite _
-
+  /-- Law of Excluded Middle. -/
   lemma em (p : Prop) [decidable p] : p ∨ ¬p := by_cases or.inl or.inr
 
   lemma by_contradiction [decidable p] (h : ¬p → false) : p :=

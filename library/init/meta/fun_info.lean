@@ -7,8 +7,8 @@ prelude
 import init.meta.tactic init.meta.format init.function
 
 structure param_info :=
-(is_implicit      : bool)
-(is_inst_implicit : bool)
+(is_implicit      : bool) -- is an implicit parameter.
+(is_inst_implicit : bool) -- is a typeclass instance
 (is_prop          : bool)
 (has_fwd_deps     : bool)
 (back_deps        : list nat) -- previous parameters it depends on

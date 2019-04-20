@@ -12,31 +12,69 @@ open tactic
 
 def simp.default_max_steps := 10000000
 
+/-- Prefix the given `attr_name` with `"simp_attr"`. -/
 meta constant mk_simp_attr_decl_name (attr_name : name) : name
 
+/-- Simp lemmas are used by the "simplifier" family of tactics.
+`simp_lemmas` is essentially a pair of tables `rb_map (expr_type × name) (priority_list simp_lemma)`.
+One of the tables is for congruences and one is for everything else.
+An individual simp lemma is:
+- A kind which can be `Refl`, `Simp` or `Congr`.
+- A pair of `expr`s `l ~> r`. The rb map is indexed by the name of `get_app_fn(l)`.
+- A proof that `l = r` or `l ↔ r`.
+- A list of the metavariables that must be filled before the proof can be applied.
+- A priority number
+-/
 meta constant simp_lemmas : Type
+/-- Make a new table of simp lemmas -/
 meta constant simp_lemmas.mk : simp_lemmas
+/-- Merge the simp_lemma tables. -/
 meta constant simp_lemmas.join : simp_lemmas → simp_lemmas → simp_lemmas
+/-- Remove the given lemmas from the table. Use the names of the lemmas. -/
 meta constant simp_lemmas.erase : simp_lemmas → list name → simp_lemmas
+/-- Makes the default simp_lemmas table which is composed of all lemmas tagged with `simp`. -/
 meta constant simp_lemmas.mk_default : tactic simp_lemmas
+/-- Add a simplification lemma by an expression `p`. Some conditions on `p` must hold for it to be added, see list below.
+If your lemma is not being added, you can see the reasons by setting `set_option trace.simp_lemmas true`.
+
+- `p` must have the type `Π (h₁ : _) ... (hₙ : _), LHS ~ RHS` for some reflexive, transitive relation (usually `=`).
+- Any of the hypotheses `hᵢ` should either be present in `LHS` or otherwise a `Prop` or a typeclass instance.
+- `LHS` should not occur within `RHS`.
+- `LHS` should not occur within a hypothesis `hᵢ`.
+
+ -/
 meta constant simp_lemmas.add : simp_lemmas → expr → tactic simp_lemmas
+/-- Add a simplification lemma by it's declaration name. See `simp_lemmas.add` for more information.-/
 meta constant simp_lemmas.add_simp : simp_lemmas → name → tactic simp_lemmas
+/-- Adds a congruence simp lemma to simp_lemmas.
+A congruence simp lemma is a lemma that breaks the simplification down into separate problems.
+For example, to simplify `a ∧ b` to `c ∧ d`, we should try to simp `a` to `c` and `b` to `d`.
+For examples of congruence simp lemmas look for lemmas with the `@[congr]` attribute.
+```lean
+lemma if_simp_congr ... (h_c : b ↔ c) (h_t : x = u) (h_e : y = v) : ite b x y = ite c u v := ...
+lemma imp_congr_right (h : a → (b ↔ c)) : (a → b) ↔ (a → c) := ...
+lemma and_congr (h₁ : a ↔ c) (h₂ : b ↔ d) : (a ∧ b) ↔ (c ∧ d) := ...
+```
+-/
 meta constant simp_lemmas.add_congr : simp_lemmas → name → tactic simp_lemmas
 
 meta def simp_lemmas.append (s : simp_lemmas) (hs : list expr) : tactic simp_lemmas :=
 hs.mfoldl simp_lemmas.add s
 
-/-- `simp_lemmas.rewrite_core s e prove R` apply a simplification lemma from 's'
+/-- `simp_lemmas.rewrite s e prove R` apply a simplification lemma from 's'
 
    - 'e'     is the expression to be "simplified"
    - 'prove' is used to discharge proof obligations.
    - 'r'     is the equivalence relation being used (e.g., 'eq', 'iff')
+   - 'md'    is the transparency; how aggresively should the simplifier perform reductions.
 
    Result (new_e, pr) is the new expression 'new_e' and a proof (pr : e R new_e) -/
 meta constant simp_lemmas.rewrite (s : simp_lemmas) (e : expr)
                                   (prove : tactic unit := failed) (r : name := `eq) (md := reducible)
                                   : tactic (expr × expr)
-
+meta constant simp_lemmas.rewrites (s : simp_lemmas) (e : expr)
+                                  (prove : tactic unit := failed) (r : name := `eq) (md := reducible)
+                                  : tactic $ list (expr × expr)
 /-- `simp_lemmas.drewrite s e` tries to rewrite 'e' using only refl lemmas in 's' -/
 meta constant simp_lemmas.drewrite (s : simp_lemmas) (e : expr) (md := reducible) : tactic expr
 
@@ -50,6 +88,7 @@ meta instance : has_to_tactic_format simp_lemmas :=
 
 namespace tactic
 /- Remark: `transform` should not change the target. -/
+/-- Revert a local constant, change its type using `transform`.  -/
 meta def revert_and_transform (transform : expr → tactic expr) (h : expr) : tactic unit :=
 do num_reverted : ℕ ← revert h,
    t ← target,
@@ -69,18 +108,18 @@ do num_reverted : ℕ ← revert h,
 meta constant get_eqn_lemmas_for : bool → name → tactic (list name)
 
 structure dsimp_config :=
-(md                        := reducible)
-(max_steps : nat           := simp.default_max_steps)
-(canonize_instances : bool := tt)
-(single_pass : bool        := ff)
-(fail_if_unchanged         := tt)
-(eta                       := tt)
-(zeta : bool               := tt)
-(beta : bool               := tt)
-(proj : bool               := tt) -- reduce projections
-(iota : bool               := tt)
-(unfold_reducible          := ff) -- if tt, reducible definitions will be unfolded (delta-reduced)
-(memoize                   := tt)
+(md                        := reducible) -- reduction mode: how aggressively constants are replaced with their definitions.
+(max_steps : nat           := simp.default_max_steps) -- The maximum number of steps allowed before failing.
+(canonize_instances : bool := tt) -- [TODO] docs 
+(single_pass : bool        := ff) -- [TODO] Does this mean that _each_ simp-lemma can only be used once?
+(fail_if_unchanged         := tt) -- Don't throw if simp didn't do anything.
+(eta                       := tt) -- allow eta-equivalence: `(λ x, F $ x) ↝ F`
+(zeta : bool               := tt) -- do zeta-reductions: `let x : a := b in c ↝ c[x/b]`.
+(beta : bool               := tt) -- do beta-reductions: `(λ x, E) $ (y) ↝ E[x/y]`.
+(proj : bool               := tt) -- reduce projections: `⟨a,b⟩.1 ↝ a` [TODO] I think?
+(iota : bool               := tt) -- reduce recursors for inductive datatypes: eg `nat.rec_on (succ n) Z R ↝ R n $ nat.rec_on n Z R`
+(unfold_reducible          := ff) -- if tt, definitions with `reducible` transparency will be unfolded (delta-reduced)
+(memoize                   := tt) -- [TODO] what is being memoised?
 end tactic
 
 /-- (Definitional) Simplify the given expression using *only* reflexivity equality lemmas from the given set of lemmas.
@@ -124,7 +163,10 @@ meta def get_simp_lemmas_or_default : option simp_lemmas → tactic simp_lemmas
 | (some s) := return s
 
 meta def dsimp_target (s : option simp_lemmas := none) (u : list name := []) (cfg : dsimp_config := {}) : tactic unit :=
-do s ← get_simp_lemmas_or_default s, t ← target >>= instantiate_mvars, s.dsimplify u t cfg >>= unsafe_change
+do 
+  s ← get_simp_lemmas_or_default s, 
+  t ← target >>= instantiate_mvars, 
+  s.dsimplify u t cfg >>= unsafe_change
 
 meta def dsimp_hyp (h : expr) (s : option simp_lemmas := none) (u : list name := []) (cfg : dsimp_config := {}) : tactic unit :=
 do s ← get_simp_lemmas_or_default s, revert_and_transform (λ e, s.dsimplify u e cfg) h
@@ -204,7 +246,7 @@ revert_and_transform (λ e, unfold_projs e cfg) h
 
 structure simp_config :=
 (max_steps : nat           := simp.default_max_steps)
-(contextual : bool         := ff)
+(contextual : bool         := ff) -- [TODO] what does this mean?
 (lift_eq : bool            := tt)
 (canonize_instances : bool := tt)
 (canonize_proofs : bool    := ff)
@@ -242,33 +284,45 @@ do when (expr.is_local_constant h = ff) (fail "tactic simp_at failed, the given 
    (h_new_type, pr) ← simplify s to_unfold htype cfg `eq discharger,
    replace_hyp h h_new_type pr
 
+/-- 
+`ext_simplify_core a c s discharger pre post r e`:
+
+- `a : α` - initial user data
+- `c : simp_config` - simp configuration options
+- `s : simp_lemmas` - the set of simp_lemmas to use. Remark: the simplification lemmas are not applied automatically like in the simplify tactic. The caller must use them at pre/post.
+- `discharger : α → tactic α` - tactic for dischaging hypothesis in conditional rewriting rules. The argument 'α' is the current user data.
+- `pre a s r p e` is invoked before visiting the children of subterm 'e'.
+  + arguments:
+    - `a` is the current user data
+    - `s` is the updated set of lemmas if 'contextual' is `tt`,
+    - `r` is the simplification relation being used, 
+    - `p` is the "parent" expression (if there is one).
+    - `e` is the current subexpression in question.
+  + if it succeeds the result is `(new_a, new_e, new_pr, flag)` where
+    - `new_a` is the new value for the user data
+    - `new_e` is a new expression s.t. `r e new_e`
+    - `new_pr` is a proof for `e r new_e`, If it is none, the proof is assumed to be by reflexivity
+    - `flag`  if tt `new_e` children should be visited, and `post` invoked.
+- `(post a s r p e)` is invoked after visiting the children of subterm `e`,
+  The output is similar to `(pre a r s p e)`, but the 'flag' indicates whether the new expression should be revisited or not.
+- `r` is the simplification relation. Usually `=` or `↔`.
+- `e` is the input expression to be simplified.
+
+The method returns `(a,e,pr)` where
+
+ - `a` is the final user data
+ - `e` is the new expression
+ - `pr` is the proof that the given expression equals the input expression.
+
+-/
 meta constant ext_simplify_core
-  /- The user state type. -/
   {α : Type}
-  /- Initial user data -/
   (a : α)
   (c : simp_config)
-  /- Congruence and simplification lemmas.
-     Remark: the simplification lemmas at not applied automatically like in the simplify tactic.
-     the caller must use them at pre/post. -/
   (s : simp_lemmas)
-  /- Tactic for dischaging hypothesis in conditional rewriting rules.
-     The argument 'α' is the current user state. -/
   (discharger : α → tactic α)
-  /- (pre a s r p e) is invoked before visiting the children of subterm 'e',
-     'r' is the simplification relation being used, 's' is the updated set of lemmas if 'contextual' is tt,
-     'p' is the "parent" expression (if there is one).
-     if it succeeds the result is (new_a, new_e, new_pr, flag) where
-       - 'new_a' is the new value for the user data
-       - 'new_e' is a new expression s.t. 'e r new_e'
-       - 'new_pr' is a proof for 'e r new_e', If it is none, the proof is assumed to be by reflexivity
-       - 'flag'  if tt 'new_e' children should be visited, and 'post' invoked. -/
   (pre : α → simp_lemmas → name → option expr → expr → tactic (α × expr × option expr × bool))
-  /- (post a s r p e) is invoked after visiting the children of subterm 'e',
-     The output is similar to (pre a r s p e), but the 'flag' indicates whether
-     the new expression should be revisited or not. -/
   (post : α → simp_lemmas  → name → option expr → expr → tactic (α × expr × option expr × bool))
-  /- simplification relation -/
   (r : name) :
   expr → tactic (α × expr × expr)
 
@@ -356,7 +410,19 @@ do let t := `(user_attribute simp_lemmas),
    let n := mk_simp_attr_decl_name attr_name,
    add_decl (declaration.defn n [] t v reducibility_hints.abbrev ff),
    attribute.register n
+/-- 
+### Example usage:
+```lean
+-- make a new simp attribute called "my_reduction"
+run_cmd mk_simp_attr `my_reduction
+-- Add "my_reduction" attributes to these if-reductions
+attribute [my_reduction] if_pos if_neg dif_pos dif_neg
 
+-- will return the simp_lemmas with the `my_reduction` attribute.
+#eval get_user_simp_lemmas `my_reduction
+
+```
+ -/
 meta def get_user_simp_lemmas (attr_name : name) : tactic simp_lemmas :=
 if attr_name = `default then simp_lemmas.mk_default
 else get_attribute_cache_dyn (mk_simp_attr_decl_name attr_name)

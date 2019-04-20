@@ -12,6 +12,10 @@ open tactic
 
 universe u
 
+/-- `conv α` is a tactic for discharging goals of the form `lhs ~ rhs` for some relation `~` (usually equality) and fixed lhs, rhs.
+Known in the literature as a __conversion__ tactic.
+So for example, if one had the lemma `p : x = y`, then the conversion for `p` would be one that solves `p`. 
+-/
 meta def conv (α : Type u) :=
 tactic α
 
@@ -25,6 +29,7 @@ meta instance : alternative conv :=
 by dunfold conv; apply_instance
 
 namespace conv
+/-- Applies the conversion `c`. Returns `(rhs,p)` where `p : r lhs rhs`. Throws away the return value of `c`.-/
 meta def convert (c : conv unit) (lhs : expr) (rel : name := `eq) : tactic (expr × expr) :=
 do lhs_type   ← infer_type lhs,
    rhs        ← mk_meta_var lhs_type,
@@ -49,6 +54,7 @@ meta def rhs : conv expr :=
 do (_, lhs, rhs) ← target_lhs_rhs,
    return rhs
 
+/-- `⊢ lhs = rhs` ~~> `⊢ lhs' = rhs` using `h : lhs = lhs'`. -/
 meta def update_lhs (new_lhs : expr) (h : expr) : conv unit :=
 do transitivity,
    rhs >>= unify new_lhs,
@@ -56,17 +62,19 @@ do transitivity,
    t ← target >>= instantiate_mvars,
    change t
 
+/-- Change `lhs` to something definitionally equal to it. -/
 meta def change (new_lhs : expr) : conv unit :=
 do (r, lhs, rhs) ← target_lhs_rhs,
    new_target ← mk_app r [new_lhs, rhs],
    tactic.change new_target
-
+/-- Use reflexivity to prove. -/
 meta def skip : conv unit :=
 reflexivity
-
+/-- Put LHS in WHNF. -/
 meta def whnf : conv unit :=
 lhs >>= tactic.whnf >>= change
 
+/-- dsimp the LHS. -/
 meta def dsimp (s : option simp_lemmas := none) (u : list name := []) (cfg : dsimp_config := {}) : conv unit :=
 do s ← match s with
        | some s := return s
@@ -80,19 +88,22 @@ private meta def congr_aux : list congr_arg_kind → list expr → tactic (list 
 | (k::ks) (a::as) := do
   (gs, largs) ← congr_aux ks as,
   match k with
+  -- parameter for the congruence lemma
   | congr_arg_kind.fixed            := return $ (gs, a::largs)
+  -- parameter which is a subsingleton
   | congr_arg_kind.fixed_no_param   := return $ (gs, largs)
   | congr_arg_kind.eq               := do
       a_type  ← infer_type a,
       rhs     ← mk_meta_var a_type,
       g_type  ← mk_app `eq [a, rhs],
-      g       ← mk_meta_var g_type,
+      g       ← mk_meta_var g_type, -- proof that `a = rhs`
       return (g::gs, a::rhs::g::largs)
   | congr_arg_kind.cast             := return $ (gs, a::largs)
   | _                               := fail "congr tactic failed, unsupported congruence lemma"
   end
 | ks      as := fail "congr tactic failed, unsupported congruence lemma"
 
+/-- Take the target equality `f x y = X` and try to apply the congruence lemma for `f` to it (namely `x = x' → y = y' → f x y = f x' y'`). -/
 meta def congr : conv unit :=
 do (r, lhs, rhs) ← target_lhs_rhs,
    guard (r = `eq),
@@ -106,6 +117,7 @@ do (r, lhs, rhs) ← target_lhs_rhs,
    set_goals $ new_gs ++ gs,
    return ()
 
+/-- Create a conversion from the function extensionality tactic.-/
 meta def funext : conv unit :=
 iterate $ do
   (r, lhs, rhs) ← target_lhs_rhs,
