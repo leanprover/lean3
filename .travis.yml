@@ -125,7 +125,7 @@ script:
     if [[ $TRAVIS_EVENT_TYPE == cron ]]
     then
       # trigger AppVeyor build from first Travis job because they can't be bothered to let us set up a cron build
-      [[ -n $FIRST ]] && curl -H "Authorization: Bearer $APPVEYOR_TOKEN" -H "Content-Type: application/json" https://ci.appveyor.com/api/builds -d '{"accountName": "cipher1024", "projectSlug": "lean", "branch": "master", "environmentVariables": {"APPVEYOR_SCHEDULED_BUILD": "True"}}'
+      [[ -n $FIRST ]] && curl -H "Authorization: Bearer $APPVEYOR_TOKEN" -H "Content-Type: application/json" https://ci.appveyor.com/api/account/cipher1024/builds -d '{"accountName": "cipher1024", "projectSlug": "lean", "branch": "master", "environmentVariables": {"APPVEYOR_SCHEDULED_BUILD": "True"}}'
       git fetch --unshallow --tags origin
       . ../script/setup_nightly.sh
     fi
