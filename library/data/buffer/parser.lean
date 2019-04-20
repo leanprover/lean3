@@ -172,7 +172,7 @@ many p >> eps
 def many1 (p : parser α) : parser (list α) :=
 list.cons <$> p <*> many p
 
-/-- Matches one of more occurences of the char parser `p` and implodes them into a string. -/
+/-- Matches one or more occurences of the char parser `p` and implodes them into a string. -/
 def many_char1 (p : parser char) : parser string :=
 list.as_string <$> many1 p
 
