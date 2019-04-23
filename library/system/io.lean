@@ -14,6 +14,7 @@ rand_nat
 
 @[instance] constant monad_io_impl             : monad_io io_core
 @[instance] constant monad_io_terminal_impl    : monad_io_terminal io_core
+@[instance] constant monad_io_net_system_impl  : monad_io_net_system io_core
 @[instance] constant monad_io_file_system_impl : monad_io_file_system io_core
 @[instance] meta constant monad_io_serial_impl : monad_io_serial io_core
 @[instance] constant monad_io_environment_impl : monad_io_environment io_core
@@ -112,6 +113,30 @@ monad_io_environment.set_cwd io_core cwd
 
 end env
 
+namespace net
+def socket : Type :=
+monad_io_net_system.socket io_core
+
+def listen : string → nat → io socket :=
+monad_io_net_system.listen io_core
+
+def accept : socket → io socket :=
+monad_io_net_system.accept
+
+def connect : string → io socket :=
+monad_io_net_system.connect io_core
+
+def recv : socket → nat → io char_buffer :=
+monad_io_net_system.recv
+
+def send : socket → char_buffer → io unit :=
+monad_io_net_system.send
+
+def close : socket → io unit :=
+monad_io_net_system.close
+
+end net
+
 namespace fs
 def is_eof : handle → io bool :=
 monad_io_file_system.is_eof
@@ -158,6 +183,21 @@ def read_file (s : string) (bin := ff) : io char_buffer :=
 do h ← mk_file_handle s io.mode.read bin,
    read_to_end h
 
+def exist : string → io bool :=
+monad_io_file_system.exist io_core
+
+def remove : string → io unit :=
+monad_io_file_system.remove io_core
+
+def rename : string → string → io unit :=
+monad_io_file_system.rename io_core
+
+def mkdir (path : string) (recursive : bool := ff) : io bool :=
+monad_io_file_system.mkdir io_core path recursive
+
+def rmdir : string → io bool :=
+monad_io_file_system.rmdir io_core
+
 end fs
 
 namespace proc
@@ -178,6 +218,9 @@ monad_io_process.spawn io_core p
 
 def wait (c : child) : io nat :=
 monad_io_process.wait c
+
+def sleep (n : nat) : io unit :=
+monad_io_process.sleep io_core n
 
 end proc
 

@@ -164,6 +164,7 @@ name const * g_interactive_parse = nullptr;
 name const * g_io_core = nullptr;
 name const * g_monad_io_impl = nullptr;
 name const * g_monad_io_terminal_impl = nullptr;
+name const * g_monad_io_net_system_impl = nullptr;
 name const * g_monad_io_file_system_impl = nullptr;
 name const * g_monad_io_environment_impl = nullptr;
 name const * g_monad_io_process_impl = nullptr;
@@ -522,6 +523,7 @@ void initialize_constants() {
     g_io_core = new name{"io_core"};
     g_monad_io_impl = new name{"monad_io_impl"};
     g_monad_io_terminal_impl = new name{"monad_io_terminal_impl"};
+    g_monad_io_net_system_impl = new name{"monad_io_net_system_impl"};
     g_monad_io_file_system_impl = new name{"monad_io_file_system_impl"};
     g_monad_io_environment_impl = new name{"monad_io_environment_impl"};
     g_monad_io_process_impl = new name{"monad_io_process_impl"};
@@ -881,6 +883,7 @@ void finalize_constants() {
     delete g_io_core;
     delete g_monad_io_impl;
     delete g_monad_io_terminal_impl;
+    delete g_monad_io_net_system_impl;
     delete g_monad_io_file_system_impl;
     delete g_monad_io_environment_impl;
     delete g_monad_io_process_impl;
@@ -1239,6 +1242,7 @@ name const & get_interactive_parse_name() { return *g_interactive_parse; }
 name const & get_io_core_name() { return *g_io_core; }
 name const & get_monad_io_impl_name() { return *g_monad_io_impl; }
 name const & get_monad_io_terminal_impl_name() { return *g_monad_io_terminal_impl; }
+name const & get_monad_io_net_system_impl_name() { return *g_monad_io_net_system_impl; }
 name const & get_monad_io_file_system_impl_name() { return *g_monad_io_file_system_impl; }
 name const & get_monad_io_environment_impl_name() { return *g_monad_io_environment_impl; }
 name const & get_monad_io_process_impl_name() { return *g_monad_io_process_impl; }

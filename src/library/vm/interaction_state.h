@@ -31,7 +31,7 @@ struct interaction_monad {
         virtual vm_external * clone(vm_clone_fn const &) override;
     };
 
-    typedef std::tuple<format, optional<pos_info>, State> exception_info;
+    typedef std::tuple<format, optional<pos_info>, State> im_exception_info;
 
     static bool is_state(vm_obj const & o);
     static State const & to_state(vm_obj const & o);
@@ -58,7 +58,7 @@ struct interaction_monad {
     static vm_obj update_exception_state(vm_obj const & ex, State const & s);
     static void report_exception(vm_state & S, vm_obj const & r);
     static optional<State> is_success(vm_obj const & r);
-    static optional<exception_info> is_exception(vm_state & S, vm_obj const & ex);
+    static optional<im_exception_info> is_exception(vm_state & S, vm_obj const & ex);
 
     class evaluator {
         type_context_old & m_ctx;

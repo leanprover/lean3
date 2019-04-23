@@ -166,6 +166,7 @@ name const & get_interactive_parse_name();
 name const & get_io_core_name();
 name const & get_monad_io_impl_name();
 name const & get_monad_io_terminal_impl_name();
+name const & get_monad_io_net_system_impl_name();
 name const & get_monad_io_file_system_impl_name();
 name const & get_monad_io_environment_impl_name();
 name const & get_monad_io_process_impl_name();

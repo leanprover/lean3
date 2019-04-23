@@ -239,7 +239,7 @@ bool execute_hole_command(tactic_state s, name const & cmd_decl_name, expr const
     S.push(tac);
     S.apply(2);
     vm_obj r = S.top();
-    if (optional<tactic::exception_info> ex = tactic::is_exception(S, r)) {
+    if (optional<tactic::im_exception_info> ex = tactic::is_exception(S, r)) {
         format msg = mk_tactic_error_msg(std::get<2>(*ex), std::get<0>(*ex));
         j["message"] = (sstream() << msg).str();
         return false;

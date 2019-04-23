@@ -9,15 +9,48 @@ Author: Leonardo de Moura
 #include <cstdio>
 #include <cstdlib>
 #include <iostream>
+#include <chrono>
+#include <thread>
+#include <sys/types.h>
+#include <sys/stat.h>
 #ifdef _MSC_VER
-#include <direct.h>
-#define getcwd _getcwd
-#define PATH_MAX _MAX_PATH
+    #include <io.h>
+    #include <direct.h>
+    #define getcwd _getcwd
+    #define stat _stat
+    #define access _access
+    #define PATH_MAX _MAX_PATH
 #else
-#include <unistd.h>
+    #include <unistd.h>
+#endif
+#if defined(__linux__) || defined(__APPLE__)
+    #include <sys/socket.h>
+    #include <sys/un.h>
+    #define SOCKET int
+    #define SOCKIO_BYTES ssize_t
+    #define INVALID_SOCKET (-1)
+    #define SOCKET_ERROR (-1)
+    #define SOCKET_GET_ERROR() strerror(errno)
+    #define closesocket(fd) close(fd)
+#else
+    #ifndef NOMINMAX
+        #define NOMINMAX
+    #endif
+    #include <Winsock2.h>
+    #include <windows.h>
+    #include <Fileapi.h>
+    #define UNIX_PATH_MAX 108
+
+    typedef struct sockaddr_un {
+        ADDRESS_FAMILY sun_family;
+        char sun_path[UNIX_PATH_MAX];
+    } SOCKADDR_UN, *PSOCKADDR_UN;
+
+    #define SOCKIO_BYTES int
+    #define SOCKET_GET_ERROR() WSAGetLastError()
 #endif
 #ifdef __linux__
-#include <linux/limits.h>
+    #include <linux/limits.h>
 #endif
 #include <util/unit.h>
 #include "util/sstream.h"
@@ -94,6 +127,24 @@ static handle_ref const & to_handle(vm_obj const & o) {
 
 static vm_obj to_obj(handle_ref && h) {
     return mk_vm_external(new (get_vm_allocator().allocate(sizeof(vm_handle))) vm_handle(std::move(h)));
+}
+
+struct vm_socket : public vm_external {
+    SOCKET m_fd;
+    vm_socket(SOCKET fd) : m_fd(fd) {}
+    virtual ~vm_socket() {}
+    virtual void dealloc() override { this->~vm_socket(); get_vm_allocator().deallocate(sizeof(vm_socket), this); }
+    virtual vm_external * clone(vm_clone_fn const &) override { return new vm_socket(m_fd); }
+    virtual vm_external * ts_clone(vm_clone_fn const &) override { lean_unreachable(); }
+};
+
+static SOCKET socket_to_fd(vm_obj const &o) {
+    lean_vm_check(dynamic_cast<vm_socket*>(to_external(o)));
+    return static_cast<vm_socket*>(to_external(o))->m_fd;
+}
+
+static vm_obj mk_socket(SOCKET fd) {
+    return mk_vm_external(new (get_vm_allocator().allocate(sizeof(vm_socket))) vm_socket(fd));
 }
 
 struct vm_child : public vm_external {
@@ -192,6 +243,104 @@ static vm_obj mk_buffer(parray<vm_obj> const & a) {
     return mk_vm_pair(mk_vm_nat(a.size()), to_obj(a));
 }
 
+static vm_obj net_listen(vm_obj const & fname, vm_obj const & backlog, vm_obj const &) {
+    SOCKET fd = socket(AF_UNIX, SOCK_STREAM, 0);
+    if (fd == INVALID_SOCKET) {
+        return mk_io_failure(sstream() << "failed to open UNIX socket '" << to_string(fname) << "': " << SOCKET_GET_ERROR());
+    }
+
+    struct sockaddr_un addr;
+    memset(&addr, 0, sizeof(addr));
+    addr.sun_family = AF_UNIX;
+    snprintf(addr.sun_path, sizeof(addr.sun_path), "%s", to_string(fname).c_str());
+    int ret = bind(fd, (struct sockaddr*) &addr, sizeof(addr));
+    if (ret == SOCKET_ERROR)
+        return mk_io_failure(sstream() << "failed to bind UNIX socket '" << to_string(fname) << "': " << SOCKET_GET_ERROR());
+
+    ret = listen(fd, force_to_unsigned(backlog));
+    if (ret == SOCKET_ERROR)
+        return mk_io_failure(sstream() << "failed to listen UNIX socket '" << to_string(fname) << "': " << SOCKET_GET_ERROR());
+
+    return mk_io_result(mk_socket(fd));
+}
+
+static vm_obj net_accept(vm_obj const & h, vm_obj const &) {
+    SOCKET fd = socket_to_fd(h);
+
+    int nfd = accept(fd, NULL, NULL);
+    if (nfd == INVALID_SOCKET)
+        return mk_io_failure(sstream() << "failed to accept UNIX socket '" << "': " << SOCKET_GET_ERROR());
+
+    return mk_io_result(mk_socket(nfd));
+}
+
+static vm_obj net_connect(vm_obj const & fname, vm_obj const &) {
+    SOCKET fd = socket(AF_UNIX, SOCK_STREAM, 0);
+    if (fd == INVALID_SOCKET) {
+        return mk_io_failure(sstream() << "failed to open UNIX socket '" << to_string(fname) << "'");
+    }
+
+    struct sockaddr_un addr;
+    memset(&addr, 0, sizeof(addr));
+    addr.sun_family = AF_UNIX;
+    snprintf(addr.sun_path, sizeof(addr.sun_path), "%s", to_string(fname).c_str());
+    int ret = connect(fd, (struct sockaddr*) &addr, sizeof(addr));
+    if (ret == SOCKET_ERROR)
+        return mk_io_failure(sstream() << "failed to connect UNIX socket '" << to_string(fname) << "': " << SOCKET_GET_ERROR());
+
+    return mk_io_result(mk_socket(fd));
+}
+
+static vm_obj net_recv(vm_obj const & h, vm_obj const & n, vm_obj const &) {
+    SOCKET fd = socket_to_fd(h);
+    buffer<char> tmp;
+    unsigned num = force_to_unsigned(n);
+    tmp.resize(num, 0);
+
+    SOCKIO_BYTES sz = recv(fd, tmp.data(), num, MSG_WAITALL);
+    if (sz == SOCKET_ERROR) {
+        return mk_io_failure(sstream() << "recv failed: " << SOCKET_GET_ERROR());
+    }
+
+    parray<vm_obj> r;
+    for (int i = 0; i < sz; i++) {
+        r.push_back(mk_vm_simple(static_cast<unsigned char>(tmp[i])));
+    }
+    return mk_io_result(mk_buffer(r));
+}
+
+static vm_obj net_send(vm_obj const & h, vm_obj const & b, vm_obj const &) {
+    SOCKET fd = socket_to_fd(h);
+    buffer<char> tmp;
+    parray<vm_obj> const & a = to_array(cfield(b, 1));
+    unsigned sz = a.size();
+    for (unsigned i = 0; i < sz; i++) {
+        push_unicode_scalar(tmp, cidx(a[i]));
+    }
+
+    SOCKIO_BYTES ret = send(fd, tmp.data(), tmp.size(), 0);
+    if (ret == sz) {
+        return mk_io_result(mk_vm_unit());
+    } else {
+        return mk_io_failure(sstream() << "send failed: " << SOCKET_GET_ERROR());
+    }
+}
+
+static vm_obj net_close(vm_obj const & h, vm_obj const &) {
+    closesocket(socket_to_fd(h));
+    return mk_io_result(mk_vm_unit());
+}
+
+static vm_obj monad_io_net_system_impl () {
+    return mk_vm_constructor(0, {
+        mk_native_closure(net_listen),
+        mk_native_closure(net_accept),
+        mk_native_closure(net_connect),
+        mk_native_closure(net_recv),
+        mk_native_closure(net_send),
+        mk_native_closure(net_close)});
+}
+
 static vm_obj fs_read(vm_obj const & h, vm_obj const & n, vm_obj const &) {
     handle_ref const & href = to_handle(h);
     if (href->is_closed()) return mk_handle_has_been_closed_error();
@@ -284,6 +433,90 @@ static vm_obj fs_stderr(vm_obj const &) {
     return mk_io_result(to_obj(std::make_shared<handle>(stderr, false)));
 }
 
+static vm_obj fs_exist(vm_obj const & path, vm_obj const &) {
+    bool exists = access(to_string(path).c_str(), 0) == 0;
+    return mk_io_result(mk_vm_bool(exists));
+}
+
+static vm_obj fs_remove(vm_obj const & path, vm_obj const &) {
+    if (std::remove(to_string(path).c_str()) != 0) {
+        return mk_io_failure(sstream() << "remove failed: " << strerror(errno));
+    }
+    return mk_io_result(mk_vm_unit());
+}
+
+static vm_obj fs_rename(vm_obj const & p1, vm_obj const & p2, vm_obj const &) {
+    if (std::rename(to_string(p1).c_str(), to_string(p2).c_str()) != 0) {
+        return mk_io_failure(sstream() << "rename failed: " << strerror(errno));
+    }
+    return mk_io_result(mk_vm_unit());
+}
+
+int mkdir_single(const char *path) {
+#if defined(__linux__) || defined(__APPLE__)
+    return mkdir(path, 0777);
+#else
+    return !CreateDirectoryA(path, NULL);
+#endif
+}
+
+// Source: https://gist.github.com/JonathonReinhart/8c0d90191c38af2dcadb102c4e202950
+int mkdir_recursive(const char *path) {
+    // Adapted from http://stackoverflow.com/a/2336245/119527
+    const size_t len = strlen(path);
+    char _path[PATH_MAX];
+    char *p;
+
+    errno = 0;
+
+    /* Copy string so its mutable */
+    if (len > sizeof(_path)-1) {
+        errno = ENAMETOOLONG;
+        return -1;
+    }
+    snprintf(_path, PATH_MAX, "%s", path);
+
+    /* Iterate the string */
+    for (p = _path + 1; *p; p++) {
+        if (*p == '/' || *p == '\\') {
+            /* Temporarily truncate */
+            char tmp = *p;
+            *p = '\0';
+
+            if (mkdir_single(_path) != 0) {
+                if (errno != EEXIST)
+                    return -1;
+            }
+
+            *p = tmp;
+        }
+    }
+
+    if (mkdir_single(_path) != 0) {
+        if (errno != EEXIST)
+            return -1;
+    }
+
+    return 0;
+}
+
+static vm_obj fs_mkdir(vm_obj const & _path, vm_obj const & rec, vm_obj const &) {
+    std::string path = to_string(_path);
+    bool res = to_bool(rec) ? mkdir_recursive(path.c_str())
+                            : mkdir_single(path.c_str());
+    return mk_io_result(mk_vm_bool(!res));
+}
+
+static vm_obj fs_rmdir(vm_obj const & path, vm_obj const &) {
+    bool res;
+#if defined(__linux__) || defined(__APPLE__)
+    res = !rmdir(to_string(path).c_str());
+#else
+    res = RemoveDirectoryA(to_string(path).c_str());
+#endif
+    return mk_io_result(mk_vm_bool(res));
+}
+
 /*
 class monad_io_file_system (m : Type → Type → Type) [monad_io m] :=
 /- Remark: in Haskell, they also provide  (Maybe TextEncoding) and  NewlineMode -/
@@ -297,6 +530,10 @@ class monad_io_file_system (m : Type → Type → Type) [monad_io m] :=
 (stdin          : m io.error (handle m))
 (stdout         : m io.error (handle m))
 (stderr         : m io.error (handle m))
+(exist          : string → m io.error bool)
+(remove         : string → m io.error unit)
+(rename         : string → m io.error unit)
+(mkdir          : string → m io.error unit)
 */
 static vm_obj monad_io_file_system_impl () {
     return mk_vm_constructor(0, {
@@ -309,7 +546,12 @@ static vm_obj monad_io_file_system_impl () {
         mk_native_closure(fs_get_line),
         mk_native_closure(fs_stdin),
         mk_native_closure(fs_stdout),
-        mk_native_closure(fs_stderr)});
+        mk_native_closure(fs_stderr),
+        mk_native_closure(fs_exist),
+        mk_native_closure(fs_remove),
+        mk_native_closure(fs_rename),
+        mk_native_closure(fs_mkdir),
+        mk_native_closure(fs_rmdir)});
 }
 
 static vm_obj serial_serialize(vm_obj const & h, vm_obj const & e, vm_obj const &) {
@@ -418,6 +660,11 @@ static vm_obj io_process_wait(vm_obj const & ch, vm_obj const &) {
     return mk_io_result(mk_vm_nat(to_child(ch)->wait()));
 }
 
+static vm_obj io_process_sleep(vm_obj const & seconds, vm_obj const &) {
+    std::this_thread::sleep_for(std::chrono::seconds(force_to_unsigned(seconds)));
+    return mk_io_result(mk_vm_unit());
+}
+
 /*
 class monad_io_process (m : Type → Type → Type) [monad_io m] :=
 (child  : Type)
@@ -426,6 +673,7 @@ class monad_io_process (m : Type → Type → Type) [monad_io m] :=
 (stderr : child → (handle m))
 (spawn  : io.process.spawn_args → m io.error child)
 (wait   : child → m io.error nat)
+(sleep  : nat → m io.error unit)
 */
 static vm_obj monad_io_process_impl() {
     return mk_vm_constructor(0, {
@@ -434,6 +682,7 @@ static vm_obj monad_io_process_impl() {
         mk_native_closure([] (vm_obj const & c) { return to_obj(to_child(c)->get_stderr()); }),
         mk_native_closure(io_process_spawn),
         mk_native_closure(io_process_wait),
+        mk_native_closure(io_process_sleep),
     });
 }
 
@@ -638,9 +887,19 @@ vm_obj monad_io_random_impl() {
 }
 
 void initialize_vm_io() {
+#if !(defined(__linux__) || defined(__APPLE__))
+    WSADATA wsaData;
+    int err = WSAStartup(MAKEWORD(2, 2), &wsaData);
+    if (err != 0) {
+        fprintf(stderr, "WSAStartup failed with error: %d\n", err);
+        exit(1);
+    }
+#endif
+
     DECLARE_VM_BUILTIN(name("io_core"), io_core);
     DECLARE_VM_BUILTIN(name("monad_io_impl"), monad_io_impl);
     DECLARE_VM_BUILTIN(name("monad_io_terminal_impl"), monad_io_terminal_impl);
+    DECLARE_VM_BUILTIN(name("monad_io_net_system_impl"), monad_io_net_system_impl);
     DECLARE_VM_BUILTIN(name("monad_io_file_system_impl"), monad_io_file_system_impl);
     DECLARE_VM_BUILTIN(name("monad_io_serial_impl"), monad_io_serial_impl);
     DECLARE_VM_BUILTIN(name("monad_io_environment_impl"), monad_io_environment_impl);

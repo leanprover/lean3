@@ -72,7 +72,7 @@ write_manifest { name := n, path := "src", version := "0.1" } leanpkg_toml_fn,
 src_ex ← dir_exists "src",
 when (¬src_ex) (do
   when ¬from_new $ io.put_str_ln "Move existing .lean files into the 'src' folder.",
-  exec_cmd {cmd := "mkdir", args := ["src"]}),
+  io.fs.mkdir "src" >> return ()),
 write_file ".gitignore" init_gitignore_contents io.mode.append,
 git_ex ← dir_exists ".git",
 when (¬git_ex) (do {
@@ -125,7 +125,7 @@ def parse_install_dep (dep : string) (branch : option string) : io dependency :=
   dep ← parse_add_dep dep none,
   dep ← absolutize_dep dep,
   dot_lean_dir ← get_dot_lean_dir,
-  exec_cmd {cmd := "mkdir", args := ["-p", dot_lean_dir]},
+  io.fs.mkdir dot_lean_dir tt,
   let user_toml_fn := dot_lean_dir ++ "/" ++ leanpkg_toml_fn,
   ex ← exists_file user_toml_fn,
   when (¬ ex) $ write_manifest {
@@ -153,7 +153,7 @@ configure
 def new (dir : string) := do
 ex ← dir_exists dir,
 when ex $ io.fail $ "directory already exists: " ++ dir,
-exec_cmd {cmd := "mkdir", args := ["-p", dir]},
+io.fs.mkdir dir tt,
 change_dir dir,
 init_pkg (basename dir) true
 

@@ -5,6 +5,7 @@ if [ $# -ne 2 ]; then
 fi
 ulimit -s 8192
 LEAN=$1
+export TEST_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" >/dev/null 2>&1 && pwd )"
 export LEAN_PATH=../../../library:.
 f=$2
 echo "-- testing $f"

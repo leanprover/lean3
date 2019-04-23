@@ -71,7 +71,7 @@ match dep.src with
       exec_cmd {cmd := "git", args := ["fetch"], cwd := depdir}
   } else do {
     io.put_str_ln $ dep.name ++ ": cloning " ++ url ++ " to " ++ depdir,
-    exec_cmd {cmd := "mkdir", args := ["-p", depdir]},
+    io.fs.mkdir depdir tt,
     exec_cmd {cmd := "git", args := ["clone", url, depdir]}
   },
   hash ← git_parse_origin_revision depdir rev,

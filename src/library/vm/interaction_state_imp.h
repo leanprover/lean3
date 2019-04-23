@@ -195,7 +195,7 @@ vm_obj interaction_monad<State>::mk_exception(std::function<format()> const & th
 
 template<typename State>
 void interaction_monad<State>::report_exception(vm_state & S, vm_obj const & r) {
-    if (optional<exception_info> ex = is_exception(S, r)) {
+    if (optional<im_exception_info> ex = is_exception(S, r)) {
         format fmt = std::get<0>(*ex);
         optional<pos_info> pos = std::get<1>(*ex);
         throw formatted_exception(pos, fmt);
@@ -210,7 +210,7 @@ auto interaction_monad<State>::is_success(vm_obj const & r) -> optional<State> {
 }
 
 template<typename State>
-auto interaction_monad<State>::is_exception(vm_state & S, vm_obj const & ex) -> optional<exception_info> {
+auto interaction_monad<State>::is_exception(vm_state & S, vm_obj const & ex) -> optional<im_exception_info> {
     if (is_result_exception(ex) && !is_none(get_exception_message(ex))) {
         vm_obj fmt = S.invoke(get_some_value(get_exception_message(ex)), mk_vm_unit());
         optional<pos_info> p;
@@ -218,7 +218,7 @@ auto interaction_monad<State>::is_exception(vm_state & S, vm_obj const & ex) -> 
             auto vm_p = get_some_value(get_exception_pos(ex));
             p = some(to_pos_info(vm_p));
         }
-        return optional<exception_info>(to_format(fmt), p, to_state(get_exception_state(ex)));
+        return optional<im_exception_info>(to_format(fmt), p, to_state(get_exception_state(ex)));
     } else {
         return {};
     }

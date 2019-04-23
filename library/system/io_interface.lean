@@ -49,6 +49,15 @@ class monad_io_terminal (m : Type → Type → Type) :=
 
 open monad_io (handle)
 
+class monad_io_net_system (m : Type → Type → Type) [monad_io m] :=
+(socket  : Type)
+(listen  : string → nat → m io.error socket)
+(accept  : socket → m io.error socket)
+(connect : string → m io.error socket)
+(recv    : socket → nat → m io.error char_buffer)
+(send    : socket → char_buffer → m io.error unit)
+(close   : socket → m io.error unit)
+
 class monad_io_file_system (m : Type → Type → Type) [monad_io m] :=
 /- Remark: in Haskell, they also provide  (Maybe TextEncoding) and  NewlineMode -/
 (mk_file_handle : string → io.mode → bool → m io.error (handle m))
@@ -61,6 +70,11 @@ class monad_io_file_system (m : Type → Type → Type) [monad_io m] :=
 (stdin          : m io.error (handle m))
 (stdout         : m io.error (handle m))
 (stderr         : m io.error (handle m))
+(exist          : string → m io.error bool)
+(remove         : string → m io.error unit)
+(rename         : string → string → m io.error unit)
+(mkdir          : string → bool → m io.error bool)
+(rmdir          : string → m io.error bool)
 
 meta class monad_io_serial (m : Type → Type → Type) [monad_io m] :=
 (serialize      : (handle m) → expr → m io.error unit)
@@ -79,6 +93,7 @@ class monad_io_process (m : Type → Type → Type) [monad_io m] :=
 (stderr : child → (handle m))
 (spawn  : io.process.spawn_args → m io.error child)
 (wait   : child → m io.error nat)
+(sleep  : nat → m io.error unit)
 
 class monad_io_random (m : Type → Type → Type) :=
 (set_rand_gen : std_gen → m io.error unit)

@@ -1,6 +1,4 @@
-> mkdir -p new
 > cd new
-> mkdir src
 > git init -q
 configuring new 0.1
 .
