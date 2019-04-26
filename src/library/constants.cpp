@@ -178,6 +178,7 @@ name const * g_is_commutative_comm = nullptr;
 name const * g_ite = nullptr;
 name const * g_lean_parser = nullptr;
 name const * g_lean_parser_pexpr = nullptr;
+name const * g_lean_parser_reflectable_expr = nullptr;
 name const * g_lean_parser_tk = nullptr;
 name const * g_left_distrib = nullptr;
 name const * g_left_comm = nullptr;
@@ -537,6 +538,7 @@ void initialize_constants() {
     g_ite = new name{"ite"};
     g_lean_parser = new name{"lean", "parser"};
     g_lean_parser_pexpr = new name{"lean", "parser", "pexpr"};
+    g_lean_parser_reflectable_expr = new name{"lean", "parser", "reflectable", "expr"};
     g_lean_parser_tk = new name{"lean", "parser", "tk"};
     g_left_distrib = new name{"left_distrib"};
     g_left_comm = new name{"left_comm"};
@@ -897,6 +899,7 @@ void finalize_constants() {
     delete g_ite;
     delete g_lean_parser;
     delete g_lean_parser_pexpr;
+    delete g_lean_parser_reflectable_expr;
     delete g_lean_parser_tk;
     delete g_left_distrib;
     delete g_left_comm;
@@ -1256,6 +1259,7 @@ name const & get_is_commutative_comm_name() { return *g_is_commutative_comm; }
 name const & get_ite_name() { return *g_ite; }
 name const & get_lean_parser_name() { return *g_lean_parser; }
 name const & get_lean_parser_pexpr_name() { return *g_lean_parser_pexpr; }
+name const & get_lean_parser_reflectable_expr_name() { return *g_lean_parser_reflectable_expr; }
 name const & get_lean_parser_tk_name() { return *g_lean_parser_tk; }
 name const & get_left_distrib_name() { return *g_left_distrib; }
 name const & get_left_comm_name() { return *g_left_comm; }

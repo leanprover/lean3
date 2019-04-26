@@ -4,7 +4,7 @@ Released under Apache 2.0 license as described in the file LICENSE.
 Authors: Sebastian Ullrich
 -/
 prelude
-import init.meta.tactic
+import init.meta.tactic init.meta.has_reflect init.category.alternative
 
 namespace lean
 
@@ -21,7 +21,24 @@ open interaction_monad
 open interaction_monad.result
 
 namespace parser
+
 variable {α : Type}
+
+meta def val (p : lean.parser (reflected_value α)) : lean.parser α :=
+reflected_value.val <$> p
+
+protected meta class reflectable (p : parser α) :=
+(full : parser (reflected_value α))
+
+namespace reflectable
+
+meta def expr {p : parser α} (r : reflectable p) : parser expr :=
+reflected_value.expr <$> r.full
+
+meta def to_parser {p : parser α} (r : reflectable p) : parser α :=
+val r.full
+
+end reflectable
 
 meta constant set_env : environment → parser unit
 
@@ -34,6 +51,11 @@ meta constant small_nat : parser nat
 meta constant tk (tk : string) : parser unit
 /-- Parse an unelaborated expression using the given right-binding power. -/
 protected meta constant pexpr (rbp := std.prec.max) : parser pexpr
+
+protected meta constant itactic_reflected : parser (reflected_value (tactic unit))
+
+/-- Parse an interactive tactic block: `begin` .. `end` -/
+@[reducible] protected meta def itactic : parser (tactic unit) := val parser.itactic_reflected
 
 /-- Do not report info from content parsed by `p`. -/
 meta constant skip_info (p : parser α) : parser α
@@ -84,6 +106,20 @@ meta constant of_tactic : tactic α → parser α
 
 meta instance : has_coe (tactic α) (parser α) :=
 ⟨of_tactic⟩
+
+namespace reflectable
+
+meta instance cast (p : lean.parser (reflected_value α)) : reflectable (val p) :=
+{full := p}
+
+meta instance has_reflect [r : has_reflect α] (p : lean.parser α) : reflectable p :=
+{full := do rp ← p, return ⟨rp⟩}
+
+meta instance optional {α : Type} [reflected α] (p : parser α)
+  [r : reflectable p] : reflectable (optional p) :=
+{full := reflected_value.subst some <$> r.full <|> return ⟨none⟩}
+
+end reflectable
 
 end parser
 end lean

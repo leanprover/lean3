@@ -27,14 +27,17 @@ static environment add_user_command(environment const & env, name const & d) {
     }
     std::string tk;
     if (is_binding(type) && is_app_of(binding_domain(type), get_interactive_parse_name(), 3)) {
-        auto const & parser = app_arg(binding_domain(type));
-        if (is_app_of(parser, get_lean_parser_tk_name(), 1)) {
-            if (auto lit = to_string(app_arg(parser))) {
-                tk = *lit;
-                type = binding_body(type);
-            } else {
-                throw elaborator_exception(app_arg(parser),
-                                           "invalid user-defined command, token must be a name literal");
+        auto parser = app_fn(binding_domain(type));
+        if (is_app(parser)) {
+            parser = app_arg(parser);
+            if (is_app_of(parser, get_lean_parser_tk_name(), 1)) {
+                if (auto lit = to_string(app_arg(parser))) {
+                    tk = *lit;
+                    type = binding_body(type);
+                } else {
+                    throw elaborator_exception(app_arg(parser),
+                                            "invalid user-defined command, token must be a name literal");
+                }
             }
         }
     } else {

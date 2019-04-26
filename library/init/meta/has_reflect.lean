@@ -6,8 +6,24 @@ Authors: Sebastian Ullrich
 prelude
 import init.meta.expr init.util
 
+universes u v
+
 /-- `has_reflect α` lets you produce an `expr` from an instance of α. That is, it is a function from α to expr such that the expr has type α. -/
-@[reducible] meta def {u} has_reflect (α : Sort u) := Π a : α, reflected a
+@[reducible] meta def has_reflect (α : Sort u) := Π a : α, reflected a
+
+meta structure reflected_value (α : Type u) :=
+(val : α)
+[reflect : reflected val]
+
+namespace reflected_value
+
+meta def expr {α : Type u} (v : reflected_value α) : expr := v.reflect
+
+meta def subst {α : Type u} {β : Type v} (f : α → β) [rf : reflected f]
+  (a : reflected_value α) : reflected_value β :=
+@mk _ (f a.val) (rf.subst a.reflect)
+
+end reflected_value
 
 section
 local attribute [semireducible] reflected

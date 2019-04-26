@@ -14,10 +14,11 @@ local postfix `?`:9001 := optional
 local postfix *:9001 := many
 
 namespace interactive
+
 /-- (parse p) as the parameter type of an interactive tactic will instruct the Lean parser
     to run `p` when parsing the parameter and to pass the parsed value as an argument
     to the tactic. -/
-@[reducible] meta def parse {α : Type} [has_reflect α] (p : parser α) : Type := α
+@[reducible] meta def parse {α : Type} (p : parser α) [lean.parser.reflectable p] : Type := α
 
 /-- A `loc` is either a 'wildcard', which means "everywhere", or a list of `option name`s. `none` means `target` and `some n` means `n` in the local context.-/
 inductive loc : Type

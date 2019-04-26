@@ -13,6 +13,7 @@ Author: Sebastian Ullrich
 #include "library/num.h"
 #include "library/quote.h"
 #include "library/trace.h"
+#include "library/placeholder.h"
 #include "library/vm/interaction_state_imp.h"
 #include "library/tactic/elaborate.h"
 #include "library/vm/vm_string.h"
@@ -27,6 +28,7 @@ Author: Sebastian Ullrich
 #include "frontends/lean/decl_util.h"
 #include "frontends/lean/parser.h"
 #include "frontends/lean/inductive_cmds.h"
+#include "frontends/lean/tactic_notation.h"
 #include "util/utf8.h"
 
 namespace lean {
@@ -53,20 +55,15 @@ expr parse_interactive_param(parser & p, expr const & param_ty) {
     lean_assert(is_app_of(param_ty, get_interactive_parse_name()));
     buffer<expr> param_args;
     get_app_args(param_ty, param_args);
-    // alpha, has_reflect alpha, parser alpha
+    // alpha, parser alpha, lean.parser.reflectable alpha
     lean_assert(param_args.size() == 3);
-    if (!closed(param_args[2])) {
-        throw elaborator_exception(param_args[2], "error running user-defined parser: must be closed expression");
+    if (!closed(param_args[1])) {
+        throw elaborator_exception(param_args[1], "error running user-defined parser: must be closed expression");
     }
     try {
-        vm_obj vm_parsed = run_parser(p, param_args[2]);
-        type_context_old ctx(p.env());
-        name n("_reflect");
-        lean_parser::evaluator eval(ctx, p.get_options());
-        auto env = eval.compile(n, param_args[1]);
-        vm_state S(env, p.get_options());
-        auto vm_res = S.invoke(n, vm_parsed);
-        expr r = to_expr(vm_res);
+        expr pr = mk_app({mk_constant(get_lean_parser_reflectable_expr_name()),
+            param_args[0], param_args[1], param_args[2]});
+        expr r = to_expr(run_parser(p, pr));
         if (is_app_of(r, get_expr_subst_name())) {
             return r; // HACK
         } else {
@@ -218,6 +215,19 @@ vm_obj vm_parser_pexpr(vm_obj const & vm_rbp, vm_obj const & o) {
     CATCH;
 }
 
+vm_obj vm_parser_itactic_reflected(vm_obj const & o) {
+    auto const & s = lean_parser::to_state(o);
+    TRY;
+        metavar_context mctx;
+        auto _ = s.m_p->no_error_recovery_scope();
+
+        expr e = parse_nested_interactive_tactic(*s.m_p, get_tactic_name(), true);
+        vm_obj r = to_obj(s.m_p->elaborate({}, mctx, e, false).first);
+        r = mk_vm_constructor(0, r, r);
+        return lean_parser::mk_success(r, s);
+    CATCH;
+}
+
 vm_obj vm_parser_skip_info(vm_obj const &, vm_obj const & vm_p, vm_obj const & o) {
     auto const & s = lean_parser::to_state(o);
     return s.m_p->without_break_at_pos<vm_obj>([&]() {
@@ -345,6 +355,7 @@ void initialize_vm_parser() {
     DECLARE_VM_BUILTIN(name({"lean", "parser", "set_env"}),           vm_parser_set_env);
     DECLARE_VM_BUILTIN(get_lean_parser_tk_name(),                     vm_parser_tk);
     DECLARE_VM_BUILTIN(get_lean_parser_pexpr_name(),                  vm_parser_pexpr);
+    DECLARE_VM_BUILTIN(name({"lean", "parser", "itactic_reflected"}), vm_parser_itactic_reflected);
     DECLARE_VM_BUILTIN(name({"lean", "parser", "skip_info"}),         vm_parser_skip_info);
     DECLARE_VM_BUILTIN(name({"lean", "parser", "set_goal_info_pos"}), vm_parser_set_goal_info_pos);
     DECLARE_VM_BUILTIN(name({"lean", "parser", "with_input"}),        vm_parser_with_input);

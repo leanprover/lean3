@@ -139,7 +139,7 @@ static optional<name> is_interactive_tactic(parser & p, name const & tac_class) 
 
 static expr parse_begin_end_block(parser & p, pos_info const & start_pos, name const & end_token, name tac_class, bool use_istep);
 
-static expr parse_nested_interactive_tactic(parser & p, name const & tac_class, bool use_istep) {
+expr parse_nested_interactive_tactic(parser & p, name const & tac_class, bool use_istep) {
     auto pos = p.pos();
     if (p.curr_is_token(get_lcurly_tk())) {
         return parse_begin_end_block(p, pos, get_rcurly_tk(), tac_class, use_istep);
