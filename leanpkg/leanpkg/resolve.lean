@@ -40,12 +40,6 @@ assg ← get,
 some path ← return (assg.find d) | io.fail "",
 return path
 
--- TODO(gabriel): directory existence testing
-def dir_exists (d : string) : io bool := do
-ch ← io.proc.spawn { cmd := "test", args := ["-d", d] },
-ev ← io.proc.wait ch,
-return $ ev = 0
-
 -- TODO(gabriel): windows?
 def resolve_dir (abs_or_rel : string) (base : string) : string :=
 if abs_or_rel.front = '/' then
@@ -61,7 +55,7 @@ match dep.src with
   modify $ λ assg, assg.insert dep.name depdir
 | (source.git url rev branch) := do
   let depdir := "_target/deps/" ++ dep.name,
-  already_there ← dir_exists depdir,
+  already_there ← io.fs.dir_exists depdir,
   if already_there then do {
     io.put_str $ dep.name ++ ": trying to update " ++ depdir ++ " to revision " ++ rev,
     io.put_str_ln $ match branch with | none := "" | some branch := "@" ++ branch end,

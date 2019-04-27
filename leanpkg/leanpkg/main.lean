@@ -27,12 +27,6 @@ def get_dot_lean_dir : io string := do
 some home ← io.env.get "HOME" | io.fail "environment variable HOME is not set",
 return $ home ++ "/.lean"
 
--- TODO(gabriel): file existence testing
-def exists_file (f : string) : io bool := do
-ch ← io.proc.spawn { cmd := "test", args := ["-f", f] },
-ev ← io.proc.wait ch,
-return $ ev = 0
-
 def mk_path_file : ∀ (paths : list string), string
 | [] := "builtin_path\n"
 | (x :: xs) := mk_path_file xs ++ "path " ++ x ++ "\n"
@@ -69,12 +63,12 @@ def init_gitignore_contents :=
 
 def init_pkg (n : string) (from_new : bool) : io unit := do
 write_manifest { name := n, path := "src", version := "0.1" } leanpkg_toml_fn,
-src_ex ← dir_exists "src",
+src_ex ← io.fs.dir_exists "src",
 when (¬src_ex) (do
   when ¬from_new $ io.put_str_ln "Move existing .lean files into the 'src' folder.",
   io.fs.mkdir "src" >> return ()),
 write_file ".gitignore" init_gitignore_contents io.mode.append,
-git_ex ← dir_exists ".git",
+git_ex ← io.fs.dir_exists ".git",
 when (¬git_ex) (do {
   exec_cmd {cmd := "git", args := ["init", "-q"]},
   when (upstream_git_branch ≠ "master") $
@@ -103,7 +97,7 @@ def parse_add_dep (dep : string) (branch : option string) : io dependency :=
 if looks_like_git_url dep then
   pure { name := basename (strip_dot_git dep), src := source.git dep (git_default_revision branch) branch }
 else do
-  ex ← dir_exists dep,
+  ex ← io.fs.dir_exists dep,
   if ex then match branch with
     | some branch := io.fail sformat!"extraneous trailing path argument '{branch}'"
     | none := pure { name := basename dep, src := source.path dep }
@@ -127,7 +121,7 @@ def parse_install_dep (dep : string) (branch : option string) : io dependency :=
   dot_lean_dir ← get_dot_lean_dir,
   io.fs.mkdir dot_lean_dir tt,
   let user_toml_fn := dot_lean_dir ++ "/" ++ leanpkg_toml_fn,
-  ex ← exists_file user_toml_fn,
+  ex ← io.fs.file_exists user_toml_fn,
   when (¬ ex) $ write_manifest {
       name := "_user_local_packages",
       version := "1"
@@ -151,7 +145,7 @@ add_dep_to_manifest dep,
 configure
 
 def new (dir : string) := do
-ex ← dir_exists dir,
+ex ← io.fs.dir_exists dir,
 when ex $ io.fail $ "directory already exists: " ++ dir,
 io.fs.mkdir dir tt,
 change_dir dir,

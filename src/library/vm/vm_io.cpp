@@ -20,6 +20,10 @@ Author: Leonardo de Moura
     #define stat _stat
     #define access _access
     #define PATH_MAX _MAX_PATH
+
+    #define S_IFMT  _S_IFMT
+    #define S_IFREG _S_IFREG
+    #define S_IFDIR _S_IFDIR
 #else
     #include <unistd.h>
 #endif
@@ -254,22 +258,23 @@ static vm_obj net_listen(vm_obj const & fname, vm_obj const & backlog, vm_obj co
     addr.sun_family = AF_UNIX;
     snprintf(addr.sun_path, sizeof(addr.sun_path), "%s", to_string(fname).c_str());
     int ret = bind(fd, (struct sockaddr*) &addr, sizeof(addr));
-    if (ret == SOCKET_ERROR)
+    if (ret == SOCKET_ERROR) {
         return mk_io_failure(sstream() << "failed to bind UNIX socket '" << to_string(fname) << "': " << SOCKET_GET_ERROR());
+    }
 
     ret = listen(fd, force_to_unsigned(backlog));
-    if (ret == SOCKET_ERROR)
+    if (ret == SOCKET_ERROR) {
         return mk_io_failure(sstream() << "failed to listen UNIX socket '" << to_string(fname) << "': " << SOCKET_GET_ERROR());
+    }
 
     return mk_io_result(mk_socket(fd));
 }
 
 static vm_obj net_accept(vm_obj const & h, vm_obj const &) {
-    SOCKET fd = socket_to_fd(h);
-
-    int nfd = accept(fd, NULL, NULL);
-    if (nfd == INVALID_SOCKET)
+    SOCKET nfd = accept(socket_to_fd(h), NULL, NULL);
+    if (nfd == INVALID_SOCKET) {
         return mk_io_failure(sstream() << "failed to accept UNIX socket '" << "': " << SOCKET_GET_ERROR());
+    }
 
     return mk_io_result(mk_socket(nfd));
 }
@@ -285,8 +290,9 @@ static vm_obj net_connect(vm_obj const & fname, vm_obj const &) {
     addr.sun_family = AF_UNIX;
     snprintf(addr.sun_path, sizeof(addr.sun_path), "%s", to_string(fname).c_str());
     int ret = connect(fd, (struct sockaddr*) &addr, sizeof(addr));
-    if (ret == SOCKET_ERROR)
+    if (ret == SOCKET_ERROR) {
         return mk_io_failure(sstream() << "failed to connect UNIX socket '" << to_string(fname) << "': " << SOCKET_GET_ERROR());
+    }
 
     return mk_io_result(mk_socket(fd));
 }
@@ -433,9 +439,33 @@ static vm_obj fs_stderr(vm_obj const &) {
     return mk_io_result(to_obj(std::make_shared<handle>(stderr, false)));
 }
 
-static vm_obj fs_exist(vm_obj const & path, vm_obj const &) {
-    bool exists = access(to_string(path).c_str(), 0) == 0;
-    return mk_io_result(mk_vm_bool(exists));
+#define FSTAT_FAIL 0
+#define FSTAT_MISC 1
+#define FSTAT_FILE 2
+#define FSTAT_DIR  3
+
+static int fs_stat(const char *path) {
+    struct stat sb;
+    if (stat(path, &sb) == -1) {
+        return FSTAT_FAIL;
+    }
+
+    switch (sb.st_mode & S_IFMT) {
+        case S_IFDIR:  return FSTAT_DIR;
+        case S_IFREG:  return FSTAT_FILE;
+    }
+
+    return FSTAT_MISC;
+}
+
+static vm_obj fs_file_exists(vm_obj const & path, vm_obj const &) {
+    bool ret = fs_stat(to_string(path).c_str()) == FSTAT_FILE;
+    return mk_io_result(mk_vm_bool(ret));
+}
+
+static vm_obj fs_dir_exists(vm_obj const & path, vm_obj const &) {
+    bool ret = fs_stat(to_string(path).c_str()) == FSTAT_DIR;
+    return mk_io_result(mk_vm_bool(ret));
 }
 
 static vm_obj fs_remove(vm_obj const & path, vm_obj const &) {
@@ -547,7 +577,8 @@ static vm_obj monad_io_file_system_impl () {
         mk_native_closure(fs_stdin),
         mk_native_closure(fs_stdout),
         mk_native_closure(fs_stderr),
-        mk_native_closure(fs_exist),
+        mk_native_closure(fs_file_exists),
+        mk_native_closure(fs_dir_exists),
         mk_native_closure(fs_remove),
         mk_native_closure(fs_rename),
         mk_native_closure(fs_mkdir),
