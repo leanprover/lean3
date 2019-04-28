@@ -30,6 +30,7 @@ Author: Leonardo de Moura
 #include "library/vm/vm_name.h"
 #include "library/vm/vm_option.h"
 #include "library/vm/vm_expr.h"
+#include "library/vm/vm_dynload.h"
 #include "library/normalize.h"
 
 #ifndef LEAN_DEFAULT_PROFILER_FREQ
