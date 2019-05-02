@@ -6,6 +6,9 @@ Author: James King <james@agenultra.com>
 #include <string>
 #include <sys/types.h>
 
+#include "util/sstream.h"
+#include "library/vm/vm_io.h"
+
 #define FOREIGN_OBJ void *
 
 void get_shared_funcptr(const char * pathname) {
@@ -17,9 +20,9 @@ void get_shared_funcptr(const char * pathname) {
 
 struct vm_foreign_obj : public vm_external {
     FOREIGN_OBJ m_handle;
-    std::string m_filename;
+    char * m_filename;
 
-    vm_foreign_obj(FOREIGN_OBJ handle, std::string filename)
+    vm_foreign_obj(FOREIGN_OBJ handle, const char & filename)
       : m_handle(handle),
         m_filename(filename) {};
     virtual ~vm_foreign_obj() {}
@@ -33,4 +36,16 @@ struct vm_foreign_obj : public vm_external {
     virtual vm_external * ts_clone(vm_clone_fn const &) override {
       lean_unreachable();
     }
+}
+
+static vm_obj mk_foreign_obj(FOREIGN_OBJ handle, const char & fname) {
+    return mk_vm_external(new (get_vm_allocator().allocate(sizeof(vm_foreign_obj))) vm_foreign_obj(handle, fname));
+}
+
+static vm_obj load_foreign_obj(vm_obj const & fname) {
+    FOREIGN_OBJ handle = dlopen(fname, RTLD_LAZY);
+    if (!handle) {
+        return mk_io_failure(sstream() << "failed to load foreign lib: " << dlerror());
+    }
+    return mk_io_result(mk_foreign_obj(handle, fname);
 }
