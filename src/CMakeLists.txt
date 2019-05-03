@@ -331,6 +331,8 @@ else()
     check_symbol_exists(ffi_call ${FFI_HEADER} HAVE_FFI_CALL)
     list(REMOVE_ITEM CMAKE_REQUIRED_INCLUDES ${FFI_INCLUDE_PATH})
     list(REMOVE_ITEM CMAKE_REQUIRED_LIBRARIES ${FFI_LIBRARY_PATH})
+    set(EXTRA_LIBS ${EXTRA_LIBS} ${FFI_LIBRARY_PATH})
+    include_directories(${FFI_INCLUDE_PATH})
 endif()
 
 # DL
