@@ -1119,8 +1119,9 @@ void declare_vm_cases_builtin(name const & n, char const * i, vm_cases_function 
 
 /** \brief VM function/constant declarations are stored in an environment extension. */
 struct vm_decls : public environment_extension {
-    unsigned_map<vm_decl>           m_decls;
-    unsigned_map<vm_cases_function> m_cases;
+    unsigned_map<vm_decl>            m_decls;
+    unsigned_map<vm_cases_function>  m_cases;
+    std::unordered_map<name, std::shared_ptr<vm_foreign_obj>, name_hash> m_foreign;
 
     name                            m_monitor;
 
@@ -1147,6 +1148,17 @@ struct vm_decls : public environment_extension {
         auto idx = get_vm_index(n);
         DEBUG_CODE(if (auto decl = m_decls.find(idx)) lean_assert(decl->get_arity() == arity);)
         m_decls.insert(idx, vm_decl(n, idx, arity, fn));
+    }
+
+    void add_foreign_obj(name const & n, string const & file_name) {
+        m_foreign[n] = load_foreign_obj(file_name);
+    }
+
+    void bind_foreign_symbol(name const & fo, name const & fn, string const & sym, unsigned arity) {
+        std::cout << "bind_foreign_symbol\n";
+        auto c_fun = m_foreign[fo]->get_cfun(sym);
+                     c_fun(mk_vm_none());
+        add_native(fn,arity,c_fun);
     }
 
     unsigned reserve(name const & n, unsigned arity) {
@@ -1225,6 +1237,18 @@ environment add_native(environment const & env, name const & n, vm_cfunction_8 f
 
 environment add_native(environment const & env, name const & n, unsigned arity, vm_cfunction_N fn) {
     return add_native(env, n, arity, reinterpret_cast<vm_cfunction>(fn));
+}
+
+environment load_foreign_object(environment const & env, name const & n, string const & file_name) {
+    auto ext = get_extension(env);
+    ext.add_foreign_obj(n, file_name);
+    return update(env, ext);
+}
+
+environment bind_foreign_symbol(environment const & env, name const & fo, name const & fn, unsigned arity, string const & symbol) {
+    auto ext = get_extension(env);
+    ext.bind_foreign_symbol(fo, fn, symbol, arity);
+    return update(env, ext);
 }
 
 bool is_vm_function(environment const & env, name const & fn) {

@@ -13,6 +13,8 @@ Author: Leonardo de Moura
 namespace lean {
 vm_obj mk_io_result(vm_obj const & r);
 vm_obj mk_io_failure(std::string const & s);
+class sstream;
+vm_obj mk_io_failure(sstream const & s);
 /* The io monad produces a result object, or an error.
    If `o` is a result, then we return the result value. */
 optional<vm_obj> is_io_result(vm_obj const & o);

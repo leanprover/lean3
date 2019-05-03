@@ -900,6 +900,10 @@ environment add_native(environment const & env, name const & n, vm_cfunction_7 f
 environment add_native(environment const & env, name const & n, vm_cfunction_8 fn);
 environment add_native(environment const & env, name const & n, unsigned arity, vm_cfunction_N fn);
 
+environment load_foreign_object(environment const & env, name const & n, std::string const & file_name);
+environment bind_foreign_symbol(environment const & env, name const & fo, name const & fn,
+                                unsigned arity, std::string const & symbol);
+
 unsigned get_vm_index(name const & n);
 unsigned get_vm_index_bound();
 name get_vm_name(unsigned idx);

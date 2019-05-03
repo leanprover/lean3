@@ -153,6 +153,12 @@ meta constant structure_fields : environment → name → option (list name)
 meta constant get_class_attribute_symbols : environment → name → name_set
 /-- The fingerprint of the environment is a hash formed from all of the declarations in the environment. -/
 meta constant fingerprint : environment → nat
+
+meta constant load_foreign_object (env : environment) (n : name) (file_name : string) : environment
+
+meta constant bind_foreign_symbol(env : environment) (fo : name) (fn : name)
+                                 (arity : nat) (symbol : string) : environment
+
 open expr
 
 meta constant unfold_untrusted_macros : environment → expr → expr
