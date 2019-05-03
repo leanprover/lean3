@@ -331,6 +331,7 @@ vm_obj environment_bind_foreign_symbol(vm_obj const & _env, vm_obj const & _fo, 
     environment env = to_env(_env);
     name fo = to_name(_fo);
     name fn = to_name(_fn);
+    expr type = env.get(fn).get_type();
     unsigned arity = to_unsigned(_arity);
     std::string symbol = to_string(_symbol);
     return to_obj(bind_foreign_symbol(env,fo,fn,arity,symbol));
