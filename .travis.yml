@@ -2,6 +2,9 @@ language: cpp
 sudo: true
 cache: apt
 dist: trusty
+branches:
+  only:
+    - master
 group: deprecated-2017Q3
 addons:
   apt:
