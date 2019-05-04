@@ -1,10 +1,20 @@
 language: cpp
 sudo: true
-cache: apt
+cache:
+  apt: true
+  directories:
+    - build/library/
+    - build/kernel/
+    - build/init/
+    - build/frontends/
+    - build/api/
+    - build/util/
+    - build/checker/
 dist: trusty
 branches:
   only:
     - master
+    - debug-travis
 group: deprecated-2017Q3
 addons:
   apt:
@@ -116,7 +126,6 @@ before_install:
     fi
 
 script:
-  - set -e
   - mkdir -p build
   - cd build
   - if [[ $TESTCOV != ON ]]; then TESTCOV=OFF; fi
