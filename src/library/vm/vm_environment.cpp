@@ -5,7 +5,11 @@ Released under Apache 2.0 license as described in the file LICENSE.
 Author: Leonardo de Moura
 */
 #include <string>
+#ifdef USE_FFI_FFI_H
+#include <ffi/ffi.h>
+#else
 #include <ffi.h>
+#endif
 #include "library/unfold_macros.h"
 #include "kernel/type_checker.h"
 #include "kernel/inductive/inductive.h"
