@@ -1,0 +1,2 @@
+#!/bin/sh
+ccache $CMAKE_CXX_COMPILER "$@"

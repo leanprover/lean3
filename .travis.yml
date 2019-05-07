@@ -7,6 +7,7 @@ dist: trusty
 branches:
   only:
     - master
+    - travis-ccache
 group: deprecated-2017Q3
 addons:
   apt:
@@ -119,11 +120,20 @@ before_install:
       brew update &&
       (brew install gcc || brew link --overwrite gcc) &&
       brew install gmp &&
+      brew install ccache &&
       # workaround for https://github.com/travis-ci/travis-ci/issues/6307
       command curl -sSL https://rvm.io/mpapis.asc | gpg --import -
       command curl -sSL https://rvm.io/pkuczynski.asc | gpg --import -
       rvm get head || true
     fi
+
+install:
+  - export CXX_FAMILY=`echo $CMAKE_CXX_COMPILER | sed -n "s/\([^\+]*++\).*/\1/p"`
+     # CXX_FAMILY is either `clang++` or `g++`
+  - mkdir -p ~/bin/
+  - chmod +x script/ccache-$CXX_FAMILY
+  - cp script/ccache-$CXX_FAMILY ~/bin/
+  - export PATH="~/bin/:$PATH"
 
 script:
   - mkdir -p build
@@ -142,7 +152,7 @@ script:
       . ../script/setup_nightly.sh
     fi
   - cmake -DCMAKE_BUILD_TYPE=$CMAKE_BUILD_TYPE
-          -DCMAKE_CXX_COMPILER=$CMAKE_CXX_COMPILER
+          -DCMAKE_CXX_COMPILER=ccache-$CXX_FAMILY
           -DTESTCOV=$TESTCOV
           -DTCMALLOC=$TCMALLOC
           -DMULTI_THREAD=$MULTI_THREAD
