@@ -87,22 +87,22 @@ bool get_parser_show_errors(options const & opts) {
 
 // ==========================================
 
-parser::local_scope::local_scope(parser & p, bool save_options):
+parser_info::local_scope::local_scope(parser_info & p, bool save_options):
     m_p(p), m_env(p.env()) {
     m_p.push_local_scope(save_options);
 }
-parser::local_scope::local_scope(parser & p, environment const & env):
+parser_info::local_scope::local_scope(parser_info & p, environment const & env):
     m_p(p), m_env(p.env()) {
     m_p.m_env = env;
     m_p.push_local_scope();
 }
-parser::local_scope::local_scope(parser & p, optional<environment> const & env):
+parser_info::local_scope::local_scope(parser_info & p, optional<environment> const & env):
     m_p(p), m_env(p.env()) {
     if (env)
         m_p.m_env = *env;
     m_p.push_local_scope();
 }
-parser::local_scope::~local_scope() {
+parser_info::local_scope::~local_scope() {
     m_p.pop_local_scope();
     m_p.m_env = m_env;
 }
@@ -156,7 +156,7 @@ parser::parser(environment const & env, io_state const & ios,
                module_loader const & import_fn,
                std::istream & strm, std::string const & file_name,
                bool use_exceptions) :
-    m_env(env), m_ngen(*g_frontend_fresh), m_ios(ios),
+    parser_info(env, ios), m_ngen(*g_frontend_fresh),
     m_use_exceptions(use_exceptions),
     m_import_fn(import_fn),
     m_file_name(file_name),
@@ -228,11 +228,11 @@ void parser::scan() {
     m_curr = m_scanner.scan(m_env);
 }
 
-expr parser::mk_sorry(pos_info const & p, bool synthetic) {
+expr parser_info::mk_sorry(pos_info const & p, bool synthetic) {
     return save_pos(::lean::mk_sorry(mk_Prop(), synthetic), p);
 }
 
-void parser::updt_options() {
+void parser_info::updt_options() {
     m_profile        = get_profiler(m_ios.get_options());
     m_show_errors    = get_parser_show_errors(m_ios.get_options());
 }
@@ -446,13 +446,13 @@ expr parser::mk_app(std::initializer_list<expr> const & args, pos_info const & p
     return r;
 }
 
-parser_scope parser::mk_parser_scope(optional<options> const & opts) {
+parser_scope parser_info::mk_parser_scope(optional<options> const & opts) {
     return parser_scope(opts, m_level_variables, m_variables, m_include_vars,
                         m_next_inst_idx, m_has_params,
                         m_local_level_decls, m_local_decls);
 }
 
-void parser::restore_parser_scope(parser_scope const & s) {
+void parser_info::restore_parser_scope(parser_scope const & s) {
     if (s.m_options) {
         m_ios.set_options(*s.m_options);
         updt_options();
@@ -466,25 +466,25 @@ void parser::restore_parser_scope(parser_scope const & s) {
     m_next_inst_idx      = s.m_next_inst_idx;
 }
 
-void parser::push_local_scope(bool save_options) {
+void parser_info::push_local_scope(bool save_options) {
     optional<options> opts;
     if (save_options)
         opts = m_ios.get_options();
     m_parser_scope_stack = cons(mk_parser_scope(opts), m_parser_scope_stack);
 }
 
-void parser::pop_local_scope() {
+void parser_info::pop_local_scope() {
     lean_assert(m_parser_scope_stack);
     auto s = head(m_parser_scope_stack);
     restore_parser_scope(s);
     m_parser_scope_stack = tail(m_parser_scope_stack);
 }
 
-void parser::clear_expr_locals() {
+void parser_info::clear_expr_locals() {
     m_local_decls       = local_expr_decls();
 }
 
-void parser::add_local_level(name const & n, level const & l, bool is_variable) {
+void parser_info::add_local_level(name const & n, level const & l, bool is_variable) {
     if (m_local_level_decls.contains(n))
         maybe_throw_error({sstream() << "invalid universe declaration, '" << n << "' shadows a local universe", pos()});
     m_local_level_decls.insert(n, l);
@@ -494,7 +494,7 @@ void parser::add_local_level(name const & n, level const & l, bool is_variable) 
     }
 }
 
-void parser::add_local_expr(name const & n, expr const & p, bool is_variable) {
+void parser_info::add_local_expr(name const & n, expr const & p, bool is_variable) {
     if (!m_in_quote) {
         // HACK: Certainly not in a pattern. We need this information early in `builtin_exprs::parse_quoted_expr`.
         // Without it, the quotation would be elaborated only in `patexpr_to_expr`, with the local not being
@@ -512,7 +512,7 @@ void parser::add_local_expr(name const & n, expr const & p, bool is_variable) {
     }
 }
 
-environment parser::add_local_ref(environment const & env, name const & n, expr const & ref) {
+environment parser_info::add_local_ref(environment const & env, name const & n, expr const & ref) {
     add_local_expr(n, ref, false);
     if (is_as_atomic(ref)) {
         buffer<expr> args;
@@ -544,20 +544,20 @@ static void check_no_metavars(name const & n, expr const & e) {
     }
 }
 
-void parser::add_variable(name const & n, expr const & v) {
+void parser_info::add_variable(name const & n, expr const & v) {
     lean_assert(is_local(v));
     check_no_metavars(n, v);
     add_local_expr(n, v, true);
 }
 
-void parser::add_parameter(name const & n, expr const & p) {
+void parser_info::add_parameter(name const & n, expr const & p) {
     lean_assert(is_local(p));
     check_no_metavars(n, p);
     add_local_expr(n, p, false);
     m_has_params = true;
 }
 
-bool parser::is_local_decl(expr const & l) {
+bool parser_info::is_local_decl(expr const & l) {
     lean_assert(is_local(l));
     // TODO(Leo): add a name_set with internal ids if this is a bottleneck
     for (pair<name, expr> const & p : m_local_decls.get_entries()) {
@@ -567,7 +567,7 @@ bool parser::is_local_decl(expr const & l) {
     return false;
 }
 
-bool parser::update_local_binder_info(name const & n, binder_info const & bi) {
+bool parser_info::update_local_binder_info(name const & n, binder_info const & bi) {
     auto it = get_local(n);
     if (!it || !is_local(*it)) return false;
 
@@ -610,17 +610,17 @@ bool parser::update_local_binder_info(name const & n, binder_info const & bi) {
     return true;
 }
 
-unsigned parser::get_local_index(name const & n) const {
+unsigned parser_info::get_local_index(name const & n) const {
     return m_local_decls.find_idx(n);
 }
 
-void parser::get_include_variables(buffer<expr> & vars) const {
+void parser_info::get_include_variables(buffer<expr> & vars) const {
     m_include_vars.for_each([&](name const & n) {
             vars.push_back(*get_local(n));
         });
 }
 
-list<expr> parser::locals_to_context() const {
+list<expr> parser_info::locals_to_context() const {
     return map_filter<expr>(m_local_decls.get_entries(),
                             [](pair<name, expr> const & p, expr & out) {
                                 out = p.second;
@@ -2629,6 +2629,10 @@ void parser::init_scanner() {
         m_curr = m_scanner.scan(m_env); // same code as scan(), but without break-at-pos checking
         m_scanner_inited = true;
     }
+}
+
+void dummy_def_parser::maybe_throw_error(parser_error && err) {
+  throw std::move(err);
 }
 
 void parser::maybe_throw_error(parser_error && err) {

@@ -1,0 +1,140 @@
+def n._main : bool → bool :=
+λ (a : bool), bool.cases_on a (id_rhs bool tt) (id_rhs bool ff)
+n : bool → bool → bool → bool
+n._main : bool → bool
+n._main.equations._eqn_1 : n._main ff = tt
+n._main.equations._eqn_2 : n._main tt = ff
+n._sunfold : bool → bool → bool → bool
+n.equations._eqn_1 : ∀ (a b : bool), n a b ff = tt
+n.equations._eqn_2 : ∀ (a b : bool), n a b tt = ff
+meta def m : bool → bool :=
+λ (a : bool), bool.cases_on a (id_rhs bool tt) (id_rhs bool ff)
+m : bool → bool
+ff
+add_defn_eqns.lean:27:0: error: failed to prove recursive application is decreasing, well founded relation
+  @has_well_founded.r bool (@has_well_founded_of_has_sizeof bool bool.has_sizeof)
+Possible solutions: 
+  - Use 'using_well_founded' keyword in the end of your definition to specify tactics for synthesizing well founded relations and decreasing proofs.
+  - The default decreasing tactic uses the 'assumption' tactic, thus hints (aka local proofs) can be provided using 'have'-expressions.
+The nested exception contains the failure state for the decreasing tactic.
+nested exception message:
+invalid apply tactic, failed to unify
+  1 < 1
+with
+  ?m_1 < ?m_1 + ?m_2
+state:
+a b : bool,
+mm : bool → bool
+⊢ 1 < 1
+state:
+⊢ true
+add_defn_eqns.lean:38:0: error: unknown identifier mm
+add_defn_eqns.lean:38:0: error: non-exhaustive match, the following cases are missing:
+mm ff
+mm tt
+state:
+⊢ true
+add_defn_eqns.lean:0:0: warning: declaration 'mm' uses sorry
+add_defn_eqns.lean:48:0: error: unknown identifier mm._main
+def plus' : ℕ → ℕ → ℕ → ℕ :=
+λ (a b : ℕ), plus'._main b
+plus' : ℕ → ℕ → ℕ → ℕ
+plus'._main : ℕ → ℕ → ℕ
+plus'._main._meta_aux : ℕ → ℕ → ℕ
+plus'._main.equations._eqn_1 : ∀ (b : ℕ), plus'._main b 0 = b
+plus'._main.equations._eqn_2 : ∀ (b x : ℕ), plus'._main b (nat.succ x) = plus'._main b x
+plus'._sunfold : ℕ → ℕ → ℕ → ℕ
+plus'.equations._eqn_1 : ∀ (a b : ℕ), plus' a b 0 = b
+plus'.equations._eqn_2 : ∀ (a b x : ℕ), plus' a b (nat.succ x) = plus' a b x
+def foo_append._main : Π {α : Type u}, list α → list α → list α :=
+λ {α : Type u} (xs«_» : list α),
+  list.brec_on «_»
+    (λ («_» : list α) (_F : list.below α «_»),
+       (λ («_» : list α) (_F : list.below α «_»),
+          list.cases_on «_» (λ (_F : list.below α list.nil), id_rhs (list α) xs)
+            (λ (hd : α) (tl : list α) (_F : list.below α (hd :: tl)), id_rhs (list α) (hd :: (_F.fst).fst))
+            _F)
+         «_»
+         _F)
+foo_append : Π {α : Type u}, list α → list α → list α
+foo_append._main : Π {α : Type u}, list α → list α → list α
+foo_append._main._meta_aux : Π {α : Type u}, list α → list α → list α
+foo_append._main.equations._eqn_1 : ∀ {α : Type u} (xs : list α), foo_append._main xs list.nil = xs
+foo_append._main.equations._eqn_2 : ∀ {α : Type u} (xs : list α) (y : α) (ys : list α), foo_append._main xs (y :: ys) = y :: foo_append._main xs ys
+foo_append._sunfold : Π {α : Type u}, list α → list α → list α
+foo_append.equations._eqn_1 : ∀ {α : Type u} (xs : list α), foo_append xs list.nil = xs
+foo_append.equations._eqn_2 : ∀ {α : Type u} (xs : list α) (y : α) (ys : list α), foo_append xs (y :: ys) = y :: foo_append xs ys
+def vec.map._main : Π {α : Type u} {β : Type v}, (α → β) → Π (n : ℕ), vec α n → vec β n :=
+λ {α : Type u} {β : Type v} (f : α → β) (n : ℕ) («_» : vec α n),
+  nat.brec_on n
+    (λ (n : ℕ) (_F : nat.below (λ (n : ℕ), vec α n → vec β n) n) («_» : vec α n),
+       (λ (n : ℕ) («_» : vec α n) (_F : nat.below (λ (n : ℕ), vec α n → vec β n) n),
+          vec.cases_on «_»
+            (λ (a : n = 0),
+               eq.rec
+                 (λ («_» : vec α 0) (_F : nat.below (λ (n : ℕ), vec α n → vec β n) 0)
+                  (H_2 : «_» == vec.nil), eq.rec (id_rhs (vec β 0) vec.nil) _)
+                 _
+                 «_»
+                 _F)
+            (λ {n_1 : ℕ} (a : α) (a_1 : vec α n_1) (H_1 : n = nat.succ n_1),
+               eq.rec
+                 (λ («_» : vec α (nat.succ n_1))
+                  (_F : nat.below (λ (n : ℕ), vec α n → vec β n) (nat.succ n_1)) (H_2 : «_» == vec.cons a a_1),
+                    eq.rec (id_rhs (vec β (nat.succ n_1)) (vec.cons (f a) ((_F.fst).fst a_1))) _)
+                 _
+                 «_»
+                 _F)
+            _
+            _)
+         n
+         «_»
+         _F)
+    «_»
+vec.map : Π {α : Type u} {β : Type v}, (α → β) → Π (n : ℕ), vec α n → vec β n
+vec.map._main : Π {α : Type u} {β : Type v}, (α → β) → Π (n : ℕ), vec α n → vec β n
+vec.map._main._meta_aux : Π {α : Type u} {β : Type v}, (α → β) → Π (n : ℕ), vec α n → vec β n
+vec.map._main.equations._eqn_1 : ∀ {α : Type u} {β : Type v} (f : α → β), vec.map._main f 0 vec.nil = vec.nil
+vec.map._main.equations._eqn_2 : ∀ {α : Type u} {β : Type v} (f : α → β) (n : ℕ) (y : α) (ys : vec α n),
+  vec.map._main f (nat.succ n) (vec.cons y ys) = vec.cons (f y) (vec.map._main f n ys)
+vec.map._sunfold : Π {α : Type u} {β : Type v}, (α → β) → Π (n : ℕ), vec α n → vec β n
+vec.map.equations._eqn_1 : ∀ {α : Type u} {β : Type v} (f : α → β), vec.map f 0 vec.nil = vec.nil
+vec.map.equations._eqn_2 : ∀ {α : Type u} {β : Type v} (f : α → β) (n : ℕ) (y : α) (ys : vec α n),
+  vec.map f (nat.succ n) (vec.cons y ys) = vec.cons (f y) (vec.map f n ys)
+vec.map'._main : (?M_1 → ?M_2) → Π {n : ℕ}, vec ?M_1 n → vec ?M_2 n
+def vec.map'._main : Π {α : Type u} {β : Type v}, (α → β) → Π {n : ℕ}, vec α n → vec β n :=
+λ {α : Type u} {β : Type v} (f : α → β) {n : ℕ} («_» : vec α n),
+  nat.brec_on n
+    (λ {n : ℕ} (_F : nat.below (λ {n : ℕ}, vec α n → vec β n) n) («_» : vec α n),
+       (λ {n : ℕ} («_» : vec α n) (_F : nat.below (λ {n : ℕ}, vec α n → vec β n) n),
+          vec.cases_on «_»
+            (λ (a : n = 0),
+               eq.rec
+                 (λ («_» : vec α 0) (_F : nat.below (λ {n : ℕ}, vec α n → vec β n) 0)
+                  (H_2 : «_» == vec.nil), eq.rec (id_rhs (vec β 0) vec.nil) _)
+                 _
+                 «_»
+                 _F)
+            (λ {n_1 : ℕ} (a : α) (a_1 : vec α n_1) (H_1 : n = nat.succ n_1),
+               eq.rec
+                 (λ («_» : vec α (nat.succ n_1))
+                  (_F : nat.below (λ {n : ℕ}, vec α n → vec β n) (nat.succ n_1)) (H_2 : «_» == vec.cons a a_1),
+                    eq.rec (id_rhs (vec β (nat.succ n_1)) (vec.cons (f a) ((_F.fst).fst a_1))) _)
+                 _
+                 «_»
+                 _F)
+            _
+            _)
+         «_»
+         _F)
+    «_»
+vec.map' : Π {α : Type u} {β : Type v}, (α → β) → Π {n : ℕ}, vec α n → vec β n
+vec.map'._main : Π {α : Type u} {β : Type v}, (α → β) → Π {n : ℕ}, vec α n → vec β n
+vec.map'._main._meta_aux : Π {α : Type u} {β : Type v}, (α → β) → Π {n : ℕ}, vec α n → vec β n
+vec.map'._main.equations._eqn_1 : ∀ {α : Type u} {β : Type v} (f : α → β), vec.map'._main f vec.nil = vec.nil
+vec.map'._main.equations._eqn_2 : ∀ {α : Type u} {β : Type v} (f : α → β) (n : ℕ) (y : α) (ys : vec α n),
+  vec.map'._main f (vec.cons y ys) = vec.cons (f y) (vec.map'._main f ys)
+vec.map'._sunfold : Π {α : Type u} {β : Type v}, (α → β) → Π {n : ℕ}, vec α n → vec β n
+vec.map'.equations._eqn_1 : ∀ {α : Type u} {β : Type v} (f : α → β), vec.map' f vec.nil = vec.nil
+vec.map'.equations._eqn_2 : ∀ {α : Type u} {β : Type v} (f : α → β) (n : ℕ) (y : α) (ys : vec α n),
+  vec.map' f (vec.cons y ys) = vec.cons (f y) (vec.map' f ys)

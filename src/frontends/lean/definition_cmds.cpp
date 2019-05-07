@@ -85,7 +85,7 @@ optional<expr> parse_using_well_founded(parser & p) {
     }
 }
 
-expr mk_equations(parser & p, buffer<expr> const & fns,
+expr mk_equations(parser_info & p, buffer<expr> const & fns,
                   buffer<name> const & fn_full_names, buffer<name> const & fn_prv_names, buffer<expr> const & eqs,
                   optional<expr> const & wf_tacs, pos_info const & pos) {
     buffer<expr> new_eqs;
@@ -100,7 +100,7 @@ expr mk_equations(parser & p, buffer<expr> const & fns,
     }
 }
 
-expr mk_equations(parser & p, expr const & fn, name const & full_name, name const & full_prv_name, buffer<expr> const & eqs,
+expr mk_equations(parser_info & p, expr const & fn, name const & full_name, name const & full_prv_name, buffer<expr> const & eqs,
                   optional<expr> const & wf_tacs, pos_info const & pos) {
     buffer<expr> fns; fns.push_back(fn);
     buffer<name> full_names; full_names.push_back(full_name);
@@ -178,7 +178,7 @@ static void finalize_definition(elaborator & elab, buffer<expr> const & params, 
     lp_names.append(implicit_lp_names);
 }
 
-static certified_declaration check(parser & p, environment const & env, name const & c_name, declaration const & d, pos_info const & pos) {
+static certified_declaration check(parser_info const & p, environment const & env, name const & c_name, declaration const & d, pos_info const & pos) {
     try {
         time_task _("type checking", p.mk_message(pos, INFORMATION), p.get_options(), c_name);
         return ::lean::check(env, d);
@@ -215,7 +215,7 @@ static bool check_noncomputable(bool ignore_noncomputable, environment const & e
     return true;
 }
 
-static environment compile_decl(parser & p, environment const & env,
+static environment compile_decl(parser_info const & p, environment const & env,
                                 name const & c_name, name const & c_real_name, pos_info const & pos) {
     try {
         time_task _("compilation", p.mk_message(message_severity::INFORMATION), p.get_options(), c_real_name);
@@ -231,7 +231,7 @@ static environment compile_decl(parser & p, environment const & env,
 }
 
 static pair<environment, name>
-declare_definition(parser & p, environment const & env, decl_cmd_kind kind, buffer<name> const & lp_names,
+declare_definition(parser_info const & p, environment const & env, decl_cmd_kind kind, buffer<name> const & lp_names,
                    name const & c_name, name const & prv_name, expr type, optional<expr> val, task<expr> const & proof, cmd_meta const & meta,
                    bool is_abbrev, pos_info const & pos) {
     name c_real_name;
@@ -520,8 +520,10 @@ static environment mutual_definition_cmd_core(parser & p, decl_cmd_kind kind, cm
    - actual_name for the kernel declaration.
      Note that mlocal_pp_name(fn) and actual_name are different for scoped/private declarations.
 */
-static std::tuple<expr, expr, name> parse_definition(parser & p, buffer<name> & lp_names, buffer<expr> & params,
-                                                     bool is_example, bool is_instance, bool is_meta, bool is_abbrev) {
+std::tuple<expr, expr, name>
+parser::parse_definition(buffer<name> & lp_names, buffer<expr> & params,
+                         bool is_example, bool is_instance, bool is_meta, bool is_abbrev) {
+    parser & p = *this;
     parser::local_scope scope1(p);
     auto header_pos = p.pos();
     time_task _("parsing", p.mk_message(header_pos, INFORMATION), p.get_options());
@@ -569,6 +571,43 @@ static std::tuple<expr, expr, name> parse_definition(parser & p, buffer<name> & 
     return std::make_tuple(fn, val, scope2.get_actual_name());
 }
 
+std::tuple<expr, expr, name>
+dummy_def_parser::parse_definition(buffer<name> & lp_names, buffer<expr> & params,
+                                   bool is_example, bool is_instance, bool, bool) {
+    dummy_def_parser & p = *this;
+    parser::local_scope scope1(p);
+    auto header_pos = p.pos();
+    time_task _("parsing", p.mk_message(header_pos, INFORMATION), p.get_options());
+    declaration_name_scope scope2;
+    expr fn = parse_single_header(p, scope2, lp_names, params, is_example, is_instance);
+    expr val;
+    {
+        declaration_name_scope scope2("_main");
+        fn = mk_local(mlocal_name(fn), mlocal_pp_name(fn), mlocal_type(fn), mk_rec_info(true));
+        p.add_local(fn);
+        buffer<expr> eqns;
+        if (p.get_val().empty()) {
+            eqns.push_back(mk_no_equation());
+        } else {
+            for (pair<buffer<expr>, expr> const &eq : p.get_val()) {
+                buffer<expr> pat; expr rhs;
+                collected_locals cl;
+                std::tie(pat, rhs) = eq;
+                for (auto p : pat) {
+                    collect_locals(p, cl); }
+                eqns.push_back(lean::Fun(cl.get_collected(),
+                                         mk_equation(mk_app(mk_explicit(fn), pat),
+                                                     lean::instantiate(rhs, fn)),
+                                         p));
+            }
+        }
+        optional<expr> wf_tacs = p.get_well_founded_tac();
+        val = mk_equations(p, fn, scope2.get_name(), scope2.get_actual_name(), eqns, wf_tacs, header_pos);
+    }
+    collect_implicit_locals(p, lp_names, params, {mlocal_type(fn), val});
+    return std::make_tuple(fn, val, scope2.get_actual_name());
+}
+
 static void replace_params(buffer<expr> const & params, buffer<expr> const & new_params, expr & fn, expr & val) {
     expr fn_type = replace_locals_preserving_pos_info(mlocal_type(fn), params, new_params);
     expr new_fn  = update_mlocal(fn, fn_type);
@@ -593,7 +632,7 @@ static expr_pair elaborate_definition_core(elaborator & elab, decl_cmd_kind kind
     }
 }
 
-static expr_pair elaborate_definition(parser & p, elaborator & elab, decl_cmd_kind kind, expr const & fn, expr const & val, pos_info const & pos) {
+static expr_pair elaborate_definition(parser_info & p, elaborator & elab, decl_cmd_kind kind, expr const & fn, expr const & val, pos_info const & pos) {
     time_task _("elaboration", p.mk_message(pos, INFORMATION), p.get_options(), mlocal_pp_name(fn));
     return elaborate_definition_core(elab, kind, fn, val);
 }
@@ -722,13 +761,13 @@ static bool is_rfl_preexpr(expr const & e) {
     return is_constant(e, get_rfl_name());
 }
 
-environment single_definition_cmd_core(parser & p, decl_cmd_kind kind, cmd_meta meta) {
+environment single_definition_cmd_core(parser_info & p, decl_cmd_kind kind, cmd_meta meta) {
     buffer<name> lp_names;
     buffer<expr> params;
     expr fn, val;
     auto header_pos = p.pos();
     module::scope_pos_info scope_pos(header_pos);
-    declaration_info_scope scope(p, kind, meta.m_modifiers);
+    declaration_info_scope scope(p.env(), kind, meta.m_modifiers);
     environment env   = p.env();
     private_name_scope prv_scope(meta.m_modifiers.m_is_private, env);
     bool is_example   = (kind == decl_cmd_kind::Example);
@@ -743,7 +782,7 @@ environment single_definition_cmd_core(parser & p, decl_cmd_kind kind, cmd_meta 
         meta.m_attrs.set_attribute(env, "reducible");
     }
     name prv_name;
-    std::tie(fn, val, prv_name) = parse_definition(p, lp_names, params, is_example, is_instance, meta.m_modifiers.m_is_meta, is_abbrev);
+    std::tie(fn, val, prv_name) = p.parse_definition(lp_names, params, is_example, is_instance, meta.m_modifiers.m_is_meta, is_abbrev);
 
     auto begin_pos = p.cmd_pos();
     auto end_pos = p.pos();
@@ -754,7 +793,7 @@ environment single_definition_cmd_core(parser & p, decl_cmd_kind kind, cmd_meta 
     if (p.get_break_at_pos())
         return p.env();
 
-    bool recover_from_errors = true;
+    bool recover_from_errors = p.m_error_recovery;
     elaborator elab(env, p.get_options(), get_namespace(env) + mlocal_pp_name(fn), metavar_context(), local_context(), recover_from_errors);
     buffer<expr> new_params;
     elaborate_params(elab, params, new_params);
@@ -837,25 +876,37 @@ environment single_definition_cmd_core(parser & p, decl_cmd_kind kind, cmd_meta 
         /* Apply attributes last so that they may access any information on the new decl */
         return meta.m_attrs.apply(new_env, p.ios(), c_real_name);
     };
-
-    try {
-        return process(val);
-    } catch (throwable & ex) {
-        // Even though we catch exceptions during elaboration, there can still be other exceptions,
-        // e.g. when adding a declaration to the environment.
-
-        // If we have already logged an error during elaboration, don't
-        // bother showing the less helpful kernel exception
-        if (!lt.get().has_entry_now(is_error_message))
-            p.mk_message(header_pos, ERROR).set_exception(ex).report();
-        // As a last resort, try replacing the definition body with `sorry`.
-        // If that doesn't work either, just silently give up since we have
-        // already logged at least one error.
+    if (p.m_error_recovery) {
         try {
-            return process(p.mk_sorry(header_pos, true));
-        } catch (...) {
-            return env;
+            return process(val);
+        } catch (throwable & ex) {
+            // Even though we catch exceptions during elaboration, there can still be other exceptions,
+            // e.g. when adding a declaration to the environment.
+
+            // If we have already logged an error during elaboration, don't
+            // bother showing the less helpful kernel exception
+            if (!lt.get().has_entry_now(is_error_message))
+                p.mk_message(header_pos, ERROR).set_exception(ex).report();
+            // As a last resort, try replacing the definition body with `sorry`.
+            // If that doesn't work either, just silently give up since we have
+            // already logged at least one error.
+            try {
+                return process(p.mk_sorry(header_pos, true));
+            } catch (...) {
+                return env;
+            }
         }
+    } else {
+        auto r = process(val);
+        lt.get().for_each([&] (log_tree::node const & n) {
+                for (auto & e : n.get_entries()) {
+                    if (auto msg = dynamic_cast<message const *>(e.get())) {
+                        if (msg->is_error()) {
+                            throw throwable(msg->get_text());
+                        } } }
+                return true; } );
+
+        return r;
     }
 }
 

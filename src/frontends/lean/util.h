@@ -16,6 +16,7 @@ Author: Leonardo de Moura
 
 namespace lean {
 class parser;
+class parser_info;
 /** \brief Consume tokens until 'end' token is consumed or a command/eof is found */
 void consume_until_end_or_command(parser & p);
 
@@ -37,10 +38,10 @@ bool is_eqn_prefix(parser & p, bool bar_only = false);
 levels collect_local_nonvar_levels(parser & p, level_param_names const & ls);
 /** \brief Collect local constants occurring in \c type and \c value, sort them, and store in ctx_ps */
 void collect_locals(expr const & type, expr const & value, parser const & p, buffer<expr> & ctx_ps);
-void collect_annonymous_inst_implicit(parser const & p, collected_locals & ls);
+void collect_annonymous_inst_implicit(parser_info const & p, collected_locals & ls);
 name_set collect_univ_params_ignoring_tactics(expr const & e, name_set const & ls = name_set());
 /** \brief Copy the local names to \c ps, then sort \c ps (using the order in which they were declared). */
-void sort_locals(buffer<expr> const & locals, parser const & p, buffer<expr> & ps);
+void sort_locals(buffer<expr> const & locals, parser_info const & p, buffer<expr> & ps);
 /** \brief Remove from \c ps local constants that are tagged as variables. */
 void remove_local_vars(parser const & p, buffer<expr> & ps);
 /** \brief Remove from \c ls any universe level that is tagged as variable in \c p */
@@ -71,11 +72,11 @@ bool is_local_ref(expr const & e);
 expr update_local_ref(expr const & e, name_set const & lvls_to_remove, name_set const & locals_to_remove);
 
 /** \brief Fun(locals, e), but also propagate \c e position to result */
-expr Fun(buffer<expr> const & locals, expr const & e, parser & p);
-expr Fun(expr const & local, expr const & e, parser & p);
+expr Fun(buffer<expr> const & locals, expr const & e, parser_info & p);
+expr Fun(expr const & local, expr const & e, parser_info & p);
 /** \brief Pi(locals, e), but also propagate \c e position to result */
-expr Pi(buffer<expr> const & locals, expr const & e, parser & p);
-expr Pi(expr const & local, expr const & e, parser & p);
+expr Pi(buffer<expr> const & locals, expr const & e, parser_info & p);
+expr Pi(expr const & local, expr const & e, parser_info & p);
 /** \brief Similar to Pi(locals, e, p), but the types are marked as 'as-is' (i.e., they are not processed by the elaborator. */
 expr Pi_as_is(buffer<expr> const & locals, expr const & e, parser & p);
 expr Pi_as_is(expr const & local, expr const & e);

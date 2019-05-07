@@ -47,6 +47,11 @@ Author: Leonardo de Moura
 #include "library/delayed_abstraction.h"
 #include "library/vm/vm_name.h"
 #include "library/vm/vm_expr.h"
+#include "library/vm/vm_environment.h"
+#include "library/vm/vm_exceptional.h"
+#include "library/vm/vm_options.h"
+#include "library/vm/vm_option.h"
+#include "library/vm/vm_list.h"
 #include "library/compiler/vm_compiler.h"
 #include "library/tactic/kabstract.h"
 #include "library/tactic/unfold_tactic.h"
@@ -58,7 +63,9 @@ Author: Leonardo de Moura
 #include "library/inductive_compiler/ginductive.h"
 #include "frontends/lean/builtin_exprs.h"
 #include "frontends/lean/brackets.h"
+#include "frontends/lean/definition_cmds.h"
 #include "frontends/lean/util.h"
+#include "frontends/lean/parser.h"
 #include "frontends/lean/prenum.h"
 #include "frontends/lean/structure_cmd.h"
 #include "frontends/lean/structure_instance.h"
@@ -4294,6 +4301,35 @@ static vm_obj tactic_save_type_info(vm_obj const &, vm_obj const & _e, vm_obj co
     return tactic::mk_success(s);
 }
 
+static vm_obj environment_add_defn_eqns(vm_obj const &_env, vm_obj const &_opts,
+                                        vm_obj const &_lp_names, vm_obj const &_params,
+                                        vm_obj const &_sig, vm_obj const &_eqns,
+                                        vm_obj const &_meta ) {
+    try {
+        environment env = lean::to_env(_env);
+        cmd_meta meta;
+        meta.m_modifiers.m_is_meta = lean::to_bool(_meta);
+        auto kind = decl_cmd_kind::Definition;
+        root_scope scope;
+        dummy_def_parser p(env, lean::to_options(_opts));
+        expr sig = to_expr(_sig);
+        p.m_name = mlocal_pp_name(sig);
+        p.m_type = mk_as_is(mlocal_type(sig));
+        lean::to_buffer_name(_lp_names, p.m_lp_params);
+        to_buffer_expr(_params, p.m_params);
+        for (vm_obj const * it = &_eqns; !is_simple(*it); it = &cfield(*it, 1)) {
+            auto o = cfield(*it, 0);
+            buffer<expr> pat;
+            to_buffer_expr(cfield(o, 0), pat);
+            p.m_val.push_back(std::pair<buffer<expr>, expr>(std::move(pat), mk_as_is(abstract(to_expr(cfield(o, 1)), sig))));
+        }
+        return mk_vm_exceptional_success(to_obj(single_definition_cmd_core(p, kind, meta)));
+    } catch (throwable & ex) {
+        return mk_vm_exceptional_exception(ex);
+    }
+}
+
+
 void initialize_elaborator() {
     g_elab_strategy = new name("elab_strategy");
     register_trace_class("elaborator");
@@ -4330,6 +4366,8 @@ void initialize_elaborator() {
     register_incompatible("elab_simple", "elab_with_expected_type");
     register_incompatible("elab_simple", "elab_as_eliminator");
     register_incompatible("elab_with_expected_type", "elab_as_eliminator");
+
+    DECLARE_VM_BUILTIN(name({"environment", "add_defn_eqns"}), environment_add_defn_eqns);
 
     DECLARE_VM_BUILTIN(name({"tactic", "save_type_info"}), tactic_save_type_info);
     DECLARE_VM_BUILTIN(name({"tactic", "resolve_name"}),   tactic_resolve_local_name);

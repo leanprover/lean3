@@ -11,5 +11,7 @@ Author: Leonardo de Moura
 namespace lean {
 environment definition_cmd_core(parser & p, decl_cmd_kind k, cmd_meta const & meta);
 
+environment single_definition_cmd_core(parser_info & p, decl_cmd_kind kind, cmd_meta meta);
+
 environment ensure_decl_namespaces(environment const & env, name const & full_n);
 }

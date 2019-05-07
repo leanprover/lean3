@@ -35,31 +35,129 @@ class metavar_context;
 class local_context_adapter;
 class scope_message_context;
 
-class parser : public abstract_parser {
+class parser_info {
+protected:
     environment             m_env;
-    name_generator          m_ngen;
+    local_expr_decls        m_local_decls;
+    name_set                m_level_variables;
+    name_set                m_variables; // subset of m_local_decls that is marked as variables
+    local_level_decls       m_local_level_decls;
+    bool                    m_has_params; // true context context contains parameters
+    name_set                m_include_vars; // subset of m_local_decls that is marked as include
+    bool                    m_in_quote;
+    bool                    m_in_pattern;
     io_state                m_ios;
-    bool                    m_use_exceptions;
+    parser_scope_stack      m_parser_scope_stack;
+    unsigned                m_next_inst_idx;
     bool                    m_show_errors;
+    // profiling
+    bool                   m_profile;
+
+    // If the following flag is true we do not raise error messages
+    // noncomputable definitions not tagged as noncomputable.
+    bool                   m_ignore_noncomputable;
+
+    // error recovery
+    bool                   m_error_recovery = true;
+
+public:
+    parser_info(environment const & env, io_state const & ios) :
+       m_env(env), m_ios(ios) {}
+    bool is_local_decl_user_name(expr const & l) const { return is_local(l) && m_local_decls.contains(mlocal_pp_name(l)); }
+    bool is_local_decl(expr const & l);
+    bool is_local_level_variable(name const & n) const { return m_level_variables.contains(n); }
+    bool is_local_variable(expr const & e) const { return m_variables.contains(mlocal_name(e)); }
+    bool is_local_variable_user_name(name const & n) const {
+        if (expr const * d = m_local_decls.find(n))
+            return is_local(*d) && m_variables.contains(mlocal_name(*d));
+        else
+            return false;
+    }
+    void clear_expr_locals();
+    bool has_locals() const { return !m_local_decls.empty() || !m_local_level_decls.empty(); }
+    void add_local_level(name const & n, level const & l, bool is_variable = false);
+    void add_local_expr(name const & n, expr const & p, bool is_variable = false);
+    environment add_local_ref(environment const & env, name const & n, expr const & ref);
+    void add_variable(name const & n, expr const & p);
+    void add_parameter(name const & n, expr const & p);
+    void add_local(expr const & p) { return add_local_expr(mlocal_pp_name(p), p); }
+    bool has_params() const { return m_has_params; }
+    /** \brief Update binder information for the section parameter n, return true if success, and false if n is not a section parameter. */
+    bool update_local_binder_info(name const & n, binder_info const & bi);
+    void include_variable(name const & n) { m_include_vars.insert(n); }
+    void omit_variable(name const & n) { m_include_vars.erase(n); }
+    bool is_include_variable(name const & n) const { return m_include_vars.contains(n); }
+    void get_include_variables(buffer<expr> & vars) const;
+    /** \brief Position of the local level declaration named \c n in the sequence of local level decls. */
+    unsigned get_local_level_index(name const & n) const { return m_local_level_decls.find_idx(n); }
+    bool is_local_level(name const & n) const { return m_local_level_decls.contains(n); }
+    /** \brief Position of the local declaration named \c n in the sequence of local decls. */
+    unsigned get_local_index(name const & n) const;
+    unsigned get_local_index(expr const & e) const { return get_local_index(mlocal_pp_name(e)); }
+    /** \brief Return the local parameter named \c n */
+    expr const * get_local(name const & n) const { return m_local_decls.find(n); }
+    /** \brief Return local declarations as a list of local constants. */
+    list<expr> locals_to_context() const;
+    /** \brief Return all local declarations and aliases */
+    list<pair<name, expr>> const & get_local_entries() const { return m_local_decls.get_entries(); }
+    virtual pos_info pos() const = 0;
+    virtual void maybe_throw_error(parser_error && err) = 0;
+
+    environment const & env() const { return m_env; }
+    void set_env(environment const & env) { m_env = env; }
+    io_state const & ios() const { return m_ios; }
+
+    struct local_scope {
+        parser_info & m_p; environment m_env;
+        local_scope(parser_info & p, bool save_options = false);
+        local_scope(parser_info & p, environment const & env);
+        local_scope(parser_info & p, optional<environment> const & env);
+        ~local_scope();
+    };
+
+    bool has_local_scopes() const { return !is_nil(m_parser_scope_stack); }
+    void push_local_scope(bool save_options = true);
+    void pop_local_scope();
+protected:
+    parser_scope mk_parser_scope(optional<options> const & opts = optional<options>());
+    void restore_parser_scope(parser_scope const & s);
+
+    virtual std::tuple<expr, expr, name> parse_definition(buffer<name> & lp_names, buffer<expr> & params,
+                                                          bool is_example, bool is_instance, bool, bool) = 0;
+
+    friend environment single_definition_cmd_core(parser_info & p, decl_cmd_kind kind, cmd_meta meta);
+public:
+    void updt_options();
+    options get_options() const { return m_ios.get_options(); }
+    template<typename T> void set_option(name const & n, T const & v) { m_ios.set_option(n, v); }
+    virtual expr save_pos(expr const & e, pos_info p) = 0;
+    virtual expr rec_save_pos(expr const & e, pos_info p) = 0;
+    virtual expr rec_save_pos(expr const & e, optional<pos_info> p) = 0;
+    virtual optional<pos_info> get_pos_info(expr const & e) const = 0;
+    virtual message_builder mk_message(pos_info const &p, message_severity severity) const = 0;
+    virtual message_builder mk_message(message_severity severity) const = 0;
+    bool ignore_noncomputable() const { return m_ignore_noncomputable; }
+    void set_ignore_noncomputable() { m_ignore_noncomputable = true; }
+    virtual char const * get_file_name() const = 0;
+    virtual pos_info cmd_pos() const = 0;
+    virtual optional<pos_info> const & get_break_at_pos() const = 0;
+    virtual parser_pos_provider get_parser_pos_provider(pos_info const & some_pos) const = 0;
+    expr mk_sorry(pos_info const & p, bool synthetic = false);
+    bool has_error_recovery() const { return m_error_recovery; }
+};
+
+class parser : public abstract_parser, public parser_info {
+    name_generator          m_ngen;
+    bool                    m_use_exceptions;
     module_loader           m_import_fn;
     std::string             m_file_name;
     scanner                 m_scanner;
     token_kind              m_curr;
-    local_level_decls       m_local_level_decls;
-    local_expr_decls        m_local_decls;
-    bool                    m_has_params; // true context context contains parameters
-    name_set                m_level_variables;
-    name_set                m_variables; // subset of m_local_decls that is marked as variables
-    name_set                m_include_vars; // subset of m_local_decls that is marked as include
     bool                    m_imports_parsed;
     bool                    m_scanner_inited = false;
-    parser_scope_stack      m_parser_scope_stack;
     parser_scope_stack      m_quote_stack;
-    bool                    m_in_quote;
-    bool                    m_in_pattern;
     pos_info                m_last_cmd_pos;
     unsigned                m_next_tag_idx;
-    unsigned                m_next_inst_idx;
     pos_info_table          m_pos_table;
     // By default, when the parser finds a unknown identifier, it signs an error.
     // When the following flag is true, it creates a constant.
@@ -70,21 +168,12 @@ class parser : public abstract_parser {
     // auto completing
     bool                    m_complete{false};
 
-    // error recovery
-    bool                   m_error_recovery = true;
     bool                   m_error_since_last_cmd = false;
     pos_info               m_last_recovered_error_pos {0, 0};
     optional<pos_info>     m_backtracking_pos;
 
     // curr command token
     name                   m_cmd_token;
-
-    // profiling
-    bool                   m_profile;
-
-    // If the following flag is true we do not raise error messages
-    // noncomputable definitions not tagged as noncomputable.
-    bool                   m_ignore_noncomputable;
 
     void sync_command();
 
@@ -182,13 +271,6 @@ class parser : public abstract_parser {
     friend environment namespace_cmd(parser & p);
     friend environment end_scoped_cmd(parser & p);
 
-    parser_scope mk_parser_scope(optional<options> const & opts = optional<options>());
-    void restore_parser_scope(parser_scope const & s);
-
-    bool has_local_scopes() const { return !is_nil(m_parser_scope_stack); }
-    void push_local_scope(bool save_options = true);
-    void pop_local_scope();
-
     std::shared_ptr<snapshot> mk_snapshot();
 
     optional<expr> resolve_local(name const & id, pos_info const & p, list<name> const & extra_locals,
@@ -217,7 +299,7 @@ public:
     name next_name() { return m_ngen.next(); }
 
     void set_break_at_pos(pos_info const & pos) { m_break_at_pos = some(pos); }
-    optional<pos_info> const & get_break_at_pos() const { return m_break_at_pos; }
+    optional<pos_info> const & get_break_at_pos() const override { return m_break_at_pos; }
     template <class T>
     T without_break_at_pos(std::function<T()> const & f) {
         flet<optional<pos_info>> l(m_break_at_pos, {});
@@ -239,9 +321,6 @@ public:
         position. */
     void check_break_before(break_at_pos_exception::token_context ctxt = break_at_pos_exception::token_context::none);
 
-    bool ignore_noncomputable() const { return m_ignore_noncomputable; }
-    void set_ignore_noncomputable() { m_ignore_noncomputable = true; }
-
     bool in_pattern() const { return m_in_pattern; }
 
     name mk_anonymous_inst_name();
@@ -250,34 +329,26 @@ public:
 
     cmd_table const & cmds() const { return get_cmd_table(env()); }
 
-    environment const & env() const { return m_env; }
-    void set_env(environment const & env) { m_env = env; }
-    io_state const & ios() const { return m_ios; }
-
-    message_builder mk_message(pos_info const & p, message_severity severity) const;
+    message_builder mk_message(pos_info const & p, message_severity severity) const override;
     message_builder mk_message(pos_info const & start_pos, pos_info const & end_pos, message_severity severity) const;
-    message_builder mk_message(message_severity severity) const;
+    message_builder mk_message(message_severity severity) const override;
 
     local_level_decls const & get_local_level_decls() const { return m_local_level_decls; }
     local_expr_decls const & get_local_expr_decls() const { return m_local_decls; }
 
-    void updt_options();
-    options get_options() const { return m_ios.get_options(); }
-    template<typename T> void set_option(name const & n, T const & v) { m_ios.set_option(n, v); }
-
     /** \brief Return the current position information */
     virtual pos_info pos() const override final { return pos_info(m_scanner.get_line(), m_scanner.get_pos()); }
     virtual expr save_pos(expr const & e, pos_info p) override final;
-    expr rec_save_pos(expr const & e, pos_info p);
-    expr rec_save_pos(expr const & e, optional<pos_info> p) { return p ? rec_save_pos(e, *p) : e; }
+    expr rec_save_pos(expr const & e, pos_info p) override final;
+    expr rec_save_pos(expr const & e, optional<pos_info> p) override final { return p ? rec_save_pos(e, *p) : e; }
     expr update_pos(expr e, pos_info p);
     void erase_pos(expr const & e);
     pos_info pos_of(expr const & e, pos_info default_pos) const;
     pos_info pos_of(expr const & e) const { return pos_of(e, pos()); }
-    pos_info cmd_pos() const { return m_last_cmd_pos; }
+    pos_info cmd_pos() const override { return m_last_cmd_pos; }
     name const & get_cmd_token() const { return m_cmd_token; }
 
-    parser_pos_provider get_parser_pos_provider(pos_info const & some_pos) const {
+    parser_pos_provider get_parser_pos_provider(pos_info const & some_pos) const override {
         return parser_pos_provider(m_pos_table, m_file_name, some_pos, m_next_tag_idx);
     }
 
@@ -451,14 +522,6 @@ public:
     void parse_command(cmd_meta const & meta);
     void parse_imports(unsigned & fingerprint, std::vector<module_name> &);
 
-    struct local_scope {
-        parser & m_p; environment m_env;
-        local_scope(parser & p, bool save_options = false);
-        local_scope(parser & p, environment const & env);
-        local_scope(parser & p, optional<environment> const & env);
-        ~local_scope();
-    };
-
     struct quote_scope {
         parser &    m_p;
         id_behavior m_id_behavior;
@@ -471,50 +534,11 @@ public:
 
     bool in_quote() const { return m_in_quote; }
 
-    void clear_expr_locals();
-    bool has_locals() const { return !m_local_decls.empty() || !m_local_level_decls.empty(); }
-    void add_local_level(name const & n, level const & l, bool is_variable = false);
-    void add_local_expr(name const & n, expr const & p, bool is_variable = false);
-    environment add_local_ref(environment const & env, name const & n, expr const & ref);
-    void add_variable(name const & n, expr const & p);
-    void add_parameter(name const & n, expr const & p);
-    void add_local(expr const & p) { return add_local_expr(mlocal_pp_name(p), p); }
-    bool has_params() const { return m_has_params; }
-    bool is_local_decl_user_name(expr const & l) const { return is_local(l) && m_local_decls.contains(mlocal_pp_name(l)); }
-    bool is_local_decl(expr const & l);
-    bool is_local_level_variable(name const & n) const { return m_level_variables.contains(n); }
-    bool is_local_variable(expr const & e) const { return m_variables.contains(mlocal_name(e)); }
-    bool is_local_variable_user_name(name const & n) const {
-        if (expr const * d = m_local_decls.find(n))
-            return is_local(*d) && m_variables.contains(mlocal_name(*d));
-        else
-            return false;
-    }
-    /** \brief Update binder information for the section parameter n, return true if success, and false if n is not a section parameter. */
-    bool update_local_binder_info(name const & n, binder_info const & bi);
-    void include_variable(name const & n) { m_include_vars.insert(n); }
-    void omit_variable(name const & n) { m_include_vars.erase(n); }
-    bool is_include_variable(name const & n) const { return m_include_vars.contains(n); }
-    void get_include_variables(buffer<expr> & vars) const;
-    /** \brief Position of the local level declaration named \c n in the sequence of local level decls. */
-    unsigned get_local_level_index(name const & n) const { return m_local_level_decls.find_idx(n); }
-    bool is_local_level(name const & n) const { return m_local_level_decls.contains(n); }
-    /** \brief Position of the local declaration named \c n in the sequence of local decls. */
-    unsigned get_local_index(name const & n) const;
-    unsigned get_local_index(expr const & e) const { return get_local_index(mlocal_pp_name(e)); }
-    /** \brief Return the local parameter named \c n */
-    expr const * get_local(name const & n) const { return m_local_decls.find(n); }
-    /** \brief Return local declarations as a list of local constants. */
-    list<expr> locals_to_context() const;
-    /** \brief Return all local declarations and aliases */
-    list<pair<name, expr>> const & get_local_entries() const { return m_local_decls.get_entries(); }
-
-    void maybe_throw_error(parser_error && err);
+    void maybe_throw_error(parser_error && err) override;
     level parser_error_or_level(parser_error && err);
     expr parser_error_or_expr(parser_error && err);
     void throw_invalid_open_binder(pos_info const & pos);
 
-    bool has_error_recovery() const { return m_error_recovery; }
     flet<bool> error_recovery_scope(bool enable_recovery) {
         return flet<bool>(m_error_recovery, enable_recovery);
     }
@@ -546,8 +570,6 @@ public:
     /* Elaborate \c e as a type using the given metavariable context, and using m_local_decls as the local context */
     pair<expr, level_param_names> elaborate_type(name const & decl_name, metavar_context & mctx, expr const & e);
 
-    expr mk_sorry(pos_info const & p, bool synthetic = false);
-
     /** return true iff profiling is enabled */
     bool profiling() const { return m_profile; }
 
@@ -566,9 +588,63 @@ public:
     virtual optional<pos_info> get_pos_info(expr const & e) const override;
     virtual pos_info get_some_pos() const override;
     virtual char const * get_file_name() const override;
+
+protected:
+    virtual std::tuple<expr, expr, name> parse_definition(buffer<name> & lp_names, buffer<expr> & params,
+                                                          bool is_example, bool is_instance, bool, bool) override;
 };
 
 bool parse_commands(environment & env, io_state & ios, char const * fname);
+
+class dummy_def_parser : public parser_info {
+public:
+  bool            m_ignore_noncomputable;
+  pos_info        m_pos;
+  std::string     m_file_name;
+  name            m_name;
+  buffer<name>    m_lp_params;
+  buffer<expr>    m_params;
+  expr            m_type;
+  buffer<pair<buffer<expr>, expr>> m_val;
+  optional<expr>  m_wf_tac;
+  optional<pos_info> m_break_at_pos;
+public:
+  dummy_def_parser(environment const & env, options const & opts) :
+    parser_info(env, io_state(io_state(), opts))
+      { m_error_recovery = false; }
+  char const * get_file_name() const override { return m_file_name.c_str(); }
+  bool ignore_noncomputable() const { return m_ignore_noncomputable; }
+  options get_options() const { return m_ios.get_options(); }
+  message_builder mk_message(pos_info const &p, message_severity severity) const override {
+    std::shared_ptr<abstract_type_context> tc = std::make_shared<type_context_old>(m_env, get_options());
+    return message_builder(tc, m_env, m_ios, get_file_name(), p, severity); }
+  message_builder mk_message(message_severity severity) const override {
+    return mk_message(pos(), severity); }
+  pos_info pos() const override { return m_pos; }
+  pos_info cmd_pos() const override { return m_pos; }
+  environment const & env() const { return m_env; }
+  optional<pos_info> const & get_break_at_pos() const override { return m_break_at_pos; }
+  parser_pos_provider get_parser_pos_provider(pos_info const & some_pos) const override {
+    return parser_pos_provider(rb_map<unsigned, pos_info, unsigned_cmp>(), m_file_name, some_pos, 0);
+  }
+  bool is_local_level(name const & n) const { return m_local_level_decls.contains(n); }
+  bool is_local_level_variable(name const & n) const { return m_level_variables.contains(n); }
+  void maybe_throw_error(parser_error && err) override;
+  buffer<name> const & get_univ_params() const { return m_lp_params; }
+  name get_name() const { return m_name; }
+  buffer<expr> const & get_binders() { return m_params; }
+  expr const & get_type() { return m_type; }
+  const buffer<pair<buffer<expr>, expr>> & get_val() const { return m_val; }
+  virtual expr save_pos(expr const & e, pos_info) override { return e; }
+  virtual expr rec_save_pos(expr const & e, pos_info) override { return e; }
+  virtual expr rec_save_pos(expr const & e, optional<pos_info>) override { return e; }
+  virtual optional<pos_info> get_pos_info(expr const &) const override { return optional<pos_info>(m_pos); }
+  optional<expr> get_well_founded_tac() const { return m_wf_tac; }
+
+protected:
+  virtual std::tuple<expr, expr, name> parse_definition(buffer<name> & lp_names, buffer<expr> & params,
+                                                        bool is_example, bool is_instance, bool, bool) override;
+};
 
 void initialize_parser();
 void finalize_parser();

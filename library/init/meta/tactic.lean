@@ -40,7 +40,7 @@ meta instance : has_to_string tactic_state :=
     You use this to:
     - View and modify the local goals and hypotheses in the prover's state.
     - Invoke type checking and elaboration of terms.
-    - View and modify the environment. 
+    - View and modify the environment.
     - Build new tactics out of existing ones such as `simp` and `rewrite`.
 -/
 @[reducible] meta def tactic := interaction_monad tactic_state
@@ -290,7 +290,7 @@ do s ← read,
    trace $ to_fmt s
 
 /-- A parameter representing how aggressively definitions should be unfolded when trying to decide if two terms match, unify or are definitionally equal.
-By default, theorem declarations are never unfolded. 
+By default, theorem declarations are never unfolded.
 - `all` will unfold everything, including macros and theorems. Except projection macros.
 - `semireducible` will unfold everything except theorems and definitions tagged as irreducible.
 - `instances` will unfold all class instance definitions and definitions tagged with reducible.
@@ -322,7 +322,7 @@ meta constant intron        : nat → tactic unit
 meta constant clear         : expr → tactic unit
 /-- `revert_lst : list expr → tactic nat` is the reverse of `intron`. It takes a local constant `c` and puts it back as bound by a `pi` or `elet` of the main target.
 If there are other local constants that depend on `c`, these are also reverted. Because of this, the `nat` that is returned is the actual number of reverted local constants.
-Example: with `x : ℕ, h : P(x) ⊢ T(x)`, `revert_lst [x]` returns `2` and produces the state ` ⊢ Π x, P(x) → T(x)`. 
+Example: with `x : ℕ, h : P(x) ⊢ T(x)`, `revert_lst [x]` returns `2` and produces the state ` ⊢ Π x, P(x) → T(x)`.
  -/
 meta constant revert_lst    : list expr → tactic nat
 /-- Return `e` in weak head normal form with respect to the given transparency setting.
@@ -355,7 +355,7 @@ meta constant resolve_name  : name → tactic pexpr
 /-- Return the hypothesis in the main goal. Fail if tactic_state does not have any goal left. -/
 meta constant local_context : tactic (list expr)
 /-- Get a fresh name that is guaranteed to not be in use in the local context.
-    If `n` is provided and `n` is not in use, then `n` is returned. 
+    If `n` is provided and `n` is not in use, then `n` is returned.
     Otherwise a number `i` is appended to give `"n_i"`.
 -/
 meta constant get_unused_name (n : name := `_x) (i : option nat := none) : tactic name
@@ -444,7 +444,7 @@ meta constant rotate_left   : nat → tactic unit
 meta constant get_goals     : tactic (list expr)
 /-- Replace the current list of goals with the given one. Each expr in the list should be a metavariable. Any assigned metavariables will be ignored.-/
 meta constant set_goals     : list expr → tactic unit
-/-- How to order the new goals made from an `apply` tactic. 
+/-- How to order the new goals made from an `apply` tactic.
 Supposing we were applying `e : ∀ (a:α) (p : P(a)), Q`
 - `non_dep_first` would produce goals `⊢ P(?m)`, `⊢ α`. It puts the P goal at the front because none of the arguments after `p` in `e` depend on `p`. It doesn't matter what the result `Q` depends on.
 - `non_dep_only` would produce goal `⊢ P(?m)`.
@@ -667,9 +667,9 @@ target >>= whnf >>= change
 meta def unsafe_change (e : expr) : tactic unit :=
 change e ff
 
-/-- Pi or elet introduction. 
+/-- Pi or elet introduction.
 Given the tactic state `⊢ Π x : α, Y`, ``intro `hello`` will produce the state `hello : α ⊢ Y[x/hello]`.
-Returns the new local constant. Similarly for `elet` expressions. 
+Returns the new local constant. Similarly for `elet` expressions.
 If the target is not a Pi or elet it will try to put it in WHNF.
  -/
 meta def intro (n : name) : tactic expr :=
@@ -723,7 +723,7 @@ meta def to_expr_strict (q : pexpr) : tactic expr :=
 to_expr q
 
 /--
-Example: with `x : ℕ, h : P(x) ⊢ T(x)`, `revert x` returns `2` and produces the state ` ⊢ Π x, P(x) → T(x)`. 
+Example: with `x : ℕ, h : P(x) ⊢ T(x)`, `revert x` returns `2` and produces the state ` ⊢ Π x, P(x) → T(x)`.
  -/
 meta def revert (l : expr) : tactic nat :=
 revert_lst [l]
@@ -1325,6 +1325,40 @@ updateex_env $ λe, e.add_inductive n ls p ty is is_meta
 
 meta def add_meta_definition (n : name) (lvls : list name) (type value : expr) : tactic unit :=
 add_decl (declaration.defn n lvls type value reducibility_hints.abbrev ff)
+
+/-- `add_defn_equations` adds a definition specified by a list of equations.
+
+  The arguments:
+    * `lp`: list of universe parameters
+    * `params`: list of parameters (binders before the colon);
+    * `fn`: a local constant giving the name and type of the declaration
+      (with `params` in the local context);
+    * `eqns`: a list of equations, each of which is a list of patterns
+      (constructors applied to new local constants) and the branch
+      expression;
+    * `is_meta`: is the definition meta?
+
+
+  `add_defn_equations` can be used as:
+
+      do my_add ← mk_local_def `my_add `(ℕ → ℕ),
+          a ← mk_local_def `a ℕ,
+          b ← mk_local_def `b ℕ,
+          add_defn_equations [a] my_add
+              [ ([``(nat.zero)], a),
+                ([``(nat.succ %%b)], my_add b) ])
+              ff -- non-meta
+
+  to create the following definition:
+
+      def my_add (a : ℕ) : ℕ → ℕ
+      | nat.zero := a
+      | (nat.succ b) := my_add b
+-/
+meta def add_defn_equations (lp : list name) (params : list expr) (fn : expr)
+                            (eqns : list (list pexpr × expr)) (is_meta : bool) : tactic unit :=
+do opt ← get_options,
+   updateex_env $ λ e, e.add_defn_eqns opt lp params fn eqns is_meta
 
 meta def rename (curr : name) (new : name) : tactic unit :=
 do h ← get_local curr,

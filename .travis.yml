@@ -2,14 +2,7 @@ language: cpp
 sudo: true
 cache:
   apt: true
-  directories:
-    - build/library/
-    - build/kernel/
-    - build/init/
-    - build/frontends/
-    - build/api/
-    - build/util/
-    - build/checker/
+  ccache: true
 dist: trusty
 branches:
   only:

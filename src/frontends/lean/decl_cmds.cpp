@@ -35,7 +35,7 @@ Author: Leonardo de Moura
 
 namespace lean {
 // TODO(Leo): delete
-void update_univ_parameters(parser & p, buffer<name> & lp_names, name_set const & found);
+void update_univ_parameters(parser_info & p, buffer<name> & lp_names, name_set const & found);
 
 static environment declare_universe(parser & p, environment env, name const & n, bool local) {
     if (local) {

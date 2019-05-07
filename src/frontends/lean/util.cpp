@@ -140,8 +140,8 @@ levels remove_local_vars(parser const & p, levels const & ls) {
 }
 
 // TODO(Leo): delete these headers
-void collect_annonymous_inst_implicit(parser const & p, collected_locals & locals);
-void sort_locals(buffer<expr> const & locals, parser const & p, buffer<expr> & ps);
+void collect_annonymous_inst_implicit(parser_info const & p, collected_locals & locals);
+void sort_locals(buffer<expr> const & locals, parser_info const & p, buffer<expr> & ps);
 
 list<expr> locals_to_context(expr const & e, parser const & p) {
     collected_locals ls;
@@ -213,22 +213,22 @@ expr update_local_ref(expr const & e, name_set const & lvls_to_remove, name_set 
     }
 }
 
-expr Fun(buffer<expr> const & locals, expr const & e, parser & p) {
+expr Fun(buffer<expr> const & locals, expr const & e, parser_info & p) {
     bool use_cache = false;
     return p.rec_save_pos(Fun(locals, e, use_cache), p.get_pos_info(e));
 }
 
-expr Fun(expr const & local, expr const & e, parser & p) {
+expr Fun(expr const & local, expr const & e, parser_info & p) {
     bool use_cache = false;
     return p.rec_save_pos(Fun(local, e, use_cache), p.get_pos_info(e));
 }
 
-expr Pi(buffer<expr> const & locals, expr const & e, parser & p) {
+expr Pi(buffer<expr> const & locals, expr const & e, parser_info & p) {
     bool use_cache = false;
     return p.rec_save_pos(Pi(locals, e, use_cache), p.get_pos_info(e));
 }
 
-expr Pi(expr const & local, expr const & e, parser & p) {
+expr Pi(expr const & local, expr const & e, parser_info & p) {
     bool use_cache = false;
     return p.rec_save_pos(Pi(local, e, use_cache), p.get_pos_info(e));
 }

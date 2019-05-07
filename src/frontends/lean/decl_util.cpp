@@ -45,7 +45,8 @@ bool parse_univ_params(parser & p, buffer<name> & lp_names) {
     }
 }
 
-expr parse_single_header(parser & p, declaration_name_scope & scope, buffer <name> & lp_names, buffer <expr> & params,
+expr parse_single_header(parser & p, declaration_name_scope & scope,
+                         buffer <name> & lp_names, buffer <expr> & params,
                          bool is_example, bool is_instance) {
     auto c_pos  = p.pos();
     name c_name;
@@ -91,6 +92,45 @@ expr parse_single_header(parser & p, declaration_name_scope & scope, buffer <nam
     }
     lean_assert(!c_name.is_anonymous());
     return p.save_pos(mk_local(c_name, type), c_pos);
+}
+
+expr parse_single_header(dummy_def_parser & p, declaration_name_scope & scope, buffer <name> & lp_names, buffer <expr> & params,
+                         bool is_example, bool is_instance) {
+    auto c_pos  = p.pos();
+    name c_name;
+    if (is_example) {
+        c_name = "_example";
+        scope.set_name(c_name);
+    } else {
+        lp_names = p.get_univ_params();
+        c_name = p.get_name();
+        scope.set_name(c_name);
+    }
+
+    params = p.get_binders();
+    for (expr const & param : params)
+        p.add_local(param);
+    expr type = p.get_type();
+    if (is_instance && c_name.is_anonymous()) {
+        if (used_match_idx())
+            throw parser_error("invalid instance, pattern matching cannot be used in the type of anonymous instance declarations", c_pos);
+        expr it = type;
+        while (is_pi(it)) it = binding_body(it);
+        expr const & C = get_app_fn(it);
+        name ns = get_namespace(p.env());
+        if (is_constant(C) && !ns.is_anonymous()) {
+            c_name = const_name(C);
+            scope.set_name(c_name);
+        } else if (is_constant(C) && is_app(it) && is_constant(get_app_fn(app_arg(it)))) {
+            c_name = const_name(get_app_fn(app_arg(it))) + const_name(C);
+            scope.set_name(c_name);
+        } else {
+            p.maybe_throw_error({"failed to synthesize instance name, name should be provided explicitly", c_pos});
+            c_name = mk_unused_name(p.env(), "_inst");
+        }
+    }
+    lean_assert(!c_name.is_anonymous());
+    return mk_local(c_name, type);
 }
 
 void parse_mutual_header(parser & p, buffer <name> & lp_names, buffer <expr> & cs, buffer <expr> & params) {
@@ -164,7 +204,7 @@ name_set collect_univ_params_ignoring_tactics(expr const & e, name_set const & l
 
         variable [decidable_eq A]
 */
-void collect_annonymous_inst_implicit(parser const & p, collected_locals & locals) {
+void collect_annonymous_inst_implicit(parser_info const & p, collected_locals & locals) {
     buffer<pair<name, expr>> entries;
     to_buffer(p.get_local_entries(), entries);
     unsigned i = entries.size();
@@ -188,7 +228,7 @@ void collect_annonymous_inst_implicit(parser const & p, collected_locals & local
 }
 
 /** \brief Sort local names by order of occurrence, and copy the associated parameters to ps */
-void sort_locals(buffer<expr> const & locals, parser const & p, buffer<expr> & ps) {
+void sort_locals(buffer<expr> const & locals, parser_info const & p, buffer<expr> & ps) {
     buffer<expr> extra;
     name_set     explicit_param_names;
     for (expr const & p : ps) {
@@ -217,7 +257,7 @@ void sort_locals(buffer<expr> const & locals, parser const & p, buffer<expr> & p
 }
 
 /** TODO(Leo): mark as static */
-void update_univ_parameters(parser & p, buffer<name> & lp_names, name_set const & found) {
+void update_univ_parameters(parser_info & p, buffer<name> & lp_names, name_set const & found) {
     unsigned old_sz = lp_names.size();
     found.for_each([&](name const & n) {
             if (std::find(lp_names.begin(), lp_names.begin() + old_sz, n) == lp_names.begin() + old_sz)
@@ -253,7 +293,7 @@ expr replace_local_preserving_pos_info(expr const & e, expr const & from, expr c
     return replace_locals_preserving_pos_info(e, 1, &from, &to);
 }
 
-void collect_implicit_locals(parser & p, buffer<name> & lp_names, buffer<expr> & params, buffer<expr> const & all_exprs) {
+void collect_implicit_locals(parser_info & p, buffer<name> & lp_names, buffer<expr> & params, buffer<expr> const & all_exprs) {
     collected_locals locals;
     buffer<expr> include_vars;
     name_set lp_found;
@@ -296,12 +336,12 @@ void collect_implicit_locals(parser & p, buffer<name> & lp_names, buffer<expr> &
     }
 }
 
-void collect_implicit_locals(parser & p, buffer<name> & lp_names, buffer<expr> & params, std::initializer_list<expr> const & all_exprs) {
+void collect_implicit_locals(parser_info & p, buffer<name> & lp_names, buffer<expr> & params, std::initializer_list<expr> const & all_exprs) {
     buffer<expr> tmp; tmp.append(all_exprs.size(), all_exprs.begin());
     collect_implicit_locals(p, lp_names, params, tmp);
 }
 
-void collect_implicit_locals(parser & p, buffer<name> & lp_names, buffer<expr> & params, expr const & e) {
+void collect_implicit_locals(parser_info & p, buffer<name> & lp_names, buffer<expr> & params, expr const & e) {
     buffer<expr> all_exprs; all_exprs.push_back(e);
     collect_implicit_locals(p, lp_names, params, all_exprs);
 }
@@ -316,7 +356,9 @@ void elaborate_params(elaborator & elab, buffer<expr> const & params, buffer<exp
     }
 }
 
-environment add_local_ref(parser & p, environment const & env, name const & c_name, name const & c_real_name, buffer<name> const & lp_names, buffer<expr> const & var_params) {
+environment add_local_ref(parser_info & p, environment const & env, name const & c_name,
+                          name const & c_real_name, buffer<name> const & lp_names,
+                          buffer<expr> const & var_params) {
     buffer<expr> params;
     buffer<name> lps;
     for (name const & u : lp_names) {
@@ -411,6 +453,9 @@ declaration_info_scope::declaration_info_scope(name const & ns, decl_cmd_kind ki
     info.m_aux_lemmas       = kind != decl_cmd_kind::Theorem && !modifiers.m_is_meta;
     info.m_next_match_idx = 1;
 }
+
+declaration_info_scope::declaration_info_scope(environment const & env, decl_cmd_kind kind, decl_modifiers const & modifiers):
+    declaration_info_scope(get_namespace(env), kind, modifiers) {}
 
 declaration_info_scope::declaration_info_scope(parser const & p, decl_cmd_kind kind, decl_modifiers const & modifiers):
     declaration_info_scope(get_namespace(p.env()), kind, modifiers) {}
@@ -554,5 +599,19 @@ restore_decl_meta_scope::restore_decl_meta_scope() {
 restore_decl_meta_scope::~restore_decl_meta_scope() {
     definition_info & info = get_definition_info();
     info.m_is_meta = m_old_is_meta;
+}
+
+root_scope::root_scope() {
+    definition_info & info = get_definition_info();
+    m_old_prefix         = info.m_prefix;
+    m_old_actual_prefix  = info.m_actual_prefix;
+    info.m_prefix        = {};
+    info.m_actual_prefix = {};
+}
+
+root_scope::~root_scope() {
+    definition_info & info = get_definition_info();
+    info.m_prefix        = m_old_prefix;
+    info.m_actual_prefix = m_old_actual_prefix;
 }
 }

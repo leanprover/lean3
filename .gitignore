@@ -22,4 +22,5 @@ settings.json
 /library/init/version.lean
 CMakeSettings.json
 CppProperties.json
+/build
 /_cache/

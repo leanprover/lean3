@@ -24,6 +24,8 @@ io_state::io_state(formatter_factory const & fmtf):
     m_diagnostic_channel(std::make_shared<stderr_channel>()) {
 }
 
+io_state::io_state(options const & opts): io_state(opts, mk_print_formatter_factory()) {}
+
 io_state::io_state(options const & opts, formatter_factory const & fmtf):
     m_options(opts),
     m_formatter_factory(fmtf),

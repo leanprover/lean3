@@ -11,6 +11,8 @@ Author: Leonardo de Moura
 #include "frontends/lean/decl_attributes.h"
 namespace lean {
 class parser;
+class parser_info;
+class dummy_def_parser;
 class elaborator;
 
 enum class decl_cmd_kind { Theorem, Definition, Example, Instance, Var, Abbreviation };
@@ -35,6 +37,7 @@ struct decl_modifiers {
 class declaration_info_scope {
     declaration_info_scope(name const & ns, decl_cmd_kind kind, decl_modifiers const & modifiers);
 public:
+    declaration_info_scope(environment const & p, decl_cmd_kind kind, decl_modifiers const & modifiers);
     declaration_info_scope(parser const & p, decl_cmd_kind kind, decl_modifiers const & modifiers);
     ~declaration_info_scope();
     bool gen_aux_lemmas() const;
@@ -107,6 +110,17 @@ public:
     ~restore_decl_meta_scope();
 };
 
+/** \brief Auxiliary scope to clear the prefixes when calling parsers
+    inside tactics. */
+class root_scope {
+    name m_old_actual_prefix;
+    name m_old_prefix;
+public:
+    root_scope();
+    ~root_scope();
+};
+
+
 /** \brief Return true if the current scope used match-expressions */
 bool used_match_idx();
 
@@ -127,6 +141,9 @@ bool parse_univ_params(parser & p, buffer<name> & lp_names);
 
     \remark Caller is responsible for using: parser::local_scope scope2(p, env); */
 expr parse_single_header(parser & p, declaration_name_scope & s, buffer <name> & lp_names, buffer <expr> & params,
+                         bool is_example = false, bool is_instance = false);
+
+expr parse_single_header(dummy_def_parser & p, declaration_name_scope & s, buffer <name> & lp_names, buffer <expr> & params,
                          bool is_example = false, bool is_instance = false);
 /** \brief Parse the header of a mutually recursive declaration. It has the form
 
@@ -153,9 +170,9 @@ pair<expr, decl_attributes> parse_inner_header(parser & p, name const & c_expect
 /** \brief Add section/namespace parameters (and universes) used by params and all_exprs.
     We also add parameters included using the command 'include'.
     lp_names and params are input/output. */
-void collect_implicit_locals(parser & p, buffer<name> & lp_names, buffer<expr> & params, buffer<expr> const & all_exprs);
-void collect_implicit_locals(parser & p, buffer<name> & lp_names, buffer<expr> & params, std::initializer_list<expr> const & all_exprs);
-void collect_implicit_locals(parser & p, buffer<name> & lp_names, buffer<expr> & params, expr const & e);
+void collect_implicit_locals(parser_info & p, buffer<name> & lp_names, buffer<expr> & params, buffer<expr> const & all_exprs);
+void collect_implicit_locals(parser_info & p, buffer<name> & lp_names, buffer<expr> & params, std::initializer_list<expr> const & all_exprs);
+void collect_implicit_locals(parser_info & p, buffer<name> & lp_names, buffer<expr> & params, expr const & e);
 
 /** \brief Elaborate the types of the parameters \c params, and update the elaborator local context using them.
     Store the elaborated parameters at new_params.
@@ -166,7 +183,7 @@ void elaborate_params(elaborator & elab, buffer<expr> const & params, buffer<exp
 /** \brief Create an alias c_name --> (c_real_name.{level_params} params)
     level_params and params are subsets of lp_names and var_params that were
     declared using the parameter command. */
-environment add_local_ref(parser & p, environment const & env, name const & c_name, name const & c_real_name,
+environment add_local_ref(parser_info & p, environment const & env, name const & c_name, name const & c_real_name,
                           buffer<name> const & lp_names, buffer<expr> const & var_params);
 
 /** \brief Add alias for new declaration. */
