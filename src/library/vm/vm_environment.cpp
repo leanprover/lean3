@@ -5,10 +5,12 @@ Released under Apache 2.0 license as described in the file LICENSE.
 Author: Leonardo de Moura
 */
 #include <string>
+#include <ffi.h>
 #include "library/unfold_macros.h"
 #include "kernel/type_checker.h"
 #include "kernel/inductive/inductive.h"
 #include "kernel/standard_kernel.h"
+#include "library/attribute_manager.h"
 #include "library/module.h"
 #include "library/scoped_ext.h"
 #include "library/class.h"
@@ -335,6 +337,11 @@ vm_obj environment_bind_foreign_symbol(vm_obj const & _env, vm_obj const & _fo, 
 }
 
 void initialize_vm_environment() {
+    register_system_attribute(basic_attribute(
+            "ffi", "Registers a binding to a foreign function.",
+            [](environment const &, io_state const &, name const &, unsigned, bool) {
+              return;
+            }));
     DECLARE_VM_BUILTIN(name({"environment", "mk_std"}),                environment_mk_std);
     DECLARE_VM_BUILTIN(name({"environment", "trust_lvl"}),             environment_trust_lvl);
     DECLARE_VM_BUILTIN(name({"environment", "add"}),                   environment_add);
