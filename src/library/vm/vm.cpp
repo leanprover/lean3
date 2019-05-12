@@ -8,6 +8,7 @@ Author: Leonardo de Moura
 #include <string>
 #include <algorithm>
 #include <vector>
+#include <ffi/ffi.h>
 #include <unordered_map>
 #include <unordered_set>
 #include <iomanip>
@@ -28,6 +29,7 @@ Author: Leonardo de Moura
 #include "library/time_task.h"
 #include "library/vm/vm.h"
 #include "library/vm/vm_name.h"
+#include "library/vm/vm_nat.h"
 #include "library/vm/vm_option.h"
 #include "library/vm/vm_expr.h"
 #include "library/vm/vm_dynload.h"
@@ -1027,6 +1029,10 @@ vm_decl_cell::vm_decl_cell(name const & n, unsigned idx, unsigned arity, vm_func
 vm_decl_cell::vm_decl_cell(name const & n, unsigned idx, unsigned arity, vm_cfunction fn):
     m_rc(0), m_kind(vm_decl_kind::CFun), m_name(n), m_idx(idx), m_arity(arity), m_cfn(fn) {}
 
+vm_decl_cell::vm_decl_cell(name const & n, unsigned idx,
+                           vm_cfun_sig && sig, vm_cfunction fn):
+    m_rc(0), m_kind(vm_decl_kind::CFun), m_name(n), m_idx(idx), m_sig(sig), m_cfn(fn) {}
+
 vm_decl_cell::vm_decl_cell(name const & n, unsigned idx, unsigned arity, unsigned code_sz, vm_instr const * code,
                            list<vm_local_info> const & args_info, optional<pos_info> const & pos,
                            optional<std::string> const & olean):
@@ -1045,6 +1051,11 @@ vm_decl_cell::~vm_decl_cell() {
 
 void vm_decl_cell::dealloc() {
     delete this;
+}
+
+vm_cfun_sig::vm_cfun_sig(ffi_abi abi, ffi_type & rtype, buffer<ffi_type *> && args) :
+    m_args(args) {
+    ffi_prep_cif(&m_cif, abi, m_args.size(), &rtype, args.data());
 }
 
 /** \brief VM builtin functions */
@@ -1154,11 +1165,11 @@ struct vm_decls : public environment_extension {
         m_foreign[n] = load_foreign_obj(file_name);
     }
 
-    void bind_foreign_symbol(name const & fo, name const & fn, string const & sym, unsigned arity) {
-        std::cout << "bind_foreign_symbol\n";
-        auto c_fun = m_foreign[fo]->get_cfun(sym);
-                     c_fun(mk_vm_none());
-        add_native(fn,arity,c_fun);
+    void bind_foreign_symbol(name const & obj, name const & decl, string const & c_fun, buffer<expr> const & args, expr const & t) {
+        // std::cout << "bind_foreign_symbol\n";
+                     // c_fun(mk_vm_none());
+        auto idx = get_vm_index(decl);
+        m_decls.insert(idx, m_foreign[obj]->get_cfun(decl, idx, c_fun, args, t));
     }
 
     unsigned reserve(name const & n, unsigned arity) {
@@ -1245,9 +1256,14 @@ environment load_foreign_object(environment const & env, name const & n, string 
     return update(env, ext);
 }
 
-environment bind_foreign_symbol(environment const & env, name const & fo, name const & fn, unsigned arity, string const & symbol) {
+environment add_foreign_symbol(environment const & env, name const & obj, name const & decl, string const & c_fun) {
     auto ext = get_extension(env);
-    ext.bind_foreign_symbol(fo, fn, symbol, arity);
+    auto d = env.get(decl);
+    expr t = d.get_type();
+    if (!d.is_constant_assumption()) throw exception("only constants can be bindings");
+    buffer<expr> args;
+    auto rt = to_telescope(t, args);
+    ext.bind_foreign_symbol(obj, decl, c_fun, args, rt);
     return update(env, ext);
 }
 
@@ -1574,6 +1590,46 @@ void vm_state::invoke_builtin(vm_decl const & d) {
     m_pc++;
 }
 
+template <typename T>
+void ffi_push(T const & x, buffer<void *> & vals, buffer<int> & supp) {
+    int last = supp.size();
+    for (int i = 0; i < (sizeof(T) + sizeof(int) - 1) / sizeof(int); ++i) {
+        supp.push_back(i);
+    }
+    T *y = reinterpret_cast<T *>(&supp[last]);
+    *y = x;
+    vals.push_back(y);
+}
+
+void conv_from_obj(ffi_type & t, vm_obj const & obj,
+                   buffer<void *> & vals, buffer<int> & supp) {
+    if (&t == &ffi_type_uint32) {
+        return to_unsigned(obj);
+    } else {
+        throw exception("unsupported argument type");
+    }
+}
+
+void vm_state::invoke_ffi_call(vm_cfunction fn, vm_cfun_sig const & sig) {
+    flet<vm_state *> Set(g_vm_state, this);
+    auto & S       = m_stack;
+    unsigned sz    = S.size();
+    unsigned arity = sig.m_args.size();
+    ffi_arg rc;
+    lean_vm_check(arity <= sz);
+    vm_obj r;
+    buffer<void *> values;
+    buffer<int>    support;
+    for (int i = 0; i < arity; ++i) {
+        conv_from_obj(sig.m_args, S[sz - 1 - i], values, support);
+    }
+    ffi_call(&sig.m_cif, fn, &rc, values.data());
+    m_stack.resize(sz - arity);
+    m_stack.push_back(r);
+    if (m_debugging) shrink_stack_info();
+    m_pc++;
+}
+
 void vm_state::invoke_fn(vm_cfunction fn, unsigned arity) {
     flet<vm_state *> Set(g_vm_state, this);
     auto & S       = m_stack;
@@ -1681,6 +1737,9 @@ vm_obj vm_state::invoke_closure(vm_obj const & fn, unsigned DEBUG_CODE(nargs)) {
         break;
     case vm_decl_kind::CFun:
         invoke_cfun(d);
+        break;
+    case vm_decl_kind::FFICall:
+        invoke_ffi_call(d);
         break;
     }
     m_pc     = saved_pc;
@@ -2821,6 +2880,18 @@ void vm_state::invoke_cfun(vm_decl const & d) {
         push_frame_core(0, 0, d.get_idx());
     }
     invoke_fn(d.get_cfn(), d.get_arity());
+    if (m_profiling) {
+        unique_lock<mutex> lk(m_call_stack_mtx);
+        m_call_stack.pop_back();
+    }
+}
+
+void vm_state::invoke_ffi_call(vm_decl const & d) {
+    if (m_profiling) {
+        unique_lock<mutex> lk(m_call_stack_mtx);
+        push_frame_core(0, 0, d.get_idx());
+    }
+    invoke_ffi_call(d.get_cfn(), d.m_sig);
     if (m_profiling) {
         unique_lock<mutex> lk(m_call_stack_mtx);
         m_call_stack.pop_back();

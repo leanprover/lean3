@@ -10,6 +10,7 @@ Author: Leonardo de Moura
 #include <vector>
 #include <string>
 #include <cstdint>
+#include <ffi/ffi.h>
 #include "util/debug.h"
 #include "util/compiler_hints.h"
 #include "util/rc.h"
@@ -527,7 +528,13 @@ vm_instr mk_local_info_instr(unsigned idx, name const & n, optional<expr> const 
 class vm_state;
 class vm_instr;
 
-enum class vm_decl_kind { Bytecode, Builtin, CFun };
+struct vm_cfun_sig {
+    buffer<ffi_type *> m_args;
+    ffi_cif m_cif;
+    vm_cfun_sig(ffi_abi abi, ffi_type & rtype, buffer<ffi_type *> && atypes);
+};
+
+enum class vm_decl_kind { Bytecode, Builtin, CFun, FFICall };
 
 /** \brief VM function/constant declaration cell */
 struct vm_decl_cell {
@@ -539,6 +546,7 @@ struct vm_decl_cell {
     list<vm_local_info>   m_args_info;
     optional<pos_info>    m_pos;
     optional<std::string> m_olean;
+    optional<vm_cfun_sig> m_sig;
     union {
         struct {
             unsigned   m_code_size;
@@ -549,6 +557,7 @@ struct vm_decl_cell {
     };
     vm_decl_cell(name const & n, unsigned idx, unsigned arity, vm_function fn);
     vm_decl_cell(name const & n, unsigned idx, unsigned arity, vm_cfunction fn);
+    vm_decl_cell(name const & n, unsigned idx, vm_cfun_sig && sig, vm_cfunction fn);
     vm_decl_cell(name const & n, unsigned idx, unsigned arity, unsigned code_sz, vm_instr const * code,
                  list<vm_local_info> const & args_info, optional<pos_info> const & pos,
                  optional<std::string> const & olean);
@@ -564,6 +573,8 @@ public:
     vm_decl():m_ptr(nullptr) {}
     vm_decl(name const & n, unsigned idx, unsigned arity, vm_function fn):
         vm_decl(new vm_decl_cell(n, idx, arity, fn)) {}
+    vm_decl(name const & n, unsigned idx, vm_cfun_sig && sig, vm_cfunction fn):
+        vm_decl(new vm_decl_cell(n, idx, std::move(sig), fn)) {}
     vm_decl(name const & n, unsigned idx, unsigned arity, vm_cfunction fn):
         vm_decl(new vm_decl_cell(n, idx, arity, fn)) {}
     vm_decl(name const & n, unsigned idx, unsigned arity, unsigned code_sz, vm_instr const * code,
@@ -661,6 +672,7 @@ public:
     unsigned pop_frame();
     void invoke_builtin(vm_decl const & d);
     void invoke_fn(vm_cfunction fn, unsigned arity);
+    void invoke_ffi_call(vm_cfunction fn, vm_cfun_sig const & sig);
     void invoke_cfun(vm_decl const & d);
     void invoke_global(vm_decl const & d);
     void invoke(vm_decl const & d);
@@ -901,8 +913,8 @@ environment add_native(environment const & env, name const & n, vm_cfunction_8 f
 environment add_native(environment const & env, name const & n, unsigned arity, vm_cfunction_N fn);
 
 environment load_foreign_object(environment const & env, name const & n, std::string const & file_name);
-environment bind_foreign_symbol(environment const & env, name const & fo, name const & fn,
-                                unsigned arity, std::string const & symbol);
+environment add_foreign_symbol(environment const & env, name const & obj, name const & fn,
+                               std::string const & symbol);
 
 unsigned get_vm_index(name const & n);
 unsigned get_vm_index_bound();

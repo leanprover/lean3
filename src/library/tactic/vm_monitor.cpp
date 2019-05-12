@@ -191,6 +191,7 @@ vm_obj _vm_decl_kind(vm_obj const & d) {
     case vm_decl_kind::Bytecode: return mk_vm_simple(0);
     case vm_decl_kind::Builtin:  return mk_vm_simple(1);
     case vm_decl_kind::CFun:     return mk_vm_simple(2);
+    case vm_decl_kind::FFICall:  return mk_vm_simple(3);
     }
     lean_unreachable();
 }

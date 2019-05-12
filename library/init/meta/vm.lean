@@ -47,7 +47,7 @@ end vm_obj
 meta constant vm_decl : Type
 
 inductive vm_decl_kind
-| bytecode | builtin | cfun
+| bytecode | builtin | cfun | ffi_call
 
 /-- Information for local variables and arguments on the VM stack.
    Remark: type is only available if it is a closed term at compilation time. -/

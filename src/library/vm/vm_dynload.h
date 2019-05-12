@@ -1,5 +1,6 @@
 #include <string>
 #include <memory>
+#include "library/vm/vm.h"
 
 #define FOREIGN_OBJ void *
 
@@ -16,7 +17,8 @@ namespace lean {
           : m_handle(handle),
             m_filename(filename) {};
       ~vm_foreign_obj();
-      vm_cfunction get_cfun(string const & fun_name);
+      vm_decl get_cfun(name const & n, unsigned idx, string const & fun_name,
+                       buffer<expr> const & _args, expr const & _t);
         /* virtual void dealloc() override { */
         /*     this->~vm_foreign_obj(); */
         /*     get_vm_allocator().deallocate(sizeof(vm_foreign_obj), this); */
@@ -30,5 +32,9 @@ namespace lean {
     };
 
     std::shared_ptr<vm_foreign_obj> load_foreign_obj(string const & fname);
+
+    void initialize_vm_ffi();
+
+    void finalize_vm_ffi();
 
 }
