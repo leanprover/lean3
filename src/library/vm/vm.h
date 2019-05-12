@@ -10,7 +10,11 @@ Author: Leonardo de Moura
 #include <vector>
 #include <string>
 #include <cstdint>
+#ifdef USE_FFI_FFI_H
 #include <ffi/ffi.h>
+#else
+#include <ffi.h>
+#endif
 #include "util/debug.h"
 #include "util/compiler_hints.h"
 #include "util/rc.h"
@@ -25,6 +29,8 @@ namespace lean {
 class vm_obj;
 class ts_vm_obj;
 enum class vm_obj_kind { Simple, Constructor, Closure, NativeClosure, MPZ, External };
+
+std::ostream &operator << (std::ostream &out, vm_obj_kind x);
 
 /** \brief Base class for VM objects.
 
@@ -530,11 +536,14 @@ class vm_instr;
 
 struct vm_cfun_sig {
     buffer<ffi_type *> m_args;
+    ffi_type *m_rtype;
     ffi_cif m_cif;
     vm_cfun_sig(ffi_abi abi, ffi_type & rtype, buffer<ffi_type *> && atypes);
+    unsigned arity() const { return m_args.size(); }
 };
 
-enum class vm_decl_kind { Bytecode, Builtin, CFun, FFICall };
+enum class vm_decl_kind { Bytecode, Builtin, CFun };
+using std::auto_ptr;
 
 /** \brief VM function/constant declaration cell */
 struct vm_decl_cell {
@@ -546,7 +555,7 @@ struct vm_decl_cell {
     list<vm_local_info>   m_args_info;
     optional<pos_info>    m_pos;
     optional<std::string> m_olean;
-    optional<vm_cfun_sig> m_sig;
+    auto_ptr<vm_cfun_sig> m_sig;
     union {
         struct {
             unsigned   m_code_size;
@@ -557,7 +566,7 @@ struct vm_decl_cell {
     };
     vm_decl_cell(name const & n, unsigned idx, unsigned arity, vm_function fn);
     vm_decl_cell(name const & n, unsigned idx, unsigned arity, vm_cfunction fn);
-    vm_decl_cell(name const & n, unsigned idx, vm_cfun_sig && sig, vm_cfunction fn);
+    vm_decl_cell(name const & n, unsigned idx, auto_ptr<vm_cfun_sig> sig, vm_cfunction fn);
     vm_decl_cell(name const & n, unsigned idx, unsigned arity, unsigned code_sz, vm_instr const * code,
                  list<vm_local_info> const & args_info, optional<pos_info> const & pos,
                  optional<std::string> const & olean);
@@ -573,8 +582,8 @@ public:
     vm_decl():m_ptr(nullptr) {}
     vm_decl(name const & n, unsigned idx, unsigned arity, vm_function fn):
         vm_decl(new vm_decl_cell(n, idx, arity, fn)) {}
-    vm_decl(name const & n, unsigned idx, vm_cfun_sig && sig, vm_cfunction fn):
-        vm_decl(new vm_decl_cell(n, idx, std::move(sig), fn)) {}
+    vm_decl(name const & n, unsigned idx, auto_ptr<vm_cfun_sig> sig, vm_cfunction fn):
+        vm_decl(new vm_decl_cell(n, idx, sig, fn)) {}
     vm_decl(name const & n, unsigned idx, unsigned arity, vm_cfunction fn):
         vm_decl(new vm_decl_cell(n, idx, arity, fn)) {}
     vm_decl(name const & n, unsigned idx, unsigned arity, unsigned code_sz, vm_instr const * code,
@@ -596,8 +605,10 @@ public:
     bool is_bytecode() const { lean_assert(m_ptr); return m_ptr->m_kind == vm_decl_kind::Bytecode; }
     bool is_builtin() const { lean_assert(m_ptr); return m_ptr->m_kind == vm_decl_kind::Builtin; }
     bool is_cfun() const { lean_assert(m_ptr); return m_ptr->m_kind == vm_decl_kind::CFun; }
+    bool is_ffi()  const { lean_assert(m_ptr); return is_cfun() && m_ptr->m_sig.get() != nullptr; }
     unsigned get_idx() const { lean_assert(m_ptr); return m_ptr->m_idx; }
     name get_name() const { lean_assert(m_ptr); return m_ptr->m_name; }
+    vm_cfun_sig const & get_sig() const { lean_assert(m_ptr && is_ffi()); return *m_ptr->m_sig; }
     unsigned get_arity() const { lean_assert(m_ptr); return m_ptr->m_arity; }
     unsigned get_code_size() const { lean_assert(is_bytecode()); return m_ptr->m_code_size; }
     vm_instr const * get_code() const { lean_assert(is_bytecode()); return m_ptr->m_code; }

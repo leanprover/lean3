@@ -161,8 +161,6 @@ meta constant fingerprint : environment → nat
 
 meta constant load_foreign_object (env : environment) (n : name) (file_name : string) : environment
 
-meta constant bind_foreign_symbol(env : environment) (fo : name) (fn : name)
-                                 (arity : nat) (symbol : string) : environment
 
 open expr
 

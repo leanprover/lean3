@@ -5,11 +5,6 @@ Released under Apache 2.0 license as described in the file LICENSE.
 Author: Leonardo de Moura
 */
 #include <string>
-#ifdef USE_FFI_FFI_H
-#include <ffi/ffi.h>
-#else
-#include <ffi.h>
-#endif
 #include "library/unfold_macros.h"
 #include "kernel/type_checker.h"
 #include "kernel/inductive/inductive.h"
@@ -320,26 +315,12 @@ vm_obj environment_fingerprint(vm_obj const & env) {
     return mk_vm_nat(mpz(get_fingerprint(to_env(env))));
 }
 
-// environment load_foreign_object(environment const & env, name const & n, std::string const & file_name);
 vm_obj environment_load_foreign_object(vm_obj const & _env, vm_obj const & _n, vm_obj const & _file_name) {
     environment env = to_env(_env);
     name n = to_name(_n);
     std::string file_name = to_string(_file_name);
     return to_obj(load_foreign_object(env,n,file_name));
 }
-
-// environment bind_foreign_symbol(environment const & env, name const & fo, name const & fn,
-//                                 unsigned arity, std::string const & symbol);
-// vm_obj environment_bind_foreign_symbol(vm_obj const & _env, vm_obj const & _fo, vm_obj const & _fn,
-//                                        vm_obj const & _arity, vm_obj const & _symbol) {
-//     environment env = to_env(_env);
-//     name fo = to_name(_fo);
-//     name fn = to_name(_fn);
-//     expr type = env.get(fn).get_type();
-//     unsigned arity = to_unsigned(_arity);
-//     std::string symbol = to_string(_symbol);
-//     return to_obj(bind_foreign_symbol(env,fo,fn,arity,symbol));
-// }
 
 void initialize_vm_environment() {
     DECLARE_VM_BUILTIN(name({"environment", "mk_std"}),                environment_mk_std);
@@ -375,7 +356,6 @@ void initialize_vm_environment() {
     DECLARE_VM_BUILTIN(name({"environment", "get_class_attribute_symbols"}), environment_get_class_attribute_symbols);
     DECLARE_VM_BUILTIN(name({"environment", "fingerprint"}),           environment_fingerprint);
     DECLARE_VM_BUILTIN(name({"environment", "load_foreign_object"}),   environment_load_foreign_object);
-    // DECLARE_VM_BUILTIN(name({"environment", "bind_foreign_symbol"}),   environment_bind_foreign_symbol);
 }
 
 void finalize_vm_environment() {

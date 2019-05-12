@@ -604,7 +604,7 @@ static void import_module(environment & env, std::string const & module_file_nam
         auto ext = get_extension(env);
         ext.m_imported.insert(res->m_module_name);
         env = update(env, ext);
-    } catch (throwable) {
+    } catch (throwable &) {
         import_errors.push_back({module_file_name, ref, std::current_exception()});
     }
 }

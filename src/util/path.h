@@ -44,4 +44,16 @@ std::vector<std::string> read_dir(std::string const & dirname);
 time_t get_mtime(std::string const & fname);
 
 std::string lrealpath(std::string const & fname);
+
+std::string lgetcwd();
+
+class push_dir {
+    std::string m_parent;
+public:
+    push_dir(std::string const &);
+    push_dir(char const *parent);
+    std::string const & parent() const { return m_parent; }
+    ~push_dir();
+};
+
 }

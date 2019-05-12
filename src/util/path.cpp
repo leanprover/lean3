@@ -8,6 +8,7 @@ Author: Leonardo de Moura, Gabriel Ebner
 #if defined(LEAN_WINDOWS) && !defined(LEAN_CYGWIN)
 #include <windows.h>
 #endif
+#include <unistd.h>
 #include <string>
 #include <cstring>
 #include <cstdlib>
@@ -243,4 +244,25 @@ std::string lrealpath(std::string const & fname) {
     }
 #endif
 }
+
+std::string lgetcwd() {
+    char cd[PATH_MAX];
+    getcwd(cd, sizeof(cd));
+    return std::string(cd);
+}
+
+
+push_dir::push_dir(std::string const & cd) : push_dir(cd.c_str()) { }
+
+push_dir::push_dir(char const * cd) {
+    char parent[PATH_MAX];
+    getcwd(parent, PATH_MAX);
+    m_parent = std::string(parent);
+    chdir(cd);
+}
+
+push_dir::~push_dir() {
+    chdir(m_parent.c_str());
+}
+
 }
