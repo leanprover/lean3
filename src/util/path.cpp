@@ -71,7 +71,6 @@ std::string get_exe_location() {
 bool is_path_sep(char c) { return c == g_path_sep; }
 #else
 // Linux version
-#include <unistd.h>
 #include <string.h>
 #include <limits.h> // NOLINT
 #include <stdio.h>
@@ -246,23 +245,24 @@ std::string lrealpath(std::string const & fname) {
 }
 
 std::string lgetcwd() {
-    char cd[PATH_MAX];
-    getcwd(cd, sizeof(cd));
-    return std::string(cd);
+    if (char * cd = getcwd(nullptr, 0)) {
+        std::string res(cd);
+        free(cd);
+        return res;
+    } else {
+        throw exception(strerror(errno));
+    }
 }
-
 
 push_dir::push_dir(std::string const & cd) : push_dir(cd.c_str()) { }
 
 push_dir::push_dir(char const * cd) {
-    char parent[PATH_MAX];
-    getcwd(parent, PATH_MAX);
-    m_parent = std::string(parent);
+    m_parent = lgetcwd();
     chdir(cd);
 }
 
 push_dir::~push_dir() {
-    chdir(m_parent.c_str());
+    ignore(chdir(m_parent.c_str()));
 }
 
 }

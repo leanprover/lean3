@@ -1,44 +1,19 @@
 /*
-Author: James King <james@agenultra.com>
+Copyright (c) 2019 James King. All rights reserved.
+Released under Apache 2.0 license as described in the file LICENSE.
+
+Author: James King <james@agenultra.com>, Simon Hudon
 */
 
 #include <dlfcn.h>
 #include <ffi/ffi.h>
 #include <string>
-#include <iostream>
-#include <sys/types.h>
 
 #include "util/lean_path.h"
-
-// #include "util/sstream.h"
-// #include "library/vm/vm_name.h"
-// #include "library/vm/vm_io.h"
-// #include "library/vm/vm_string.h"
-#include "library/vm/vm_dynload.h"
-// #include "library/attribute_manager.h"
-
-#include "kernel/abstract.h"
-#include "library/constants.h"
-#include "library/attribute_manager.h"
-#include "library/scoped_ext.h"
-#include "library/tactic/elaborator_exception.h"
-#include "library/string.h"
-#include "library/vm/vm.h"
-#include "library/vm/vm_expr.h"
+#include "library/vm/vm_ffi.h"
 #include "library/vm/vm_parser.h"
-#include "library/quote.h"
-#include "library/placeholder.h"
-
-
-// void get_shared_funcptr(string const & pathname) {
-//     void* handle = dlopen(pathname.c_str(), RTLD_LAZY);
-//     if (!handle) {
-//         std::cerr << "Cannot load library: " << dlerror() << '\n';
-//     }
-// }
 
 namespace lean {
-using namespace std;
 
     ffi_type * to_ffi_type (expr const & e) {
         if (is_constant(e, name("unsigned"))) {
@@ -57,8 +32,8 @@ using namespace std;
         buffer<ffi_type *> args;
         for (auto e : _args) { args.push_back(to_ffi_type(e)); }
         ffi_type * rt = to_ffi_type(_rt);
-        auto_ptr<vm_cfun_sig> sig(new vm_cfun_sig(FFI_DEFAULT_ABI, *rt, std::move(args)));
-        return vm_decl(n, idx, sig, fn);
+        unique_ptr<vm_cfun_sig> sig(new vm_cfun_sig(FFI_DEFAULT_ABI, *rt, std::move(args)));
+        return vm_decl(n, idx, std::move(sig), fn);
     }
 
     vm_foreign_obj_cell::~vm_foreign_obj_cell() {
@@ -72,9 +47,9 @@ using namespace std;
     vm_foreign_obj::vm_foreign_obj(string const & fname) {
         auto root = get_leanpkg_path_file();
         push_dir _(root ? dirname(*root) : lgetcwd());
-        FOREIGN_OBJ handle = dlopen(fname.c_str(), RTLD_LAZY);
+        vm_foreign_obj_cell::handle_t handle = dlopen(fname.c_str(), RTLD_LAZY);
         if (!handle) {
-            throw exception(sstream() << "failed to load foreign lib: " << dlerror() << "\n" << root->c_str());
+            throw exception(sstream() << "failed to load foreign lib: " << dlerror());
         }
         m_ptr = new vm_foreign_obj_cell(handle, fname);
         m_ptr->inc_ref();
@@ -116,7 +91,6 @@ using namespace std;
     static vm_ffi_attribute const & get_vm_ffi_attribute() {
         return static_cast<vm_ffi_attribute const &>(get_system_attribute(*g_vm_ffi));
     }
-
 
     void initialize_vm_ffi() {
         g_vm_ffi = new name("ffi");

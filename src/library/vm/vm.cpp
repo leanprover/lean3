@@ -32,7 +32,7 @@ Author: Leonardo de Moura
 #include "library/vm/vm_nat.h"
 #include "library/vm/vm_option.h"
 #include "library/vm/vm_expr.h"
-#include "library/vm/vm_dynload.h"
+#include "library/vm/vm_ffi.h"
 #include "library/normalize.h"
 
 #ifndef LEAN_DEFAULT_PROFILER_FREQ
@@ -1042,8 +1042,8 @@ vm_decl_cell::vm_decl_cell(name const & n, unsigned idx, unsigned arity, vm_cfun
     m_rc(0), m_kind(vm_decl_kind::CFun), m_name(n), m_idx(idx), m_arity(arity), m_cfn(fn) {}
 
 vm_decl_cell::vm_decl_cell(name const & n, unsigned idx,
-                           auto_ptr<vm_cfun_sig> sig, vm_cfunction fn):
-    m_rc(0), m_kind(vm_decl_kind::CFun), m_name(n), m_idx(idx), m_arity(sig->arity()), m_sig(sig), m_cfn(fn) {}
+                           unique_ptr<vm_cfun_sig> sig, vm_cfunction fn):
+    m_rc(0), m_kind(vm_decl_kind::CFun), m_name(n), m_idx(idx), m_arity(sig->arity()), m_sig(std::move(sig)), m_cfn(fn) {}
 
 vm_decl_cell::vm_decl_cell(name const & n, unsigned idx, unsigned arity, unsigned code_sz, vm_instr const * code,
                            list<vm_local_info> const & args_info, optional<pos_info> const & pos,

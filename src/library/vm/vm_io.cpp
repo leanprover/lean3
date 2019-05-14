@@ -59,6 +59,7 @@ Author: Leonardo de Moura
 #include <util/unit.h>
 #include "util/sstream.h"
 #include "util/utf8.h"
+#include "util/path.h"
 #include "library/handle.h"
 #include "library/io_state.h"
 #include "library/constants.h"
@@ -608,7 +609,7 @@ static vm_obj serial_deserialize(vm_obj const & h, vm_obj const &) {
     fseek(f, 0, SEEK_SET);
 
     char *data = reinterpret_cast<char *>(malloc(fsize));
-    fread(data, fsize, 1, f);
+    ignore(fread(data, fsize, 1, f));
     if (ferror(f)) {
         clearerr(f);
         return mk_io_failure("deserialize failed");

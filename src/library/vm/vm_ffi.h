@@ -1,8 +1,12 @@
+/*
+Copyright (c) 2019 James King. All rights reserved.
+Released under Apache 2.0 license as described in the file LICENSE.
+
+Author: James King <james@agenultra.com>, Simon Hudon
+*/
 #include <string>
 #include <memory>
 #include "library/vm/vm.h"
-
-#define FOREIGN_OBJ void *
 
 namespace lean {
 
@@ -10,9 +14,10 @@ namespace lean {
 
     struct vm_foreign_obj_cell {
         MK_LEAN_RC();
-        FOREIGN_OBJ m_handle;
+        typedef void * handle_t;
+        handle_t m_handle;
         std::string m_filename;
-        vm_foreign_obj_cell(FOREIGN_OBJ handle, string const & filename)
+        vm_foreign_obj_cell(handle_t handle, string const & filename)
         : m_rc(0), m_handle(handle),
             m_filename(filename) {};
         ~vm_foreign_obj_cell();
@@ -21,17 +26,6 @@ namespace lean {
         void dealloc();
     private:
         vm_foreign_obj_cell(vm_foreign_obj_cell const &);
-
-        /* virtual void dealloc() override { */
-        /*     this->~vm_foreign_obj(); */
-        /*     get_vm_allocator().deallocate(sizeof(vm_foreign_obj), this); */
-        /* } */
-        /* virtual vm_external * clone(vm_clone_fn const &) override { */
-        /*     return new vm_foreign_obj(m_handle, m_filename); */
-        /* } */
-        /* virtual vm_external * ts_clone(vm_clone_fn const &) override { */
-        /*     return new (get_vm_allocator().allocate(sizeof(vm_foreign_obj))) vm_foreign_obj(m_handle, m_filename); */
-        /* } */
     };
 
     class vm_foreign_obj {
@@ -50,9 +44,6 @@ namespace lean {
 
         ~vm_foreign_obj() { if (m_ptr) { m_ptr->dec_ref(); } }
     };
-
-
-    /* std::shared_ptr<vm_foreign_obj_cell> load_foreign_obj(string const & fname); */
 
     void initialize_vm_ffi();
 

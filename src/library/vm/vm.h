@@ -543,7 +543,7 @@ struct vm_cfun_sig {
 };
 
 enum class vm_decl_kind { Bytecode, Builtin, CFun };
-using std::auto_ptr;
+using std::unique_ptr;
 
 /** \brief VM function/constant declaration cell */
 struct vm_decl_cell {
@@ -555,7 +555,7 @@ struct vm_decl_cell {
     list<vm_local_info>   m_args_info;
     optional<pos_info>    m_pos;
     optional<std::string> m_olean;
-    auto_ptr<vm_cfun_sig> m_sig;
+    unique_ptr<vm_cfun_sig> m_sig;
     union {
         struct {
             unsigned   m_code_size;
@@ -566,7 +566,7 @@ struct vm_decl_cell {
     };
     vm_decl_cell(name const & n, unsigned idx, unsigned arity, vm_function fn);
     vm_decl_cell(name const & n, unsigned idx, unsigned arity, vm_cfunction fn);
-    vm_decl_cell(name const & n, unsigned idx, auto_ptr<vm_cfun_sig> sig, vm_cfunction fn);
+    vm_decl_cell(name const & n, unsigned idx, unique_ptr<vm_cfun_sig> sig, vm_cfunction fn);
     vm_decl_cell(name const & n, unsigned idx, unsigned arity, unsigned code_sz, vm_instr const * code,
                  list<vm_local_info> const & args_info, optional<pos_info> const & pos,
                  optional<std::string> const & olean);
@@ -582,8 +582,8 @@ public:
     vm_decl():m_ptr(nullptr) {}
     vm_decl(name const & n, unsigned idx, unsigned arity, vm_function fn):
         vm_decl(new vm_decl_cell(n, idx, arity, fn)) {}
-    vm_decl(name const & n, unsigned idx, auto_ptr<vm_cfun_sig> sig, vm_cfunction fn):
-        vm_decl(new vm_decl_cell(n, idx, sig, fn)) {}
+    vm_decl(name const & n, unsigned idx, unique_ptr<vm_cfun_sig> sig, vm_cfunction fn):
+        vm_decl(new vm_decl_cell(n, idx, std::move(sig), fn)) {}
     vm_decl(name const & n, unsigned idx, unsigned arity, vm_cfunction fn):
         vm_decl(new vm_decl_cell(n, idx, arity, fn)) {}
     vm_decl(name const & n, unsigned idx, unsigned arity, unsigned code_sz, vm_instr const * code,

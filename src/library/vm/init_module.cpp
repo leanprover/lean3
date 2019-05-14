@@ -24,7 +24,7 @@ Author: Leonardo de Moura
 #include "library/vm/vm_parser.h"
 #include "library/vm/vm_array.h"
 #include "library/vm/vm_string.h"
-#include "library/vm/vm_dynload.h"
+#include "library/vm/vm_ffi.h"
 
 namespace lean {
 void initialize_vm_core_module() {

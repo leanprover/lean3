@@ -3596,6 +3596,13 @@ def CheckCStyleCast(filename, linenum, line, raw_line, cast_type, pattern,
   #           'All parameters should be named in a function')
   #   return True
 
+  # Added by Simon Hudon, 2019/05/14
+  # e.g., sizeof(int)
+  # do not treat as a cast
+  sizeof_match = Match(r'.*sizeof\s*$', line[0:match.start(1) - 1])
+  if sizeof_match:
+      return False
+
   # At this point, all that should be left is actual casts.
   error(filename, linenum, 'readability/casting', 4,
         'Using C-style cast.  Use %s<%s>(...) instead' %

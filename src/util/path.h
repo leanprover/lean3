@@ -47,6 +47,9 @@ std::string lrealpath(std::string const & fname);
 
 std::string lgetcwd();
 
+template <typename T>
+void ignore(T) { }
+
 class push_dir {
     std::string m_parent;
 public:
