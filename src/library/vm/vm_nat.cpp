@@ -52,6 +52,32 @@ unsigned force_to_unsigned(vm_obj const & o, unsigned def) {
         return def;
 }
 
+unsigned long to_unsigned_long(vm_obj const & o) {
+    if (LEAN_LIKELY(is_simple(o)))
+        return cidx(o);
+    else
+        return to_mpz(o).get_unsigned_long_int();
+}
+
+optional<unsigned long> try_to_unsigned_long(vm_obj const & o) {
+    if (LEAN_LIKELY(is_simple(o))) {
+        return optional<unsigned long>(cidx(o));
+    } else {
+        mpz const & v = to_mpz(o);
+        if (v.is_unsigned_long_int())
+            return optional<unsigned long>(v.get_unsigned_long_int());
+        else
+            return optional<unsigned long>();
+    }
+}
+
+unsigned long force_to_unsigned_long(vm_obj const & o, unsigned long def) {
+    if (auto r = try_to_unsigned_long(o))
+        return *r;
+    else
+        return def;
+}
+
 size_t force_to_size_t(vm_obj const & o, size_t def) {
     // TODO(Leo): fix size_t is 8 bytes in 64-bit machines
     if (auto r = try_to_unsigned(o))

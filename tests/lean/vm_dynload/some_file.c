@@ -1,7 +1,7 @@
 
 #include <stdio.h>
 
-int my_fun (int x, int y) {
-    printf("hello world: %d\n", x + y);
+long my_fun (int x, long y) {
+    printf("hello world: %ld\n", (long)x + y);
     return x * y;
 }

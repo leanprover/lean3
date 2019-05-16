@@ -304,4 +304,36 @@ eq_of_mul_eq_mul_right Hpos (by rw [one_mul, H])
 theorem eq_one_of_mul_eq_self_right {a b : ℤ} (Hpos : b ≠ 0) (H : b * a = b) : a = 1 :=
 eq_of_mul_eq_mul_left Hpos (by rw [mul_one, H])
 
+lemma mod_lt {p q : ℤ} (h : 0 < q) : p % q < q :=
+begin
+  cases q; [ skip, cases h ],
+  have h₀ := lt_of_coe_nat_lt_coe_nat h,
+  cases p; dsimp [(%),int.mod,sub_nat_nat],
+  { apply coe_nat_lt_coe_nat_of_lt, apply nat.mod_lt _ h₀ },
+  cases h' : (nat.succ (nat.mod p q) - q);
+    dsimp [sub_nat_nat._match_1],
+  { apply coe_nat_lt_coe_nat_of_lt,
+    apply nat.sub_lt h₀ (nat.zero_lt_succ _), },
+  transitivity (0 : ℤ), apply neg_succ_lt_zero,
+  exact h,
+end
+
+lemma nonneg_mod {p q : ℤ} (h : q ≠ 0) : 0 ≤ p % q :=
+begin
+  cases p; dsimp [(%),int.mod,sub_nat_nat],
+  apply of_nat_nonneg,
+  cases h₀ : (nat.succ (nat.mod p (nat_abs q)) - nat_abs q);
+    dsimp [sub_nat_nat._match_1,has_neg.neg],
+  { apply of_nat_nonneg },
+  suffices h₁ : nat.succ (nat.mod p (nat_abs q)) - nat_abs q = 0,
+  { rw h₁ at h₀, cases h₀ },
+  apply nat.sub_eq_zero_of_le,
+  apply nat.mod_lt, apply nat.pos_of_ne_zero,
+  intro h', apply h,
+  cases q,
+  { dsimp [nat_abs] at h',
+    rw h', refl },
+  { cases h' }
+end
+
 end int

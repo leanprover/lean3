@@ -103,7 +103,7 @@ protected lemma coe_nat_zero : ↑(0 : ℕ) = (0 : ℤ) := rfl
 protected lemma coe_nat_one : ↑(1 : ℕ) = (1 : ℤ) := rfl
 protected lemma coe_nat_succ (n : ℕ) : (↑(succ n) : ℤ) = ↑n + 1 := rfl
 
-protected lemma coe_nat_add_out (m n : ℕ) : ↑m + ↑n = (m + n : ℤ) := rfl
+protected lemma coe_nat_add_out (m n : ℕ) : ↑m + ↑n = (↑(m + n) : ℤ) := rfl
 protected lemma coe_nat_mul_out (m n : ℕ) : ↑m * ↑n = (↑(m * n) : ℤ) := rfl
 protected lemma coe_nat_add_one_out (n : ℕ) : ↑n + (1 : ℤ) = ↑(succ n) := rfl
 
@@ -265,7 +265,7 @@ protected def div : ℤ → ℤ → ℤ
 | -[1+ m] -[1+ n] := of_nat (succ (m / succ n))
 
 protected def mod : ℤ → ℤ → ℤ
-| (m : ℕ) n := (m % nat_abs n : ℕ)
+| (of_nat m) n := of_nat (m % nat_abs n)
 | -[1+ m] n := sub_nat_nat (nat_abs n) (succ (m % nat_abs n))
 
 -- F-rounding: This pair satisfies fdiv x y = floor (x / y)
@@ -303,6 +303,12 @@ instance : has_mod ℤ := ⟨int.mod⟩
 /- gcd -/
 
 def gcd (m n : ℤ) : ℕ := gcd (nat_abs m) (nat_abs n)
+
+/- div / mod -/
+
+protected lemma coe_nat_div_out (m n : ℕ) : ↑m / ↑n = (↑(m / n) : ℤ) := rfl
+
+protected lemma coe_nat_mod_out (m n : ℕ) : ↑m % ↑n = (↑(m % n) : ℤ) := rfl
 
 /-
    int is a ring

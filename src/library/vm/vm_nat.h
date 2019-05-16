@@ -12,6 +12,9 @@ namespace lean {
 unsigned to_unsigned(vm_obj const & o);
 optional<unsigned> try_to_unsigned(vm_obj const & o);
 unsigned force_to_unsigned(vm_obj const & o, unsigned def = std::numeric_limits<unsigned>::max());
+unsigned long to_unsigned_long(vm_obj const & o);
+optional<unsigned long> try_to_unsigned_long(vm_obj const & o);
+unsigned long force_to_unsigned_long(vm_obj const & o, unsigned long def = std::numeric_limits<unsigned long>::max());
 size_t force_to_size_t(vm_obj const & o, size_t def = std::numeric_limits<size_t>::max());
 
 /* Auxiliary function for converting vm_obj representing numerals into mpz.

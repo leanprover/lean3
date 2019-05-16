@@ -15,9 +15,35 @@ Author: James King <james@agenultra.com>, Simon Hudon
 
 namespace lean {
 
+    static name * g_vm_ffi;
+
+    // types
+    static name * g_uint8_name;
+    static name * g_uint16_name;
+    static name * g_uint32_name;
+    static name * g_uint64_name;
+    static name * g_int8_name;
+    static name * g_int16_name;
+    static name * g_int32_name;
+    static name * g_int64_name;
+
     ffi_type * to_ffi_type (expr const & e) {
-        if (is_constant(e, name("unsigned"))) {
+        if (is_constant(e, *g_uint8_name)) {
+            return &ffi_type_uint8;
+        } else if (is_constant(e, *g_uint16_name)) {
+            return &ffi_type_uint16;
+        } else if (is_constant(e, *g_uint32_name)) {
             return &ffi_type_uint32;
+        } else if (is_constant(e, *g_uint64_name)) {
+            return &ffi_type_uint64;
+        } else if (is_constant(e, *g_int8_name)) {
+            return &ffi_type_sint8;
+        } else if (is_constant(e, *g_int16_name)) {
+            return &ffi_type_sint16;
+        } else if (is_constant(e, *g_int32_name)) {
+            return &ffi_type_sint32;
+        } else if (is_constant(e, *g_int64_name)) {
+            return &ffi_type_sint64;
         } else {
             throw exception(sstream() << "unsupported ffi type: " << e);
         }
@@ -55,7 +81,6 @@ namespace lean {
         m_ptr->inc_ref();
     }
 
-    static name * g_vm_ffi;
     struct vm_ffi_attribute_data : public attr_data {
         name m_obj;
         optional<name> m_c_fun;
@@ -94,6 +119,15 @@ namespace lean {
 
     void initialize_vm_ffi() {
         g_vm_ffi = new name("ffi");
+        g_uint8_name  = new name ({"foreign", "uint_8"});
+        g_uint16_name = new name ({"foreign", "uint_16"});
+        g_uint32_name = new name ({"foreign", "uint_32"});
+        g_uint64_name = new name ({"foreign", "uint_64"});
+        g_int8_name   = new name ({"foreign", "int_8"});
+        g_int16_name  = new name ({"foreign", "int_16"});
+        g_int32_name  = new name ({"foreign", "int_32"});
+        g_int64_name  = new name ({"foreign", "int_64"});
+
         register_system_attribute(vm_ffi_attribute(
             *g_vm_ffi, "Registers a binding to a foreign function.",
             [](environment const & env, io_state const &, name const & d, unsigned, bool) -> environment {
@@ -106,6 +140,14 @@ namespace lean {
 
     void finalize_vm_ffi() {
         delete g_vm_ffi;
+        delete g_uint8_name;
+        delete g_uint16_name;
+        delete g_uint32_name;
+        delete g_uint64_name;
+        delete g_int8_name;
+        delete g_int16_name;
+        delete g_int32_name;
+        delete g_int64_name;
     }
 
     static name * g_vm_ffi;

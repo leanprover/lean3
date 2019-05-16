@@ -13,6 +13,11 @@ suffices a + 0 < a + b, by {simp at this, assumption},
 by {apply nat.add_lt_add_left, assumption}
 
 /- TODO(Leo): move this lemma, or delete it after we add algebraic normalizer. -/
+lemma nat.lt_add_of_zero_lt_right (a b : nat) (h : 0 < b) : a < b + a :=
+suffices 0 + a < b + a, by {simp at this ⊢, assumption},
+by {apply nat.add_lt_add_right, assumption}
+
+/- TODO(Leo): move this lemma, or delete it after we add algebraic normalizer. -/
 lemma nat.zero_lt_one_add (a : nat) : 0 < 1 + a :=
 suffices 0 < a + 1, by {simp, assumption},
 nat.zero_lt_succ _

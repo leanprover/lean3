@@ -1,0 +1,7 @@
+/Users/simon/lean/lean-master/tests/lean
+gcc some_file.o -shared -o some_file.so
+
+
+next!
+
+21

@@ -30,6 +30,7 @@ Author: Leonardo de Moura
 #include "library/vm/vm.h"
 #include "library/vm/vm_name.h"
 #include "library/vm/vm_nat.h"
+#include "library/vm/vm_int.h"
 #include "library/vm/vm_option.h"
 #include "library/vm/vm_expr.h"
 #include "library/vm/vm_ffi.h"
@@ -1616,8 +1617,29 @@ void ffi_push(T const & x, buffer<void *> & vals, buffer<int> & supp) {
 
 void ffi_from_obj(ffi_type const * t, vm_obj const & obj,
                    buffer<void *> & vals, buffer<int> & supp) {
-    if (t == &ffi_type_uint32) {
-        unsigned i = force_to_unsigned(obj, 0);
+    if (t == &ffi_type_sint8) {
+        char i = force_to_int(obj, 0);
+        ffi_push(i, vals, supp);
+    } else if (t == &ffi_type_sint16) {
+        short i = force_to_int(obj, 0);
+        ffi_push(i, vals, supp);
+    } else if (t == &ffi_type_sint32) {
+        int i = force_to_int(obj, 0);
+        ffi_push(i, vals, supp);
+    } else if (t == &ffi_type_sint64) {
+        long i = force_to_long(obj, 0);
+        ffi_push(i, vals, supp);
+    } else if (t == &ffi_type_uint8) {
+        unsigned char i = force_to_unsigned(obj, 0);
+        ffi_push(i, vals, supp);
+    } else if (t == &ffi_type_uint16) {
+        unsigned short i = force_to_unsigned(obj, 0);
+        ffi_push(i, vals, supp);
+    } else if (t == &ffi_type_uint32) {
+        unsigned int i = force_to_unsigned(obj, 0);
+        ffi_push(i, vals, supp);
+    } else if (t == &ffi_type_uint64) {
+        unsigned long i = force_to_unsigned_long(obj, 0);
         ffi_push(i, vals, supp);
     } else {
         throw exception("unsupported argument type");
@@ -1625,8 +1647,29 @@ void ffi_from_obj(ffi_type const * t, vm_obj const & obj,
 }
 
 vm_obj ffi_to_obj(ffi_type const * t, ffi_arg v) {
-    if (t == &ffi_type_uint32) {
-        unsigned *p = reinterpret_cast<unsigned *>(&v);
+    if (t == &ffi_type_sint8) {
+        char *p = reinterpret_cast<char *>(&v);
+        return mk_vm_int(*p);
+    } else if (t == &ffi_type_sint16) {
+        short *p = reinterpret_cast<short *>(&v);
+        return mk_vm_int(*p);
+    } else if (t == &ffi_type_sint32) {
+        int *p = reinterpret_cast<int *>(&v);
+        return mk_vm_int(*p);
+    } else if (t == &ffi_type_sint64) {
+        long *p = reinterpret_cast<long *>(&v);
+        return mk_vm_int(*p);
+    } else if (t == &ffi_type_uint8) {
+        unsigned char *p = reinterpret_cast<unsigned char *>(&v);
+        return mk_vm_nat(*p);
+    } else if (t == &ffi_type_uint16) {
+        unsigned short *p = reinterpret_cast<unsigned short *>(&v);
+        return mk_vm_nat(*p);
+    } else if (t == &ffi_type_uint32) {
+        unsigned int *p = reinterpret_cast<unsigned int *>(&v);
+        return mk_vm_nat(*p);
+    } else if (t == &ffi_type_uint64) {
+        unsigned long *p = reinterpret_cast<unsigned long *>(&v);
         return mk_vm_nat(*p);
     } else {
         throw exception("unsupported argument type");

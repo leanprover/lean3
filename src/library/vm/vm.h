@@ -265,6 +265,9 @@ inline vm_obj mk_vm_external(vm_external * obj) { lean_assert(obj && obj->get_rc
 /* helper functions for creating natural numbers */
 vm_obj mk_vm_nat(unsigned n);
 vm_obj mk_vm_nat(mpz const & n);
+vm_obj mk_vm_int(int n);
+vm_obj mk_vm_int(mpz const & n);
+
 inline vm_obj mk_vm_unit() { return mk_vm_simple(0); }
 inline vm_obj mk_vm_false() { return mk_vm_simple(0); }
 inline vm_obj mk_vm_true() { return mk_vm_simple(1); }

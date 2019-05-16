@@ -73,6 +73,32 @@ int force_to_int(vm_obj const & o, int def) {
         return def;
 }
 
+long int to_long(vm_obj const & o) {
+    if (is_simple(o))
+        return to_small_int(o);
+    else
+        return to_mpz(o).get_long_int();
+}
+
+optional<long> try_to_long(vm_obj const & o) {
+    if (is_simple(o)) {
+        return optional<long>(to_small_int(o));
+    } else {
+        mpz const & v = to_mpz(o);
+        if (v.is_long_int())
+            return optional<long>(v.get_long_int());
+        else
+            return optional<long>();
+    }
+}
+
+long force_to_long(vm_obj const & o, long def) {
+    if (auto r = try_to_long(o))
+        return *r;
+    else
+        return def;
+}
+
 MK_THREAD_LOCAL_GET_DEF(mpz, get_mpz1);
 MK_THREAD_LOCAL_GET_DEF(mpz, get_mpz2);
 
