@@ -1180,7 +1180,7 @@ struct vm_decls : public environment_extension {
 
     void bind_foreign_symbol(name const & obj, name const & decl, string const & c_fun, buffer<expr> const & args, expr const & t) {
         auto idx = get_vm_index(decl);
-        m_decls.insert(idx, m_foreign[obj]->get_cfun(decl, idx, c_fun, args, t));
+        m_decls.insert(idx, m_foreign[obj].get_cfun(decl, idx, c_fun, args, t));
     }
 
     unsigned reserve(name const & n, unsigned arity) {
@@ -1803,9 +1803,6 @@ vm_obj vm_state::invoke_closure(vm_obj const & fn, unsigned DEBUG_CODE(nargs)) {
         break;
     case vm_decl_kind::CFun:
         invoke_cfun(d);
-        break;
-    case vm_decl_kind::FFICall:
-        invoke_ffi_call(d);
         break;
     }
     m_pc     = saved_pc;
@@ -2949,18 +2946,6 @@ void vm_state::invoke_cfun(vm_decl const & d) {
         invoke_ffi_call(d.get_cfn(), d.get_sig());
     else
         invoke_fn(d.get_cfn(), d.get_arity());
-    if (m_profiling) {
-        unique_lock<mutex> lk(m_call_stack_mtx);
-        m_call_stack.pop_back();
-    }
-}
-
-void vm_state::invoke_ffi_call(vm_decl const & d) {
-    if (m_profiling) {
-        unique_lock<mutex> lk(m_call_stack_mtx);
-        push_frame_core(0, 0, d.get_idx());
-    }
-    invoke_ffi_call(d.get_cfn(), d.m_sig);
     if (m_profiling) {
         unique_lock<mutex> lk(m_call_stack_mtx);
         m_call_stack.pop_back();
