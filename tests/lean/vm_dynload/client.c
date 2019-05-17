@@ -29,7 +29,7 @@ void call(main_fn fn, int x, int y) {
 
 int main () {
     main_fn my_main;
-    void* handle = dlopen("some_file.so", RTLD_LAZY);
+    void* handle = dlopen("./some_file.so", RTLD_LAZY);
     if (!handle) {
         printf("Cannot load library: %s", dlerror());
         return -1;

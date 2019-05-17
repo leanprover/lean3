@@ -22,8 +22,9 @@ do
      io.env.set_cwd "vm_dynload",
      b ← io.fs.file_exists "some_file.so",
      if b then io.fs.remove "some_file.so" else pure (),
-     (io.cmd { cmd := "make", args := ["some_file.so"] }) >>= io.print_ln },
-   load_foreign_object `foo "vm_dynload/some_file.so",
+     (io.cmd { cmd := "make", args := ["some_file.so"] }) >>= io.print_ln,
+     io.env.set_cwd ".." },
+   load_foreign_object `foo "./vm_dynload/some_file.so",
    -- bind_foreign_symbol `foo `main 2 "main",
    return ()
 
