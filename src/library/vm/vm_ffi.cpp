@@ -6,7 +6,11 @@ Author: James King <james@agenultra.com>, Simon Hudon
 */
 
 #include <dlfcn.h>
-#include <ffi/ffi.h>
+#ifdef __linux__
+  #include <ffi.h>
+#else
+  #include <ffi/ffi.h>
+#endif
 #include <string>
 
 #include "util/lean_path.h"
