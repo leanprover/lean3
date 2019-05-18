@@ -32,6 +32,7 @@ Author: Leonardo de Moura
 #include "library/vm/vm_pos_info.h"
 #include "library/vm/vm_rb_map.h"
 #include "frontends/lean/structure_cmd.h"
+#include "util/path.h"
 
 namespace lean {
 struct vm_environment : public vm_external {
@@ -319,7 +320,7 @@ vm_obj environment_load_foreign_object(vm_obj const & _env, vm_obj const & _n, v
     environment env = to_env(_env);
     name n = to_name(_n);
     std::string file_name = to_string(_file_name);
-    return to_obj(load_foreign_object(env,n,file_name));
+    return to_obj(load_foreign_object(env, n, normalize_path(file_name)));
 }
 
 void initialize_vm_environment() {
