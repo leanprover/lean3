@@ -1,4 +1,3 @@
-/Users/simon/lean/lean-master/tests/lean
 gcc -c -fPIC some_file.c -o some_file.o -I/usr/local/lib/libffi-3.2.1/include
 gcc some_file.o -shared -o some_file.so
 

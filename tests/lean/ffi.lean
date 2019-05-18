@@ -17,11 +17,10 @@ def main : unit → unit → unit := λ _, id
 run_cmd
 do
    unsafe_run_io $ do
-   { io.env.get_cwd >>= io.print_ln,
-     b ← io.fs.dir_exists "vm_dynload",
+   { b ← io.fs.dir_exists "vm_dynload",
      io.env.set_cwd "vm_dynload",
-     b ← io.fs.file_exists "some_file.so",
-     if b then io.fs.remove "some_file.so" else pure (),
+     io.catch (io.fs.remove "some_file.so") (λ _, pure ()),
+     io.catch (io.fs.remove "some_file.o") (λ _, pure ()),
      (io.cmd { cmd := "make", args := ["some_file.so"] }) >>= io.print_ln,
      io.env.set_cwd ".." },
    load_foreign_object `foo "./vm_dynload/some_file.so",
