@@ -319,7 +319,7 @@ vm_obj environment_load_foreign_object(vm_obj const & _env, vm_obj const & _n, v
     environment env = to_env(_env);
     name n = to_name(_n);
     std::string file_name = to_string(_file_name);
-    return to_obj(load_foreign_object(env,n,file_name));
+    return to_obj(load_foreign_object(env, n, file_name));
 }
 
 void initialize_vm_environment() {
