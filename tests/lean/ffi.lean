@@ -25,7 +25,6 @@ do
      (io.cmd { cmd := "make", args := ["some_file.so"] }) >>= io.print_ln,
      io.env.set_cwd ".." },
    load_foreign_object `foo "./vm_dynload/some_file.so",
-   -- bind_foreign_symbol `foo `main 2 "main",
    return ()
 
 run_cmd trace "\nnext!\n"
