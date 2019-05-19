@@ -6,10 +6,10 @@ Author: James King <james@agenultra.com>, Simon Hudon
 */
 
 #include <dlfcn.h>
-#ifdef __linux__
-  #include <ffi.h>
-#else
+#ifdef USE_FFI_FFI_H
   #include <ffi/ffi.h>
+#else
+  #include <ffi.h>
 #endif
 #include <string>
 

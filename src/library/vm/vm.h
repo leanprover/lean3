@@ -10,10 +10,10 @@ Author: Leonardo de Moura
 #include <vector>
 #include <string>
 #include <cstdint>
-#ifdef __linux__
-#include <ffi.h>
+#ifdef USE_FFI_FFI_H
+  #include <ffi/ffi.h>
 #else
-#include <ffi/ffi.h>
+  #include <ffi.h>
 #endif
 #include "util/debug.h"
 #include "util/compiler_hints.h"

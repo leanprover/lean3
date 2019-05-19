@@ -8,10 +8,10 @@ Author: Leonardo de Moura
 #include <string>
 #include <algorithm>
 #include <vector>
-#ifdef __linux__
-  #include <ffi.h>
-#else
+#ifdef USE_FFI_FFI_H
   #include <ffi/ffi.h>
+#else
+  #include <ffi.h>
 #endif
 #include <unordered_map>
 #include <unordered_set>
