@@ -6,6 +6,7 @@ environment:
   CYG_CACHE: C:/cygwin/var/cache/setup
   CYG_MIRROR: http://mirrors.kernel.org/sourceware/cygwin/
   VSVER: 15
+  LIBFFI_V: 3.2
   matrix:
   - CFG: MINGW64
     UPLOAD: ON
@@ -23,19 +24,19 @@ install:
           $env:VCVARS_PLATFORM="x86"
           $env:BUILD="i686-pc-cygwin"
           $env:HOST="i686-pc-cygwin"
-          $env:MSVCC="/cygdrive/c/projects/lean/libffi-3.3-rc0/msvcc.sh"
+          $env:MSVCC="/cygdrive/c/projects/lean/libffi-%LIBFFI_V%/msvcc.sh"
           $env:SRC_ARCHITECTURE="x86"
         } ElseIf ($env:Platform -Match "arm") {
           $env:VCVARS_PLATFORM="x86_arm"
           $env:BUILD="i686-pc-cygwin"
           $env:HOST="arm-w32-cygwin"
-          $env:MSVCC="/cygdrive/c/projects/lean/libffi-3.3-rc0/msvcc.sh -marm"
+          $env:MSVCC="/cygdrive/c/projects/lean/libffi-%LIBFFI_V%/msvcc.sh -marm"
           $env:SRC_ARCHITECTURE="arm"
         } Else {
           $env:VCVARS_PLATFORM="amd64"
           $env:BUILD="x86_64-w64-cygwin"
           $env:HOST="x86_64-w64-cygwin"
-          $env:MSVCC="/cygdrive/c/projects/lean/libffi-3.3-rc0/msvcc.sh -m64"
+          $env:MSVCC="/cygdrive/c/projects/lean/libffi-%LIBFFI_V%/msvcc.sh -m64"
           $env:SRC_ARCHITECTURE="x86"
       }
   - 'appveyor DownloadFile https://cygwin.com/setup-x86.exe -FileName setup.exe'
@@ -49,28 +50,32 @@ install:
 
   # through cyg-get
   # - alias cyg-get="setup.exe -q -P"
-  - pip install paramiko --force-reinstall
-  - choco install libffi-dev
+  # - pip install paramiko --force-reinstall
+  # - choco install libffi-dev
   # - setup.exe -q -P cygwin32-gcc-g++
   # - gcc-core gcc-g++ git libffi-devel nano openssl openssl-devel python-crypto python2 python2-devel python2-openssl python2-pip python2-setuptools tree
 
   # # install libffi
-  # - 'appveyor DownloadFile https://github.com/libffi/libffi/releases/download/v3.3-rc0/libffi-3.3-rc0.tar.gz -FileName libffi-3.3-rc0.tar.gz'
+  # - 'appveyor DownloadFile https://github.com/libffi/libffi/releases/download/v3.3-rc0/libffi-3.3-rc0.tar.gz -FileName libffi.tar.gz'
+  # - 'appveyor DownloadFile ftp://sourceware.org/pub/libffi/libffi-%LIBFFI_V%.tar.gz -FileName libffi.tar.gz'
+  # - 'Install-Package libffi -Version 3.2.1.1'
+  - 'nuget install libffi'
+  - curl -fsS -o libffi.tar.gz ftp://sourceware.org/pub/libffi/libffi-%LIBFFI_V%.tar.gz
   # - pwd
   # - c:\cygwin\bin\sh -lc 'pwd'
   # - c:\cygwin\bin\sh -lc 'echo $OLDPWD'
-  # - c:\cygwin\bin\sh -lc '(cd $OLDPWD; tar xvzf libffi-3.3-rc0.tar.gz)'
-  # - cd libffi-3.3-rc0
+  - c:\cygwin\bin\sh -lc '(cd $OLDPWD; tar xvzf libffi-rc0.tar.gz)'
+  # - cd libffi-%LIBFFI_V%
   # - ls
   # # - sh ./configure --disable-docs CC='%MSVCC%' CXX='%MSVCC%' LD=link CPP="cl -nologo -EP"
   # # - sh -lc 'make'
   # # - sh -lc 'make install'
-  # # - c:\cygwin\bin\sh -lc "(cd $OLDPWD; ./configure CC='%MSVCC%' CXX='%MSVCC%' LD='link' CPP='cl -nologo -EP' CXXCPP='cl -nologo -EP' CPPFLAGS='-DFFI_BUILDING_DLL' AR='/cygdrive/c/projects/lean/libffi-3.3-rc0/.travis/ar-lib lib' NM='dumpbin -symbols' STRIP=':' --build=$BUILD --host=$HOST;)"
-  # - c:\cygwin\bin\sh -lc "(cd $OLDPWD; ./configure CC='%MSVCC%' CXX='%MSVCC%' LD='link' CPP='cl -nologo -EP' CXXCPP='cl -nologo -EP' AR='/cygdrive/c/projects/lean/libffi-3.3-rc0/.travis/ar-lib lib' NM='dumpbin -symbols' STRIP=':' --build=$BUILD --host=$HOST;)"
-  # - c:\cygwin\bin\sh -lc '(cd $OLDPWD; make;)'
-  # - c:\cygwin\bin\sh -lc "(cd $OLDPWD; cp src/%SRC_ARCHITECTURE%/ffitarget.h include; make; find .;)"
+  # # - c:\cygwin\bin\sh -lc "(cd $OLDPWD; ./configure CC='%MSVCC%' CXX='%MSVCC%' LD='link' CPP='cl -nologo -EP' CXXCPP='cl -nologo -EP' CPPFLAGS='-DFFI_BUILDING_DLL' AR='/cygdrive/c/projects/lean/libffi-%LIBFFI_V%/.travis/ar-lib lib' NM='dumpbin -symbols' STRIP=':' --build=$BUILD --host=$HOST;)"
+  - c:\cygwin\bin\sh -lc "(cd $OLDPWD; ./configure CC='%MSVCC%' CXX='%MSVCC%' LD='link' CPP='cl -nologo -EP' CXXCPP='cl -nologo -EP' AR='/cygdrive/c/projects/lean/libffi-%LIBFFI_V%/.travis/ar-lib lib' NM='dumpbin -symbols' STRIP=':' --build=$BUILD --host=$HOST;)"
+  - c:\cygwin\bin\sh -lc '(cd $OLDPWD; make;)'
+  - c:\cygwin\bin\sh -lc "(cd $OLDPWD; cp src/%SRC_ARCHITECTURE%/ffitarget.h include; make; find .;)"
   # # - c:\cygwin\bin\sh -lc "(cd $OLDPWD; cp `find . -name 'libffi-?.dll'` $HOST/testsuite/; make check; cat `find ./ -name libffi.log`)"
-  # - c:\cygwin\bin\sh -lc '(cd $OLDPWD; make install;)'
+  - c:\cygwin\bin\sh -lc '(cd $OLDPWD; make install;)'
 
 build_script:
   - call "C:\Program Files (x86)\Microsoft Visual Studio\2017\Community\VC\Auxiliary\Build\vcvars64.bat"
