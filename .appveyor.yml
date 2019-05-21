@@ -18,6 +18,13 @@ install:
   # upgrade git for vcpkg: https://github.com/appveyor/ci/issues/2097
   - if %CFG% == MSVC (choco upgrade git -y & vcpkg install mpir:x64-windows)
 
+  - cd ..
+  - git clone https://github.com/Microsoft/vcpkg
+  - cd vcpkg
+  - .\bootstrap-vcpkg.bat
+  - vcpkg.exe install dlfcn-win32
+  - cd %APPVEYOR_BUILD_FOLDER%
+
   - 'nuget install libffi'
   - pwd
   - ls
@@ -25,34 +32,6 @@ install:
   - ls libffi.3.2.1.1/build/native/*
   - ls libffi.3.2.1.1/build/native/*/*/
   - ls libffi.3.2.1.1/build/native/*/*/*
-
-  # through cyg-get
-  # - alias cyg-get="setup.exe -q -P"
-  # - pip install paramiko --force-reinstall
-  # - choco install libffi-dev
-  # - setup.exe -q -P cygwin32-gcc-g++
-  # - gcc-core gcc-g++ git libffi-devel nano openssl openssl-devel python-crypto python2 python2-devel python2-openssl python2-pip python2-setuptools tree
-
-  # # install libffi
-  # - 'appveyor DownloadFile https://github.com/libffi/libffi/releases/download/v3.3-rc0/libffi-3.3-rc0.tar.gz -FileName libffi.tar.gz'
-  # - 'appveyor DownloadFile ftp://sourceware.org/pub/libffi/libffi-%LIBFFI_V%.tar.gz -FileName libffi.tar.gz'
-  # - 'Install-Package libffi -Version 3.2.1.1'
-#   - curl -fsS -o libffi.tar.gz ftp://sourceware.org/pub/libffi/libffi-%LIBFFI_V%.tar.gz
-#   # - pwd
-#   # - c:\cygwin\bin\sh -lc 'pwd'
-#   # - c:\cygwin\bin\sh -lc 'echo $OLDPWD'
-#   - c:\cygwin\bin\sh -lc '(cd $OLDPWD; tar xvzf libffi-rc0.tar.gz)'
-#   # - cd libffi-%LIBFFI_V%
-#   # - ls
-#   # # - sh ./configure --disable-docs CC='%MSVCC%' CXX='%MSVCC%' LD=link CPP="cl -nologo -EP"
-#   # # - sh -lc 'make'
-#   # # - sh -lc 'make install'
-#   # # - c:\cygwin\bin\sh -lc "(cd $OLDPWD; ./configure CC='%MSVCC%' CXX='%MSVCC%' LD='link' CPP='cl -nologo -EP' CXXCPP='cl -nologo -EP' CPPFLAGS='-DFFI_BUILDING_DLL' AR='/cygdrive/c/projects/lean/libffi-%LIBFFI_V%/.travis/ar-lib lib' NM='dumpbin -symbols' STRIP=':' --build=$BUILD --host=$HOST;)"
-#   - c:\cygwin\bin\sh -lc "(cd $OLDPWD; ./configure CC='%MSVCC%' CXX='%MSVCC%' LD='link' CPP='cl -nologo -EP' CXXCPP='cl -nologo -EP' AR='/cygdrive/c/projects/lean/libffi-%LIBFFI_V%/.travis/ar-lib lib' NM='dumpbin -symbols' STRIP=':' --build=$BUILD --host=$HOST;)"
-#   - c:\cygwin\bin\sh -lc '(cd $OLDPWD; make;)'
-#   - c:\cygwin\bin\sh -lc "(cd $OLDPWD; cp src/%SRC_ARCHITECTURE%/ffitarget.h include; make; find .;)"
-#   # # - c:\cygwin\bin\sh -lc "(cd $OLDPWD; cp `find . -name 'libffi-?.dll'` $HOST/testsuite/; make check; cat `find ./ -name libffi.log`)"
-#   - c:\cygwin\bin\sh -lc '(cd $OLDPWD; make install;)'
 
 build_script:
   - call "C:\Program Files (x86)\Microsoft Visual Studio\2017\Community\VC\Auxiliary\Build\vcvars64.bat"
