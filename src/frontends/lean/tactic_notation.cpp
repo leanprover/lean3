@@ -193,7 +193,7 @@ static expr parse_interactive_tactic(parser & p, name const & decl_name, name co
                 args.push_back(p.parse_expr(get_max_prec()));
             }
             p.check_break_before();
-        } catch (break_at_pos_exception) {
+        } catch (break_at_pos_exception &) {
             throw;
         } catch (...) {
             p.check_break_before();

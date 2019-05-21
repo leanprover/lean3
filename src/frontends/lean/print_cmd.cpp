@@ -349,7 +349,7 @@ void print_id_info(parser & p, message_builder & out, name const & id, bool show
     try {
         cs = p.to_constants(id, "", pos);
         found = true;
-    } catch (parser_error) {}
+    } catch (parser_error &) {}
     bool first = true;
     for (name const & c : cs) {
         if (first) first = false; else out << "\n";

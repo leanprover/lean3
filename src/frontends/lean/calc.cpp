@@ -154,7 +154,7 @@ expr parse_calc(parser & p) {
             new_pred           = calc_pred(pred_op(new_pred), pred_rhs(pred), pred_rhs(new_pred));
             calc_step new_step = parse_calc_proof(p, new_pred);
             step               = join(p, step, new_step, pos);
-        } catch (parser_error ex) {
+        } catch (parser_error & ex) {
             p.maybe_throw_error(std::move(ex));
         }
     }

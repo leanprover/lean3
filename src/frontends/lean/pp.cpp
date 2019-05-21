@@ -1783,7 +1783,7 @@ auto pretty_fn::pp(expr const & e, bool ignore_hide) -> result {
         if (!m_proofs && !is_constant(e) && !is_mlocal(e) && closed(e) && is_prop(m_ctx.infer(e))) {
             return result(format("_"));
         }
-    } catch (exception) {}
+    } catch (exception &) {}
 
     if (auto r = pp_notation(e))
         return *r;
@@ -1911,7 +1911,7 @@ format pretty_fn::operator()(expr const & e) {
     if (!m_options.contains(get_pp_proofs_name()) && !get_pp_all(m_options)) {
         try {
             m_proofs = !closed(purified) || is_prop(m_ctx.infer(purified));
-        } catch (exception) {
+        } catch (exception &) {
             m_proofs = true;
         }
     }
