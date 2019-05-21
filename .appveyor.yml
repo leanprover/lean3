@@ -7,6 +7,7 @@ environment:
   CYG_MIRROR: http://mirrors.kernel.org/sourceware/cygwin/
   VSVER: 15
   LIBFFI_V: 3.2
+  dlfcn-win32_DIR: C:\projects\vcpkg\installed\x86-windows
   matrix:
   - CFG: MINGW64
     UPLOAD: ON
@@ -23,15 +24,28 @@ install:
   - cd vcpkg
   - .\bootstrap-vcpkg.bat
   - vcpkg.exe install dlfcn-win32
+  - ls C:\projects\vcpkg\downloads
+  - ls C:\projects\vcpkg\installed\x86-windows
+  - ls C:\projects\vcpkg\installed\vcpkg
+  - ls C:\projects\vcpkg\installed
+
+  - ls C:\projects\vcpkg\installed\*  || true
+  - ls C:\projects\vcpkg\downloads\tools || true
+  - ls C:\projects\vcpkg\downloads\*\* || true
+  # - ls C:\projects\vcpkg\downloads\*\*\*
+  - ls %HOME%
+  - ls %HOME%\installed || true
+  - ls %HOME%\packages || true
+  - ls %HOME%\ports || true
   - cd %APPVEYOR_BUILD_FOLDER%
 
   - 'nuget install libffi'
-  - pwd
-  - ls
-  - ls libffi.3.2.1.1/build/native
-  - ls libffi.3.2.1.1/build/native/*
-  - ls libffi.3.2.1.1/build/native/*/*/
-  - ls libffi.3.2.1.1/build/native/*/*/*
+  # - pwd
+  # - ls
+  # - ls libffi.3.2.1.1/build/native
+  # - ls libffi.3.2.1.1/build/native/*
+  # - ls libffi.3.2.1.1/build/native/*/*/
+  # - ls libffi.3.2.1.1/build/native/*/*/*
 
 build_script:
   - call "C:\Program Files (x86)\Microsoft Visual Studio\2017\Community\VC\Auxiliary\Build\vcvars64.bat"

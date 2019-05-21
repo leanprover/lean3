@@ -337,6 +337,28 @@ else()
     list(REMOVE_ITEM CMAKE_REQUIRED_LIBRARIES ${FFI_LIBRARY_PATH})
     set(EXTRA_LIBS ${EXTRA_LIBS} ${FFI_LIBRARY_PATH})
     include_directories(${FFI_INCLUDE_PATH})
+
+    # dlfcn.h
+    if (WIN32)
+      find_path(DLFCN_INCLUDE_PATH dlfcn.h PATHS C:/projects/vcpkg/installed)
+      find_package(dlfcn-win32 REQUIRED PATHS C:/projects/vcpkg/installed)
+      if( NOT DLFCN_INCLUDE_PATH )
+        message(FATAL_ERROR "dlfcn.h is not found.")
+      endif()
+      set(EXTRA_LIBS ${EXTRA_LIBS} dlfcn-win32::dl)
+      include_directories(${DLFCN_INCLUDE_PATH})
+    endif ()
+    # find_path(DLFCN_INCLUDE_PATH dlfcn.h PATHS ${DLFCN_INCLUDE_DIR})
+    # if( NOT (EXISTS "${DLFCN_INCLUDE_PATH}/dlfcn.h") )
+    #   message(FATAL_ERROR "dlfcn.h not found.")
+    # endif()
+    # find_library(DLFCN_LIBRARY_PATH dlfcn PATHS ${DLFCN_LIBRARY_DIR})
+    # if( NOT DLFCN_LIBRARY_PATH )
+    #   message(FATAL_ERROR "dlfcn library is not found.")
+    # endif()
+    # set(EXTRA_LIBS ${EXTRA_LIBS} ${DLFCN_LIBRARY_PATH})
+    # include_directories(${DLFCN_INCLUDE_PATH})
+
 endif()
 
 # DL
