@@ -48,6 +48,7 @@ install:
   # - ls libffi.3.2.1.1/build/native/*/*/*
 
 build_script:
+  - git submodule update --init --recursive
   - call "C:\Program Files (x86)\Microsoft Visual Studio\2017\Community\VC\Auxiliary\Build\vcvars64.bat"
   - cd %APPVEYOR_BUILD_FOLDER% && mkdir build && cd build
   - ls c:/projects/lean/libffi.3.2.1.1/build/native/include

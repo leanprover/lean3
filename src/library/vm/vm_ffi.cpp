@@ -5,7 +5,11 @@ Released under Apache 2.0 license as described in the file LICENSE.
 Author: James King <james@agenultra.com>, Simon Hudon
 */
 
+#if defined(LEAN_WINDOWS) && !defined(LEAN_CYGWIN)
+#include <windows.h>
+#else
 #include <dlfcn.h>
+#endif
 #ifdef USE_FFI_FFI_H
   #include <ffi/ffi.h>
 #else

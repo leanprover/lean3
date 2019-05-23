@@ -1,0 +1,3 @@
+[submodule "thirdparty/dlfcn-win32"]
+	path = thirdparty/dlfcn-win32
+	url = https://github.com/dlfcn-win32/dlfcn-win32
