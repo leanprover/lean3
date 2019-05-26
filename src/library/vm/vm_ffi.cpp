@@ -137,11 +137,11 @@ namespace lean {
         g_int64_name  = new name ({"foreign", "int_64"});
 
         register_system_attribute(vm_ffi_attribute(
-            *g_vm_ffi, "Registers a binding to a foreign function.",
+            *g_vm_ffi, "Registers a binding to a foreign function or structure.",
             [](environment const & env, io_state const &, name const & d, unsigned, bool) -> environment {
-                auto data = get_vm_ffi_attribute().get(env, d);
-                name sym = data->m_c_fun? *data->m_c_fun : d;
-                auto b = add_foreign_symbol(env, data->m_obj, d, sym.to_string());
+                auto ffi_attr = get_vm_ffi_attribute().get(env, d);
+                name sym = ffi_attr->m_c_fun? *ffi_attr->m_c_fun : d;
+                auto b = add_foreign_symbol(env, ffi_attr->m_obj, d, sym.to_string());
                 return b;
             }));
     }
