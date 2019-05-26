@@ -125,6 +125,25 @@ namespace lean {
         return static_cast<vm_ffi_attribute const &>(get_system_attribute(*g_vm_ffi));
     }
 
+  struct vm_ffi_attribute_struct : public attr_struct {
+    name m_obj;
+    optional<name> m_c_struct;
+    // TODO: Find the type for Lean struct fields, build a Map<name, type>
+    std::vector<> m_c_struct_fields;
+    vm_ffi_attribute_struct() {}
+    vm_ffi_attrivute_struct(name const & obj,
+                            optional<name> const & c_struct,
+                            std::vector<> const & c_struct_fields) :
+      m_obj(obj), m_c_struct(c_struct), m_c_struct_fields(c_struct_fields) {}
+    virtual unsigned hash() const override { return m_obj.hash(); }
+    void write(serializer & s) const { s << m_obj << m_c_struct << m_c_struct_fields; }
+    void read(deserializer & d) {
+      d >> m_obj >> m_c_struct >> m_c_struct_fields
+    }
+    void parse(abstract_parser & p) override {
+    }
+  };
+
     void initialize_vm_ffi() {
         g_vm_ffi = new name("ffi");
         g_uint8_name  = new name ({"foreign", "uint_8"});
