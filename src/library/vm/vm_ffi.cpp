@@ -140,8 +140,6 @@ namespace lean {
     void read(deserializer & d) {
       d >> m_obj >> m_c_struct >> m_c_struct_fields
     }
-    void parse(abstract_parser & p) override {
-    }
   };
 
     void initialize_vm_ffi() {
