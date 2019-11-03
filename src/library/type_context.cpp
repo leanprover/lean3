@@ -2850,6 +2850,7 @@ expr type_context_old::try_to_unstuck_using_complete_instance(expr const & e) {
           nat.succ n  =?=  @has_add.add nat ?m n 1
 
     */
+    return e;
     if (!is_app(e))
         return e; /* do nothing */
     buffer<expr> args;

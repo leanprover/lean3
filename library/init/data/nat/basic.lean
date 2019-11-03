@@ -135,7 +135,7 @@ lemma pred_lt : ∀ {n : ℕ}, n ≠ 0 → pred n < n
 | (succ a) h := lt_succ_of_le (less_than_or_equal.refl _)
 
 lemma sub_le (a b : ℕ) : a - b ≤ a :=
-nat.rec_on b (nat.le_refl (a - 0)) (λ b₁, nat.le_trans (pred_le (a - b₁)))
+nat.rec_on b (show a - 0 ≤ a - 0, from nat.le_refl (a - 0)) (λ b₁, nat.le_trans (pred_le (a - b₁)))
 
 lemma sub_lt : ∀ {a b : ℕ}, 0 < a → 0 < b → a - b < a
 | 0     b     h1 h2 := absurd h1 (nat.lt_irrefl 0)

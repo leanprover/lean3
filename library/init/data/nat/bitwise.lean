@@ -172,7 +172,7 @@ end
 lemma shiftl_sub : ∀ m {n k}, k ≤ n → shiftl m (n - k) = shiftr (shiftl m n) k := shiftl'_sub _
 
 lemma shiftl_eq_mul_pow (m) : ∀ n, shiftl m n = m * 2 ^ n
-| 0     := (mul_one _).symm
+| 0     := show m = m * 1, from (mul_one _).symm
 | (k+1) := show bit0 (shiftl m k) = m * (2^k * 2), by rw [bit0_val, shiftl_eq_mul_pow]; simp
 
 lemma shiftl'_tt_eq_mul_pow (m) : ∀ n, shiftl' tt m n + 1 = (m + 1) * 2 ^ n
