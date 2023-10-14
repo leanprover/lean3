@@ -1,4 +1,4 @@
-**Important Lean 3.4.2 is the latest release. It is also the last release for the Lean 3.x code base. We are currently developing [Lean 4](https://github.com/leanprover/lean4). For reporting bugs and bug fixes in Lean 3.x, please go to the [community branch](https://github.com/leanprover-community/lean).**
+**This repository has been frozen. [Lean 4](https://github.com/leanprover/lean4) is now the official release.**
 
 About
 -----
